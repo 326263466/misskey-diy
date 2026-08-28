@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #suffix>{{ getSoundTypeName(sounds[type].type) }}</template>
 					<Suspense>
 						<template #default>
-							<XSound :def="sounds[type]" @update="(res) => updated(type, res)"/>
+							<XSound :key="resetKey" :def="sounds[type]" @update="(res) => updated(type, res)"/>
 						</template>
 						<template #fallback>
 							<MkLoading/>
@@ -81,6 +81,8 @@ const notUseSound = prefer.model('sound.notUseSound');
 const useSoundOnlyWhenActive = prefer.model('sound.useSoundOnlyWhenActive');
 const masterVolume = prefer.model('sound.masterVolume');
 
+const resetKey = ref(0);
+
 const sounds = ref<Record<OperationType, Ref<SoundStore>>>({
 	note: prefer.r['sound.on.note'],
 	noteMy: prefer.r['sound.on.noteMy'],
@@ -116,11 +118,18 @@ async function updated(type: keyof typeof sounds.value, sound: { type: SoundType
 }
 
 function reset() {
+	prefer.commit('sound.masterVolume', getInitialPrefValue('sound.masterVolume'));
+	prefer.commit('sound.notUseSound', getInitialPrefValue('sound.notUseSound'));
+	prefer.commit('sound.useSoundOnlyWhenActive', getInitialPrefValue('sound.useSoundOnlyWhenActive'));
+
 	for (const sound of Object.keys(sounds.value) as Array<keyof typeof sounds.value>) {
 		const v = getInitialPrefValue(`sound.on.${sound}`);
 		prefer.commit(`sound.on.${sound}`, v);
 		sounds.value[sound] = v;
 	}
+
+	// 展開済みのXSoundはprops.defをローカルstateに複製したまま保持されるため、作り直して表示を同期する
+	resetKey.value++;
 }
 
 const headerActions = computed(() => []);
