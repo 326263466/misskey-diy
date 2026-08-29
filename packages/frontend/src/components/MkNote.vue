@@ -134,7 +134,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<footer :class="$style.footer">
 				<button :class="$style.footerButton" class="_button" @click="reply()">
 					<i class="ti ti-message-circle"></i>
-					<p v-if="appearNote.repliesCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.repliesCount) }}</p>
+					<p v-if="$appearNote.repliesCount > 0" :class="$style.footerButtonCount">{{ number($appearNote.repliesCount) }}</p>
 				</button>
 				<button
 					v-if="canRenote"
@@ -563,7 +563,7 @@ const keymap = {
 .article {
 	position: relative;
 	display: flex;
-	padding: 28px 32px;
+	padding: 12px 16px;
 }
 
 .colorBar {
@@ -579,9 +579,9 @@ const keymap = {
 .avatar {
 	flex-shrink: 0;
 	display: block !important;
-	margin: 0 14px 0 0;
-	width: 58px;
-	height: 58px;
+	margin: 0 8px 0 0;
+	width: 40px;
+	height: 40px;
 
 	&.useSticky {
 		position: sticky !important;
@@ -717,7 +717,7 @@ const keymap = {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: -14px;
+	margin-top: 12px;
 	padding-right: 8px;
 }
 
@@ -746,15 +746,6 @@ const keymap = {
 	.renote {
 		padding: 12px 26px 0 26px;
 	}
-
-	.article {
-		padding: 24px 26px;
-	}
-
-	.avatar {
-		width: 50px;
-		height: 50px;
-	}
 }
 
 @container (max-width: 500px) {
@@ -764,14 +755,6 @@ const keymap = {
 
 	.renote {
 		padding: 10px 22px 0 22px;
-	}
-
-	.article {
-		padding: 20px 22px;
-	}
-
-	.footer {
-		margin-bottom: -8px;
 	}
 }
 
@@ -788,18 +771,10 @@ const keymap = {
 		padding: 0 16px 9px;
 		margin-top: 4px;
 	}
-
-	.article {
-		padding: 14px 16px;
-	}
 }
 
 @container (max-width: 450px) {
 	.avatar {
-		margin: 0 10px 0 0;
-		width: 46px;
-		height: 46px;
-
 		&.useSticky {
 			top: calc(14px + var(--MI-stickyTop, 0px));
 		}
@@ -812,13 +787,6 @@ const keymap = {
 		left: 6px;
 		width: 4px;
 		height: calc(100% - 12px);
-	}
-}
-
-@container (max-width: 300px) {
-	.avatar {
-		width: 44px;
-		height: 44px;
 	}
 }
 

@@ -412,7 +412,7 @@ export function useNote(
 			icon: 'ti ti-trash',
 			danger: true,
 			action: () => {
-				misskeyApi('notes/delete', { noteId: rawNote.id }).then(() => { globalEvents.emit('noteDeleted', rawNote.id); });
+				misskeyApi('notes/delete', { noteId: rawNote.id }).then(() => { globalEvents.emit('noteDeleted', rawNote.id, rawNote.replyId); });
 			},
 		});
 

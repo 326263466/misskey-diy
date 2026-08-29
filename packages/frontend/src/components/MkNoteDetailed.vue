@@ -12,9 +12,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	tabindex="0"
 >
 	<div v-if="appearNote.reply && appearNote.reply.replyId">
-		<div v-if="!conversationLoaded" style="padding: 16px">
-			<MkButton style="margin: 0 auto;" primary rounded @click="loadConversation">{{ i18n.ts.loadConversation }}</MkButton>
-		</div>
 		<MkNoteSub v-for="note in conversation" :key="note.id" :class="$style.replyToMore" :note="note"/>
 	</div>
 	<MkNoteSub v-if="appearNote.replyId" :note="appearNote?.reply ?? null" :class="$style.replyTo"/>
@@ -154,7 +151,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				/>
 				<button class="_button" :class="$style.noteFooterButton" @click="reply()">
 					<i class="ti ti-message-circle"></i>
-					<p v-if="appearNote.repliesCount > 0" :class="$style.noteFooterButtonCount">{{ number(appearNote.repliesCount) }}</p>
+					<p v-if="$appearNote.repliesCount > 0" :class="$style.noteFooterButtonCount">{{ number($appearNote.repliesCount) }}</p>
 				</button>
 				<button
 					v-if="canRenote"
@@ -198,9 +195,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div>
 			<div v-if="tab === 'replies'">
-				<div v-if="!repliesLoaded" style="padding: 16px">
-					<MkButton style="margin: 0 auto;" primary rounded @click="loadReplies">{{ i18n.ts.loadReplies }}</MkButton>
-				</div>
 				<MkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true"/>
 			</div>
 			<div v-else-if="tab === 'renotes'" :class="$style.tab_renotes">
@@ -272,7 +266,6 @@ import MkInstanceTicker from '@/components/MkInstanceTicker.vue';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
-import MkButton from '@/components/MkButton.vue';
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
@@ -360,10 +353,8 @@ const reactionsPaginator = markRaw(new Paginator('notes/reactions', {
 }));
 
 const replies = ref<Misskey.entities.Note[]>([]);
-const repliesLoaded = ref(false);
 
 function loadReplies() {
-	repliesLoaded.value = true;
 	misskeyApi('notes/children', {
 		noteId: appearNote.id,
 		limit: 30,
@@ -373,10 +364,8 @@ function loadReplies() {
 }
 
 const conversation = ref<Misskey.entities.Note[]>([]);
-const conversationLoaded = ref(false);
 
 function loadConversation() {
-	conversationLoaded.value = true;
 	if (appearNote.replyId == null) return;
 	misskeyApi('notes/conversation', {
 		noteId: appearNote.replyId,
@@ -384,6 +373,10 @@ function loadConversation() {
 		conversation.value = res.reverse();
 	});
 }
+
+// 回复和上文会话在打开详情页时直接加载，无需用户手动点击
+loadReplies();
+loadConversation();
 
 // キーボードショートカットマップ
 const keymap = {
@@ -493,8 +486,7 @@ const keymap = {
 }
 
 .note {
-	padding: 32px;
-	font-size: 1.2em;
+	padding: 12px 16px;
 
 	&:hover > .main > .footer > .button {
 		opacity: 1;
@@ -504,15 +496,15 @@ const keymap = {
 .noteHeader {
 	display: flex;
 	position: relative;
-	margin-bottom: 16px;
+	margin-bottom: 2px;
 	align-items: center;
 }
 
 .noteHeaderAvatar {
 	display: block;
 	flex-shrink: 0;
-	width: 58px;
-	height: 58px;
+	width: 40px;
+	height: 40px;
 }
 
 .noteHeaderBody {
@@ -520,8 +512,7 @@ const keymap = {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	padding-left: 16px;
-	font-size: 0.95em;
+	padding-left: 8px;
 }
 
 .noteHeaderName {
@@ -704,15 +695,6 @@ const keymap = {
 	.renote {
 		padding: 8px 16px 0 16px;
 	}
-
-	.note {
-		padding: 16px;
-	}
-
-	.noteHeaderAvatar {
-		width: 50px;
-		height: 50px;
-	}
 }
 
 @container (max-width: 350px) {
@@ -726,11 +708,6 @@ const keymap = {
 @container (max-width: 300px) {
 	.root {
 		font-size: 0.825em;
-	}
-
-	.noteHeaderAvatar {
-		width: 50px;
-		height: 50px;
 	}
 
 	.noteFooterButton {

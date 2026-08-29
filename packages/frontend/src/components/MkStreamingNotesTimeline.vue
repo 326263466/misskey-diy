@@ -31,11 +31,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		>
 			<template v-for="(note, i) in paginator.items.value" :key="note.id">
 				<div v-if="i > 0 && isSeparatorNeeded(paginator.items.value[i -1].createdAt, note.createdAt)" :data-scroll-anchor="note.id">
-					<div :class="$style.date">
-						<span><i class="ti ti-chevron-up"></i> {{ getSeparatorInfo(paginator.items.value[i -1].createdAt, note.createdAt)?.prevText }}</span>
-						<span style="height: 1em; width: 1px; background: var(--MI_THEME-divider);"></span>
-						<span>{{ getSeparatorInfo(paginator.items.value[i -1].createdAt, note.createdAt)?.nextText }} <i class="ti ti-chevron-down"></i></span>
-					</div>
 					<MkNote :class="$style.note" :note="note" :withHardMute="true"/>
 				</div>
 				<div v-else-if="note._shouldInsertAd_" :data-scroll-anchor="note.id">
@@ -76,7 +71,7 @@ import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { DI } from '@/di.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
-import { isSeparatorNeeded, getSeparatorInfo } from '@/utility/timeline-date-separate.js';
+import { isSeparatorNeeded } from '@/utility/timeline-date-separate.js';
 import { Paginator } from '@/utility/paginator.js';
 
 const props = withDefaults(defineProps<{
@@ -543,17 +538,6 @@ defineExpose({
 	&:active {
 		background: hsl(from var(--MI_THEME-accent) h s calc(l - 5));
 	}
-}
-
-.date {
-	display: flex;
-	font-size: 85%;
-	align-items: center;
-	justify-content: center;
-	gap: 1em;
-	padding: 8px 8px;
-	margin: 0 auto;
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
 }
 
 .ad {

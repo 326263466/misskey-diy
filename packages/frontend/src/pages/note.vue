@@ -4,19 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader :actions="headerActions" :tabs="headerTabs" displayBackButton>
 	<div class="_spacer" style="--MI_SPACER-w: 800px;">
 		<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
 			<div v-if="note">
-				<div v-if="showNext" class="_margin">
-					<MkNotesTimeline direction="up" :withControl="false" :pullToRefresh="false" class="" :paginator="showNext === 'channel' ? nextChannelPaginator : nextUserPaginator" :noGap="true" :forceDisableInfiniteScroll="true" />
-				</div>
-
 				<div class="_margin">
-					<div v-if="!showNext" class="_buttons" :class="$style.loadNext">
-						<MkButton v-if="note.channelId" rounded :class="$style.loadButton" @click="showNext = 'channel'"><i class="ti ti-chevron-up"></i> <i class="ti ti-device-tv"></i></MkButton>
-						<MkButton rounded :class="$style.loadButton" @click="showNext = 'user'"><i class="ti ti-chevron-up"></i> <i class="ti ti-user"></i></MkButton>
-					</div>
 					<div class="_margin _gaps_s">
 						<MkRemoteCaution v-if="note.user.host != null" :href="note.url ?? note.uri"/>
 						<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" :class="$style.note"/>
@@ -27,14 +19,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<MkClipPreview v-for="item in clips" :key="item.id" :clip="item"/>
 						</div>
 					</div>
-					<div v-if="!showPrev" class="_buttons" :class="$style.loadPrev">
-						<MkButton v-if="note.channelId" rounded :class="$style.loadButton" @click="showPrev = 'channel'"><i class="ti ti-chevron-down"></i> <i class="ti ti-device-tv"></i></MkButton>
-						<MkButton rounded :class="$style.loadButton" @click="showPrev = 'user'"><i class="ti ti-chevron-down"></i> <i class="ti ti-user"></i></MkButton>
-					</div>
-				</div>
-
-				<div v-if="showPrev" class="_margin">
-					<MkNotesTimeline :withControl="false" :pullToRefresh="false" class="" :paginator="showPrev === 'channel' ? prevChannelPaginator : prevUserPaginator" :noGap="true"/>
 				</div>
 			</div>
 			<MkError v-else-if="error" @retry="fetchNote()"/>
@@ -45,13 +29,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, ref, markRaw } from 'vue';
+import { computed, watch, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { host } from '@@/js/config.js';
 import MkNoteDetailed from '@/components/MkNoteDetailed.vue';
-import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
 import MkRemoteCaution from '@/components/MkRemoteCaution.vue';
-import MkButton from '@/components/MkButton.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
@@ -62,7 +44,6 @@ import { pleaseLogin } from '@/utility/please-login.js';
 import { getAppearNote } from '@/utility/get-appear-note.js';
 import { serverContext, assertServerContext } from '@/server-context.js';
 import { $i } from '@/i.js';
-import { Paginator } from '@/utility/paginator.js';
 
 // contextは非ログイン状態の情報しかないためログイン時は利用できない
 const CTX_NOTE = !$i && assertServerContext(serverContext, 'note') ? serverContext.note : null;
@@ -74,8 +55,6 @@ const props = defineProps<{
 
 const note = ref<null | Misskey.entities.Note>(CTX_NOTE);
 const clips = ref<Misskey.entities.Clip[]>();
-const showPrev = ref<'user' | 'channel' | false>(false);
-const showNext = ref<'user' | 'channel' | false>(false);
 const initialTab = computed<'reactions' | 'replies' | 'renotes' | undefined>(() => {
 	if (['reactions', 'replies', 'renotes'].includes(props.initialTab ?? '')) {
 		return props.initialTab as 'reactions' | 'replies' | 'renotes';
@@ -84,43 +63,7 @@ const initialTab = computed<'reactions' | 'replies' | 'renotes' | undefined>(() 
 });
 const error = ref();
 
-const prevUserPaginator = markRaw(new Paginator('users/notes', {
-	limit: 10,
-	initialId: props.noteId,
-	computedParams: computed(() => note.value ? ({
-		userId: note.value.userId,
-	}) : undefined),
-}));
-
-const nextUserPaginator = markRaw(new Paginator('users/notes', {
-	limit: 10,
-	initialId: props.noteId,
-	initialDirection: 'newer',
-	computedParams: computed(() => note.value ? ({
-		userId: note.value.userId,
-	}) : undefined),
-}));
-
-const prevChannelPaginator = markRaw(new Paginator('channels/timeline', {
-	limit: 10,
-	initialId: props.noteId,
-	computedParams: computed(() => note.value && note.value.channelId != null ? ({
-		channelId: note.value.channelId,
-	}) : undefined),
-}));
-
-const nextChannelPaginator = markRaw(new Paginator('channels/timeline', {
-	limit: 10,
-	initialId: props.noteId,
-	initialDirection: 'newer',
-	computedParams: computed(() => note.value && note.value.channelId != null ? ({
-		channelId: note.value.channelId,
-	}) : undefined),
-}));
-
 function fetchNote() {
-	showPrev.value = false;
-	showNext.value = false;
 	note.value = null;
 
 	if (CTX_NOTE && CTX_NOTE.id === props.noteId) {
@@ -186,23 +129,6 @@ definePage(() => ({
 .fade-enter-from,
 .fade-leave-to {
 	opacity: 0;
-}
-
-.loadNext,
-.loadPrev {
-	justify-content: center;
-}
-
-.loadNext {
-	margin-bottom: var(--MI-margin);
-}
-
-.loadPrev {
-	margin-top: var(--MI-margin);
-}
-
-.loadButton {
-	min-width: 0;
 }
 
 .note {

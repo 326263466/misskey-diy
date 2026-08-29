@@ -20,7 +20,21 @@ export const noteEvents = new EventEmitter<{
 	[ev: `reacted:${string}`]: (ctx: { userId: Misskey.entities.User['id']; reaction: string; emoji?: { name: string; url: string; } | null; }) => void;
 	[ev: `unreacted:${string}`]: (ctx: { userId: Misskey.entities.User['id']; reaction: string; emoji?: { name: string; url: string; } | null; }) => void;
 	[ev: `pollVoted:${string}`]: (ctx: { userId: Misskey.entities.User['id']; choice: number; }) => void;
+	[ev: `replied:${string}`]: (ctx: { noteId: Misskey.entities.Note['id']; }) => void;
+	[ev: `unreplied:${string}`]: (ctx: { noteId: Misskey.entities.Note['id']; }) => void;
 }>();
+
+// 返信の投稿はストリームやポーリングで配信されないので、自分の投稿だけはグローバルイベントから返信数に反映する
+globalEvents.on('notePosted', (note) => {
+	if (note.replyId == null) return;
+	noteEvents.emit(`replied:${note.replyId}`, { noteId: note.id });
+});
+
+// 返信が削除された場合も同様に返信数へ反映する
+globalEvents.on('noteDeleted', (noteId, replyId) => {
+	if (replyId == null) return;
+	noteEvents.emit(`unreplied:${replyId}`, { noteId });
+});
 
 const fetchEvent = new EventEmitter<{
 	[id: string]: Pick<Misskey.entities.Note, 'reactions' | 'reactionEmojis'>;
@@ -185,6 +199,7 @@ export type ReactiveNoteData = {
 	reactionCount: Misskey.entities.Note['reactionCount'];
 	reactionEmojis: Misskey.entities.Note['reactionEmojis'];
 	myReaction: Misskey.entities.Note['myReaction'];
+	repliesCount: Misskey.entities.Note['repliesCount'];
 	pollChoices: NonNullable<Misskey.entities.Note['poll']>['choices'];
 };
 
@@ -214,16 +229,22 @@ export function useNoteCapture(props: {
 		reactionCount: note.reactionCount,
 		reactionEmojis: note.reactionEmojis,
 		myReaction: note.myReaction,
+		repliesCount: note.repliesCount,
 		pollChoices: note.poll?.choices ?? [],
 	});
 
 	noteEvents.on(`reacted:${note.id}`, onReacted);
 	noteEvents.on(`unreacted:${note.id}`, onUnreacted);
 	noteEvents.on(`pollVoted:${note.id}`, onPollVoted);
+	noteEvents.on(`replied:${note.id}`, onReplied);
+	noteEvents.on(`unreplied:${note.id}`, onUnreplied);
 
 	// 操作がダブっていないかどうかを簡易的に記録するためのMap
 	const reactionUserMap = new Map<Misskey.entities.User['id'], string | typeof noReaction>();
 	let latestPollVotedKey: string | null = null;
+
+	// 既にカウントした返信のIDを覚えておき、同じ返信で二重に増やさないようにする
+	const countedReplyIds = new Set<Misskey.entities.Note['id']>();
 
 	function onReacted(ctx: { userId: Misskey.entities.User['id']; reaction: string; emoji?: { name: string; url: string; } | null; }): void {
 		let normalizedName = ctx.reaction.replace(/^:(\w+):$/, ':$1@.:');
@@ -281,6 +302,19 @@ export function useNoteCapture(props: {
 		$note.pollChoices = choices;
 	}
 
+	function onReplied(ctx: { noteId: Misskey.entities.Note['id']; }): void {
+		if (countedReplyIds.has(ctx.noteId)) return;
+		countedReplyIds.add(ctx.noteId);
+
+		$note.repliesCount += 1;
+	}
+
+	function onUnreplied(ctx: { noteId: Misskey.entities.Note['id']; }): void {
+		countedReplyIds.delete(ctx.noteId);
+
+		$note.repliesCount = Math.max(0, $note.repliesCount - 1);
+	}
+
 	function subscribe() {
 		if (mock) {
 			// モックモードでは購読しない
@@ -303,6 +337,8 @@ export function useNoteCapture(props: {
 		noteEvents.off(`reacted:${note.id}`, onReacted);
 		noteEvents.off(`unreacted:${note.id}`, onUnreacted);
 		noteEvents.off(`pollVoted:${note.id}`, onPollVoted);
+		noteEvents.off(`replied:${note.id}`, onReplied);
+		noteEvents.off(`unreplied:${note.id}`, onUnreplied);
 	});
 
 	// 投稿からある程度経過している(=タイムラインを遡って表示した)ノートは、イベントが発生する可能性が低いためそもそも購読しない

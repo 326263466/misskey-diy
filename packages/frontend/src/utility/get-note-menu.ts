@@ -199,7 +199,7 @@ export function getNoteMenu(props: {
 			misskeyApi('notes/delete', {
 				noteId: appearNote.id,
 			}).then(() => {
-				globalEvents.emit('noteDeleted', appearNote.id);
+				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId);
 			});
 
 			if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === $i.id) {
@@ -219,7 +219,7 @@ export function getNoteMenu(props: {
 			misskeyApi('notes/delete', {
 				noteId: appearNote.id,
 			}).then(() => {
-				globalEvents.emit('noteDeleted', appearNote.id);
+				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId);
 			});
 
 			os.post({ initialNote: appearNote, renote: appearNote.renote, reply: appearNote.reply, channel: appearNote.channel });

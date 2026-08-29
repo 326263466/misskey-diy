@@ -6,13 +6,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div v-if="show" ref="el" :class="[$style.root]">
 	<div :class="[$style.upper, { [$style.slim]: narrow, [$style.thin]: thin_ }]">
-		<div v-if="!thin_ && (narrow || deviceKind === 'smartphone') && props.displayMyAvatar && $i" class="_button" @click="openAccountMenu">
+		<button v-if="displayBackButton" v-tooltip.noDelay="i18n.ts.goBack" class="_button" :class="$style.backButton" @click.stop="goBack"><i class="ti ti-arrow-left"></i></button>
+		<div v-else-if="!thin_ && (narrow || deviceKind === 'smartphone') && props.displayMyAvatar && $i" class="_button" @click="openAccountMenu">
 			<MkAvatar :class="$style.avatar" :user="$i"/>
 		</div>
 		<div v-else-if="!thin_ && narrow && !hideTitle" :class="$style.buttons"></div>
 
 		<template v-if="pageMetadata">
-			<div v-if="!hideTitle" :class="$style.titleContainer" @click="top">
+			<div v-if="!hideTitle" :class="[$style.titleContainer, { [$style.titleContainerWithBackButton]: displayBackButton }]" @click="top">
 				<div v-if="pageMetadata.avatar" :class="$style.titleAvatarContainer">
 					<MkAvatar :class="$style.titleAvatar" :user="pageMetadata.avatar" indicator/>
 				</div>
@@ -54,6 +55,7 @@ export type PageHeaderProps = {
 	hideTitle?: boolean;
 	canOmitTitle?: boolean;
 	displayMyAvatar?: boolean;
+	displayBackButton?: boolean;
 };
 </script>
 
@@ -65,6 +67,7 @@ import { getAccountMenu } from '@/accounts.js';
 import { deviceKind } from '@/utility/device-kind.js';
 import { $i } from '@/i.js';
 import { DI } from '@/di.js';
+import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 
 const props = withDefaults(defineProps<PageHeaderProps>(), {
@@ -87,12 +90,17 @@ const narrow = ref(false);
 const hasTabs = computed(() => props.tabs.length > 0);
 const hasActions = computed(() => props.actions && props.actions.length > 0);
 const show = computed(() => {
-	return !hideTitle.value || hasTabs.value || hasActions.value;
+	return !hideTitle.value || hasTabs.value || hasActions.value || props.displayBackButton;
 });
 
 const preventDrag = (ev: TouchEvent) => {
 	ev.stopPropagation();
 };
+
+// 路由本身没有提供后退操作，所以直接回退浏览器历史
+function goBack() {
+	window.history.back();
+}
 
 const top = () => {
 	if (el.value) {
@@ -242,6 +250,23 @@ onUnmounted(() => {
 	}
 }
 
+.backButton {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	margin-left: 8px;
+	box-sizing: border-box;
+	border-radius: 100%;
+	font-size: 1.1em;
+
+	&:hover {
+		background: rgba(0, 0, 0, 0.05);
+	}
+}
+
 .titleContainer {
 	display: flex;
 	align-items: center;
@@ -253,6 +278,11 @@ onUnmounted(() => {
 	font-weight: bold;
 	flex-shrink: 1;
 	margin-left: 24px;
+
+	/* 返回按钮已经占据了左侧空间，标题不再需要额外缩进 */
+	&.titleContainerWithBackButton {
+		margin-left: 0;
+	}
 }
 
 .titleAvatarContainer {

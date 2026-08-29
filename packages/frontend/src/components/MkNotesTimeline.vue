@@ -15,11 +15,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:data-scroll-anchor="note.id"
 					:class="{ '_gaps': !noGap }"
 				>
-					<div :class="[$style.date, { [$style.noGap]: noGap }]">
-						<span><i class="ti ti-chevron-up"></i> {{ getSeparatorInfo(paginator.items.value[i - 1].createdAt, note.createdAt)?.prevText }}</span>
-						<span style="height: 1em; width: 1px; background: var(--MI_THEME-divider);"></span>
-						<span>{{ getSeparatorInfo(paginator.items.value[i - 1].createdAt, note.createdAt)?.nextText }} <i class="ti ti-chevron-down"></i></span>
-					</div>
 					<MkNote :class="$style.note" :note="note" :withHardMute="true"/>
 					<div v-if="note._shouldInsertAd_" :class="$style.ad">
 						<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
@@ -46,7 +41,7 @@ import MkNote from '@/components/MkNote.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import { i18n } from '@/i18n.js';
 import { useGlobalEvent } from '@/events.js';
-import { isSeparatorNeeded, getSeparatorInfo } from '@/utility/timeline-date-separate.js';
+import { isSeparatorNeeded } from '@/utility/timeline-date-separate.js';
 
 const props = withDefaults(defineProps<MkPaginationOptions & {
 	paginator: T;
@@ -98,21 +93,6 @@ defineExpose({
 			background: var(--MI_THEME-panel);
 			border-radius: var(--MI-radius);
 		}
-	}
-}
-
-.date {
-	display: flex;
-	font-size: 85%;
-	align-items: center;
-	justify-content: center;
-	gap: 1em;
-	opacity: 0.75;
-	padding: 8px 8px;
-	margin: 0 auto;
-
-	&.noGap {
-		border-bottom: solid 0.5px var(--MI_THEME-divider);
 	}
 }
 
