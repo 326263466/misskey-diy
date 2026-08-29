@@ -789,15 +789,12 @@ function menuEdit() {
 			&::before {
 				content: "";
 				display: block;
-				height: 100%;
-				aspect-ratio: 1;
-				margin: auto;
 				position: absolute;
-				top: 0;
-				left: 0;
-				right: 0;
-				bottom: 0;
-				border-radius: 999px;
+				top: 1px;
+				right: 8px;
+				bottom: 1px;
+				left: 8px;
+				border-radius: var(--MI-radius);
 				background: var(--MI_THEME-accentedBg);
 			}
 

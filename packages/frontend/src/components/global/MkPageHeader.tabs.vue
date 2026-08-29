@@ -9,7 +9,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<button
 			v-for="t in tabs"
 			:ref="(el) => tabRefs[t.key] = (el as HTMLElement)"
-			v-tooltip.noDelay="t.title"
 			class="_button"
 			:class="[$style.tab, {
 				[$style.active]: t.key != null && t.key === props.tab,
@@ -209,7 +208,7 @@ onUnmounted(() => {
 	position: relative;
 	margin: 0;
 	height: var(--height);
-	font-size: 0.8em;
+	font-size: 0.9em;
 	text-align: center;
 	overflow-x: auto;
 	overflow-y: hidden;
