@@ -13,9 +13,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</MkA>
 	<div v-if="note.user.isBot" :class="$style.isBot">bot</div>
 	<div :class="$style.username"><MkAcct :user="note.user"/></div>
-	<div v-if="note.user.badgeRoles" :class="$style.badgeRoles">
+	<div v-if="note.user.badgeRoles && note.user.badgeRoles.length > 0" :class="$style.badgeRoles">
 		<img v-for="(role, i) in note.user.badgeRoles" :key="i" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl!"/>
 	</div>
+	<div :class="$style.separator">·</div>
 	<div :class="$style.info">
 		<div v-if="mock">
 			<MkTime :time="note.createdAt" colored/>
@@ -52,14 +53,14 @@ const mock = inject(DI.mock, false);
 <style lang="scss" module>
 .root {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	white-space: nowrap;
 }
 
 .name {
 	flex-shrink: 1;
 	display: block;
-	margin: 0 .5em 0 0;
+	margin: 0 .25em 0 0;
 	padding: 0;
 	overflow: hidden;
 	font-size: 1em;
@@ -74,28 +75,39 @@ const mock = inject(DI.mock, false);
 
 .isBot {
 	flex-shrink: 0;
-	align-self: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	margin: 0 .5em 0 0;
-	padding: 1px 6px;
-	font-size: 80%;
+	padding: 0 6px;
+	height: 1.4em;
+	font-size: 0.8em;
+	line-height: 1;
 	border: solid 0.5px var(--MI_THEME-divider);
 	border-radius: 3px;
 }
 
 .username {
 	flex-shrink: 9999999;
-	margin: 0 .5em 0 0;
 	overflow: hidden;
+	font-size: 0.9em;
 	text-overflow: ellipsis;
+}
+
+.separator {
+	flex-shrink: 0;
+	margin: 0 4px;
+	font-size: 0.9em;
+	opacity: 0.7;
 }
 
 .info {
 	flex-shrink: 0;
-	margin-left: auto;
 	font-size: 0.9em;
 }
 
 .badgeRoles {
+	flex-shrink: 0;
 	margin: 0 .5em 0 0;
 }
 
