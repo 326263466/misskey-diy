@@ -265,5 +265,10 @@ export const packedNoteSchema = {
 			type: 'string',
 			optional: true, nullable: true,
 		},
+
+		isFavorited: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
 	},
 } as const;

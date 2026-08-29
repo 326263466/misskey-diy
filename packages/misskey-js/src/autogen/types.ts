@@ -4522,6 +4522,7 @@ export type components = {
             clippedCount?: number;
             hasPoll?: boolean;
             myReaction?: string | null;
+            isFavorited?: boolean;
         };
         NoteDraft: {
             /**

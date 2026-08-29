@@ -179,6 +179,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="clip()">
 					<i class="ti ti-paperclip"></i>
 				</button>
+				<button class="_button" :class="$style.noteFooterButton" @mousedown.prevent="toggleFavorite()">
+					<i v-if="isFavorited" class="ti ti-star-off"></i>
+					<i v-else class="ti ti-star"></i>
+				</button>
+				<button v-if="canShare" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="share()">
+					<i class="ti ti-share"></i>
+				</button>
 				<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="showMenu()">
 					<i class="ti ti-dots"></i>
 				</button>
@@ -303,6 +310,8 @@ const {
 	parsed,
 	urls,
 	showTicker,
+	isFavorited,
+	canShare,
 
 	// 関数群
 	renote,
@@ -313,6 +322,8 @@ const {
 	onContextmenu,
 	showMenu,
 	clip,
+	share,
+	toggleFavorite,
 	showRenoteMenu,
 	blur,
 } = useNote(props, {

@@ -19,7 +19,6 @@ import { miLocalStorage } from '@/local-storage.js';
 import { getUserMenu } from '@/utility/get-user-menu.js';
 import { clipsCache, favoritedChannelsCache } from '@/cache.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
-import { isSupportShare } from '@/utility/navigator.js';
 import { getAppearNote } from '@/utility/get-appear-note.js';
 import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
@@ -231,13 +230,6 @@ export function getNoteMenu(props: {
 		});
 	}
 
-	function toggleFavorite(favorite: boolean): void {
-		claimAchievement('noteFavorited1');
-		os.apiWithDialog(favorite ? 'notes/favorites/create' : 'notes/favorites/delete', {
-			noteId: appearNote.id,
-		});
-	}
-
 	function toggleThreadMute(mute: boolean): void {
 		os.apiWithDialog(mute ? 'notes/thread-muting/create' : 'notes/thread-muting/delete', {
 			noteId: appearNote.id,
@@ -286,14 +278,6 @@ export function getNoteMenu(props: {
 		os.apiWithDialog('admin/promo/create', {
 			noteId: appearNote.id,
 			expiresAt: Date.now() + (86400000 * days),
-		});
-	}
-
-	function share(): void {
-		navigator.share({
-			title: i18n.tsx.noteOf({ user: appearNote.user.name ?? appearNote.user.username }),
-			text: appearNote.text ?? '',
-			url: `${url}/notes/${appearNote.id}`,
 		});
 	}
 
@@ -400,14 +384,6 @@ export function getNoteMenu(props: {
 			}
 		}
 
-		if (isSupportShare()) {
-			menuItems.push({
-				icon: 'ti ti-share',
-				text: i18n.ts.share,
-				action: share,
-			});
-		}
-
 		if ((prefer.s['experimental.enableWebTranslatorApi'] && isInBrowserTranslationAvailable) || ($i.policies.canUseTranslator && instance.translatorAvailable)) {
 			menuItems.push({
 				icon: 'ti ti-language-hiragana',
@@ -417,16 +393,6 @@ export function getNoteMenu(props: {
 		}
 
 		menuItems.push({ type: 'divider' });
-
-		menuItems.push(statePromise.then(state => state.isFavorited ? {
-			icon: 'ti ti-star-off',
-			text: i18n.ts.unfavorite,
-			action: () => toggleFavorite(false),
-		} : {
-			icon: 'ti ti-star',
-			text: i18n.ts.favorite,
-			action: () => toggleFavorite(true),
-		}));
 
 		menuItems.push({
 			type: 'parent',

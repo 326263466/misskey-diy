@@ -9,7 +9,8 @@ import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
 import { shouldCollapsed } from '@@/js/collapsed.js';
-import { host } from '@@/js/config.js';
+import { host, url } from '@@/js/config.js';
+import { isSupportShare } from '@/utility/navigator.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import type { OpenOnRemoteOptions } from '@/utility/please-login.js';
 import { checkWordMute } from '@/utility/check-word-mute.js';
@@ -145,6 +146,8 @@ export function useNote(
 	// 各種フラグ状態
 	const showContent = ref(false);
 	const isDeleted = ref(false);
+	// 收藏状态由后端在打包帖子时一并返回，未登录时字段不存在
+	const isFavorited = ref(appearNote.isFavorited ?? false);
 	const translating = ref(false);
 	const translation = ref<Misskey.entities.NotesTranslateResponse | null>(null);
 
@@ -162,6 +165,7 @@ export function useNote(
 	const collapsed = ref(appearNote.cw == null && isLong);
 	const canRenote = ['public', 'home'].includes(appearNote.visibility) || (appearNote.visibility === 'followers' && appearNote.userId === $i?.id);
 	const showTicker = (prefer.s.instanceTicker === 'always') || (prefer.s.instanceTicker === 'remote' && appearNote.user.instance);
+	const canShare = isSupportShare();
 	const renoteCollapsed = ref(prefer.s.collapseRenotes && isRenote && (($i && ($i.id === rawNote.userId || $i.id === appearNote.userId)) || ($appearNote.myReaction != null)));
 
 	const pleaseLoginContext: OpenOnRemoteOptions = {
@@ -376,6 +380,28 @@ export function useNote(
 		}), els.clipButton?.value).then(focus);
 	}
 
+	function share(): void {
+		if (props.mock) return;
+		navigator.share({
+			title: i18n.tsx.noteOf({ user: appearNote.user.name ?? appearNote.user.username }),
+			text: appearNote.text ?? '',
+			url: `${url}/notes/${appearNote.id}`,
+		});
+	}
+
+	async function toggleFavorite(): Promise<void> {
+		if (props.mock) return;
+		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
+		if (!isLoggedIn) return;
+
+		const favorite = !isFavorited.value;
+		await os.apiWithDialog(favorite ? 'notes/favorites/create' : 'notes/favorites/delete', {
+			noteId: appearNote.id,
+		});
+		isFavorited.value = favorite;
+		if (favorite) claimAchievement('noteFavorited1');
+	}
+
 	async function showRenoteMenu() {
 		if (props.mock) return;
 		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
@@ -442,6 +468,7 @@ export function useNote(
 		hardMuted,
 		collapsed,
 		renoteCollapsed,
+		isFavorited,
 
 		// 導出値
 		isMyRenote,
@@ -450,6 +477,7 @@ export function useNote(
 		isLong,
 		showTicker,
 		canRenote,
+		canShare,
 
 		// アクション関数
 		renote,
@@ -460,6 +488,8 @@ export function useNote(
 		onContextmenu,
 		showMenu,
 		clip,
+		share,
+		toggleFavorite,
 		showRenoteMenu,
 		focus,
 		blur,

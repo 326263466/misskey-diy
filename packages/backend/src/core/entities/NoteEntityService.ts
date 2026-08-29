@@ -11,7 +11,7 @@ import type { Packed } from '@/misc/json-schema.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
 import type { MiUser } from '@/models/User.js';
 import type { MiNote } from '@/models/Note.js';
-import type { UsersRepository, NotesRepository, FollowingsRepository, PollsRepository, PollVotesRepository, NoteReactionsRepository, ChannelsRepository, MiMeta } from '@/models/_.js';
+import type { UsersRepository, NotesRepository, FollowingsRepository, PollsRepository, PollVotesRepository, NoteReactionsRepository, NoteFavoritesRepository, ChannelsRepository, MiMeta } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { DebounceLoader } from '@/misc/loader.js';
 import { IdService } from '@/core/IdService.js';
@@ -93,6 +93,9 @@ export class NoteEntityService implements OnModuleInit {
 
 		@Inject(DI.noteReactionsRepository)
 		private noteReactionsRepository: NoteReactionsRepository,
+
+		@Inject(DI.noteFavoritesRepository)
+		private noteFavoritesRepository: NoteFavoritesRepository,
 
 		@Inject(DI.channelsRepository)
 		private channelsRepository: ChannelsRepository,
@@ -271,6 +274,23 @@ export class NoteEntityService implements OnModuleInit {
 	}
 
 	@bindThis
+	public async populateIsFavorited(noteId: MiNote['id'], meId: MiUser['id'], _hint_?: {
+		myFavorites: Set<MiNote['id']> | null;
+	}): Promise<boolean> {
+		// 由 packMany 调用时，直接使用已批量取得的集合，避免逐条查询
+		if (_hint_?.myFavorites != null) {
+			return _hint_.myFavorites.has(noteId);
+		}
+
+		return await this.noteFavoritesRepository.exists({
+			where: {
+				userId: meId,
+				noteId: noteId,
+			},
+		});
+	}
+
+	@bindThis
 	public async isVisibleForMe(note: MiNote, meId: MiUser['id'] | null): Promise<boolean> {
 		// This code must always be synchronized with the checks in QueryService.generateVisibilityQuery.
 		// visibility が specified かつ自分が指定されていなかったら非表示
@@ -350,6 +370,7 @@ export class NoteEntityService implements OnModuleInit {
 			_hint_?: {
 				bufferedReactions: Map<MiNote['id'], { deltas: Record<string, number>; pairs: ([MiUser['id'], string])[] }> | null;
 				myReactions: Map<MiNote['id'], string | null>;
+				myFavorites: Set<MiNote['id']> | null;
 				packedFiles: Map<MiNote['fileIds'][number], Packed<'DriveFile'> | null>;
 				packedUsers: Map<MiUser['id'], Packed<'UserLite'>>
 			};
@@ -457,6 +478,10 @@ export class NoteEntityService implements OnModuleInit {
 						reactionAndUserPairCache: reactionAndUserPairCache,
 					}, meId, options?._hint_),
 				} : {}),
+
+				...(meId ? {
+					isFavorited: this.populateIsFavorited(note.id, meId, options?._hint_),
+				} : {}),
 			} : {}),
 		});
 
@@ -538,6 +563,23 @@ export class NoteEntityService implements OnModuleInit {
 			}
 		}
 
+		// 逐条查询收藏状态会产生大量查询，因此把所有目标帖子 ID 合并成一次查询
+		let myFavoritesSet: Set<MiNote['id']> | null = null;
+		if (meId) {
+			// pack 会对 renote 再递归打包一次，所以本体和 renote 的 ID 都要纳入查询范围
+			const favoriteTargetIds = [...new Set(notes.flatMap(note => [note.id, note.renoteId]).filter(id => id != null))];
+			const myFavorites = await this.noteFavoritesRepository.find({
+				where: {
+					userId: meId,
+					noteId: In(favoriteTargetIds),
+				},
+				select: {
+					noteId: true,
+				},
+			});
+			myFavoritesSet = new Set(myFavorites.map(favorite => favorite.noteId));
+		}
+
 		await this.customEmojiService.prefetchEmojis(this.aggregateNoteEmojis(notes));
 		// TODO: 本当は renote とか reply がないのに renoteId とか replyId があったらここで解決しておく
 		const fileIds = notes.map(n => [n.fileIds, n.renote?.fileIds, n.reply?.fileIds]).flat(2).filter(x => x != null);
@@ -555,6 +597,7 @@ export class NoteEntityService implements OnModuleInit {
 			_hint_: {
 				bufferedReactions,
 				myReactions: myReactionsMap,
+				myFavorites: myFavoritesSet,
 				packedFiles,
 				packedUsers,
 			},

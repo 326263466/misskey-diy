@@ -49,7 +49,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="appearNote.channel" :class="$style.colorBar" :style="{ background: appearNote.channel.color }"></div>
 		<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null]" :user="appearNote.user" :link="!mock" :preview="!mock"/>
 		<div :class="$style.main">
-			<MkNoteHeader :note="appearNote" :mini="true"/>
+			<div :class="$style.headerRow">
+				<MkNoteHeader :note="appearNote" :mini="true" :class="$style.header"/>
+				<button ref="menuButton" :class="$style.headerMenuButton" class="_button" @mousedown.prevent="showMenu()">
+					<i class="ti ti-dots"></i>
+				</button>
+			</div>
 			<MkInstanceTicker v-if="showTicker" :host="appearNote.user.host" :instance="appearNote.user.instance"/>
 			<div style="container-type: inline-size;">
 				<p v-if="appearNote.cw != null" :class="$style.cw">
@@ -154,8 +159,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" :class="$style.footerButton" class="_button" @mousedown.prevent="clip()">
 					<i class="ti ti-paperclip"></i>
 				</button>
-				<button ref="menuButton" :class="$style.footerButton" class="_button" @mousedown.prevent="showMenu()">
-					<i class="ti ti-dots"></i>
+				<button :class="$style.footerButton" class="_button" @mousedown.prevent="toggleFavorite()">
+					<i v-if="isFavorited" class="ti ti-star-off"></i>
+					<i v-else class="ti ti-star"></i>
+				</button>
+				<button v-if="canShare" :class="$style.footerButton" class="_button" @mousedown.prevent="share()">
+					<i class="ti ti-share"></i>
 				</button>
 			</footer>
 		</div>
@@ -272,6 +281,8 @@ const {
 	isLong,
 	showTicker,
 	canRenote,
+	isFavorited,
+	canShare,
 
 	renote,
 	reply,
@@ -281,6 +292,8 @@ const {
 	onContextmenu,
 	showMenu,
 	clip,
+	share,
+	toggleFavorite,
 	showRenoteMenu,
 	blur,
 } = useNote(props, {
@@ -582,6 +595,30 @@ const keymap = {
 	min-width: 0;
 }
 
+.headerRow {
+	display: flex;
+	align-items: center;
+}
+
+.header {
+	flex: 1;
+	min-width: 0;
+}
+
+.headerMenuButton {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 0 0 8px;
+	padding: 0 4px;
+	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%); // opacityなど不透明度で表現するとレンダリングパフォーマンスに影響するので通常の色の混合で代用
+
+	&:hover {
+		color: var(--MI_THEME-fgHighlighted);
+	}
+}
+
 .cw {
 	cursor: default;
 	display: block;
@@ -685,6 +722,8 @@ const keymap = {
 }
 
 .footerButton {
+	display: flex;
+	align-items: center;
 	margin: 0;
 	padding: 8px;
 	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%); // opacityなど不透明度で表現するとレンダリングパフォーマンスに影響するので通常の色の混合で代用
