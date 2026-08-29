@@ -10,13 +10,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div><Mfm :text="note.cw" :author="note.user"/></div>
 			<MkCwButton v-model="showContent" :text="note.text" :renote="note.renote" :files="note.files" :poll="note.poll" style="margin: 4px 0;"/>
 			<div v-if="showContent">
-				<MkA v-if="note.replyId" class="reply" :to="`/notes/${note.replyId}`"><i class="ti ti-arrow-back-up"></i></MkA>
+				<MkA v-if="note.replyId" class="reply" :to="`/notes/${note.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 				<Mfm v-if="note.text" :text="note.text" :author="note.user"/>
 				<MkA v-if="note.renoteId" class="rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
 			</div>
 		</div>
 		<div v-else ref="noteTextEl" :class="[$style.text, { [$style.collapsed]: shouldCollapse }]">
-			<MkA v-if="note.replyId" class="reply" :to="`/notes/${note.replyId}`"><i class="ti ti-arrow-back-up"></i></MkA>
+			<MkA v-if="note.replyId" class="reply" :to="`/notes/${note.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 			<Mfm v-if="note.text" :text="note.text" :author="note.user"/>
 			<MkA v-if="note.renoteId" class="rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
 		</div>

@@ -37,7 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'receiveFollowRequest'" class="ti ti-clock"></i>
 			<i v-else-if="notification.type === 'followRequestAccepted'" class="ti ti-check"></i>
 			<i v-else-if="notification.type === 'renote'" class="ti ti-repeat"></i>
-			<i v-else-if="notification.type === 'reply'" class="ti ti-arrow-back-up"></i>
+			<i v-else-if="notification.type === 'reply'" class="ti ti-message-circle"></i>
 			<i v-else-if="notification.type === 'mention'" class="ti ti-at"></i>
 			<i v-else-if="notification.type === 'quote'" class="ti ti-quote"></i>
 			<i v-else-if="notification.type === 'pollEnded'" class="ti ti-chart-arrows"></i>

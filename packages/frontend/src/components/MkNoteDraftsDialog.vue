@@ -64,7 +64,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<div :class="$style.draftInfo">
 									<div :class="$style.draftMeta">
 										<div v-if="draft.reply" class="_nowrap">
-											<i class="ti ti-arrow-back-up"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
+											<i class="ti ti-message-circle"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
 												<template #user>
 													<Mfm v-if="draft.reply.user.name != null" :text="draft.reply.user.name" :plain="true" :nowrap="true"/>
 													<MkAcct v-else :user="draft.reply.user"/>
@@ -72,7 +72,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 											</I18n>
 										</div>
 										<div v-else-if="draft.replyId" class="_nowrap">
-											<i class="ti ti-arrow-back-up"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
+											<i class="ti ti-message-circle"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
 												<template #user>
 													{{ i18n.ts.deletedNote }}
 												</template>

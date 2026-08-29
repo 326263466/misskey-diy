@@ -289,7 +289,7 @@ const submitText = computed((): string => {
 });
 
 const submitIcon = computed((): string => {
-	return posted.value ? 'ti ti-check' : scheduledAt.value != null ? 'ti ti-calendar-time' : replyTargetNote.value ? 'ti ti-arrow-back-up' : renoteTargetNote.value ? 'ti ti-quote' : 'ti ti-send';
+	return posted.value ? 'ti ti-check' : scheduledAt.value != null ? 'ti ti-calendar-time' : replyTargetNote.value ? 'ti ti-message-circle' : renoteTargetNote.value ? 'ti ti-quote' : 'ti ti-send';
 });
 
 const textLength = computed((): number => {

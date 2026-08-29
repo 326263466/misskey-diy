@@ -66,7 +66,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-show="appearNote.cw == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
 					<div :class="$style.text">
 						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
-						<MkA v-if="appearNote.replyId" :class="$style.replyIcon" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-arrow-back-up"></i></MkA>
+						<MkA v-if="appearNote.replyId" :class="$style.replyIcon" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 						<Mfm
 							v-if="appearNote.text"
 							:parsedNodes="parsed"
@@ -128,7 +128,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkReactionsViewer>
 			<footer :class="$style.footer">
 				<button :class="$style.footerButton" class="_button" @click="reply()">
-					<i class="ti ti-arrow-back-up"></i>
+					<i class="ti ti-message-circle"></i>
 					<p v-if="appearNote.repliesCount > 0" :class="$style.footerButtonCount">{{ number(appearNote.repliesCount) }}</p>
 				</button>
 				<button
@@ -420,6 +420,7 @@ const keymap = {
 			position: absolute;
 			top: 12px;
 			right: 12px;
+			justify-content: flex-start;
 			padding: 0 4px;
 			margin-bottom: 0 !important;
 			background: var(--MI_THEME-popup);
@@ -429,10 +430,6 @@ const keymap = {
 
 		.footerButton {
 			font-size: 90%;
-
-			&:not(:last-child) {
-				margin-right: 0;
-			}
 		}
 	}
 
@@ -680,17 +677,17 @@ const keymap = {
 }
 
 .footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	margin-bottom: -14px;
+	padding-right: 8px;
 }
 
 .footerButton {
 	margin: 0;
 	padding: 8px;
 	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%); // opacityなど不透明度で表現するとレンダリングパフォーマンスに影響するので通常の色の混合で代用
-
-	&:not(:last-child) {
-		margin-right: 28px;
-	}
 
 	&:hover {
 		color: var(--MI_THEME-fgHighlighted);
@@ -770,25 +767,7 @@ const keymap = {
 	}
 }
 
-@container (max-width: 400px) {
-	.root:not(.showActionsOnlyHover) {
-		.footerButton {
-			&:not(:last-child) {
-				margin-right: 18px;
-			}
-		}
-	}
-}
-
 @container (max-width: 350px) {
-	.root:not(.showActionsOnlyHover) {
-		.footerButton {
-			&:not(:last-child) {
-				margin-right: 12px;
-			}
-		}
-	}
-
 	.colorBar {
 		top: 6px;
 		left: 6px;
@@ -801,14 +780,6 @@ const keymap = {
 	.avatar {
 		width: 44px;
 		height: 44px;
-	}
-
-	.root:not(.showActionsOnlyHover) {
-		.footerButton {
-			&:not(:last-child) {
-				margin-right: 8px;
-			}
-		}
 	}
 }
 

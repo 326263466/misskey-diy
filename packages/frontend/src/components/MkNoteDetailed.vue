@@ -90,7 +90,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</p>
 				<div v-show="appearNote.cw == null || showContent">
 					<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
-					<MkA v-if="appearNote.replyId" :class="$style.noteReplyTarget" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-arrow-back-up"></i></MkA>
+					<MkA v-if="appearNote.replyId" :class="$style.noteReplyTarget" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 					<Mfm
 						v-if="appearNote.text"
 						:parsedNodes="parsed"
@@ -153,7 +153,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:noteId="appearNote.id"
 				/>
 				<button class="_button" :class="$style.noteFooterButton" @click="reply()">
-					<i class="ti ti-arrow-back-up"></i>
+					<i class="ti ti-message-circle"></i>
 					<p v-if="appearNote.repliesCount > 0" :class="$style.noteFooterButtonCount">{{ number(appearNote.repliesCount) }}</p>
 				</button>
 				<button
@@ -185,7 +185,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</footer>
 		</article>
 		<div :class="$style.tabs">
-			<button class="_button" :class="[$style.tab, { [$style.tabActive]: tab === 'replies' }]" @click="tab = 'replies'"><i class="ti ti-arrow-back-up"></i> {{ i18n.ts.replies }}</button>
+			<button class="_button" :class="[$style.tab, { [$style.tabActive]: tab === 'replies' }]" @click="tab = 'replies'"><i class="ti ti-message-circle"></i> {{ i18n.ts.replies }}</button>
 			<button class="_button" :class="[$style.tab, { [$style.tabActive]: tab === 'renotes' }]" @click="tab = 'renotes'"><i class="ti ti-repeat"></i> {{ i18n.ts.renotes }}</button>
 			<button class="_button" :class="[$style.tab, { [$style.tabActive]: tab === 'reactions' }]" @click="tab = 'reactions'"><i class="ti ti-icons"></i> {{ i18n.ts.reactions }}</button>
 		</div>
