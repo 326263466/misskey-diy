@@ -183,7 +183,7 @@ export const PREF_DEF = definePreferences({
 		default: false,
 	},
 	collapseRenotes: {
-		default: true,
+		default: false,
 	},
 	menu: {
 		default: [

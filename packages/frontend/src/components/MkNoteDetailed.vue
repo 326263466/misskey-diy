@@ -11,27 +11,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:class="$style.root"
 	tabindex="0"
 >
-	<div v-if="appearNote.reply && appearNote.reply.replyId">
-		<MkNoteSub v-for="note in conversation" :key="note.id" :class="$style.replyToMore" :note="note"/>
+	<div v-if="appearNote.replyId" :class="$style.replyThread">
+		<div v-for="parentNote in replyThread" :key="parentNote.id" :class="$style.replyThreadItem">
+			<MkNote :note="parentNote" :showReplyTo="false" :class="$style.replyThreadNote"/>
+		</div>
+		<div v-if="replyThread.length === 0" :class="$style.deletedReply">{{ i18n.ts.deletedNote }}</div>
 	</div>
-	<MkNoteSub v-if="appearNote.replyId" :note="appearNote?.reply ?? null" :class="$style.replyTo"/>
 	<div v-if="isRenote" :class="$style.renote">
-		<MkAvatar :class="$style.renoteAvatar" :user="note.user" link preview/>
-		<i class="ti ti-repeat" style="margin-right: 4px;"></i>
-		<span :class="$style.renoteText">
-			<I18n :src="i18n.ts.renotedBy" tag="span">
-				<template #user>
-					<MkA v-user-preview="note.userId" :class="$style.renoteName" :to="userPage(note.user)">
-						<MkUserName :user="note.user"/>
-					</MkA>
-				</template>
-			</I18n>
-		</span>
-		<div :class="$style.renoteInfo">
-			<button ref="renoteTime" class="_button" :class="$style.renoteTime" @mousedown.prevent="showRenoteMenu()">
-				<i v-if="isMyRenote" class="ti ti-dots" style="margin-right: 4px;"></i>
-				<MkTime :time="note.createdAt"/>
-			</button>
+		<i class="ti ti-repeat" :class="$style.renoteIcon"></i>{{ ' ' }}
+		<MkA v-user-preview="note.userId" :class="$style.renoteText" :to="userPage(note.user)">
+			<span :class="$style.renoteName">
+				<span v-if="isMyRenote">{{ i18n.ts.you }}</span>
+				<MkUserName v-else :user="note.user"/>
+			</span>{{ ' ' }}{{ i18n.ts.renoted }}
+		</MkA>
+		<div v-if="note.visibility !== 'public' || note.localOnly" :class="$style.renoteInfo">
 			<span v-if="note.visibility !== 'public'" style="margin-left: 0.5em;" :title="i18n.ts._visibility[note.visibility]">
 				<i v-if="note.visibility === 'home'" class="ti ti-home"></i>
 				<i v-else-if="note.visibility === 'followers'" class="ti ti-lock"></i>
@@ -40,8 +34,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-if="note.localOnly" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
 		</div>
 	</div>
-	<div v-if="isRenote && note.renote == null" :class="$style.deleted">
-		{{ i18n.ts.deletedNote }}
+	<div v-if="isRenoteTargetDeleted" :class="$style.deleted">
+		<span>{{ i18n.ts.deletedNote }}</span>
+		<button v-if="isMyRenote" type="button" class="_button" :class="$style.deletedRenoteAction" @click.stop="deleteRenote()">
+			<i class="ti ti-trash"></i>
+			<span>{{ i18n.ts.delete }}</span>
+		</button>
 	</div>
 	<template v-else>
 		<article :class="$style.note" @contextmenu.stop="onContextmenu">
@@ -87,7 +85,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</p>
 				<div v-show="appearNote.cw == null || showContent">
 					<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
-					<MkA v-if="appearNote.replyId" :class="$style.noteReplyTarget" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 					<Mfm
 						v-if="appearNote.text"
 						:parsedNodes="parsed"
@@ -107,7 +104,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<Mfm :text="translation.text" :author="appearNote.user" :nyaize="'respect'" :emojiUrls="appearNote.emojis" class="_selectable"/>
 						</div>
 					</div>
-					<div v-if="appearNote.files && appearNote.files.length > 0">
+					<div v-if="appearNote.files && appearNote.files.length > 0" style="margin-top: 12px;">
 						<MkMediaList ref="galleryEl" :mediaList="appearNote.files" :user="appearNote.user"/>
 					</div>
 					<MkPoll
@@ -144,48 +141,57 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkReactionsViewer
 					v-if="appearNote.reactionAcceptance !== 'likeOnly'"
 					style="margin-top: 6px;"
-					:reactions="$appearNote.reactions"
-					:reactionEmojis="$appearNote.reactionEmojis"
-					:myReaction="$appearNote.myReaction"
-					:noteId="appearNote.id"
+					:reactions="$reactionNote.reactions"
+					:reactionEmojis="$reactionNote.reactionEmojis"
+					:myReaction="$reactionNote.myReaction"
+					:noteId="reactionNote.id"
 				/>
-				<button class="_button" :class="$style.noteFooterButton" @click="reply()">
-					<i class="ti ti-message-circle"></i>
-					<p v-if="$appearNote.repliesCount > 0" :class="$style.noteFooterButtonCount">{{ number($appearNote.repliesCount) }}</p>
-				</button>
-				<button
-					v-if="canRenote"
-					ref="renoteButton"
-					class="_button"
-					:class="$style.noteFooterButton"
-					@mousedown.prevent="renote()"
-				>
-					<i class="ti ti-repeat"></i>
-					<p v-if="appearNote.renoteCount > 0" :class="$style.noteFooterButtonCount">{{ number(appearNote.renoteCount) }}</p>
-				</button>
-				<button v-else class="_button" :class="$style.noteFooterButton" disabled>
-					<i class="ti ti-ban"></i>
-				</button>
-				<button ref="reactButton" :class="$style.noteFooterButton" class="_button" @click="toggleReact()">
-					<i v-if="appearNote.reactionAcceptance === 'likeOnly' && $appearNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--MI_THEME-love);"></i>
-					<i v-else-if="$appearNote.myReaction != null" class="ti ti-minus" style="color: var(--MI_THEME-accent);"></i>
-					<i v-else-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
-					<i v-else class="ti ti-plus"></i>
-					<p v-if="(appearNote.reactionAcceptance === 'likeOnly' || prefer.s.showReactionsCount) && $appearNote.reactionCount > 0" :class="$style.noteFooterButtonCount">{{ number($appearNote.reactionCount) }}</p>
-				</button>
-				<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="clip()">
-					<i class="ti ti-paperclip"></i>
-				</button>
-				<button class="_button" :class="$style.noteFooterButton" @mousedown.prevent="toggleFavorite()">
-					<i v-if="isFavorited" class="ti ti-star-off"></i>
-					<i v-else class="ti ti-star"></i>
-				</button>
-				<button v-if="canShare" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="share()">
-					<i class="ti ti-share"></i>
-				</button>
-				<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="showMenu()">
-					<i class="ti ti-dots"></i>
-				</button>
+				<div :class="$style.noteFooterActions">
+					<button class="_button" :class="$style.noteFooterButton" @click="reply()">
+						<i class="ti ti-message-circle"></i>
+						<MkRollingNumber :class="$style.noteFooterButtonCount" :value="$appearNote.repliesCount"/>
+					</button>
+					<button
+						v-if="canRenote || isRenotedByMe"
+						ref="renoteButton"
+						class="_button"
+						:class="[$style.noteFooterButton, { [$style.renoted]: isRenotedByMe }]"
+						:aria-label="isRenotedByMe ? i18n.ts.more : i18n.ts.renote"
+						@click.stop="toggleRenote()"
+						@keydown.enter.stop
+					>
+						<i class="ti ti-repeat"></i>
+						<MkRollingNumber :class="$style.noteFooterButtonCount" :value="displayedRenoteCount"/>
+					</button>
+					<button v-else class="_button" :class="$style.noteFooterButton" disabled>
+						<i class="ti ti-ban"></i>
+					</button>
+					<button ref="reactButton" :class="$style.noteFooterButton" class="_button" @click="toggleReact()">
+						<i v-if="appearNote.reactionAcceptance === 'likeOnly' && $reactionNote.myReaction != null" class="ti ti-heart-filled" style="color: var(--MI_THEME-love);"></i>
+						<i v-else-if="$reactionNote.myReaction != null" class="ti ti-minus" style="color: var(--MI_THEME-accent);"></i>
+						<i v-else-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
+						<i v-else class="ti ti-plus"></i>
+						<MkRollingNumber
+							v-if="appearNote.reactionAcceptance === 'likeOnly' || prefer.s.showReactionsCount"
+							:class="$style.noteFooterButtonCount"
+							:value="$reactionNote.reactionCount"
+						/>
+					</button>
+					<span :class="[$style.noteFooterButton, $style.noteFooterButtonPlaceholder]" aria-hidden="true"><i class="ti ti-chart-bar"></i></span>
+					<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="clip()">
+						<i class="ti ti-paperclip"></i>
+					</button>
+					<button class="_button" :class="$style.noteFooterButton" @mousedown.prevent="toggleFavorite()">
+						<i v-if="isFavorited" class="ti ti-star-off"></i>
+						<i v-else class="ti ti-star"></i>
+					</button>
+					<button v-if="canShare" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="share()">
+						<i class="ti ti-share"></i>
+					</button>
+					<button ref="menuButton" class="_button" :class="$style.noteFooterButton" @mousedown.prevent="showMenu()">
+						<i class="ti ti-dots"></i>
+					</button>
+				</div>
 			</footer>
 		</article>
 		<div :class="$style.tabs">
@@ -210,9 +216,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<div v-else-if="tab === 'reactions'" :class="$style.tab_reactions">
 				<div :class="$style.reactionTabs">
-					<button v-for="reaction in Object.keys($appearNote.reactions)" :key="reaction" :class="[$style.reactionTab, { [$style.reactionTabActive]: reactionTabType === reaction }]" class="_button" @click="reactionTabType = reaction">
+					<button v-for="reaction in Object.keys($reactionNote.reactions)" :key="reaction" :class="[$style.reactionTab, { [$style.reactionTabActive]: reactionTabType === reaction }]" class="_button" @click="reactionTabType = reaction">
 						<MkReactionIcon :reaction="reaction"/>
-						<span style="margin-left: 4px;">{{ $appearNote.reactions[reaction] }}</span>
+						<span style="margin-left: 4px;">{{ $reactionNote.reactions[reaction] }}</span>
 					</button>
 				</div>
 				<MkPagination v-if="reactionTabType" :key="reactionTabType" :paginator="reactionsPaginator" :forceDisableInfiniteScroll="true">
@@ -250,12 +256,13 @@ import { notePage } from '@/filters/note.js';
 import { isEnabledUrlPreview } from '@/utility/url-preview.js';
 import { Paginator } from '@/utility/paginator.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import number from '@/filters/number.js';
 import { DI } from '@/di.js';
 import type { Keymap } from '@/utility/hotkey.js';
 
 // コンポーネント外部の依存関係
 import MkNoteSub from '@/components/MkNoteSub.vue';
+import MkNote from '@/components/MkNote.vue';
+import MkRollingNumber from '@/components/MkRollingNumber.vue';
 import MkNoteSimple from '@/components/MkNoteSimple.vue';
 import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkMediaList from '@/components/MkMediaList.vue';
@@ -281,7 +288,6 @@ const inChannel = inject(DI.inChannel, null);
 const rootEl = useTemplateRef('rootEl');
 const menuButton = useTemplateRef('menuButton');
 const renoteButton = useTemplateRef('renoteButton');
-const renoteTime = useTemplateRef('renoteTime');
 const reactButton = useTemplateRef('reactButton');
 const clipButton = useTemplateRef('clipButton');
 const galleryEl = useTemplateRef('galleryEl');
@@ -291,6 +297,8 @@ const {
 	note,
 	appearNote,
 	$appearNote,
+	reactionNote,
+	$reactionNote,
 	hideByPlugin,
 	isRenote,
 	showContent,
@@ -300,6 +308,9 @@ const {
 	muted,
 	canRenote,
 	isMyRenote,
+	isRenotedByMe,
+	isRenoteTargetDeleted,
+	displayedRenoteCount,
 	parsed,
 	urls,
 	showTicker,
@@ -308,6 +319,8 @@ const {
 
 	// 関数群
 	renote,
+	toggleRenote,
+	deleteRenote,
 	reply,
 	react,
 	reactViaMfmEmoji,
@@ -317,13 +330,11 @@ const {
 	clip,
 	share,
 	toggleFavorite,
-	showRenoteMenu,
 	blur,
 } = useNote(props, {
 	rootEl,
 	menuButton,
 	renoteButton,
-	renoteTime,
 	reactButton,
 	clipButton,
 }, {
@@ -347,7 +358,7 @@ const renotesPaginator = markRaw(new Paginator('notes/renotes', {
 const reactionsPaginator = markRaw(new Paginator('notes/reactions', {
 	limit: 10,
 	computedParams: computed(() => ({
-		noteId: appearNote.id,
+		noteId: reactionNote.id,
 		type: reactionTabType.value,
 	})),
 }));
@@ -364,6 +375,13 @@ function loadReplies() {
 }
 
 const conversation = ref<Misskey.entities.Note[]>([]);
+const replyThread = computed(() => {
+	const notes = [...conversation.value];
+	if (appearNote.reply != null && !notes.some(note => note.id === appearNote.reply!.id)) {
+		notes.push(appearNote.reply);
+	}
+	return notes;
+});
 
 function loadConversation() {
 	if (appearNote.replyId == null) return;
@@ -433,31 +451,48 @@ const keymap = {
 	}
 }
 
-.replyTo {
-	opacity: 0.7;
-	padding-bottom: 0;
+.replyThread {
+	position: relative;
 }
 
-.replyToMore {
+.replyThreadItem {
+	position: relative;
+
+	&::after {
+		content: "";
+		position: absolute;
+		z-index: 1;
+		top: 58px;
+		bottom: -6px;
+		left: 35px;
+		width: 2px;
+		border-radius: 999px;
+		background: var(--MI_THEME-divider);
+		pointer-events: none;
+	}
+}
+
+.replyThreadNote {
+	position: relative;
+	z-index: 2;
+	font-size: 1em;
+}
+
+.deletedReply {
+	padding: 12px 16px;
+	text-align: center;
 	opacity: 0.7;
 }
 
 .renote {
 	display: flex;
 	align-items: center;
-	padding: 16px 32px 8px 32px;
-	line-height: 28px;
+	padding: 12px 16px 0;
+	line-height: 20px;
+	font-size: 0.9em;
 	white-space: pre;
-	color: var(--MI_THEME-renote);
-}
-
-.renoteAvatar {
-	flex-shrink: 0;
-	display: inline-block;
-	width: 28px;
-	height: 28px;
-	margin: 0 8px 0 0;
-	border-radius: 6px;
+	color: var(--MI_THEME-fg);
+	opacity: 0.7;
 }
 
 .renoteText {
@@ -465,24 +500,28 @@ const keymap = {
 	flex-shrink: 1;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	color: inherit;
+
+	&:hover {
+		text-decoration: underline;
+	}
+}
+
+.renoteIcon {
+	flex-shrink: 0;
 }
 
 .renoteName {
-	font-weight: bold;
+	color: inherit;
 }
 
 .renoteInfo {
 	margin-left: auto;
-	font-size: 0.9em;
-}
-
-.renoteTime {
-	flex-shrink: 0;
-	color: inherit;
+	font-size: 1em;
 }
 
 .renote + .note {
-	padding-top: 8px;
+	padding-top: 4px;
 }
 
 .note {
@@ -571,11 +610,6 @@ const keymap = {
 	overflow-wrap: break-word;
 }
 
-.noteReplyTarget {
-	color: var(--MI_THEME-accent);
-	margin-right: 0.5em;
-}
-
 .rn {
 	margin-left: 4px;
 	font-style: oblique;
@@ -615,23 +649,50 @@ const keymap = {
 	font-size: 0.9em;
 }
 
-.noteFooterButton {
-	margin: 0;
-	padding: 8px;
-	opacity: 0.7;
+.noteFooterActions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 20px;
+	margin-top: 12px;
+}
 
-	&:not(:last-child) {
-		margin-right: 28px;
-	}
+.noteFooterButton {
+	position: relative;
+	flex: 0 1 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 40px;
+	min-width: 20px;
+	height: 20px;
+	margin: 0;
+	padding: 0;
+	opacity: 0.7;
 
 	&:hover {
 		color: var(--MI_THEME-fgHighlighted);
 	}
 }
 
+.noteFooterButtonPlaceholder {
+	cursor: default;
+}
+
+.renoted {
+	color: var(--MI_THEME-renote);
+}
+
 .noteFooterButtonCount {
-	display: inline;
-	margin: 0 0 0 8px;
+	position: absolute;
+	top: 50%;
+	inset-inline-start: calc(50% + 10px);
+	margin: 0;
+	line-height: 1;
+	white-space: nowrap;
+	transform: translateY(-50%);
+	pointer-events: none;
 	opacity: 0.7;
 
 	&.reacted {
@@ -691,30 +752,11 @@ const keymap = {
 	}
 }
 
-@container (max-width: 450px) {
-	.renote {
-		padding: 8px 16px 0 16px;
-	}
-}
-
-@container (max-width: 350px) {
-	.noteFooterButton {
-		&:not(:last-child) {
-			margin-right: 18px;
-		}
-	}
-}
-
 @container (max-width: 300px) {
 	.root {
 		font-size: 0.825em;
 	}
 
-	.noteFooterButton {
-		&:not(:last-child) {
-			margin-right: 12px;
-		}
-	}
 }
 
 .muted {
@@ -724,6 +766,10 @@ const keymap = {
 }
 
 .deleted {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
 	text-align: center;
 	padding: 32px;
 	margin: 6px 32px 32px;
@@ -731,5 +777,18 @@ const keymap = {
 	background-size: auto auto;
 	background-image: repeating-linear-gradient(135deg, transparent, transparent 10px, var(--color) 4px, var(--color) 14px);
 	border-radius: 8px;
+}
+
+.deletedRenoteAction {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	color: var(--MI_THEME-fg);
+
+	&:hover {
+		color: var(--MI_THEME-danger);
+		text-decoration: underline;
+	}
 }
 </style>

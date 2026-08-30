@@ -64,7 +64,7 @@ export function UserPage(props: CommonProps<{
 	return (
 		<Layout
 			{...props}
-			title={`${props.user.name || props.user.username} (@${props.user.username}) | ${props.instanceName}`}
+			title={`${props.user.name || props.user.username} (@${props.user.username}) - ${props.instanceName}`}
 			desc={props.user.description ?? ''}
 			metaSlot={metaBlock()}
 			ogSlot={ogBlock()}

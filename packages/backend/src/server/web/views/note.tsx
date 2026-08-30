@@ -85,7 +85,7 @@ export function NotePage(props: CommonProps<{
 	return (
 		<Layout
 			{...props}
-			title={`${title} | ${props.instanceName}`}
+			title={`${title} - ${props.instanceName}`}
 			desc={summary}
 			metaSlot={metaBlock()}
 			ogSlot={ogBlock()}

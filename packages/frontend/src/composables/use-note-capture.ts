@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { onUnmounted, reactive } from 'vue';
+import { computed, onUnmounted, reactive, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { EventEmitter } from 'eventemitter3';
 import { createVisibilityAwareInterval } from '@@/js/interval.js';
-import type { Reactive } from 'vue';
+import type { Reactive, Ref } from 'vue';
 import type { NoteUpdatedEvent } from 'misskey-js/streaming.types.js';
 import { useStream } from '@/stream.js';
 import { $i } from '@/i.js';
@@ -22,27 +22,159 @@ export const noteEvents = new EventEmitter<{
 	[ev: `pollVoted:${string}`]: (ctx: { userId: Misskey.entities.User['id']; choice: number; }) => void;
 	[ev: `replied:${string}`]: (ctx: { noteId: Misskey.entities.Note['id']; }) => void;
 	[ev: `unreplied:${string}`]: (ctx: { noteId: Misskey.entities.Note['id']; }) => void;
+	[ev: `renoted:${string}`]: (ctx: { noteId: Misskey.entities.Note['id']; }) => void;
+	[ev: `unrenoted:${string}`]: (ctx: { noteId: Misskey.entities.Note['id']; }) => void;
 }>();
+
+type PartialNoteData = Pick<Misskey.entities.Note, 'reactions' | 'reactionEmojis' | 'repliesCount' | 'renoteCount'>;
+type PartialNoteFetchData = PartialNoteData & { requestId: number; };
+type CaptureVisibilityListener = (isNearViewport: boolean) => void;
+
+const CAPTURE_ROOT_MARGIN = '200% 0px';
+const captureDocumentVisibility = ref(window.document.visibilityState);
+const captureVisibilityListeners = new Map<HTMLElement, Set<CaptureVisibilityListener>>();
+const captureVisibilityStates = new WeakMap<HTMLElement, boolean>();
+let captureVisibilityObserver: IntersectionObserver | null = null;
+
+window.document.addEventListener('visibilitychange', () => {
+	captureDocumentVisibility.value = window.document.visibilityState;
+});
+
+function getCaptureVisibilityObserver(): IntersectionObserver | null {
+	if (typeof window.IntersectionObserver !== 'function') return null;
+
+	if (captureVisibilityObserver == null) {
+		captureVisibilityObserver = new window.IntersectionObserver((entries) => {
+			for (const entry of entries) {
+				const element = entry.target as HTMLElement;
+				captureVisibilityStates.set(element, entry.isIntersecting);
+				for (const listener of captureVisibilityListeners.get(element) ?? []) {
+					listener(entry.isIntersecting);
+				}
+			}
+		}, {
+			rootMargin: CAPTURE_ROOT_MARGIN,
+		});
+	}
+
+	return captureVisibilityObserver;
+}
+
+function observeCaptureVisibility(element: HTMLElement, listener: CaptureVisibilityListener): () => void {
+	const observer = getCaptureVisibilityObserver();
+	if (observer == null) {
+		listener(true);
+		return () => {};
+	}
+
+	let listeners = captureVisibilityListeners.get(element);
+	if (listeners == null) {
+		listeners = new Set();
+		captureVisibilityListeners.set(element, listeners);
+		observer.observe(element);
+	}
+	listeners.add(listener);
+
+	const currentState = captureVisibilityStates.get(element);
+	if (currentState != null) listener(currentState);
+
+	return () => {
+		const currentListeners = captureVisibilityListeners.get(element);
+		if (currentListeners == null) return;
+		currentListeners.delete(listener);
+		if (currentListeners.size > 0) return;
+
+		captureVisibilityListeners.delete(element);
+		captureVisibilityStates.delete(element);
+		observer.unobserve(element);
+	};
+}
+
+export function useNoteCaptureVisibility(rootEl?: Ref<HTMLElement | null>): Readonly<Ref<boolean>> {
+	const isNearViewport = ref(rootEl == null);
+	let stopObserving: (() => void) | null = null;
+
+	if (rootEl != null) {
+		watch(rootEl, (element) => {
+			stopObserving?.();
+			stopObserving = null;
+			isNearViewport.value = false;
+
+			if (element != null) {
+				stopObserving = observeCaptureVisibility(element, (isVisible) => {
+					isNearViewport.value = isVisible;
+				});
+			}
+		}, { immediate: true });
+	}
+
+	onUnmounted(() => {
+		stopObserving?.();
+	});
+
+	return computed(() => captureDocumentVisibility.value === 'visible' && isNearViewport.value);
+}
+
+const myRenoteIds = reactive(new Map<Misskey.entities.Note['id'], Misskey.entities.Note['id'][]>());
+
+export function registerMyRenote(targetNoteId: Misskey.entities.Note['id'], renoteNoteId: Misskey.entities.Note['id']): void {
+	const current = myRenoteIds.get(targetNoteId) ?? [];
+	if (current.includes(renoteNoteId)) return;
+	myRenoteIds.set(targetNoteId, [...current, renoteNoteId]);
+}
+
+export function unregisterMyRenote(targetNoteId: Misskey.entities.Note['id'], renoteNoteId: Misskey.entities.Note['id']): void {
+	const current = myRenoteIds.get(targetNoteId);
+	if (current == null) return;
+
+	const next = current.filter(id => id !== renoteNoteId);
+	if (next.length === 0) {
+		myRenoteIds.delete(targetNoteId);
+	} else {
+		myRenoteIds.set(targetNoteId, next);
+	}
+}
+
+export function getMyRenoteId(targetNoteId: Misskey.entities.Note['id']): Misskey.entities.Note['id'] | null {
+	return myRenoteIds.get(targetNoteId)?.at(-1) ?? null;
+}
 
 // 返信の投稿はストリームやポーリングで配信されないので、自分の投稿だけはグローバルイベントから返信数に反映する
 globalEvents.on('notePosted', (note) => {
-	if (note.replyId == null) return;
-	noteEvents.emit(`replied:${note.replyId}`, { noteId: note.id });
+	if (note.replyId != null) {
+		noteEvents.emit(`replied:${note.replyId}`, { noteId: note.id });
+	}
+
+	if ($i != null && Misskey.note.isPureRenote(note) && note.userId === $i.id) {
+		registerMyRenote(note.renoteId, note.id);
+	}
+
+	if (note.renoteId != null && note.renote?.userId !== note.userId && !note.user.isBot) {
+		noteEvents.emit(`renoted:${note.renoteId}`, { noteId: note.id });
+	}
 });
 
 // 返信が削除された場合も同様に返信数へ反映する
-globalEvents.on('noteDeleted', (noteId, replyId) => {
-	if (replyId == null) return;
-	noteEvents.emit(`unreplied:${replyId}`, { noteId });
+globalEvents.on('noteDeleted', (noteId, replyId, renoteId) => {
+	if (replyId != null) {
+		noteEvents.emit(`unreplied:${replyId}`, { noteId });
+	}
+	if (renoteId != null) {
+		unregisterMyRenote(renoteId, noteId);
+		noteEvents.emit(`unrenoted:${renoteId}`, { noteId });
+	}
 });
 
 const fetchEvent = new EventEmitter<{
-	[id: string]: Pick<Misskey.entities.Note, 'reactions' | 'reactionEmojis'>;
+	[id: string]: PartialNoteFetchData;
+}>();
+const fetchStartedEvent = new EventEmitter<{
+	[id: string]: (requestId: number) => void;
 }>();
 
 const pollingQueue = new Map<string, {
 	referenceCount: number;
-	lastAddedAt: number;
+	lastActivatedAt: number;
 }>();
 
 function pollingEnqueue(note: Pick<Misskey.entities.Note, 'id' | 'createdAt'>) {
@@ -51,12 +183,12 @@ function pollingEnqueue(note: Pick<Misskey.entities.Note, 'id' | 'createdAt'>) {
 		pollingQueue.set(note.id, {
 			...data,
 			referenceCount: data.referenceCount + 1,
-			lastAddedAt: Date.now(),
+			lastActivatedAt: Date.now(),
 		});
 	} else {
 		pollingQueue.set(note.id, {
 			referenceCount: 1,
-			lastAddedAt: Date.now(),
+			lastActivatedAt: Date.now(),
 		});
 	}
 }
@@ -76,60 +208,77 @@ function pollingDequeue(note: Pick<Misskey.entities.Note, 'id' | 'createdAt'>) {
 }
 
 const CAPTURE_MAX = 30;
+const REFRESH_BATCH_DELAY = 50;
 const MIN_POLLING_INTERVAL = 1000 * 10;
 const POLLING_INTERVAL =
 	prefer.s.pollingInterval === 1 ? MIN_POLLING_INTERVAL * 1.5 * 1.5 :
 	prefer.s.pollingInterval === 2 ? MIN_POLLING_INTERVAL * 1.5 :
 	prefer.s.pollingInterval === 3 ? MIN_POLLING_INTERVAL :
 	MIN_POLLING_INTERVAL;
+const pendingRefreshNoteIds = new Set<Misskey.entities.Note['id']>();
+let pendingRefreshTimer: number | null = null;
+let nextFetchRequestId = 0;
+
+function fetchPartialNotes(noteIds: Misskey.entities.Note['id'][]): void {
+	if (noteIds.length === 0) return;
+	const requestId = ++nextFetchRequestId;
+	for (const noteId of noteIds) fetchStartedEvent.emit(noteId, requestId);
+
+	void misskeyApi('notes/show-partial-bulk', {
+		noteIds,
+	}).then((items) => {
+		for (const item of items) {
+			fetchEvent.emit(item.id, {
+				requestId,
+				reactions: item.reactions,
+				reactionEmojis: item.reactionEmojis,
+				repliesCount: item.repliesCount,
+				renoteCount: item.renoteCount,
+			});
+		}
+	}).catch(() => undefined);
+}
+
+function flushPendingRefreshes(): void {
+	pendingRefreshTimer = null;
+	const noteIds = [...pendingRefreshNoteIds].slice(0, CAPTURE_MAX);
+	for (const noteId of noteIds) pendingRefreshNoteIds.delete(noteId);
+
+	fetchPartialNotes(noteIds);
+	if (pendingRefreshNoteIds.size > 0) {
+		pendingRefreshTimer = window.setTimeout(flushPendingRefreshes, REFRESH_BATCH_DELAY);
+	}
+}
+
+function requestNoteRefresh(noteId: Misskey.entities.Note['id']): void {
+	pendingRefreshNoteIds.add(noteId);
+	if (pendingRefreshTimer != null) return;
+	pendingRefreshTimer = window.setTimeout(flushPendingRefreshes, REFRESH_BATCH_DELAY);
+}
 
 // documentが非表示の間はポーリングを停止する
 createVisibilityAwareInterval(() => {
 	const ids = [...pollingQueue.entries()]
-		.filter(([k, v]) => Date.now() - v.lastAddedAt < 1000 * 60 * 5) // 追加されてから一定時間経過したものは省く
-		.map(([k, v]) => k)
-		.sort((a, b) => (a > b ? -1 : 1)) // 新しいものを優先するためにIDで降順ソート
+		.sort(([, a], [, b]) => b.lastActivatedAt - a.lastActivatedAt)
+		.map(([id]) => id)
 		.slice(0, CAPTURE_MAX);
 
-	if (ids.length === 0) return;
-
-	// まとめてリクエストするのではなく、個別にHTTPリクエスト投げてCDNにキャッシュさせた方がサーバーの負荷低減には良いかもしれない？
-	misskeyApi('notes/show-partial-bulk', {
-		noteIds: ids,
-	}).then((items) => {
-		for (const item of items) {
-			fetchEvent.emit(item.id, {
-				reactions: item.reactions,
-				reactionEmojis: item.reactionEmojis,
-			});
-		}
-	});
+	fetchPartialNotes(ids);
 }, POLLING_INTERVAL);
 
 function pollingSubscribe(props: {
 	note: Pick<Misskey.entities.Note, 'id' | 'createdAt'>;
-	$note: ReactiveNoteData;
-}) {
-	const { note, $note } = props;
-
-	function onFetched(data: Pick<Misskey.entities.Note, 'reactions' | 'reactionEmojis'>): void {
-		$note.reactions = data.reactions;
-		$note.reactionCount = Object.values(data.reactions).reduce((a, b) => a + b, 0);
-		$note.reactionEmojis = data.reactionEmojis;
-	}
-
+}): () => void {
+	const { note } = props;
 	pollingEnqueue(note);
-	fetchEvent.on(note.id, onFetched);
-
-	onUnmounted(() => {
+	return () => {
 		pollingDequeue(note);
-		fetchEvent.off(note.id, onFetched);
-	});
+	};
 }
 
 function realtimeSubscribe(props: {
 	note: Pick<Misskey.entities.Note, 'id' | 'createdAt'>;
-}): void {
+}): () => void {
 	const note = props.note;
 	const connection = useStream();
 
@@ -139,6 +288,26 @@ function realtimeSubscribe(props: {
 		if (id !== note.id) return;
 
 		switch (type) {
+			case 'replied': {
+				noteEvents.emit(`replied:${id}`, { noteId: body.noteId });
+				break;
+			}
+
+			case 'unreplied': {
+				noteEvents.emit(`unreplied:${id}`, { noteId: body.noteId });
+				break;
+			}
+
+			case 'renoted': {
+				noteEvents.emit(`renoted:${id}`, { noteId: body.noteId });
+				break;
+			}
+
+			case 'unrenoted': {
+				noteEvents.emit(`unrenoted:${id}`, { noteId: body.noteId });
+				break;
+			}
+
 			case 'reacted': {
 				noteEvents.emit(`reacted:${id}`, {
 					userId: body.userId,
@@ -171,27 +340,27 @@ function realtimeSubscribe(props: {
 		}
 	}
 
-	function capture(withHandler = false): void {
+	function capture(): void {
 		connection.send('sr', { id: note.id });
-		if (withHandler) connection.on('noteUpdated', onStreamNoteUpdated);
 	}
 
-	function decapture(withHandler = false): void {
+	function decapture(): void {
 		connection.send('un', { id: note.id });
-		if (withHandler) connection.off('noteUpdated', onStreamNoteUpdated);
 	}
 
 	function onStreamConnected() {
-		capture(false);
+		capture();
 	}
 
-	capture(true);
+	capture();
+	connection.on('noteUpdated', onStreamNoteUpdated);
 	connection.on('_connected_', onStreamConnected);
 
-	onUnmounted(() => {
-		decapture(true);
+	return () => {
+		decapture();
+		connection.off('noteUpdated', onStreamNoteUpdated);
 		connection.off('_connected_', onStreamConnected);
-	});
+	};
 }
 
 export type ReactiveNoteData = {
@@ -200,6 +369,7 @@ export type ReactiveNoteData = {
 	reactionEmojis: Misskey.entities.Note['reactionEmojis'];
 	myReaction: Misskey.entities.Note['myReaction'];
 	repliesCount: Misskey.entities.Note['repliesCount'];
+	renoteCount: Misskey.entities.Note['renoteCount'];
 	pollChoices: NonNullable<Misskey.entities.Note['poll']>['choices'];
 };
 
@@ -209,11 +379,15 @@ export function useNoteCapture(props: {
 	note: Misskey.entities.Note;
 	parentNote: Misskey.entities.Note | null;
 	mock?: boolean;
+	active?: Readonly<Ref<boolean>>;
 }): {
 	$note: Reactive<ReactiveNoteData>;
 	subscribe: () => void;
 } {
-	const { note, parentNote, mock } = props;
+	const { note, parentNote, mock, active = ref(true) } = props;
+	if ($i != null && parentNote?.renote != null && Misskey.note.isPureRenote(parentNote) && parentNote.userId === $i.id) {
+		registerMyRenote(note.id, parentNote.id);
+	}
 
 	const $note = reactive<ReactiveNoteData>({
 		reactions: Object.entries(note.reactions).reduce((acc, [name, count]) => {
@@ -230,27 +404,58 @@ export function useNoteCapture(props: {
 		reactionEmojis: note.reactionEmojis,
 		myReaction: note.myReaction,
 		repliesCount: note.repliesCount,
+		renoteCount: note.renoteCount,
 		pollChoices: note.poll?.choices ?? [],
 	});
+	let mutationVersion = 0;
+	let latestFetchRequestId = 0;
+	let mutationVersionAtLatestFetch = 0;
+
+	function onFetchStarted(requestId: number): void {
+		if (requestId < latestFetchRequestId) return;
+		latestFetchRequestId = requestId;
+		mutationVersionAtLatestFetch = mutationVersion;
+	}
+
+	function onFetched(data: PartialNoteFetchData): void {
+		if (data.requestId !== latestFetchRequestId) return;
+		if (mutationVersion !== mutationVersionAtLatestFetch) {
+			if (active.value) requestNoteRefresh(note.id);
+			return;
+		}
+		$note.reactions = data.reactions;
+		$note.reactionCount = Object.values(data.reactions).reduce((a, b) => a + b, 0);
+		$note.reactionEmojis = data.reactionEmojis;
+		$note.repliesCount = data.repliesCount;
+		$note.renoteCount = data.renoteCount;
+	}
 
 	noteEvents.on(`reacted:${note.id}`, onReacted);
 	noteEvents.on(`unreacted:${note.id}`, onUnreacted);
 	noteEvents.on(`pollVoted:${note.id}`, onPollVoted);
 	noteEvents.on(`replied:${note.id}`, onReplied);
 	noteEvents.on(`unreplied:${note.id}`, onUnreplied);
+	noteEvents.on(`renoted:${note.id}`, onRenoted);
+	noteEvents.on(`unrenoted:${note.id}`, onUnrenoted);
+	fetchStartedEvent.on(note.id, onFetchStarted);
+	fetchEvent.on(note.id, onFetched);
 
 	// 操作がダブっていないかどうかを簡易的に記録するためのMap
 	const reactionUserMap = new Map<Misskey.entities.User['id'], string | typeof noReaction>();
 	let latestPollVotedKey: string | null = null;
 
-	// 既にカウントした返信のIDを覚えておき、同じ返信で二重に増やさないようにする
-	const countedReplyIds = new Set<Misskey.entities.Note['id']>();
+	// 同じ返信について重複した投稿/削除イベントを一度だけ反映する
+	const replyEventState = new Map<Misskey.entities.Note['id'], 'replied' | 'unreplied'>();
+
+	// 同じ転送について重複した投稿/削除イベントを一度だけ反映する
+	const renoteEventState = new Map<Misskey.entities.Note['id'], 'renoted' | 'unrenoted'>();
 
 	function onReacted(ctx: { userId: Misskey.entities.User['id']; reaction: string; emoji?: { name: string; url: string; } | null; }): void {
 		let normalizedName = ctx.reaction.replace(/^:(\w+):$/, ':$1@.:');
 		normalizedName = normalizedName.match('\u200d') ? normalizedName : normalizedName.replace(/\ufe0f/g, '');
 		if (reactionUserMap.has(ctx.userId) && reactionUserMap.get(ctx.userId) === normalizedName) return;
 		reactionUserMap.set(ctx.userId, normalizedName);
+		mutationVersion++;
 
 		if (ctx.emoji && !(ctx.emoji.name in $note.reactionEmojis)) {
 			$note.reactionEmojis[ctx.emoji.name] = ctx.emoji.url;
@@ -273,6 +478,7 @@ export function useNoteCapture(props: {
 		// 確実に一度リアクションされて取り消されている場合のみ処理をとめる（APIで初回読み込み→Streamでアップデート等の場合、reactionUserMapに情報がないため）
 		if (reactionUserMap.has(ctx.userId) && reactionUserMap.get(ctx.userId) === noReaction) return;
 		reactionUserMap.set(ctx.userId, noReaction);
+		mutationVersion++;
 
 		const currentCount = $note.reactions[normalizedName] || 0;
 
@@ -289,6 +495,7 @@ export function useNoteCapture(props: {
 		const newPollVotedKey = `${ctx.userId}:${ctx.choice}`;
 		if (newPollVotedKey === latestPollVotedKey) return;
 		latestPollVotedKey = newPollVotedKey;
+		mutationVersion++;
 
 		const choices = [...$note.pollChoices];
 		choices[ctx.choice] = {
@@ -303,75 +510,88 @@ export function useNoteCapture(props: {
 	}
 
 	function onReplied(ctx: { noteId: Misskey.entities.Note['id']; }): void {
-		if (countedReplyIds.has(ctx.noteId)) return;
-		countedReplyIds.add(ctx.noteId);
+		if (replyEventState.get(ctx.noteId) === 'replied') return;
+		replyEventState.set(ctx.noteId, 'replied');
+		mutationVersion++;
 
 		$note.repliesCount += 1;
 	}
 
 	function onUnreplied(ctx: { noteId: Misskey.entities.Note['id']; }): void {
-		countedReplyIds.delete(ctx.noteId);
+		if (replyEventState.get(ctx.noteId) === 'unreplied') return;
+		replyEventState.set(ctx.noteId, 'unreplied');
+		mutationVersion++;
 
 		$note.repliesCount = Math.max(0, $note.repliesCount - 1);
 	}
 
-	function subscribe() {
-		if (mock) {
-			// モックモードでは購読しない
-			return;
-		}
+	function onRenoted(ctx: { noteId: Misskey.entities.Note['id']; }): void {
+		if (renoteEventState.get(ctx.noteId) === 'renoted') return;
+		renoteEventState.set(ctx.noteId, 'renoted');
+		mutationVersion++;
 
+		$note.renoteCount += 1;
+	}
+
+	function onUnrenoted(ctx: { noteId: Misskey.entities.Note['id']; }): void {
+		if (renoteEventState.get(ctx.noteId) === 'unrenoted') return;
+		renoteEventState.set(ctx.noteId, 'unrenoted');
+		mutationVersion++;
+
+		$note.renoteCount = Math.max(0, $note.renoteCount - 1);
+	}
+
+	let stopCapture: (() => void) | null = null;
+
+	function startCapture(): void {
+		if (mock || stopCapture != null) return;
 		if ($i && store.s.realtimeMode) {
-			realtimeSubscribe({
+			stopCapture = realtimeSubscribe({
 				note,
 			});
 		} else {
-			pollingSubscribe({
+			stopCapture = pollingSubscribe({
 				note,
-				$note,
 			});
 		}
+
+		requestNoteRefresh(note.id);
 	}
 
+	function stopCurrentCapture(): void {
+		stopCapture?.();
+		stopCapture = null;
+	}
+
+	function subscribe(): void {
+		if (!active.value) return;
+		startCapture();
+		requestNoteRefresh(note.id);
+	}
+
+	watch(active, (isActive) => {
+		if (isActive) {
+			startCapture();
+		} else {
+			stopCurrentCapture();
+		}
+	}, { immediate: true });
+
 	onUnmounted(() => {
+		stopCurrentCapture();
 		noteEvents.off(`reacted:${note.id}`, onReacted);
 		noteEvents.off(`unreacted:${note.id}`, onUnreacted);
 		noteEvents.off(`pollVoted:${note.id}`, onPollVoted);
 		noteEvents.off(`replied:${note.id}`, onReplied);
 		noteEvents.off(`unreplied:${note.id}`, onUnreplied);
+		noteEvents.off(`renoted:${note.id}`, onRenoted);
+		noteEvents.off(`unrenoted:${note.id}`, onUnrenoted);
+		fetchStartedEvent.off(note.id, onFetchStarted);
+		fetchEvent.off(note.id, onFetched);
 	});
-
-	// 投稿からある程度経過している(=タイムラインを遡って表示した)ノートは、イベントが発生する可能性が低いためそもそも購読しない
-	// ただし「リノートされたばかりの過去のノート」(= parentNoteが存在し、かつparentNoteの投稿日時が最近)はイベント発生が考えられるため購読する
-	// TODO: デバイスとサーバーの時計がズレていると不具合の元になるため、ズレを検知して警告を表示するなどのケアが必要かもしれない
-	if (parentNote == null) {
-		if ((Date.now() - new Date(note.createdAt).getTime()) > 1000 * 60 * 5) { // 5min
-			// リノートで表示されているノートでもないし、投稿からある程度経過しているので自動で購読しない
-			return {
-				$note,
-				subscribe: () => {
-					subscribe();
-				},
-			};
-		}
-	} else {
-		if ((Date.now() - new Date(parentNote.createdAt).getTime()) > 1000 * 60 * 5) { // 5min
-			// リノートで表示されているノートだが、リノートされてからある程度経過しているので自動で購読しない
-			return {
-				$note,
-				subscribe: () => {
-					subscribe();
-				},
-			};
-		}
-	}
-
-	subscribe();
 
 	return {
 		$note,
-		subscribe: () => {
-			// すでに購読しているので何もしない
-		},
+		subscribe,
 	};
 }

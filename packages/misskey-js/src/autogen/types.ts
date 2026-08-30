@@ -31441,6 +31441,8 @@ export interface operations {
                         reactionEmojis: {
                             [key: string]: string;
                         };
+                        repliesCount: number;
+                        renoteCount: number;
                     }[];
                 };
             };

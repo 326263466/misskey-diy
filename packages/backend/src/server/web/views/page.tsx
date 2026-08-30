@@ -54,7 +54,7 @@ export function PagePage(props: CommonProps<{
 	return (
 		<Layout
 			{...props}
-			title={`${props.page.title} | ${props.instanceName}`}
+			title={`${props.page.title} - ${props.instanceName}`}
 			desc={props.page.summary ?? ''}
 			metaSlot={metaBlock()}
 			ogSlot={ogBlock()}

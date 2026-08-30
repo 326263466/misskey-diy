@@ -36,16 +36,17 @@ function isPureRenote(note: MiNote): note is MiNote & { renoteId: MiNote['id']; 
 	);
 }
 
-function getAppearNoteIds(notes: MiNote[]): Set<string> {
-	const appearNoteIds = new Set<string>();
+function getReactionNoteIds(notes: MiNote[]): Set<string> {
+	const reactionNoteIds = new Set<string>();
 	for (const note of notes) {
 		if (isPureRenote(note)) {
-			appearNoteIds.add(note.renoteId);
+			reactionNoteIds.add(note.id);
+			reactionNoteIds.add(note.renoteId);
 		} else {
-			appearNoteIds.add(note.id);
+			reactionNoteIds.add(note.id);
 		}
 	}
-	return appearNoteIds;
+	return reactionNoteIds;
 }
 
 async function nullIfEntityNotFound<T>(promise: Promise<T>): Promise<T | null> {
@@ -479,9 +480,10 @@ export class NoteEntityService implements OnModuleInit {
 					}, meId, options?._hint_),
 				} : {}),
 
-				...(meId ? {
-					isFavorited: this.populateIsFavorited(note.id, meId, options?._hint_),
-				} : {}),
+			} : {}),
+
+			...(meId ? {
+				isFavorited: this.populateIsFavorited(note.id, meId, options?._hint_),
 			} : {}),
 		});
 
@@ -505,7 +507,7 @@ export class NoteEntityService implements OnModuleInit {
 	) {
 		if (notes.length === 0) return [];
 
-		const bufferedReactions = this.meta.enableReactionsBuffering ? await this.reactionsBufferingService.getMany([...getAppearNoteIds(notes)]) : null;
+		const bufferedReactions = this.meta.enableReactionsBuffering ? await this.reactionsBufferingService.getMany([...getReactionNoteIds(notes)]) : null;
 
 		const meId = me ? me.id : null;
 		const myReactionsMap = new Map<MiNote['id'], string | null>();
@@ -514,42 +516,34 @@ export class NoteEntityService implements OnModuleInit {
 
 			// パフォーマンスのためノートが作成されてから2秒以上経っていない場合はリアクションを取得しない
 			const oldId = this.idService.gen(Date.now() - 2000);
+			const collectMyReaction = (note: MiNote, includeRecent: boolean): void => {
+				if (!includeRecent && note.id >= oldId) {
+					myReactionsMap.set(note.id, null);
+					return;
+				}
+
+				const reactionsCount = Object.values(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions?.get(note.id)?.deltas ?? {})).reduce((a, b) => a + b, 0);
+				if (reactionsCount === 0) {
+					myReactionsMap.set(note.id, null);
+				} else if (reactionsCount <= note.reactionAndUserPairCache.length + (bufferedReactions?.get(note.id)?.pairs.length ?? 0)) {
+					const pairInBuffer = bufferedReactions?.get(note.id)?.pairs.find(p => p[0] === meId);
+					if (pairInBuffer) {
+						myReactionsMap.set(note.id, pairInBuffer[1]);
+					} else {
+						const pair = note.reactionAndUserPairCache.find(p => p.startsWith(meId));
+						myReactionsMap.set(note.id, pair ? pair.split('/')[1] : null);
+					}
+				} else {
+					idsNeedFetchMyReaction.add(note.id);
+				}
+			};
 
 			for (const note of notes) {
 				if (isPureRenote(note)) {
-					const reactionsCount = Object.values(this.reactionsBufferingService.mergeReactions(note.renote.reactions, bufferedReactions?.get(note.renote.id)?.deltas ?? {})).reduce((a, b) => a + b, 0);
-					if (reactionsCount === 0) {
-						myReactionsMap.set(note.renote.id, null);
-					} else if (reactionsCount <= note.renote.reactionAndUserPairCache.length + (bufferedReactions?.get(note.renote.id)?.pairs.length ?? 0)) {
-						const pairInBuffer = bufferedReactions?.get(note.renote.id)?.pairs.find(p => p[0] === meId);
-						if (pairInBuffer) {
-							myReactionsMap.set(note.renote.id, pairInBuffer[1]);
-						} else {
-							const pair = note.renote.reactionAndUserPairCache.find(p => p.startsWith(meId));
-							myReactionsMap.set(note.renote.id, pair ? pair.split('/')[1] : null);
-						}
-					} else {
-						idsNeedFetchMyReaction.add(note.renote.id);
-					}
+					collectMyReaction(note.renote, true);
+					collectMyReaction(note, true);
 				} else {
-					if (note.id < oldId) {
-						const reactionsCount = Object.values(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions?.get(note.id)?.deltas ?? {})).reduce((a, b) => a + b, 0);
-						if (reactionsCount === 0) {
-							myReactionsMap.set(note.id, null);
-						} else if (reactionsCount <= note.reactionAndUserPairCache.length + (bufferedReactions?.get(note.id)?.pairs.length ?? 0)) {
-							const pairInBuffer = bufferedReactions?.get(note.id)?.pairs.find(p => p[0] === meId);
-							if (pairInBuffer) {
-								myReactionsMap.set(note.id, pairInBuffer[1]);
-							} else {
-								const pair = note.reactionAndUserPairCache.find(p => p.startsWith(meId));
-								myReactionsMap.set(note.id, pair ? pair.split('/')[1] : null);
-							}
-						} else {
-							idsNeedFetchMyReaction.add(note.id);
-						}
-					} else {
-						myReactionsMap.set(note.id, null);
-					}
+					collectMyReaction(note, false);
 				}
 			}
 
@@ -566,8 +560,8 @@ export class NoteEntityService implements OnModuleInit {
 		// 逐条查询收藏状态会产生大量查询，因此把所有目标帖子 ID 合并成一次查询
 		let myFavoritesSet: Set<MiNote['id']> | null = null;
 		if (meId) {
-			// pack 会对 renote 再递归打包一次，所以本体和 renote 的 ID 都要纳入查询范围
-			const favoriteTargetIds = [...new Set(notes.flatMap(note => [note.id, note.renoteId]).filter(id => id != null))];
+			// pack 会对 reply / renote 再递归打包一次，所以本体和引用目标都要纳入查询范围
+			const favoriteTargetIds = [...new Set(notes.flatMap(note => [note.id, note.replyId, note.renoteId]).filter(id => id != null))];
 			const myFavorites = await this.noteFavoritesRepository.find({
 				where: {
 					userId: meId,
@@ -653,6 +647,8 @@ export class NoteEntityService implements OnModuleInit {
 				userHost: true,
 				reactions: true,
 				reactionAndUserPairCache: true,
+				repliesCount: true,
+				renoteCount: true,
 			},
 		});
 
@@ -672,6 +668,8 @@ export class NoteEntityService implements OnModuleInit {
 				id: note.id,
 				reactions,
 				reactionEmojis,
+				repliesCount: note.repliesCount,
+				renoteCount: note.renoteCount,
 			}));
 		});
 

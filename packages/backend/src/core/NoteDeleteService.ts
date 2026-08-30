@@ -62,12 +62,42 @@ export class NoteDeleteService {
 	 */
 	async delete(user: { id: MiUser['id']; uri: MiUser['uri']; host: MiUser['host']; isBot: MiUser['isBot']; }, note: MiNote, quiet = false, deleter?: MiUser) {
 		const deletedAt = new Date();
+		const shouldDecrementRenote = note.renoteId != null && note.renoteUserId !== user.id && !user.isBot;
+		let replyTarget: MiNote | null = null;
+		let renoteTarget: MiNote | null = null;
+
+		if (!quiet) {
+			[replyTarget, renoteTarget] = await Promise.all([
+				note.replyId == null ? null : this.notesRepository.findOneBy({ id: note.replyId }),
+				shouldDecrementRenote ? this.notesRepository.findOneBy({ id: note.renoteId! }) : null,
+			]);
+		}
+
+		if (shouldDecrementRenote) {
+			await this.notesRepository.createQueryBuilder().update()
+				.set({
+					renoteCount: () => 'GREATEST("renoteCount" - 1, 0)',
+				})
+				.where('id = :id', { id: note.renoteId })
+				.execute();
+		}
 
 		if (note.replyId) {
 			await this.notesRepository.decrement({ id: note.replyId }, 'repliesCount', 1);
 		}
 
 		if (!quiet) {
+			if (replyTarget != null) {
+				this.globalEventService.publishNoteStream(replyTarget, 'unreplied', {
+					noteId: note.id,
+				});
+			}
+			if (renoteTarget != null) {
+				this.globalEventService.publishNoteStream(renoteTarget, 'unrenoted', {
+					noteId: note.id,
+				});
+			}
+
 			this.globalEventService.publishNoteStream(note, 'deleted', {
 				deletedAt: deletedAt,
 			});

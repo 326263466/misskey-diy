@@ -49,7 +49,7 @@ export function FlashPage(props: CommonProps<{
 	return (
 		<Layout
 			{...props}
-			title={`${props.flash.title} | ${props.instanceName}`}
+			title={`${props.flash.title} - ${props.instanceName}`}
 			desc={props.flash.summary}
 			metaSlot={metaBlock()}
 			ogSlot={ogBlock()}

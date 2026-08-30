@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { Ref } from 'vue';
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
@@ -20,7 +20,7 @@ import * as os from '@/os.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
 import { getNoteClipMenu, getNoteMenu, getRenoteMenu, getAbuseNoteMenu, getCopyNoteLinkMenu } from '@/utility/get-note-menu.js';
-import { noteEvents, useNoteCapture } from '@/composables/use-note-capture.js';
+import { getMyRenoteId, noteEvents, unregisterMyRenote, useNoteCapture, useNoteCaptureVisibility } from '@/composables/use-note-capture.js';
 import { deepClone } from '@/utility/clone.js';
 import { useTooltip } from '@/composables/use-tooltip.js';
 import { claimAchievement } from '@/utility/achievements.js';
@@ -51,7 +51,6 @@ export interface UseNoteElements {
 	rootEl?: Ref<HTMLElement | null>;
 	menuButton?: Ref<HTMLElement | null>;
 	renoteButton?: Ref<HTMLElement | null>;
-	renoteTime?: Ref<HTMLElement | null>;
 	reactButton?: Ref<HTMLElement | null>;
 	clipButton?: Ref<HTMLElement | null>;
 }
@@ -135,17 +134,32 @@ export function useNote(
 	// 基本状態
 	const isRenote = Misskey.note.isPureRenote(rawNote);
 	const appearNote = getAppearNote(rawNote) ?? rawNote;
+	const reactionNote = isRenote ? rawNote : appearNote;
+	const renoteTargetId = isRenote ? rawNote.renoteId : appearNote.id;
 
 	// キャプチャ（ストリーム購読）
-	const { $note: $appearNote, subscribe: subscribeManuallyToNoteCapture } = useNoteCapture({
+	const noteCaptureActive = useNoteCaptureVisibility(els.rootEl);
+	const appearNoteCapture = useNoteCapture({
 		note: appearNote,
 		parentNote: rawNote,
 		mock: props.mock,
+		active: noteCaptureActive,
 	});
+	const reactionNoteCapture = reactionNote.id === appearNote.id
+		? appearNoteCapture
+		: useNoteCapture({
+			note: reactionNote,
+			parentNote: null,
+			mock: props.mock,
+			active: noteCaptureActive,
+		});
+	const { $note: $appearNote, subscribe: subscribeManuallyToNoteCapture } = appearNoteCapture;
+	const { $note: $reactionNote } = reactionNoteCapture;
 
 	// 各種フラグ状態
 	const showContent = ref(false);
 	const isDeleted = ref(false);
+	const isRenoteTargetDeleted = ref(isRenote && rawNote.renote == null);
 	// 收藏状态由后端在打包帖子时一并返回，未登录时字段不存在
 	const isFavorited = ref(appearNote.isFavorited ?? false);
 	const translating = ref(false);
@@ -158,7 +172,9 @@ export function useNote(
 
 	// 導出値
 	// rawNote / appearNote / $i.id / prefer.s は変化しないので一度だけ計算する
-	const isMyRenote = $i != null && ($i.id === rawNote.userId);
+	const isMyRenote = $i != null && isRenote && ($i.id === rawNote.userId);
+	const isRenotedByMe = computed(() => renoteTargetId != null && getMyRenoteId(renoteTargetId) != null);
+	const displayedRenoteCount = computed(() => $appearNote.renoteCount + (isRenotedByMe.value && appearNote.userId === $i?.id && $i?.isBot !== true ? 1 : 0));
 	const parsed = appearNote.text ? mfm.parse(appearNote.text) : null;
 	const urls = parsed ? extractUrlFromMfm(parsed).filter((url) => appearNote.renote?.url !== url && appearNote.renote?.uri !== url) : null;
 	const isLong = shouldCollapsed(appearNote, urls ?? []);
@@ -166,7 +182,7 @@ export function useNote(
 	const canRenote = ['public', 'home'].includes(appearNote.visibility) || (appearNote.visibility === 'followers' && appearNote.userId === $i?.id);
 	const showTicker = (prefer.s.instanceTicker === 'always') || (prefer.s.instanceTicker === 'remote' && appearNote.user.instance);
 	const canShare = isSupportShare();
-	const renoteCollapsed = ref(prefer.s.collapseRenotes && isRenote && (($i && ($i.id === rawNote.userId || $i.id === appearNote.userId)) || ($appearNote.myReaction != null)));
+	const renoteCollapsed = ref(prefer.s.collapseRenotes && isRenote && (($i && ($i.id === rawNote.userId || $i.id === appearNote.userId)) || ($reactionNote.myReaction != null)));
 
 	const pleaseLoginContext: OpenOnRemoteOptions = {
 		type: 'lookup',
@@ -175,7 +191,14 @@ export function useNote(
 
 	// グローバルイベントの監視
 	useGlobalEvent('noteDeleted', (noteId) => {
-		if (noteId === rawNote.id || noteId === appearNote.id) {
+		if (isMyRenote && noteId === rawNote.id) {
+			if (renoteTargetId != null) unregisterMyRenote(renoteTargetId, rawNote.id);
+		}
+		if (noteId === rawNote.id) {
+			isDeleted.value = true;
+		} else if (isRenote && noteId === renoteTargetId) {
+			isRenoteTargetDeleted.value = true;
+		} else if (noteId === appearNote.id) {
 			isDeleted.value = true;
 		}
 	});
@@ -193,7 +216,7 @@ export function useNote(
 				const { dispose } = os.popup(MkUsersTooltip, {
 					showing,
 					users,
-					count: appearNote.renoteCount,
+					count: displayedRenoteCount.value,
 					anchorElement: els.renoteButton!.value,
 				}, {
 					closed: () => dispose(),
@@ -204,9 +227,9 @@ export function useNote(
 		if (appearNote.reactionAcceptance === 'likeOnly' && els.reactButton != null) {
 			useTooltip(els.reactButton, async (showing) => {
 				const reactions = await misskeyApiGet('notes/reactions', {
-					noteId: appearNote.id,
+					noteId: reactionNote.id,
 					limit: 10,
-					_cacheKey_: $appearNote.reactionCount,
+					_cacheKey_: $reactionNote.reactionCount,
 				});
 				const users = reactions.map(x => x.user);
 				if (users.length < 1 || els.reactButton!.value == null) return;
@@ -214,7 +237,7 @@ export function useNote(
 					showing,
 					reaction: '❤️',
 					users,
-					count: $appearNote.reactionCount,
+					count: $reactionNote.reactionCount,
 					anchorElement: els.reactButton!.value,
 				}, {
 					closed: () => dispose(),
@@ -239,6 +262,30 @@ export function useNote(
 		subscribeManuallyToNoteCapture();
 	}
 
+	async function toggleRenote() {
+		if (isRenotedByMe.value) {
+			await showRenoteMenu();
+		} else {
+			await renote();
+		}
+	}
+
+	async function deleteRenote(): Promise<void> {
+		if (props.mock) return;
+		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
+		if (!isLoggedIn) return;
+
+		const renoteNoteId = renoteTargetId == null ? null : getMyRenoteId(renoteTargetId) ?? (isMyRenote ? rawNote.id : null);
+		if (renoteNoteId == null) return;
+
+		await misskeyApi('notes/delete', { noteId: renoteNoteId });
+		unregisterMyRenote(renoteTargetId!, renoteNoteId);
+		const countedRenoteId = !isRenoteTargetDeleted.value && appearNote.userId !== $i?.id && $i?.isBot !== true
+			? renoteTargetId
+			: null;
+		globalEvents.emit('noteDeleted', renoteNoteId, null, countedRenoteId);
+	}
+
 	async function reply() {
 		if (props.mock) return;
 		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
@@ -260,10 +307,10 @@ export function useNote(
 			sound.playMisskeySfx('reaction');
 			if (props.mock) return;
 			misskeyApi('notes/reactions/create', {
-				noteId: appearNote.id,
+				noteId: reactionNote.id,
 				reaction: '❤️',
 			}).then(() => {
-				noteEvents.emit(`reacted:${appearNote.id}`, { userId: $i!.id, reaction: '❤️' });
+				noteEvents.emit(`reacted:${reactionNote.id}`, { userId: $i!.id, reaction: '❤️' });
 			});
 			if (els.reactButton != null && els.reactButton.value != null && prefer.s.animation) {
 				const rect = els.reactButton.value.getBoundingClientRect();
@@ -290,10 +337,10 @@ export function useNote(
 					return;
 				}
 				misskeyApi('notes/reactions/create', {
-					noteId: appearNote.id,
+					noteId: reactionNote.id,
 					reaction: reaction,
 				}).then(() => {
-					noteEvents.emit(`reacted:${appearNote.id}`, { userId: $i!.id, reaction: reaction });
+					noteEvents.emit(`reacted:${reactionNote.id}`, { userId: $i!.id, reaction: reaction });
 				});
 				if (appearNote.text && appearNote.text.length > 100 && (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 3)) {
 					claimAchievement('reactWithoutRead');
@@ -309,10 +356,10 @@ export function useNote(
 		showMovedDialog();
 		sound.playMisskeySfx('reaction');
 		misskeyApi('notes/reactions/create', {
-			noteId: appearNote.id,
+			noteId: reactionNote.id,
 			reaction: reaction,
 		}).then(() => {
-			noteEvents.emit(`reacted:${appearNote.id}`, {
+			noteEvents.emit(`reacted:${reactionNote.id}`, {
 				userId: $i!.id,
 				reaction: reaction,
 			});
@@ -320,20 +367,20 @@ export function useNote(
 	}
 
 	function undoReact(): void {
-		const oldReaction = $appearNote.myReaction;
+		const oldReaction = $reactionNote.myReaction;
 		if (!oldReaction) return;
 		if (props.mock) return;
-		misskeyApi('notes/reactions/delete', { noteId: appearNote.id }).then(() => {
-			noteEvents.emit(`unreacted:${appearNote.id}`, { userId: $i!.id, reaction: oldReaction });
+		misskeyApi('notes/reactions/delete', { noteId: reactionNote.id }).then(() => {
+			noteEvents.emit(`unreacted:${reactionNote.id}`, { userId: $i!.id, reaction: oldReaction });
 		});
 	}
 
 	function toggleReact(customMockCallback?: (reaction: string) => void) {
-		if ($appearNote.myReaction == null) {
+		if ($reactionNote.myReaction == null) {
 			react(customMockCallback);
 		} else {
 			if (props.mock && customMockCallback) {
-				customMockCallback($appearNote.myReaction);
+				customMockCallback($reactionNote.myReaction);
 			} else {
 				undoReact();
 			}
@@ -411,9 +458,7 @@ export function useNote(
 			text: i18n.ts.unrenote,
 			icon: 'ti ti-trash',
 			danger: true,
-			action: () => {
-				misskeyApi('notes/delete', { noteId: rawNote.id }).then(() => { globalEvents.emit('noteDeleted', rawNote.id, rawNote.replyId); });
-			},
+			action: deleteRenote,
 		});
 
 		const menuItems: MenuItem[] = [{
@@ -435,16 +480,16 @@ export function useNote(
 		menuItems.push(getCopyNoteLinkMenu(rawNote, i18n.ts.copyLinkRenote));
 		menuItems.push({ type: 'divider' });
 
-		if (isMyRenote) {
+		if (isRenotedByMe.value) {
 			menuItems.push(getUnrenote());
-			os.popupMenu(menuItems, els.renoteTime?.value);
+			os.popupMenu(menuItems, els.renoteButton?.value);
 		} else {
 			menuItems.push(getAbuseNoteMenu(rawNote, i18n.ts.reportAbuseRenote));
 			if ($i?.isModerator || $i?.isAdmin) {
 				menuItems.push(getUnrenote());
 			}
 
-			os.popupMenu(menuItems, els.renoteTime?.value);
+			os.popupMenu(menuItems, els.renoteButton?.value);
 		}
 	}
 
@@ -458,6 +503,8 @@ export function useNote(
 		note: rawNote,
 		appearNote,
 		$appearNote,
+		reactionNote,
+		$reactionNote,
 		hideByPlugin,
 		isRenote,
 		showContent,
@@ -472,6 +519,9 @@ export function useNote(
 
 		// 導出値
 		isMyRenote,
+		isRenotedByMe,
+		isRenoteTargetDeleted,
+		displayedRenoteCount,
 		parsed,
 		urls,
 		isLong,
@@ -481,6 +531,8 @@ export function useNote(
 
 		// アクション関数
 		renote,
+		toggleRenote,
+		deleteRenote,
 		reply,
 		react,
 		reactViaMfmEmoji,

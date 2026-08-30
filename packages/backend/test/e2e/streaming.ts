@@ -10,7 +10,15 @@ import { describe, beforeAll, test } from 'vitest';
 import { WebSocket } from 'ws';
 import { api, connectStream, createAppToken, initTestDb, port, post, signup, waitFire } from '../utils.js';
 import type * as misskey from 'misskey-js';
+import type { NoteUpdatedEvent } from 'misskey-js/streaming.types.js';
 import { MiFollowing } from '@/models/Following.js';
+
+type NoteCountUpdatedEvent = NoteUpdatedEvent & {
+	type: 'replied' | 'unreplied' | 'renoted' | 'unrenoted';
+	body: {
+		noteId: misskey.entities.Note['id'];
+	};
+};
 
 describe('Streaming', () => {
 	let Followings: any;
@@ -104,6 +112,45 @@ describe('Streaming', () => {
 			}, chitose);
 		}, 1000 * 60 * 2);
 
+		async function waitNoteUpdate(
+			user: misskey.entities.SignupResponse,
+			noteId: misskey.entities.Note['id'],
+			type: 'replied' | 'unreplied' | 'renoted' | 'unrenoted',
+			trigger: () => Promise<unknown>,
+		): Promise<NoteCountUpdatedEvent> {
+			const socket = new WebSocket(`ws://127.0.0.1:${port}/streaming?i=${user.token}`);
+
+			try {
+				await new Promise<void>((resolve, reject) => {
+					socket.once('open', () => resolve());
+					socket.once('error', reject);
+				});
+
+				const received = new Promise<NoteCountUpdatedEvent>((resolve) => {
+					socket.on('message', (data) => {
+						const message = JSON.parse(data.toString());
+						if (message.type === 'noteUpdated' && message.body.id === noteId && message.body.type === type) {
+							resolve(message.body as NoteCountUpdatedEvent);
+						}
+					});
+				});
+
+				socket.send(JSON.stringify({
+					type: 'sr',
+					body: { id: noteId },
+				}));
+				await new Promise(resolve => setTimeout(resolve, 50));
+				await trigger();
+
+				return await Promise.race([
+					received,
+					new Promise<never>((_resolve, reject) => setTimeout(() => reject(new Error(`Timed out waiting for ${type}`)), 3000)),
+				]);
+			} finally {
+				socket.close();
+			}
+		}
+
 		describe('Events', () => {
 			test('mention event', async () => {
 				const fired = await waitFire(
@@ -123,6 +170,37 @@ describe('Streaming', () => {
 				);
 
 				assert.strictEqual(fired, true);
+			});
+
+			test('note subscription receives reply and renote count updates', async () => {
+				const target = await post(kyoko, { text: 'count target' });
+				let replyId: string | null = null;
+				const replied = await waitNoteUpdate(kyoko, target.id, 'replied', async () => {
+					const result = await api('notes/create', { text: 'reply', replyId: target.id }, ayano);
+					assert.strictEqual(result.status, 200);
+					replyId = result.body.createdNote.id;
+				});
+				assert.strictEqual(replied.body.noteId, replyId);
+
+				const unreplied = await waitNoteUpdate(kyoko, target.id, 'unreplied', async () => {
+					const result = await api('notes/delete', { noteId: replyId! }, ayano);
+					assert.strictEqual(result.status, 204);
+				});
+				assert.strictEqual(unreplied.body.noteId, replyId);
+
+				let renoteId: string | null = null;
+				const renoted = await waitNoteUpdate(kyoko, target.id, 'renoted', async () => {
+					const result = await api('notes/create', { renoteId: target.id }, chitose);
+					assert.strictEqual(result.status, 200);
+					renoteId = result.body.createdNote.id;
+				});
+				assert.strictEqual(renoted.body.noteId, renoteId);
+
+				const unrenoted = await waitNoteUpdate(kyoko, target.id, 'unrenoted', async () => {
+					const result = await api('notes/delete', { noteId: renoteId! }, chitose);
+					assert.strictEqual(result.status, 204);
+				});
+				assert.strictEqual(unrenoted.body.noteId, renoteId);
 			});
 		});
 

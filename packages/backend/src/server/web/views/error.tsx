@@ -21,7 +21,7 @@ export function ErrorPage(props: {
 					<meta name="application-name" content="Misskey" />
 					<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 					<meta name="referrer" content="origin" />
-					<title safe>{props.title ?? 'An error has occurred... | Misskey'}</title>
+					<title safe>{props.title ?? 'An error has occurred... - Misskey'}</title>
 					<link rel="stylesheet" href="/static-assets/misc/error.css" />
 					<script src="/static-assets/misc/error.js"></script>
 				</head>

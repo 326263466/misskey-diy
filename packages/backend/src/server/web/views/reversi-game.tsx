@@ -28,7 +28,7 @@ export function ReversiGamePage(props: CommonProps<{
 	return (
 		<Layout
 			{...props}
-			title={`${title} | ${props.instanceName}`}
+			title={`${title} - ${props.instanceName}`}
 			desc={description}
 			ogSlot={ogBlock()}
 		>

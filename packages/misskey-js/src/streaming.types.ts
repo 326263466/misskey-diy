@@ -293,6 +293,11 @@ export type Channels = {
 };
 
 export type NoteUpdatedEvent = { id: Note['id'] } & ({
+	type: 'replied' | 'unreplied' | 'renoted' | 'unrenoted';
+	body: {
+		noteId: Note['id'];
+	};
+} | {
 	type: 'reacted';
 	body: {
 		reaction: string;

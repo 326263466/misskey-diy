@@ -49,7 +49,7 @@ export function ClipPage(props: CommonProps<{
 	return (
 		<Layout
 			{...props}
-			title={`${props.clip.name} | ${props.instanceName}`}
+			title={`${props.clip.name} - ${props.instanceName}`}
 			desc={props.clip.description ?? ''}
 			metaSlot={metaBlock()}
 			ogSlot={ogBlock()}

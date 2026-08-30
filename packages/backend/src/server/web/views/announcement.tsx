@@ -32,7 +32,7 @@ export function AnnouncementPage(props: CommonProps<{
 	return (
 		<Layout
 			{...props}
-			title={`${props.announcement.title} | ${props.instanceName}`}
+			title={`${props.announcement.title} - ${props.instanceName}`}
 			desc={description}
 			ogSlot={ogBlock()}
 		>

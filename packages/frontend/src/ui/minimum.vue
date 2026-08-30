@@ -32,7 +32,7 @@ provideMetadataReceiver((metadataGetter) => {
 		if (isRoot.value && pageMetadata.value.title === instanceName) {
 			window.document.title = pageMetadata.value.title;
 		} else {
-			window.document.title = `${pageMetadata.value.title} | ${instanceName}`;
+			window.document.title = `${pageMetadata.value.title} - ${instanceName}`;
 		}
 	}
 });

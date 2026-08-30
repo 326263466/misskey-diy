@@ -102,6 +102,18 @@ export interface DriveEventTypes {
 }
 
 export interface NoteEventTypes {
+	replied: {
+		noteId: MiNote['id'];
+	};
+	unreplied: {
+		noteId: MiNote['id'];
+	};
+	renoted: {
+		noteId: MiNote['id'];
+	};
+	unrenoted: {
+		noteId: MiNote['id'];
+	};
 	pollVoted: {
 		choice: number;
 		userId: MiUser['id'];

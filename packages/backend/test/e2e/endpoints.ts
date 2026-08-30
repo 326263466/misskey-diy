@@ -217,6 +217,26 @@ describe('Endpoints', () => {
 		});
 	});
 
+	describe('notes/show-partial-bulk', () => {
+		test('返信数とリノート数を取得できる', async () => {
+			const target = await post(bob, { text: 'count target' });
+			await post(alice, { text: 'reply', replyId: target.id });
+			await post(carol, { renoteId: target.id });
+
+			await vi.waitFor(async () => {
+				const res = await api('notes/show-partial-bulk', {
+					noteIds: [target.id],
+				}, alice);
+
+				assert.strictEqual(res.status, 200);
+				const partial = res.body.find(note => note.id === target.id);
+				assert.ok(partial);
+				assert.strictEqual(partial.repliesCount, 1);
+				assert.strictEqual(partial.renoteCount, 1);
+			});
+		});
+	});
+
 	describe('notes/reactions/create', () => {
 		test('リアクションできる', async () => {
 			const bobPost = await post(bob, { text: 'hi' });
@@ -279,18 +299,42 @@ describe('Endpoints', () => {
 			assert.strictEqual(res.status, 400);
 		});
 
-		test('リノートにリアクションできない', async () => {
+		test('リノート本体にリアクションできる', async () => {
 			const bobNote = await post(bob, { text: 'hi' });
-			const bobRenote = await post(bob, { renoteId: bobNote.id });
+			const carolRenote = await post(carol, { renoteId: bobNote.id });
 
 			const res = await api('notes/reactions/create', {
-				noteId: bobRenote.id,
+				noteId: carolRenote.id,
 				reaction: '🚀',
 			}, alice);
 
-			assert.strictEqual(res.status, 400);
-			assert.ok(res.body);
-			assert.strictEqual(castAsError(res.body).error.code, 'CANNOT_REACT_TO_RENOTE');
+			assert.strictEqual(res.status, 204);
+
+			const renote = await api('notes/show', { noteId: carolRenote.id }, alice);
+			assert.strictEqual(renote.status, 200);
+			assert.deepStrictEqual(renote.body.reactions, { '🚀': 1 });
+			assert.strictEqual(renote.body.myReaction, '🚀');
+
+			const original = await api('notes/show', { noteId: bobNote.id }, alice);
+			assert.strictEqual(original.status, 200);
+			assert.deepStrictEqual(original.body.reactions, {});
+			assert.strictEqual(original.body.myReaction, undefined);
+
+			const userNotes = await api('users/notes', { userId: carol.id }, alice);
+			assert.strictEqual(userNotes.status, 200);
+			const packedRenote = userNotes.body.find(note => note.id === carolRenote.id);
+			assert.ok(packedRenote);
+			assert.strictEqual(packedRenote.userId, carol.id);
+			assert.deepStrictEqual(packedRenote.reactions, { '🚀': 1 });
+			assert.strictEqual(packedRenote.myReaction, '🚀');
+			assert.strictEqual(packedRenote.renote?.myReaction, undefined);
+
+			const undo = await api('notes/reactions/delete', { noteId: carolRenote.id }, alice);
+			assert.strictEqual(undo.status, 204);
+			const unreactedRenote = await api('notes/show', { noteId: carolRenote.id }, alice);
+			assert.strictEqual(unreactedRenote.status, 200);
+			assert.deepStrictEqual(unreactedRenote.body.reactions, {});
+			assert.strictEqual(unreactedRenote.body.myReaction, undefined);
 		});
 
 		test('引用にリアクションできる', async () => {

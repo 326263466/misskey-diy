@@ -38,6 +38,14 @@ export const meta = {
 						type: 'string',
 					},
 				},
+				repliesCount: {
+					type: 'number',
+					optional: false, nullable: false,
+				},
+				renoteCount: {
+					type: 'number',
+					optional: false, nullable: false,
+				},
 			},
 		},
 	},

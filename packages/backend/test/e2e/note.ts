@@ -8,7 +8,7 @@ import type { Repository } from "typeorm";
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
-import { describe, beforeAll, afterAll, test } from 'vitest';
+import { describe, beforeAll, afterAll, test, vi } from 'vitest';
 import { MiNote } from '@/models/Note.js';
 import { MAX_NOTE_TEXT_LENGTH } from '@/const.js';
 import { api, castAsError, initTestDb, post, role, signup, uploadFile, uploadUrl } from '../utils.js';
@@ -108,6 +108,36 @@ describe('Note', () => {
 		assert.strictEqual(res.body.createdNote.reply.text, bobPost.text);
 	});
 
+	test('返信元ノートのお気に入り状態が再取得後も保持される', async () => {
+		const parentNote = await post(bob, {
+			text: 'favorite target',
+		});
+		const replyNote = await post(alice, {
+			text: 'reply',
+			replyId: parentNote.id,
+		});
+
+		const favoriteRes = await api('notes/favorites/create', {
+			noteId: parentNote.id,
+		}, alice);
+		assert.strictEqual(favoriteRes.status, 204);
+
+		const showRes = await api('notes/show', {
+			noteId: replyNote.id,
+		}, alice);
+		assert.strictEqual(showRes.status, 200);
+		assert.strictEqual(showRes.body.reply?.isFavorited, true);
+
+		const repliesRes = await api('notes/replies', {
+			noteId: parentNote.id,
+			limit: 10,
+		}, alice);
+		assert.strictEqual(repliesRes.status, 200);
+		const packedReply = repliesRes.body.find(note => note.id === replyNote.id);
+		assert.ok(packedReply);
+		assert.strictEqual(packedReply.reply?.isFavorited, true);
+	});
+
 	test('renoteできる', async () => {
 		const bobPost = await post(bob, {
 			text: 'test',
@@ -124,6 +154,30 @@ describe('Note', () => {
 		assert.strictEqual(res.body.createdNote.renoteId, alicePost.renoteId);
 		assert.ok(res.body.createdNote.renote);
 		assert.strictEqual(res.body.createdNote.renote.text, bobPost.text);
+	});
+
+	test('renoteを取り消すとrenoteCountが減る', async () => {
+		const bobPost = await post(bob, {
+			text: 'test',
+		});
+
+		const renoteRes = await api('notes/create', {
+			renoteId: bobPost.id,
+		}, alice);
+
+		assert.strictEqual(renoteRes.status, 200);
+		await vi.waitFor(async () => {
+			const target = await Notes.findOneByOrFail({ id: bobPost.id });
+			assert.strictEqual(target.renoteCount, 1);
+		});
+
+		const deleteRes = await api('notes/delete', {
+			noteId: renoteRes.body.createdNote.id,
+		}, alice);
+
+		assert.strictEqual(deleteRes.status, 204);
+		const target = await Notes.findOneByOrFail({ id: bobPost.id });
+		assert.strictEqual(target.renoteCount, 0);
 	});
 
 	test('引用renoteできる', async () => {

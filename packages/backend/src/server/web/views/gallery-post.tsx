@@ -55,7 +55,7 @@ export function GalleryPostPage(props: CommonProps<{
 	return (
 		<Layout
 			{...props}
-			title={`${props.galleryPost.title} | ${props.instanceName}`}
+			title={`${props.galleryPost.title} - ${props.instanceName}`}
 			desc={props.galleryPost.description ?? ''}
 			metaSlot={metaBlock()}
 			ogSlot={ogBlock()}

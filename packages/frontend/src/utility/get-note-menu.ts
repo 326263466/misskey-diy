@@ -199,7 +199,10 @@ export function getNoteMenu(props: {
 			misskeyApi('notes/delete', {
 				noteId: appearNote.id,
 			}).then(() => {
-				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId);
+				const renoteId = appearNote.renoteId != null && appearNote.renote?.userId !== appearNote.userId
+					? appearNote.renoteId
+					: null;
+				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId, renoteId);
 			});
 
 			if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === $i.id) {
@@ -219,7 +222,10 @@ export function getNoteMenu(props: {
 			misskeyApi('notes/delete', {
 				noteId: appearNote.id,
 			}).then(() => {
-				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId);
+				const renoteId = appearNote.renoteId != null && appearNote.renote?.userId !== appearNote.userId
+					? appearNote.renoteId
+					: null;
+				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId, renoteId);
 			});
 
 			os.post({ initialNote: appearNote, renote: appearNote.renote, reply: appearNote.reply, channel: appearNote.channel });

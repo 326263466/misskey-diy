@@ -30,16 +30,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 			tag="div"
 		>
 			<template v-for="(note, i) in paginator.items.value" :key="note.id">
-				<div v-if="i > 0 && isSeparatorNeeded(paginator.items.value[i -1].createdAt, note.createdAt)" :data-scroll-anchor="note.id">
-					<MkNote :class="$style.note" :note="note" :withHardMute="true"/>
+				<div v-if="i > 0 && isSeparatorNeeded(paginator.items.value[i -1].createdAt, note.createdAt)" :class="{ [$style.lastNoteItem]: i === paginator.items.value.length - 1 }" :data-scroll-anchor="note.id">
+					<MkNote :class="[$style.note, { [$style.lastNote]: i === paginator.items.value.length - 1 }]" :note="note" :withHardMute="true"/>
 				</div>
-				<div v-else-if="note._shouldInsertAd_" :data-scroll-anchor="note.id">
-					<MkNote :class="$style.note" :note="note" :withHardMute="true"/>
+				<div v-else-if="note._shouldInsertAd_" :class="{ [$style.lastNoteItem]: i === paginator.items.value.length - 1 }" :data-scroll-anchor="note.id">
+					<MkNote :class="[$style.note, { [$style.lastNote]: i === paginator.items.value.length - 1 }]" :note="note" :withHardMute="true"/>
 					<div :class="$style.ad">
 						<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
 					</div>
 				</div>
-				<MkNote v-else :class="$style.note" :note="note" :withHardMute="true" :data-scroll-anchor="note.id"/>
+				<MkNote v-else :class="[$style.note, { [$style.lastNote]: i === paginator.items.value.length - 1 }]" :note="note" :withHardMute="true" :data-scroll-anchor="note.id"/>
 			</template>
 		</component>
 		<button v-show="paginator.canFetchOlder.value" key="_more_" v-appear="prefer.s.enableInfiniteScroll ? paginator.fetchOlder : null" :disabled="paginator.fetchingOlder.value" class="_button" :class="$style.more" @click="paginator.fetchOlder">
@@ -462,8 +462,16 @@ defineExpose({
 	background: var(--MI_THEME-panel);
 }
 
-.note:not(:empty) {
+.note:not(:empty):not(.lastNote) {
 	border-bottom: solid 0.5px var(--MI_THEME-divider);
+}
+
+.lastNote {
+	border-bottom: none;
+}
+
+.lastNoteItem > .ad {
+	border-bottom: none;
 }
 
 .new {

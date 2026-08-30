@@ -813,7 +813,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		if (data.renote && data.renote.userId !== user.id && !user.isBot) {
-			this.incRenoteCount(data.renote);
+			this.incRenoteCount(data.renote, note);
 		}
 
 		if (data.poll && data.poll.expiresAt) {
@@ -964,13 +964,16 @@ export class NoteCreateService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private incRenoteCount(renote: MiNote) {
+	private incRenoteCount(renote: MiNote, note: MiNote) {
 		this.notesRepository.createQueryBuilder().update()
 			.set({
 				renoteCount: () => '"renoteCount" + 1',
 			})
 			.where('id = :id', { id: renote.id })
 			.execute();
+		this.globalEventService.publishNoteStream(renote, 'renoted', {
+			noteId: note.id,
+		});
 
 		// 30%の確率、3日以内に投稿されたノートの場合ハイライト用ランキング更新
 		if (Math.random() < 0.3 && (Date.now() - this.idService.parse(renote.id).date.getTime()) < 1000 * 60 * 60 * 24 * 3) {
@@ -1016,6 +1019,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 	@bindThis
 	private saveReply(reply: MiNote, note: MiNote) {
 		this.notesRepository.increment({ id: reply.id }, 'repliesCount', 1);
+		this.globalEventService.publishNoteStream(reply, 'replied', {
+			noteId: note.id,
+		});
 	}
 
 	@bindThis
