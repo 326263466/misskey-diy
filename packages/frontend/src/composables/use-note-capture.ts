@@ -538,6 +538,7 @@ export function useNoteCapture(props: {
 		renoteEventState.set(ctx.noteId, 'unrenoted');
 		mutationVersion++;
 
+		unregisterMyRenote(note.id, ctx.noteId);
 		$note.renoteCount = Math.max(0, $note.renoteCount - 1);
 	}
 

@@ -7,14 +7,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="[$style.root, { [$style.iconOnly]: iconOnly }]">
 	<div :class="$style.body">
 		<div :class="$style.top">
-			<button v-tooltip.noDelay.right="iconOnly ? (instance.name ?? i18n.ts.instance) : null" class="_button" :class="$style.instance" @click="openInstanceMenu">
+			<button v-tooltip.noDelay.right="iconOnly ? (instance.name ?? i18n.ts.instance) : null" class="_button" :class="$style.instance" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
 				<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.instanceIcon" style="view-transition-name: navbar-serverIcon;"/>
 			</button>
-			<button v-if="!iconOnly" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" @click="toggleRealtimeMode">
+			<button v-if="!iconOnly" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" :aria-label="i18n.ts.realtimeMode" :aria-pressed="store.r.realtimeMode.value" @click="toggleRealtimeMode">
 				<i v-if="store.r.realtimeMode.value" class="ti ti-bolt ti-fw"></i>
 				<i v-else class="ti ti-bolt-off ti-fw"></i>
 			</button>
-			<button v-if="!iconOnly && showWidgetButton" class="_button" :class="[$style.widget]" @click="() => emit('widgetButtonClick')">
+			<button v-if="!iconOnly && showWidgetButton" class="_button" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
 				<i class="ti ti-apps ti-fw"></i>
 			</button>
 		</div>

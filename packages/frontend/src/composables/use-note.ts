@@ -270,12 +270,12 @@ export function useNote(
 		}
 	}
 
-	async function deleteRenote(): Promise<void> {
+	async function deleteRenote(explicitRenoteNoteId: Misskey.entities.Note['id'] | null = null): Promise<void> {
 		if (props.mock) return;
 		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
 		if (!isLoggedIn) return;
 
-		const renoteNoteId = renoteTargetId == null ? null : getMyRenoteId(renoteTargetId) ?? (isMyRenote ? rawNote.id : null);
+		const renoteNoteId = explicitRenoteNoteId ?? (renoteTargetId == null ? null : getMyRenoteId(renoteTargetId) ?? (isMyRenote ? rawNote.id : null));
 		if (renoteNoteId == null) return;
 
 		await misskeyApi('notes/delete', { noteId: renoteNoteId });
@@ -454,11 +454,11 @@ export function useNote(
 		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
 		if (!isLoggedIn) return;
 
-		const getUnrenote = () => ({
+		const getUnrenote = (explicitRenoteNoteId: Misskey.entities.Note['id'] | null = null) => ({
 			text: i18n.ts.unrenote,
 			icon: 'ti ti-trash',
 			danger: true,
-			action: deleteRenote,
+			action: () => deleteRenote(explicitRenoteNoteId),
 		});
 
 		const menuItems: MenuItem[] = [{
@@ -486,7 +486,7 @@ export function useNote(
 		} else {
 			menuItems.push(getAbuseNoteMenu(rawNote, i18n.ts.reportAbuseRenote));
 			if ($i?.isModerator || $i?.isAdmin) {
-				menuItems.push(getUnrenote());
+				menuItems.push(getUnrenote(rawNote.id));
 			}
 
 			os.popupMenu(menuItems, els.renoteButton?.value);
