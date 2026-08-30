@@ -3120,7 +3120,7 @@ _reversi:
   showBoardLabels: "显示行号和列号"
   useAvatarAsStone: "用头像作为棋子"
 _offlineScreen:
-  title: "离线——无法连接到服务器"
+  title: "离线 - 无法连接到服务器"
   header: "无法连接到服务器"
 _urlPreviewSetting:
   title: "设置 URL 预览"
