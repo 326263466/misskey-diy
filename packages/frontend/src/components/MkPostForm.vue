@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	:class="[$style.root]"
+	:class="[$style.root, { [$style.rootMaximized]: maximized }]"
 	@dragover.stop="onDragover"
 	@dragenter="onDragenter"
 	@dragleave="onDragleave"
@@ -35,6 +35,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="visibility !== 'specified'" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :disabled="targetChannel != null" @click="toggleLocalOnly">
 				<span v-if="!localOnly"><i class="ti ti-rocket"></i></span>
 				<span v-else><i class="ti ti-rocket-off"></i></span>
+			</button>
+			<button v-if="canMaximize" v-tooltip="maximizeTitle" :aria-label="maximizeTitle" :aria-pressed="maximized" class="_button" :class="$style.headerRightItem" @click="toggleMaximize">
+				<i v-if="maximized" class="ti ti-arrows-minimize"></i>
+				<i v-else class="ti ti-arrows-maximize"></i>
 			</button>
 			<button ref="otherSettingsButton" v-tooltip="i18n.ts.other" class="_button" :class="$style.headerRightItem" @click="showOtherSettings"><i class="ti ti-dots"></i></button>
 			<button ref="submitButtonEl" v-click-anime class="_button" :class="$style.submit" :disabled="!canPost" data-testid="post-form-submit" @click="post">
@@ -166,12 +170,16 @@ const props = withDefaults(defineProps<PostFormProps & {
 	autofocus?: boolean;
 	freezeAfterPosted?: boolean;
 	mock?: boolean;
+	canMaximize?: boolean;
 }>(), {
 	initialVisibleUsers: () => [],
 	autofocus: true,
 	mock: false,
 	initialLocalOnly: undefined,
 });
+
+// 最大化后要撑满窗口，必须由外层对话框放开宽高限制，所以状态跟父组件共享
+const maximized = defineModel<boolean>('maximized', { default: false });
 
 provide(DI.mock, props.mock);
 
@@ -291,6 +299,14 @@ const submitText = computed((): string => {
 const submitIcon = computed((): string => {
 	return posted.value ? 'ti ti-check' : scheduledAt.value != null ? 'ti ti-calendar-time' : replyTargetNote.value ? 'ti ti-message-circle' : renoteTargetNote.value ? 'ti ti-quote' : 'ti ti-send';
 });
+
+const maximizeTitle = computed((): string => {
+	return maximized.value ? i18n.ts.windowRestore : i18n.ts.windowMaximize;
+});
+
+function toggleMaximize() {
+	maximized.value = !maximized.value;
+}
 
 const textLength = computed((): number => {
 	return (text.value + imeText.value).length;
@@ -1510,6 +1526,24 @@ defineExpose({
 .root {
 	position: relative;
 	container-type: inline-size;
+}
+
+// 最大化时让正文区吃掉剩余高度，否则解除外层宽度上限后只有左右变宽、中间仍是一条窄输入框
+.rootMaximized {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+
+	> .textOuter {
+		flex: 1;
+		min-height: 0;
+
+		> .text {
+			height: 100%;
+			max-height: none;
+			field-sizing: fixed;
+		}
+	}
 }
 
 //#region header

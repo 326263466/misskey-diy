@@ -13,11 +13,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<MkPostForm
 		ref="form"
-		:class="$style.form"
+		v-model:maximized="maximized"
+		:class="[$style.form, { [$style.maximized]: maximized }]"
 		class="_popup"
 		v-bind="props"
 		autofocus
 		freezeAfterPosted
+		canMaximize
 		@posted="onPosted"
 		@cancel="_close()"
 		@esc="_close()"
@@ -26,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { useTemplateRef } from 'vue';
+import { ref, useTemplateRef } from 'vue';
 import type { PostFormProps } from '@/types/post-form.js';
 import MkModal from '@/components/MkModal.vue';
 import MkPostForm from '@/components/MkPostForm.vue';
@@ -45,6 +47,9 @@ const emit = defineEmits<{
 
 const modal = useTemplateRef('modal');
 const form = useTemplateRef('form');
+
+// 最大化时要解除这里的宽度上限，所以状态与表单双向共享
+const maximized = ref(false);
 
 function onPosted() {
 	modal.value?.close({
@@ -77,5 +82,14 @@ function onModalClosed() {
 	width: 100%;
 	max-width: 520px;
 	margin: 0 auto auto auto;
+}
+
+// 最大化时铺满 MkModal 的 dialog 容器（该容器自带 32px 内边距）
+.maximized {
+	max-width: none;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	overflow: auto;
 }
 </style>
