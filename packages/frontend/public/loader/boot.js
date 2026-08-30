@@ -239,10 +239,16 @@
 
 		body,
 		html {
+			/* アプリ側の style.scss が html/body に width/height: 100% と overflow: clip を当てているため、
+			   border-box にしないと padding のぶんだけ溢れてスクロールバーが出る */
+			box-sizing: border-box;
+			width: 100%;
+			height: auto;
+			min-height: 100%;
+			overflow: visible;
 			background-color: #222;
 			color: #dfddcc;
-			justify-content: center;
-			margin: auto;
+			margin: 0;
 			padding: 10px;
 			text-align: center;
 		}
