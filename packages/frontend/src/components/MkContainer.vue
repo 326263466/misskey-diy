@@ -163,6 +163,12 @@ onUnmounted(() => {
 
 		> .content {
 			overflow: auto;
+			// 保留滚动能力，仅隐藏滚动条
+			scrollbar-width: none;
+
+			&::-webkit-scrollbar {
+				display: none;
+			}
 		}
 	}
 

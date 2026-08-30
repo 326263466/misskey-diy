@@ -8,7 +8,8 @@
 	base: 'light',
 
 	props: {
-		bg: '#f9f9f9',
+		// 与掘金相同的 body 背景色
+		bg: '#f2f3f5',
 		fg: '#676767',
 		fgOnWhite: '@accent',
 		divider: '#e8e8e8',
