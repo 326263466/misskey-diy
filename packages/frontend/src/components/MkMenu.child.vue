@@ -51,11 +51,19 @@ function setPosition() {
 
 	let left = props.anchorElement.offsetWidth;
 	let top = (parentRect.top - rootRect.top) - 8;
-	if (rootRect.left + left + myRect.width >= (window.innerWidth - SCROLLBAR_THICKNESS)) {
+
+	// 右侧放不下时翻转到左侧，但左侧同样放不下就维持右侧，避免翻过去露出得更少
+	const rightSpace = (window.innerWidth - SCROLLBAR_THICKNESS) - (rootRect.left + left);
+	if (myRect.width > rightSpace && myRect.width <= rootRect.left) {
 		left = -myRect.width;
 	}
+
+	// 下方超出时整体上移贴住视口底部，高度本身超过视口的部分交给 MkMenu 的 max-height 滚动
 	if (rootRect.top + top + myRect.height >= (window.innerHeight - SCROLLBAR_THICKNESS)) {
 		top = top - ((rootRect.top + top + myRect.height) - (window.innerHeight - SCROLLBAR_THICKNESS));
+	}
+	if (rootRect.top + top < 0) {
+		top = -rootRect.top;
 	}
 	el.value.style.left = left + 'px';
 	el.value.style.top = top + 'px';

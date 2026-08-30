@@ -193,7 +193,8 @@ const align = () => {
 	if (props.anchor.x === 'center') {
 		left = x + (props.anchorElement.offsetWidth / 2) - (width / 2);
 	} else if (props.anchor.x === 'left') {
-		// TODO
+		// 与 right 对称，展开到锚点左侧
+		left = x - width;
 	} else if (props.anchor.x === 'right') {
 		left = x + props.anchorElement.offsetWidth;
 	}
@@ -201,7 +202,8 @@ const align = () => {
 	if (props.anchor.y === 'center') {
 		top = (y - (height / 2));
 	} else if (props.anchor.y === 'top') {
-		// TODO
+		// 与 bottom 对称，展开到锚点上方
+		top = y - height;
 	} else if (props.anchor.y === 'bottom') {
 		top = y + props.anchorElement.offsetHeight;
 	}
@@ -218,11 +220,16 @@ const align = () => {
 		// 画面から縦にはみ出る場合
 		if (top + height > ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN)) {
 			if (props.noOverlap && props.anchor.x === 'center') {
-				if (underSpace >= (upperSpace / 3)) {
-					maxHeight.value = underSpace;
-				} else {
+				// 下方放不下时先翻转到上方，优先完整展示而不是压缩高度
+				if (height <= upperSpace) {
 					maxHeight.value = upperSpace;
 					top = (upperSpace + MARGIN) - height;
+				} else if (upperSpace > underSpace) {
+					// 上下都放不下，贴到空间较大的一侧并交给 max-height 滚动
+					maxHeight.value = upperSpace;
+					top = MARGIN;
+				} else {
+					maxHeight.value = underSpace;
 				}
 			} else {
 				top = ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN) - height;
@@ -242,11 +249,16 @@ const align = () => {
 		// 画面から縦にはみ出る場合
 		if (top + height - window.scrollY > ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN)) {
 			if (props.noOverlap && props.anchor.x === 'center') {
-				if (underSpace >= (upperSpace / 3)) {
-					maxHeight.value = underSpace;
-				} else {
+				// 下方放不下时先翻转到上方，优先完整展示而不是压缩高度
+				if (height <= upperSpace) {
 					maxHeight.value = upperSpace;
 					top = window.scrollY + ((upperSpace + MARGIN) - height);
+				} else if (upperSpace > underSpace) {
+					// 上下都放不下，贴到空间较大的一侧并交给 max-height 滚动
+					maxHeight.value = upperSpace;
+					top = window.scrollY + MARGIN;
+				} else {
+					maxHeight.value = underSpace;
 				}
 			} else {
 				top = ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN) - height + window.scrollY - 1;
