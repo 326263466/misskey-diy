@@ -213,13 +213,20 @@ function complete<T extends keyof CompleteInfo>(type: T, value: CompleteInfo[T][
 
 function setPosition() {
 	if (!rootEl.value) return;
-	if (props.x + rootEl.value.offsetWidth > window.innerWidth) {
-		rootEl.value.style.left = (window.innerWidth - rootEl.value.offsetWidth) + 'px';
-	} else {
-		rootEl.value.style.left = `${props.x}px`;
-	}
-	if (props.y + rootEl.value.offsetHeight > window.innerHeight) {
-		rootEl.value.style.top = (props.y - rootEl.value.offsetHeight) + 'px';
+
+	const width = rootEl.value.offsetWidth;
+	const height = rootEl.value.offsetHeight;
+
+	// 右侧放不下就贴住右边缘，但左边缘优先级更高，否则窄屏时会算出负值飘到屏幕外
+	let left = props.x;
+	if (left + width > window.innerWidth) left = window.innerWidth - width;
+	if (left < 0) left = 0;
+	rootEl.value.style.left = `${left}px`;
+
+	// 下方放不下时向上翻转，但上方同样放不下就维持向下，避免翻过去露出得更少
+	const spaceBelow = window.innerHeight - props.y;
+	if (height > spaceBelow && height <= props.y) {
+		rootEl.value.style.top = (props.y - height) + 'px';
 		rootEl.value.style.marginTop = '0';
 	} else {
 		rootEl.value.style.top = props.y + 'px';

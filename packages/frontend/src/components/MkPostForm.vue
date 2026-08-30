@@ -1528,11 +1528,14 @@ defineExpose({
 	container-type: inline-size;
 }
 
-// 最大化时让正文区吃掉剩余高度，否则解除外层宽度上限后只有左右变宽、中间仍是一条窄输入框
+// 最大化时让正文区吃掉剩余高度：操作栏是最后一个子元素，正文撑开后它自然钉在底部，
+// 而且整块面板不出滚动条（超长正文由 textarea 自己内部滚动）
 .rootMaximized {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
+	min-height: 0;
+	overflow: clip;
 
 	> .textOuter {
 		flex: 1;
@@ -1540,7 +1543,10 @@ defineExpose({
 
 		> .text {
 			height: 100%;
+			min-height: 0;
 			max-height: none;
+			overflow: auto;
+			// content 会让高度随内容收缩，撑开的高度就保不住
 			field-sizing: fixed;
 		}
 	}

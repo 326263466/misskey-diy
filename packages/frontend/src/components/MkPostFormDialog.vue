@@ -85,11 +85,12 @@ function onModalClosed() {
 }
 
 // 最大化时铺满 MkModal 的 dialog 容器（该容器自带 32px 内边距）
+// 这里不能用 overflow: auto，否则整块面板会长出滚动条、操作栏也跟着被推下去
 .maximized {
 	max-width: none;
 	height: 100%;
-	display: flex;
-	flex-direction: column;
-	overflow: auto;
+	min-height: 0;
+	margin: 0;
+	overflow: clip;
 }
 </style>

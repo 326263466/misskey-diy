@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:leaveToClass="prefer.s.animation ? $style.transition_popup_leaveTo : ''"
 	appear @afterLeave="emit('closed')"
 >
-	<div v-if="showing" :class="$style.root" class="_popup _shadow" :style="{ zIndex, top: top + 'px', left: left + 'px' }" @mouseover="() => { emit('mouseover'); }" @mouseleave="() => { emit('mouseleave'); }">
+	<div v-if="showing" ref="rootEl" :class="$style.root" class="_popup _shadow" :style="{ zIndex, top: top + 'px', left: left + 'px', transformOrigin: origin }" @mouseover="() => { emit('mouseover'); }" @mouseleave="() => { emit('mouseleave'); }">
 		<MkError v-if="error" @retry="fetchUser()"/>
 		<div v-else-if="user != null">
 			<div :class="$style.banner" :style="user.bannerUrl ? { backgroundImage: `url(${prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl})` } : ''">
@@ -58,12 +58,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkFollowButton from '@/components/MkFollowButton.vue';
 import { userPage } from '@/filters/user.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { calcPopupPosition } from '@/utility/popup-position.js';
 import { getUserMenu } from '@/utility/get-user-menu.js';
 import number from '@/filters/number.js';
 import { i18n } from '@/i18n.js';
@@ -85,9 +86,11 @@ const emit = defineEmits<{
 }>();
 
 const zIndex = os.claimZIndex('middle');
+const rootEl = useTemplateRef('rootEl');
 const user = ref<Misskey.entities.UserDetailed | null>(null);
 const top = ref(0);
 const left = ref(0);
+const origin = ref('center top');
 const error = ref(false);
 
 function showMenu(ev: PointerEvent) {
@@ -116,15 +119,38 @@ async function fetchUser() {
 	}
 }
 
+function setPosition() {
+	if (rootEl.value == null) return;
+
+	const result = calcPopupPosition(rootEl.value, {
+		anchorElement: props.source,
+		direction: 'bottom',
+		align: 'center',
+		innerMargin: 0,
+	});
+
+	top.value = result.top;
+	left.value = result.left;
+	origin.value = result.transformOrigin;
+}
+
+// 卡片内容是异步填充的，高度会变，需要重新判断上下翻转
+const ro = new ResizeObserver(() => {
+	setPosition();
+});
+
 onMounted(() => {
 	fetchUser();
 
-	const rect = props.source.getBoundingClientRect();
-	const x = ((rect.left + (props.source.offsetWidth / 2)) - (300 / 2)) + window.scrollX;
-	const y = rect.top + props.source.offsetHeight + window.scrollY;
+	if (rootEl.value) ro.observe(rootEl.value);
+	setPosition();
+	nextTick(() => {
+		setPosition();
+	});
+});
 
-	top.value = y;
-	left.value = x;
+onUnmounted(() => {
+	ro.disconnect();
 });
 </script>
 

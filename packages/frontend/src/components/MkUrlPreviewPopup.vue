@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root" :style="{ zIndex, top: top + 'px', left: left + 'px' }">
+<div ref="rootEl" :class="$style.root" :style="{ zIndex, top: top + 'px', left: left + 'px' }">
 	<Transition :name="prefer.s.animation ? '_transition_zoom' : ''" @afterLeave="emit('closed')">
 		<MkUrlPreview v-if="showing" class="_popup _shadow" :url="url" :showActions="false"/>
 	</Transition>
@@ -12,9 +12,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 import MkUrlPreview from '@/components/MkUrlPreview.vue';
 import * as os from '@/os.js';
+import { calcPopupPosition } from '@/utility/popup-position.js';
 import { prefer } from '@/preferences.js';
 
 const props = defineProps<{
@@ -28,16 +29,39 @@ const emit = defineEmits<{
 }>();
 
 const zIndex = os.claimZIndex('middle');
+const rootEl = useTemplateRef('rootEl');
 const top = ref(0);
 const left = ref(0);
 
-onMounted(() => {
-	const rect = props.anchorElement.getBoundingClientRect();
-	const x = Math.max((rect.left + (props.anchorElement.offsetWidth / 2)) - (300 / 2), 6) + window.scrollX;
-	const y = rect.top + props.anchorElement.offsetHeight + window.scrollY;
+function setPosition() {
+	if (rootEl.value == null) return;
 
-	top.value = y;
-	left.value = x;
+	const result = calcPopupPosition(rootEl.value, {
+		anchorElement: props.anchorElement,
+		direction: 'bottom',
+		align: 'center',
+		innerMargin: 0,
+	});
+
+	top.value = result.top;
+	left.value = result.left;
+}
+
+// 预览内容是异步加载的，高度会变，需要重新判断上下翻转
+const ro = new ResizeObserver(() => {
+	setPosition();
+});
+
+onMounted(() => {
+	if (rootEl.value) ro.observe(rootEl.value);
+	setPosition();
+	nextTick(() => {
+		setPosition();
+	});
+});
+
+onUnmounted(() => {
+	ro.disconnect();
 });
 </script>
 
