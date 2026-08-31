@@ -5,26 +5,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
-	<nav class="_panel" :class="$style.nav">
-		<template v-for="item in menu">
-			<div v-if="item === '-'" :class="$style.divider"></div>
-			<component
-				:is="navbarItemDef[item].to ? 'MkA' : 'button'"
-				v-else-if="navbarItemDef[item] != null && (navbarItemDef[item].show == null || navbarItemDef[item].show.value !== false)"
-				class="_button"
-				:class="$style.item"
-				:activeClass="$style.itemActive"
-				:to="navbarItemDef[item].to"
-				v-on="navbarItemDef[item].action ? { click: navbarItemDef[item].action } : {}"
-			>
-				<i class="ti-fw" :class="[$style.itemIcon, navbarItemDef[item].icon]"></i>
-				<span :class="$style.itemText">{{ navbarItemDef[item].title }}</span>
-				<span v-if="navbarItemDef[item].indicated" :class="$style.itemIndicator" class="_blink">
-					<span v-if="navbarItemDef[item].indicateValue" class="_indicateCounter" :class="$style.itemIndicateValueIcon">{{ navbarItemDef[item].indicateValue }}</span>
-					<i v-else class="_indicatorCircle"></i>
-				</span>
-			</component>
-		</template>
+	<nav class="_panel" :class="$style.nav" :aria-label="i18n.ts.menu">
+		<component
+			:is="navbarItemDef[item].to ? 'MkA' : 'button'"
+			v-for="item in menu"
+			:key="item"
+			class="_button"
+			:class="$style.item"
+			:activeClass="$style.itemActive"
+			:to="navbarItemDef[item].to"
+			v-on="navbarItemDef[item].action ? { click: navbarItemDef[item].action } : {}"
+		>
+			<i class="ti-fw" :class="[$style.itemIcon, navbarItemDef[item].icon]"></i>
+			<span :class="$style.itemText">{{ navbarItemDef[item].title }}</span>
+			<span v-if="navbarItemDef[item].indicated" :class="$style.itemIndicator" class="_blink">
+				<span v-if="navbarItemDef[item].indicateValue" class="_indicateCounter" :class="$style.itemIndicateValueIcon">{{ navbarItemDef[item].indicateValue }}</span>
+				<i v-else class="_indicatorCircle"></i>
+			</span>
+		</component>
 		<div v-if="$i != null && ($i.isAdmin || $i.isModerator)" :class="$style.divider"></div>
 		<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" :class="$style.item" :activeClass="$style.itemActive" to="/admin">
 			<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw"></i>
@@ -45,7 +43,14 @@ import { prefer } from '@/preferences.js';
 // 菜单配置里的分割线 (-) 也不显示，控制面板前的分隔线由模板固定提供
 const duplicatedWithHeader = ['explore', 'channels', 'announcements', 'search'];
 
-const menu = computed(() => prefer.r.menu.value.filter(item => item !== '-' && !duplicatedWithHeader.includes(item)));
+// 可见性判定放在这里而不是模板的 v-if，避免与 v-for 同元素共存
+// navbarItemDef 是索引签名字典，未知 key 取到的是 undefined，故用 Object.hasOwn 判定存在性
+const menu = computed(() => prefer.r.menu.value.filter(item => {
+	if (item === '-' || duplicatedWithHeader.includes(item)) return false;
+	if (!Object.hasOwn(navbarItemDef, item)) return false;
+	const def = navbarItemDef[item];
+	return def.show == null || def.show.value !== false;
+}));
 </script>
 
 <style lang="scss" module>
@@ -69,6 +74,7 @@ const menu = computed(() => prefer.r.menu.value.filter(item => item !== '-' && !
 
 .item {
 	// 掘金实测: height 44px / padding 0 12px / margin-bottom 2px / border-radius 4px / font-size 16px
+	// 圆角刻意不用 var(--MI-radius)(12px): 为复刻掘金的 4px 方正观感，此处是有意偏离主题变量
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -79,7 +85,8 @@ const menu = computed(() => prefer.r.menu.value.filter(item => item !== '-' && !
 	margin-bottom: 2px;
 	border-radius: 4px;
 	color: var(--MI_THEME-fg);
-	font-size: 15px;
+	// 与顶部 header 导航项保持同一字号
+	font-size: 14px;
 	text-align: left;
 
 	&:hover {

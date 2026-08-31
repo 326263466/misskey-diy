@@ -6,13 +6,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.root">
 	<div :class="$style.inner">
-		<button v-tooltip="instance.name ?? i18n.ts.instance" class="_button" :class="$style.logo" @click="openInstanceMenu">
+		<button v-tooltip="instance.name ?? i18n.ts.instance" class="_button" :class="$style.logo" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
 			<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.logoIcon"/>
 			<span :class="$style.logoText">{{ instance.name ?? i18n.ts.instance }}</span>
 		</button>
 
-		<nav :class="$style.nav">
+		<!-- dock 側の nav と 2 つの navigation landmark が並ぶので、支援技術向けに区別できる名前を付ける -->
+		<nav :class="$style.nav" :aria-label="i18n.ts.navbar">
+			<!-- 首页占位：内容待定，暂时与时间线同源。与其他导航项一致，只用文字不加图标 -->
 			<MkA :class="$style.navItem" :activeClass="$style.navItemActive" to="/" exact>
+				<span>{{ i18n.ts.home }}</span>
+			</MkA>
+			<MkA :class="$style.navItem" :activeClass="$style.navItemActive" to="/timeline">
 				<span>{{ i18n.ts.timeline }}</span>
 			</MkA>
 			<template v-for="item in navItems" :key="item">
@@ -29,33 +34,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</nav>
 
 		<div :class="$style.right">
-			<MkA v-tooltip="i18n.ts.search" :class="$style.search" to="/search">
+			<MkA :class="$style.search" :aria-label="i18n.ts.search" to="/search">
 				<i class="ti ti-search" :class="$style.searchIcon"></i>
 				<span :class="$style.searchText">{{ i18n.ts.search }}</span>
 			</MkA>
 
-			<MkA v-if="$i != null" v-tooltip="i18n.ts.notifications" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" to="/my/notifications">
+			<MkA v-if="$i != null" v-tooltip="i18n.ts.notifications" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.notifications" to="/my/notifications">
 				<i class="ti ti-bell"></i>
 				<span v-if="$i.hasUnreadNotification" :class="$style.iconButtonIndicator" class="_blink">
 					<span class="_indicateCounter" :class="$style.iconButtonCounter">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
 				</span>
 			</MkA>
 
-			<button v-tooltip="i18n.ts.more" class="_button" :class="$style.iconButton" @click="more">
+			<button v-tooltip="i18n.ts.more" class="_button" :class="$style.iconButton" :aria-label="i18n.ts.more" @click="more">
 				<i class="ti ti-grid-dots"></i>
 				<span v-if="otherNavItemIndicated" :class="$style.iconButtonIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
 			</button>
 
-			<MkA v-tooltip="i18n.ts.settings" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" to="/settings">
+			<MkA v-tooltip="i18n.ts.settings" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.settings" to="/settings">
 				<i class="ti ti-settings"></i>
 			</MkA>
 
-			<button :class="$style.post" class="_button _buttonGradate" data-testid="open-post-form" @click="() => os.post()">
+			<button :class="$style.post" class="_button _buttonGradate" data-testid="open-post-form" :aria-label="i18n.ts.note" @click="() => os.post()">
 				<i class="ti ti-plus" :class="$style.postIcon"></i>
 				<span :class="$style.postText">{{ i18n.ts.note }}</span>
 			</button>
 
-			<button v-if="$i != null" v-tooltip="`${i18n.ts.account}: @${$i.username}`" class="_button" :class="$style.account" @click="openAccountMenu">
+			<button v-if="$i != null" v-tooltip="`${i18n.ts.account}: @${$i.username}`" class="_button" :class="$style.account" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu">
 				<MkAvatar :user="$i" :class="$style.avatar"/>
 			</button>
 		</div>
@@ -108,11 +113,14 @@ async function openAccountMenu(ev: MouseEvent) {
 
 <style lang="scss" module>
 // 按掘金实测值设定的逐级收缩断点
-// header 内侧宽 1440px，低于断点后从左到右依次折叠元素
+// header 内侧宽 1440px，低于断点后从左到右依次折叠元素。
+// 各段は「実際に入らなくなる幅」で切る。まだ余白がある段階で畳むと間延びして見える
 $search-shrink-threshold: 1400px; // 300px -> 200px
-$search-collapse-threshold: 1214px; // 只显示图标。与主体三栏折叠断点保持一致
-$logo-text-hide-threshold: 1000px;
-$post-text-hide-threshold: 900px;
+// 検索ボックスを 200px 保ったまま nav 全項目が入る下限 (現在の項目数での実測値)。
+// header の収縮は主体側の三カラム折り畳みとは別問題なので、そちらの閾値には合わせず単独で決める
+$search-collapse-threshold: 1000px; // 只显示图标
+$logo-text-hide-threshold: 860px;
+$post-text-hide-threshold: 760px;
 
 .root {
 	--juejinHeaderHeight: 60px;
@@ -121,7 +129,12 @@ $post-text-hide-threshold: 900px;
 	height: var(--juejinHeaderHeight);
 	box-sizing: border-box;
 	background: var(--MI_THEME-navBg);
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	// 与下方内容之间不做分隔 (无分割线、无阴影)。
+	// 境界を線で描かない代わりに、下のカラム内で position: sticky する要素
+	// (ページ側の MkStickyContainer ヘッダー等) が header の上に重なって
+	// はみ出さないよう、header 自身を重ね順で前に出しておく
+	position: relative;
+	z-index: 1;
 }
 
 .inner {
@@ -171,7 +184,16 @@ $post-text-hide-threshold: 900px;
 	display: flex;
 	align-items: center;
 	min-width: 0;
-	overflow: hidden;
+	// 幅が足りないとき overflow: hidden だと末尾の項目が完全に到達不能になる
+	// (dock を畳んだ後は header の nav が唯一のナビゲーションなので致命的)。
+	// 横スクロールに切り替えて到達性を確保し、バーだけ隠す
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
 }
 
 .navItem {
