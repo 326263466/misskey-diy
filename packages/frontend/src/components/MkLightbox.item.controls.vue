@@ -169,7 +169,7 @@ function togglePictureInPicture() {
 
 function toggleMute() {
 	if (volume.value === 0) {
-		volume.value = .25;
+		volume.value = .5;
 	} else {
 		volume.value = 0;
 	}
