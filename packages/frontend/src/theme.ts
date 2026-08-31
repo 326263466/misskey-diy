@@ -114,24 +114,37 @@ class ThemeManager extends EventEmitter<ThemeManagerEvents> {
 		// 通常hiddenな時に呼ばれることはないが、iOSのPWAだとアプリ切り替え時に(何故か)hiddenな状態で(何故か)一瞬デバイスのダークモード判定が変わりapplyThemeが呼ばれる場合がある
 		if (window.document.startViewTransition != null && window.document.visibilityState === 'visible') {
 			window.document.documentElement.classList.add('_themeChanging_');
-			try {
-				window.document.startViewTransition(async () => {
-					this.updateAttributes();
-					await nextTick();
-				}).finished.then(() => {
-					window.document.documentElement.classList.remove('_themeChanging_');
-					this.emit('themeChanged');
-				});
-			} catch (err) {
-				// 様々な理由により startViewTransition は失敗することがある
-				// ref. https://github.com/misskey-dev/misskey/issues/16562
-
-				// FIXME: viewTransitonエラーはtry~catch貫通してそうな気配がする
+			// 様々な理由により startViewTransition は失敗することがある
+			// ref. https://github.com/misskey-dev/misskey/issues/16562
+			// finished の reject は try~catch では捕まらないため、失敗時のフォールバックは
+			// catch節ではなく onFailed に集約する。ハンドラを付けないと unhandledrejection となり、
+			// boot.js の window.onunhandledrejection が起動失敗画面を描画してしまう。
+			const onFailed = (err: unknown) => {
 				console.error(err);
 
 				window.document.documentElement.classList.remove('_themeChanging_');
 				this.updateAttributes();
 				this.emit('themeChanged');
+			};
+
+			try {
+				const transition = window.document.startViewTransition(async () => {
+					this.updateAttributes();
+					await nextTick();
+				});
+
+				// ViewTransition は updateCallbackDone / ready / finished の3つのpromiseを持ち、
+				// アニメーションを開始できなかった場合 ready が InvalidStateError で reject される。
+				// 参照しなくても reject は unhandledrejection として報告されるため、両方受けておく
+				transition.updateCallbackDone.catch(() => {});
+				transition.ready.catch(() => {});
+
+				transition.finished.then(() => {
+					window.document.documentElement.classList.remove('_themeChanging_');
+					this.emit('themeChanged');
+				}, onFailed);
+			} catch (err) {
+				onFailed(err);
 			}
 		} else {
 			this.updateAttributes();
