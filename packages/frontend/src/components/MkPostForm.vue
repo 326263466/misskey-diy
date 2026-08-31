@@ -731,11 +731,27 @@ function removeVisibleUser(id: string) {
 function clear() {
 	text.value = '';
 	cw.value = null;
+	useCw.value = false;
 	files.value = [];
 	poll.value = null;
 	quoteId.value = null;
 	scheduledAt.value = null;
+	visibleUsers.value = [];
+	reactionAcceptance.value = store.s.reactionAcceptance;
+	postAccount.value = null;
+	// 可见范围与话题标签辅助输入也还原为新开表单时的默认值；
+	// 回复/频道场景的可见范围受上下文约束（如回复仅关注者可见的帖子），保留不动
+	if (replyTargetNote.value == null && targetChannel.value == null) {
+		visibility.value = prefer.s.rememberNoteVisibility ? store.s.visibility : prefer.s.defaultNoteVisibility;
+		localOnly.value = prefer.s.rememberNoteVisibility ? store.s.localOnly : prefer.s.defaultNoteLocalOnly;
+	}
+	withHashtags.value = false;
+	hashtags.value = '';
 	uploader.reset();
+	// 清空后连带丢弃草稿；等 watch 触发的 saveDraft 跑完再删，避免刚清空的内容又被写回
+	nextTick(() => {
+		deleteDraft();
+	});
 }
 
 function onKeydown(ev: KeyboardEvent) {
