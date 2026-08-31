@@ -56,6 +56,8 @@ const indexInfo = {
 	title: i18n.ts.controlPanel,
 	icon: 'ti ti-settings',
 	hideHeader: true,
+	// 控制面板整体使用宽版区域（作业队列同款），不挤在三栏布局的中栏里
+	needWideArea: true,
 };
 
 provide('shouldOmitHeaderTitle', false);
@@ -275,7 +277,8 @@ provideMetadataReceiver((metadataGetter) => {
 		childInfo.value = null;
 	} else {
 		childInfo.value = info;
-		INFO.value.needWideArea = info.needWideArea ?? undefined;
+		// needWideArea は indexInfo 側で常に true にしているため、子ページの値で上書きしない
+		// (上書きすると job-queue 以外の子ページに入った瞬間に横幅が 3 カラムの中央幅まで縮む)
 	}
 });
 provideReactiveMetadata(INFO);
@@ -335,17 +338,34 @@ definePage(() => INFO.value);
 
 	&.wide {
 		display: flex;
+		// 掘金の本体幅と揃えた 2 カラム (全幅ではなく 1200px 中央寄せ)
+		// settings 側は外側の _spacer が左右余白を作るが、admin にはそれが無いので
+		// padding で同等の余白を持たせる (幅は内容 1200px を保つため padding 分を足す)
+		gap: 20px;
+		max-width: calc(1200px + var(--MI-margin) * 2);
+		padding: var(--MI-margin);
 		margin: 0 auto;
+		box-sizing: border-box;
 
 		> .nav {
 			position: sticky;
-			top: 0;
+			top: var(--MI-margin);
 			width: 32%;
 			max-width: 280px;
+			flex-shrink: 0;
 			box-sizing: border-box;
-			border-right: solid 0.5px var(--MI_THEME-divider);
+			// カード化したので区切り線は不要 (背景で境界を表現する)
+			background: var(--MI_THEME-panel);
+			border-radius: var(--MI-radius);
 			overflow: auto;
-			height: 100cqh;
+			// 親の上下 padding 分を引かないとカードが下にはみ出して角丸が切れる
+			height: calc(100cqh - var(--MI-margin) * 2);
+			// universal.vue の dock/sidebar と同じく、スクロール自体は残してバーだけ隠す
+			scrollbar-width: none;
+
+			&::-webkit-scrollbar {
+				display: none;
+			}
 		}
 
 		> .main {

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :tabs="headerTabs" :actions="headerActions">
-	<div class="_spacer" style="--MI_SPACER-w: 900px; --MI_SPACER-min: 20px; --MI_SPACER-max: 32px;">
+	<div class="_spacer" style="--MI_SPACER-w: 1200px; --MI_SPACER-min: 20px; --MI_SPACER-max: 32px;">
 		<div ref="el" class="vvcocwet" :class="{ wide: !narrow }">
 			<div class="body">
 				<div v-if="!narrow || currentPage?.route.name == null" class="nav">
@@ -61,6 +61,8 @@ const indexInfo = {
 	title: i18n.ts.settings,
 	icon: 'ti ti-settings',
 	hideHeader: true,
+	// 设置页整体使用宽版区域（作业队列同款），不挤在三栏布局的中栏里
+	needWideArea: true,
 };
 const INFO = ref<PageMetadata>(indexInfo);
 const el = useTemplateRef('el');
@@ -235,7 +237,8 @@ provideMetadataReceiver((metadataGetter) => {
 		childInfo.value = null;
 	} else {
 		childInfo.value = info;
-		INFO.value.needWideArea = info.needWideArea ?? undefined;
+		// needWideArea は indexInfo 側で常に true にしているため、子ページの値で上書きしない
+		// (上書きすると子ページに入った瞬間に横幅が 3 カラムの中央幅まで縮む)
 	}
 });
 provideReactiveMetadata(INFO);
@@ -254,12 +257,22 @@ definePage(() => INFO.value);
 	&.wide {
 		> .body {
 			display: flex;
+			// 掘金の列間隔と揃える (旧実装は nav の padding-right で表現していたが、
+			// nav に背景を敷くと余白がカード内に入ってしまうため gap に移した)
+			gap: 20px;
 			height: 100%;
 
 			> .nav {
 				width: 34%;
-				padding-right: 32px;
+				// admin 側と同じ上限に揃える (2カラムで左右の見た目を一致させる)
+				max-width: 280px;
+				flex-shrink: 0;
 				box-sizing: border-box;
+				padding: 12px;
+				background: var(--MI_THEME-panel);
+				border-radius: var(--MI-radius);
+				// 掘金の dock と同じくカードは内容の高さに収める
+				align-self: flex-start;
 			}
 
 			> .main {
