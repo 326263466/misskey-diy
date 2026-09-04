@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="[$style.root, { [$style.isMe]: isMe }]">
 	<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null]" :user="message.fromUser!" :link="!isMe" :preview="false"/>
-	<div :class="[$style.body, message.file != null ? $style.fullWidth : null]" @contextmenu.stop="onContextmenu">
+	<div ref="bodyEl" :class="[$style.body, message.file != null ? $style.fullWidth : null]" @contextmenu.stop="onContextmenu">
 		<div :class="$style.header"><MkUserName v-if="!isMe && prefer.s['chat.showSenderName'] && message.fromUser != null" :user="message.fromUser"/></div>
 		<MkFukidashi :class="$style.fukidashi" :tail="isMe ? 'right' : 'left'" :fullWidth="message.file != null" :accented="isMe">
 			<Mfm
@@ -51,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, provide } from 'vue';
+import { computed, defineAsyncComponent, provide, useTemplateRef } from 'vue';
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
@@ -81,6 +81,7 @@ const props = defineProps<{
 	isSearchResult?: boolean;
 }>();
 
+const bodyEl = useTemplateRef('bodyEl');
 const isMe = computed(() => props.message.fromUserId === $i.id);
 const urls = computed(() => props.message.text ? extractUrlFromMfm(mfm.parse(props.message.text)) : []);
 
@@ -97,7 +98,7 @@ provide(DI.mfmEmojiReactCallback, (reaction) => {
 function react(ev: PointerEvent) {
 	if ($i.policies.chatAvailability !== 'available') return;
 
-	const targetEl = getHTMLElementOrNull(ev.currentTarget ?? ev.target);
+	const targetEl = bodyEl.value ?? getHTMLElementOrNull(ev.currentTarget ?? ev.target);
 	if (!targetEl) return;
 
 	reactionPicker.show(targetEl, null, async (reaction) => {

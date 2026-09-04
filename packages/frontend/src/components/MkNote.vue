@@ -498,9 +498,10 @@ const keymap = {
 		content: "";
 		position: absolute;
 		z-index: 1;
-		top: 58px;
+		// 随卡片内边距 20px 调整：纵向接在头像下方，横向对齐头像中心
+		top: 66px;
 		bottom: -6px;
-		left: 35px;
+		left: 39px;
 		width: 2px;
 		border-radius: 999px;
 		background: var(--MI_THEME-divider);
@@ -517,7 +518,7 @@ const keymap = {
 .deletedReply {
 	position: relative;
 	z-index: 2;
-	padding: 12px 16px;
+	padding: 12px 20px;
 	text-align: center;
 	opacity: 0.7;
 }
@@ -526,7 +527,7 @@ const keymap = {
 	position: relative;
 	display: flex;
 	align-items: center;
-	padding: 12px 16px 0;
+	padding: 12px 20px 0;
 	line-height: 20px;
 	font-size: 0.9em;
 	white-space: pre;
@@ -585,10 +586,11 @@ const keymap = {
 	}
 }
 
+// 内边距对齐掘金沸点卡片 (juejin.cn/pins 的 .pin 实测 20px)
 .article {
 	position: relative;
 	display: flex;
-	padding: 12px 16px;
+	padding: 20px;
 }
 
 .colorBar {
@@ -610,7 +612,7 @@ const keymap = {
 
 	&.useSticky {
 		position: sticky !important;
-		top: calc(22px + var(--MI-stickyTop, 0px));
+		top: calc(30px + var(--MI-stickyTop, 0px));
 		left: 0;
 	}
 }
@@ -808,7 +810,7 @@ const keymap = {
 @container (max-width: 450px) {
 	.avatar {
 		&.useSticky {
-			top: calc(14px + var(--MI-stickyTop, 0px));
+			top: calc(22px + var(--MI-stickyTop, 0px));
 		}
 	}
 }

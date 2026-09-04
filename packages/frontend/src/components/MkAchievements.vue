@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div>
 	<div v-if="achievements" :class="$style.root">
-		<div v-for="achievement in achievements" :key="achievement.name" :class="$style.achievement" class="_panel">
+		<div v-for="achievement in achievements" :key="achievement.name" :class="$style.achievement" class="_panel _juejinCard">
 			<div :class="$style.icon">
 				<div
 					:class="[$style.iconFrame, {
@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 		<template v-if="withLocked">
-			<div v-for="achievement in lockedAchievements" :key="achievement" :class="[$style.achievement, $style.locked]" class="_panel" @click="achievement === 'clickedClickHere' ? clickHere() : () => {}">
+			<div v-for="achievement in lockedAchievements" :key="achievement" :class="[$style.achievement, $style.locked]" class="_panel _juejinCard" @click="achievement === 'clickedClickHere' ? clickHere() : () => {}">
 				<div :class="$style.icon">
 				</div>
 				<div :class="$style.body">

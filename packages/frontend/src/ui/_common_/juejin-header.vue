@@ -69,7 +69,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, unref } from 'vue';
 import { openInstanceMenu } from './common.js';
 import { navbarItemDef } from '@/navbar.js';
 import { instance } from '@/instance.js';
@@ -77,15 +77,18 @@ import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { getAccountMenu } from '@/accounts.js';
+import { prefer } from '@/preferences.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 
 // header 中央导航：全站主要板块（与左侧菜单互斥，避免重复）
 const navItems = ['explore', 'channels', 'announcements'] as const;
+const headerItems = new Set<string>(['notifications', 'search', ...navItems]);
 
 const otherNavItemIndicated = computed<boolean>(() => {
 	for (const def in navbarItemDef) {
-		if ((navItems as readonly string[]).includes(def)) continue;
-		if (navbarItemDef[def].indicated) return true;
+		// 已经在顶部导航或左侧 dock 展示的项目，不应再次让“更多”闪烁提示。
+		if (headerItems.has(def) || prefer.r.menu.value.includes(def)) continue;
+		if (unref(navbarItemDef[def].indicated)) return true;
 	}
 	return false;
 });
@@ -97,6 +100,7 @@ async function more(ev: MouseEvent) {
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkLaunchPad.vue').then(x => x.default), {
 		anchorElement: target,
 		anchor: { x: 'center', y: 'bottom' },
+		excludedItems: [...headerItems],
 	}, {
 		closed: () => dispose(),
 	});

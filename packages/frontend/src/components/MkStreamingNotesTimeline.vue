@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<component
 			:is="prefer.s.animation ? TransitionGroup : 'div'"
-			:class="$style.notes"
+			:class="[$style.notes, '_juejinCard']"
 			:enterActiveClass="$style.transition_x_enterActive"
 			:leaveActiveClass="$style.transition_x_leaveActive"
 			:enterFromClass="$style.transition_x_enterFrom"

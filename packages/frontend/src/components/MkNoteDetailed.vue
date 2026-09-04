@@ -462,9 +462,10 @@ const keymap = {
 		content: "";
 		position: absolute;
 		z-index: 1;
-		top: 58px;
+		// 这里渲染的是 MkNote，坐标需跟随它的卡片内边距 (20px)，否则连线会偏离子帖头像中心
+		top: 66px;
 		bottom: -6px;
-		left: 35px;
+		left: 39px;
 		width: 2px;
 		border-radius: 999px;
 		background: var(--MI_THEME-divider);

@@ -29,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</MkDraggable>
 	</template>
-	<component :is="`widget-${widget.name}`" v-for="widget in _widgets" v-else :key="widget.id" :ref="(el: any) => widgetRefs[widget.id] = el" :class="$style.widget" :widget="widget" @updateProps="updateWidget(widget.id, $event)" @contextmenu.stop="onContextmenu(widget, $event)"/>
+	<component :is="`widget-${widget.name}`" v-for="widget in _widgets" v-else :key="widget.id" :ref="(el: any) => widgetRefs[widget.id] = el" :class="[$style.widget, '_juejinCard']" :widget="widget" @updateProps="updateWidget(widget.id, $event)" @contextmenu.stop="onContextmenu(widget, $event)"/>
 </div>
 </template>
 

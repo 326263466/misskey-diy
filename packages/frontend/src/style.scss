@@ -7,7 +7,7 @@
  */
 
 :root {
-	--MI-radius: 12px;
+	--MI-radius: 8px;
 	--MI-marginFull: 16px;
 	--MI-marginHalf: 10px;
 
@@ -365,6 +365,11 @@ rt {
 	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-radius);
 	overflow: clip;
+}
+
+// 掘金风格的可见卡片；只对明确添加此类的外层容器生效
+._juejinCard {
+	border-radius: 4px !important;
 }
 
 ._margin {

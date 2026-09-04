@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<div v-else ref="rootEl">
 		<component
-			:is="prefer.s.animation ? TransitionGroup : 'div'" :class="[$style.notifications]"
+			:is="prefer.s.animation ? TransitionGroup : 'div'" :class="[$style.notifications, '_juejinCard']"
 			:enterActiveClass="$style.transition_x_enterActive"
 			:leaveActiveClass="$style.transition_x_leaveActive"
 			:enterFromClass="$style.transition_x_enterFrom"

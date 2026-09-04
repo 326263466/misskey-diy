@@ -251,6 +251,14 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 	height: 100%;
 }
 
+// 只让中间列顶部操作栏使用卡片主题色；透明度和滚动穿透仍由 MkPageHeader 保持
+.columns:not(.wide) > .stream > .content {
+	--MI-pageHeaderBg: var(--MI_THEME-panel);
+	--MI-pageHeaderRadius: 0;
+	--MI-pageHeaderBorder: none;
+	--MI-pageHeaderOverflow: clip;
+}
+
 // 3 カラムの「見た目の間隔」を gap の 20px に揃える。
 // dock / sidebar のカードは自分の列幅いっぱいに描かれるが、中カラムだけは
 //   - ページ側 ._spacer の左右インセット (既定 24px)
@@ -284,6 +292,12 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 	// 入れ子の _spacer (MkFolder 等) は内側の余白として意味があるので :not() で除外する
 	:global([data-sticky-container-header-height]) :global(._spacer:not(._spacer *)) {
 		max-width: min(var(--MI_SPACER-w, 100%), 100%);
+		padding-top: var(--MI-margin);
+	}
+
+	// 提示与操作栏、下面卡片保持 16px 间距；提示本身保持原有样式
+	:global([data-sticky-container-header-height]) :global(._spacer:not(._spacer *) > ._juejinTip:first-child) {
+		margin-bottom: var(--MI-margin) !important;
 	}
 }
 

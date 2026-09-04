@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
 	<div class="_spacer" style="--MI_SPACER-w: 700px;">
 		<div v-if="channel && tab === 'overview'" class="_gaps">
-			<div class="_panel" :class="$style.bannerContainer">
+			<div class="_panel _juejinCard" :class="$style.bannerContainer">
 				<XChannelFollowButton :channel="channel" :full="true" :class="$style.subscribe"/>
 				<MkButton v-if="favorited" v-tooltip="i18n.ts.unfavorite" asLike class="button" rounded primary :class="$style.favorite" @click="unfavorite()"><i class="ti ti-star"></i></MkButton>
 				<MkButton v-else v-tooltip="i18n.ts.favorite" asLike class="button" rounded :class="$style.favorite" @click="favorite()"><i class="ti ti-star"></i></MkButton>
@@ -28,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkFoldableSection>
 				<template #header><i class="ti ti-pin ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.pinnedNotes }}</template>
 				<div v-if="channel.pinnedNotes && channel.pinnedNotes.length > 0" class="_gaps">
-					<MkNote v-for="note in channel.pinnedNotes" :key="note.id" class="_panel" :note="note"/>
+					<MkNote v-for="note in channel.pinnedNotes" :key="note.id" class="_panel _juejinCard" :note="note"/>
 				</div>
 			</MkFoldableSection>
 		</div>
@@ -36,7 +36,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkInfo v-if="channel.isArchived" warn>{{ i18n.ts.thisChannelArchived }}</MkInfo>
 
 			<!-- スマホ・タブレットの場合、キーボードが表示されると投稿が見づらくなるので、デスクトップ場合のみ自動でフォーカスを当てる -->
-			<MkPostForm v-if="$i && prefer.r.showFixedPostFormInChannel.value" :channel="channel" class="post-form _panel" fixed :autofocus="deviceKind === 'desktop'"/>
+			<MkPostForm v-if="$i && prefer.r.showFixedPostFormInChannel.value" :channel="channel" class="post-form _panel _juejinCard" fixed :autofocus="deviceKind === 'desktop'"/>
 
 			<MkStreamingNotesTimeline :key="channelId" src="channel" :channel="channelId"/>
 		</div>

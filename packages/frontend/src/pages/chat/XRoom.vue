@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkA :to="`/chat/room/${room.id}`" class="_panel _gaps_s" :class="$style.root">
+<MkA :to="`/chat/room/${room.id}`" class="_panel _juejinCard _gaps_s" :class="$style.root">
 	<div :class="$style.header">
 		<div style="font-weight: bold;">{{ room.name }}</div>
 		<MkAvatar :user="room.owner" :link="false" :class="$style.headerAvatar"/>

@@ -220,12 +220,11 @@ const align = () => {
 		// 画面から縦にはみ出る場合
 		if (top + height > ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN)) {
 			if (props.noOverlap && props.anchor.x === 'center') {
-				// 下方放不下时先翻转到上方，优先完整展示而不是压缩高度
+				// 下方空间不足时反向展开；两侧都不足时使用空间更大的一侧
 				if (height <= upperSpace) {
 					maxHeight.value = upperSpace;
 					top = (upperSpace + MARGIN) - height;
 				} else if (upperSpace > underSpace) {
-					// 上下都放不下，贴到空间较大的一侧并交给 max-height 滚动
 					maxHeight.value = upperSpace;
 					top = MARGIN;
 				} else {
@@ -249,12 +248,11 @@ const align = () => {
 		// 画面から縦にはみ出る場合
 		if (top + height - window.scrollY > ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN)) {
 			if (props.noOverlap && props.anchor.x === 'center') {
-				// 下方放不下时先翻转到上方，优先完整展示而不是压缩高度
+				// 下方空间不足时反向展开；两侧都不足时使用空间更大的一侧
 				if (height <= upperSpace) {
 					maxHeight.value = upperSpace;
 					top = window.scrollY + ((upperSpace + MARGIN) - height);
 				} else if (upperSpace > underSpace) {
-					// 上下都放不下，贴到空间较大的一侧并交给 max-height 滚动
 					maxHeight.value = upperSpace;
 					top = window.scrollY + MARGIN;
 				} else {

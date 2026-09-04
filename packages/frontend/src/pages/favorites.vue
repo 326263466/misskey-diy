@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #empty><MkResult type="empty" :text="i18n.ts.noNotes"/></template>
 
 			<template #default="{ items }">
-				<MkNote v-for="item in items" :key="item.id" :note="item.note" :class="$style.note"/>
+				<MkNote v-for="item in items" :key="item.id" :note="item.note" :class="[$style.note, '_juejinCard']"/>
 			</template>
 		</MkPagination>
 	</div>
