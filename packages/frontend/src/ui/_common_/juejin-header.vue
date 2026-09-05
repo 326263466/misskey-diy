@@ -34,10 +34,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</nav>
 
 		<div :class="$style.right">
-			<MkA :class="$style.search" :aria-label="i18n.ts.search" to="/search">
-				<i class="ti ti-search" :class="$style.searchIcon"></i>
-				<span :class="$style.searchText">{{ i18n.ts.search }}</span>
-			</MkA>
+			<form :class="$style.search" role="search" @submit.prevent="search">
+				<button type="submit" class="_button" :class="$style.searchIcon" :aria-label="i18n.ts.search">
+					<i class="ti ti-search"></i>
+				</button>
+				<input
+					v-model="searchQuery"
+					:class="$style.searchText"
+					type="search"
+					enterkeyhint="search"
+					:placeholder="i18n.ts.search"
+					:aria-label="i18n.ts.search"
+				>
+			</form>
 
 			<MkA v-if="$i != null" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.notifications" to="/my/notifications">
 				<i class="ti ti-bell"></i>
@@ -69,7 +78,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, unref } from 'vue';
+import { computed, ref, unref } from 'vue';
 import { openInstanceMenu } from './common.js';
 import { navbarItemDef } from '@/navbar.js';
 import { instance } from '@/instance.js';
@@ -79,6 +88,17 @@ import * as os from '@/os.js';
 import { getAccountMenu } from '@/accounts.js';
 import { prefer } from '@/preferences.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
+import { useRouter } from '@/router.js';
+
+const router = useRouter();
+const searchQuery = ref('');
+
+// 空输入时仍进入搜索页，保持原来点击图标的行为
+function search() {
+	const query = searchQuery.value.trim();
+	router.pushByPath(query ? `/search?q=${encodeURIComponent(query)}` : '/search');
+	searchQuery.value = '';
+}
 
 // header 中央导航：全站主要板块（与左侧菜单互斥，避免重复）
 const navItems = ['explore', 'channels', 'announcements'] as const;
@@ -296,14 +316,33 @@ $post-text-hide-threshold: 760px;
 
 .searchIcon {
 	flex-shrink: 0;
+	display: flex;
+	align-items: center;
 	opacity: 0.7;
 }
 
 .searchText {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	flex: 1;
+	min-width: 0;
+	appearance: none;
+	border: none;
+	background: transparent;
+	color: inherit;
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
 	opacity: 0.7;
+
+	&:focus {
+		outline: none;
+		opacity: 1;
+	}
+
+	// 去掉 type=search 在 WebKit 下自带的清除按钮和放大镜
+	&::-webkit-search-cancel-button,
+	&::-webkit-search-decoration {
+		appearance: none;
+	}
 
 	@media (max-width: $search-collapse-threshold) {
 		display: none;
@@ -339,8 +378,15 @@ $post-text-hide-threshold: 760px;
 	font-size: 8px;
 }
 
+// 全局 ._indicateCounter 的内边距按 em 给，在这个字号下会把单个数字撑成横向椭圆。
+// 这里改成固定尺寸: 一位数收成正圆，多位数由内容撑宽成胶囊
 .iconButtonCounter {
+	box-sizing: border-box;
+	height: 16px;
+	min-width: 16px;
+	padding: 0 4px;
 	font-size: 10px;
+	line-height: 1;
 }
 
 .post {

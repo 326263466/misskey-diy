@@ -7,17 +7,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader :actions="headerActions" :tabs="headerTabs" displayBackButton>
 	<div class="_spacer" style="--MI_SPACER-w: 800px;">
 		<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
-			<div v-if="note">
-				<div class="_margin">
-					<div class="_margin _gaps_s">
-						<MkRemoteCaution v-if="note.user.host != null" :href="note.url ?? note.uri"/>
-						<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" :class="[$style.note, '_juejinCard']"/>
-					</div>
-					<div v-if="clips && clips.length > 0" class="_margin">
-						<div style="font-weight: bold; padding: 12px;">{{ i18n.ts.clip }}</div>
-						<div class="_gaps">
-							<MkClipPreview v-for="item in clips" :key="item.id" :clip="item"/>
-						</div>
+			<div v-if="note" class="_gaps">
+				<div class="_gaps_s">
+					<MkRemoteCaution v-if="note.user.host != null" :href="note.url ?? note.uri"/>
+					<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" :class="[$style.note, '_juejinCard']"/>
+				</div>
+				<div v-if="clips && clips.length > 0">
+					<div style="font-weight: bold; padding: 12px;">{{ i18n.ts.clip }}</div>
+					<div class="_gaps">
+						<MkClipPreview v-for="item in clips" :key="item.id" :clip="item"/>
 					</div>
 				</div>
 			</div>
@@ -107,8 +105,16 @@ const headerActions = computed(() => []);
 
 const headerTabs = computed(() => []);
 
+// 回复帖和普通帖用不同措辞，否则浏览器标签页上两者无法区分
+const pageTitle = computed(() => {
+	if (note.value == null) return i18n.ts.note;
+
+	const user = note.value.user.name ?? note.value.user.username;
+	return note.value.replyId != null ? i18n.tsx.replyOf({ user }) : i18n.tsx.noteOf({ user });
+});
+
 definePage(() => ({
-	title: i18n.ts.note,
+	title: pageTitle.value,
 	...note.value ? {
 		subtitle: dateString(note.value.createdAt),
 		avatar: note.value.user,

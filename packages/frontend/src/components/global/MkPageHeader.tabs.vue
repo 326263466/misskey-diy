@@ -208,23 +208,25 @@ onUnmounted(() => {
 	position: relative;
 	margin: 0;
 	height: var(--height);
-	font-size: 0.9em;
-	text-align: center;
+	font-size: 1em;
+	text-align: left;
 	overflow-x: auto;
 	overflow-y: hidden;
 	scrollbar-width: none;
 }
 
 .tabsInner {
-	display: inline-block;
+	display: inline-flex;
+	gap: 20px;
 	height: var(--height);
 	white-space: nowrap;
 }
 
+// 下划线以按钮宽度为基准，所以按钮不留左右内边距，标签之间的间距交给 .tabsInner 的 gap
 .tab {
 	display: inline-block;
 	position: relative;
-	padding: 0 10px;
+	padding: 0;
 	height: 100%;
 	font-weight: normal;
 	opacity: 0.7;

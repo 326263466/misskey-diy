@@ -1997,6 +1997,10 @@ export interface Locale extends ILocale {
      */
     "noteOf": ParameterizedString<"user">;
     /**
+     * {user}の返信
+     */
+    "replyOf": ParameterizedString<"user">;
+    /**
      * 引用付き
      */
     "quoteAttached": string;

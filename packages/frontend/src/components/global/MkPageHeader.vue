@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div v-if="show" ref="el" :class="[$style.root]">
 	<div :class="[$style.upper, { [$style.slim]: narrow, [$style.thin]: thin_ }]">
-		<button v-if="displayBackButton" v-tooltip.noDelay="i18n.ts.goBack" class="_button" :class="$style.backButton" @click.stop="goBack"><i class="ti ti-arrow-left"></i></button>
+		<button v-if="displayBackButton" class="_button" :class="$style.backButton" :aria-label="i18n.ts.goBack" @click.stop="goBack"><i class="ti ti-arrow-left"></i></button>
 		<div v-else-if="!thin_ && (narrow || deviceKind === 'smartphone') && props.displayMyAvatar && $i" class="_button" @click="openAccountMenu">
 			<MkAvatar :class="$style.avatar" :user="$i"/>
 		</div>
@@ -171,9 +171,10 @@ onUnmounted(() => {
 	align-items: center;
 	height: var(--height);
 
+	// 原本这里用 margin-left: auto 把标签挤到右侧（视觉上居中），改为靠左排列，
+	// 右侧的操作按钮仍由下面的 margin-right: auto 推到最右
 	.tabs:first-child,
 	&:not(.slim) > :not(.titleContainer) ~ .tabs {
-		margin-left: auto;
 		padding: 0 12px;
 	}
 

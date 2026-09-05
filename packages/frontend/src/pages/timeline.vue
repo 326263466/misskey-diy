@@ -192,19 +192,16 @@ const headerTabs = computed(() => [
 	{
 		key: 'recommended',
 		title: i18n.ts.recommended,
-		icon: 'ti ti-sparkles',
 	},
 	...($i ? [{
 		key: 'following',
 		title: i18n.ts.following,
-		icon: 'ti ti-home',
 	}] : []),
 ] as Tab[]);
 
 const headerTabsWhenNotLogin = computed(() => [{
 	key: 'recommended',
 	title: i18n.ts.recommended,
-	icon: 'ti ti-sparkles',
 }] as Tab[]);
 
 definePage(() => ({

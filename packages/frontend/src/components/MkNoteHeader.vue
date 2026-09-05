@@ -11,6 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<MkA v-else v-user-preview="note.user.id" :class="$style.name" :to="userPage(note.user)">
 		<MkUserName :user="note.user"/>
 	</MkA>
+	<div v-if="showAuthorBadge" :class="$style.authorBadge">{{ i18n.ts.author }}</div>
 	<div v-if="note.user.isBot" :class="$style.isBot">bot</div>
 	<div :class="$style.username"><MkAcct :user="note.user"/></div>
 	<div v-if="note.user.badgeRoles && note.user.badgeRoles.length > 0" :class="$style.badgeRoles">
@@ -45,6 +46,7 @@ import { DI } from '@/di.js';
 
 defineProps<{
 	note: Misskey.entities.Note;
+	showAuthorBadge?: boolean;
 }>();
 
 const mock = inject(DI.mock, false);
@@ -71,6 +73,21 @@ const mock = inject(DI.mock, false);
 	&:hover {
 		text-decoration: underline;
 	}
+}
+
+.authorBadge {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 .5em 0 0;
+	padding: 0 6px;
+	height: 1.4em;
+	font-size: 0.8em;
+	line-height: 1;
+	color: var(--MI_THEME-accent);
+	border: solid 0.5px var(--MI_THEME-accent);
+	border-radius: 3px;
 }
 
 .isBot {

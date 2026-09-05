@@ -361,6 +361,11 @@ async function search() {
 
 	key.value++;
 }
+
+// 带 ?q= 进入时直接出结果，不必再按一次回车
+if (props.query.trim()) {
+	search();
+}
 </script>
 <style lang="scss" module>
 .subOptionRoot {
