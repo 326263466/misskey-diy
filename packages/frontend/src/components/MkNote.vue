@@ -16,6 +16,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			v-if="appearNote.reply"
 			:note="appearNote.reply"
 			:showReplyTo="false"
+			:withThreadLine="true"
+			:threadAuthor="threadAuthor"
 			:mock="mock"
 			:withHardMute="withHardMute"
 			:class="$style.replyThreadNote"
@@ -50,12 +52,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</button>
 	</div>
 	<div v-else-if="renoteCollapsed" :class="[$style.article, $style.collapsedRenoteTarget]">
-		<MkAvatar :class="$style.avatar" :user="appearNote.user" :link="!mock" :preview="!mock"/>
+		<MkAvatar :class="[$style.avatar, withThreadLine ? $style.threadLineAvatar : null]" :user="appearNote.user" :link="!mock" :preview="!mock"/>
 		<Mfm :text="getNoteSummary(appearNote)" :plain="true" :nowrap="true" :author="appearNote.user" :nyaize="'respect'" :class="$style.collapsedRenoteTargetText" @click="renoteCollapsed = false"/>
 	</div>
 	<article v-else :class="$style.article" @contextmenu.stop="onContextmenu">
 		<div v-if="appearNote.channel" :class="$style.colorBar" :style="{ background: appearNote.channel.color }"></div>
-		<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null]" :user="appearNote.user" :link="!mock" :preview="!mock"/>
+		<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null, withThreadLine ? $style.threadLineAvatar : null]" :user="appearNote.user" :link="!mock" :preview="!mock"/>
 		<div :class="$style.main">
 			<div :class="$style.headerRow">
 				<MkNoteHeader :note="appearNote" :mini="true" :class="$style.header"/>
@@ -82,7 +84,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkA v-if="appearNote.replyId && !showReplyTo" :class="$style.replyIcon" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 						<Mfm
 							v-if="appearNote.text"
-							:parsedNodes="parsed"
+							:parsedNodes="displayNodes"
 							:text="appearNote.text"
 							:author="appearNote.user"
 							:nyaize="'respect'"
@@ -228,6 +230,7 @@ import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n.js';
 import { userPage } from '@/filters/user.js';
 import { getNoteSummary } from '@/utility/get-note-summary.js';
+import { getNoteDisplayNodes, getNoteThreadAuthor } from '@/utility/note-display.js';
 import { isEnabledUrlPreview } from '@/utility/url-preview.js';
 import { focusPrev, focusNext } from '@/utility/focus.js';
 import { DI } from '@/di.js';
@@ -250,9 +253,13 @@ const props = withDefaults(defineProps<{
 	mock?: boolean;
 	withHardMute?: boolean;
 	showReplyTo?: boolean;
+	withThreadLine?: boolean;
+	threadAuthor?: Misskey.entities.UserLite | null;
 }>(), {
 	mock: false,
 	showReplyTo: true,
+	withThreadLine: false,
+	threadAuthor: null,
 });
 
 const emit = defineEmits<{
@@ -336,6 +343,8 @@ const {
 provide(DI.mfmEmojiReactCallback, reactViaMfmEmoji);
 
 // MkNote固有
+const threadAuthor = computed(() => props.threadAuthor ?? getNoteThreadAuthor(appearNote));
+const displayNodes = computed(() => getNoteDisplayNodes(appearNote, threadAuthor.value, parsed));
 const showSoftWordMutedWord = computed(() => prefer.s.showSoftWordMutedWord);
 
 function handleToggleReact() {
@@ -450,6 +459,7 @@ const keymap = {
 			position: absolute;
 			top: 12px;
 			right: 12px;
+			width: auto;
 			justify-content: flex-start;
 			padding: 0 4px;
 			margin-bottom: 0 !important;
@@ -459,6 +469,8 @@ const keymap = {
 		}
 
 		.footerButton {
+			flex: 0 0 40px;
+			width: 40px;
 			font-size: 90%;
 		}
 	}
@@ -498,13 +510,13 @@ const keymap = {
 		content: "";
 		position: absolute;
 		z-index: 1;
-		// 随卡片内边距 20px 调整：纵向接在头像下方，横向对齐头像中心
-		top: 66px;
-		bottom: -6px;
-		left: 39px;
-		width: 2px;
+		top: 100%;
+		left: 40px;
+		width: 1px;
+		height: 14px;
 		border-radius: 999px;
 		background: var(--MI_THEME-divider);
+		transform: translateX(-50%);
 		pointer-events: none;
 	}
 }
@@ -574,7 +586,6 @@ const keymap = {
 
 .collapsedRenoteTargetText {
 	overflow: hidden;
-	flex-shrink: 1;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: 90%;
@@ -589,7 +600,9 @@ const keymap = {
 // 内边距对齐掘金沸点卡片 (juejin.cn/pins 的 .pin 实测 20px)
 .article {
 	position: relative;
-	display: flex;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	column-gap: 8px;
 	padding: 20px;
 }
 
@@ -604,9 +617,7 @@ const keymap = {
 }
 
 .avatar {
-	flex-shrink: 0;
 	display: block !important;
-	margin: 0 8px 0 0;
 	width: 40px;
 	height: 40px;
 
@@ -617,8 +628,20 @@ const keymap = {
 	}
 }
 
+.threadLineAvatar::after {
+	content: "";
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 50%;
+	width: 1px;
+	height: 100vh;
+	border-radius: 999px;
+	background: var(--MI_THEME-divider);
+	transform: translateX(-50%);
+	pointer-events: none;
+}
+
 .main {
-	flex: 1;
 	min-width: 0;
 }
 
@@ -743,21 +766,20 @@ const keymap = {
 
 .footer {
 	display: flex;
+	width: 100%;
 	justify-content: space-between;
 	align-items: center;
 	height: 20px;
 	margin-top: 12px;
-	padding-right: 8px;
 }
 
 .footerButton {
 	position: relative;
-	flex: 0 0 40px;
+	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	box-sizing: border-box;
-	width: 40px;
 	height: 20px;
 	margin: 0;
 	padding: 0;
