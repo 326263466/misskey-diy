@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.root">
 	<div :class="$style.inner">
-		<button v-tooltip="instance.name ?? i18n.ts.instance" class="_button" :class="$style.logo" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
+		<button class="_button" :class="$style.logo" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
 			<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.logoIcon"/>
 			<span :class="$style.logoText">{{ instance.name ?? i18n.ts.instance }}</span>
 		</button>
@@ -39,19 +39,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<span :class="$style.searchText">{{ i18n.ts.search }}</span>
 			</MkA>
 
-			<MkA v-if="$i != null" v-tooltip="i18n.ts.notifications" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.notifications" to="/my/notifications">
+			<MkA v-if="$i != null" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.notifications" to="/my/notifications">
 				<i class="ti ti-bell"></i>
 				<span v-if="$i.hasUnreadNotification" :class="$style.iconButtonIndicator" class="_blink">
 					<span class="_indicateCounter" :class="$style.iconButtonCounter">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
 				</span>
 			</MkA>
 
-			<button v-tooltip="i18n.ts.more" class="_button" :class="$style.iconButton" :aria-label="i18n.ts.more" @click="more">
+			<button class="_button" :class="$style.iconButton" :aria-label="i18n.ts.more" @click="more">
 				<i class="ti ti-grid-dots"></i>
 				<span v-if="otherNavItemIndicated" :class="$style.iconButtonIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
 			</button>
 
-			<MkA v-tooltip="i18n.ts.settings" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.settings" to="/settings">
+			<MkA class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.settings" to="/settings">
 				<i class="ti ti-settings"></i>
 			</MkA>
 
@@ -60,7 +60,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<span :class="$style.postText">{{ i18n.ts.note }}</span>
 			</button>
 
-			<button v-if="$i != null" v-tooltip="`${i18n.ts.account}: @${$i.username}`" class="_button" :class="$style.account" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu">
+			<button v-if="$i != null" class="_button" :class="$style.account" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu">
 				<MkAvatar :user="$i" :class="$style.avatar"/>
 			</button>
 		</div>
@@ -83,6 +83,7 @@ import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 // header 中央导航：全站主要板块（与左侧菜单互斥，避免重复）
 const navItems = ['explore', 'channels', 'announcements'] as const;
 const headerItems = new Set<string>(['notifications', 'search', ...navItems]);
+const fixedDockItems = ['games', 'about'] as const;
 
 const otherNavItemIndicated = computed<boolean>(() => {
 	for (const def in navbarItemDef) {
@@ -100,7 +101,7 @@ async function more(ev: MouseEvent) {
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkLaunchPad.vue').then(x => x.default), {
 		anchorElement: target,
 		anchor: { x: 'center', y: 'bottom' },
-		excludedItems: [...headerItems],
+		excludedItems: [...headerItems, ...fixedDockItems],
 	}, {
 		closed: () => dispose(),
 	});
@@ -173,7 +174,7 @@ $post-text-hide-threshold: 760px;
 
 .logoText {
 	font-weight: 700;
-	font-size: 1em;
+	font-size: 1.1em;
 	max-width: 180px;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -285,6 +286,11 @@ $post-text-hide-threshold: 760px;
 		padding: 0;
 		margin-right: 4px;
 		justify-content: center;
+		background: transparent;
+
+		&:hover {
+			background: transparent;
+		}
 	}
 }
 

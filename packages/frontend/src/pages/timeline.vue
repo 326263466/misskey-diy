@@ -6,16 +6,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader v-model:tab="src" :actions="headerActions" :tabs="$i ? headerTabs : headerTabsWhenNotLogin" :swipable="true" :displayMyAvatar="true" :canOmitTitle="true">
 	<div class="_spacer" style="--MI_SPACER-w: 800px;">
-		<MkTip v-if="isBasicTimeline(src)" :k="`tl.${src}`" style="margin-bottom: var(--MI-margin);">
-			{{ i18n.ts._timelineDescription[src] }}
-		</MkTip>
 		<MkPostForm v-if="prefer.r.showFixedPostForm.value" :class="[$style.postForm, '_juejinCard']" class="_panel" fixed style="margin-bottom: var(--MI-margin);"/>
 		<MkStreamingNotesTimeline
 			ref="tlComponent"
-			:key="src + withRenotes + withReplies + onlyFiles + withSensitive"
+			:key="effectiveSrc + withRenotes + withReplies + onlyFiles + withSensitive"
 			:class="$style.tl"
-			:src="(src.split(':')[0] as (BasicTimelineType | 'list'))"
-			:list="src.split(':')[1]"
+			:src="effectiveSrc"
 			:withRenotes="withRenotes"
 			:withReplies="withReplies"
 			:withSensitive="withSensitive"
@@ -27,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, provide, useTemplateRef, ref, onMounted, onActivated } from 'vue';
+import { computed, watch, useTemplateRef, ref, onMounted, onActivated } from 'vue';
 import type { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import type { MenuItem } from '@/types/menu.js';
 import type { BasicTimelineType } from '@/timelines.js';
@@ -39,28 +35,40 @@ import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { definePage } from '@/page.js';
-import { antennasCache, userListsCache, favoritedChannelsCache } from '@/cache.js';
 import { deviceKind } from '@/utility/device-kind.js';
 import { deepMerge } from '@/utility/merge.js';
-import { miLocalStorage } from '@/local-storage.js';
-import { availableBasicTimelines, hasWithReplies, isAvailableBasicTimeline, isBasicTimeline, basicTimelineIconClass } from '@/timelines.js';
+import { hasWithReplies, isAvailableBasicTimeline } from '@/timelines.js';
 import { prefer } from '@/preferences.js';
 
 const tlComponent = useTemplateRef('tlComponent');
 
-type TimelinePageSrc = BasicTimelineType | `list:${string}`;
+type TimelinePageSrc = 'recommended' | 'following';
 
-const srcWhenNotSignin = ref<'local' | 'global'>(isAvailableBasicTimeline('local') ? 'local' : 'global');
 const src = computed<TimelinePageSrc>({
-	get: () => ($i ? store.r.tl.value.src : srcWhenNotSignin.value),
-	set: (x) => saveSrc(x),
+	get: () => {
+		if (!$i) return 'recommended';
+		return store.r.tl.value.src === 'home' ? 'following' : 'recommended';
+	},
+	set: (x: TimelinePageSrc) => saveSrc(x),
 });
+
+// 推荐流恒定走全局时间线：是否含联邦内容完全由管理员的实例设置决定
+// (未接入远程实例时，全局与本地的取数条件只差 userHost，返回内容等价)。
+// 全局被角色策略禁用时退回本地，否则整个推荐页会直接报错。
+const recommendedSrc = computed<BasicTimelineType>(() => isAvailableBasicTimeline('global') ? 'global' : 'local');
+
+const effectiveSrc = computed<BasicTimelineType>(() => {
+	if (src.value === 'following') return 'home';
+	return recommendedSrc.value;
+});
+
+const srcForAvailability = effectiveSrc;
 const withRenotes = computed<boolean>({
 	get: () => store.r.tl.value.filter.withRenotes,
 	set: (x) => saveTlFilter('withRenotes', x),
 });
 
-// computed内での無限ループを防ぐためのフラグ
+// 本地/推荐时间线沿用源码的「回复」与「仅媒体」互斥规则
 const localSocialTLFilterSwitchStore = ref<'withReplies' | 'onlyFiles' | false>(
 	store.r.tl.value.filter.withReplies ? 'withReplies' :
 	store.r.tl.value.filter.onlyFiles ? 'onlyFiles' :
@@ -70,21 +78,15 @@ const localSocialTLFilterSwitchStore = ref<'withReplies' | 'onlyFiles' | false>(
 const withReplies = computed<boolean>({
 	get: () => {
 		if (!$i) return false;
-		if (['local', 'social'].includes(src.value) && localSocialTLFilterSwitchStore.value === 'onlyFiles') {
-			return false;
-		} else {
-			return store.r.tl.value.filter.withReplies;
-		}
+		if (['local', 'social'].includes(srcForAvailability.value) && localSocialTLFilterSwitchStore.value === 'onlyFiles') return false;
+		return store.r.tl.value.filter.withReplies;
 	},
 	set: (x) => saveTlFilter('withReplies', x),
 });
 const onlyFiles = computed<boolean>({
 	get: () => {
-		if (['local', 'social'].includes(src.value) && localSocialTLFilterSwitchStore.value === 'withReplies') {
-			return false;
-		} else {
-			return store.r.tl.value.filter.onlyFiles;
-		}
+		if (['local', 'social'].includes(srcForAvailability.value) && localSocialTLFilterSwitchStore.value === 'withReplies') return false;
+		return store.r.tl.value.filter.onlyFiles;
 	},
 	set: (x) => saveTlFilter('onlyFiles', x),
 });
@@ -106,82 +108,11 @@ const withSensitive = computed<boolean>({
 
 const showFixedPostForm = prefer.model('showFixedPostForm');
 
-async function chooseList(ev: PointerEvent): Promise<void> {
-	const lists = await userListsCache.fetch();
-	const items: (MenuItem | undefined)[] = [
-		...lists.map(list => ({
-			type: 'link' as const,
-			text: list.name,
-			to: `/timeline/list/${list.id}`,
-		})),
-		(lists.length === 0 ? undefined : { type: 'divider' }),
-		{
-			type: 'link' as const,
-			icon: 'ti ti-plus',
-			text: i18n.ts.createNew,
-			to: '/my/lists',
-		},
-	];
-	os.popupMenu(items.filter(i => i != null), ev.currentTarget ?? ev.target);
-}
-
-async function chooseAntenna(ev: PointerEvent): Promise<void> {
-	const antennas = await antennasCache.fetch();
-	const items: (MenuItem | undefined)[] = [
-		...antennas.map(antenna => ({
-			type: 'link' as const,
-			text: antenna.name,
-			indicate: antenna.hasUnreadNote,
-			to: `/timeline/antenna/${antenna.id}`,
-		})),
-		(antennas.length === 0 ? undefined : { type: 'divider' }),
-		{
-			type: 'link' as const,
-			icon: 'ti ti-plus',
-			text: i18n.ts.createNew,
-			to: '/my/antennas',
-		},
-	];
-	os.popupMenu(items.filter(i => i != null), ev.currentTarget ?? ev.target);
-}
-
-async function chooseChannel(ev: PointerEvent): Promise<void> {
-	const channels = await favoritedChannelsCache.fetch();
-	const items: (MenuItem | undefined)[] = [
-		...channels.map(channel => {
-			const lastReadedAt = miLocalStorage.getItemAsJson(`channelLastReadedAt:${channel.id}`) ?? null;
-			const hasUnreadNote = (lastReadedAt && channel.lastNotedAt) ? Date.parse(channel.lastNotedAt) > lastReadedAt : !!(!lastReadedAt && channel.lastNotedAt);
-
-			return {
-				type: 'link' as const,
-				text: channel.name,
-				indicate: hasUnreadNote,
-				to: `/channels/${channel.id}`,
-			};
-		}),
-		(channels.length === 0 ? undefined : { type: 'divider' }),
-		{
-			type: 'link',
-			icon: 'ti ti-plus',
-			text: i18n.ts.createNew,
-			to: '/channels/new',
-		},
-	];
-	os.popupMenu(items.filter(i => i != null), ev.currentTarget ?? ev.target);
-}
-
 function saveSrc(newSrc: TimelinePageSrc): void {
-	const out = deepMerge({ src: newSrc }, store.s.tl);
-
-	if (newSrc.startsWith('userList:')) {
-		const id = newSrc.substring('userList:'.length);
-		out.userList = prefer.r.pinnedUserLists.value.find(l => l.id === id) ?? null;
-	}
+	const storedSrc = newSrc === 'following' ? 'home' : recommendedSrc.value;
+	const out = deepMerge({ src: storedSrc }, store.s.tl);
 
 	store.set('tl', out);
-	if (['local', 'global'].includes(newSrc)) {
-		srcWhenNotSignin.value = newSrc as 'local' | 'global';
-	}
 }
 
 function saveTlFilter(key: keyof typeof store.s.tl.filter, newValue: boolean) {
@@ -192,8 +123,11 @@ function saveTlFilter(key: keyof typeof store.s.tl.filter, newValue: boolean) {
 }
 
 function switchTlIfNeeded() {
-	if (isBasicTimeline(src.value) && !isAvailableBasicTimeline(src.value)) {
-		src.value = availableBasicTimelines()[0];
+	// 当前 tab 对应的时间线被角色策略禁用时，退到另一个可用的 tab
+	if (src.value === 'following' && !isAvailableBasicTimeline('home')) {
+		src.value = 'recommended';
+	} else if (src.value === 'recommended' && !isAvailableBasicTimeline(effectiveSrc.value) && isAvailableBasicTimeline('home')) {
+		src.value = 'following';
 	}
 }
 
@@ -218,16 +152,6 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 				ref: withRenotes,
 			});
 
-			if (isBasicTimeline(src.value) && hasWithReplies(src.value)) {
-				menuItems.push({
-					type: 'switch',
-					icon: 'ti ti-messages',
-					text: i18n.ts.showRepliesToOthersInTimeline,
-					ref: withReplies,
-					disabled: onlyFiles,
-				});
-			}
-
 			menuItems.push({
 				type: 'switch',
 				icon: 'ti ti-eye-exclamation',
@@ -238,7 +162,7 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 				icon: 'ti ti-photo',
 				text: i18n.ts.fileAttachedOnly,
 				ref: onlyFiles,
-				disabled: isBasicTimeline(src.value) && hasWithReplies(src.value) ? withReplies : false,
+				disabled: hasWithReplies(srcForAvailability.value) ? withReplies : false,
 			}, {
 				type: 'divider',
 			}, {
@@ -264,37 +188,28 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 	return items;
 });
 
-const headerTabs = computed(() => [...(prefer.r.pinnedUserLists.value.map(l => ({
-	key: 'list:' + l.id,
-	title: l.name,
-	icon: 'ti ti-star',
-}))), ...availableBasicTimelines().map(tl => ({
-	key: tl,
-	title: i18n.ts._timelines[tl],
-	icon: basicTimelineIconClass(tl),
-})), {
-	icon: 'ti ti-list',
-	title: i18n.ts.lists,
-	onClick: chooseList,
-}, {
-	icon: 'ti ti-antenna',
-	title: i18n.ts.antennas,
-	onClick: chooseAntenna,
-}, {
-	icon: 'ti ti-device-tv',
-	title: i18n.ts.channel,
-	onClick: chooseChannel,
-}] as Tab[]);
+const headerTabs = computed(() => [
+	{
+		key: 'recommended',
+		title: i18n.ts.recommended,
+		icon: 'ti ti-sparkles',
+	},
+	...($i ? [{
+		key: 'following',
+		title: i18n.ts.following,
+		icon: 'ti ti-home',
+	}] : []),
+] as Tab[]);
 
-const headerTabsWhenNotLogin = computed(() => [...availableBasicTimelines().map(tl => ({
-	key: tl,
-	title: i18n.ts._timelines[tl],
-	icon: basicTimelineIconClass(tl),
-}))] as Tab[]);
+const headerTabsWhenNotLogin = computed(() => [{
+	key: 'recommended',
+	title: i18n.ts.recommended,
+	icon: 'ti ti-sparkles',
+}] as Tab[]);
 
 definePage(() => ({
 	title: i18n.ts.timeline,
-	icon: isBasicTimeline(src.value) ? basicTimelineIconClass(src.value) : 'ti ti-home',
+	icon: src.value === 'following' ? 'ti ti-home' : 'ti ti-sparkles',
 }));
 </script>
 

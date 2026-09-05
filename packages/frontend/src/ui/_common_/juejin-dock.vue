@@ -42,10 +42,11 @@ import { prefer } from '@/preferences.js';
 // header 已有的条目不在左侧菜单重复显示（通知、搜索、主要板块和"更多"按钮已由 header 提供）
 // 菜单配置里的分割线 (-) 也不显示，控制面板前的分隔线由模板固定提供
 const duplicatedWithHeader = ['notifications', 'explore', 'channels', 'announcements', 'search'];
+const fixedDockItems = ['games', 'about'] as const;
 
 // 可见性判定放在这里而不是模板的 v-if，避免与 v-for 同元素共存
 // navbarItemDef 是索引签名字典，未知 key 取到的是 undefined，故用 Object.hasOwn 判定存在性
-const menu = computed(() => prefer.r.menu.value.filter(item => {
+const menu = computed(() => [...new Set([...prefer.r.menu.value, ...fixedDockItems])].filter(item => {
 	if (item === '-' || duplicatedWithHeader.includes(item)) return false;
 	if (!Object.hasOwn(navbarItemDef, item)) return false;
 	const def = navbarItemDef[item];
