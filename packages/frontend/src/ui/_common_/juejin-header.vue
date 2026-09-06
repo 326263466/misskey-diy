@@ -49,9 +49,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</form>
 
 			<MkA v-if="$i != null" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.notifications" to="/my/notifications">
-				<i class="ti ti-bell"></i>
-				<span v-if="$i.hasUnreadNotification" :class="$style.iconButtonIndicator" class="_blink">
-					<span class="_indicateCounter" :class="$style.iconButtonCounter">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
+				<span :class="$style.notificationIcon">
+					<i class="ti ti-bell"></i>
+					<span v-if="$i.hasUnreadNotification" :class="$style.notificationIndicator" class="_blink">
+						<span class="_indicateCounter" :class="$style.iconButtonCounter">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
+					</span>
 				</span>
 			</MkA>
 
@@ -378,15 +380,36 @@ $post-text-hide-threshold: 760px;
 	font-size: 8px;
 }
 
+.notificationIcon {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.28em;
+	height: 1.28em;
+}
+
+.notificationIndicator {
+	position: absolute;
+	top: -4px;
+	left: 50%;
+	transform-origin: top left;
+	pointer-events: none;
+}
+
 // 全局 ._indicateCounter 的内边距按 em 给，在这个字号下会把单个数字撑成横向椭圆。
 // 这里改成固定尺寸: 一位数收成正圆，多位数由内容撑宽成胶囊
 .iconButtonCounter {
 	box-sizing: border-box;
+	display: inline-flex;
 	height: 16px;
 	min-width: 16px;
-	padding: 0 4px;
+	padding: 0 3px;
+	align-items: center;
+	justify-content: center;
 	font-size: 10px;
 	line-height: 1;
+	white-space: nowrap;
 }
 
 .post {
