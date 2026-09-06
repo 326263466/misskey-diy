@@ -40,6 +40,10 @@ export const packedNoteDraftSchema = {
 			optional: false, nullable: true,
 			format: 'id',
 		},
+		publishReply: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
 		renoteId: {
 			type: 'string',
 			optional: false, nullable: true,

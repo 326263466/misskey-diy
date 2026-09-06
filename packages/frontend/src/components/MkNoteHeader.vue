@@ -17,12 +17,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div v-if="note.user.badgeRoles && note.user.badgeRoles.length > 0" :class="$style.badgeRoles">
 		<img v-for="(role, i) in note.user.badgeRoles" :key="i" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl!"/>
 	</div>
-	<div :class="$style.separator">·</div>
-	<div :class="$style.info">
-		<div v-if="mock">
+	<div v-if="showTime || note.visibility !== 'public' || note.localOnly || note.channel" :class="$style.separator">·</div>
+	<div v-if="showTime || note.visibility !== 'public' || note.localOnly || note.channel" :class="$style.info">
+		<div v-if="showTime && mock">
 			<MkTime :time="note.createdAt" colored/>
 		</div>
-		<MkA v-else :to="notePage(note)">
+		<MkA v-else-if="showTime" :to="notePage(note)">
 			<MkTime :time="note.createdAt" colored/>
 		</MkA>
 		<span v-if="note.visibility !== 'public'" style="margin-left: 0.5em;" :title="i18n.ts._visibility[note.visibility]">
@@ -44,10 +44,13 @@ import { notePage } from '@/filters/note.js';
 import { userPage } from '@/filters/user.js';
 import { DI } from '@/di.js';
 
-defineProps<{
+withDefaults(defineProps<{
 	note: Misskey.entities.Note;
 	showAuthorBadge?: boolean;
-}>();
+	showTime?: boolean;
+}>(), {
+	showTime: true,
+});
 
 const mock = inject(DI.mock, false);
 </script>
@@ -56,12 +59,14 @@ const mock = inject(DI.mock, false);
 .root {
 	display: flex;
 	align-items: center;
+	min-width: 0;
 	white-space: nowrap;
 }
 
 .name {
 	flex-shrink: 1;
 	display: block;
+	min-width: 0;
 	margin: 0 .25em 0 0;
 	padding: 0;
 	overflow: hidden;
@@ -83,7 +88,7 @@ const mock = inject(DI.mock, false);
 	margin: 0 .5em 0 0;
 	padding: 0 6px;
 	height: 1.4em;
-	font-size: 0.8em;
+	font-size: calc(1em - 1px);
 	line-height: 1;
 	color: var(--MI_THEME-accent);
 	border: solid 0.5px var(--MI_THEME-accent);
@@ -98,7 +103,7 @@ const mock = inject(DI.mock, false);
 	margin: 0 .5em 0 0;
 	padding: 0 6px;
 	height: 1.4em;
-	font-size: 0.8em;
+	font-size: calc(1em - 1px);
 	line-height: 1;
 	border: solid 0.5px var(--MI_THEME-divider);
 	border-radius: 3px;
@@ -106,26 +111,28 @@ const mock = inject(DI.mock, false);
 
 .username {
 	flex-shrink: 9999999;
+	min-width: 0;
 	overflow: hidden;
-	font-size: 0.9em;
+	font-size: calc(1em - 1px);
 	text-overflow: ellipsis;
 }
 
 .separator {
 	flex-shrink: 0;
 	margin: 0 4px;
-	font-size: 0.9em;
+	font-size: calc(1em - 1px);
 	opacity: 0.7;
 }
 
 .info {
 	flex-shrink: 0;
-	font-size: 0.9em;
+	font-size: calc(1em - 1px);
 }
 
 .badgeRoles {
 	flex-shrink: 0;
 	margin: 0 .5em 0 0;
+	font-size: calc(1em - 1px);
 }
 
 .badgeRole {

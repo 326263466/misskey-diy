@@ -52,7 +52,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</header>
 	<MkNoteSimple v-if="replyTargetNote" :class="$style.targetNote" :note="replyTargetNote"/>
-	<MkNoteSimple v-if="renoteTargetNote" :class="$style.targetNote" :note="renoteTargetNote"/>
+	<label v-if="replyTargetNote" :class="$style.replyPublishing">
+		<input v-model="publishReply" type="checkbox" :disabled="posting || posted" data-testid="post-form-publish-reply">
+		<span>{{ i18n.ts.reply }} + {{ i18n.ts.publish }}</span>
+	</label>
+	<MkNoteSimple v-if="renoteTargetNote && renoteTargetNote.id !== replyTargetNote?.id" :class="$style.targetNote" :note="renoteTargetNote"/>
 	<div v-if="quoteId" :class="$style.withQuote"><i class="ti ti-quote"></i> {{ i18n.ts.quoteAttached }}<button @click="quoteId = null; renoteTargetNote = null;"><i class="ti ti-x"></i></button></div>
 	<div v-if="visibility === 'specified'" :class="$style.toSpecified">
 		<span style="margin-right: 8px;">{{ i18n.ts.recipient }}</span>
@@ -145,6 +149,7 @@ import { chooseDriveFile } from '@/utility/drive.js';
 import { store } from '@/store.js';
 import MkInfo from '@/components/MkInfo.vue';
 import { i18n } from '@/i18n.js';
+import { userName } from '@/filters/user.js';
 import { instance } from '@/instance.js';
 import { ensureSignin, notesCount, incNotesCount } from '@/i.js';
 import { getAccounts, getAccountMenu } from '@/accounts.js';
@@ -231,6 +236,8 @@ const justEndedComposition = ref(false);
 const renoteTargetNote: ShallowRef<PostFormProps['renote'] | null> = shallowRef(props.renote);
 const replyTargetNote: ShallowRef<PostFormProps['reply'] | null> = shallowRef(props.reply);
 const targetChannel = shallowRef(props.channel);
+const publishReply = ref(props.initialNote?.replyId != null && props.initialNote.isPublishedReply === true);
+const postRenoteId = computed(() => renoteTargetNote.value?.id ?? quoteId.value ?? undefined);
 
 const serverDraftId = ref<string | null>(null);
 const postFormActions = getPluginHandlers('post_form_action');
@@ -255,10 +262,10 @@ uploader.events.on('itemUploaded', ctx => {
 const draftKey = computed((): string => {
 	let key = targetChannel.value ? `channel:${targetChannel.value.id}` : '';
 
-	if (renoteTargetNote.value) {
-		key += `renote:${renoteTargetNote.value.id}`;
-	} else if (replyTargetNote.value) {
+	if (replyTargetNote.value) {
 		key += `reply:${replyTargetNote.value.id}`;
+	} else if (renoteTargetNote.value) {
+		key += `renote:${renoteTargetNote.value.id}`;
 	} else {
 		key += `note:${$i.id}`;
 	}
@@ -267,10 +274,10 @@ const draftKey = computed((): string => {
 });
 
 const placeholder = computed((): string => {
-	if (renoteTargetNote.value) {
+	if (replyTargetNote.value) {
+		return i18n.tsx._drafts.replyTo({ user: userName(replyTargetNote.value.user) });
+	} else if (renoteTargetNote.value) {
 		return i18n.ts._postForm.quotePlaceholder;
-	} else if (replyTargetNote.value) {
-		return i18n.ts._postForm.replyPlaceholder;
 	} else if (targetChannel.value) {
 		return i18n.ts._postForm.channelPlaceholder;
 	} else {
@@ -289,10 +296,10 @@ const placeholder = computed((): string => {
 const submitText = computed((): string => {
 	return scheduledAt.value != null
 		? i18n.ts.schedule
-		: renoteTargetNote.value
-			? i18n.ts.quote
-			: replyTargetNote.value
-				? i18n.ts.reply
+		: replyTargetNote.value
+			? i18n.ts.reply
+			: renoteTargetNote.value
+				? i18n.ts.quote
 				: i18n.ts.note;
 });
 
@@ -371,31 +378,6 @@ if (props.mention) {
 	text.value += ' ';
 }
 
-if (replyTargetNote.value && (replyTargetNote.value.user.username !== $i.username || (replyTargetNote.value.user.host != null && replyTargetNote.value.user.host !== host))) {
-	text.value = `@${replyTargetNote.value.user.username}${replyTargetNote.value.user.host != null ? '@' + toASCII(replyTargetNote.value.user.host) : ''} `;
-}
-
-if (replyTargetNote.value && replyTargetNote.value.text != null) {
-	const ast = mfm.parse(replyTargetNote.value.text);
-	const otherHost = replyTargetNote.value.user.host;
-
-	for (const x of extractMentions(ast)) {
-		const mention = x.host ?
-			`@${x.username}@${toASCII(x.host)}` :
-			(otherHost == null || otherHost === host) ?
-				`@${x.username}` :
-				`@${x.username}@${toASCII(otherHost)}`;
-
-		// 自分は除外
-		if ($i.username === x.username && (x.host == null || x.host === host)) continue;
-
-		// 重複は除外
-		if (text.value.includes(`${mention} `)) continue;
-
-		text.value += `${mention} `;
-	}
-}
-
 if ($i.isSilenced && visibility.value === 'public') {
 	visibility.value = 'home';
 }
@@ -437,10 +419,13 @@ if (props.specified) {
 	pushVisibleUser(props.specified);
 }
 
+let inheritedCw: string | null = null;
+
 // keep cw when reply
 if (prefer.s.keepCw && replyTargetNote.value && replyTargetNote.value.cw) {
 	useCw.value = true;
 	cw.value = replyTargetNote.value.cw;
+	inheritedCw = cw.value;
 }
 
 function watchForDraft() {
@@ -451,6 +436,7 @@ function watchForDraft() {
 	watch(files, () => saveDraft(), { deep: true });
 	watch(visibility, () => saveDraft());
 	watch(localOnly, () => saveDraft());
+	watch(publishReply, () => saveDraft());
 	watch(quoteId, () => saveDraft());
 	watch(reactionAcceptance, () => saveDraft());
 	watch(scheduledAt, () => saveDraft());
@@ -738,6 +724,7 @@ function clear() {
 	scheduledAt.value = null;
 	visibleUsers.value = [];
 	reactionAcceptance.value = store.s.reactionAcceptance;
+	publishReply.value = false;
 	postAccount.value = null;
 	// 可见范围与话题标签辅助输入也还原为新开表单时的默认值；
 	// 回复/频道场景的可见范围受上下文约束（如回复仅关注者可见的帖子），保留不动
@@ -902,6 +889,7 @@ type StoredDrafts = {
 			cw: string | null;
 			visibility: 'public' | 'home' | 'followers' | 'specified';
 			localOnly: boolean;
+			publishReply?: boolean;
 			files: Misskey.entities.DriveFile[];
 			poll: PollEditorModelValue | null;
 			visibleUserIds?: string[];
@@ -925,6 +913,7 @@ function saveDraft() {
 			cw: cw.value,
 			visibility: visibility.value,
 			localOnly: localOnly.value,
+			publishReply: publishReply.value,
 			files: files.value,
 			poll: poll.value,
 			...( visibleUsers.value.length > 0 ? { visibleUserIds: visibleUsers.value.map(x => x.id) } : {}),
@@ -958,8 +947,9 @@ async function saveServerDraft(options: {
 		fileIds: files.value.map(f => f.id),
 		poll: poll.value,
 		visibleUserIds: visibleUsers.value.map(x => x.id),
-		renoteId: renoteTargetNote.value ? renoteTargetNote.value.id : quoteId.value ? quoteId.value : null,
+		renoteId: postRenoteId.value ?? null,
 		replyId: replyTargetNote.value ? replyTargetNote.value.id : null,
+		publishReply: publishReply.value,
 		channelId: targetChannel.value ? targetChannel.value.id : null,
 		reactionAcceptance: reactionAcceptance.value,
 		scheduledAt: scheduledAt.value,
@@ -1055,7 +1045,8 @@ async function post(ev?: PointerEvent) {
 		text: text.value === '' ? null : text.value,
 		fileIds: files.value.length > 0 ? files.value.map(f => f.id) : undefined,
 		replyId: replyTargetNote.value ? replyTargetNote.value.id : undefined,
-		renoteId: renoteTargetNote.value ? renoteTargetNote.value.id : quoteId.value ? quoteId.value : undefined,
+		publishReply: replyTargetNote.value ? publishReply.value : undefined,
+		renoteId: postRenoteId.value,
 		channelId: targetChannel.value ? targetChannel.value.id : undefined,
 		poll: poll.value,
 		cw: useCw.value ? cw.value ?? '' : null,
@@ -1319,6 +1310,7 @@ async function openAccountMenu(ev: PointerEvent) {
 				quoteId.value = draft.renoteId ?? null;
 				renoteTargetNote.value = draft.renote;
 				replyTargetNote.value = draft.reply;
+				publishReply.value = draft.publishReply ?? false;
 				reactionAcceptance.value = draft.reactionAcceptance;
 				scheduledAt.value = draft.scheduledAt ?? null;
 				if (draft.channel) targetChannel.value = draft.channel as unknown as Misskey.entities.Channel;
@@ -1459,6 +1451,7 @@ onMounted(() => {
 				cw.value = draft.data.cw;
 				visibility.value = draft.data.visibility;
 				localOnly.value = draft.data.localOnly;
+				publishReply.value = draft.data.publishReply ?? false;
 				files.value = (draft.data.files || []).filter(draftFile => draftFile);
 				if (draft.data.poll) {
 					poll.value = draft.data.poll;
@@ -1482,6 +1475,7 @@ onMounted(() => {
 			cw.value = init.cw ?? null;
 			visibility.value = init.visibility;
 			localOnly.value = init.localOnly ?? false;
+			publishReply.value = init.replyId != null && init.isPublishedReply === true;
 			files.value = init.files ?? [];
 			if (init.poll) {
 				poll.value = {
@@ -1522,6 +1516,23 @@ async function canClose() {
 		const { canceled } = await os.confirm({
 			type: 'question',
 			text: i18n.ts._postForm.quitInspiteOfThereAreUnuploadedFilesConfirm,
+			okText: i18n.ts.yes,
+			cancelText: i18n.ts.no,
+		});
+		if (canceled) return false;
+	} else if (
+		text.value.trim() !== '' ||
+		(cw.value != null && cw.value.trim() !== '' && cw.value !== inheritedCw) ||
+		files.value.length > 0 ||
+		poll.value != null ||
+		quoteId.value != null ||
+		renoteTargetNote.value != null ||
+		hashtags.value.trim() !== '' ||
+		scheduledAt.value != null
+	) {
+		const { canceled } = await os.confirm({
+			type: 'question',
+			text: i18n.ts.leaveConfirm,
 			okText: i18n.ts.yes,
 			cancelText: i18n.ts.no,
 		});
@@ -1721,6 +1732,29 @@ html[data-color-scheme=light] .preview {
 	padding: 0 20px 16px 20px;
 }
 
+.replyPublishing {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 32px;
+	margin: 0 20px 12px;
+	font-size: 0.9em;
+	cursor: pointer;
+
+	> input {
+		flex-shrink: 0;
+		width: 16px;
+		height: 16px;
+		margin: 0;
+		accent-color: var(--MI_THEME-accent);
+	}
+
+	> span {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+}
+
 .withQuote {
 	margin: 0 0 8px 0;
 	color: var(--MI_THEME-accent);
@@ -1767,6 +1801,7 @@ html[data-color-scheme=light] .preview {
 	margin: 0;
 	width: 100%;
 	font-size: 110%;
+	line-height: inherit;
 	border: none;
 	border-radius: 0;
 	background: transparent;
@@ -1832,6 +1867,7 @@ html[data-color-scheme=light] .preview {
 	width: 100%;
 	min-height: 90px;
 	max-height: 500px;
+	resize: none;
 	field-sizing: content;
 }
 

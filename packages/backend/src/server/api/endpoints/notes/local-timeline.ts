@@ -121,6 +121,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					: me ? ['localTimeline', `localTimelineWithReplyTo:${me.id}`]
 					: ['localTimeline'],
 				alwaysIncludeMyNotes: true,
+				excludeReplies: !ps.withReplies,
 				excludePureRenotes: !ps.withRenotes,
 				dbFallback: async (untilId, sinceId, limit) => await this.getFromDb({
 					untilId,
@@ -178,15 +179,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		}
 
 		if (!ps.withReplies) {
-			query.andWhere(new Brackets(qb => {
-				qb
-					.where('note.replyId IS NULL') // 返信ではない
-					.orWhere(new Brackets(qb => {
-						qb // 返信だけど投稿者自身への返信
-							.where('note.replyId IS NOT NULL')
-							.andWhere('note.replyUserId = note.userId');
-					}));
-			}));
+			query.andWhere('(note.replyId IS NULL OR note.renoteId IS NOT NULL OR (note.threadId IS NOT NULL AND note.threadId NOT LIKE \'reply-hidden:%\'))');
 		}
 
 		return await query.limit(ps.limit).getMany();

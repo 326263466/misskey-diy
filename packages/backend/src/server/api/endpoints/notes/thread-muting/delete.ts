@@ -8,6 +8,7 @@ import type { NoteThreadMutingsRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
+import { getNoteThreadId } from '@/misc/is-reply.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -49,7 +50,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			});
 
 			await this.noteThreadMutingsRepository.delete({
-				threadId: note.threadId ?? note.id,
+				threadId: getNoteThreadId(note),
 				userId: me.id,
 			});
 		});

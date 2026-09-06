@@ -50,6 +50,7 @@ const form = useTemplateRef('form');
 
 // 最大化时要解除这里的宽度上限，所以状态与表单双向共享
 const maximized = ref(false);
+let closing = false;
 
 function onPosted() {
 	modal.value?.close({
@@ -58,10 +59,20 @@ function onPosted() {
 }
 
 async function _close() {
-	const canClose = await form.value?.canClose();
-	if (!canClose) return;
-	form.value?.abortUploader();
-	modal.value?.close();
+	if (closing) return;
+	closing = true;
+	try {
+		const canClose = await form.value?.canClose();
+		if (!canClose) {
+			closing = false;
+			return;
+		}
+		form.value?.abortUploader();
+		modal.value?.close();
+	} catch (error) {
+		closing = false;
+		throw error;
+	}
 }
 
 function onEsc() {
@@ -73,6 +84,8 @@ function onBgClick() {
 }
 
 function onModalClosed() {
+	// Reset after the close transition so the disappearing form does not repaint with cleared values.
+	form.value?.clear();
 	emit('closed');
 }
 </script>

@@ -11,6 +11,7 @@ import { NoteStreamingHidingService } from '../NoteStreamingHidingService.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
 import { isRenotePacked, isQuotePacked } from '@/misc/is-renote.js';
+import { isOrdinaryReply } from '@/misc/is-reply.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import Channel, { type ChannelRequest } from '../channel.js';
 import { REQUEST } from '@nestjs/core';
@@ -54,6 +55,7 @@ export class HybridTimelineChannel extends Channel {
 	@bindThis
 	private async onNote(note: Packed<'Note'>) {
 		const isMe = this.user!.id === note.userId;
+		if (isOrdinaryReply(note) && !this.withReplies && !this.following[note.userId]?.withReplies) return;
 
 		if (this.withFiles && (note.fileIds == null || note.fileIds.length === 0)) return;
 
@@ -85,9 +87,6 @@ export class HybridTimelineChannel extends Channel {
 			if ((this.following[note.userId]?.withReplies ?? false) || this.withReplies) {
 				// 自分のフォローしていないユーザーの visibility: followers な投稿への返信は弾く
 				if (reply.visibility === 'followers' && !Object.hasOwn(this.following, reply.userId) && reply.userId !== this.user!.id) return;
-			} else {
-				// 「チャンネル接続主への返信」でもなければ、「チャンネル接続主が行った返信」でもなければ、「投稿者の投稿者自身への返信」でもない場合
-				if (reply.userId !== this.user!.id && !isMe && reply.userId !== note.userId) return;
 			}
 		}
 

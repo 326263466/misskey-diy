@@ -10,6 +10,7 @@ import type Logger from '@/logger.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { bindThis } from '@/decorators.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
+import { NoteDraftService } from '@/core/NoteDraftService.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
 import type { PostScheduledNoteJobData } from '../types.js';
@@ -25,6 +26,7 @@ export class PostScheduledNoteProcessorService {
 		private noteCreateService: NoteCreateService,
 		private notificationService: NotificationService,
 		private queueLoggerService: QueueLoggerService,
+		private noteDraftService: NoteDraftService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('post-scheduled-note');
 	}
@@ -50,6 +52,7 @@ export class PostScheduledNoteProcessorService {
 				} : null,
 				text: draft.text ?? null,
 				replyId: draft.replyId,
+				publishReply: draft.replyId != null ? await this.noteDraftService.getPublication(draft) : undefined,
 				renoteId: draft.renoteId,
 				cw: draft.cw,
 				localOnly: draft.localOnly,
@@ -61,6 +64,7 @@ export class PostScheduledNoteProcessorService {
 
 			// await不要
 			this.noteDraftsRepository.remove(draft);
+			void this.noteDraftService.clearPublication(draft).catch(error => this.logger.error('Failed to clear reply publication preference', { error }));
 
 			// await不要
 			this.notificationService.createNotification(draft.userId, 'scheduledNotePosted', {

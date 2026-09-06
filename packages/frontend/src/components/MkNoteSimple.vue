@@ -25,19 +25,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
+import { useGlobalEvent } from '@/events.js';
 
 const props = defineProps<{
 	note: Misskey.entities.Note | null;
 }>();
 
 const showContent = ref(false);
+const edited = shallowRef<Pick<Misskey.entities.Note, 'id' | 'text' | 'cw'> & Partial<Pick<Misskey.entities.Note, 'emojis'>> | null>(null);
+const note = computed(() => props.note == null ? null : edited.value?.id === props.note.id ? { ...props.note, ...edited.value } : props.note);
+useGlobalEvent('noteEdited', (id, content) => {
+	if (id === props.note?.id) edited.value = { id, ...content };
+});
 </script>
 
 <style lang="scss" module>

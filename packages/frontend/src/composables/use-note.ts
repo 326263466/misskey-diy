@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
@@ -39,6 +39,7 @@ import type { DI as DIType } from '@/di.js';
 import type { ExtractInjectedType } from '@/types/misc.js';
 import type { MenuItem } from '@/types/menu.js';
 import type { WordMuteResult } from '@/utility/check-word-mute.js';
+import { useNoteContent } from '@/composables/use-note-content.js';
 
 export interface UseNoteProps {
 	note: Misskey.entities.Note;
@@ -133,7 +134,7 @@ export function useNote(
 
 	// 基本状態
 	const isRenote = Misskey.note.isPureRenote(rawNote);
-	const appearNote = getAppearNote(rawNote) ?? rawNote;
+	const appearNote = useNoteContent(getAppearNote(rawNote) ?? rawNote);
 	const reactionNote = isRenote ? rawNote : appearNote;
 	const renoteTargetId = isRenote ? rawNote.renoteId : appearNote.id;
 
@@ -175,10 +176,13 @@ export function useNote(
 	const isMyRenote = $i != null && isRenote && ($i.id === rawNote.userId);
 	const isRenotedByMe = computed(() => renoteTargetId != null && getMyRenoteId(renoteTargetId) != null);
 	const displayedRenoteCount = computed(() => $appearNote.renoteCount + (isRenotedByMe.value && appearNote.userId === $i?.id && $i?.isBot !== true ? 1 : 0));
-	const parsed = appearNote.text ? mfm.parse(appearNote.text) : null;
-	const urls = parsed ? extractUrlFromMfm(parsed).filter((url) => appearNote.renote?.url !== url && appearNote.renote?.uri !== url) : null;
-	const isLong = shouldCollapsed(appearNote, urls ?? []);
-	const collapsed = ref(appearNote.cw == null && isLong);
+	const parsed = computed(() => appearNote.text ? mfm.parse(appearNote.text) : null);
+	const urls = computed(() => parsed.value ? extractUrlFromMfm(parsed.value).filter((url) => appearNote.renote?.url !== url && appearNote.renote?.uri !== url) : null);
+	const isLong = computed(() => shouldCollapsed(appearNote, urls.value ?? []));
+	const collapsed = ref(appearNote.cw == null && isLong.value);
+	watch([isLong, () => appearNote.cw], ([long, cw]) => {
+		if (!long || cw != null) collapsed.value = false;
+	});
 	const canRenote = ['public', 'home'].includes(appearNote.visibility) || (appearNote.visibility === 'followers' && appearNote.userId === $i?.id);
 	const showTicker = (prefer.s.instanceTicker === 'always') || (prefer.s.instanceTicker === 'remote' && appearNote.user.instance);
 	const canShare = isSupportShare();
@@ -397,7 +401,7 @@ export function useNote(
 			react();
 		} else {
 			const { menu, cleanup } = getNoteMenu({
-				note: rawNote,
+				note: isRenote ? { ...rawNote, renote: appearNote } : appearNote,
 				translating,
 				translation,
 				currentClip: currentClip?.value,
@@ -410,7 +414,7 @@ export function useNote(
 	function showMenu(): void {
 		if (props.mock || els.menuButton == null) return;
 		const { menu, cleanup } = getNoteMenu({
-			note: rawNote,
+			note: isRenote ? { ...rawNote, renote: appearNote } : appearNote,
 			translating,
 			translation,
 			currentClip: currentClip?.value,

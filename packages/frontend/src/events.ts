@@ -10,6 +10,7 @@ import { onBeforeUnmount } from 'vue';
 type Events = {
 	clientNotification: (notification: Misskey.entities.Notification) => void;
 	notePosted: (note: Misskey.entities.Note) => void;
+	noteEdited: (noteId: string, content: Pick<Misskey.entities.Note, 'text' | 'cw'> & Partial<Pick<Misskey.entities.Note, 'emojis'>>) => void;
 	noteDeleted: (
 		noteId: Misskey.entities.Note['id'],
 		replyId?: Misskey.entities.Note['replyId'],

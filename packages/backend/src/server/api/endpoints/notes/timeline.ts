@@ -18,6 +18,7 @@ import { MiLocalUser } from '@/models/User.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
+import { isOrdinaryReply } from '@/misc/is-reply.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -110,9 +111,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				me,
 				useDbFallback: this.serverSettings.enableFanoutTimelineDbFallback,
 				redisTimelines: ps.withFiles ? [`homeTimelineWithFiles:${me.id}`] : [`homeTimeline:${me.id}`],
-				alwaysIncludeMyNotes: true,
 				excludePureRenotes: !ps.withRenotes,
 				noteFilter: note => {
+					if (isOrdinaryReply(note) && !followings[note.userId]?.withReplies) return false;
+					if (note.userId === me.id) return true;
 					if (note.reply && note.reply.visibility === 'followers') {
 						if (!Object.hasOwn(followings, note.reply.userId) && note.reply.userId !== me.id) return false;
 					}
@@ -205,12 +207,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		query.andWhere(new Brackets(qb => {
 			qb
-				.where('note.replyId IS NULL') // 返信ではない
-				.orWhere(new Brackets(qb => {
-					qb // 返信だけど投稿者自身への返信
-						.where('note.replyId IS NOT NULL')
-						.andWhere('note.replyUserId = note.userId');
-				}));
+				.where('note.replyId IS NULL OR note.renoteId IS NOT NULL OR (note.threadId IS NOT NULL AND note.threadId NOT LIKE \'reply-hidden:%\')')
+				.orWhere('note.userId IN (SELECT "followeeId" FROM following WHERE "followerId" = :meId AND "withReplies" = true)', { meId: me.id });
 		}));
 
 		this.queryService.generateVisibilityQuery(query, me);

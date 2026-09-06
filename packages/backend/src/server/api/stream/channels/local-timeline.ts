@@ -11,6 +11,7 @@ import { NoteStreamingHidingService } from '../NoteStreamingHidingService.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
 import { isQuotePacked, isRenotePacked } from '@/misc/is-renote.js';
+import { isOrdinaryReply } from '@/misc/is-reply.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import Channel, { type ChannelRequest } from '../channel.js';
 import { REQUEST } from '@nestjs/core';
@@ -52,6 +53,7 @@ export class LocalTimelineChannel extends Channel {
 
 	@bindThis
 	private async onNote(note: Packed<'Note'>) {
+		if (isOrdinaryReply(note) && !this.withReplies) return;
 		if (this.withFiles && (note.fileIds == null || note.fileIds.length === 0)) return;
 
 		if (note.user.host !== null) return;
@@ -60,13 +62,6 @@ export class LocalTimelineChannel extends Channel {
 		if (note.user.requireSigninToViewContents && this.user == null) return;
 		if (note.renote && note.renote.user.requireSigninToViewContents && this.user == null) return;
 		if (note.reply && note.reply.user.requireSigninToViewContents && this.user == null) return;
-
-		// 関係ない返信は除外
-		if (note.reply && this.user && !this.following[note.userId]?.withReplies && !this.withReplies) {
-			const reply = note.reply;
-			// 「チャンネル接続主への返信」でもなければ、「チャンネル接続主が行った返信」でもなければ、「投稿者の投稿者自身への返信」でもない場合
-			if (reply.userId !== this.user.id && note.userId !== this.user.id && reply.userId !== note.userId) return;
-		}
 
 		if (isRenotePacked(note) && !isQuotePacked(note) && !this.withRenotes) return;
 

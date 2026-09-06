@@ -52,6 +52,10 @@ export const packedNoteSchema = {
 			format: 'id',
 			example: 'xxxxxxxxxx',
 		},
+		isPublishedReply: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
 		reply: {
 			type: 'object',
 			optional: true, nullable: true,

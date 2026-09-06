@@ -7,6 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { NotesRepository, NoteThreadMutingsRepository, NoteFavoritesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
+import { getNoteThreadId } from '@/misc/is-reply.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -64,7 +65,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				this.noteThreadMutingsRepository.count({
 					where: {
 						userId: me.id,
-						threadId: note.threadId ?? note.id,
+						threadId: getNoteThreadId(note),
 					},
 					take: 1,
 				}),

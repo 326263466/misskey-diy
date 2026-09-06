@@ -24,6 +24,7 @@ import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
 import { globalEvents } from '@/events.js';
+import { editNote } from '@/utility/edit-note.js';
 
 const isInBrowserTranslationAvailable = (
 	'LanguageDetector' in window &&
@@ -490,8 +491,8 @@ export function getNoteMenu(props: {
 			if (appearNote.userId === $i.id) {
 				menuItems.push({
 					icon: 'ti ti-edit',
-					text: i18n.ts.deleteAndEdit,
-					action: delEdit,
+					text: appearNote.replyId != null ? i18n.ts.edit : i18n.ts.deleteAndEdit,
+					action: appearNote.replyId != null ? () => editNote(appearNote) : delEdit,
 				});
 			}
 			if (props.currentAntenna != null) {

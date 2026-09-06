@@ -179,6 +179,9 @@ const align = () => {
 
 	if (content.value == null) return;
 
+	// 每次重新定位都先恢复自然高度，避免视口变大后沿用旧的滚动上限。
+	maxHeight.value = undefined;
+
 	const anchorRect = props.anchorElement.getBoundingClientRect();
 
 	const width = content.value!.offsetWidth;
@@ -214,27 +217,22 @@ const align = () => {
 			left = (window.innerWidth - SCROLLBAR_THICKNESS) - width;
 		}
 
-		const underSpace = ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN) - top;
-		const upperSpace = (anchorRect.top - MARGIN);
+		const viewportHeight = window.innerHeight - SCROLLBAR_THICKNESS - (MARGIN * 2);
 
 		// 画面から縦にはみ出る場合
 		if (top + height > ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN)) {
 			if (props.noOverlap && props.anchor.x === 'center') {
 				// 下方空间不足时反向展开；两侧都不足时使用空间更大的一侧
-				if (height <= upperSpace) {
-					maxHeight.value = upperSpace;
-					top = (upperSpace + MARGIN) - height;
-				} else if (upperSpace > underSpace) {
-					maxHeight.value = upperSpace;
-					top = MARGIN;
+				if (height <= viewportHeight) {
+					top = Math.min(Math.max(top, MARGIN), (window.innerHeight - SCROLLBAR_THICKNESS - MARGIN) - height);
 				} else {
-					maxHeight.value = underSpace;
+					// 整个可视区也放不下时，限制到可视区高度并在菜单内滚动
+					maxHeight.value = viewportHeight;
+					top = MARGIN;
 				}
 			} else {
 				top = ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN) - height;
 			}
-		} else {
-			maxHeight.value = underSpace;
 		}
 	} else {
 		// 画面から横にはみ出る場合
@@ -242,27 +240,22 @@ const align = () => {
 			left = (window.innerWidth - SCROLLBAR_THICKNESS) - width + window.scrollX - 1;
 		}
 
-		const underSpace = ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN) - (top - window.scrollY);
-		const upperSpace = (anchorRect.top - MARGIN);
+		const viewportHeight = window.innerHeight - SCROLLBAR_THICKNESS - (MARGIN * 2);
 
 		// 画面から縦にはみ出る場合
 		if (top + height - window.scrollY > ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN)) {
 			if (props.noOverlap && props.anchor.x === 'center') {
 				// 下方空间不足时反向展开；两侧都不足时使用空间更大的一侧
-				if (height <= upperSpace) {
-					maxHeight.value = upperSpace;
-					top = window.scrollY + ((upperSpace + MARGIN) - height);
-				} else if (upperSpace > underSpace) {
-					maxHeight.value = upperSpace;
-					top = window.scrollY + MARGIN;
+				if (height <= viewportHeight) {
+					top = Math.min(Math.max(top, window.scrollY + MARGIN), window.scrollY + (window.innerHeight - SCROLLBAR_THICKNESS - MARGIN) - height);
 				} else {
-					maxHeight.value = underSpace;
+					// 整个可视区也放不下时，限制到可视区高度并在菜单内滚动
+					maxHeight.value = viewportHeight;
+					top = window.scrollY + MARGIN;
 				}
 			} else {
 				top = ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN) - height + window.scrollY - 1;
 			}
-		} else {
-			maxHeight.value = underSpace;
 		}
 	}
 

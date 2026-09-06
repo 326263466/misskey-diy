@@ -109,6 +109,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					withChannelNotes: ps.withChannelNotes,
 					withFiles: ps.withFiles,
 					withRenotes: ps.withRenotes,
+					withReplies: ps.withReplies,
 				}, me);
 
 				return await this.noteEntityService.packMany(timeline, me);
@@ -132,7 +133,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				ignoreAuthorFromMute: true,
 				ignoreAuthorFromInstanceBlock: true,
 				ignoreAuthorFromUserSuspension: true,
-				excludeReplies: ps.withChannelNotes && !ps.withReplies, // userTimelineWithChannel may include replies
+				excludeReplies: !ps.withReplies,
 				excludeNoFiles: ps.withChannelNotes && ps.withFiles, // userTimelineWithChannel may include notes without files
 				excludePureRenotes: !ps.withRenotes,
 				noteFilter: note => {
@@ -150,6 +151,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					withChannelNotes: ps.withChannelNotes,
 					withFiles: ps.withFiles,
 					withRenotes: ps.withRenotes,
+					withReplies: ps.withReplies,
 				}, me),
 			});
 
@@ -165,6 +167,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		withChannelNotes: boolean,
 		withFiles: boolean,
 		withRenotes: boolean,
+		withReplies: boolean,
 	}, me: MiLocalUser | null) {
 		const mutingChannelIds = me
 			? await this.channelMutingService
@@ -181,6 +184,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			.leftJoinAndSelect('note.channel', 'channel')
 			.leftJoinAndSelect('reply.user', 'replyUser')
 			.leftJoinAndSelect('renote.user', 'renoteUser');
+
+		if (!ps.withReplies) {
+			query.andWhere('(note.replyId IS NULL OR note.renoteId IS NOT NULL OR (note.threadId IS NOT NULL AND note.threadId NOT LIKE \'reply-hidden:%\'))');
+		}
 
 		if (ps.withChannelNotes) {
 			query.andWhere(new Brackets(qb => {

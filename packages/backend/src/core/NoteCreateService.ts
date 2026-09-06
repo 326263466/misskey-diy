@@ -51,7 +51,7 @@ import { FeaturedService } from '@/core/FeaturedService.js';
 import { FanoutTimelineService } from '@/core/FanoutTimelineService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
-import { isReply } from '@/misc/is-reply.js';
+import { HIDDEN_REPLY_THREAD_PREFIX, getNoteThreadId, isOrdinaryReply } from '@/misc/is-reply.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
@@ -185,6 +185,7 @@ type Option = {
 	apMentionRawCount?: number | null;
 	apHashtags?: string[] | null;
 	apEmojis?: string[] | null;
+	publishReply?: boolean;
 	uri?: string | null;
 	url?: string | null;
 	app?: MiApp | null;
@@ -296,6 +297,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		apMentions?: MinimumUser[] | null;
 		apHashtags?: string[] | null;
 		apEmojis?: string[] | null;
+		publishReply?: boolean;
 	}): Promise<MiNote> {
 		const visibleUsers = data.visibleUserIds.length > 0 ? await this.usersRepository.findBy({
 			id: In(data.visibleUserIds),
@@ -435,6 +437,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			apMentions: data.apMentions,
 			apHashtags: data.apHashtags,
 			apEmojis: data.apEmojis,
+			publishReply: data.publishReply,
 		});
 	}
 
@@ -643,17 +646,14 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 	@bindThis
 	private async insertNote(user: { id: MiUser['id']; host: MiUser['host']; }, data: Option, tags: string[], emojis: string[], mentionedUsers: MinimumUser[]) {
+		const replyThreadId = data.reply ? getNoteThreadId(data.reply) : null;
 		const insert = new MiNote({
 			id: this.idService.gen(data.createdAt?.getTime()),
 			fileIds: data.files ? data.files.map(file => file.id) : [],
 			replyId: data.reply ? data.reply.id : null,
 			renoteId: data.renote ? data.renote.id : null,
 			channelId: data.channel ? data.channel.id : null,
-			threadId: data.reply
-				? data.reply.threadId
-					? data.reply.threadId
-					: data.reply.id
-				: null,
+			threadId: replyThreadId != null && data.publishReply === false ? `${HIDDEN_REPLY_THREAD_PREFIX}${replyThreadId}` : replyThreadId,
 			name: data.name,
 			text: data.text,
 			hasPoll: data.poll != null,
@@ -856,7 +856,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 					const isThreadMuted = await this.noteThreadMutingsRepository.exists({
 						where: {
 							userId: data.reply.userId,
-							threadId: data.reply.threadId ?? data.reply.id,
+							threadId: getNoteThreadId(data.reply),
 						},
 					});
 
@@ -996,7 +996,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			const isThreadMuted = await this.noteThreadMutingsRepository.exists({
 				where: {
 					userId: u.id,
-					threadId: note.threadId ?? note.id,
+					threadId: getNoteThreadId(note),
 				},
 			});
 
@@ -1075,6 +1075,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		if (!this.meta.enableFanoutTimeline) return;
 
 		const r = this.redisForTimelines.pipeline();
+		const ordinaryReply = isOrdinaryReply(note);
 
 		if (note.channelId) {
 			this.fanoutTimelineService.push(`channelTimeline:${note.channelId}`, note.id, this.config.perChannelMaxNoteCacheCount, r);
@@ -1089,6 +1090,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			});
 
 			for (const channelFollowing of channelFollowings) {
+				if (ordinaryReply) continue;
 				this.fanoutTimelineService.push(`homeTimeline:${channelFollowing.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
 				if (note.fileIds.length > 0) {
 					this.fanoutTimelineService.push(`homeTimelineWithFiles:${channelFollowing.followerId}`, note.id, this.meta.perUserHomeTimelineCacheMax / 2, r);
@@ -1131,8 +1133,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				// 基本的にvisibleUserIdsには自身のidが含まれている前提であること
 				if (note.visibility === 'specified' && !note.visibleUserIds.some(v => v === following.followerId)) continue;
 
-				// 「自分自身への返信 or そのフォロワーへの返信」のどちらでもない場合
-				if (isReply(note, following.followerId)) {
+				if (ordinaryReply) {
 					if (!following.withReplies) continue;
 				}
 
@@ -1150,8 +1151,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 					!note.visibleUserIds.some(v => v === userListMembership.userListUserId)
 				) continue;
 
-				// 「自分自身への返信 or そのリストの作成者への返信」のどちらでもない場合
-				if (isReply(note, userListMembership.userListUserId)) {
+				if (ordinaryReply) {
 					if (!userListMembership.withReplies) continue;
 				}
 
@@ -1162,7 +1162,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			}
 
 			// 自分自身のHTL
-			if (note.userHost == null) {
+			if (note.userHost == null && !ordinaryReply) {
 				if (note.visibility !== 'specified' || !note.visibleUserIds.some(v => v === user.id)) {
 					this.fanoutTimelineService.push(`homeTimeline:${user.id}`, note.id, this.meta.perUserHomeTimelineCacheMax, r);
 					if (note.fileIds.length > 0) {
@@ -1171,8 +1171,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				}
 			}
 
-			// 自分自身以外への返信
-			if (isReply(note)) {
+			if (ordinaryReply) {
 				this.fanoutTimelineService.push(`userTimelineWithReplies:${user.id}`, note.id, note.userHost == null ? this.meta.perLocalUserUserTimelineCacheMax : this.meta.perRemoteUserUserTimelineCacheMax, r);
 
 				if (note.visibility === 'public' && note.userHost == null) {

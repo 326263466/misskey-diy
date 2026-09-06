@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span v-if="note.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
 		<span v-if="note.deletedAt" style="opacity: 0.5">({{ i18n.ts.deletedNote }})</span>
 		<Mfm v-if="note.text" :text="note.text" :parsedNodes="displayNodes" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
-		<MkA v-if="note.renoteId" :class="$style.rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
+		<MkA v-if="note.renoteId && note.renoteId !== note.replyId" :class="$style.rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
 	</div>
 	<details v-if="note.files && note.files.length > 0">
 		<summary>({{ i18n.tsx.withNFiles({ n: note.files.length }) }})</summary>
@@ -37,7 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { shouldCollapsed } from '@@/js/collapsed.js';
 import MkMediaList from '@/components/MkMediaList.vue';
@@ -54,9 +54,12 @@ const props = defineProps<{
 
 const displayNodes = computed(() => getNoteDisplayNodes(props.note, props.omitMentionOf === undefined ? getNoteThreadAuthor(props.note) : props.omitMentionOf));
 
-const isLong = shouldCollapsed(props.note, []);
+const isLong = computed(() => shouldCollapsed(props.note, []));
 
-const collapsed = ref(isLong);
+const collapsed = ref(isLong.value);
+watch(isLong, long => {
+	if (!long) collapsed.value = false;
+});
 </script>
 
 <style lang="scss" module>

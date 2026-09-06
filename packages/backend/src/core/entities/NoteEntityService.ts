@@ -16,6 +16,7 @@ import { bindThis } from '@/decorators.js';
 import { DebounceLoader } from '@/misc/loader.js';
 import { IdService } from '@/core/IdService.js';
 import { shouldHideNoteByTime } from '@/misc/should-hide-note-by-time.js';
+import { isOrdinaryReply } from '@/misc/is-reply.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { CacheService } from '@/core/CacheService.js';
 import type { OnModuleInit } from '@nestjs/common';
@@ -437,6 +438,7 @@ export class NoteEntityService implements OnModuleInit {
 			files: packedFiles != null ? this.packAttachedFiles(note.fileIds, packedFiles) : this.driveFileEntityService.packManyByIds(note.fileIds),
 			replyId: note.replyId,
 			renoteId: note.renoteId,
+			isPublishedReply: note.replyId != null && note.renoteId == null ? !isOrdinaryReply(note) : undefined,
 			channelId: note.channelId ?? undefined,
 			channel: channel ? {
 				id: channel.id,

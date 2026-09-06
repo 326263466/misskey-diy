@@ -14,6 +14,7 @@ import type { NoteDraftsRepository, ChannelsRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { DebounceLoader } from '@/misc/loader.js';
 import { IdService } from '@/core/IdService.js';
+import { NoteDraftService } from '@/core/NoteDraftService.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { UserEntityService } from './UserEntityService.js';
 import type { DriveFileEntityService } from './DriveFileEntityService.js';
@@ -35,6 +36,8 @@ export class NoteDraftEntityService implements OnModuleInit {
 
 		@Inject(DI.channelsRepository)
 		private channelsRepository: ChannelsRepository,
+
+		private noteDraftService: NoteDraftService,
 	) {
 	}
 
@@ -119,6 +122,7 @@ export class NoteDraftEntityService implements OnModuleInit {
 			fileIds: noteDraft.fileIds,
 			files: packedFiles != null ? this.packAttachedFiles(noteDraft.fileIds, packedFiles) : this.driveFileEntityService.packManyByIds(noteDraft.fileIds),
 			replyId: noteDraft.replyId,
+			publishReply: noteDraft.replyId != null ? this.noteDraftService.getPublication(noteDraft) : false,
 			renoteId: noteDraft.renoteId,
 			channelId: noteDraft.channelId,
 			channel: channel ? {

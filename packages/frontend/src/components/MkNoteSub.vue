@@ -4,15 +4,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="note == null" :class="$style.deleted">
+<div v-if="note == null || deleted" :class="$style.deleted">
 	{{ i18n.ts.deletedNote }}
 </div>
-<div v-else-if="!muted" :class="[$style.root, { [$style.children]: depth > 1 }]">
+<div v-else-if="!muted" ref="rootEl" :class="[$style.root, { [$style.children]: depth > 1 }]">
 	<div :class="[$style.main, { [$style.mainWithReplies]: hasVisibleReplies }]">
 		<div v-if="note.channel" :class="$style.colorBar" :style="{ background: note.channel.color }"></div>
 		<MkAvatar :class="$style.avatar" :user="note.user" link preview/>
 		<div :class="$style.body">
-			<MkNoteHeader :class="$style.header" :note="note" :mini="true" :showAuthorBadge="isThreadAuthor"/>
+			<MkNoteHeader :class="$style.header" :note="note" :showTime="false" :showAuthorBadge="isThreadAuthor"/>
 			<div>
 				<p v-if="note.cw != null" :class="$style.cw">
 					<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'respect'"/>
@@ -22,6 +22,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSubNoteContent :class="$style.text" :note="note" :omitMentionOf="omitMentionOf"/>
 				</div>
 			</div>
+			<footer :class="$style.footer">
+				<MkA :class="$style.time" :to="notePage(note)"><MkTime :time="note.createdAt"/></MkA>
+				<button v-tooltip="i18n.ts.like" type="button" class="_button" :class="[$style.action, { [$style.liked]: captured?.myReaction != null }]" :aria-label="i18n.ts.like" :aria-pressed="captured?.myReaction != null" :disabled="liking" @click="toggleLike">
+					<i class="ti ti-thumb-up"></i><span v-if="captured && captured.reactionCount > 0">{{ captured.reactionCount }}</span>
+				</button>
+				<button v-tooltip="i18n.ts.reply" type="button" class="_button" :class="$style.action" :aria-label="i18n.ts.reply" @click="replyToComment">
+					<i class="ti ti-message-circle"></i><span v-if="captured && captured.repliesCount > 0">{{ captured.repliesCount }}</span>
+				</button>
+				<button v-tooltip="i18n.ts.more" type="button" class="_button" :class="[$style.action, $style.menu]" :aria-label="i18n.ts.more" @click="showMenu">
+					<i class="ti ti-dots"></i>
+				</button>
+			</footer>
 		</div>
 	</div>
 	<template v-if="detail && depth === 1">
@@ -61,7 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
@@ -72,6 +84,16 @@ import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { userPage } from '@/filters/user.js';
 import { checkWordMute } from '@/utility/check-word-mute.js';
+import { notePage } from '@/filters/note.js';
+import { noteEvents, useNoteCapture, useNoteCaptureVisibility } from '@/composables/use-note-capture.js';
+import { globalEvents, useGlobalEvent } from '@/events.js';
+import { pleaseLogin } from '@/utility/please-login.js';
+import { getAbuseNoteMenu } from '@/utility/get-note-menu.js';
+import { showMovedDialog } from '@/utility/show-moved-dialog.js';
+import * as os from '@/os.js';
+import type { MenuItem } from '@/types/menu.js';
+import { editNote } from '@/utility/edit-note.js';
+import { useNoteContent } from '@/composables/use-note-content.js';
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note | null;
@@ -89,6 +111,8 @@ const props = withDefaults(defineProps<{
 	threadAuthor: null,
 });
 
+const note = props.note == null ? null : useNoteContent(props.note);
+
 // 作者本人的回复，在昵称后加作者标签
 const isThreadAuthor = computed(() => props.threadAuthor != null && props.note?.userId === props.threadAuthor.id);
 
@@ -99,7 +123,70 @@ const omitMentionOf = computed(() => {
 	return props.threadAuthor;
 });
 
-const muted = ref(props.note && $i ? checkWordMute(props.note, $i, $i.mutedWords) : false);
+const muted = ref<boolean | ReturnType<typeof checkWordMute>>(props.note && $i ? checkWordMute(props.note, $i, $i.mutedWords) : false);
+const deleted = ref(false);
+const liking = ref(false);
+const rootEl = useTemplateRef('rootEl');
+const captureActive = useNoteCaptureVisibility(rootEl);
+const captured = props.note == null ? null : useNoteCapture({ note: props.note, parentNote: null, active: captureActive }).$note;
+
+async function toggleLike(): Promise<void> {
+	if (props.note == null || captured == null || liking.value || !await pleaseLogin()) return;
+	showMovedDialog();
+	liking.value = true;
+	try {
+		if (captured.myReaction != null) {
+			const reaction = captured.myReaction;
+			await os.apiWithDialog('notes/reactions/delete', { noteId: props.note.id });
+			noteEvents.emit(`unreacted:${props.note.id}`, { userId: $i!.id, reaction });
+		} else {
+			const reaction = '\u2764\ufe0f';
+			await os.apiWithDialog('notes/reactions/create', { noteId: props.note.id, reaction });
+			noteEvents.emit(`reacted:${props.note.id}`, { userId: $i!.id, reaction });
+		}
+	} catch {
+		// apiWithDialog displays the failure and leaves the captured state unchanged.
+	} finally {
+		liking.value = false;
+	}
+}
+
+async function replyToComment(): Promise<void> {
+	if (note == null || !await pleaseLogin()) return;
+	await os.post({ reply: note, channel: note.channel });
+}
+
+async function deleteComment(): Promise<void> {
+	const note = props.note;
+	if (note == null || note.userId !== $i?.id) return;
+	const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts.noteDeleteConfirm });
+	if (canceled) return;
+	await os.apiWithDialog('notes/delete', { noteId: note.id });
+	globalEvents.emit('noteDeleted', note.id, note.replyId, note.renoteId != null && note.renote?.userId !== note.userId ? note.renoteId : null);
+}
+
+async function editComment(): Promise<void> {
+	if (note != null) await editNote(note);
+}
+
+async function showMenu(ev: PointerEvent): Promise<void> {
+	const note = props.note;
+	if (note == null || !await pleaseLogin()) return;
+	const menu: MenuItem[] = note.userId === $i?.id ? [{
+		icon: 'ti ti-trash', text: i18n.ts.delete, danger: true, action: deleteComment,
+	}, {
+		icon: 'ti ti-edit', text: i18n.ts.edit, action: editComment,
+	}] : [getAbuseNoteMenu(note, i18n.ts.reportAbuse), {
+		icon: 'ti ti-ban', text: i18n.ts.block, danger: true,
+		action: async () => {
+			const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts.blockConfirm });
+			if (canceled) return;
+			await os.apiWithDialog('blocking/create', { userId: note.userId });
+			muted.value = true;
+		},
+	}];
+	await os.popupMenu(menu, ev.currentTarget ?? ev.target);
+}
 
 const showContent = ref(false);
 const replies = ref<Misskey.entities.Note[]>([]);
@@ -111,6 +198,19 @@ const replyLoader = props.detail && props.depth === 1 && props.note != null
 	: null;
 const hasMoreReplies = ref(replyLoader?.hasMore ?? false);
 let disposed = false;
+const deletedReplyIds = new Set<string>();
+
+useGlobalEvent('notePosted', note => {
+	if (!props.detail || props.depth !== 1 || note.replyId == null) return;
+	if (note.replyId !== props.note?.id && !replies.value.some(reply => reply.id === note.replyId)) return;
+	if (!replies.value.some(reply => reply.id === note.id)) replies.value.push(note);
+});
+
+useGlobalEvent('noteDeleted', noteId => {
+	if (noteId === props.note?.id) deleted.value = true;
+	deletedReplyIds.add(noteId);
+	replies.value = replies.value.filter(reply => reply.id !== noteId);
+});
 
 onBeforeUnmount(() => {
 	disposed = true;
@@ -127,7 +227,7 @@ async function loadReplies(): Promise<void> {
 	try {
 		const result = await replyLoader.loadMore();
 		if (disposed) return;
-		replies.value.push(...result.notes);
+		replies.value.push(...result.notes.filter(note => !deletedReplyIds.has(note.id) && !replies.value.some(reply => reply.id === note.id)));
 		hasMoreReplies.value = result.hasMore;
 	} catch {
 		if (!disposed) repliesError.value = true;
@@ -141,7 +241,7 @@ if (hasMoreReplies.value) void loadReplies();
 
 <style lang="scss" module>
 .root {
-	--avatarSize: 38px;
+	--avatarSize: 40px;
 	--columnGap: 8px;
 	--threadLineWidth: 2px;
 	display: grid;
@@ -153,6 +253,7 @@ if (hasMoreReplies.value) void loadReplies();
 
 	&.children {
 		padding: 10px 0 0;
+		font-size: inherit;
 	}
 }
 
@@ -213,6 +314,41 @@ if (hasMoreReplies.value) void loadReplies();
 	padding: 0;
 }
 
+.footer {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	min-height: 32px;
+	margin-top: 6px;
+	font-size: calc(1em - 1px);
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.time {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	gap: 4px;
+	min-width: 28px;
+	min-height: 32px;
+
+	&:hover, &.liked {
+		color: var(--MI_THEME-accent);
+	}
+}
+
+.menu {
+	margin-left: auto;
+}
+
 .reply, .more {
 	grid-column: 2;
 	min-width: 0;
@@ -232,14 +368,14 @@ if (hasMoreReplies.value) void loadReplies();
 		top: -10px;
 		width: calc(var(--avatarSize) + var(--columnGap) + var(--threadLineWidth) / 2);
 		height: calc(20px + (var(--avatarSize) + var(--threadLineWidth)) / 2);
-		border-left: solid var(--threadLineWidth) var(--MI_THEME-divider);
+		border-left: solid var(--threadLineWidth) transparent;
 		border-bottom: solid var(--threadLineWidth) var(--MI_THEME-divider);
 		border-bottom-left-radius: 8px;
 		pointer-events: none;
 	}
 
 	// 多条同级回复时，线要穿过本条继续往下接到下一条，否则中间会断开
-	&.replyWithSibling::after {
+	&::after {
 		content: "";
 		position: absolute;
 		left: var(--threadLineLeft);
@@ -248,6 +384,23 @@ if (hasMoreReplies.value) void loadReplies();
 		width: var(--threadLineWidth);
 		background: var(--MI_THEME-divider);
 		pointer-events: none;
+	}
+
+	&:not(.replyWithSibling)::after {
+		height: calc(20px + (var(--avatarSize) + var(--threadLineWidth)) / 2 - 8px);
+		bottom: auto;
+	}
+
+	&.replyWithSibling::before {
+		left: calc(var(--threadLineLeft) + var(--threadLineWidth));
+		width: calc(var(--avatarSize) + var(--columnGap) - var(--threadLineWidth) / 2);
+		border-left: none;
+		border-radius: 0;
+	}
+
+	&:not(.replyWithSibling)::before {
+		border-left-color: var(--MI_THEME-divider);
+		clip-path: inset(calc(100% - 8px) 0 0 0);
 	}
 }
 

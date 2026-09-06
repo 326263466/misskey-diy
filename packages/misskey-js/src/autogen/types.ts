@@ -3307,6 +3307,15 @@ export type paths = {
          */
         post: operations['notes___unrenote'];
     };
+    '/notes/update': {
+        /**
+         * notes/update
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:notes*
+         */
+        post: operations['notes___update'];
+    };
     '/notes/user-list-timeline': {
         /**
          * notes/user-list-timeline
@@ -4467,6 +4476,7 @@ export type components = {
              * @example xxxxxxxxxx
              */
             renoteId?: string | null;
+            isPublishedReply?: boolean;
             reply?: components['schemas']['Note'] | null;
             renote?: components['schemas']['Note'] | null;
             isHidden?: boolean;
@@ -4538,6 +4548,7 @@ export type components = {
             user: components['schemas']['UserLite'];
             /** Format: id */
             replyId: string | null;
+            publishReply?: boolean;
             /** Format: id */
             renoteId: string | null;
             reply?: components['schemas']['Note'] | null;
@@ -29599,6 +29610,8 @@ export interface operations {
                     noExtractHashtags?: boolean;
                     /** @default false */
                     noExtractEmojis?: boolean;
+                    /** @default false */
+                    publishReply?: boolean;
                     /** Format: misskey:id */
                     replyId?: string | null;
                     /** Format: misskey:id */
@@ -29836,6 +29849,8 @@ export interface operations {
                     reactionAcceptance?: null | 'likeOnly' | 'likeOnlyForRemote' | 'nonSensitiveOnly' | 'nonSensitiveOnlyForLocalLikeOnlyForRemote';
                     /** Format: misskey:id */
                     replyId?: string | null;
+                    /** @default false */
+                    publishReply?: boolean;
                     /** Format: misskey:id */
                     renoteId?: string | null;
                     /** Format: misskey:id */
@@ -30074,6 +30089,7 @@ export interface operations {
                     reactionAcceptance?: null | 'likeOnly' | 'likeOnlyForRemote' | 'nonSensitiveOnly' | 'nonSensitiveOnlyForLocalLikeOnlyForRemote';
                     /** Format: misskey:id */
                     replyId?: string | null;
+                    publishReply?: boolean;
                     /** Format: misskey:id */
                     renoteId?: string | null;
                     /** Format: misskey:id */
@@ -31870,6 +31886,83 @@ export interface operations {
             204: {
                 headers: {
                     [name: string]: unknown;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    notes___update: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    noteId: string;
+                    text: string;
+                    cw?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Note'];
                 };
             };
             /** @description Client error */

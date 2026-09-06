@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Brackets, In, IsNull, Not } from 'typeorm';
+import { Brackets, DataSource, In, IsNull, Not } from 'typeorm';
 import { Injectable, Inject } from '@nestjs/common';
 import type { MiUser, MiLocalUser, MiRemoteUser } from '@/models/User.js';
-import type { MiNote, IMentionedRemoteUsers } from '@/models/Note.js';
+import { MiNote, type IMentionedRemoteUsers } from '@/models/Note.js';
 import type { InstancesRepository, MiMeta, NotesRepository, UsersRepository } from '@/models/_.js';
 import { RelayService } from '@/core/RelayService.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
@@ -27,6 +27,9 @@ import { isQuote, isRenote } from '@/misc/is-renote.js';
 @Injectable()
 export class NoteDeleteService {
 	constructor(
+		@Inject(DI.db)
+		private db: DataSource,
+
 		@Inject(DI.config)
 		private config: Config,
 
@@ -65,26 +68,45 @@ export class NoteDeleteService {
 		const shouldDecrementRenote = note.renoteId != null && note.renoteUserId !== user.id && !user.isBot;
 		let replyTarget: MiNote | null = null;
 		let renoteTarget: MiNote | null = null;
+		let deleted = false;
 
-		if (!quiet) {
-			[replyTarget, renoteTarget] = await Promise.all([
-				note.replyId == null ? null : this.notesRepository.findOneBy({ id: note.replyId }),
-				shouldDecrementRenote ? this.notesRepository.findOneBy({ id: note.renoteId! }) : null,
-			]);
-		}
+		await this.db.transaction(async (transaction) => {
+			if (!quiet) {
+				[replyTarget, renoteTarget] = await Promise.all([
+					note.replyId == null ? null : transaction.findOneBy(MiNote, { id: note.replyId }),
+					shouldDecrementRenote ? transaction.findOneBy(MiNote, { id: note.renoteId! }) : null,
+				]);
+			}
 
-		if (shouldDecrementRenote) {
-			await this.notesRepository.createQueryBuilder().update()
-				.set({
-					renoteCount: () => 'GREATEST("renoteCount" - 1, 0)',
-				})
-				.where('id = :id', { id: note.renoteId })
-				.execute();
-		}
+			// Delete the note first and only adjust denormalized counters when a row
+			// was actually removed. This keeps retries and concurrent deletes idempotent.
+			const result = await transaction.delete(MiNote, {
+				id: note.id,
+				userId: user.id,
+			});
+			if (result.affected === 0) return;
+			deleted = true;
 
-		if (note.replyId) {
-			await this.notesRepository.decrement({ id: note.replyId }, 'repliesCount', 1);
-		}
+			if (shouldDecrementRenote) {
+				await transaction.createQueryBuilder().update(MiNote)
+					.set({
+						renoteCount: () => 'GREATEST("renoteCount" - 1, 0)',
+					})
+					.where('id = :id', { id: note.renoteId })
+					.execute();
+			}
+
+			if (note.replyId) {
+				await transaction.createQueryBuilder().update(MiNote)
+					.set({
+						repliesCount: () => 'GREATEST("repliesCount" - 1, 0)',
+					})
+					.where('id = :id', { id: note.replyId })
+					.execute();
+			}
+		});
+
+		if (!deleted) return;
 
 		if (!quiet) {
 			if (replyTarget != null) {
@@ -139,11 +161,6 @@ export class NoteDeleteService {
 		}
 
 		this.searchService.unindexNote(note);
-
-		await this.notesRepository.delete({
-			id: note.id,
-			userId: user.id,
-		});
 
 		if (deleter && (note.userId !== deleter.id)) {
 			const user = await this.usersRepository.findOneByOrFail({ id: note.userId });

@@ -11,6 +11,7 @@ import { NoteStreamingHidingService } from '../NoteStreamingHidingService.js';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import { isRenotePacked, isQuotePacked } from '@/misc/is-renote.js';
+import { isOrdinaryReply } from '@/misc/is-reply.js';
 import type { JsonObject } from '@/misc/json-value.js';
 import Channel, { type ChannelRequest } from '../channel.js';
 import { REQUEST } from '@nestjs/core';
@@ -77,7 +78,7 @@ export class UserListChannel extends Channel {
 			where: {
 				userListId: this.listId,
 			},
-			select: { userId: true },
+			select: { userId: true, withReplies: true },
 		});
 
 		const membershipsMap: Record<string, Pick<MiUserListMembership, 'withReplies'> | undefined> = {};
@@ -91,7 +92,7 @@ export class UserListChannel extends Channel {
 
 	@bindThis
 	private async onNote(note: Packed<'Note'>) {
-		const isMe = this.user!.id === note.userId;
+		if (isOrdinaryReply(note) && !this.membershipsMap[note.userId]?.withReplies) return;
 
 		// チャンネル投稿は無視する
 		if (note.channelId) return;
@@ -107,9 +108,6 @@ export class UserListChannel extends Channel {
 			if (this.membershipsMap[note.userId]?.withReplies) {
 				// 自分のフォローしていないユーザーの visibility: followers な投稿への返信は弾く
 				if (reply.visibility === 'followers' && !Object.hasOwn(this.following, reply.userId)) return;
-			} else {
-				// 「チャンネル接続主への返信」でもなければ、「チャンネル接続主が行った返信」でもなければ、「投稿者の投稿者自身への返信」でもない場合
-				if (reply.userId !== this.user!.id && !isMe && reply.userId !== note.userId) return;
 			}
 		}
 

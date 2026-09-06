@@ -198,6 +198,7 @@ export const paramDef = {
 		localOnly: { type: 'boolean' },
 		reactionAcceptance: { type: 'string', nullable: true, enum: [null, 'likeOnly', 'likeOnlyForRemote', 'nonSensitiveOnly', 'nonSensitiveOnlyForLocalLikeOnlyForRemote'] },
 		replyId: { type: 'string', format: 'misskey:id', nullable: true },
+		publishReply: { type: 'boolean' },
 		renoteId: { type: 'string', format: 'misskey:id', nullable: true },
 		channelId: { type: 'string', format: 'misskey:id', nullable: true },
 
@@ -264,7 +265,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				channelId: ps.channelId,
 				scheduledAt: ps.scheduledAt ? new Date(ps.scheduledAt) : null,
 				isActuallyScheduled: ps.isActuallyScheduled,
-			}).catch((err) => {
+			}, ps.publishReply).catch((err) => {
 				if (err instanceof IdentifiableError) {
 					switch (err.id) {
 						case '49cd6b9d-848e-41ee-b0b9-adaca711a6b1':

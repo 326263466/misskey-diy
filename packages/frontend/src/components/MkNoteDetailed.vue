@@ -124,7 +124,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div v-if="isEnabledUrlPreview">
 							<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="true" style="margin-top: 6px;"/>
 						</div>
-						<div v-if="appearNote.renoteId" :class="$style.quote"><MkNoteSimple :note="appearNote?.renote ?? null" :class="$style.quoteNote"/></div>
+						<div v-if="appearNote.renoteId && appearNote.renoteId !== appearNote.replyId" :class="$style.quote"><MkNoteSimple :note="appearNote?.renote ?? null" :class="$style.quoteNote"/></div>
 					</div>
 					<MkA v-if="appearNote.channel && !inChannel" :class="$style.channel" :to="`/channels/${appearNote.channel.id}`"><i class="ti ti-device-tv"></i> {{ appearNote.channel.name }}</MkA>
 				</div>
@@ -203,7 +203,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div>
 			<div v-if="tab === 'replies'">
-				<MkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :threadAuthor="threadAuthor"/>
+				<MkNoteSub v-for="note in replies" :key="note.id" :note="note" :class="$style.reply" :detail="true" :threadAuthor="threadAuthor" :parentComment="appearNote"/>
 			</div>
 			<div v-else-if="tab === 'renotes'" :class="$style.tab_renotes">
 				<MkPagination :paginator="renotesPaginator" :forceDisableInfiniteScroll="true">
@@ -260,6 +260,7 @@ import { Paginator } from '@/utility/paginator.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { getNoteDisplayNodes, getNoteThreadAuthor } from '@/utility/note-display.js';
 import { DI } from '@/di.js';
+import { useGlobalEvent } from '@/events.js';
 import type { Keymap } from '@/utility/hotkey.js';
 
 // コンポーネント外部の依存関係
@@ -367,13 +368,24 @@ const reactionsPaginator = markRaw(new Paginator('notes/reactions', {
 }));
 
 const replies = ref<Misskey.entities.Note[]>([]);
+const deletedReplyIds = new Set<string>();
+
+useGlobalEvent('notePosted', note => {
+	if (note.replyId !== appearNote.id || replies.value.some(reply => reply.id === note.id)) return;
+	replies.value.unshift(note);
+});
+
+useGlobalEvent('noteDeleted', noteId => {
+	deletedReplyIds.add(noteId);
+	replies.value = replies.value.filter(note => note.id !== noteId);
+});
 
 function loadReplies() {
 	misskeyApi('notes/children', {
 		noteId: appearNote.id,
 		limit: 30,
 	}).then(res => {
-		replies.value = res;
+		replies.value = [...replies.value, ...res.filter(note => !deletedReplyIds.has(note.id) && !replies.value.some(reply => reply.id === note.id))];
 	});
 }
 
@@ -386,7 +398,7 @@ const replyThread = computed(() => {
 	return notes;
 });
 const threadAuthor = computed(() => getNoteThreadAuthor(appearNote) ?? replyThread.value.find(note => note.replyId == null)?.user ?? null);
-const displayNodes = computed(() => getNoteDisplayNodes(appearNote, appearNote.reply?.user ?? threadAuthor.value, parsed));
+const displayNodes = computed(() => getNoteDisplayNodes(appearNote, appearNote.reply?.user ?? threadAuthor.value, parsed.value));
 
 function loadConversation() {
 	if (appearNote.replyId == null) return;
@@ -529,7 +541,7 @@ const keymap = {
 
 .renoteInfo {
 	margin-left: auto;
-	font-size: 1em;
+	font-size: calc(1em - 1px);
 }
 
 .renote + .note {
@@ -585,18 +597,20 @@ const keymap = {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
+	min-width: 0;
 }
 
 .noteHeaderName {
 	font-weight: bold;
 	line-height: 1.3;
+	overflow-wrap: anywhere;
 }
 
 .isBot {
 	display: inline-block;
 	margin: 0 0.5em;
 	padding: 4px 6px;
-	font-size: 80%;
+	font-size: calc(1em - 1px);
 	line-height: 1;
 	border: solid 0.5px var(--MI_THEME-divider);
 	border-radius: 4px;
@@ -604,6 +618,7 @@ const keymap = {
 
 .noteHeaderInfo {
 	float: right;
+	font-size: calc(1em - 1px);
 }
 
 .noteHeaderUsernameAndBadgeRoles {
@@ -611,14 +626,18 @@ const keymap = {
 }
 
 .noteHeaderUsername {
+	min-width: 0;
 	margin-bottom: 2px;
 	margin-right: 0.5em;
+	font-size: calc(1em - 1px);
 	line-height: 1.3;
 	word-wrap: anywhere;
 }
 
 .noteHeaderBadgeRoles {
+	flex-shrink: 0;
 	margin: 0 .5em 0 0;
+	font-size: calc(1em - 1px);
 }
 
 .noteHeaderBadgeRole {

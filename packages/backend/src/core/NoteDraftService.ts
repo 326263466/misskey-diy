@@ -15,8 +15,11 @@ import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { isRenote, isQuote } from '@/misc/is-renote.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { QueueService } from '@/core/QueueService.js';
+import { RegistryApiService } from '@/core/RegistryApiService.js';
 
 export type NoteDraftOptions = Omit<MiNoteDraft, 'id' | 'userId' | 'user' | 'reply' | 'renote' | 'channel'>;
+
+const publicationScope = ['note-drafts', 'publication'];
 
 @Injectable()
 export class NoteDraftService {
@@ -43,6 +46,7 @@ export class NoteDraftService {
 		private idService: IdService,
 		private noteEntityService: NoteEntityService,
 		private queueService: QueueService,
+		private registryApiService: RegistryApiService,
 	) {
 	}
 
@@ -57,7 +61,7 @@ export class NoteDraftService {
 	}
 
 	@bindThis
-	public async create(me: MiLocalUser, data: NoteDraftOptions): Promise<MiNoteDraft> {
+	public async create(me: MiLocalUser, data: NoteDraftOptions, publishReply = false): Promise<MiNoteDraft> {
 		//#region check draft limit
 		const policies = await this.roleService.getUserPolicies(me.id);
 
@@ -86,6 +90,9 @@ export class NoteDraftService {
 			id: this.idService.gen(),
 			userId: me.id,
 		});
+		if (draft.replyId != null && publishReply) {
+			await this.registryApiService.set(me.id, null, publicationScope, draft.id, true);
+		}
 
 		if (draft.scheduledAt && draft.isActuallyScheduled) {
 			this.schedule(draft);
@@ -95,7 +102,7 @@ export class NoteDraftService {
 	}
 
 	@bindThis
-	public async update(me: MiLocalUser, draftId: MiNoteDraft['id'], data: Partial<NoteDraftOptions>): Promise<MiNoteDraft> {
+	public async update(me: MiLocalUser, draftId: MiNoteDraft['id'], data: Partial<NoteDraftOptions>, publishReply?: boolean): Promise<MiNoteDraft> {
 		const draft = await this.noteDraftsRepository.findOneBy({
 			id: draftId,
 			userId: me.id,
@@ -127,6 +134,11 @@ export class NoteDraftService {
 			.returning('*')
 			.execute()
 			.then((response) => response.raw[0]);
+		if (publishReply === false || data.replyId === null) {
+			await this.clearPublication(draft);
+		} else if (publishReply === true) {
+			await this.registryApiService.set(me.id, null, publicationScope, draftId, true);
+		}
 
 		this.clearSchedule(draftId).then(() => {
 			if (updatedDraft.scheduledAt != null && updatedDraft.isActuallyScheduled) {
@@ -149,8 +161,20 @@ export class NoteDraftService {
 		}
 
 		await this.noteDraftsRepository.delete(draft.id);
+		await this.clearPublication(draft);
 
 		this.clearSchedule(draftId);
+	}
+
+	@bindThis
+	public async getPublication(draft: Pick<MiNoteDraft, 'id' | 'userId'>): Promise<boolean> {
+		const item = await this.registryApiService.getItem(draft.userId, null, publicationScope, draft.id);
+		return item?.value === true;
+	}
+
+	@bindThis
+	public async clearPublication(draft: Pick<MiNoteDraft, 'id' | 'userId'>): Promise<void> {
+		await this.registryApiService.remove(draft.userId, null, publicationScope, draft.id);
 	}
 
 	@bindThis

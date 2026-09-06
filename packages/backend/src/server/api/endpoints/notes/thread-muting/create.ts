@@ -10,6 +10,7 @@ import { IdService } from '@/core/IdService.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
+import { getNoteThreadId } from '@/misc/is-reply.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -68,7 +69,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// Check if already muting
 			const exist = await this.noteThreadMutingsRepository.exists({
 				where: {
-					threadId: note.threadId ?? note.id,
+					threadId: getNoteThreadId(note),
 					userId: me.id,
 				},
 			});
@@ -79,7 +80,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			await this.noteThreadMutingsRepository.insert({
 				id: this.idService.gen(),
-				threadId: note.threadId ?? note.id,
+				threadId: getNoteThreadId(note),
 				userId: me.id,
 			});
 		});

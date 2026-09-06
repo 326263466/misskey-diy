@@ -288,6 +288,11 @@ function realtimeSubscribe(props: {
 		if (id !== note.id) return;
 
 		switch (type) {
+			case 'updated': {
+				globalEvents.emit('noteEdited', id, body);
+				break;
+			}
+
 			case 'replied': {
 				noteEvents.emit(`replied:${id}`, { noteId: body.noteId });
 				break;
@@ -295,6 +300,7 @@ function realtimeSubscribe(props: {
 
 			case 'unreplied': {
 				noteEvents.emit(`unreplied:${id}`, { noteId: body.noteId });
+				globalEvents.emit('noteDeleted', body.noteId, id);
 				break;
 			}
 

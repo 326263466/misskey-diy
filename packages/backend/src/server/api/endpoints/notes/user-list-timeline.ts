@@ -14,6 +14,7 @@ import { IdService } from '@/core/IdService.js';
 import { QueryService } from '@/core/QueryService.js';
 import { MiLocalUser } from '@/models/User.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
+import { isOrdinaryReply } from '@/misc/is-reply.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 import { ApiError } from '../../error.js';
 
@@ -117,6 +118,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				return await this.noteEntityService.packMany(timeline, me);
 			}
 
+			const membershipsWithReplies = await this.userListMembershipsRepository.find({
+				where: { userListId: list.id, withReplies: true },
+				select: { userId: true },
+			});
+			const usersWithReplies = new Set(membershipsWithReplies.map(membership => membership.userId));
 			const timeline = await this.fanoutTimelineEndpointService.timeline({
 				untilId,
 				sinceId,
@@ -125,7 +131,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				me,
 				useDbFallback: this.serverSettings.enableFanoutTimelineDbFallback,
 				redisTimelines: ps.withFiles ? [`userListTimelineWithFiles:${list.id}`] : [`userListTimeline:${list.id}`],
-				alwaysIncludeMyNotes: true,
+				noteFilter: note => !isOrdinaryReply(note) || usersWithReplies.has(note.userId),
 				excludePureRenotes: !ps.withRenotes,
 				dbFallback: async (untilId, sinceId, limit) => await this.getFromDb(list, {
 					untilId,
@@ -167,17 +173,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			.andWhere('note.channelId IS NULL') // チャンネルノートではない
 			.andWhere(new Brackets(qb => {
 				qb
-					.where('note.replyId IS NULL') // 返信ではない
-					.orWhere(new Brackets(qb => {
-						qb // 返信だけど投稿者自身への返信
-							.where('note.replyId IS NOT NULL')
-							.andWhere('note.replyUserId = note.userId');
-					}))
-					.orWhere(new Brackets(qb => {
-						qb // 返信だけど自分宛ての返信
-							.where('note.replyId IS NOT NULL')
-							.andWhere('note.replyUserId = :meId', { meId: me.id });
-					}))
+					.where('note.replyId IS NULL OR note.renoteId IS NOT NULL OR (note.threadId IS NOT NULL AND note.threadId NOT LIKE \'reply-hidden:%\')')
 					.orWhere(new Brackets(qb => {
 						qb // 返信だけどwithRepliesがtrueの場合
 							.where('note.replyId IS NOT NULL')

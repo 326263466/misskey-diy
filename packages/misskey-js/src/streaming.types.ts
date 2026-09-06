@@ -293,6 +293,9 @@ export type Channels = {
 };
 
 export type NoteUpdatedEvent = { id: Note['id'] } & ({
+	type: 'updated';
+	body: Pick<Note, 'text' | 'cw'>;
+} | {
 	type: 'replied' | 'unreplied' | 'renoted' | 'unrenoted';
 	body: {
 		noteId: Note['id'];
