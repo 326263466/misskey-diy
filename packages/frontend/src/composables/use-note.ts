@@ -14,7 +14,7 @@ import { isSupportShare } from '@/utility/navigator.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import type { OpenOnRemoteOptions } from '@/utility/please-login.js';
 import { checkWordMute } from '@/utility/check-word-mute.js';
-import { misskeyApi, misskeyApiGet } from '@/utility/misskey-api.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
 import * as sound from '@/utility/sound.js';
 import * as os from '@/os.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
@@ -230,10 +230,9 @@ export function useNote(
 
 		if (appearNote.reactionAcceptance === 'likeOnly' && els.reactButton != null) {
 			useTooltip(els.reactButton, async (showing) => {
-				const reactions = await misskeyApiGet('notes/reactions', {
+				const reactions = await misskeyApi('notes/reactions', {
 					noteId: reactionNote.id,
 					limit: 10,
-					_cacheKey_: $reactionNote.reactionCount,
 				});
 				const users = reactions.map(x => x.user);
 				if (users.length < 1 || els.reactButton!.value == null) return;
