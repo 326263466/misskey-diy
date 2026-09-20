@@ -71,6 +71,34 @@ export class FanoutTimelineService {
 	}
 
 	@bindThis
+	public updateFiles(tl: FanoutTimelineName, id: string, hasFiles: boolean, maxlen: number, pipeline: Redis.ChainableCommander) {
+		// Edits keep chronological order and never extend a cache across an uncached gap.
+		pipeline.eval(`
+local ids = redis.call('LRANGE', KEYS[1], 0, -1)
+table.sort(ids, function(a, b) return a > b end)
+local oldest = ids[#ids]
+local keep = {}
+local seen = {}
+for _, value in ipairs(ids) do
+	if value ~= ARGV[1] and not seen[value] then
+		table.insert(keep, value)
+		seen[value] = true
+	end
+end
+if ARGV[2] == '1' and ((oldest and ARGV[1] >= oldest) or ARGV[4] == '1') then
+	table.insert(keep, ARGV[1])
+end
+table.sort(keep, function(a, b) return a > b end)
+redis.call('DEL', KEYS[1])
+local count = math.min(#keep, tonumber(ARGV[3]))
+for first = 1, count, 1000 do
+	redis.call('RPUSH', KEYS[1], unpack(keep, first, math.min(first + 999, count)))
+end
+return count
+`, 1, 'list:' + tl, id, hasFiles ? '1' : '0', Math.floor(maxlen), this.idService.parse(id).date.getTime() > Date.now() - 1000 * 60 * 3 ? '1' : '0');
+	}
+
+	@bindThis
 	public get(name: FanoutTimelineName, untilId?: string | null, sinceId?: string | null) {
 		if (untilId && sinceId) {
 			return this.redisForTimelines.lrange('list:' + name, 0, -1)

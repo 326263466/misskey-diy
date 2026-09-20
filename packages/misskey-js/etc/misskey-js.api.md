@@ -2054,6 +2054,12 @@ declare namespace entities {
         NotesGlobalTimelineResponse,
         NotesHybridTimelineRequest,
         NotesHybridTimelineResponse,
+        NotesLikesRequest,
+        NotesLikesResponse,
+        NotesLikesCreateRequest,
+        NotesLikesCreateResponse,
+        NotesLikesDeleteRequest,
+        NotesLikesDeleteResponse,
         NotesLocalTimelineRequest,
         NotesLocalTimelineResponse,
         NotesMentionsRequest,
@@ -2090,6 +2096,7 @@ declare namespace entities {
         NotesUpdateResponse,
         NotesUserListTimelineRequest,
         NotesUserListTimelineResponse,
+        NotesViewsRequest,
         NotificationsCreateRequest,
         PagePushRequest,
         PagesCreateRequest,
@@ -2218,6 +2225,8 @@ declare namespace entities {
         Note,
         NoteDraft,
         NoteReaction,
+        Like,
+        LikeState,
         NoteReactionWithNote,
         NoteFavorite,
         Notification_2 as Notification,
@@ -2857,6 +2866,12 @@ type IWebhooksTestRequest = operations['i___webhooks___test']['requestBody']['co
 type IWebhooksUpdateRequest = operations['i___webhooks___update']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type Like = components['schemas']['Like'];
+
+// @public (undocumented)
+type LikeState = components['schemas']['LikeState'];
+
+// @public (undocumented)
 type MeDetailed = components['schemas']['MeDetailed'];
 
 // @public (undocumented)
@@ -3026,6 +3041,24 @@ type NotesHybridTimelineRequest = operations['notes___hybrid-timeline']['request
 type NotesHybridTimelineResponse = operations['notes___hybrid-timeline']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type NotesLikesCreateRequest = operations['notes___likes___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NotesLikesCreateResponse = operations['notes___likes___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NotesLikesDeleteRequest = operations['notes___likes___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NotesLikesDeleteResponse = operations['notes___likes___delete']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NotesLikesRequest = operations['notes___likes']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NotesLikesResponse = operations['notes___likes']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type NotesLocalTimelineRequest = operations['notes___local-timeline']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3140,6 +3173,9 @@ type NotesUserListTimelineRequest = operations['notes___user-list-timeline']['re
 type NotesUserListTimelineResponse = operations['notes___user-list-timeline']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type NotesViewsRequest = operations['notes___views']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
 export const noteVisibilities: readonly ["public", "home", "followers", "specified"];
 
 // @public (undocumented)
@@ -3212,7 +3248,7 @@ type PartialRolePolicyOverride = Partial<{
 }>;
 
 // @public (undocumented)
-export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "write:admin:send-email", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:unset-mfa", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
+export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:note-likes", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "write:admin:send-email", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:unset-mfa", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
 
 // @public (undocumented)
 type PingResponse = operations['ping']['responses']['200']['content']['application/json'];

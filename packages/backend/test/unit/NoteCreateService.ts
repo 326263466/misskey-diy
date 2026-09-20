@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { beforeAll, describe, test, expect } from 'vitest';
+import { beforeAll, describe, test, expect, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 
 import { CoreModule } from '@/core/CoreModule.js';
@@ -31,6 +31,7 @@ describe('NoteCreateService', () => {
 			renoteId: null,
 			renote: null,
 			threadId: null,
+			deletedBy: null,
 			text: null,
 			name: null,
 			cw: null,
@@ -40,6 +41,7 @@ describe('NoteCreateService', () => {
 			reactionAcceptance: null,
 			renoteCount: 0,
 			repliesCount: 0,
+			viewsCount: 0,
 			clippedCount: 0,
 			pageCount: 0,
 			reactions: {},
@@ -143,5 +145,36 @@ describe('NoteCreateService', () => {
 			expect(noteCreateService['isRenote'](note)).toBe(true);
 			expect(noteCreateService['isQuote'](note)).toBe(true);
 		});
+	});
+});
+
+describe('renote count publication', () => {
+	test.each([false, true])('publishes only after the count is stored (write fails: %s)', async fails => {
+		let finish!: () => void;
+		const execute = vi.fn(() => new Promise<void>((resolve, reject) => {
+			finish = () => fails ? reject(new Error('database unavailable')) : resolve();
+		}));
+		const query = {
+			update: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(), execute,
+		};
+		const publishNoteStream = vi.fn();
+		const service = Object.assign(Object.create(NoteCreateService.prototype), {
+			notesRepository: { createQueryBuilder: () => query },
+			globalEventService: { publishNoteStream },
+			idService: { parse: () => ({ date: new Date(0) }) },
+		}) as NoteCreateService;
+		const original = new MiNote({ id: 'original' });
+		const renote = new MiNote({ id: 'renote' });
+		const pending = service['incRenoteCount'](original, renote);
+		expect(publishNoteStream).not.toHaveBeenCalled();
+		finish();
+		if (fails) {
+			await expect(pending).rejects.toThrow('database unavailable');
+			expect(publishNoteStream).not.toHaveBeenCalled();
+		} else {
+			await pending;
+			expect(publishNoteStream).toHaveBeenCalledExactlyOnceWith(original, 'renoted', { noteId: renote.id });
+		}
 	});
 });

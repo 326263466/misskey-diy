@@ -261,9 +261,6 @@ export const PREF_DEF = definePreferences({
 	showFixedPostFormInChannel: {
 		default: false,
 	},
-	enableInfiniteScroll: {
-		default: true,
-	},
 	useReactionPickerForContextMenu: {
 		default: false,
 	},

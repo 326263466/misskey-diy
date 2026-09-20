@@ -324,6 +324,7 @@ export class SearchService {
 			.leftJoinAndSelect('renote.user', 'renoteUser');
 
 		query.where('note.id IN (:...noteIds)', { noteIds: res.hits.map(x => x.id) });
+		this.queryService.generateDeletedReplyQuery(query);
 
 		this.queryService.generateBlockedHostQueryForNote(query);
 		this.queryService.generateSuspendedUserQueryForNote(query);

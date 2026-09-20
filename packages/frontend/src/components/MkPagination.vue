@@ -25,18 +25,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<div v-else key="_root_" class="_gaps">
-				<div v-if="direction === 'up' || direction === 'both'" v-show="upButtonVisible">
-					<MkButton v-if="!upButtonLoading" v-appear="shouldEnableInfiniteScroll ? upButtonClick : null" :class="$style.more" primary rounded @click="upButtonClick">
-						{{ i18n.ts.loadMore }}
-					</MkButton>
-					<MkLoading v-else/>
+				<div v-if="(direction === 'up' || direction === 'both') && upButtonVisible">
+					<div :key="paginator.items.value[0]?.id" v-appear="upButtonClick" :class="$style.sentinel" aria-hidden="true"></div>
+					<MkLoading v-if="upButtonLoading"/>
 				</div>
 				<slot :items="getValue(paginator.items)" :fetching="paginator.fetching.value || paginator.fetchingOlder.value"></slot>
-				<div v-if="direction === 'down' || direction === 'both'" v-show="downButtonVisible">
-					<MkButton v-if="!downButtonLoading" v-appear="shouldEnableInfiniteScroll ? downButtonClick : null" :class="$style.more" primary rounded @click="downButtonClick">
-						{{ i18n.ts.loadMore }}
-					</MkButton>
-					<MkLoading v-else/>
+				<div v-if="(direction === 'down' || direction === 'both') && downButtonVisible">
+					<div :key="paginator.items.value.at(-1)?.id" v-appear="downButtonClick" :class="$style.sentinel" aria-hidden="true"></div>
+					<MkLoading v-if="downButtonLoading"/>
 				</div>
 			</div>
 		</Transition>
@@ -58,7 +54,6 @@ export type MkPaginationOptions = {
 	direction?: 'up' | 'down' | 'both';
 	pullToRefresh?: boolean;
 	withControl?: boolean;
-	forceDisableInfiniteScroll?: boolean;
 };
 </script>
 
@@ -67,7 +62,6 @@ import { isLink } from '@@/js/is-link.js';
 import { onMounted, computed, watch, unref } from 'vue';
 import type { UnwrapRef } from 'vue';
 import type { IPaginator } from '@/utility/paginator.js';
-import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
@@ -81,11 +75,6 @@ const props = withDefaults(defineProps<MkPaginationOptions & {
 	direction: 'down',
 	pullToRefresh: true,
 	withControl: false,
-	forceDisableInfiniteScroll: false,
-});
-
-const shouldEnableInfiniteScroll = computed(() => {
-	return prefer.r.enableInfiniteScroll.value && !props.forceDisableInfiniteScroll;
 });
 
 function onContextmenu(ev: PointerEvent) {
@@ -126,6 +115,7 @@ const upButtonLoading = computed(() => {
 });
 
 function upButtonClick() {
+	if (!upButtonVisible.value || upButtonLoading.value) return;
 	if (props.paginator.order.value === 'oldest') {
 		props.paginator.fetchOlder();
 	} else {
@@ -141,6 +131,7 @@ const downButtonLoading = computed(() => {
 });
 
 function downButtonClick() {
+	if (!downButtonVisible.value || downButtonLoading.value) return;
 	if (props.paginator.order.value === 'oldest') {
 		props.paginator.fetchNewer();
 	} else {
@@ -164,8 +155,8 @@ defineSlots<{
 	opacity: 0;
 }
 
-.more {
-	margin-left: auto;
-	margin-right: auto;
+.sentinel {
+	height: 1px;
 }
+
 </style>

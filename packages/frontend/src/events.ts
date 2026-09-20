@@ -7,14 +7,18 @@ import { EventEmitter } from 'eventemitter3';
 import * as Misskey from 'misskey-js';
 import { onBeforeUnmount } from 'vue';
 
+export type NoteEditContent = Pick<Misskey.entities.Note, 'text' | 'cw'> & Partial<Pick<Misskey.entities.Note, 'emojis' | 'tags' | 'files' | 'fileIds' | 'reactionAcceptance'>>;
+
 type Events = {
 	clientNotification: (notification: Misskey.entities.Notification) => void;
 	notePosted: (note: Misskey.entities.Note) => void;
-	noteEdited: (noteId: string, content: Pick<Misskey.entities.Note, 'text' | 'cw'> & Partial<Pick<Misskey.entities.Note, 'emojis'>>) => void;
+	likesUpdated: (noteId: Misskey.entities.Note['id'], state: Misskey.entities.LikeState) => void;
+	noteEdited: (noteId: string, content: NoteEditContent) => void;
 	noteDeleted: (
 		noteId: Misskey.entities.Note['id'],
 		replyId?: Misskey.entities.Note['replyId'],
 		renoteId?: Misskey.entities.Note['renoteId'],
+		deletedBy?: Misskey.entities.Note['deletedBy'],
 	) => void;
 	noteRemovedFromAntenna: (antennaId: Misskey.entities.Antenna['id'], noteId: Misskey.entities.Note['id']) => void;
 	driveFileCreated: (file: Misskey.entities.DriveFile) => void;

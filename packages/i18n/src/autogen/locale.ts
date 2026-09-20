@@ -173,6 +173,10 @@ export interface Locale extends ILocale {
      */
     "favorite": string;
     /**
+     * 表示回数
+     */
+    "viewsCount": string;
+    /**
      * お気に入り
      */
     "favorites": string;
@@ -540,6 +544,16 @@ export interface Locale extends ILocale {
      * リアクション
      */
     "reactions": string;
+    "_boost": {
+        /**
+         * Boost
+         */
+        "title": string;
+        /**
+         * Boost @{name}...
+         */
+        "placeholder": ParameterizedString<"name">;
+    };
     /**
      * 絵文字ピッカー
      */
@@ -2605,13 +2619,29 @@ export interface Locale extends ILocale {
      */
     "deletedNote": string;
     /**
+     * このコメントは削除されました
+     */
+    "deletedComment": string;
+    /**
+     * 投稿者によって削除されたノート
+     */
+    "deletedNoteByAuthor": string;
+    /**
+     * コミュニティ管理によって削除されたノート
+     */
+    "deletedNoteByCommunity": string;
+    /**
+     * 投稿者によって削除されたコメント
+     */
+    "deletedCommentByAuthor": string;
+    /**
+     * コミュニティ管理によって削除されたコメント
+     */
+    "deletedCommentByCommunity": string;
+    /**
      * 非公開のノート
      */
     "invisibleNote": string;
-    /**
-     * 自動でもっと見る
-     */
-    "enableInfiniteScroll": string;
     /**
      * 公開範囲
      */
@@ -4196,6 +4226,28 @@ export interface Locale extends ILocale {
      * いいね数
      */
     "numberOfLikes": string;
+    "_likes": {
+        /**
+         * いいねしたユーザー
+         */
+        "title": string;
+        /**
+         * いいねの詳細（{n}）
+         */
+        "titleWithCount": ParameterizedString<"n">;
+        /**
+         * いいねしました
+         */
+        "liked": string;
+        /**
+         * などがいいねしました
+         */
+        "likedByOthers": string;
+        /**
+         * {n}人がいいねしました
+         */
+        "countOnly": ParameterizedString<"n">;
+    };
     /**
      * 表示
      */
@@ -9507,6 +9559,10 @@ export interface Locale extends ILocale {
          */
         "write:reactions": string;
         /**
+         * ノートのいいねを操作する
+         */
+        "write:note-likes": string;
+        /**
          * 投票する
          */
         "write:votes": string;
@@ -11400,6 +11456,56 @@ export interface Locale extends ILocale {
         "testRemarks": string;
     };
     "_abuseReport": {
+        /**
+         * 通報の理由を選択
+         */
+        "selectReason": string;
+        "_reasons": {
+            /**
+             * 性的・わいせつな内容
+             */
+            "sexualContent": string;
+            /**
+             * スパム・宣伝
+             */
+            "spam": string;
+            /**
+             * 詐欺・フィッシング
+             */
+            "scam": string;
+            /**
+             * 政治的に過激な内容
+             */
+            "sensitivePolitics": string;
+            /**
+             * 誹謗中傷・人格攻撃
+             */
+            "harassment": string;
+            /**
+             * 差別・ヘイト表現
+             */
+            "hateSpeech": string;
+            /**
+             * 対立の煽動・荒らし
+             */
+            "inciting": string;
+            /**
+             * プライバシーの侵害
+             */
+            "privacyViolation": string;
+            /**
+             * なりすまし
+             */
+            "impersonation": string;
+            /**
+             * 著作権・肖像権の侵害
+             */
+            "copyrightViolation": string;
+            /**
+             * その他の理由
+             */
+            "other": string;
+        };
         "_notificationRecipient": {
             /**
              * 通報の通知先を追加

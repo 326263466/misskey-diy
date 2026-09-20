@@ -73,7 +73,7 @@ export const tooltipDirective = {
 				showing,
 				text: state.text,
 				asMfm: binding.modifiers.mfm,
-				direction: binding.modifiers.left ? 'left' : binding.modifiers.right ? 'right' : binding.modifiers.top ? 'top' : binding.modifiers.bottom ? 'bottom' : 'top',
+				direction: binding.modifiers.left ? 'left' : binding.modifiers.right ? 'right' : binding.modifiers.top ? 'top' : 'bottom',
 				anchorElement: el,
 			}, {
 				closed: () => dispose(),

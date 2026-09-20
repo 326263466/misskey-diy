@@ -29,6 +29,8 @@ import { FeaturedService } from '@/core/FeaturedService.js';
 import { trackPromise } from '@/misc/promise-tracker.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { PER_NOTE_REACTION_USER_PAIR_CACHE_MAX } from '@/const.js';
+import { isDeletedReply } from '@/misc/is-reply.js';
+import { normalizeTextReaction, TEXT_REACTION_PREFIX } from '@/misc/reaction.js';
 
 const FALLBACK = '\u2764';
 
@@ -112,7 +114,7 @@ export class ReactionService {
 		}
 
 		// check visibility
-		if (!await this.noteEntityService.isVisibleForMe(note, user.id)) {
+		if (isDeletedReply(note) || !await this.noteEntityService.isVisibleForMe(note, user.id)) {
 			throw new IdentifiableError('68e9d2d1-48bf-42c2-b90a-b20e09fd3d48', 'Note not accessible for you.');
 		}
 
@@ -120,6 +122,17 @@ export class ReactionService {
 
 		if (note.reactionAcceptance === 'likeOnly' || ((note.reactionAcceptance === 'likeOnlyForRemote' || note.reactionAcceptance === 'nonSensitiveOnlyForLocalLikeOnlyForRemote') && (user.host != null))) {
 			reaction = '\u2764';
+		} else if (reaction.startsWith(TEXT_REACTION_PREFIX)) {
+			// Text boosts are a local UI extension. Remote Like activities may carry
+			// arbitrary content, so they degrade to the normal Like reaction.
+			const textReaction = user.host == null ? normalizeTextReaction(reaction) : null;
+			if (user.host != null) {
+				reaction = FALLBACK;
+			} else if (textReaction == null) {
+				throw new IdentifiableError('979fafab-ba6d-4316-be72-84010a218365', 'Invalid text reaction.');
+			} else {
+				reaction = textReaction;
+			}
 		} else if (_reaction != null) {
 			const custom = reaction.match(isCustomEmojiRegexp);
 			if (custom) {
@@ -191,15 +204,16 @@ export class ReactionService {
 		if (this.meta.enableReactionsBuffering) {
 			await this.reactionsBufferingService.create(note.id, user.id, reaction, note.reactionAndUserPairCache);
 		} else {
-			const sql = `jsonb_set("reactions", '{${reaction}}', (COALESCE("reactions"->>'${reaction}', '0')::int + 1)::text::jsonb)`;
+			const sql = 'jsonb_set("reactions", ARRAY[CAST(:reaction AS text)], to_jsonb(COALESCE(("reactions"->>:reaction)::int, 0) + 1))';
 			await this.notesRepository.createQueryBuilder().update()
 				.set({
 					reactions: () => sql,
 					...(note.reactionAndUserPairCache.length < PER_NOTE_REACTION_USER_PAIR_CACHE_MAX ? {
-						reactionAndUserPairCache: () => `array_append("reactionAndUserPairCache", '${user.id}/${reaction}')`,
+						reactionAndUserPairCache: () => 'array_append("reactionAndUserPairCache", :reactionPair)',
 					} : {}),
 				})
 				.where('id = :id', { id: note.id })
+				.setParameters({ reaction, reactionPair: `${user.id}/${reaction}` })
 				.execute();
 		}
 
@@ -302,13 +316,14 @@ export class ReactionService {
 		if (this.meta.enableReactionsBuffering) {
 			await this.reactionsBufferingService.delete(note.id, user.id, exist.reaction);
 		} else {
-			const sql = `jsonb_set("reactions", '{${exist.reaction}}', (COALESCE("reactions"->>'${exist.reaction}', '0')::int - 1)::text::jsonb)`;
+			const sql = 'jsonb_set("reactions", ARRAY[CAST(:reaction AS text)], to_jsonb(COALESCE(("reactions"->>:reaction)::int, 0) - 1))';
 			await this.notesRepository.createQueryBuilder().update()
 				.set({
 					reactions: () => sql,
-					reactionAndUserPairCache: () => `array_remove("reactionAndUserPairCache", '${user.id}/${exist.reaction}')`,
+					reactionAndUserPairCache: () => 'array_remove("reactionAndUserPairCache", :reactionPair)',
 				})
 				.where('id = :id', { id: note.id })
+				.setParameters({ reaction: exist.reaction, reactionPair: `${user.id}/${exist.reaction}` })
 				.execute();
 		}
 

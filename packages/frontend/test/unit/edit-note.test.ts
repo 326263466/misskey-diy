@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type * as Misskey from 'misskey-js';
 import { editNote } from '@/utility/edit-note.js';
-import { globalEvents } from '@/events.js';
 
-const mocks = vi.hoisted(() => ({ form: vi.fn(), apiWithDialog: vi.fn() }));
+const mocks = vi.hoisted(() => ({ post: vi.fn(), apiWithDialog: vi.fn() }));
 vi.mock('@/os.js', () => mocks);
 vi.mock('@/i.js', () => ({ $i: { id: 'self' } }));
 
@@ -18,47 +17,53 @@ const note = {
 	reactions: { '\u2764\ufe0f': 12 }, repliesCount: 3, files: [{ id: 'file' }],
 } as unknown as Misskey.entities.Note;
 
-describe('comment editing', () => {
-	const onEdited = vi.fn();
+describe('note editing', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
-		globalEvents.on('noteEdited', onEdited);
 	});
-	afterEach(() => globalEvents.off('noteEdited', onEdited));
 
-	test('cancellation does not delete or change the comment', async () => {
-		mocks.form.mockResolvedValue({ canceled: true });
+	test('fetches the latest content before opening the complete composer', async () => {
+		const latest = { ...note, text: 'Changed elsewhere', files: [{ id: 'new-file' }] };
+		mocks.apiWithDialog.mockResolvedValue(latest);
 		await editNote(note);
-		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
-		expect(onEdited).not.toHaveBeenCalled();
+		expect(mocks.apiWithDialog).toHaveBeenCalledExactlyOnceWith('notes/show', { noteId: note.id });
+		expect(mocks.post).toHaveBeenCalledExactlyOnceWith({ editingNote: latest });
 		expect(note.text).toBe('Original');
 	});
 
-	test('updates the existing ID and only publishes a content edit event', async () => {
-		mocks.form.mockResolvedValue({ canceled: false, result: { text: 'Changed', cw: '' } });
-		mocks.apiWithDialog.mockResolvedValue({ ...note, text: 'Changed', emojis: {} });
-		await editNote(note);
-		expect(mocks.apiWithDialog).toHaveBeenCalledExactlyOnceWith('notes/update', { noteId: 'comment', text: 'Changed', cw: null });
-		expect(onEdited).toHaveBeenCalledExactlyOnceWith('comment', { text: 'Changed', cw: null, emojis: {} });
-		expect(note.repliesCount).toBe(3);
-		expect(note.reactions).toEqual({ '\u2764\ufe0f': 12 });
-		expect(note.files).toEqual([{ id: 'file' }]);
+	test.each([
+		['a reply', { replyId: 'parent' }],
+		['an ordinary post', { replyId: null }],
+		['a quote', { replyId: null, renoteId: 'quoted' }],
+	] as const)('opens %s with its original identity and relationships', async (_label, overrides) => {
+		const original = { ...note, ...overrides };
+		mocks.apiWithDialog.mockResolvedValue(original);
+		await editNote(original);
+		expect(mocks.apiWithDialog).toHaveBeenCalledExactlyOnceWith('notes/show', { noteId: original.id });
+		expect(mocks.post).toHaveBeenCalledExactlyOnceWith({ editingNote: original });
+		expect(original.repliesCount).toBe(3);
+		expect(original.reactions).toEqual({ '\u2764\ufe0f': 12 });
+		expect(original.files).toEqual([{ id: 'file' }]);
 	});
 
-	test('preserves the edit draft after a failed save and allows cancellation', async () => {
-		mocks.form.mockResolvedValueOnce({ canceled: false, result: { text: 'Unsaved changes', cw: 'Warning' } }).mockResolvedValueOnce({ canceled: true });
+	test('does not open a stale editor when loading the note fails', async () => {
 		mocks.apiWithDialog.mockRejectedValue(new Error('Offline'));
 		await editNote(note);
-		expect(mocks.form.mock.calls[1][1].text.default).toBe('Unsaved changes');
-		expect(mocks.form.mock.calls[1][1].cw.default).toBe('Warning');
-		expect(onEdited).not.toHaveBeenCalled();
+		expect(mocks.post).not.toHaveBeenCalled();
 		expect(note.text).toBe('Original');
 	});
 
-	test('does not offer writes for another author or an ordinary post', async () => {
+	test('does not open the editor for a note deleted after its preview was loaded', async () => {
+		mocks.apiWithDialog.mockResolvedValue({ ...note, isDeleted: true });
+		await editNote(note);
+		expect(mocks.post).not.toHaveBeenCalled();
+	});
+
+	test('does not offer writes for another author, a remote note or a pure renote', async () => {
 		await editNote({ ...note, userId: 'other' });
-		await editNote({ ...note, replyId: null });
-		expect(mocks.form).not.toHaveBeenCalled();
+		await editNote({ ...note, user: { ...note.user, host: 'remote.test' } });
+		await editNote({ ...note, replyId: null, renoteId: 'quoted', text: null, cw: null, fileIds: [], files: [], poll: undefined });
+		expect(mocks.post).not.toHaveBeenCalled();
 		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
 	});
 });

@@ -7,9 +7,15 @@ import { MiUser } from '@/models/User.js';
 
 // Publication metadata stays in the existing column; thread muting uses its canonical ID.
 export const HIDDEN_REPLY_THREAD_PREFIX = 'reply-hidden:';
+export const DELETED_REPLY_THREAD_PREFIX = `${HIDDEN_REPLY_THREAD_PREFIX}deleted:`;
+
+export function isDeletedReply(note: { threadId?: string | null; isDeleted?: boolean }): boolean {
+	return note.isDeleted === true || note.threadId?.startsWith(DELETED_REPLY_THREAD_PREFIX) === true;
+}
 
 export function getNoteThreadId(note: { id: string; threadId?: string | null }): string {
 	const threadId = note.threadId ?? note.id;
+	if (threadId.startsWith(DELETED_REPLY_THREAD_PREFIX)) return threadId.slice(DELETED_REPLY_THREAD_PREFIX.length);
 	return threadId.startsWith(HIDDEN_REPLY_THREAD_PREFIX) ? threadId.slice(HIDDEN_REPLY_THREAD_PREFIX.length) : threadId;
 }
 

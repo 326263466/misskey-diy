@@ -34,6 +34,7 @@ function createEndpoint(overrides: Partial<MiNote> = {}) {
 		mentions: ['mentionuser'],
 		mentionedRemoteUsers: '[]',
 		localOnly: true,
+		reactionAcceptance: null,
 		channelId: null,
 		hasPoll: false,
 		...overrides,
@@ -54,10 +55,10 @@ function createEndpoint(overrides: Partial<MiNote> = {}) {
 	const pollRepository = { findOneByOrFail: vi.fn().mockResolvedValue({ choices: ['#polltag :pollemoji:', 'Other choice'] }) };
 	const usersRepository = { findBy: vi.fn().mockResolvedValue([]) };
 	const getter = { getNote: vi.fn().mockResolvedValue(note) };
-	const contentValidator = { checkProhibitedWordsContain: vi.fn(() => false) };
+	const contentValidator = { checkProhibitedWordsContain: vi.fn(() => false), updateMediaTimelines: vi.fn().mockResolvedValue(undefined) };
 	const packer = { pack: vi.fn(async (value: MiNote) => value) };
 	const events = { publishNoteStream: vi.fn() };
-	const search = { indexNote: vi.fn().mockResolvedValue(undefined) };
+	const search = { indexNote: vi.fn().mockResolvedValue(undefined), unindexNote: vi.fn().mockResolvedValue(undefined) };
 	const hashtags = { updateHashtags: vi.fn().mockResolvedValue(undefined) };
 	const render = {
 		renderNote: vi.fn().mockResolvedValue({ id: 'https://example.test/notes/comment', type: 'Note', to: ['original-audience'], cc: ['original-copy'] }),
@@ -74,6 +75,7 @@ function createEndpoint(overrides: Partial<MiNote> = {}) {
 	const relays = { deliverToRelays: vi.fn().mockResolvedValue(undefined) };
 	const logger = { logger: { error: vi.fn() } };
 	const utility = { isKeyWordIncluded: vi.fn(() => false) };
+	const filesRepository = { findBy: vi.fn().mockResolvedValue([]) };
 	const endpoint = new NotesUpdateEndpoint(
 		repository as never,
 		pollRepository as never,
@@ -91,14 +93,19 @@ function createEndpoint(overrides: Partial<MiNote> = {}) {
 		relays as never,
 		logger as never,
 		utility as never,
+		filesRepository as never,
 	);
 	const exec = (params: Record<string, unknown> = {}) => endpoint.exec({ noteId: note.id, text: 'New text #NewTag :newemoji:', ...params }, me, null);
-	return { exec, note, query, repository, pollRepository, usersRepository, getter, contentValidator, packer, events, search, hashtags, render, delivery, deliveryService, relays, logger, utility };
+	return { exec, note, query, repository, pollRepository, usersRepository, getter, contentValidator, packer, events, search, hashtags, render, delivery, deliveryService, relays, logger, utility, filesRepository };
 }
 
 describe('notes/update endpoint', () => {
-	test('updates content in place while preserving attached data, counters and relationships', async () => {
-		const { exec, note, query, events, search } = createEndpoint({ hasPoll: true });
+	test.each([
+		['a reply', { replyId: 'parent' }],
+		['a top-level note', { replyId: null, renoteId: null }],
+		['a quote', { replyId: null, renoteId: 'quote' }],
+	] as const)('updates %s in place while preserving attached data, counters and relationships', async (_label, overrides) => {
+		const { exec, note, query, events, search } = createEndpoint({ hasPoll: true, ...overrides });
 		const result = await exec({ cw: 'New warning' });
 		expect(result).toEqual({
 			...note,
@@ -109,18 +116,30 @@ describe('notes/update endpoint', () => {
 		});
 		expect(Object.keys(query.set.mock.calls[0][0]).sort()).toEqual(['cw', 'emojis', 'tags', 'text']);
 		expect(search.indexNote).toHaveBeenCalledWith(result);
-		expect(events.publishNoteStream).toHaveBeenCalledWith(result, 'updated', { text: result.text, cw: result.cw });
+		expect(events.publishNoteStream).toHaveBeenCalledWith(result, 'updated', {
+			text: result.text, cw: result.cw, tags: result.tags, emojis: result.emojis,
+			fileIds: result.fileIds, files: undefined, reactionAcceptance: result.reactionAcceptance,
+		});
 	});
 
-	test.each([
+	test.each<[string, Partial<MiNote>]>([
 		['another author', { userId: 'other' }],
 		['a remote note', { userHost: 'remote.test' }],
-		['a top-level note', { replyId: null }],
-	] as const)('rejects editing %s', async (_label, overrides) => {
+		['a pure renote', { replyId: null, text: null, cw: null, fileIds: [], hasPoll: false }],
+	])('rejects editing %s', async (_label, overrides) => {
 		const { exec, repository, events } = createEndpoint(overrides);
 		await expect(exec()).rejects.toMatchObject({ code: 'ACCESS_DENIED' });
 		expect(repository.createQueryBuilder).not.toHaveBeenCalled();
 		expect(events.publishNoteStream).not.toHaveBeenCalled();
+	});
+
+	test.each<[string, Partial<MiNote>]>([
+		['an attachment', { fileIds: ['attachment'], hasPoll: false }],
+		['a poll', { fileIds: [], hasPoll: true }],
+	])('can add text to a post with %s without recreating its contents', async (_label, overrides) => {
+		const { exec, note } = createEndpoint({ text: null, cw: null, replyId: null, ...overrides });
+		const updated = await exec();
+		expect(updated).toMatchObject({ id: note.id, fileIds: note.fileIds, hasPoll: note.hasPoll, text: 'New text #NewTag :newemoji:' });
 	});
 
 	test('reports a missing reply', async () => {
@@ -151,6 +170,20 @@ describe('notes/update endpoint', () => {
 		expect((await cleared.exec({ cw: null })).cw).toBeNull();
 	});
 
+	test('removes stale search content when an edit leaves only attachments', async () => {
+		const { exec, search } = createEndpoint();
+		const updated = await exec({ text: null, cw: null });
+		expect(search.indexNote).not.toHaveBeenCalled();
+		expect(search.unindexNote).toHaveBeenCalledExactlyOnceWith(updated);
+	});
+
+	test('keeps indexing the warning when only the body is removed', async () => {
+		const { exec, search } = createEndpoint();
+		const updated = await exec({ text: null });
+		expect(search.indexNote).toHaveBeenCalledExactlyOnceWith(updated);
+		expect(search.unindexNote).not.toHaveBeenCalled();
+	});
+
 	test('rejects sensitive text when preserving the original public visibility would bypass filtering', async () => {
 		const { exec, utility, repository } = createEndpoint({ cw: null });
 		utility.isKeyWordIncluded.mockReturnValue(true);
@@ -162,8 +195,11 @@ describe('notes/update endpoint', () => {
 		const { exec, note, query, events, search } = createEndpoint();
 		query.execute.mockResolvedValue({ affected: 0, raw: [] });
 		await expect(exec()).rejects.toMatchObject({ code: 'EDIT_CONFLICT' });
-		expect(query.where).toHaveBeenCalledWith(expect.stringContaining('"replyId" IS NOT NULL'), { id: note.id, userId: me.id });
-		expect(query.andWhere).toHaveBeenCalledWith(expect.stringContaining('IS NOT DISTINCT FROM'), { previousText: note.text, previousCw: note.cw });
+		expect(query.where).toHaveBeenCalledWith('"id" = :id AND "userId" = :userId AND "userHost" IS NULL', { id: note.id, userId: me.id });
+		expect(query.andWhere).toHaveBeenCalledWith(expect.stringContaining('"threadId" IS NOT DISTINCT FROM :previousThreadId'), {
+			previousText: note.text, previousCw: note.cw, previousThreadId: note.threadId,
+			previousFileIds: note.fileIds, previousReactionAcceptance: note.reactionAcceptance,
+		});
 		expect(events.publishNoteStream).not.toHaveBeenCalled();
 		expect(search.indexNote).not.toHaveBeenCalled();
 	});
@@ -172,6 +208,88 @@ describe('notes/update endpoint', () => {
 		const { exec, note, query } = createEndpoint();
 		query.execute.mockImplementation(async () => ({ affected: 1, raw: [{ ...note, ...query.set.mock.calls[0][0], reactions: { like: 6 } }] }));
 		expect((await exec()).reactions).toEqual({ like: 6 });
+	});
+
+	test('updates attachment order and MIME metadata without changing related data', async () => {
+		const { exec, note, filesRepository, query, events } = createEndpoint();
+		filesRepository.findBy.mockResolvedValue([
+			{ id: 'first', userId: me.id, type: 'image/jpeg' },
+			{ id: 'second', userId: me.id, type: 'video/mp4' },
+		]);
+		const result = await exec({ text: null, cw: null, fileIds: ['second', 'first'] });
+		expect(result).toMatchObject({ id: note.id, text: null, cw: null, fileIds: ['second', 'first'], attachedFileTypes: ['video/mp4', 'image/jpeg'], reactions: note.reactions, repliesCount: note.repliesCount });
+		expect(query.set.mock.calls[0][0]).not.toHaveProperty('poll');
+		expect(query.set.mock.calls[0][0]).not.toHaveProperty('visibility');
+		expect(events.publishNoteStream).toHaveBeenCalledWith(result, 'updated', expect.objectContaining({ fileIds: ['second', 'first'], text: null }));
+	});
+
+	test('explicitly removes all attachments while preserving them in omitted-field edits', async () => {
+		const removed = createEndpoint();
+		expect(await removed.exec({ fileIds: [] })).toMatchObject({ fileIds: [], attachedFileTypes: [] });
+		expect(removed.filesRepository.findBy).not.toHaveBeenCalled();
+		const unchanged = createEndpoint();
+		expect((await unchanged.exec()).fileIds).toEqual(['attachment']);
+		expect(unchanged.query.set.mock.calls[0][0]).not.toHaveProperty('fileIds');
+	});
+
+	test('rejects an update that contains no editable fields', async () => {
+		const { exec, getter } = createEndpoint();
+		await expect(exec({ text: undefined })).rejects.toMatchObject({ code: 'EMPTY_UPDATE' });
+		expect(getter.getNote).not.toHaveBeenCalled();
+	});
+
+	test.each(['missing', 'foreign'])('rejects a new %s attachment before saving', async kind => {
+		const { exec, filesRepository, repository, events } = createEndpoint();
+		filesRepository.findBy.mockResolvedValue(kind === 'foreign' ? [{ id: 'foreign', userId: 'other', type: 'image/png' }] : []);
+		await expect(exec({ fileIds: [kind] })).rejects.toMatchObject({ code: 'NO_SUCH_FILE' });
+		expect(repository.createQueryBuilder).not.toHaveBeenCalled();
+		expect(events.publishNoteStream).not.toHaveBeenCalled();
+	});
+
+	test('retains a previously published attachment without requiring its ownership to change', async () => {
+		const { exec, filesRepository } = createEndpoint();
+		filesRepository.findBy.mockResolvedValue([{ id: 'attachment', userId: null, type: 'image/png' }]);
+		expect((await exec({ fileIds: ['attachment'] })).fileIds).toEqual(['attachment']);
+	});
+
+	test.each([['one', 'one'], Array.from({ length: 17 }, (_, index) => `file${index}`)])('rejects invalid attachment lists', async fileIds => {
+		const { exec, getter } = createEndpoint();
+		await expect(exec({ fileIds })).rejects.toMatchObject({ code: 'INVALID_PARAM' });
+		expect(getter.getNote).not.toHaveBeenCalled();
+	});
+
+	test('rejects an empty result and does not silently turn a quote into a pure renote', async () => {
+		const { exec, repository } = createEndpoint({ hasPoll: false });
+		await expect(exec({ text: null, cw: null, fileIds: [] })).rejects.toMatchObject({ code: 'EMPTY_NOTE' });
+		expect(repository.createQueryBuilder).not.toHaveBeenCalled();
+	});
+
+	test('allows a poll-only edit without replacing its poll', async () => {
+		const { exec, query } = createEndpoint({ text: 'before', hasPoll: true });
+		const result = await exec({ text: null, cw: null, fileIds: [] });
+		expect(result).toMatchObject({ text: null, hasPoll: true, fileIds: [] });
+		expect(query.set.mock.calls[0][0]).not.toHaveProperty('hasPoll');
+	});
+
+	test.each([false, true])('updates media timeline membership only when attachment presence changes: %s', async hadFiles => {
+		const { exec, contentValidator, filesRepository } = createEndpoint({ fileIds: hadFiles ? ['attachment'] : [] });
+		filesRepository.findBy.mockResolvedValue([{ id: 'attachment', userId: me.id, type: 'image/png' }]);
+		const updated = await exec({ fileIds: hadFiles ? [] : ['attachment'] });
+		expect(contentValidator.updateMediaTimelines).toHaveBeenCalledExactlyOnceWith(updated);
+	});
+
+	test.each(['text', 'cw', 'fileIds', 'reactionAcceptance'] as const)('rejects a stale editor snapshot for %s', async field => {
+		const { exec, note, repository } = createEndpoint();
+		const expected = { text: note.text, cw: note.cw, fileIds: note.fileIds, reactionAcceptance: note.reactionAcceptance };
+		const changed = { text: 'older text', cw: 'older cw', fileIds: [], reactionAcceptance: 'likeOnly' };
+		await expect(exec({ expected: { ...expected, [field]: changed[field] } })).rejects.toMatchObject({ code: 'EDIT_CONFLICT' });
+		expect(repository.createQueryBuilder).not.toHaveBeenCalled();
+	});
+
+	test('accepts matching editor content even when reaction counts changed', async () => {
+		const { exec, note } = createEndpoint({ reactions: { like: 99 } });
+		const expected = { text: note.text, cw: note.cw, fileIds: note.fileIds, reactionAcceptance: note.reactionAcceptance };
+		expect(await exec({ expected, reactionAcceptance: 'nonSensitiveOnly' })).toMatchObject({ reactions: { like: 99 }, reactionAcceptance: 'nonSensitiveOnly' });
 	});
 
 	test('logs index failure without reporting a saved edit as failed', async () => {

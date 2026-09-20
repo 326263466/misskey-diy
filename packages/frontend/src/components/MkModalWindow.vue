@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkModal ref="modal" v-slot="{ type }" :preferType="deviceKind === 'smartphone' ? 'drawer' : 'dialog'" @click="onBgClick" @closed="emit('closed')" @esc="emit('esc')">
-	<div ref="rootEl" :class="[$style.root, type === 'drawer' ? $style.asDrawer : null]" :style="{ width: type === 'drawer' ? '' : `${width}px`, height: type === 'drawer' ? '' : `min(${height}px, 100%)` }">
+	<div ref="rootEl" :class="[$style.root, type === 'drawer' ? $style.asDrawer : null, autoHeight ? $style.autoHeight : null]" :style="type === 'drawer' ? undefined : rootStyle">
 		<div :class="$style.header">
 			<button v-if="withCloseButton" :class="$style.headerButton" class="_button" data-testid="modal-window-close" @click="emit('close')"><i class="ti ti-x"></i></button>
 			<span :class="$style.title">
@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, useTemplateRef, ref } from 'vue';
+import { computed, onMounted, onUnmounted, useTemplateRef, ref } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n';
@@ -38,12 +38,16 @@ const props = withDefaults(defineProps<{
 	okButtonDisabled?: boolean;
 	width?: number;
 	height?: number;
+
+	/** 高さを内容に合わせ、`height` を上限としてのみ使う */
+	autoHeight?: boolean;
 }>(), {
 	withOkButton: false,
 	withCloseButton: true,
 	okButtonDisabled: false,
 	width: 400,
 	height: 500,
+	autoHeight: false,
 });
 
 const emit = defineEmits<{
@@ -55,6 +59,11 @@ const emit = defineEmits<{
 }>();
 
 const modal = useTemplateRef('modal');
+
+const rootStyle = computed(() => ({
+	width: `${props.width}px`,
+	...(props.autoHeight ? { maxHeight: `min(${props.height}px, 100%)` } : { height: `min(${props.height}px, 100%)` }),
+}));
 
 function close() {
 	modal.value?.close();
@@ -144,6 +153,13 @@ defineExpose({
 	overflow: auto;
 	background: var(--MI_THEME-bg);
 	container-type: size;
+}
+
+// 内容に合わせて縮むモード。flex-basis: 0 と size containment はどちらも
+// 高さを内容から切り離してしまうため、この2つだけ打ち消す
+.autoHeight .body {
+	flex: 0 1 auto;
+	container-type: inline-size;
 }
 
 .footer {

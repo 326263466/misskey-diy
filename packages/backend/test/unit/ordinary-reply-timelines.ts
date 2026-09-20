@@ -43,6 +43,26 @@ function makeNote(id: string, overrides: Partial<MiNote> = {}): MiNote {
 	});
 }
 
+function insertionFixture(id = 'comment') {
+	const replyRepository = { query: vi.fn(async (_sql: string, [parentId]: string[]) => [makeNote(parentId)]), create: (note: MiNote) => note };
+	const transactionManager = {
+		insert: vi.fn().mockResolvedValue({}), increment: vi.fn().mockResolvedValue({ affected: 1 }),
+		getRepository: () => replyRepository,
+		query: vi.fn(async (_sql: string, [ids]: string[][]) => ids.map(id => makeNote(id))),
+	};
+	const commit = vi.fn();
+	const transaction = vi.fn(async (callback: (manager: typeof transactionManager) => Promise<void>) => {
+		await callback(transactionManager);
+		commit();
+	});
+	const service = Object.assign(Object.create(NoteCreateService.prototype), {
+		idService: { gen: () => id },
+		notesRepository: { insert: vi.fn().mockResolvedValue({}) },
+		db: { transaction },
+	}) as NoteCreateService;
+	return { service, transactionManager, transaction, commit, replyRepository };
+}
+
 function streamFixture(withReplies = false) {
 	const request: ChannelRequest = {
 		id: 'timeline',
@@ -207,11 +227,32 @@ describe('ordinary replies in timelines', () => {
 		}
 	});
 
-	test.each([false, true])('stores the reply publication choice without changing reply or renote targets: %s', async publish => {
+	test.each([false, true])('editing attachment presence only updates media caches and respects ordinary replies: %s', async publish => {
+		const updateFiles = vi.fn();
+		const push = vi.fn();
 		const service = Object.assign(Object.create(NoteCreateService.prototype), {
-			idService: { gen: () => 'comment' },
-			notesRepository: { insert: vi.fn().mockResolvedValue({}) },
+			meta: { enableFanoutTimeline: true, perUserHomeTimelineCacheMax: 100, perLocalUserUserTimelineCacheMax: 100 },
+			redisForTimelines: { pipeline: () => ({ exec: vi.fn().mockResolvedValue([]) }) },
+			followingsRepository: { find: vi.fn().mockResolvedValue([{ followerId: 'default', withReplies: false }, { followerId: 'withReplies', withReplies: true }]) },
+			userListMembershipsRepository: { find: vi.fn().mockResolvedValue([]) },
+			fanoutTimelineService: { updateFiles, push },
 		}) as NoteCreateService;
+		const note = makeNote('comment', { replyId: 'parent', threadId: publish ? 'parent' : null, replyUserId: 'author', fileIds: [] });
+		await service.updateMediaTimelines(note);
+		expect(push).not.toHaveBeenCalled();
+		const targets = updateFiles.mock.calls.map(([target]) => target);
+		expect(targets).toContain('homeTimelineWithFiles:withReplies');
+		if (publish) {
+			expect(targets).toContain('homeTimelineWithFiles:default');
+			expect(targets).toContain('userTimelineWithFiles:author');
+			expect(targets).toContain('localTimelineWithFiles');
+		} else {
+			expect(targets).toEqual(['homeTimelineWithFiles:withReplies']);
+		}
+	});
+
+	test.each([false, true])('stores the reply publication choice without changing reply or renote targets: %s', async publish => {
+		const { service } = insertionFixture();
 		const parent = makeNote('parent', { threadId: 'root' });
 		const note = await service['insertNote']({ id: 'author', host: null }, {
 			reply: parent,
@@ -225,14 +266,35 @@ describe('ordinary replies in timelines', () => {
 	});
 
 	test.each([false, true])('a child reply keeps the canonical thread and can be published independently: %s', async publish => {
-		const service = Object.assign(Object.create(NoteCreateService.prototype), {
-			idService: { gen: () => 'child' },
-			notesRepository: { insert: vi.fn().mockResolvedValue({}) },
-		}) as NoteCreateService;
+		const { service } = insertionFixture('child');
 		const parent = makeNote('parent', { threadId: `${HIDDEN_REPLY_THREAD_PREFIX}root` });
 		const note = await service['insertNote']({ id: 'author', host: null }, { reply: parent, publishReply: publish }, [], [], []);
 		expect(getNoteThreadId(note)).toBe('root');
 		expect(note.threadId).toBe(publish ? 'root' : `${HIDDEN_REPLY_THREAD_PREFIX}root`);
 		expect(isOrdinaryReply(note)).toBe(!publish);
+	});
+
+	test.each([false, true])('commits the reply and its count together, with poll: %s', async withPoll => {
+		const { service, transactionManager, transaction, commit } = insertionFixture();
+		const parent = makeNote('parent');
+		await service['insertNote']({ id: 'author', host: null }, {
+			reply: parent,
+			text: 'reply',
+			...(withPoll ? { poll: { choices: ['one', 'two'], multiple: false, expiresAt: null } } : {}),
+		}, [], [], []);
+
+		expect(transaction).toHaveBeenCalledTimes(1);
+		expect(transactionManager.insert).toHaveBeenCalledTimes(withPoll ? 2 : 1);
+		expect(transactionManager.increment).toHaveBeenCalledExactlyOnceWith(MiNote, { id: parent.id }, 'repliesCount', 1);
+		expect(commit.mock.invocationCallOrder[0]).toBeGreaterThan(transactionManager.increment.mock.invocationCallOrder[0]);
+	});
+
+	test('does not commit a reply if its parent count cannot be incremented', async () => {
+		const { service, transactionManager, commit } = insertionFixture();
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		transactionManager.increment.mockRejectedValueOnce(new Error('count failed'));
+
+		await expect(service['insertNote']({ id: 'author', host: null }, { reply: makeNote('parent'), text: 'reply' }, [], [], [])).rejects.toThrow('count failed');
+		expect(commit).not.toHaveBeenCalled();
 	});
 });

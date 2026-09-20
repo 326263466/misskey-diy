@@ -33,6 +33,15 @@ describe('createFlatNoteRepliesLoader', () => {
 		expect(fetchPage).not.toHaveBeenCalled();
 	});
 
+	test('traverses deleted-only branches counted by repliesCount', async () => {
+		const child = { ...makeNote('child', 1), isDeleted: true };
+		const deleted = { ...makeNote('deleted'), isDeleted: true };
+		const fetchPage = vi.fn().mockResolvedValueOnce([child]).mockResolvedValueOnce([deleted]);
+		const loader = createFlatNoteRepliesLoader(makeNote('root', 2), fetchPage);
+		expect(await loader.loadMore()).toEqual({ notes: [child, deleted], hasMore: false });
+		expect(fetchPage).toHaveBeenCalledTimes(2);
+	});
+
 	test('flattens deep descendants while keeping parents before children', async () => {
 		const first = makeNote('first', 1);
 		const sibling = makeNote('sibling', 1);

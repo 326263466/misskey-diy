@@ -4,21 +4,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-show="props.modelValue.length != 0" :class="$style.root">
+<div v-show="props.modelValue.length != 0" :class="$style.root" @dragstart.capture="onDragStart">
 	<MkDraggable
 		:modelValue="props.modelValue"
 		:class="$style.files"
 		direction="horizontal"
+		:manualDragStart="props.disabled"
 		withGaps
-		@update:modelValue="v => emit('update:modelValue', v)"
+		@update:modelValue="updateFiles"
 	>
 		<template #default="{ item }">
 			<div
-				:class="$style.file"
+				:class="[$style.file, { [$style.disabled]: props.disabled }]"
 				role="button"
-				tabindex="0"
+				:tabindex="props.disabled ? -1 : 0"
+				:aria-label="item.name"
+				:aria-disabled="props.disabled"
 				@click="showFileMenu(item, $event)"
-				@keydown.space.enter="showFileMenu(item, $event)"
+				@keydown.space.enter.prevent="showFileMenu(item, $event)"
 				@contextmenu.prevent.stop="showFileMenu(item, $event)"
 			>
 				<!-- pointer-eventsをnoneにしておかないとiOSなどでドラッグしたときに画像の方に判定が持ってかれる -->
@@ -58,6 +61,8 @@ import { isPreviewable, getType } from '@/utility/lightbox.js';
 const props = defineProps<{
 	modelValue: Misskey.entities.DriveFile[];
 	detachMediaFn?: (id: string) => void;
+	editing?: boolean;
+	disabled?: boolean;
 }>();
 
 const mock = inject(DI.mock, false);
@@ -71,8 +76,19 @@ const emit = defineEmits<{
 
 let menuShowing = false;
 
+function updateFiles(files: Misskey.entities.DriveFile[]) {
+	if (props.disabled) return;
+	emit('update:modelValue', files);
+}
+
+function onDragStart(ev: DragEvent) {
+	if (!props.disabled) return;
+	ev.preventDefault();
+	ev.stopPropagation();
+}
+
 function detachMedia(id: string) {
-	if (mock) return;
+	if (mock || props.disabled) return;
 
 	if (props.detachMediaFn) {
 		props.detachMediaFn(id);
@@ -82,7 +98,7 @@ function detachMedia(id: string) {
 }
 
 async function detachAndDeleteMedia(file: Misskey.entities.DriveFile) {
-	if (mock) return;
+	if (mock || props.editing || props.disabled) return;
 
 	detachMedia(file.id);
 
@@ -90,7 +106,7 @@ async function detachAndDeleteMedia(file: Misskey.entities.DriveFile) {
 		type: 'warning',
 		text: i18n.tsx.driveFileDeleteConfirm({ name: file.name }),
 	});
-	if (canceled) return;
+	if (canceled || props.editing || props.disabled) return;
 
 	await os.apiWithDialog('drive/files/delete', {
 		fileId: file.id,
@@ -100,6 +116,7 @@ async function detachAndDeleteMedia(file: Misskey.entities.DriveFile) {
 }
 
 function toggleSensitive(file: Misskey.entities.DriveFile) {
+	if (props.editing || props.disabled) return;
 	if (mock) {
 		emit('changeSensitive', file, !file.isSensitive);
 		return;
@@ -114,14 +131,14 @@ function toggleSensitive(file: Misskey.entities.DriveFile) {
 }
 
 async function rename(file: Misskey.entities.DriveFile) {
-	if (mock) return;
+	if (mock || props.editing || props.disabled) return;
 
 	const { canceled, result } = await os.inputText({
 		title: i18n.ts.enterFileName,
 		default: file.name,
 		minLength: 1,
 	});
-	if (canceled) return;
+	if (canceled || props.editing || props.disabled) return;
 	misskeyApi('drive/files/update', {
 		fileId: file.id,
 		name: result,
@@ -132,13 +149,14 @@ async function rename(file: Misskey.entities.DriveFile) {
 }
 
 async function describe(file: Misskey.entities.DriveFile) {
-	if (mock) return;
+	if (mock || props.editing || props.disabled) return;
 
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkFileCaptionEditWindow.vue').then(x => x.default), {
 		default: file.comment !== null ? file.comment : '',
 		file: file,
 	}, {
 		done: caption => {
+			if (props.editing || props.disabled) return;
 			let comment = caption.length === 0 ? null : caption;
 			misskeyApi('drive/files/update', {
 				fileId: file.id,
@@ -152,29 +170,32 @@ async function describe(file: Misskey.entities.DriveFile) {
 }
 
 function showFileMenu(file: Misskey.entities.DriveFile, ev: PointerEvent | KeyboardEvent): void {
-	if (menuShowing) return;
+	if (menuShowing || props.disabled) return;
 
 	const menuItems: MenuItem[] = [];
 
-	menuItems.push({
-		text: i18n.ts.renameFile,
-		icon: 'ti ti-forms',
-		action: () => { rename(file); },
-	}, {
-		text: file.isSensitive ? i18n.ts.unmarkAsSensitive : i18n.ts.markAsSensitive,
-		icon: file.isSensitive ? 'ti ti-eye-exclamation' : 'ti ti-eye',
-		action: () => { toggleSensitive(file); },
-	}, {
-		text: i18n.ts.describeFile,
-		icon: 'ti ti-text-caption',
-		action: () => { describe(file); },
-	});
+	if (!props.editing) {
+		menuItems.push({
+			text: i18n.ts.renameFile,
+			icon: 'ti ti-forms',
+			action: () => { rename(file); },
+		}, {
+			text: file.isSensitive ? i18n.ts.unmarkAsSensitive : i18n.ts.markAsSensitive,
+			icon: file.isSensitive ? 'ti ti-eye-exclamation' : 'ti ti-eye',
+			action: () => { toggleSensitive(file); },
+		}, {
+			text: i18n.ts.describeFile,
+			icon: 'ti ti-text-caption',
+			action: () => { describe(file); },
+		});
+	}
 
 	if (isPreviewable(file.type)) {
 		menuItems.push({
 			text: i18n.ts.preview,
 			icon: 'ti ti-photo-search',
 			action: async () => {
+				if (props.disabled) return;
 				const constents = props.modelValue.filter(item => isPreviewable(item.type)).map<Content>(item => ({
 					id: item.id,
 					type: getType(item.type),
@@ -197,24 +218,27 @@ function showFileMenu(file: Misskey.entities.DriveFile, ev: PointerEvent | Keybo
 		});
 	}
 
+	if (menuItems.length > 0) menuItems.push({ type: 'divider' });
 	menuItems.push({
-		type: 'divider',
-	}, {
 		text: i18n.ts.attachCancel,
 		icon: 'ti ti-circle-x',
 		action: () => { detachMedia(file.id); },
-	}, {
-		text: i18n.ts.deleteFile,
-		icon: 'ti ti-trash',
-		danger: true,
-		action: () => { detachAndDeleteMedia(file); },
 	});
+	if (!props.editing) {
+		menuItems.push({
+			text: i18n.ts.deleteFile,
+			icon: 'ti ti-trash',
+			danger: true,
+			action: () => { detachAndDeleteMedia(file); },
+		});
+	}
 
 	if (prefer.s.devMode) {
 		menuItems.push({ type: 'divider' }, {
 			icon: 'ti ti-hash',
 			text: i18n.ts.copyFileId,
 			action: () => {
+				if (props.disabled) return;
 				copyToClipboard(file.id);
 			},
 		});
@@ -246,6 +270,10 @@ function showFileMenu(file: Misskey.entities.DriveFile, ev: PointerEvent | Keybo
 
 	&:focus-visible {
 		outline-offset: 4px;
+	}
+
+	&.disabled {
+		cursor: default;
 	}
 }
 

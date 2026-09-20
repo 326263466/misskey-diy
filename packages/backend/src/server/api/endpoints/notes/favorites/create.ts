@@ -11,6 +11,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
 import { AchievementService } from '@/core/AchievementService.js';
+import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -58,6 +59,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private idService: IdService,
 		private getterService: GetterService,
 		private achievementService: AchievementService,
+		private globalEventService: GlobalEventService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			// Get favoritee
@@ -84,6 +86,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				noteId: note.id,
 				userId: me.id,
 			});
+			this.globalEventService.publishNoteStream(note, 'statsUpdated', null);
 
 			if (note.userHost == null && note.userId !== me.id) {
 				this.achievementService.create(note.userId, 'myNoteFavorited1');

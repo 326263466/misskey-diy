@@ -109,6 +109,9 @@ export class MiNote {
 	})
 	public repliesCount: number;
 
+	@Column('integer', { default: 0 })
+	public viewsCount: number;
+
 	@Column('smallint', {
 		default: 0,
 	})
@@ -199,6 +202,12 @@ export class MiNote {
 		default: false,
 	})
 	public hasPoll: boolean;
+
+	@Column('varchar', {
+		length: 16,
+		nullable: true,
+	})
+	public deletedBy: 'author' | 'community' | null;
 
 	@Index()
 	@Column({

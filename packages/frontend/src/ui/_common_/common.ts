@@ -10,6 +10,21 @@ import * as os from '@/os.js';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
+import { store } from '@/store.js';
+
+export function toggleRealtimeMode(ev: PointerEvent) {
+	os.popupMenu([{
+		type: 'label',
+		text: i18n.ts.realtimeMode,
+	}, {
+		text: store.s.realtimeMode ? i18n.ts.turnItOff : i18n.ts.turnItOn,
+		icon: store.s.realtimeMode ? 'ti ti-bolt-off' : 'ti ti-bolt',
+		action: async () => {
+			await store.set('realtimeMode', !store.s.realtimeMode);
+			window.location.reload();
+		},
+	}], ev.currentTarget ?? ev.target);
+}
 
 function toolsMenuItems(): MenuItem[] {
 	const items: MenuItem[] = [{

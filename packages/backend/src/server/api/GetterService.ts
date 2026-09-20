@@ -11,6 +11,7 @@ import type { MiLocalUser, MiRemoteUser, MiUser } from '@/models/User.js';
 import type { MiNote } from '@/models/Note.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
+import { isDeletedReply } from '@/misc/is-reply.js';
 
 @Injectable()
 export class GetterService {
@@ -32,7 +33,7 @@ export class GetterService {
 	public async getNote(noteId: MiNote['id']) {
 		const note = await this.notesRepository.findOneBy({ id: noteId });
 
-		if (note == null) {
+		if (note == null || isDeletedReply(note)) {
 			throw new IdentifiableError('9725d0ce-ba28-4dde-95a7-2cbb2c15de24', 'No such note.');
 		}
 
@@ -54,7 +55,7 @@ export class GetterService {
 			},
 		});
 
-		if (note == null) {
+		if (note == null || isDeletedReply(note)) {
 			throw new IdentifiableError('9725d0ce-ba28-4dde-95a7-2cbb2c15de24', 'No such note.');
 		}
 
@@ -103,4 +104,3 @@ export class GetterService {
 		return user;
 	}
 }
-

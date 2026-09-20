@@ -107,6 +107,7 @@ export class Paginator<
 	private canFetchDetection: 'safe' | 'limit' | null = null;
 	private aheadQueue: T[] = [];
 	private useShallowRef: SRef;
+	private requestId = 0;
 
 	// 配列内の要素をどのような順序で並べるか
 	// newest: 新しいものが先頭 (default)
@@ -190,11 +191,36 @@ export class Paginator<
 		return this.items.value.map(x => x.id).sort().at(0);
 	}
 
+	private async hasMore(data: E['req'], items: T[], direction: 'older' | 'newer', limit: number): Promise<boolean> {
+		if (this.noPaging || items.length === 0) return false;
+		if (items.length >= limit) return true;
+		if (this.canFetchDetection === 'limit') return false;
+
+		// 部分接口会提前返回少量结果，额外确认一条，避免误报下一页或漏掉后续内容。
+		const ids = items.map(item => item.id).sort();
+		const nextItems = await misskeyApi<T[]>(this.endpoint, {
+			...data,
+			limit: 1,
+			allowPartial: false,
+			sinceId: undefined,
+			untilId: undefined,
+			sinceDate: undefined,
+			untilDate: undefined,
+			...(this.offsetMode ? { offset: ((data as { offset?: number }).offset ?? 0) + items.length } : direction === 'older' ? { untilId: ids[0] } : { sinceId: ids.at(-1) }),
+		}).catch(() => null);
+		return nextItems == null || nextItems.length > 0;
+	}
+
 	public async init(): Promise<void> {
+		const requestId = ++this.requestId;
 		this.items.value = [];
 		this.aheadQueue = [];
 		this.queuedAheadItemsCount.value = 0;
 		this.fetching.value = true;
+		this.fetchingOlder.value = false;
+		this.fetchingNewer.value = false;
+		this.canFetchOlder.value = false;
+		this.canFetchNewer.value = false;
 
 		const data: E['req'] = {
 			...(typeof this.params === 'function' ? this.params() : this.params),
@@ -214,12 +240,13 @@ export class Paginator<
 		};
 
 		const apiRes = (await misskeyApi(this.endpoint, data).catch(_ => {
+			if (requestId !== this.requestId) return null;
 			this.error.value = true;
 			this.fetching.value = false;
 			return null;
 		})) as T[] | null;
 
-		if (apiRes == null) {
+		if (requestId !== this.requestId || apiRes == null) {
 			return;
 		}
 
@@ -235,19 +262,9 @@ export class Paginator<
 
 		this.pushItems(apiRes);
 
-		if (this.canFetchDetection === 'limit') {
-			if (apiRes.length < FIRST_FETCH_LIMIT) {
-				(this.initialDirection === 'older' ? this.canFetchOlder : this.canFetchNewer).value = false;
-			} else {
-				(this.initialDirection === 'older' ? this.canFetchOlder : this.canFetchNewer).value = true;
-			}
-		} else if (this.canFetchDetection === 'safe' || this.canFetchDetection == null) {
-			if (apiRes.length === 0 || this.noPaging) {
-				(this.initialDirection === 'older' ? this.canFetchOlder : this.canFetchNewer).value = false;
-			} else {
-				(this.initialDirection === 'older' ? this.canFetchOlder : this.canFetchNewer).value = true;
-			}
-		}
+		const canFetchMore = await this.hasMore(data, apiRes, this.initialDirection, this.limit);
+		if (requestId !== this.requestId) return;
+		(this.initialDirection === 'older' ? this.canFetchOlder : this.canFetchNewer).value = canFetchMore;
 
 		this.error.value = false;
 		this.fetching.value = false;
@@ -259,6 +276,7 @@ export class Paginator<
 
 	public async fetchOlder(): Promise<void> {
 		if (!this.canFetchOlder.value || this.fetching.value || this.fetchingOlder.value || this.items.value.length === 0) return;
+		const requestId = this.requestId;
 		this.fetchingOlder.value = true;
 
 		const data: E['req'] = {
@@ -277,9 +295,9 @@ export class Paginator<
 			return null;
 		})) as T[] | null;
 
-		this.fetchingOlder.value = false;
-
+		if (requestId !== this.requestId) return;
 		if (apiRes == null) {
+			this.fetchingOlder.value = false;
 			return;
 		}
 
@@ -288,30 +306,23 @@ export class Paginator<
 			if (i === 10) item._shouldInsertAd_ = true;
 		}
 
+		const canFetchMore = await this.hasMore(data, apiRes, 'older', SECOND_FETCH_LIMIT);
+		if (requestId !== this.requestId) return;
 		if (this.order.value === 'oldest') {
 			this.unshiftItems(apiRes.toReversed(), false);
 		} else {
 			this.pushItems(apiRes);
 		}
 
-		if (this.canFetchDetection === 'limit') {
-			if (apiRes.length < FIRST_FETCH_LIMIT) {
-				this.canFetchOlder.value = false;
-			} else {
-				this.canFetchOlder.value = true;
-			}
-		} else if (this.canFetchDetection === 'safe' || this.canFetchDetection == null) {
-			if (apiRes.length === 0) {
-				this.canFetchOlder.value = false;
-			} else {
-				this.canFetchOlder.value = true;
-			}
-		}
+		this.canFetchOlder.value = canFetchMore;
+		this.fetchingOlder.value = false;
 	}
 
 	public async fetchNewer(options: {
 		toQueue?: boolean;
 	} = {}): Promise<void> {
+		if (this.noPaging || this.fetching.value || this.fetchingNewer.value) return;
+		const requestId = this.requestId;
 		this.fetchingNewer.value = true;
 
 		const data: E['req'] = {
@@ -330,14 +341,21 @@ export class Paginator<
 			return null;
 		})) as T[] | null;
 
-		this.fetchingNewer.value = false;
+		if (requestId !== this.requestId) return;
+		if (apiRes == null) {
+			this.fetchingNewer.value = false;
+			return;
+		}
 
-		if (apiRes == null || apiRes.length === 0) {
+		if (apiRes.length === 0) {
+			this.fetchingNewer.value = false;
 			this.canFetchNewer.value = false;
 			// 余計なre-renderを防止するためここで終了
 			return;
 		}
 
+		const canFetchMore = await this.hasMore(data, apiRes, 'newer', SECOND_FETCH_LIMIT);
+		if (requestId !== this.requestId) return;
 		if (options.toQueue) {
 			this.aheadQueue.unshift(...apiRes.toReversed());
 			if (this.aheadQueue.length > MAX_QUEUE_ITEMS) {
@@ -352,15 +370,8 @@ export class Paginator<
 			}
 		}
 
-		if (this.canFetchDetection === 'limit') {
-			if (apiRes.length < FIRST_FETCH_LIMIT) {
-				this.canFetchNewer.value = false;
-			} else {
-				this.canFetchNewer.value = true;
-			}
-		}
-		// canFetchDetectionが'safe'の場合・apiRes.length === 0 の場合は apiRes.length === 0 の場合に canFetchNewer.value = false になるが、
-		// 余計な re-render を防ぐために上部で処理している。そのため、ここでは何もしない
+		this.canFetchNewer.value = canFetchMore;
+		this.fetchingNewer.value = false;
 	}
 
 	public trim(trigger = true): void {

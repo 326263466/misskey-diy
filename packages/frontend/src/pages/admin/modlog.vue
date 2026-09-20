@@ -17,12 +17,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkInput>
 			</MkPaginationControl>
 
-			<component :is="prefer.s.enablePullToRefresh ? MkPullToRefresh : 'div'" :refresher="() => paginator.reload()">
-				<MkLoading v-if="paginator.fetching.value"/>
-
-				<MkError v-else-if="paginator.error.value" @retry="paginator.init()"/>
-
-				<MkTl v-else :events="timeline" groupBy="d">
+			<MkPagination :paginator="paginator">
+				<MkTl :events="timeline" groupBy="d">
 					<template #left="{ event }">
 						<div>
 							<MkAvatar :user="event.user" style="width: 26px; height: 26px;"/>
@@ -34,16 +30,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</template>
 				</MkTl>
-			</component>
-
-			<MkButton primary rounded style="margin: 0 auto;" @click="fetchMore">{{ i18n.ts.loadMore }}</MkButton>
+			</MkPagination>
 		</div>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, markRaw, onMounted } from 'vue';
+import { computed, ref, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import XModLog from './modlog.ModLog.vue';
 import MkSelect from '@/components/MkSelect.vue';
@@ -51,10 +45,8 @@ import MkInput from '@/components/MkInput.vue';
 import MkTl from '@/components/MkTl.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
-import { prefer } from '@/preferences.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
-import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
-import MkButton from '@/components/MkButton.vue';
+import MkPagination from '@/components/MkPagination.vue';
 import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import { Paginator } from '@/utility/paginator.js';
 
@@ -80,8 +72,6 @@ const paginator = markRaw(new Paginator('admin/show-moderation-logs', {
 	})),
 }));
 
-paginator.init();
-
 const timeline = computed(() => {
 	return paginator.items.value.map(x => ({
 		id: x.id,
@@ -89,14 +79,6 @@ const timeline = computed(() => {
 		data: x as Misskey.entities.ModerationLog,
 	}));
 });
-
-function fetchMore() {
-	if (paginator.order.value === 'oldest') {
-		paginator.fetchNewer();
-	} else {
-		paginator.fetchOlder();
-	}
-}
 
 const headerActions = computed(() => []);
 
@@ -107,4 +89,3 @@ definePage(() => ({
 	icon: 'ti ti-list-search',
 }));
 </script>
-

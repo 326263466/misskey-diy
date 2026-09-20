@@ -113,13 +113,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</MkPreferenceContainer>
 							</SearchMarker>
 
-							<SearchMarker :keywords="['auto', 'load', 'auto', 'more', 'scroll']">
-								<MkPreferenceContainer k="enableInfiniteScroll">
-									<MkSwitch v-model="enableInfiniteScroll">
-										<template #label><SearchLabel>{{ i18n.ts.enableInfiniteScroll }}</SearchLabel></template>
-									</MkSwitch>
-								</MkPreferenceContainer>
-							</SearchMarker>
 						</div>
 
 						<SearchMarker :keywords="['emoji', 'style', 'native', 'system', 'fluent', 'twemoji']">
@@ -916,7 +909,6 @@ const imageNewTab = prefer.model('imageNewTab');
 const showFixedPostForm = prefer.model('showFixedPostForm');
 const showFixedPostFormInChannel = prefer.model('showFixedPostFormInChannel');
 const numberOfPageCache = prefer.model('numberOfPageCache');
-const enableInfiniteScroll = prefer.model('enableInfiniteScroll');
 const useReactionPickerForContextMenu = prefer.model('useReactionPickerForContextMenu');
 const showAvailableReactionsFirstInNote = prefer.model('showAvailableReactionsFirstInNote');
 const useGroupedNotifications = prefer.model('useGroupedNotifications');
@@ -986,7 +978,6 @@ watch([
 	lang,
 	realtimeMode,
 	pollingInterval,
-	enableInfiniteScroll,
 	showNoteActionsOnlyHover,
 	overridedDeviceKind,
 	alwaysConfirmFollow,

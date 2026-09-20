@@ -10,7 +10,7 @@ import type { Packed } from './json-schema.js';
  * @param {*} note (packされた)投稿
  */
 export const getNoteSummary = (note: Packed<'Note'>): string => {
-	if (note.deletedAt) {
+	if (note.deletedAt || note.isDeleted) {
 		return '(❌⛔)';
 	}
 

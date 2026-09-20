@@ -7,7 +7,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="[$style.root, { [$style.collapsed]: collapsed }]">
 	<div>
 		<span v-if="note.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
-		<span v-if="note.deletedAt" style="opacity: 0.5">({{ i18n.ts.deletedNote }})</span>
+		<span v-if="note.isDeleted" style="opacity: 0.5">({{ getDeletedText(note.deletedBy) }})</span>
+		<span v-else-if="note.deletedAt" style="opacity: 0.5">({{ i18n.ts.deletedNote }})</span>
 		<Mfm v-if="note.text" :text="note.text" :parsedNodes="displayNodes" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
 		<MkA v-if="note.renoteId && note.renoteId !== note.replyId" :class="$style.rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
 	</div>
@@ -44,15 +45,21 @@ import MkMediaList from '@/components/MkMediaList.vue';
 import MkPoll from '@/components/MkPoll.vue';
 import { i18n } from '@/i18n.js';
 import { getNoteDisplayNodes, getNoteThreadAuthor } from '@/utility/note-display.js';
+import { getNoteTopics } from '@/utility/note-topics.js';
+import { getDeletedText } from '@/utility/deleted-note.js';
 
 const props = defineProps<{
 	note: Misskey.entities.Note;
+	relocateTags?: boolean;
 
 	// Undefined infers the thread author; null preserves all mentions.
 	omitMentionOf?: Misskey.entities.UserLite | null;
 }>();
 
-const displayNodes = computed(() => getNoteDisplayNodes(props.note, props.omitMentionOf === undefined ? getNoteThreadAuthor(props.note) : props.omitMentionOf));
+const displayNodes = computed(() => {
+	const nodes = getNoteDisplayNodes(props.note, props.omitMentionOf === undefined ? getNoteThreadAuthor(props.note) : props.omitMentionOf);
+	return props.relocateTags ? getNoteTopics(props.note, nodes).nodes : nodes;
+});
 
 const isLong = computed(() => shouldCollapsed(props.note, []));
 

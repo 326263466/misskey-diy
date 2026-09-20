@@ -7,7 +7,7 @@ import { throttle } from 'throttle-debounce';
 import type { Directive } from 'vue';
 import type { Awaitable } from '@/types/misc.js';
 
-const observers = new WeakMap<HTMLElement, IntersectionObserver>();
+const cleanups = new WeakMap<HTMLElement, () => void>();
 
 export const appearDirective = {
 	mounted(src, binding) {
@@ -15,7 +15,7 @@ export const appearDirective = {
 		if (fn == null) return;
 
 		const check = throttle<IntersectionObserverCallback>(500, (entries) => {
-			if (entries.some(entry => entry.isIntersecting)) {
+			if (entries.at(-1)?.isIntersecting) {
 				fn();
 			}
 		});
@@ -23,14 +23,14 @@ export const appearDirective = {
 		const observer = new IntersectionObserver(check);
 		observer.observe(src);
 
-		observers.set(src, observer);
+		cleanups.set(src, () => {
+			check.cancel();
+			observer.disconnect();
+		});
 	},
 
 	beforeUnmount(src) {
-		const observer = observers.get(src);
-		if (observer) {
-			observer.disconnect();
-			observers.delete(src);
-		}
+		cleanups.get(src)?.();
+		cleanups.delete(src);
 	},
 } as Directive<HTMLElement, (() => Awaitable<void>) | null | undefined>;

@@ -5,7 +5,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import { In } from 'typeorm';
+import { EntityNotFoundError, In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { FollowRequestsRepository, NotesRepository, MiUser, UsersRepository } from '@/models/_.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
@@ -86,12 +86,15 @@ export class NotificationEntityService implements OnModuleInit {
 		const noteIfNeed = needsNote ? (
 			hint?.packedNotes != null
 				? hint.packedNotes.get(notification.noteId)
-				: this.noteEntityService.pack(notification.noteId, { id: meId }, {
+				: await this.noteEntityService.pack(notification.noteId, { id: meId }, {
 					detail: true,
+				}).catch(err => {
+					if (err instanceof EntityNotFoundError) return null;
+					throw err;
 				})
 		) : undefined;
 		// if the note has been deleted, don't show this notification
-		if (needsNote && !noteIfNeed) return null;
+		if (needsNote && (!noteIfNeed || noteIfNeed.isDeleted)) return null;
 
 		const needsUser = 'notifierId' in notification;
 		const userIfNeed = needsUser ? (

@@ -81,7 +81,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 					@dragend="isDragSource = false"
 				/>
 			</div>
-			<MkButton v-if="foldersPaginator.canFetchOlder.value" :class="$style.loadMore" primary rounded @click="foldersPaginator.fetchOlder()">{{ i18n.ts.loadMore }}</MkButton>
+			<div v-if="!fetching && foldersPaginator.canFetchOlder.value">
+				<div :key="foldersPaginator.items.value.at(-1)?.id" v-appear="foldersPaginator.fetchOlder" :class="$style.sentinel" aria-hidden="true"></div>
+				<MkLoading v-if="foldersPaginator.fetchingOlder.value"/>
+			</div>
 
 			<template v-if="shouldBeGroupedByDate">
 				<MkStickyContainer v-for="(item, i) in filesTimeline" :key="`${item.date.getFullYear()}/${item.date.getMonth() + 1}`">
@@ -135,16 +138,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				/>
 			</TransitionGroup>
 
-			<MkButton
-				v-show="canFetchFiles"
-				v-appear="shouldEnableInfiniteScroll ? fetchMoreFiles : null"
-				:class="$style.loadMore"
-				primary
-				rounded
-				@click="fetchMoreFiles"
-			>
-				{{ i18n.ts.loadMore }}
-			</MkButton>
+			<div v-if="canFetchFiles">
+				<div :key="filesPaginator.items.value.at(-1)?.id" v-appear="fetchMoreFiles" :class="$style.sentinel" aria-hidden="true"></div>
+				<MkLoading v-if="fetchingMoreFiles"/>
+			</div>
 
 			<div v-if="filesPaginator.items.value.length == 0 && foldersPaginator.items.value.length == 0 && !fetching" :class="$style.empty">
 				<div v-if="draghover">{{ i18n.ts.dropHereToUpload }}</div>
@@ -191,12 +188,10 @@ const props = withDefaults(defineProps<{
 	type?: string;
 	multiple?: boolean;
 	select?: 'file' | 'folder' | null;
-	forceDisableInfiniteScroll?: boolean;
 }>(), {
 	initialFolder: null,
 	multiple: false,
 	select: null,
-	forceDisableInfiniteScroll: false,
 });
 
 const emit = defineEmits<{
@@ -204,10 +199,6 @@ const emit = defineEmits<{
 	(ev: 'changeSelectedFolders', v: (Misskey.entities.DriveFolder | null)[]): void;
 	(ev: 'cd', v: Misskey.entities.DriveFolder | null): void;
 }>();
-
-const shouldEnableInfiniteScroll = computed(() => {
-	return prefer.r.enableInfiniteScroll.value && !props.forceDisableInfiniteScroll;
-});
 
 const folder = ref<Misskey.entities.DriveFolder | null>(null);
 const hierarchyFolders = ref<Misskey.entities.DriveFolder[]>([]);
@@ -255,8 +246,10 @@ const foldersPaginator = markRaw(new Paginator('drive/folders', {
 }));
 
 const canFetchFiles = computed(() => !fetching.value && (filesPaginator.order.value === 'oldest' ? filesPaginator.canFetchNewer.value : filesPaginator.canFetchOlder.value));
+const fetchingMoreFiles = computed(() => filesPaginator.fetchingOlder.value || filesPaginator.fetchingNewer.value);
 
 async function fetchMoreFiles() {
+	if (!canFetchFiles.value || fetchingMoreFiles.value) return;
 	if (filesPaginator.order.value === 'oldest') {
 		filesPaginator.fetchNewer();
 	} else {
@@ -886,8 +879,8 @@ onBeforeUnmount(() => {
 	background-color: color(from var(--MI_THEME-bg) srgb r g b / 0.85);
 }
 
-.loadMore {
-	margin: 16px auto;
+.sentinel {
+	height: 1px;
 }
 
 .footer {

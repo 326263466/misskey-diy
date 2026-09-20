@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkPagination :paginator="paginator" :direction="direction" :autoLoad="autoLoad" :pullToRefresh="pullToRefresh" :withControl="withControl" :forceDisableInfiniteScroll="forceDisableInfiniteScroll">
+<MkPagination :paginator="paginator" :direction="direction" :autoLoad="autoLoad" :pullToRefresh="pullToRefresh" :withControl="withControl">
 	<template #empty><MkResult type="empty" :text="i18n.ts.noNotes"/></template>
 
 	<template #default="{ items: notes }">
@@ -51,7 +51,6 @@ const props = withDefaults(defineProps<MkPaginationOptions & {
 	direction: 'down',
 	pullToRefresh: true,
 	withControl: true,
-	forceDisableInfiniteScroll: false,
 });
 
 useGlobalEvent('noteDeleted', (noteId) => {

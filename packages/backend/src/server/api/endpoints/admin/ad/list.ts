@@ -51,10 +51,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const query = this.queryService.makePaginationQuery(this.adsRepository.createQueryBuilder('ad'), ps.sinceId, ps.untilId, ps.sinceDate, ps.untilDate);
+			const now = new Date();
 			if (ps.publishing === true) {
-				query.andWhere('ad.expiresAt > :now', { now: new Date() }).andWhere('ad.startsAt <= :now', { now: new Date() });
+				query.andWhere('ad.expiresAt > :now', { now }).andWhere('ad.startsAt <= :now', { now });
 			} else if (ps.publishing === false) {
-				query.andWhere('ad.expiresAt <= :now', { now: new Date() }).orWhere('ad.startsAt > :now', { now: new Date() });
+				query.andWhere('(ad.expiresAt <= :now OR ad.startsAt > :now)', { now });
 			}
 			const ads = await query.limit(ps.limit).getMany();
 

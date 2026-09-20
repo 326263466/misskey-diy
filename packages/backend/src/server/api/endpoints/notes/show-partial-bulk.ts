@@ -6,8 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
-import { GetterService } from '@/server/api/GetterService.js';
-import { ApiError } from '../../error.js';
+import { packedLikeStateSchema } from '@/models/json-schema/like.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -19,7 +18,18 @@ export const meta = {
 		optional: false, nullable: false,
 		items: {
 			type: 'object',
+			optional: false, nullable: false,
 			properties: {
+				isDeleted: {
+					type: 'boolean',
+					optional: true, nullable: false,
+				},
+				deletedBy: {
+					type: 'string',
+					optional: true, nullable: true,
+					enum: ['author', 'community'],
+				},
+				...packedLikeStateSchema.properties,
 				id: {
 					type: 'string',
 					optional: false, nullable: false,
@@ -46,6 +56,18 @@ export const meta = {
 					type: 'number',
 					optional: false, nullable: false,
 				},
+				viewsCount: {
+					type: 'integer',
+					optional: false, nullable: false,
+				},
+				favoritesCount: {
+					type: 'integer',
+					optional: false, nullable: false,
+				},
+				isFavorited: {
+					type: 'boolean',
+					optional: false, nullable: false,
+				},
 			},
 		},
 	},
@@ -68,7 +90,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteEntityService: NoteEntityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			return await this.noteEntityService.fetchDiffs(ps.noteIds);
+			return await this.noteEntityService.fetchDiffs(ps.noteIds, me);
 		});
 	}
 }

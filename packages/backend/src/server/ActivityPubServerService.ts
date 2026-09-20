@@ -29,6 +29,7 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
 import { IActivity } from '@/core/activitypub/type.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
+import { DELETED_REPLY_THREAD_PREFIX, isDeletedReply } from '@/misc/is-reply.js';
 import * as Acct from '@/misc/acct.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyPluginOptions, FastifyBodyParser } from 'fastify';
@@ -558,6 +559,7 @@ export class ActivityPubServerService {
 					.orWhere('note.visibility = \'home\'');
 			}))
 			.andWhere('note.localOnly = FALSE')
+			.andWhere('(note.threadId IS NULL OR note.threadId NOT LIKE :deletedReplyPrefix)', { deletedReplyPrefix: `${DELETED_REPLY_THREAD_PREFIX}%` })
 			.limit(ps.limit)
 			.getMany();
 	}
@@ -662,7 +664,7 @@ export class ActivityPubServerService {
 				localOnly: false,
 			});
 
-			if (note == null) {
+			if (note == null || isDeletedReply(note)) {
 				reply.code(404);
 				return;
 			}
@@ -698,7 +700,7 @@ export class ActivityPubServerService {
 				localOnly: false,
 			});
 
-			if (note == null) {
+			if (note == null || isDeletedReply(note)) {
 				reply.code(404);
 				return;
 			}
@@ -838,7 +840,7 @@ export class ActivityPubServerService {
 
 			const note = await this.notesRepository.findOneBy({ id: reaction.noteId });
 
-			if (note == null) {
+			if (note == null || isDeletedReply(note)) {
 				reply.code(404);
 				return;
 			}

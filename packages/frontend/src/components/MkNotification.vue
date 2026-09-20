@@ -55,6 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkReactionIcon
 				v-else-if="notification.type === 'reaction'"
 				:withTooltip="true"
+				:allowTextBoost="true"
 				:reaction="notification.reaction.replace(/^:(\w+):$/, ':$1@.:')"
 				:noStyle="true"
 				style="width: 100%; height: 100% !important; object-fit: contain;"
@@ -158,6 +159,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div :class="$style.reactionsItemReaction">
 						<MkReactionIcon
 							:withTooltip="true"
+							:allowTextBoost="true"
 							:reaction="reaction.reaction.replace(/^:(\w+):$/, ':$1@.:')"
 							:noStyle="true"
 							style="width: 100%; height: 100% !important; object-fit: contain;"

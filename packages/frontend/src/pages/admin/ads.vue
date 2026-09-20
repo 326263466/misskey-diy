@@ -6,11 +6,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
 	<div class="_spacer" style="--MI_SPACER-w: 900px;">
-		<MkSelect v-model="filterType" :items="filterTypeDef" :class="$style.input" @update:modelValue="filterItems">
+		<MkSelect v-model="filterType" :items="filterTypeDef" :class="$style.input">
 			<template #label>{{ i18n.ts.state }}</template>
 		</MkSelect>
 
-		<div>
+		<MkLoading v-if="loading"/>
+		<MkError v-else-if="error" @retry="refresh"/>
+		<div v-else>
 			<div v-for="ad in ads" class="_panel _gaps_m" :class="$style.ad">
 				<MkAd v-if="ad.url" :key="ad.id" :specify="ad"/>
 
@@ -79,16 +81,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 
-			<MkButton @click="more()">
-				<i class="ti ti-reload"></i>{{ i18n.ts.more }}
-			</MkButton>
+			<template v-if="canFetchMore">
+				<div :key="untilId" v-appear="more" :class="$style.sentinel" aria-hidden="true"></div>
+			</template>
+			<MkLoading v-if="loadingMore"/>
 		</div>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
@@ -109,8 +112,15 @@ type Ad = Misskey.entities.Ad & {
 };
 
 const ads = ref<Ad[]>([]);
+const loading = ref(true);
+const loadingMore = ref(false);
+const error = ref(false);
+const canFetchMore = ref(false);
+const untilId = ref<string>();
+const limit = 10;
+let requestId = 0;
 
-// ISO形式はTZがUTCになってしまうので、TZ分ずらして時間を初期化
+// 日期输入使用本地时间，转换为 ISO 字符串前先补偿时区偏移。
 const localTime = new Date();
 const localTimeDiff = localTime.getTimezoneOffset() * 60 * 1000;
 const daysOfWeek: string[] = [i18n.ts._weekday.sunday, i18n.ts._weekday.monday, i18n.ts._weekday.tuesday, i18n.ts._weekday.wednesday, i18n.ts._weekday.thursday, i18n.ts._weekday.friday, i18n.ts._weekday.saturday];
@@ -125,37 +135,19 @@ const {
 	],
 	initialValue: 'all',
 });
-let publishing: boolean | null = null;
+const publishing = computed(() => filterType.value === 'all' ? null : filterType.value === 'publishing');
 
-misskeyApi('admin/ad/list', { publishing: publishing }).then(adsResponse => {
-	if (adsResponse != null) {
-		ads.value = adsResponse.map(r => {
-			const exdate = new Date(r.expiresAt);
-			const stdate = new Date(r.startsAt);
-			exdate.setMilliseconds(exdate.getMilliseconds() - localTimeDiff);
-			stdate.setMilliseconds(stdate.getMilliseconds() - localTimeDiff);
-			return {
-				...(r as Ad),
-				expiresAt: exdate.toISOString().slice(0, 16),
-				startsAt: stdate.toISOString().slice(0, 16),
-			};
-		});
-	}
-});
+watch(filterType, refresh, { immediate: true });
+onBeforeUnmount(() => requestId++);
 
-const filterItems = (v: typeof filterType.value) => {
-	if (v === 'publishing') {
-		publishing = true;
-	} else if (v === 'expired') {
-		publishing = false;
-	} else {
-		publishing = null;
-	}
+function toEditableAd(ad: Misskey.entities.Ad): Ad {
+	return {
+		...(ad as Ad),
+		expiresAt: new Date(new Date(ad.expiresAt).getTime() - localTimeDiff).toISOString().slice(0, 16),
+		startsAt: new Date(new Date(ad.startsAt).getTime() - localTimeDiff).toISOString().slice(0, 16),
+	};
+}
 
-	refresh();
-};
-
-// 選択された曜日(index)のビットフラグを操作する
 function toggleDayOfWeek(ad: Misskey.entities.Ad, index: number) {
 	ad.dayOfWeek ^= 1 << index;
 }
@@ -229,41 +221,48 @@ function save(ad: Misskey.entities.Ad) {
 	}
 }
 
-function more() {
-	misskeyApi('admin/ad/list', { untilId: ads.value.reduce((acc, ad) => ad.id !== '' ? ad : acc).id, publishing: publishing }).then(adsResponse => {
-		if (adsResponse == null) return;
-		ads.value = ads.value.concat(adsResponse.map(r => {
-			const exdate = new Date(r.expiresAt);
-			const stdate = new Date(r.startsAt);
-			exdate.setMilliseconds(exdate.getMilliseconds() - localTimeDiff);
-			stdate.setMilliseconds(stdate.getMilliseconds() - localTimeDiff);
-			return {
-				...(r as Ad),
-				expiresAt: exdate.toISOString().slice(0, 16),
-				startsAt: stdate.toISOString().slice(0, 16),
-			};
-		}));
-	});
+async function more() {
+	if (loading.value || loadingMore.value || !canFetchMore.value || untilId.value == null) return;
+	const currentRequestId = requestId;
+	const previousUntilId = untilId.value;
+	loadingMore.value = true;
+	const adsResponse = await misskeyApi('admin/ad/list', {
+		publishing: publishing.value,
+		limit: limit + 1,
+		untilId: previousUntilId,
+	}).catch(() => null);
+	if (currentRequestId !== requestId) return;
+	loadingMore.value = false;
+	if (adsResponse == null) return;
+	const page = adsResponse.slice(0, limit);
+	const existingIds = new Set(ads.value.map(ad => ad.id));
+	ads.value.push(...page.filter(ad => !existingIds.has(ad.id)).map(toEditableAd));
+	const nextUntilId = page.at(-1)?.id;
+	canFetchMore.value = adsResponse.length > limit && nextUntilId !== previousUntilId;
+	untilId.value = nextUntilId ?? previousUntilId;
 }
 
-function refresh() {
-	misskeyApi('admin/ad/list', { publishing: publishing }).then(adsResponse => {
-		if (adsResponse == null) return;
-		ads.value = adsResponse.map(r => {
-			const exdate = new Date(r.expiresAt);
-			const stdate = new Date(r.startsAt);
-			exdate.setMilliseconds(exdate.getMilliseconds() - localTimeDiff);
-			stdate.setMilliseconds(stdate.getMilliseconds() - localTimeDiff);
-			return {
-				...(r as Ad),
-				expiresAt: exdate.toISOString().slice(0, 16),
-				startsAt: stdate.toISOString().slice(0, 16),
-			};
-		});
-	});
+async function refresh() {
+	const currentRequestId = ++requestId;
+	loading.value = true;
+	loadingMore.value = false;
+	error.value = false;
+	canFetchMore.value = false;
+	untilId.value = undefined;
+	const adsResponse = await misskeyApi('admin/ad/list', {
+		publishing: publishing.value,
+		limit: limit + 1,
+	}).catch(() => null);
+	if (currentRequestId !== requestId) return;
+	loading.value = false;
+	if (adsResponse == null) {
+		error.value = true;
+		return;
+	}
+	ads.value = adsResponse.slice(0, limit).map(toEditableAd);
+	untilId.value = ads.value.at(-1)?.id;
+	canFetchMore.value = adsResponse.length > limit;
 }
-
-refresh();
 
 const headerActions = computed(() => [{
 	asFullButton: true,
@@ -281,6 +280,10 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.sentinel {
+	height: 1px;
+}
+
 .ad {
 	padding: 32px;
 

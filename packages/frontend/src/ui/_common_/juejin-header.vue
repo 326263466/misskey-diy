@@ -62,6 +62,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<span v-if="otherNavItemIndicated" :class="$style.iconButtonIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
 			</button>
 
+			<button
+				v-tooltip.noDelay="i18n.ts.realtimeMode"
+				class="_button"
+				:class="[$style.iconButton, { [$style.iconButtonActive]: store.r.realtimeMode.value }]"
+				:aria-label="i18n.ts.realtimeMode"
+				:aria-pressed="store.r.realtimeMode.value"
+				aria-haspopup="menu"
+				@click="toggleRealtimeMode"
+			>
+				<i :class="store.r.realtimeMode.value ? 'ti ti-bolt' : 'ti ti-bolt-off'"></i>
+			</button>
+
 			<MkA class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.settings" to="/settings">
 				<i class="ti ti-settings"></i>
 			</MkA>
@@ -81,7 +93,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, ref, unref } from 'vue';
-import { openInstanceMenu } from './common.js';
+import { openInstanceMenu, toggleRealtimeMode } from './common.js';
 import { navbarItemDef } from '@/navbar.js';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
@@ -89,6 +101,7 @@ import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { getAccountMenu } from '@/accounts.js';
 import { prefer } from '@/preferences.js';
+import { store } from '@/store.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import { useRouter } from '@/router.js';
 

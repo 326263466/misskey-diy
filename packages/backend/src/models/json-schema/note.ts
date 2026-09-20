@@ -22,6 +22,21 @@ export const packedNoteSchema = {
 			optional: true, nullable: true,
 			format: 'date-time',
 		},
+		isDeleted: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
+		deletedBy: {
+			type: 'string',
+			optional: true, nullable: true,
+			enum: ['author', 'community'],
+		},
+		likeCount: { type: 'integer', optional: true, nullable: false },
+		isLiked: { type: 'boolean', optional: true, nullable: false },
+		likeUsers: {
+			type: 'array', optional: true, nullable: false,
+			items: { type: 'object', ref: 'UserLite', optional: false, nullable: false },
+		},
 		text: {
 			type: 'string',
 			optional: false, nullable: true,
@@ -240,6 +255,8 @@ export const packedNoteSchema = {
 			type: 'number',
 			optional: false, nullable: false,
 		},
+		viewsCount: { type: 'integer', optional: false, nullable: false },
+		favoritesCount: { type: 'integer', optional: false, nullable: false },
 		uri: {
 			type: 'string',
 			optional: true, nullable: false,

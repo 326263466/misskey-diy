@@ -520,6 +520,12 @@ import type {
 	NotesGlobalTimelineResponse,
 	NotesHybridTimelineRequest,
 	NotesHybridTimelineResponse,
+	NotesLikesRequest,
+	NotesLikesResponse,
+	NotesLikesCreateRequest,
+	NotesLikesCreateResponse,
+	NotesLikesDeleteRequest,
+	NotesLikesDeleteResponse,
 	NotesLocalTimelineRequest,
 	NotesLocalTimelineResponse,
 	NotesMentionsRequest,
@@ -556,6 +562,7 @@ import type {
 	NotesUpdateResponse,
 	NotesUserListTimelineRequest,
 	NotesUserListTimelineResponse,
+	NotesViewsRequest,
 	NotificationsCreateRequest,
 	PagePushRequest,
 	PagesCreateRequest,
@@ -1013,6 +1020,9 @@ export type Endpoints = {
 	'notes/featured': { req: NotesFeaturedRequest; res: NotesFeaturedResponse };
 	'notes/global-timeline': { req: NotesGlobalTimelineRequest; res: NotesGlobalTimelineResponse };
 	'notes/hybrid-timeline': { req: NotesHybridTimelineRequest; res: NotesHybridTimelineResponse };
+	'notes/likes': { req: NotesLikesRequest; res: NotesLikesResponse };
+	'notes/likes/create': { req: NotesLikesCreateRequest; res: NotesLikesCreateResponse };
+	'notes/likes/delete': { req: NotesLikesDeleteRequest; res: NotesLikesDeleteResponse };
 	'notes/local-timeline': { req: NotesLocalTimelineRequest; res: NotesLocalTimelineResponse };
 	'notes/mentions': { req: NotesMentionsRequest; res: NotesMentionsResponse };
 	'notes/polls/recommendation': { req: NotesPollsRecommendationRequest; res: NotesPollsRecommendationResponse };
@@ -1034,6 +1044,7 @@ export type Endpoints = {
 	'notes/unrenote': { req: NotesUnrenoteRequest; res: EmptyResponse };
 	'notes/update': { req: NotesUpdateRequest; res: NotesUpdateResponse };
 	'notes/user-list-timeline': { req: NotesUserListTimelineRequest; res: NotesUserListTimelineResponse };
+	'notes/views': { req: NotesViewsRequest; res: EmptyResponse };
 	'notifications/create': { req: NotificationsCreateRequest; res: EmptyResponse };
 	'notifications/flush': { req: EmptyRequest; res: EmptyResponse };
 	'notifications/mark-all-as-read': { req: EmptyRequest; res: EmptyResponse };

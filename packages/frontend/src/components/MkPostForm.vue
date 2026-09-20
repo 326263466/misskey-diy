@@ -13,14 +13,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<header :class="$style.header">
 		<div :class="$style.headerLeft">
-			<button v-if="!fixed" :class="$style.cancel" class="_button" @click="cancel"><i class="ti ti-x"></i></button>
-			<button ref="accountMenuEl" v-click-anime v-tooltip="i18n.ts.account" class="_button" @click="openAccountMenu">
+			<button v-if="!fixed" :class="$style.cancel" class="_button" :aria-label="i18n.ts.cancel" @click="cancel"><i class="ti ti-x"></i></button>
+			<button ref="accountMenuEl" v-click-anime v-tooltip="i18n.ts.account" class="_button" :disabled="isEditing" @click="openAccountMenu">
 				<img :class="$style.avatar" :src="(postAccount ?? $i).avatarUrl" style="border-radius: 100%;"/>
 			</button>
 		</div>
 		<div :class="$style.headerRight">
 			<template v-if="!(targetChannel != null && fixed)">
-				<button v-if="targetChannel == null" ref="visibilityButton" v-tooltip="i18n.ts.visibility" :class="['_button', $style.headerRightItem, $style.visibility]" @click="setVisibility">
+				<button v-if="targetChannel == null" ref="visibilityButton" v-tooltip="i18n.ts.visibility" :class="['_button', $style.headerRightItem, $style.visibility]" :disabled="isEditing" @click="setVisibility">
 					<span v-if="visibility === 'public'"><i class="ti ti-world"></i></span>
 					<span v-if="visibility === 'home'"><i class="ti ti-home"></i></span>
 					<span v-if="visibility === 'followers'"><i class="ti ti-lock"></i></span>
@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span :class="$style.headerRightButtonText">{{ targetChannel.name }}</span>
 				</button>
 			</template>
-			<button v-if="visibility !== 'specified'" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :disabled="targetChannel != null" @click="toggleLocalOnly">
+			<button v-if="visibility !== 'specified'" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :disabled="isEditing || targetChannel != null" @click="toggleLocalOnly">
 				<span v-if="!localOnly"><i class="ti ti-rocket"></i></span>
 				<span v-else><i class="ti ti-rocket-off"></i></span>
 			</button>
@@ -40,7 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-if="maximized" class="ti ti-arrows-minimize"></i>
 				<i v-else class="ti ti-arrows-maximize"></i>
 			</button>
-			<button ref="otherSettingsButton" v-tooltip="i18n.ts.other" class="_button" :class="$style.headerRightItem" @click="showOtherSettings"><i class="ti ti-dots"></i></button>
+			<button ref="otherSettingsButton" v-tooltip="i18n.ts.other" class="_button" :class="$style.headerRightItem" :disabled="posting || posted" @click="showOtherSettings"><i class="ti ti-dots"></i></button>
 			<button ref="submitButtonEl" v-click-anime class="_button" :class="$style.submit" :disabled="!canPost" data-testid="post-form-submit" @click="post">
 				<div :class="$style.submitInner">
 					<template v-if="posted"></template>
@@ -53,19 +53,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</header>
 	<MkNoteSimple v-if="replyTargetNote" :class="$style.targetNote" :note="replyTargetNote"/>
 	<label v-if="replyTargetNote" :class="$style.replyPublishing">
-		<input v-model="publishReply" type="checkbox" :disabled="posting || posted" data-testid="post-form-publish-reply">
+		<input v-model="publishReply" type="checkbox" :disabled="isEditing || posting || posted" data-testid="post-form-publish-reply">
 		<span>{{ i18n.ts.reply }} + {{ i18n.ts.publish }}</span>
 	</label>
 	<MkNoteSimple v-if="renoteTargetNote && renoteTargetNote.id !== replyTargetNote?.id" :class="$style.targetNote" :note="renoteTargetNote"/>
-	<div v-if="quoteId" :class="$style.withQuote"><i class="ti ti-quote"></i> {{ i18n.ts.quoteAttached }}<button @click="quoteId = null; renoteTargetNote = null;"><i class="ti ti-x"></i></button></div>
+	<div v-if="quoteId" :class="$style.withQuote"><i class="ti ti-quote"></i> {{ i18n.ts.quoteAttached }}<button v-if="!isEditing" @click="quoteId = null; renoteTargetNote = null;"><i class="ti ti-x"></i></button></div>
 	<div v-if="visibility === 'specified'" :class="$style.toSpecified">
 		<span style="margin-right: 8px;">{{ i18n.ts.recipient }}</span>
 		<div :class="$style.visibleUsers">
 			<span v-for="u in visibleUsers" :key="u.id" :class="$style.visibleUser">
 				<MkAcct :user="u"/>
-				<button class="_button" style="padding: 4px 8px;" @click="removeVisibleUser(u.id)"><i class="ti ti-x"></i></button>
+				<button v-if="!isEditing" class="_button" style="padding: 4px 8px;" @click="removeVisibleUser(u.id)"><i class="ti ti-x"></i></button>
 			</span>
-			<button class="_buttonPrimary" style="padding: 4px; border-radius: 8px;" @click="addVisibleUser"><i class="ti ti-plus ti-fw"></i></button>
+			<button v-if="!isEditing" class="_buttonPrimary" style="padding: 4px; border-radius: 8px;" @click="addVisibleUser"><i class="ti ti-plus ti-fw"></i></button>
 		</div>
 	</div>
 	<MkInfo v-if="!store.r.tips.value.postForm" :class="$style.showHowToUse" closable @close="closeTip('postForm')">
@@ -78,41 +78,42 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</I18n> - <button class="_textButton" @click="cancelSchedule()">{{ i18n.ts.cancel }}</button>
 	</MkInfo>
-	<MkInfo v-if="hasNotSpecifiedMentions" warn :class="$style.hasNotSpecifiedMentions">{{ i18n.ts.notSpecifiedMentionWarning }} - <button class="_textButton" @click="addMissingMention()">{{ i18n.ts.add }}</button></MkInfo>
+	<MkInfo v-if="hasNotSpecifiedMentions" warn :class="$style.hasNotSpecifiedMentions">{{ i18n.ts.notSpecifiedMentionWarning }}<template v-if="!isEditing"> - <button class="_textButton" @click="addMissingMention()">{{ i18n.ts.add }}</button></template></MkInfo>
 	<div v-show="useCw" :class="$style.cwOuter">
-		<input ref="cwInputEl" v-model="cw" :class="$style.cw" :placeholder="i18n.ts.annotation" @keydown="onKeydown" @keyup="onKeyup" @compositionend="onCompositionEnd">
+		<input ref="cwInputEl" v-model="cw" class="_mfm" :class="$style.cw" :disabled="posting || posted" :placeholder="i18n.ts.annotation" :aria-label="i18n.ts.annotation" @keydown="onKeydown" @keyup="onKeyup" @compositionend="onCompositionEnd">
 		<div v-if="maxCwTextLength - cwTextLength < 20" :class="['_acrylic', $style.cwTextCount, { [$style.cwTextOver]: cwTextLength > maxCwTextLength }]">{{ maxCwTextLength - cwTextLength }}</div>
 	</div>
 	<div :class="[$style.textOuter, { [$style.withCw]: useCw }]">
 		<div v-if="targetChannel" :class="$style.colorBar" :style="{ background: targetChannel.color }"></div>
-		<textarea ref="textareaEl" v-model="text" :class="[$style.text]" :disabled="posting || posted" :readonly="textAreaReadOnly" :placeholder="placeholder" data-testid="post-form-text" @keydown="onKeydown" @keyup="onKeyup" @paste="onPaste" @compositionupdate="onCompositionUpdate" @compositionend="onCompositionEnd"></textarea>
+		<textarea ref="textareaEl" v-model="text" class="_mfm" :class="[$style.text]" :disabled="posting || posted" :readonly="textAreaReadOnly" :placeholder="placeholder" :aria-label="i18n.ts.text" data-testid="post-form-text" @keydown="onKeydown" @keyup="onKeyup" @paste="onPaste" @compositionupdate="onCompositionUpdate" @compositionend="onCompositionEnd"></textarea>
 		<div v-if="maxTextLength - textLength < 100" :class="['_acrylic', $style.textCount, { [$style.textOver]: textLength > maxTextLength }]">{{ maxTextLength - textLength }}</div>
 	</div>
-	<input v-show="withHashtags" ref="hashtagsInputEl" v-model="hashtags" :class="$style.hashtags" :placeholder="i18n.ts.hashtags" list="hashtags">
-	<XPostFormAttaches v-model="files" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName"/>
+	<input v-show="withHashtags" ref="hashtagsInputEl" v-model="hashtags" :class="$style.hashtags" :disabled="posting || posted" :placeholder="i18n.ts.hashtags" :aria-label="i18n.ts.hashtags" list="hashtags">
+	<XPostFormAttaches v-model="files" :editing="isEditing" :disabled="posting || posted" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName"/>
 	<div v-if="uploader.items.value.length > 0" style="padding: 12px;">
 		<MkTip k="postFormUploader">
 			{{ i18n.ts._postForm.uploaderTip }}
 		</MkTip>
 		<MkUploaderItems :items="uploader.items.value" @showMenu="(item, ev) => showPerUploadItemMenu(item, ev)" @showMenuViaContextmenu="(item, ev) => showPerUploadItemMenuViaContextmenu(item, ev)"/>
 	</div>
-	<MkPollEditor v-if="poll" v-model="poll" @destroyed="poll = null"/>
+	<MkPoll v-if="editingNote?.poll" :class="$style.existingPoll" :noteId="editingNote.id" :multiple="editingNote.poll.multiple" :expiresAt="editingNote.poll.expiresAt" :choices="editingNote.poll.choices" :author="editingNote.user" :emojiUrls="editingNote.emojis" readOnly/>
+	<MkPollEditor v-else-if="poll" v-model="poll" @destroyed="poll = null"/>
 	<MkNotePreview v-if="showPreview" :class="$style.preview" :text="text" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
 	<div v-if="showingOptions" style="padding: 8px 16px;">
 	</div>
 	<footer ref="footerEl" :class="$style.footer">
 		<div :class="$style.footerLeft">
-			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" class="_button" :class="$style.footerButton" @click="chooseFileFromPc"><i class="ti ti-photo-plus"></i></button>
-			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" class="_button" :class="$style.footerButton" @click="chooseFileFromDrive"><i class="ti ti-cloud-download"></i></button>
-			<button v-tooltip="i18n.ts.poll" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: poll }]" @click="togglePoll"><i class="ti ti-chart-arrows"></i></button>
-			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" @click="useCw = !useCw"><i class="ti ti-eye-off"></i></button>
-			<button v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags }]" @click="withHashtags = !withHashtags"><i class="ti ti-hash"></i></button>
-			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" @click="insertMention"><i class="ti ti-at"></i></button>
-			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
-			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" @click="showActions"><i class="ti ti-plug"></i></button>
+			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" class="_button" :class="$style.footerButton" :disabled="posting || posted" @click="chooseFileFromPc"><i class="ti ti-photo-plus"></i></button>
+			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" class="_button" :class="$style.footerButton" :disabled="posting || posted" @click="chooseFileFromDrive"><i class="ti ti-cloud-download"></i></button>
+			<button v-tooltip="i18n.ts.poll" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: poll }]" :disabled="isEditing" @click="togglePoll"><i class="ti ti-chart-arrows"></i></button>
+			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" :disabled="posting || posted" @click="useCw = !useCw"><i class="ti ti-eye-off"></i></button>
+			<button v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags }]" :disabled="posting || posted" @click="withHashtags = !withHashtags"><i class="ti ti-hash"></i></button>
+			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" :disabled="posting || posted" @click="insertMention"><i class="ti ti-at"></i></button>
+			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" :disabled="posting || posted" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
+			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" :disabled="posting || posted" @click="showActions"><i class="ti ti-plug"></i></button>
 		</div>
 		<div :class="$style.footerRight">
-			<button v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" :disabled="posting || posted" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 		</div>
 	</footer>
 	<datalist id="hashtags">
@@ -138,6 +139,7 @@ import MkNotePreview from '@/components/MkNotePreview.vue';
 import XPostFormAttaches from '@/components/MkPostFormAttaches.vue';
 import XTextCounter from '@/components/MkPostForm.TextCounter.vue';
 import MkPollEditor from '@/components/MkPollEditor.vue';
+import MkPoll from '@/components/MkPoll.vue';
 import MkNoteSimple from '@/components/MkNoteSimple.vue';
 import { erase, unique } from '@/utility/array.js';
 import { extractMentions } from '@/utility/extract-mentions.js';
@@ -167,6 +169,7 @@ import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
 import { useUploader } from '@/composables/use-uploader.js';
 import { startTour } from '@/utility/tour.js';
 import { closeTip } from '@/tips.js';
+import { getNoteTopics } from '@/utility/note-topics.js';
 
 const $i = ensureSignin();
 
@@ -208,6 +211,17 @@ const submitButtonEl = useTemplateRef('submitButtonEl');
 
 const posting = ref(false);
 const posted = ref(false);
+const editingNote = props.editingNote ? deepClone(props.editingNote) : undefined;
+const isEditing = editingNote != null;
+const editingTopics = editingNote ? getNoteTopics(editingNote) : null;
+const editingText = editingTopics?.tags.length ? mfm.toString(editingTopics.nodes ?? []) : editingNote?.text ?? '';
+const editingHashtags = editingTopics?.tags.map(tag => `#${tag}`).join(' ') ?? '';
+const editSource = editingNote ? {
+	text: editingNote.text ?? null,
+	cw: editingNote.cw ?? null,
+	fileIds: [...(editingNote.fileIds ?? editingNote.files?.map(file => file.id) ?? [])],
+	reactionAcceptance: editingNote.reactionAcceptance ?? null,
+} : undefined;
 const text = ref(props.initialText ?? '');
 const files = ref(props.initialFiles ?? []);
 const poll = ref<PollEditorModelValue | null>(null);
@@ -233,9 +247,9 @@ const imeText = ref('');
 const showingOptions = ref(false);
 const textAreaReadOnly = ref(false);
 const justEndedComposition = ref(false);
-const renoteTargetNote: ShallowRef<PostFormProps['renote'] | null> = shallowRef(props.renote);
-const replyTargetNote: ShallowRef<PostFormProps['reply'] | null> = shallowRef(props.reply);
-const targetChannel = shallowRef(props.channel);
+const renoteTargetNote: ShallowRef<PostFormProps['renote'] | null> = shallowRef(editingNote?.renote ?? props.renote);
+const replyTargetNote: ShallowRef<PostFormProps['reply'] | null> = shallowRef(editingNote?.reply ?? props.reply);
+const targetChannel = shallowRef(editingNote?.channel ?? props.channel);
 const publishReply = ref(props.initialNote?.replyId != null && props.initialNote.isPublishedReply === true);
 const postRenoteId = computed(() => renoteTargetNote.value?.id ?? quoteId.value ?? undefined);
 
@@ -260,6 +274,7 @@ uploader.events.on('itemUploaded', ctx => {
 });
 
 const draftKey = computed((): string => {
+	if (editingNote) return `edit:${editingNote.id}`;
 	let key = targetChannel.value ? `channel:${targetChannel.value.id}` : '';
 
 	if (replyTargetNote.value) {
@@ -275,7 +290,7 @@ const draftKey = computed((): string => {
 
 const placeholder = computed((): string => {
 	if (replyTargetNote.value) {
-		return i18n.tsx._drafts.replyTo({ user: userName(replyTargetNote.value.user) });
+		return i18n.tsx._drafts.replyTo({ user: `@${userName(replyTargetNote.value.user)}` });
 	} else if (renoteTargetNote.value) {
 		return i18n.ts._postForm.quotePlaceholder;
 	} else if (targetChannel.value) {
@@ -294,6 +309,7 @@ const placeholder = computed((): string => {
 });
 
 const submitText = computed((): string => {
+	if (isEditing) return i18n.ts.save;
 	return scheduledAt.value != null
 		? i18n.ts.schedule
 		: replyTargetNote.value
@@ -304,7 +320,7 @@ const submitText = computed((): string => {
 });
 
 const submitIcon = computed((): string => {
-	return posted.value ? 'ti ti-check' : scheduledAt.value != null ? 'ti ti-calendar-time' : replyTargetNote.value ? 'ti ti-message-circle' : renoteTargetNote.value ? 'ti ti-quote' : 'ti ti-send';
+	return posted.value ? 'ti ti-check' : isEditing ? 'ti ti-device-floppy' : scheduledAt.value != null ? 'ti ti-calendar-time' : replyTargetNote.value ? 'ti ti-message-circle' : renoteTargetNote.value ? 'ti ti-quote' : 'ti ti-send';
 });
 
 const maximizeTitle = computed((): string => {
@@ -316,7 +332,7 @@ function toggleMaximize() {
 }
 
 const textLength = computed((): number => {
-	return (text.value + imeText.value).length;
+	return ((isEditing ? getPostText() ?? '' : text.value) + imeText.value).length;
 });
 
 const maxTextLength = computed((): number => {
@@ -332,7 +348,7 @@ const maxCwTextLength = 100;
 const canPost = computed((): boolean => {
 	return !props.mock && !posting.value && !posted.value && !uploader.uploading.value && (uploader.items.value.length === 0 || uploader.readyForUpload.value) &&
 		(
-			1 <= textLength.value ||
+			1 <= (isEditing ? ((getPostText() ?? '') + imeText.value).trim().length : textLength.value) ||
 			1 <= files.value.length ||
 			1 <= uploader.items.value.length ||
 			poll.value != null ||
@@ -353,11 +369,39 @@ const canPost = computed((): boolean => {
 
 // cannot save pure renote as draft
 const canSaveAsServerDraft = computed((): boolean => {
-	return canPost.value && (textLength.value > 0 || files.value.length > 0 || poll.value != null);
+	return !isEditing && canPost.value && (textLength.value > 0 || files.value.length > 0 || poll.value != null);
 });
 
-const withHashtags = store.model('postFormWithHashtags');
-const hashtags = store.model('postFormHashtags');
+const withHashtags = isEditing ? ref(false) : store.model('postFormWithHashtags');
+const hashtags = isEditing ? ref('') : store.model('postFormHashtags');
+const hasUnsavedEdit = computed(() => editSource != null && !matchesEditSource({
+	text: getPostText(),
+	cw: useCw.value ? cw.value ?? '' : null,
+	fileIds: files.value.map(file => file.id),
+	reactionAcceptance: reactionAcceptance.value,
+}));
+
+function matchesEditSource(source: typeof editSource): boolean {
+	return source != null && editSource != null &&
+		source.text === editSource.text && source.cw === editSource.cw &&
+		source.reactionAcceptance === editSource.reactionAcceptance &&
+		source.fileIds.length === editSource.fileIds.length &&
+		source.fileIds.every((id, index) => id === editSource.fileIds[index]);
+}
+
+function getPostText(): string | null {
+	// 拆分话题展示时保留未修改的原文。
+	if (editingNote && text.value === editingText && (withHashtags.value ? hashtags.value : '') === editingHashtags &&
+		(useCw.value ? cw.value : null) === (editingNote.cw ?? null)) {
+		return editingNote.text ?? null;
+	}
+	let result = text.value;
+	if (withHashtags.value && hashtags.value.trim() !== '') {
+		const tags = hashtags.value.trim().split(/\s+/).map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
+		result += result === '' || result.endsWith('\n') ? tags : ` ${tags}`;
+	}
+	return (isEditing ? result.trim() === '' : result === '') ? null : result;
+}
 
 watch(text, () => {
 	checkMissingMention();
@@ -373,22 +417,22 @@ watch(visibleUsers, () => {
 	deep: true,
 });
 
-if (props.mention) {
+if (!isEditing && props.mention) {
 	text.value = props.mention.host ? `@${props.mention.username}@${toASCII(props.mention.host)}` : `@${props.mention.username}`;
 	text.value += ' ';
 }
 
-if ($i.isSilenced && visibility.value === 'public') {
+if (!isEditing && $i.isSilenced && visibility.value === 'public') {
 	visibility.value = 'home';
 }
 
-if (targetChannel.value) {
+if (!isEditing && targetChannel.value) {
 	visibility.value = 'public';
 	localOnly.value = true; // TODO: チャンネルが連合するようになった折には消す
 }
 
 // 公開以外へのリプライ時は元の公開範囲を引き継ぐ
-if (replyTargetNote.value && ['home', 'followers', 'specified'].includes(replyTargetNote.value.visibility)) {
+if (!isEditing && replyTargetNote.value && ['home', 'followers', 'specified'].includes(replyTargetNote.value.visibility)) {
 	if (replyTargetNote.value.visibility === 'home' && visibility.value === 'followers') {
 		visibility.value = 'followers';
 	} else if (['home', 'followers'].includes(replyTargetNote.value.visibility) && visibility.value === 'specified') {
@@ -414,7 +458,7 @@ if (replyTargetNote.value && ['home', 'followers', 'specified'].includes(replyTa
 	}
 }
 
-if (props.specified) {
+if (!isEditing && props.specified) {
 	visibility.value = 'specified';
 	pushVisibleUser(props.specified);
 }
@@ -422,7 +466,7 @@ if (props.specified) {
 let inheritedCw: string | null = null;
 
 // keep cw when reply
-if (prefer.s.keepCw && replyTargetNote.value && replyTargetNote.value.cw) {
+if (!isEditing && prefer.s.keepCw && replyTargetNote.value && replyTargetNote.value.cw) {
 	useCw.value = true;
 	cw.value = replyTargetNote.value.cw;
 	inheritedCw = cw.value;
@@ -440,6 +484,10 @@ function watchForDraft() {
 	watch(quoteId, () => saveDraft());
 	watch(reactionAcceptance, () => saveDraft());
 	watch(scheduledAt, () => saveDraft());
+	if (isEditing) {
+		watch(withHashtags, () => saveDraft());
+		watch(hashtags, () => saveDraft());
+	}
 }
 
 function checkMissingMention() {
@@ -457,6 +505,7 @@ function checkMissingMention() {
 }
 
 function addMissingMention() {
+	if (isEditing) return;
 	const ast = mfm.parse(text.value);
 
 	for (const x of extractMentions(ast)) {
@@ -469,6 +518,7 @@ function addMissingMention() {
 }
 
 function togglePoll() {
+	if (isEditing) return;
 	if (poll.value) {
 		poll.value = null;
 	} else {
@@ -494,7 +544,7 @@ function focus() {
 }
 
 function chooseFileFromPc(ev: PointerEvent) {
-	if (props.mock) return;
+	if (props.mock || posting.value || posted.value) return;
 
 	os.chooseFileFromPc({ multiple: true }).then(files => {
 		if (files.length === 0) return;
@@ -503,7 +553,7 @@ function chooseFileFromPc(ev: PointerEvent) {
 }
 
 function chooseFileFromDrive(ev: PointerEvent) {
-	if (props.mock) return;
+	if (props.mock || posting.value || posted.value) return;
 
 	chooseDriveFile({ multiple: true }).then(driveFiles => {
 		files.value.push(...driveFiles);
@@ -511,6 +561,7 @@ function chooseFileFromDrive(ev: PointerEvent) {
 }
 
 function detachFile(id: Misskey.entities.DriveFile['id']) {
+	if (posting.value || posted.value) return;
 	files.value = files.value.filter(x => x.id !== id);
 }
 
@@ -526,6 +577,7 @@ function updateFileName(file: Misskey.entities.DriveFile, name: Misskey.entities
 }
 
 function setVisibility() {
+	if (isEditing) return;
 	if (targetChannel.value) {
 		visibility.value = 'public';
 		localOnly.value = true; // TODO: チャンネルが連合するようになった折には消す
@@ -549,6 +601,7 @@ function setVisibility() {
 }
 
 async function toggleLocalOnly() {
+	if (isEditing) return;
 	if (targetChannel.value) {
 		visibility.value = 'public';
 		localOnly.value = true; // TODO: チャンネルが連合するようになった折には消す
@@ -594,6 +647,7 @@ async function toggleLocalOnly() {
 }
 
 async function toggleReactionAcceptance() {
+	if (posting.value || posted.value) return;
 	const select = await os.select({
 		title: i18n.ts.reactionAcceptance,
 		items: [
@@ -611,6 +665,7 @@ async function toggleReactionAcceptance() {
 
 //#region その他の設定メニューpopup
 function showOtherSettings() {
+	if (posting.value || posted.value) return;
 	let reactionAcceptanceIcon = 'ti ti-icons';
 	let reactionAcceptanceCaption = '';
 
@@ -651,7 +706,7 @@ function showOtherSettings() {
 		action: () => {
 			toggleReactionAcceptance();
 		},
-	}, { type: 'divider' }, {
+	}, ...(isEditing ? [] : [{ type: 'divider' }, {
 		type: 'button',
 		text: i18n.ts._drafts.saveToDraft,
 		icon: 'ti ti-cloud-upload',
@@ -670,7 +725,7 @@ function showOtherSettings() {
 		action: () => {
 			schedule();
 		},
-	}] : []), { type: 'divider' }, {
+	}] : [])] as MenuItem[]), { type: 'divider' }, {
 		type: 'switch',
 		icon: 'ti ti-eye',
 		text: i18n.ts.preview,
@@ -686,7 +741,12 @@ function showOtherSettings() {
 				text: i18n.ts.resetAreYouSure,
 			});
 			if (canceled) return;
-			clear();
+			if (isEditing) {
+				restoreEditingNote();
+				uploader.reset();
+			} else {
+				clear();
+			}
 		},
 	}] satisfies MenuItem[];
 
@@ -701,6 +761,7 @@ function pushVisibleUser(user: Misskey.entities.UserDetailed) {
 }
 
 function addVisibleUser() {
+	if (isEditing) return;
 	os.selectUser().then(user => {
 		pushVisibleUser(user);
 
@@ -711,6 +772,7 @@ function addVisibleUser() {
 }
 
 function removeVisibleUser(id: string) {
+	if (isEditing) return;
 	visibleUsers.value = visibleUsers.value.filter(u => u.id !== id);
 }
 
@@ -765,7 +827,7 @@ function onCompositionEnd(ev: CompositionEvent) {
 const pastedFileName = 'yyyy-MM-dd HH-mm-ss [{{number}}]';
 
 async function onPaste(ev: ClipboardEvent) {
-	if (props.mock) return;
+	if (props.mock || posting.value || posted.value) return;
 	if (ev.clipboardData == null) return;
 	if (textareaEl.value == null) return;
 
@@ -789,7 +851,7 @@ async function onPaste(ev: ClipboardEvent) {
 
 	const paste = ev.clipboardData.getData('text');
 
-	if (!renoteTargetNote.value && !quoteId.value && paste.startsWith(url + '/notes/')) {
+	if (!isEditing && !renoteTargetNote.value && !quoteId.value && paste.startsWith(url + '/notes/')) {
 		ev.preventDefault();
 
 		const { canceled } = await os.confirm({
@@ -861,6 +923,7 @@ function onDragleave() {
 
 function onDrop(ev: DragEvent): void {
 	draghover.value = false;
+	if (posting.value || posted.value) return;
 
 	// ファイルだったら
 	if (ev.dataTransfer && ev.dataTransfer.files.length > 0) {
@@ -883,6 +946,7 @@ function onDrop(ev: DragEvent): void {
 type StoredDrafts = {
 	[key: string]: {
 		updatedAt: string;
+		editSource?: typeof editSource;
 		data: {
 			text: string;
 			useCw: boolean;
@@ -896,17 +960,25 @@ type StoredDrafts = {
 			quoteId: string | null;
 			reactionAcceptance: 'likeOnly' | 'likeOnlyForRemote' | 'nonSensitiveOnly' | 'nonSensitiveOnlyForLocalLikeOnlyForRemote' | null;
 			scheduledAt: number | null;
+			withHashtags?: boolean;
+			hashtags?: string;
 		};
 	};
 };
 
 function saveDraft() {
-	if (props.instant || props.mock) return;
+	if (props.instant || props.mock || posted.value) return;
 
 	const draftsData = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}') as StoredDrafts;
+	if (isEditing && !hasUnsavedEdit.value) {
+		delete draftsData[draftKey.value];
+		miLocalStorage.setItem('drafts', JSON.stringify(draftsData));
+		return;
+	}
 
 	draftsData[draftKey.value] = {
 		updatedAt: new Date().toISOString(),
+		...(isEditing ? { editSource } : {}),
 		data: {
 			text: text.value,
 			useCw: useCw.value,
@@ -920,6 +992,7 @@ function saveDraft() {
 			quoteId: quoteId.value,
 			reactionAcceptance: reactionAcceptance.value,
 			scheduledAt: scheduledAt.value,
+			...(isEditing ? { withHashtags: withHashtags.value, hashtags: hashtags.value } : {}),
 		},
 	};
 
@@ -937,6 +1010,7 @@ function deleteDraft() {
 async function saveServerDraft(options: {
 	isActuallyScheduled?: boolean;
 } = {}) {
+	if (isEditing) return;
 	return await os.apiWithDialog(serverDraftId.value == null ? 'notes/drafts/create' : 'notes/drafts/update', {
 		...(serverDraftId.value == null ? {} : { draftId: serverDraftId.value }),
 		text: text.value,
@@ -974,7 +1048,45 @@ async function uploadFiles() {
 	}
 }
 
+async function saveEdit() {
+	if (!editingNote || props.mock || !canPost.value) return;
+	posting.value = true;
+	try {
+		if (uploader.items.value.some(item => item.uploaded == null)) {
+			await uploadFiles();
+			if (uploader.items.value.some(item => item.uploaded == null)) return;
+		}
+
+		const updated = await os.apiWithDialog('notes/update', {
+			noteId: editingNote.id,
+			text: getPostText(),
+			cw: useCw.value ? cw.value ?? '' : null,
+			fileIds: files.value.map(file => file.id),
+			reactionAcceptance: reactionAcceptance.value,
+			expected: editSource,
+		});
+		globalEvents.emit('noteEdited', updated.id, {
+			text: updated.text,
+			cw: updated.cw,
+			emojis: updated.emojis,
+			tags: updated.tags ?? [],
+			files: updated.files ?? [],
+			fileIds: updated.fileIds ?? [],
+			reactionAcceptance: updated.reactionAcceptance,
+		});
+		posted.value = true;
+		deleteDraft();
+		emit('posted');
+	} catch {
+		// 接口提示失败后保留编辑内容，方便重试。
+		saveDraft();
+	} finally {
+		posting.value = false;
+	}
+}
+
 async function post(ev?: PointerEvent) {
+	if (!canPost.value) return;
 	if (ev != null) {
 		const el = (ev.currentTarget ?? ev.target) as HTMLElement | null;
 
@@ -986,6 +1098,11 @@ async function post(ev?: PointerEvent) {
 				end: () => dispose(),
 			});
 		}
+	}
+
+	if (isEditing) {
+		await saveEdit();
+		return;
 	}
 
 	if (scheduledAt.value != null) {
@@ -1042,7 +1159,7 @@ async function post(ev?: PointerEvent) {
 	}
 
 	let postData = {
-		text: text.value === '' ? null : text.value,
+		text: getPostText(),
 		fileIds: files.value.length > 0 ? files.value.map(f => f.id) : undefined,
 		replyId: replyTargetNote.value ? replyTargetNote.value.id : undefined,
 		publishReply: replyTargetNote.value ? publishReply.value : undefined,
@@ -1055,21 +1172,6 @@ async function post(ev?: PointerEvent) {
 		visibleUserIds: visibility.value === 'specified' ? visibleUsers.value.map(u => u.id) : undefined,
 		reactionAcceptance: reactionAcceptance.value,
 	};
-
-	if (withHashtags.value && hashtags.value && hashtags.value.trim() !== '') {
-		const hashtags_ = hashtags.value.trim().split(' ').map(x => x.startsWith('#') ? x : '#' + x).join(' ');
-		if (!postData.text) {
-			postData.text = hashtags_;
-		} else {
-			const postTextLines = postData.text.split('\n');
-			if (postTextLines[postTextLines.length - 1].trim() === '') {
-				postTextLines[postTextLines.length - 1] += hashtags_;
-			} else {
-				postTextLines[postTextLines.length - 1] += ' ' + hashtags_;
-			}
-			postData.text = postTextLines.join('\n');
-		}
-	}
 
 	// plugin
 	const notePostInterruptors = getPluginHandlers('note_post_interruptor');
@@ -1275,7 +1377,7 @@ function showActions(ev: PointerEvent) {
 const postAccount = ref<Misskey.entities.UserDetailed | null>(null);
 
 async function openAccountMenu(ev: PointerEvent) {
-	if (props.mock) return;
+	if (props.mock || isEditing) return;
 
 	function showDraftsDialog(scheduled: boolean) {
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkNoteDraftsDialog.vue')), {
@@ -1376,6 +1478,7 @@ function showPerUploadItemMenuViaContextmenu(item: UploaderItem, ev: PointerEven
 }
 
 async function schedule() {
+	if (isEditing) return;
 	const { canceled, result } = await os.inputDatetime({
 		title: i18n.ts.schedulePost,
 	});
@@ -1428,6 +1531,27 @@ function showTour() {
 	});
 }
 
+function restoreEditingNote() {
+	if (!editingNote) return;
+	text.value = editingText;
+	hashtags.value = editingHashtags;
+	withHashtags.value = editingHashtags !== '';
+	useCw.value = editingNote.cw != null;
+	cw.value = editingNote.cw ?? null;
+	visibility.value = editingNote.visibility;
+	localOnly.value = editingNote.localOnly ?? false;
+	publishReply.value = editingNote.replyId != null && editingNote.isPublishedReply === true;
+	files.value = deepClone(editingNote.files ?? []);
+	poll.value = editingNote.poll ? {
+		choices: editingNote.poll.choices.map(choice => choice.text),
+		multiple: editingNote.poll.multiple,
+		expiresAt: editingNote.poll.expiresAt ? new Date(editingNote.poll.expiresAt).getTime() : null,
+		expiredAfter: null,
+	} : null;
+	quoteId.value = editingNote.renoteId ?? null;
+	reactionAcceptance.value = editingNote.reactionAcceptance ?? null;
+}
+
 onMounted(() => {
 	if (props.autofocus) {
 		focus();
@@ -1442,6 +1566,28 @@ onMounted(() => {
 	if (hashtagsInputEl.value) hashtagAutocomplete = new Autocomplete(hashtagsInputEl.value, hashtags);
 
 	nextTick(() => {
+		if (editingNote) {
+			restoreEditingNote();
+			if (editingNote.visibleUserIds?.length) {
+				misskeyApi('users/show', { userIds: editingNote.visibleUserIds }).then(users => {
+					users.forEach(user => pushVisibleUser(user));
+				});
+			}
+			const draft = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}')[draftKey.value] as StoredDrafts[string] | undefined;
+			// 仅恢复同一版本的草稿，避免覆盖更新后的帖子。
+			if (!props.instant && !props.mock && draft != null && matchesEditSource(draft.editSource)) {
+				text.value = draft.data.text;
+				useCw.value = draft.data.useCw;
+				cw.value = draft.data.cw;
+				files.value = deepClone((draft.data.files ?? []).filter(Boolean));
+				reactionAcceptance.value = draft.data.reactionAcceptance;
+				withHashtags.value = draft.data.withHashtags ?? false;
+				hashtags.value = draft.data.hashtags ?? '';
+			}
+			nextTick(() => watchForDraft());
+			return;
+		}
+
 		// 書きかけの投稿を復元
 		if (!props.instant && !props.mention && !props.specified && !props.mock) {
 			const draft = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}')[draftKey.value] as StoredDrafts[string] | undefined;
@@ -1467,7 +1613,6 @@ onMounted(() => {
 			}
 		}
 
-		// 削除して編集
 		if (props.initialNote) {
 			const init = props.initialNote;
 			text.value = init.text ? init.text : '';
@@ -1512,6 +1657,8 @@ onBeforeUnmount(() => {
 });
 
 async function canClose() {
+	if (isEditing && (posting.value || uploader.uploading.value)) return false;
+	if (isEditing && posted.value) return true;
 	if (!uploader.allItemsUploaded.value) {
 		const { canceled } = await os.confirm({
 			type: 'question',
@@ -1520,7 +1667,7 @@ async function canClose() {
 			cancelText: i18n.ts.no,
 		});
 		if (canceled) return false;
-	} else if (
+	} else if (isEditing ? hasUnsavedEdit.value : (
 		text.value.trim() !== '' ||
 		(cw.value != null && cw.value.trim() !== '' && cw.value !== inheritedCw) ||
 		files.value.length > 0 ||
@@ -1529,7 +1676,7 @@ async function canClose() {
 		renoteTargetNote.value != null ||
 		hashtags.value.trim() !== '' ||
 		scheduledAt.value != null
-	) {
+	)) {
 		const { canceled } = await os.confirm({
 			type: 'question',
 			text: i18n.ts.leaveConfirm,
@@ -1730,6 +1877,10 @@ html[data-color-scheme=light] .preview {
 
 .targetNote {
 	padding: 0 20px 16px 20px;
+}
+
+.existingPoll {
+	margin: 0 20px 16px;
 }
 
 .replyPublishing {

@@ -5,7 +5,7 @@ declare module '../api.js' {
   export interface APIClient {
     /**
      * No description provided.
-     * 
+     *
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
      * **Credential required**: *Yes* / **Permission**: *write:admin:abuse-report:notification-recipient*
      */
@@ -17,7 +17,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     * 
+     *
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
      * **Credential required**: *Yes* / **Permission**: *write:admin:abuse-report:notification-recipient*
      */
@@ -29,7 +29,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     * 
+     *
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
      * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-report:notification-recipient*
      */
@@ -41,7 +41,7 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     * 
+     *
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
      * **Credential required**: *Yes* / **Permission**: *read:admin:abuse-report:notification-recipient*
      */
@@ -3828,6 +3828,39 @@ declare module '../api.js' {
      * 
      * **Credential required**: *No*
      */
+    request<E extends 'notes/likes', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:note-likes*
+     */
+    request<E extends 'notes/likes/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:note-likes*
+     */
+    request<E extends 'notes/likes/delete', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
+     * **Credential required**: *No*
+     */
     request<E extends 'notes/local-timeline', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
@@ -4057,6 +4090,17 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'notes/views', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
      * **Credential required**: *Yes* / **Permission**: *write:notifications*
      */
     request<E extends 'notifications/create', P extends Endpoints[E]['req']>(

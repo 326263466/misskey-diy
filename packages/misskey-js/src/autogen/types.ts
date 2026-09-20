@@ -3136,6 +3136,33 @@ export type paths = {
          */
         post: operations['notes___hybrid-timeline'];
     };
+    '/notes/likes': {
+        /**
+         * notes/likes
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['notes___likes'];
+    };
+    '/notes/likes/create': {
+        /**
+         * notes/likes/create
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:note-likes*
+         */
+        post: operations['notes___likes___create'];
+    };
+    '/notes/likes/delete': {
+        /**
+         * notes/likes/delete
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:note-likes*
+         */
+        post: operations['notes___likes___delete'];
+    };
     '/notes/local-timeline': {
         /**
          * notes/local-timeline
@@ -3324,6 +3351,15 @@ export type paths = {
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
         post: operations['notes___user-list-timeline'];
+    };
+    '/notes/views': {
+        /**
+         * notes/views
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['notes___views'];
     };
     '/notifications/create': {
         /**
@@ -4461,6 +4497,12 @@ export type components = {
             createdAt: string;
             /** Format: date-time */
             deletedAt?: string | null;
+            isDeleted?: boolean;
+            /** @enum {string|null} */
+            deletedBy?: 'author' | 'community' | null;
+            likeCount?: number;
+            isLiked?: boolean;
+            likeUsers?: components['schemas']['UserLite'][];
             text: string | null;
             cw?: string | null;
             /** Format: id */
@@ -4525,6 +4567,8 @@ export type components = {
             reactionCount: number;
             renoteCount: number;
             repliesCount: number;
+            viewsCount: number;
+            favoritesCount: number;
             uri?: string;
             url?: string;
             reactionAndUserPairCache?: string[];
@@ -4589,6 +4633,17 @@ export type components = {
             createdAt: string;
             user: components['schemas']['UserLite'];
             type: string;
+        };
+        Like: {
+            id: string;
+            /** Format: date-time */
+            createdAt: string;
+            user: components['schemas']['UserDetailed'];
+        };
+        LikeState: {
+            likeCount: number;
+            isLiked: boolean;
+            likeUsers: components['schemas']['UserLite'][];
         };
         NoteReactionWithNote: {
             /** Format: id */
@@ -30542,6 +30597,228 @@ export interface operations {
             };
         };
     };
+    notes___likes: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    noteId: string;
+                    /** @default 20 */
+                    limit?: number;
+                    /** Format: misskey:id */
+                    sinceId?: string;
+                    /** Format: misskey:id */
+                    untilId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Like'][];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    notes___likes___create: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    noteId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['LikeState'];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    notes___likes___delete: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    noteId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['LikeState'];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     'notes___local-timeline': {
         requestBody: {
             content: {
@@ -30912,6 +31189,7 @@ export interface operations {
                 'application/json': {
                     /** Format: misskey:id */
                     noteId: string;
+                    /** @description A Unicode or custom emoji, or text: followed by a single-line boost of up to 16 grapheme clusters. */
                     reaction: string;
                 };
             };
@@ -31449,6 +31727,12 @@ export interface operations {
                 };
                 content: {
                     'application/json': {
+                        isDeleted?: boolean;
+                        /** @enum {string|null} */
+                        deletedBy?: 'author' | 'community' | null;
+                        likeCount: number;
+                        isLiked: boolean;
+                        likeUsers: components['schemas']['UserLite'][];
                         id: string;
                         reactions: {
                             [key: string]: number;
@@ -31458,6 +31742,9 @@ export interface operations {
                         };
                         repliesCount: number;
                         renoteCount: number;
+                        viewsCount: number;
+                        favoritesCount: number;
+                        isFavorited: boolean;
                     }[];
                 };
             };
@@ -31950,8 +32237,18 @@ export interface operations {
                 'application/json': {
                     /** Format: misskey:id */
                     noteId: string;
-                    text: string;
+                    text?: string | null;
                     cw?: string | null;
+                    fileIds?: string[];
+                    /** @enum {string|null} */
+                    reactionAcceptance?: null | 'likeOnly' | 'likeOnlyForRemote' | 'nonSensitiveOnly' | 'nonSensitiveOnlyForLocalLikeOnlyForRemote';
+                    expected?: {
+                        text: string | null;
+                        cw: string | null;
+                        fileIds: string[];
+                        /** @enum {string|null} */
+                        reactionAcceptance?: null | 'likeOnly' | 'likeOnlyForRemote' | 'nonSensitiveOnly' | 'nonSensitiveOnlyForLocalLikeOnlyForRemote';
+                    };
                 };
             };
         };
@@ -32092,6 +32389,77 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    notes___views: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    noteIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK (without any results) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

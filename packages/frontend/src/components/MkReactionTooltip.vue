@@ -6,8 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkTooltip ref="tooltip" :showing="showing" :anchorElement="anchorElement" :maxWidth="340" @closed="emit('closed')">
 	<div :class="$style.root">
-		<MkReactionIcon :reaction="reaction" :class="$style.icon" :noStyle="true"/>
-		<div :class="$style.name">{{ reaction.replace('@.', '') }}</div>
+		<MkReactionIcon :allowTextBoost="allowTextBoost" :reaction="reaction" :class="$style.icon" :noStyle="true"/>
+<div :class="[$style.name, { _mfm: allowTextBoost && isTextBoost(reaction) }]">{{ allowTextBoost && isTextBoost(reaction) ? getBoostText(reaction) : reaction.replace('@.', '') }}</div>
 	</div>
 </MkTooltip>
 </template>
@@ -16,11 +16,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { } from 'vue';
 import MkTooltip from './MkTooltip.vue';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
+import { getBoostText, isTextBoost } from '@/utility/boost.js';
 
 defineProps<{
 	showing: boolean;
 	reaction: string;
 	anchorElement: HTMLElement;
+	allowTextBoost?: boolean;
 }>();
 
 const emit = defineEmits<{

@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			ref="inputEl"
 			v-model="v"
 			v-adaptive-border
-			:class="[$style.textarea, { _monospace: code }]"
+			:class="[$style.textarea, { _monospace: code, _mfm: !code }]"
 			:disabled="disabled"
 			:required="required"
 			:readonly="readonly"

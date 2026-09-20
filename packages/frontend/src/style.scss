@@ -618,6 +618,15 @@ html[data-color-scheme=dark] ._woodenFrame {
 
 // MFM -----------------------------
 
+._mfm {
+	text-autospace: normal;
+
+	code,
+	pre {
+		text-autospace: no-autospace;
+	}
+}
+
 ._mfm_blur_ {
 	filter: blur(6px);
 	transition: filter 0.3s;

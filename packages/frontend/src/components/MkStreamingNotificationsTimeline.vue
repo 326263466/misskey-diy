@@ -33,10 +33,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<XNotification v-else :class="$style.content" :notification="notification" :withTime="true" :full="true"/>
 			</div>
 		</component>
-		<button v-show="paginator.canFetchOlder.value" key="_more_" v-appear="prefer.s.enableInfiniteScroll ? paginator.fetchOlder : null" :disabled="paginator.fetchingOlder.value" class="_button" :class="$style.more" @click="paginator.fetchOlder">
-			<div v-if="!paginator.fetchingOlder.value">{{ i18n.ts.loadMore }}</div>
-			<MkLoading v-else/>
-		</button>
+		<div v-if="paginator.canFetchOlder.value">
+			<div :key="paginator.items.value.at(-1)?.id" v-appear="paginator.fetchOlder" :class="$style.sentinel" aria-hidden="true"></div>
+			<MkLoading v-if="paginator.fetchingOlder.value"/>
+		</div>
 	</div>
 </component>
 </template>
@@ -243,12 +243,8 @@ defineExpose({
 	border-bottom: solid 0.5px var(--MI_THEME-divider);
 }
 
-.more {
-	display: block;
-	width: 100%;
-	box-sizing: border-box;
-	padding: 16px;
-	background: var(--MI_THEME-panel);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+.sentinel {
+	height: 1px;
 }
+
 </style>

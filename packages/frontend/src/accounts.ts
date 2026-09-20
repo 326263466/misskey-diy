@@ -10,7 +10,7 @@ import type { MenuItem } from '@/types/menu.js';
 import { showSuspendedDialog } from '@/utility/show-suspended-dialog.js';
 import { i18n } from '@/i18n.js';
 import { miLocalStorage } from '@/local-storage.js';
-import { waiting, popup, popupMenu, success, alert } from '@/os.js';
+import { waiting, popup, popupMenu, success, alert, confirm } from '@/os.js';
 import { unisonReload, reloadChannel } from '@/utility/unison-reload.js';
 import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
@@ -329,6 +329,22 @@ export async function getAccountMenu(opts: {
 			icon: 'ti ti-users',
 			text: i18n.ts.manageAccounts,
 			to: '/settings/accounts',
+		}, {
+			type: 'divider',
+		}, {
+			type: 'button',
+			icon: 'ti ti-power',
+			text: i18n.ts.logout,
+			action: async () => {
+				const { canceled } = await confirm({
+					type: 'warning',
+					title: i18n.ts.logoutConfirm,
+					text: i18n.ts.logoutWillClearClientData,
+				});
+				if (canceled) return;
+				await signout();
+			},
+			danger: true,
 		});
 	} else {
 		if (opts.includeCurrentAccount) {

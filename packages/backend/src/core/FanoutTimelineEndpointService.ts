@@ -17,7 +17,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { CacheService } from '@/core/CacheService.js';
-import { isOrdinaryReply } from '@/misc/is-reply.js';
+import { isDeletedReply, isOrdinaryReply } from '@/misc/is-reply.js';
 import { isInstanceMuted } from '@/misc/is-instance-muted.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 import { isChannelRelated } from '@/misc/is-channel-related.js';
@@ -93,7 +93,7 @@ export class FanoutTimelineEndpointService {
 				filter = (note) => note.userId === me.id || parentFilter(note);
 			}
 
-			if (ps.excludeNoFiles) {
+			if (ps.excludeNoFiles || ps.redisTimelines.some(timeline => timeline.includes('TimelineWithFiles'))) {
 				const parentFilter = filter;
 				filter = (note) => note.fileIds.length !== 0 && parentFilter(note);
 			}
@@ -215,7 +215,7 @@ export class FanoutTimelineEndpointService {
 			.leftJoinAndSelect('renote.user', 'renoteUser')
 			.leftJoinAndSelect('note.channel', 'channel');
 
-		const notes = (await query.getMany()).filter(noteFilter);
+		const notes = (await query.getMany()).filter(note => !isDeletedReply(note) && noteFilter(note));
 
 		notes.sort((a, b) => idCompare(a.id, b.id));
 

@@ -10,7 +10,7 @@ import type { MiUser } from '@/models/User.js';
 import type { UserProfilesRepository, FollowingsRepository, ChannelFollowingsRepository, BlockingsRepository, NoteThreadMutingsRepository, MutingsRepository, RenoteMutingsRepository, MiMeta } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
-import { HIDDEN_REPLY_THREAD_PREFIX } from '@/misc/is-reply.js';
+import { DELETED_REPLY_THREAD_PREFIX, HIDDEN_REPLY_THREAD_PREFIX } from '@/misc/is-reply.js';
 import type { SelectQueryBuilder } from 'typeorm';
 
 @Injectable()
@@ -97,11 +97,14 @@ export class QueryService {
 		{
 			excludeUserFromMute,
 			excludeAuthor,
+			includeDeletedReplies = false,
 		}: {
 			excludeUserFromMute?: MiUser['id'],
 			excludeAuthor?: boolean,
+			includeDeletedReplies?: boolean,
 		} = {},
 	): void {
+		if (!includeDeletedReplies) this.generateDeletedReplyQuery(query);
 		this.generateBlockedHostQueryForNote(query, excludeAuthor);
 		this.generateSuspendedUserQueryForNote(query, excludeAuthor);
 		if (me) {
@@ -110,6 +113,13 @@ export class QueryService {
 			this.generateMutedUserQueryForNotes(query, me, { noteColumn: 'renote', excludeUserFromMute });
 			this.generateBlockedUserQueryForNotes(query, me, { noteColumn: 'renote' });
 		}
+	}
+
+	@bindThis
+	public generateDeletedReplyQuery(query: SelectQueryBuilder<any>): void {
+		query.andWhere('(note.threadId IS NULL OR note.threadId NOT LIKE :deletedReplyPrefix)', {
+			deletedReplyPrefix: `${DELETED_REPLY_THREAD_PREFIX}%`,
+		});
 	}
 
 	// ここでいうBlockedは被Blockedの意
@@ -177,7 +187,7 @@ export class QueryService {
 		q.andWhere(new Brackets(qb => {
 			qb
 				.where('note.threadId IS NULL')
-				.orWhere(`regexp_replace(note.threadId, :hiddenReplyThreadPrefix, '') NOT IN (${ mutedQuery.getQuery() })`, { hiddenReplyThreadPrefix: `^${HIDDEN_REPLY_THREAD_PREFIX}` });
+				.orWhere(`regexp_replace(note.threadId, :hiddenReplyThreadPrefix, '') NOT IN (${ mutedQuery.getQuery() })`, { hiddenReplyThreadPrefix: `^${HIDDEN_REPLY_THREAD_PREFIX}(deleted:)?` });
 		}));
 
 		q.setParameters(mutedQuery.getParameters());

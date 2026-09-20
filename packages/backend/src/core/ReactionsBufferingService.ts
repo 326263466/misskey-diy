@@ -12,6 +12,7 @@ import type { MiUser, NotesRepository } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import { PER_NOTE_REACTION_USER_PAIR_CACHE_MAX } from '@/const.js';
 import type { GlobalEvents } from '@/core/GlobalEventService.js';
+import { parseReactionUserPair } from '@/misc/reaction.js';
 import type { OnApplicationShutdown } from '@nestjs/common';
 
 const REDIS_DELTA_PREFIX = 'reactionsBufferDeltas';
@@ -94,7 +95,7 @@ export class ReactionsBufferingService implements OnApplicationShutdown {
 			deltas[name] = parseInt(count);
 		}
 
-		const pairs = resultPairs.map(x => x.split('/') as [MiUser['id'], string]);
+		const pairs = resultPairs.map(parseReactionUserPair);
 
 		return {
 			deltas,
@@ -130,7 +131,7 @@ export class ReactionsBufferingService implements OnApplicationShutdown {
 				deltas[name] = parseInt(count);
 			}
 
-			const pairs = resultPairs.map(x => x.split('/') as [MiUser['id'], string]);
+			const pairs = resultPairs.map(parseReactionUserPair);
 
 			map.set(noteId, {
 				deltas,
@@ -171,17 +172,22 @@ export class ReactionsBufferingService implements OnApplicationShutdown {
 
 		// TODO: SQL一個にまとめたい
 		for (const [noteId, buffered] of bufferedMap) {
-			const sql = Object.entries(buffered.deltas)
-				.map(([reaction, count]) =>
-					`jsonb_set("reactions", '{${reaction}}', (COALESCE("reactions"->>'${reaction}', '0')::int + ${count})::text::jsonb)`)
-				.join(' || ');
+			const parameters: Record<string, string | number> = {};
+			let sql = '"reactions"';
+			for (const [index, [reaction, count]] of Object.entries(buffered.deltas).entries()) {
+				parameters[`reaction${index}`] = reaction;
+				parameters[`delta${index}`] = count;
+				// 每个增量只修改自己的键，避免后面的更新覆盖前面的结果。
+				sql = `jsonb_set(${sql}, ARRAY[CAST(:reaction${index} AS text)], to_jsonb(COALESCE(("reactions"->>:reaction${index})::int, 0) + CAST(:delta${index} AS int)))`;
+			}
 
-			this.notesRepository.createQueryBuilder().update()
+			await this.notesRepository.createQueryBuilder().update()
 				.set({
 					reactions: () => sql,
 					reactionAndUserPairCache: buffered.pairs.map(x => x.join('/')),
 				})
 				.where('id = :id', { id: noteId })
+				.setParameters(parameters)
 				.execute();
 		}
 	}

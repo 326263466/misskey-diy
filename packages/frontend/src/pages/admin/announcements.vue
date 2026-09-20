@@ -15,6 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkSelect>
 
 			<MkLoading v-if="loading"/>
+			<MkError v-else-if="error" @retry="refresh"/>
 
 			<template v-else>
 				<MkFolder v-for="announcement in announcements" :key="announcement.id ?? announcement._id" :defaultOpen="announcement.id == null">
@@ -79,10 +80,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<p v-if="announcement.reads">{{ i18n.tsx.nUsersRead({ n: announcement.reads }) }}</p>
 					</div>
 				</MkFolder>
+				<template v-if="canFetchMore">
+					<div :key="untilId" v-appear="more" :class="$style.sentinel" aria-hidden="true"></div>
+				</template>
 				<MkLoading v-if="loadingMore"/>
-				<MkButton @click="more()">
-					<i class="ti ti-reload"></i>{{ i18n.ts.more }}
-				</MkButton>
 			</template>
 		</div>
 	</div>
@@ -90,7 +91,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
@@ -120,6 +121,11 @@ const {
 
 const loading = ref(true);
 const loadingMore = ref(false);
+const error = ref(false);
+const canFetchMore = ref(false);
+const untilId = ref<string>();
+const limit = 10;
+let requestId = 0;
 
 const announcements = ref<(Omit<Misskey.entities.AdminAnnouncementsListResponse[number], 'id' | 'createdAt' | 'updatedAt' | 'reads' | 'isActive'> & {
 	id: string | null;
@@ -128,15 +134,8 @@ const announcements = ref<(Omit<Misskey.entities.AdminAnnouncementsListResponse[
 	reads?: Misskey.entities.AdminAnnouncementsListResponse[number]['reads'];
 })[]>([]);
 
-watch(announcementsStatus, (to) => {
-	loading.value = true;
-	misskeyApi('admin/announcements/list', {
-		status: to,
-	}).then(announcementResponse => {
-		announcements.value = announcementResponse;
-		loading.value = false;
-	});
-}, { immediate: true });
+watch(announcementsStatus, refresh, { immediate: true });
+onBeforeUnmount(() => requestId++);
 
 function add() {
 	announcements.value.unshift({
@@ -169,10 +168,10 @@ async function del(announcement: (typeof announcements)['value'][number]) {
 
 async function archive(announcement: (typeof announcements)['value'][number]) {
 	if (announcement.id == null) return;
-	const { _id, ...data } = announcement; // _idを消す
+	const { _id, ...data } = announcement;
 	await os.apiWithDialog('admin/announcements/update', {
 		...data,
-		id: announcement.id, // TSを黙らすため
+		id: announcement.id,
 		isActive: false,
 	});
 	refresh();
@@ -180,47 +179,69 @@ async function archive(announcement: (typeof announcements)['value'][number]) {
 
 async function unarchive(announcement: (typeof announcements)['value'][number]) {
 	if (announcement.id == null) return;
-	const { _id, ...data } = announcement; // _idを消す
+	const { _id, ...data } = announcement;
 	await os.apiWithDialog('admin/announcements/update', {
 		...data,
-		id: announcement.id, // TSを黙らすため
+		id: announcement.id,
 		isActive: true,
 	});
 	refresh();
 }
 
 async function save(announcement: (typeof announcements)['value'][number]) {
-	const { _id, ...data } = announcement; // _idを消す
+	const { _id, ...data } = announcement;
 	if (announcement.id == null) {
 		await os.apiWithDialog('admin/announcements/create', data);
 		refresh();
 	} else {
 		os.apiWithDialog('admin/announcements/update', {
 			...data,
-			id: announcement.id, // TSを黙らすため
+			id: announcement.id,
 		});
 	}
 }
 
-function more() {
+async function more() {
+	if (loading.value || loadingMore.value || !canFetchMore.value || untilId.value == null) return;
+	const currentRequestId = requestId;
+	const previousUntilId = untilId.value;
 	loadingMore.value = true;
-	misskeyApi('admin/announcements/list', {
+	const announcementResponse = await misskeyApi('admin/announcements/list', {
 		status: announcementsStatus.value,
-		untilId: announcements.value.reduce((acc, announcement) => announcement.id != null ? announcement : acc).id!,
-	}).then(announcementResponse => {
-		announcements.value = announcements.value.concat(announcementResponse);
-		loadingMore.value = false;
-	});
+		limit: limit + 1,
+		untilId: previousUntilId,
+	}).catch(() => null);
+	if (currentRequestId !== requestId) return;
+	loadingMore.value = false;
+	if (announcementResponse == null) return;
+	const page = announcementResponse.slice(0, limit);
+	const existingIds = new Set(announcements.value.map(announcement => announcement.id));
+	announcements.value.push(...page.filter(announcement => !existingIds.has(announcement.id)));
+	const nextUntilId = page.at(-1)?.id;
+	canFetchMore.value = announcementResponse.length > limit && nextUntilId !== previousUntilId;
+	untilId.value = nextUntilId ?? previousUntilId;
 }
 
-function refresh() {
+async function refresh() {
+	const currentRequestId = ++requestId;
 	loading.value = true;
-	misskeyApi('admin/announcements/list', {
+	loadingMore.value = false;
+	error.value = false;
+	canFetchMore.value = false;
+	untilId.value = undefined;
+	const announcementResponse = await misskeyApi('admin/announcements/list', {
 		status: announcementsStatus.value,
-	}).then(announcementResponse => {
-		announcements.value = announcementResponse;
-		loading.value = false;
-	});
+		limit: limit + 1,
+	}).catch(() => null);
+	if (currentRequestId !== requestId) return;
+	loading.value = false;
+	if (announcementResponse == null) {
+		error.value = true;
+		return;
+	}
+	announcements.value = announcementResponse.slice(0, limit);
+	untilId.value = announcements.value.at(-1)?.id ?? undefined;
+	canFetchMore.value = announcementResponse.length > limit;
 }
 
 const headerActions = computed(() => [{
@@ -238,3 +259,9 @@ definePage(() => ({
 	icon: 'ti ti-speakerphone',
 }));
 </script>
+
+<style lang="scss" module>
+.sentinel {
+	height: 1px;
+}
+</style>

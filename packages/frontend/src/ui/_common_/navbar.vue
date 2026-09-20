@@ -105,7 +105,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
-import { openInstanceMenu } from './common.js';
+import { openInstanceMenu, toggleRealtimeMode } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
 import { store } from '@/store.js';
@@ -159,20 +159,6 @@ function toggleIconOnly() {
 	} else {
 		store.set('menuDisplay', iconOnly.value ? 'sideFull' : 'sideIcon');
 	}
-}
-
-function toggleRealtimeMode(ev: PointerEvent) {
-	os.popupMenu([{
-		type: 'label',
-		text: i18n.ts.realtimeMode,
-	}, {
-		text: store.s.realtimeMode ? i18n.ts.turnItOff : i18n.ts.turnItOn,
-		icon: store.s.realtimeMode ? 'ti ti-bolt-off' : 'ti ti-bolt',
-		action: () => {
-			store.set('realtimeMode', !store.s.realtimeMode);
-			window.location.reload();
-		},
-	}], ev.currentTarget ?? ev.target);
 }
 
 async function openAccountMenu(ev: PointerEvent) {

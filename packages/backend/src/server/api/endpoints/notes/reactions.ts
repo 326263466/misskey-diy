@@ -65,7 +65,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private getterService: GetterService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const note = await this.getterService.getNoteWithRelations(ps.noteId).catch(err => {
+			const note = await this.getterService.getNote(ps.noteId).catch(err => {
 				if (err.id === '9725d0ce-ba28-4dde-95a7-2cbb2c15de24') throw new ApiError(meta.errors.noSuchNote);
 				throw err;
 			});
@@ -83,7 +83,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				// ローカルリアクションはホスト名が . とされているが
 				// DB 上ではそうではないので、必要に応じて変換
 				const suffix = '@.:';
-				const type = ps.type.endsWith(suffix) ? ps.type.slice(0, ps.type.length - suffix.length) + ':' : ps.type;
+				const type = ps.type.startsWith(':') && ps.type.endsWith(suffix) ? ps.type.slice(0, ps.type.length - suffix.length) + ':' : ps.type;
 				query.andWhere('reaction.reaction = :type', { type });
 			}
 

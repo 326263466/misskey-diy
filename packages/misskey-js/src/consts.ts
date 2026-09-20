@@ -67,6 +67,7 @@ export const permissions = [
 	'write:notifications',
 	'read:reactions',
 	'write:reactions',
+	'write:note-likes',
 	'write:votes',
 	'read:pages',
 	'write:pages',

@@ -5,7 +5,7 @@
 
 import { Brackets, DataSource, In, IsNull, Not } from 'typeorm';
 import { Injectable, Inject } from '@nestjs/common';
-import type { MiUser, MiLocalUser, MiRemoteUser } from '@/models/User.js';
+import { MiUser, type MiLocalUser, type MiRemoteUser } from '@/models/User.js';
 import { MiNote, type IMentionedRemoteUsers } from '@/models/Note.js';
 import type { InstancesRepository, MiMeta, NotesRepository, UsersRepository } from '@/models/_.js';
 import { RelayService } from '@/core/RelayService.js';
@@ -23,6 +23,8 @@ import { bindThis } from '@/decorators.js';
 import { SearchService } from '@/core/SearchService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
+import { DELETED_REPLY_THREAD_PREFIX, getNoteThreadId, isDeletedReply } from '@/misc/is-reply.js';
+import { lockNoteReplyAncestors } from '@/misc/note-comments.js';
 
 @Injectable()
 export class NoteDeleteService {
@@ -64,103 +66,75 @@ export class NoteDeleteService {
 	 * @param note 投稿
 	 */
 	async delete(user: { id: MiUser['id']; uri: MiUser['uri']; host: MiUser['host']; isBot: MiUser['isBot']; }, note: MiNote, quiet = false, deleter?: MiUser) {
+		const deletedBy = deleter != null && deleter.id !== note.userId ? 'community' : 'author';
+		if (note.replyId != null) {
+			await this.deleteComment(user, note, quiet, deleter, deletedBy);
+			return;
+		}
 		const deletedAt = new Date();
-		const shouldDecrementRenote = note.renoteId != null && note.renoteUserId !== user.id && !user.isBot;
-		let replyTarget: MiNote | null = null;
-		let renoteTarget: MiNote | null = null;
-		let deleted = false;
+		let deletedNotes: MiNote[] = [];
+		let ancestors: MiNote[] = [];
+		const authors = new Map<MiUser['id'], typeof user>([[user.id, user]]);
+		const renoteTargets = new Map<string, { note: MiNote; removed: MiNote[] }>();
 
 		await this.db.transaction(async (transaction) => {
-			if (!quiet) {
-				[replyTarget, renoteTarget] = await Promise.all([
-					note.replyId == null ? null : transaction.findOneBy(MiNote, { id: note.replyId }),
-					shouldDecrementRenote ? transaction.findOneBy(MiNote, { id: note.renoteId! }) : null,
-				]);
+			const locked = await lockNoteReplyAncestors(transaction, note.id);
+			if (!locked.some(target => target.id === note.id && target.userId === user.id)) return;
+			const rows = await transaction.query<MiNote[]>(`
+				WITH RECURSIVE descendants AS (
+					SELECT id FROM note WHERE id = $1
+					UNION
+					SELECT n.id FROM note n INNER JOIN descendants d ON n."replyId" = d.id
+				)
+				SELECT n.* FROM note n INNER JOIN descendants d ON d.id = n.id ORDER BY n.id FOR UPDATE OF n
+			`, [note.id]);
+			deletedNotes = rows.map(row => this.notesRepository.create(row));
+			const deletedIds = new Set(deletedNotes.map(target => target.id));
+			ancestors = locked.filter(target => !deletedIds.has(target.id));
+			for (const author of await transaction.findBy(MiUser, { id: In(deletedNotes.map(target => target.userId)) })) {
+				authors.set(author.id, author);
 			}
 
-			// Delete the note first and only adjust denormalized counters when a row
-			// was actually removed. This keeps retries and concurrent deletes idempotent.
-			const result = await transaction.delete(MiNote, {
-				id: note.id,
-				userId: user.id,
-			});
-			if (result.affected === 0) return;
-			deleted = true;
+			// 外键仅清理这些帖子的点赞、回应、投票及收藏等关联。
+			await transaction.delete(MiNote, { id: In([...deletedIds]) });
+			for (const ancestor of ancestors) {
+				await transaction.decrement(MiNote, { id: ancestor.id }, 'repliesCount', deletedNotes.length);
+			}
 
-			if (shouldDecrementRenote) {
+			for (const target of deletedNotes) {
+				const author = authors.get(target.userId);
+				if (target.renoteId == null || deletedIds.has(target.renoteId) || target.renoteUserId === target.userId || author?.isBot) continue;
+				let renote = renoteTargets.get(target.renoteId);
+				if (!renote) {
+					const original = await transaction.findOneBy(MiNote, { id: target.renoteId });
+					if (original == null) continue;
+					renote = { note: original, removed: [] };
+					renoteTargets.set(target.renoteId, renote);
+				}
+				renote.removed.push(target);
+			}
+			for (const { note: original, removed } of renoteTargets.values()) {
 				await transaction.createQueryBuilder().update(MiNote)
-					.set({
-						renoteCount: () => 'GREATEST("renoteCount" - 1, 0)',
-					})
-					.where('id = :id', { id: note.renoteId })
-					.execute();
+					.set({ renoteCount: () => 'GREATEST("renoteCount" - :removed, 0)' })
+					.where('id = :id', { id: original.id }).setParameter('removed', removed.length).execute();
 			}
-
-			if (note.replyId) {
-				await transaction.createQueryBuilder().update(MiNote)
-					.set({
-						repliesCount: () => 'GREATEST("repliesCount" - 1, 0)',
-					})
-					.where('id = :id', { id: note.replyId })
-					.execute();
-			}
+			await transaction.query(`UPDATE "user" u SET "notesCount" = (SELECT COUNT(*) FROM note n WHERE n."userId" = u.id) WHERE u.id = ANY($1::varchar[])`, [[...authors.keys()]]);
 		});
 
-		if (!deleted) return;
-
+		if (deletedNotes.length === 0) return;
 		if (!quiet) {
-			if (replyTarget != null) {
-				this.globalEventService.publishNoteStream(replyTarget, 'unreplied', {
-					noteId: note.id,
-				});
-			}
-			if (renoteTarget != null) {
-				this.globalEventService.publishNoteStream(renoteTarget, 'unrenoted', {
-					noteId: note.id,
-				});
-			}
-
-			this.globalEventService.publishNoteStream(note, 'deleted', {
-				deletedAt: deletedAt,
-			});
-
-			//#region ローカルの投稿なら削除アクティビティを配送
-			if (this.userEntityService.isLocalUser(user) && !note.localOnly) {
-				let renote: MiNote | null = null;
-
-				// if deleted note is renote
-				if (isRenote(note) && !isQuote(note)) {
-					renote = await this.notesRepository.findOneBy({
-						id: note.renoteId,
-					});
-				}
-
-				const content = this.apRendererService.addContext(renote
-					? this.apRendererService.renderUndo(this.apRendererService.renderAnnounce(renote.uri ?? `${this.config.url}/notes/${renote.id}`, note), user)
-					: this.apRendererService.renderDelete(this.apRendererService.renderTombstone(`${this.config.url}/notes/${note.id}`), user));
-
-				this.deliverToConcerned(user, note, content);
-			}
-			//#endregion
-
-			this.notesChart.update(note, false);
-			if (this.meta.enableChartsForRemoteUser || (user.host == null)) {
-				this.perUserNotesChart.update(user, note, false);
-			}
-
-			if (this.meta.enableStatsForFederatedInstances) {
-				if (this.userEntityService.isRemoteUser(user)) {
-					this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
-						this.instancesRepository.decrement({ id: i.id }, 'notesCount', 1);
-						if (this.meta.enableChartsForFederatedInstances) {
-							this.instanceChart.updateNote(i.host, note, false);
-						}
-					});
-				}
+			for (const ancestor of ancestors) this.globalEventService.publishNoteStream(ancestor, 'unreplied', { noteId: note.id, deletedBy });
+			for (const { note: original, removed } of renoteTargets.values()) {
+				for (const target of removed) this.globalEventService.publishNoteStream(original, 'unrenoted', { noteId: target.id });
 			}
 		}
-
-		this.searchService.unindexNote(note);
+		for (const target of deletedNotes) {
+			const author = authors.get(target.userId);
+			const targetDeletedBy = target.id === note.id ? deletedBy : target.deletedBy ?? undefined;
+			if (!quiet) this.globalEventService.publishNoteStream(target, 'deleted', { deletedAt, deletedBy: targetDeletedBy });
+			if (!quiet && author != null && !isDeletedReply(target)) await this.postDelete(author, target);
+			await this.searchService.unindexNote(target);
+		}
 
 		if (deleter && (note.userId !== deleter.id)) {
 			const user = await this.usersRepository.findOneByOrFail({ id: note.userId });
@@ -171,6 +145,73 @@ export class NoteDeleteService {
 				noteUserHost: user.host,
 				note: note,
 			});
+		}
+	}
+
+	private async deleteComment(user: { id: MiUser['id']; uri: MiUser['uri']; host: MiUser['host']; isBot: MiUser['isBot']; }, note: MiNote, quiet: boolean, deleter: MiUser | undefined, deletedBy: 'author' | 'community'): Promise<void> {
+		let deleted = false;
+		let ancestors: MiNote[] = [];
+		await this.db.transaction(async transaction => {
+			const locked = await lockNoteReplyAncestors(transaction, note.id);
+			const current = locked.find(target => target.id === note.id && target.userId === user.id);
+			if (current == null || isDeletedReply(current)) return;
+			ancestors = locked.filter(target => target.id !== note.id);
+			const result = await transaction.update(MiNote, { id: current.id }, {
+				threadId: `${DELETED_REPLY_THREAD_PREFIX}${getNoteThreadId(current)}`,
+				text: null, cw: null, name: null, fileIds: [], attachedFileTypes: [], tags: [], emojis: [],
+				deletedBy,
+			});
+			deleted = result.affected === 1;
+		});
+		if (!deleted) return;
+		if (!quiet) {
+			for (const ancestor of ancestors) this.globalEventService.publishNoteStream(ancestor, 'unreplied', { noteId: note.id, deletedBy });
+			this.globalEventService.publishNoteStream(note, 'deleted', { deletedAt: new Date(), deletedBy });
+			await this.postDelete(user, note);
+		}
+		await this.searchService.unindexNote(note);
+		if (deleter && note.userId !== deleter.id) {
+			const author = await this.usersRepository.findOneByOrFail({ id: note.userId });
+			this.moderationLogService.log(deleter, 'deleteNote', {
+				noteId: note.id, noteUserId: note.userId, noteUserUsername: author.username, noteUserHost: author.host, note,
+			});
+		}
+	}
+
+	private async postDelete(user: { id: MiUser['id']; uri: MiUser['uri']; host: MiUser['host']; isBot: MiUser['isBot']; }, note: MiNote): Promise<void> {
+		//#region ローカルの投稿なら削除アクティビティを配送
+		if (this.userEntityService.isLocalUser(user) && !note.localOnly) {
+			let renote: MiNote | null = null;
+
+			// if deleted note is renote
+			if (isRenote(note) && !isQuote(note)) {
+				renote = await this.notesRepository.findOneBy({
+					id: note.renoteId,
+				});
+			}
+
+			const content = this.apRendererService.addContext(renote
+				? this.apRendererService.renderUndo(this.apRendererService.renderAnnounce(renote.uri ?? `${this.config.url}/notes/${renote.id}`, note), user)
+				: this.apRendererService.renderDelete(this.apRendererService.renderTombstone(`${this.config.url}/notes/${note.id}`), user));
+
+			this.deliverToConcerned(user, note, content);
+		}
+		//#endregion
+
+		this.notesChart.update(note, false);
+		if (this.meta.enableChartsForRemoteUser || (user.host == null)) {
+			this.perUserNotesChart.update(user, note, false);
+		}
+
+		if (this.meta.enableStatsForFederatedInstances) {
+			if (this.userEntityService.isRemoteUser(user)) {
+				this.federatedInstanceService.fetchOrRegister(user.host).then(async i => {
+					this.instancesRepository.decrement({ id: i.id }, 'notesCount', 1);
+					if (this.meta.enableChartsForFederatedInstances) {
+						this.instanceChart.updateNote(i.host, note, false);
+					}
+				});
+			}
 		}
 	}
 

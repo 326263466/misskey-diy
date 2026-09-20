@@ -23,6 +23,7 @@ import { packedMutingSchema } from '@/models/json-schema/muting.js';
 import { packedRenoteMutingSchema } from '@/models/json-schema/renote-muting.js';
 import { packedBlockingSchema } from '@/models/json-schema/blocking.js';
 import { packedNoteReactionSchema, packedNoteReactionWithNoteSchema } from '@/models/json-schema/note-reaction.js';
+import { packedLikeSchema, packedLikeStateSchema } from '@/models/json-schema/like.js';
 import { packedHashtagSchema } from '@/models/json-schema/hashtag.js';
 import { packedInviteCodeSchema } from '@/models/json-schema/invite-code.js';
 import { packedPageBlockSchema, packedPageSchema } from '@/models/json-schema/page.js';
@@ -94,6 +95,8 @@ export const refs = {
 	Note: packedNoteSchema,
 	NoteDraft: packedNoteDraftSchema,
 	NoteReaction: packedNoteReactionSchema,
+	Like: packedLikeSchema,
+	LikeState: packedLikeStateSchema,
 	NoteReactionWithNote: packedNoteReactionWithNoteSchema,
 	NoteFavorite: packedNoteFavoriteSchema,
 	Notification: packedNotificationSchema,

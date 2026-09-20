@@ -47,7 +47,7 @@ export const apiWithDialog = (<E extends keyof Misskey.Endpoints>(
 	const promise = misskeyApi(endpoint, data, token);
 	promiseDialog(promise, null, async (err) => {
 		let title: string | undefined;
-		let text = err.message + '\n' + err.id;
+		let text = [err.message, err.id].filter(Boolean).join('\n') || i18n.ts.somethingHappened;
 		if (err.code === 'INTERNAL_ERROR') {
 			title = i18n.ts.internalServerError;
 			text = i18n.ts.internalServerErrorDescription;
@@ -78,10 +78,10 @@ export const apiWithDialog = (<E extends keyof Misskey.Endpoints>(
 		} else if (err.code === 'ROLE_PERMISSION_DENIED') {
 			title = i18n.ts.permissionDeniedError;
 			text = i18n.ts.permissionDeniedErrorDescription;
-		} else if (err.code.startsWith('TOO_MANY')) { // TODO: バックエンドに kind: client/contentsLimitExceeded みたいな感じで送るように統一してもらってそれで判定する
+		} else if (err.code?.startsWith('TOO_MANY')) { // TODO: バックエンドに kind: client/contentsLimitExceeded みたいな感じで送るように統一してもらってそれで判定する
 			title = i18n.ts.youCannotCreateAnymore;
 			text = `${i18n.ts.error}: ${err.id}`;
-		} else if (err.message.startsWith('Unexpected token')) {
+		} else if (err.message?.startsWith('Unexpected token')) {
 			title = i18n.ts.gotInvalidResponseError;
 			text = i18n.ts.gotInvalidResponseErrorDescription;
 		} else if (customErrors && customErrors[err.id] != null) {
@@ -105,18 +105,10 @@ export function promiseDialog<T extends Promise<any>>(
 	text?: string,
 ): T {
 	const showing = ref(true);
-	const success = ref(false);
 
 	promise.then(res => {
-		if (onSuccess) {
-			showing.value = false;
-			onSuccess(res);
-		} else {
-			success.value = true;
-			window.setTimeout(() => {
-				showing.value = false;
-			}, 1000);
-		}
+		showing.value = false;
+		onSuccess?.(res);
 	}).catch(err => {
 		showing.value = false;
 		if (onFailure) {
@@ -129,14 +121,15 @@ export function promiseDialog<T extends Promise<any>>(
 		}
 	});
 
-	// NOTE: dynamic importすると挙動がおかしくなる(showingの変更が伝播しない)
-	const { dispose } = popup(MkWaitingDialog, {
-		success: success,
-		showing: showing,
-		text: text,
-	}, {
-		closed: () => dispose(),
-	});
+	if (text?.trim()) {
+		const { dispose } = popup(MkWaitingDialog, {
+			success: false,
+			showing: showing,
+			text: text,
+		}, {
+			closed: () => dispose(),
+		});
+	}
 
 	return promise;
 }

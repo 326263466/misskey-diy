@@ -54,7 +54,7 @@ let closing = false;
 
 function onPosted() {
 	modal.value?.close({
-		useSendAnimation: true,
+		useSendAnimation: !props.editingNote,
 	});
 }
 
@@ -85,7 +85,7 @@ function onBgClick() {
 
 function onModalClosed() {
 	// Reset after the close transition so the disappearing form does not repaint with cleared values.
-	form.value?.clear();
+	if (!props.editingNote) form.value?.clear();
 	emit('closed');
 }
 </script>

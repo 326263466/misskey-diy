@@ -29,6 +29,7 @@ import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { IdService } from '@/core/IdService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { escapeHtml } from '@/misc/escape-html.js';
+import { TEXT_REACTION_PREFIX } from '@/misc/reaction.js';
 import { JsonLdService } from './JsonLdService.js';
 import { ApMfmService } from './ApMfmService.js';
 import { CONTEXT } from './misc/contexts.js';
@@ -308,7 +309,7 @@ export class ApRendererService {
 
 	@bindThis
 	public async renderLike(noteReaction: MiNoteReaction, note: { uri: string | null }): Promise<ILike> {
-		const reaction = noteReaction.reaction;
+		const reaction = noteReaction.reaction.startsWith(TEXT_REACTION_PREFIX) ? '\u2764' : noteReaction.reaction;
 
 		const object: ILike = {
 			type: 'Like',

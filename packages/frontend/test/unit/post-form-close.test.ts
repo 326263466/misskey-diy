@@ -100,7 +100,7 @@ describe('post form closing', () => {
 	test('opens an empty reply with its recipient in the placeholder instead of inserting mentions', async () => {
 		const view = await renderForm({ reply: makeReply() });
 		expect(view.textarea.value).toBe('');
-		expect(view.textarea.placeholder).toBe(i18n.tsx._drafts.replyTo({ user: 'Other User' }));
+		expect(view.textarea.placeholder).toBe(i18n.tsx._drafts.replyTo({ user: '@Other User' }));
 		expect(await view.form.canClose()).toBe(true);
 		expect(mocks.confirm).not.toHaveBeenCalled();
 	});
@@ -109,7 +109,7 @@ describe('post form closing', () => {
 		const reply = makeReply();
 		reply.user.name = null;
 		const view = await renderForm({ reply });
-		expect(view.textarea.placeholder).toBe(i18n.tsx._drafts.replyTo({ user: 'other' }));
+		expect(view.textarea.placeholder).toBe(i18n.tsx._drafts.replyTo({ user: '@other' }));
 	});
 
 	test('allows an untouched reply with an inherited content warning to close', async () => {

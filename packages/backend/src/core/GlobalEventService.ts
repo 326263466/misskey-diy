@@ -102,11 +102,13 @@ export interface DriveEventTypes {
 }
 
 export interface NoteEventTypes {
+	statsUpdated: null;
 	replied: {
 		noteId: MiNote['id'];
 	};
 	unreplied: {
 		noteId: MiNote['id'];
+		deletedBy?: 'author' | 'community';
 	};
 	renoted: {
 		noteId: MiNote['id'];
@@ -120,10 +122,16 @@ export interface NoteEventTypes {
 	};
 	deleted: {
 		deletedAt: Date;
+		deletedBy?: 'author' | 'community';
 	};
 	updated: {
 		cw: string | null;
-		text: string;
+		text: string | null;
+		tags?: string[];
+		emojis?: Packed<'Note'>['emojis'];
+		fileIds?: MiNote['fileIds'];
+		files?: Packed<'Note'>['files'];
+		reactionAcceptance?: MiNote['reactionAcceptance'];
 	};
 	reacted: {
 		reaction: string;

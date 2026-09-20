@@ -13,9 +13,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			type="search"
 			@enter.prevent="search"
 		>
+			<template #label>{{ i18n.ts.search }}</template>
 			<template #prefix><i class="ti ti-search"></i></template>
 		</MkInput>
-		<MkFoldableSection expanded>
+		<MkFoldableSection :expanded="false">
 			<template #header>{{ i18n.ts.options }}</template>
 
 			<div class="_gaps_m">
@@ -36,7 +37,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<div v-if="instance.federation !== 'none' && searchScope === 'server'" :class="$style.subOptionRoot">
 					<MkInput
-						v-model="hostInput"
+							v-model="hostInput"
+							:debounce="300"
 						:placeholder="i18n.ts._search.serverHostPlaceholder"
 						@enter.prevent="search"
 					>
@@ -118,7 +120,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, ref, shallowRef, toRef } from 'vue';
+import { computed, markRaw, ref, shallowRef, watch } from 'vue';
 import { host as localHost } from '@@/js/config.js';
 import type * as Misskey from 'misskey-js';
 import { $i } from '@/i.js';
@@ -150,12 +152,16 @@ const props = withDefaults(defineProps<{
 });
 
 const router = useRouter();
+const emit = defineEmits<{
+	(ev: 'search', query: string): void;
+}>();
 
 const key = ref(0);
 const paginator = shallowRef<Paginator<'notes/search'> | null>(null);
 
-const searchQuery = ref(toRef(props, 'query').value);
-const hostInput = ref(toRef(props, 'host').value);
+const searchQuery = ref(props.query);
+const submittedQuery = ref('');
+const hostInput = ref(props.host);
 const rangeStartAt = ref<string | null>(null);
 const rangeEndAt = ref<string | null>(null);
 
@@ -232,8 +238,8 @@ const searchRange = () => {
 	};
 };
 
-const searchParams = computed<SearchParams | null>(() => {
-	const trimmedQuery = searchQuery.value.trim();
+function getSearchParams(query: string): SearchParams | null {
+	const trimmedQuery = query.trim();
 	if (!trimmedQuery) return null;
 
 	if (searchScope.value === 'user') {
@@ -273,7 +279,9 @@ const searchParams = computed<SearchParams | null>(() => {
 		query: trimmedQuery,
 		...searchRange(),
 	};
-});
+}
+
+const searchParams = computed(() => getSearchParams(searchQuery.value));
 
 function selectUser() {
 	os.selectUser({
@@ -293,16 +301,17 @@ function removeUser() {
 }
 
 async function search() {
-	if (searchParams.value == null) return;
+	const params = searchParams.value;
+	if (params == null) return;
 
 	//#region AP lookup
-	if (searchParams.value.query.startsWith('https://') && !searchParams.value.query.includes(' ')) {
+	if (params.query.startsWith('https://') && !params.query.includes(' ')) {
 		const confirm = await os.confirm({
 			type: 'info',
 			text: i18n.ts.lookupConfirm,
 		});
 		if (!confirm.canceled) {
-			const res = await apLookup(searchParams.value.query);
+			const res = await apLookup(params.query);
 
 			if (res.type === 'User') {
 				router.push('/@:acct/:page?', {
@@ -324,19 +333,19 @@ async function search() {
 	}
 	//#endregion
 
-	if (searchParams.value.query.length > 1 && !searchParams.value.query.includes(' ')) {
-		if (searchParams.value.query.startsWith('@')) {
+	if (params.query.length > 1 && !params.query.includes(' ')) {
+		if (params.query.startsWith('@')) {
 			const confirm = await os.confirm({
 				type: 'info',
 				text: i18n.ts.lookupConfirm,
 			});
 			if (!confirm.canceled) {
-				router.pushByPath(`/${searchParams.value.query}`);
+				router.pushByPath(`/${params.query}`);
 				return;
 			}
 		}
 
-		if (searchParams.value.query.startsWith('#')) {
+		if (params.query.startsWith('#')) {
 			const confirm = await os.confirm({
 				type: 'info',
 				text: i18n.ts.openTagPageConfirm,
@@ -344,7 +353,7 @@ async function search() {
 			if (!confirm.canceled) {
 				router.push('/tags/:tag', {
 					params: {
-						tag: searchParams.value.query.substring(1),
+						tag: params.query.substring(1),
 					},
 				});
 				return;
@@ -352,20 +361,40 @@ async function search() {
 		}
 	}
 
+	showResults(params.query);
+}
+
+function showResults(query: string) {
+	const params = getSearchParams(query);
+	if (params == null) {
+		paginator.value = null;
+		return;
+	}
+
+	submittedQuery.value = params.query;
 	paginator.value = markRaw(new Paginator('notes/search', {
 		limit: 10,
-		params: {
-			...searchParams.value,
-		},
+		params,
 	}));
 
 	key.value++;
+	emit('search', params.query);
 }
 
-// 带 ?q= 进入时直接出结果，不必再按一次回车
-if (props.query.trim()) {
-	search();
-}
+watch(() => props.query, query => {
+	if (query.trim() === submittedQuery.value) return;
+	searchQuery.value = query;
+	if (query.trim()) {
+		showResults(query);
+	} else {
+		submittedQuery.value = '';
+		paginator.value = null;
+	}
+}, { immediate: true });
+
+watch([searchScope, rangeStartAt, rangeEndAt, hostInput, user], () => {
+	if (submittedQuery.value) showResults(submittedQuery.value);
+});
 </script>
 <style lang="scss" module>
 .subOptionRoot {

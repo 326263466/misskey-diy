@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :tabs="headerTabs" :actions="headerActions">
-	<div class="_spacer" style="--MI_SPACER-w: 1200px; --MI_SPACER-min: 20px; --MI_SPACER-max: 32px;">
+<PageWithHeader :tabs="headerTabs" :actions="headerActions" :hideTitle="!narrow">
+	<div class="_spacer" style="--MI_SPACER-w: 1200px; --MI_SPACER-min: 20px; --MI_SPACER-max: 32px; padding-top: var(--MI_SPACER-min);">
 		<div ref="el" class="vvcocwet" :class="{ wide: !narrow }">
 			<div class="body">
 				<div v-if="!narrow || currentPage?.route.name == null" class="nav">
@@ -49,7 +49,6 @@ import * as os from '@/os.js';
 import { useRouter } from '@/router.js';
 import { enableAutoBackup, getPreferencesProfileMenu } from '@/preferences/utility.js';
 import { store } from '@/store.js';
-import { signout } from '@/signout.js';
 import { genSearchIndexes } from '@/utility/inapp-search.js';
 import { enableStoragePersistence, getStoragePersistenceStatusRef, storagePersistenceSupported, skipStoragePersistence } from '@/utility/storage.js';
 
@@ -70,8 +69,8 @@ const childInfo = ref<null | PageMetadata>(null);
 
 const router = useRouter();
 
-const narrow = ref(false);
 const NARROW_THRESHOLD = 600;
+const narrow = ref(window.innerWidth < NARROW_THRESHOLD);
 
 const currentPage = computed(() => router.currentRef.value.child);
 
@@ -180,20 +179,6 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		action: async () => {
 			await clearCache();
 		},
-	}, {
-		type: 'button',
-		icon: 'ti ti-power',
-		text: i18n.ts.logout,
-		action: async () => {
-			const { canceled } = await os.confirm({
-				type: 'warning',
-				title: i18n.ts.logoutConfirm,
-				text: i18n.ts.logoutWillClearClientData,
-			});
-			if (canceled) return;
-			signout();
-		},
-		danger: true,
 	}],
 }]);
 

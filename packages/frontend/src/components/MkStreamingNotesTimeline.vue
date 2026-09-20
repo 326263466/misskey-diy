@@ -42,10 +42,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkNote v-else :class="[$style.note, { [$style.lastNote]: i === paginator.items.value.length - 1 }]" :note="note" :withHardMute="true" :data-scroll-anchor="note.id"/>
 			</template>
 		</component>
-		<button v-show="paginator.canFetchOlder.value" key="_more_" v-appear="prefer.s.enableInfiniteScroll ? paginator.fetchOlder : null" :disabled="paginator.fetchingOlder.value" class="_button" :class="$style.more" @click="paginator.fetchOlder">
-			<div v-if="!paginator.fetchingOlder.value">{{ i18n.ts.loadMore }}</div>
-			<MkLoading v-else :inline="true"/>
-		</button>
+		<div v-if="paginator.canFetchOlder.value">
+			<div :key="paginator.items.value.at(-1)?.id" v-appear="paginator.fetchOlder" :class="$style.sentinel" aria-hidden="true"></div>
+			<MkLoading v-if="paginator.fetchingOlder.value"/>
+		</div>
 	</div>
 </component>
 </template>
@@ -67,7 +67,6 @@ import { instance } from '@/instance.js';
 import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
 import MkNote from '@/components/MkNote.vue';
-import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { DI } from '@/di.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
@@ -559,11 +558,8 @@ defineExpose({
 	}
 }
 
-.more {
-	display: block;
-	width: 100%;
-	box-sizing: border-box;
-	padding: 16px;
-	background: var(--MI_THEME-panel);
+.sentinel {
+	height: 1px;
 }
+
 </style>

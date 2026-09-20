@@ -37,6 +37,12 @@ export const meta = {
 			id: '20ef5475-9f38-4e4c-bd33-de6d979498ec',
 		},
 
+		invalidReaction: {
+			message: 'Text boosts must be a single line of 1 to 16 characters, at most 240 UTF-16 code units.',
+			code: 'INVALID_REACTION',
+			id: '979fafab-ba6d-4316-be72-84010a218365',
+		},
+
 	},
 } as const;
 
@@ -44,7 +50,7 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		noteId: { type: 'string', format: 'misskey:id' },
-		reaction: { type: 'string' },
+		reaction: { type: 'string', description: 'A Unicode or custom emoji, or text: followed by a single-line boost of up to 16 grapheme clusters.' },
 	},
 	required: ['noteId', 'reaction'],
 } as const;
@@ -63,6 +69,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			await this.reactionService.create(me, note, ps.reaction).catch(err => {
 				if (err.id === '51c42bb4-931a-456b-bff7-e5a8a70dd298') throw new ApiError(meta.errors.alreadyReacted);
 				if (err.id === 'e70412a4-7197-4726-8e74-f3e0deb92aa7') throw new ApiError(meta.errors.youHaveBeenBlocked);
+				if (err.id === '68e9d2d1-48bf-42c2-b90a-b20e09fd3d48') throw new ApiError(meta.errors.noSuchNote);
+				if (err.id === '979fafab-ba6d-4316-be72-84010a218365') throw new ApiError(meta.errors.invalidReaction);
 				throw err;
 			});
 			return;

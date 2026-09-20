@@ -293,12 +293,16 @@ export type Channels = {
 };
 
 export type NoteUpdatedEvent = { id: Note['id'] } & ({
+	type: 'statsUpdated';
+	body: null;
+} | {
 	type: 'updated';
-	body: Pick<Note, 'text' | 'cw'>;
+	body: Pick<Note, 'text' | 'cw'> & Partial<Pick<Note, 'tags' | 'emojis' | 'fileIds' | 'files' | 'reactionAcceptance'>>;
 } | {
 	type: 'replied' | 'unreplied' | 'renoted' | 'unrenoted';
 	body: {
 		noteId: Note['id'];
+		deletedBy?: 'author' | 'community';
 	};
 } | {
 	type: 'reacted';
@@ -320,6 +324,7 @@ export type NoteUpdatedEvent = { id: Note['id'] } & ({
 	type: 'deleted';
 	body: {
 		deletedAt: string;
+		deletedBy?: 'author' | 'community';
 	};
 } | {
 	type: 'pollVoted';

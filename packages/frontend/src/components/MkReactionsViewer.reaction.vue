@@ -4,24 +4,38 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
+<span v-if="isTextBoost(reaction)" ref="bubbleEl" :class="$style.bubble">
+	<button v-if="author != null" ref="avatarEl" class="_button" :class="$style.bubbleAvatar" :aria-label="acct(author)" @click="showUserPopup()">
+		<MkAvatar :user="author"/>
+	</button>
+	<span v-else :class="$style.bubbleAvatar"><i class="ti ti-rocket" aria-hidden="true"></i></span>
+	<button v-if="bubbleAction != null" class="_button" :class="$style.bubbleText" :aria-expanded="actionShown" @click="actionShown = !actionShown">{{ getBoostText(reaction) }}</button>
+	<span v-else :class="$style.bubbleText">{{ getBoostText(reaction) }}</span>
+	<button v-if="actionShown && bubbleAction === 'remove'" class="_button" :class="$style.bubbleAction" :disabled="busy" :aria-label="i18n.ts.delete" @click="removeBoost()"><i class="ti ti-trash" aria-hidden="true"></i></button>
+	<button v-else-if="actionShown && bubbleAction === 'report'" class="_button" :class="$style.bubbleAction" :aria-label="i18n.ts.reportAbuse" @click="reportBoost()"><i class="ti ti-flag" aria-hidden="true"></i></button>
+</span>
 <button
+	v-else
 	ref="buttonEl"
 	v-ripple="canToggle"
 	class="_button"
-	:class="[$style.root, { [$style.reacted]: myReaction == reaction, [$style.canToggle]: canToggle, [$style.small]: prefer.s.reactionsDisplaySize === 'small', [$style.large]: prefer.s.reactionsDisplaySize === 'large' }]"
-	@click="toggleReaction()"
+	:class="[$style.root, { [$style.reacted]: myReaction == reaction, [$style.canToggle]: canToggle, [$style.interactive]: !canToggle, [$style.small]: prefer.s.reactionsDisplaySize === 'small', [$style.large]: prefer.s.reactionsDisplaySize === 'large' }]"
+	:aria-pressed="myReaction == reaction"
+	:disabled="busy"
+	@click="onClick"
 	@contextmenu.prevent.stop="menu"
 >
-	<MkReactionIcon style="pointer-events: none;" :class="prefer.s.limitWidthOfReaction ? $style.limitWidth : ''" :reaction="reaction" :emojiUrl="reactionEmojis[emojiName]"/>
-	<span :class="$style.count">{{ count }}</span>
+	<MkReactionIcon :allowTextBoost="true" style="pointer-events: none;" :class="prefer.s.limitWidthOfReaction ? $style.limitWidth : ''" :reaction="reaction" :emojiUrl="reactionEmojis[emojiName]"/>
+	<span :class="$style.count">×{{ count }}</span>
 </button>
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, onMounted, useTemplateRef, watch } from 'vue';
+import { computed, defineAsyncComponent, inject, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { getUnicodeEmojiOrNull } from '@@/js/emojilist.js';
 import { getEmojiNameFromReaction, isLocalCustomEmojiReaction } from '@@/js/emoji-name.js';
+import { url } from '@@/js/config.js';
 import MkCustomEmojiDetailedDialog from './MkCustomEmojiDetailedDialog.vue';
 import type { MenuItem } from '@/types/menu';
 import XDetails from '@/components/MkReactionsViewer.details.vue';
@@ -41,6 +55,9 @@ import { noteEvents } from '@/composables/use-note-capture.js';
 import { mute as muteEmoji, unmute as unmuteEmoji, checkMuted as isEmojiMuted } from '@/utility/emoji-mute.js';
 import { addToEmojiPalette } from '@/utility/emoji-palette.js';
 import { haptic } from '@/utility/haptic.js';
+import { getBoostText, isTextBoost } from '@/utility/boost.js';
+import MkAvatar from '@/components/global/MkAvatar.vue';
+import { acct } from '@/filters/user.js';
 
 const props = defineProps<{
 	noteId: Misskey.entities.Note['id'];
@@ -49,7 +66,10 @@ const props = defineProps<{
 	myReaction: Misskey.entities.Note['myReaction'];
 	count: number;
 	isInitial: boolean;
+	users?: Misskey.entities.UserLite[];
 }>();
+
+const users = computed(() => props.users ?? []);
 
 const mock = inject(DI.mock, false);
 
@@ -58,104 +78,175 @@ const emit = defineEmits<{
 }>();
 
 const buttonEl = useTemplateRef('buttonEl');
+const bubbleEl = useTemplateRef('bubbleEl');
+const avatarEl = useTemplateRef('avatarEl');
+const busy = ref(false);
+const actionShown = ref(false);
+let userPopupOpen = false;
+
+// バブルの外をクリックしたら操作アイコンを畳む
+watch(actionShown, shown => {
+	if (!shown) {
+		window.document.removeEventListener('pointerdown', onOutsidePointer, { capture: true });
+		return;
+	}
+	window.document.addEventListener('pointerdown', onOutsidePointer, { capture: true });
+});
+
+function onOutsidePointer(ev: PointerEvent) {
+	const target = ev.target as HTMLElement | null;
+	if (target != null && bubbleEl.value?.contains(target)) return;
+	actionShown.value = false;
+}
+
+onBeforeUnmount(() => {
+	window.document.removeEventListener('pointerdown', onOutsidePointer, { capture: true });
+});
+
+const isMine = computed(() => $i != null && props.myReaction === props.reaction);
+
+// 参加者一覧の取得を待たずにアバターを出せるよう、自分のBoostは$iを優先する
+const author = computed(() => (isMine.value ? $i : users.value[0]) ?? null);
+
+// 本文をクリックしたときにアイコンを出す。自分のBoostは消すだけ、他人のBoostは通報だけ
+const bubbleAction = computed<'remove' | 'report' | null>(() => {
+	if ($i == null) return null;
+	if (isMine.value) return 'remove';
+	return author.value != null ? 'report' : null;
+});
 
 const emojiName = computed(() => getEmojiNameFromReaction(props.reaction));
 
 const isLocalCustomEmoji = computed(() => isLocalCustomEmojiReaction(props.reaction));
 
 const canToggle = computed(() => {
+	// Boostは投稿したら取り消せない
+	if (isTextBoost(props.reaction)) return false;
 	const emoji = isLocalCustomEmoji.value ? customEmojisMap.get(emojiName.value) : getUnicodeEmojiOrNull(props.reaction);
 
 	// TODO
 	//return $i != null && emoji != null && checkReactionPermissions($i, props.note, emoji);
-	return $i != null && emoji != null;
+	return $i != null && (emoji != null || props.myReaction === props.reaction);
 });
 
+function onClick() {
+	if (canToggle.value) {
+		void toggleReaction();
+	} else {
+		showDetails();
+	}
+}
+
+// hoverで開くv-user-previewとは別系統。クリックで開くので外側のクリックで閉じる
+function showUserPopup() {
+	if (mock || author.value == null || avatarEl.value == null || userPopupOpen) return;
+	const anchor = avatarEl.value;
+	const showing = ref(true);
+	userPopupOpen = true;
+
+	const onPointerDown = (ev: PointerEvent) => {
+		const target = ev.target as HTMLElement | null;
+		if (target != null && (anchor.contains(target) || target.closest('._popup') != null)) return;
+		showing.value = false;
+	};
+	window.document.addEventListener('pointerdown', onPointerDown, { capture: true });
+
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserPopup.vue')), {
+		showing,
+		q: author.value.id,
+		source: anchor,
+	}, {
+		closed: () => {
+			window.document.removeEventListener('pointerdown', onPointerDown, { capture: true });
+			userPopupOpen = false;
+			dispose();
+		},
+	});
+}
+
+async function removeBoost() {
+	if (!isMine.value || $i == null || busy.value) return;
+	const userId = $i.id;
+	const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts.deleteConfirm });
+	if (canceled) return;
+	actionShown.value = false;
+	busy.value = true;
+	try {
+		if (!mock) {
+			await misskeyApi('notes/reactions/delete', { noteId: props.noteId });
+			noteEvents.emit(`unreacted:${props.noteId}`, { userId, reaction: props.reaction });
+		} else {
+			emit('reactionToggled', props.reaction, props.count - 1);
+		}
+	} catch {
+		await os.alert({ type: 'error', text: i18n.ts.somethingHappened });
+	} finally {
+		busy.value = false;
+	}
+}
+
+async function reportBoost() {
+	if (mock || author.value == null) return;
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
+		user: author.value,
+		initialComment: `Boost: ${getBoostText(props.reaction)}\nNote: ${url}/notes/${props.noteId}\n-----\n`,
+	}, {
+		closed: () => dispose(),
+	});
+}
+
+function showDetails() {
+	if (mock) return;
+	const { dispose } = os.popup(XDetails, {
+		showing: true,
+		reaction: props.reaction,
+		users: users.value,
+		count: props.count,
+		noteId: props.noteId,
+		asDialog: true,
+	}, {
+		closed: () => dispose(),
+	});
+}
+
 async function toggleReaction() {
-	if (!canToggle.value) return;
-	if ($i == null) return;
-
-	const me = $i;
-
+	if (!canToggle.value || $i == null || busy.value) return;
+	const userId = $i.id;
 	const oldReaction = props.myReaction;
-	if (oldReaction) {
-		const confirm = await os.confirm({
-			type: 'warning',
-			text: oldReaction !== props.reaction ? i18n.ts.changeReactionConfirm : i18n.ts.cancelReactionConfirm,
-		});
-		if (confirm.canceled) return;
+	const removing = oldReaction === props.reaction;
+	busy.value = true;
+	try {
+		if (oldReaction) {
+			const { canceled } = await os.confirm({
+				type: 'warning',
+				text: removing ? i18n.ts.cancelReactionConfirm : i18n.ts.changeReactionConfirm,
+			});
+			if (canceled) return;
+		} else if (prefer.s.confirmOnReact) {
+			const { canceled } = await os.confirm({ type: 'question', text: i18n.tsx.reactAreYouSure({ emoji: props.reaction.replace('@.', '') }) });
+			if (canceled) return;
+		}
 
-		if (oldReaction !== props.reaction) {
+		if (mock) {
+			emit('reactionToggled', props.reaction, props.count + (removing ? -1 : 1));
+			return;
+		}
+
+		if (removing) {
+			await misskeyApi('notes/reactions/delete', { noteId: props.noteId });
+		} else {
+			await misskeyApi('notes/reactions/create', { noteId: props.noteId, reaction: props.reaction });
+		}
+		if (oldReaction) noteEvents.emit(`unreacted:${props.noteId}`, { userId, reaction: oldReaction });
+		if (!removing) {
+			noteEvents.emit(`reacted:${props.noteId}`, { userId, reaction: props.reaction, emoji: customEmojisMap.get(emojiName.value) });
 			sound.playMisskeySfx('reaction');
 			haptic();
 		}
-
-		if (mock) {
-			emit('reactionToggled', props.reaction, (props.count - 1));
-			return;
-		}
-
-		misskeyApi('notes/reactions/delete', {
-			noteId: props.noteId,
-		}).then(() => {
-			noteEvents.emit(`unreacted:${props.noteId}`, {
-				userId: me.id,
-				reaction: oldReaction,
-			});
-			if (oldReaction !== props.reaction) {
-				misskeyApi('notes/reactions/create', {
-					noteId: props.noteId,
-					reaction: props.reaction,
-				}).then(() => {
-					const emoji = customEmojisMap.get(emojiName.value);
-					if (emoji == null && getUnicodeEmojiOrNull(props.reaction) == null) {
-						return;
-					}
-					noteEvents.emit(`reacted:${props.noteId}`, {
-						userId: me.id,
-						reaction: props.reaction,
-						emoji: emoji,
-					});
-				});
-			}
-		});
-	} else {
-		if (prefer.s.confirmOnReact) {
-			const confirm = await os.confirm({
-				type: 'question',
-				text: i18n.tsx.reactAreYouSure({ emoji: props.reaction.replace('@.', '') }),
-			});
-
-			if (confirm.canceled) return;
-		}
-
-		sound.playMisskeySfx('reaction');
-		haptic();
-
-		if (mock) {
-			emit('reactionToggled', props.reaction, (props.count + 1));
-			return;
-		}
-
-		misskeyApi('notes/reactions/create', {
-			noteId: props.noteId,
-			reaction: props.reaction,
-		}).then(() => {
-			const emoji = customEmojisMap.get(emojiName.value);
-			if (emoji == null && getUnicodeEmojiOrNull(props.reaction) == null) {
-				return;
-			}
-
-			noteEvents.emit(`reacted:${props.noteId}`, {
-				userId: me.id,
-				reaction: props.reaction,
-				emoji: emoji,
-			});
-		});
-		// TODO: 上位コンポーネントでやる
-		//if (props.note.text && props.note.text.length > 100 && (Date.now() - new Date(props.note.createdAt).getTime() < 1000 * 3)) {
-		//	claimAchievement('reactWithoutRead');
-		//}
+	} catch {
+		await os.alert({ type: 'error', text: i18n.ts.somethingHappened });
+	} finally {
+		busy.value = false;
 	}
 }
 
@@ -222,7 +313,7 @@ async function menu(ev: PointerEvent) {
 }
 
 function anime() {
-	if (window.document.hidden || !prefer.s.animation || buttonEl.value == null) return;
+	if (isTextBoost(props.reaction) || window.document.hidden || !prefer.s.animation || buttonEl.value == null) return;
 
 	const rect = buttonEl.value.getBoundingClientRect();
 	const x = rect.left + 16;
@@ -240,22 +331,16 @@ onMounted(() => {
 	if (!props.isInitial) anime();
 });
 
+// Boostのバブルはアバターと本文で誰が何を言ったか完結しているので、ツールチップは出さない。
+// (テキストBoostではbuttonElが存在しないため、ここでの購読は絵文字リアクションにだけ効く)
 if (!mock) {
-	useTooltip(buttonEl, async (showing) => {
+	useTooltip(buttonEl, (showing) => {
 		if (buttonEl.value == null) return;
-
-		const reactions = await misskeyApi('notes/reactions', {
-			noteId: props.noteId,
-			type: props.reaction,
-			limit: 10,
-		});
-
-		const users = reactions.map(x => x.user);
 
 		const { dispose } = os.popup(XDetails, {
 			showing,
 			reaction: props.reaction,
-			users,
+			users: users.value,
 			count: props.count,
 			anchorElement: buttonEl.value,
 		}, {
@@ -266,20 +351,31 @@ if (!mock) {
 </script>
 
 <style lang="scss" module>
-.root {
+// Boostのピルとバブルの地色。buttonBgはボタンやタグなど他の16箇所でも共有されているので、
+// Boostだけ色を変えられるよう独立した変数にしておく
+.root,
+.bubble {
+	--boost-bubble-bg: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 8%);
+}
+
+	.root {
 	display: inline-flex;
-	height: 42px;
-	padding: 0 6px;
-	font-size: 1.5em;
-	border-radius: 6px;
 	align-items: center;
 	justify-content: center;
+	box-sizing: border-box;
+	gap: 4px;
+	height: 32px;
+	padding: 4px 8px 4px 4px;
+	// Boostのバブルと同じ見た目。絵文字の高さは1.25emなので、アバターと同じ24pxになるfont-sizeを置く
+	border-radius: 50px;
+	font-size: 19.2px;
 
 	&.canToggle {
-		background: var(--MI_THEME-buttonBg);
+		background: var(--boost-bubble-bg);
 
+		// 黒の重ねだとダークテーマで暗くなってしまうので、地色に応じて明暗を変える
 		&:hover {
-			background: rgba(0, 0, 0, 0.1);
+			background: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 14%);
 		}
 	}
 
@@ -287,26 +383,18 @@ if (!mock) {
 		cursor: default;
 	}
 
-	&.small {
-		height: 32px;
-		font-size: 1em;
-		border-radius: 4px;
+	&.interactive {
+		cursor: pointer;
+	}
 
-		> .count {
-			font-size: 0.9em;
-			line-height: 32px;
-		}
+	&.small {
+		height: 28px;
+		font-size: 16px;
 	}
 
 	&.large {
-		height: 52px;
-		font-size: 2em;
-		border-radius: 8px;
-
-		> .count {
-			font-size: 0.6em;
-			line-height: 52px;
-		}
+		height: 40px;
+		font-size: 25.6px;
 	}
 
 	&.reacted, &.reacted:hover {
@@ -329,9 +417,68 @@ if (!mock) {
 	object-fit: contain;
 }
 
+// バブルの本文と同じ大きさ。絵文字側のfont-sizeが大きいので固定値で指定する
 .count {
-	font-size: 0.7em;
-	line-height: 42px;
-	margin: 0 0 0 4px;
+	font-size: 12px;
+	line-height: 1.2;
+}
+
+// アバターと本文をひとつの丸いバブルにまとめる。左はアバターが縁に接するので詰める
+.bubble {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 280px;
+	padding: 4px 8px 4px 4px;
+	border-radius: 50px;
+	font-size: 12px;
+	line-height: 1;
+	background: var(--boost-bubble-bg);
+}
+
+.bubbleAvatar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	overflow: hidden;
+	background: var(--MI_THEME-divider);
+
+	> :global(.ti) {
+		line-height: 1;
+	}
+
+	> :global(*) {
+		width: 100%;
+		height: 100%;
+	}
+}
+
+.bubbleText {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	line-height: 1.2;
+	color: inherit;
+}
+
+.bubbleAction {
+	flex-shrink: 0;
+	padding: 4px;
+	margin-left: 4px;
+	line-height: 1;
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	> :global(.ti) {
+		font-size: 12px;
+	}
+
+	&:hover {
+		color: var(--MI_THEME-error);
+	}
 }
 </style>

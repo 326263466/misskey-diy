@@ -7,6 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div class="_gaps">
 	<div class="_gaps">
 		<MkInput v-model="searchQuery" :large="true" :autofocus="true" type="search" @enter.prevent="search">
+			<template #label>{{ i18n.ts.search }}</template>
 			<template #prefix><i class="ti ti-search"></i></template>
 		</MkInput>
 		<MkRadios
@@ -17,10 +18,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				{ value: 'local', label: i18n.ts.local },
 				{ value: 'remote', label: i18n.ts.remote },
 			]"
-			@update:modelValue="search()"
 		>
 		</MkRadios>
-		<MkButton large primary gradate rounded @click="search">{{ i18n.ts.search }}</MkButton>
+		<MkButton large primary gradate rounded :disabled="!searchQuery.trim()" @click="search">{{ i18n.ts.search }}</MkButton>
 	</div>
 
 	<MkFoldableSection v-if="paginator">
@@ -31,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { markRaw, ref, shallowRef, toRef } from 'vue';
+import { markRaw, ref, shallowRef, watch } from 'vue';
 import type { Endpoints } from 'misskey-js';
 import MkUserList from '@/components/MkUserList.vue';
 import MkInput from '@/components/MkInput.vue';
@@ -54,18 +54,21 @@ const props = withDefaults(defineProps<{
 });
 
 const router = useRouter();
+const emit = defineEmits<{
+	(ev: 'search', query: string): void;
+}>();
 
 const key = ref(0);
 const paginator = shallowRef<Paginator<'users/search'> | null>(null);
 
-const searchQuery = ref(toRef(props, 'query').value);
-const searchOrigin = ref(toRef(props, 'origin').value);
+const searchQuery = ref(props.query);
+const submittedQuery = ref('');
+const searchOrigin = ref(props.origin);
 
 async function search() {
 	const query = searchQuery.value.toString().trim();
 
-	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-	if (query == null || query === '') return;
+	if (query === '') return;
 
 	//#region AP lookup
 	if (query.startsWith('https://') && !query.includes(' ')) {
@@ -130,6 +133,14 @@ async function search() {
 		}
 	}
 
+	showResults(query);
+}
+
+function showResults(query: string) {
+	query = query.trim();
+	if (!query) return;
+
+	submittedQuery.value = query;
 	paginator.value = markRaw(new Paginator('users/search', {
 		limit: 10,
 		offsetMode: true,
@@ -140,5 +151,21 @@ async function search() {
 	}));
 
 	key.value++;
+	emit('search', query);
 }
+
+watch(() => props.query, query => {
+	if (query.trim() === submittedQuery.value) return;
+	searchQuery.value = query;
+	if (query.trim()) {
+		showResults(query);
+	} else {
+		submittedQuery.value = '';
+		paginator.value = null;
+	}
+}, { immediate: true });
+
+watch(searchOrigin, () => {
+	if (submittedQuery.value) showResults(submittedQuery.value);
+});
 </script>

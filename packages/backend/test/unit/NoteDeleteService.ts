@@ -4,175 +4,148 @@
  */
 
 import { describe, expect, test, vi } from 'vitest';
-import type { MiNote } from '@/models/Note.js';
+import { MiNote } from '@/models/Note.js';
 import type { MiUser } from '@/models/User.js';
 import { NoteDeleteService } from '@/core/NoteDeleteService.js';
 
-function createService() {
-	const execute = vi.fn().mockResolvedValue(undefined);
-	const where = vi.fn().mockReturnValue({ execute });
-	const set = vi.fn().mockReturnValue({ where });
-	const update = vi.fn().mockReturnValue({ set });
-	const createQueryBuilder = vi.fn().mockReturnValue({ update });
-	const deleteNote = vi.fn().mockResolvedValue({ affected: 1 });
-	const findOneBy = vi.fn();
-	const transactionManager = {
-		createQueryBuilder,
-		delete: deleteNote,
-		findOneBy,
-	};
-	const transaction = vi.fn(async (callback: (manager: typeof transactionManager) => unknown) => callback(transactionManager));
-	const db = { transaction };
-	const notesRepository = {};
-	const globalEventService = {
-		publishNoteStream: vi.fn(),
-	};
-	const userEntityService = {
-		isLocalUser: vi.fn().mockReturnValue(false),
-		isRemoteUser: vi.fn().mockReturnValue(false),
-	};
-	const notesChart = { update: vi.fn() };
-	const perUserNotesChart = { update: vi.fn() };
-	const meta = {
-		enableChartsForRemoteUser: false,
-		enableStatsForFederatedInstances: false,
-	};
-	const searchService = {
-		unindexNote: vi.fn(),
-	};
-	const service = new NoteDeleteService(
-		db as never,
-		null as never,
-		meta as never,
-		null as never,
-		notesRepository as never,
-		null as never,
-		userEntityService as never,
-		globalEventService as never,
-		null as never,
-		null as never,
-		null as never,
-		null as never,
-		searchService as never,
-		null as never,
-		notesChart as never,
-		perUserNotesChart as never,
-		null as never,
-	);
+const user = { id: 'author', uri: null, host: null, isBot: false } as MiUser;
+const makeNote = (id: string, overrides: Partial<MiNote> = {}) => new MiNote({
+	id, userId: user.id, replyId: null, renoteId: null, text: id, localOnly: true,
+	threadId: null, ...overrides,
+});
+const parent = makeNote('parent');
+const reply = makeNote('reply', { replyId: parent.id });
 
-	return {
-		service,
-		db,
-		transaction,
-		transactionManager,
-		findOneBy,
-		globalEventService,
-		createQueryBuilder,
-		set,
-		where,
-		deleteNote,
+function createService(selected = reply, subtree = [selected], ancestors = [parent]) {
+	let exists = true;
+	const execute = vi.fn().mockResolvedValue({ affected: 1 });
+	const query = {
+		set: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis(),
+		setParameter: vi.fn().mockReturnThis(), execute,
 	};
+	const repository = {
+		query: vi.fn(async () => exists ? [selected, ...ancestors] : []),
+		create: (value: Partial<MiNote>) => new MiNote(value),
+	};
+	const manager = {
+		getRepository: () => repository,
+		query: vi.fn(async (sql: string) => sql.includes('descendants') ? subtree : sql.includes('FOR UPDATE') ? [selected, ...ancestors] : []),
+		findBy: vi.fn(async () => [user]),
+		findOneBy: vi.fn(async () => makeNote('renote-target')),
+		delete: vi.fn(async (entity: unknown) => { if (entity === MiNote) exists = false; return { affected: 1 }; }),
+		update: vi.fn(async (_entity: unknown, _where: unknown, values: Partial<MiNote>) => {
+			selected = new MiNote({ ...selected, ...values });
+			return { affected: 1 };
+		}),
+		decrement: vi.fn().mockResolvedValue({ affected: 1 }),
+		createQueryBuilder: () => ({ update: () => query }),
+	};
+	const commit = vi.fn();
+	const db = { transaction: vi.fn(async (work: (transaction: typeof manager) => Promise<void>) => { await work(manager); commit(); }) };
+	const events = { publishNoteStream: vi.fn() };
+	const search = { unindexNote: vi.fn().mockResolvedValue(undefined) };
+	const charts = { update: vi.fn() };
+	const users = { findOneByOrFail: vi.fn().mockResolvedValue(user) };
+	const moderation = { log: vi.fn() };
+	const service = new NoteDeleteService(
+		db as never, null as never, {} as never, users as never, repository as never, null as never,
+		{ isLocalUser: () => false, isRemoteUser: () => false } as never, events as never,
+		null as never, null as never, null as never, null as never, search as never, moderation as never,
+		charts as never, charts as never, null as never,
+	);
+	return { service, manager, repository, events, search, charts, commit, db, query, moderation };
 }
 
-const user = {
-	id: 'renoter',
-	uri: null,
-	host: null,
-	isBot: false,
-} as MiUser;
-
-const renote = {
-	id: 'renote',
-	userId: user.id,
-	renoteId: 'target',
-	renoteUserId: 'author',
-	replyId: null,
-} as MiNote;
-
 describe('NoteDeleteService', () => {
-	test('decrements the target renote count when another user renote is deleted', async () => {
-		const { service, createQueryBuilder, set, where, deleteNote } = createService();
-
-		await service.delete(user, renote, true);
-
-		expect(createQueryBuilder).toHaveBeenCalledTimes(1);
-		expect(set).toHaveBeenCalledTimes(1);
-		const renoteCount = set.mock.calls[0][0].renoteCount;
-		expect(renoteCount()).toBe('GREATEST("renoteCount" - 1, 0)');
-		expect(where).toHaveBeenCalledWith('id = :id', { id: renote.renoteId });
-		expect(deleteNote).toHaveBeenCalledWith(expect.anything(), { id: renote.id, userId: user.id });
+	test.each(['author', 'moderator', 'administrator'])('records the deletion source for comments removed by %s', async actorId => {
+		const actor = { ...user, id: actorId };
+		const fixture = createService();
+		const deletedBy = actorId === user.id ? 'author' : 'community';
+		await fixture.service.delete(user, reply, false, actor);
+		expect(fixture.manager.update).toHaveBeenCalledWith(MiNote, { id: reply.id }, expect.objectContaining({ deletedBy }));
+		expect(fixture.events.publishNoteStream).toHaveBeenCalledWith(reply, 'deleted', { deletedAt: expect.any(Date), deletedBy });
+		if (actorId !== user.id) {
+			expect(fixture.moderation.log).toHaveBeenCalledWith(actor, 'deleteNote', expect.objectContaining({ noteId: reply.id }));
+		} else {
+			expect(fixture.moderation.log).not.toHaveBeenCalled();
+		}
 	});
 
-		test.each([
-		['a self-renote', { ...renote, renoteUserId: user.id }, user],
-		['a bot renote', renote, { ...user, isBot: true }],
-	] as const)('does not decrement the target count for %s', async (_label, note, deletingUser) => {
-		const { service, createQueryBuilder } = createService();
-
-		await service.delete(deletingUser, note, true);
-
-		expect(createQueryBuilder).not.toHaveBeenCalled();
+	test('reports self deletion when a community manager deletes their own post', async () => {
+		const actor = { ...user, id: 'administrator' };
+		const note = makeNote('own-admin-post', { userId: actor.id });
+		const fixture = createService(note, [note], []);
+		await fixture.service.delete(actor, note, false, actor);
+		expect(fixture.events.publishNoteStream).toHaveBeenCalledWith(note, 'deleted', { deletedAt: expect.any(Date), deletedBy: 'author' });
+		expect(fixture.moderation.log).not.toHaveBeenCalled();
 	});
 
-	test('decrements a parent replies count when a reply is deleted', async () => {
-		const { service, createQueryBuilder, set, where, deleteNote } = createService();
-		const reply = {
-			id: 'reply',
-			userId: user.id,
-			replyId: 'parent',
-			renoteId: null,
-		} as MiNote;
-
-		await service.delete(user, reply, true);
-
-		expect(deleteNote).toHaveBeenCalledWith(expect.anything(), { id: reply.id, userId: user.id });
-		expect(createQueryBuilder).toHaveBeenCalledTimes(1);
-		expect(set).toHaveBeenCalledWith({
-			repliesCount: expect.any(Function),
-		});
-		expect(set.mock.calls[0][0].repliesCount()).toBe('GREATEST("repliesCount" - 1, 0)');
-		expect(where).toHaveBeenCalledWith('id = :id', { id: reply.replyId });
+	test('clears only comment content while preserving related data, descendants and ancestor totals', async () => {
+		const child = makeNote('child', { replyId: reply.id });
+		const grandparent = makeNote('grandparent');
+		const fixture = createService(reply, [reply, child], [parent, grandparent]);
+		await fixture.service.delete(user, reply);
+		expect(fixture.manager.delete).not.toHaveBeenCalled();
+		expect(fixture.manager.decrement).not.toHaveBeenCalled();
+		expect(fixture.manager.update).toHaveBeenCalledExactlyOnceWith(MiNote, { id: reply.id }, expect.objectContaining({ text: null, cw: null, fileIds: [] }));
+		expect(fixture.manager.update.mock.calls[0][2]).not.toHaveProperty('repliesCount');
+		expect(fixture.manager.update.mock.calls[0][2]).not.toHaveProperty('reactions');
+		expect(fixture.events.publishNoteStream).toHaveBeenCalledWith(parent, 'unreplied', { noteId: reply.id, deletedBy: 'author' });
+		expect(fixture.events.publishNoteStream).toHaveBeenCalledWith(grandparent, 'unreplied', { noteId: reply.id, deletedBy: 'author' });
+		expect(fixture.search.unindexNote.mock.calls.map(([note]) => note.id)).toEqual(['reply']);
+		expect(fixture.commit.mock.invocationCallOrder[0]).toBeLessThan(fixture.events.publishNoteStream.mock.invocationCallOrder[0]);
 	});
 
-	test('does not update counters or publish events when the note was already deleted', async () => {
-		const { service, createQueryBuilder, deleteNote } = createService();
-		deleteNote.mockResolvedValueOnce({ affected: 0 });
-
-		await service.delete(user, renote, true);
-
-		expect(createQueryBuilder).not.toHaveBeenCalled();
+	test('does not touch ancestor counters when deleting a root post', async () => {
+		const fixture = createService(parent, [parent, reply], []);
+		await fixture.service.delete(user, parent, true);
+		expect(fixture.manager.delete).toHaveBeenCalledWith(MiNote, { id: expect.objectContaining({ _value: ['parent', 'reply'] }) });
+		expect(fixture.manager.decrement).not.toHaveBeenCalled();
+		expect(fixture.search.unindexNote).toHaveBeenCalledTimes(2);
 	});
 
-	test('publishes unreplied and deleted events only after the transaction commits', async () => {
-		const { service, transaction, findOneBy, globalEventService } = createService();
-		const reply = {
-			id: 'reply',
-			userId: user.id,
-			replyId: 'parent',
-			renoteId: null,
-		} as MiNote;
-		findOneBy.mockResolvedValue({ id: reply.replyId, userId: 'author' } as MiNote);
-
-		await service.delete(user, reply);
-
-		expect(globalEventService.publishNoteStream).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: reply.replyId }), 'unreplied', { noteId: reply.id });
-		expect(globalEventService.publishNoteStream).toHaveBeenNthCalledWith(2, reply, 'deleted', { deletedAt: expect.any(Date) });
-		expect(transaction.invocationCallOrder[0]).toBeLessThan(globalEventService.publishNoteStream.mock.invocationCallOrder[0]);
+	test('does not attribute cascading comment deletions to the root author or overwrite earlier moderation', async () => {
+		const otherReply = makeNote('other-reply', { replyId: parent.id, userId: 'other' });
+		const moderatedReply = makeNote('moderated-reply', { replyId: parent.id, deletedBy: 'community' });
+		const fixture = createService(parent, [parent, otherReply, moderatedReply], []);
+		await fixture.service.delete(user, parent, false, user);
+		expect(fixture.events.publishNoteStream).toHaveBeenCalledWith(parent, 'deleted', { deletedAt: expect.any(Date), deletedBy: 'author' });
+		expect(fixture.events.publishNoteStream).toHaveBeenCalledWith(otherReply, 'deleted', { deletedAt: expect.any(Date), deletedBy: undefined });
+		expect(fixture.events.publishNoteStream).toHaveBeenCalledWith(moderatedReply, 'deleted', { deletedAt: expect.any(Date), deletedBy: 'community' });
 	});
 
-	test('rolls back observable side effects when a counter update fails', async () => {
-		const { service, createQueryBuilder, deleteNote } = createService();
-		createQueryBuilder.mockReturnValueOnce({
-			update: vi.fn().mockReturnValue({
-				set: vi.fn().mockReturnValue({
-					where: vi.fn().mockReturnValue({
-						execute: vi.fn().mockRejectedValue(new Error('counter update failed')),
-					}),
-				}),
-			}),
-		});
+	test('makes repeated deletion idempotent', async () => {
+		const fixture = createService();
+		await fixture.service.delete(user, reply);
+		await fixture.service.delete(user, reply);
+		expect(fixture.manager.update).toHaveBeenCalledOnce();
+		expect(fixture.search.unindexNote).toHaveBeenCalledOnce();
+	});
 
-		await expect(service.delete(user, renote, true)).rejects.toThrow('counter update failed');
-		expect(deleteNote).toHaveBeenCalledTimes(1);
+	test('does not delete a different author\'s selected note', async () => {
+		const fixture = createService(makeNote('foreign', { userId: 'other' }));
+		await fixture.service.delete(user, makeNote('foreign', { userId: 'other' }));
+		expect(fixture.manager.delete).not.toHaveBeenCalled();
+	});
+
+	test.each(['update', 'commit'] as const)('publishes no deletion or search updates if %s fails', async stage => {
+		const fixture = createService();
+		const error = new Error('transaction failed');
+		if (stage === 'update') fixture.manager.update.mockRejectedValueOnce(error);
+		if (stage === 'commit') fixture.commit.mockImplementationOnce(() => { throw error; });
+		await expect(fixture.service.delete(user, reply)).rejects.toThrow(error);
+		expect(fixture.events.publishNoteStream).not.toHaveBeenCalled();
+		expect(fixture.search.unindexNote).not.toHaveBeenCalled();
+	});
+
+	test.each([false, true])('keeps renote counts scoped to the removed note, self renote: %s', async selfRenote => {
+		const note = makeNote('renote', { renoteId: 'renote-target', renoteUserId: selfRenote ? user.id : 'other' });
+		const fixture = createService(note, [note], []);
+		await fixture.service.delete(user, note, true);
+		if (selfRenote) expect(fixture.query.set).not.toHaveBeenCalled();
+		else {
+			expect(fixture.query.where).toHaveBeenCalledWith('id = :id', { id: 'renote-target' });
+			expect(fixture.query.setParameter).toHaveBeenCalledWith('removed', 1);
+		}
 	});
 });

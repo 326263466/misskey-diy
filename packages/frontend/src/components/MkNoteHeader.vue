@@ -71,6 +71,7 @@ const mock = inject(DI.mock, false);
 	padding: 0;
 	overflow: hidden;
 	font-size: 1em;
+	line-height: 1.3;
 	font-weight: bold;
 	text-decoration: none;
 	text-overflow: ellipsis;
@@ -80,33 +81,24 @@ const mock = inject(DI.mock, false);
 	}
 }
 
-.authorBadge {
+.authorBadge, .isBot {
 	flex-shrink: 0;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	box-sizing: border-box;
 	margin: 0 .5em 0 0;
-	padding: 0 6px;
-	height: 1.4em;
-	font-size: calc(1em - 1px);
-	line-height: 1;
-	color: var(--MI_THEME-accent);
-	border: solid 0.5px var(--MI_THEME-accent);
-	border-radius: 3px;
-}
-
-.isBot {
-	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	margin: 0 .5em 0 0;
-	padding: 0 6px;
-	height: 1.4em;
+	padding: 0 4px;
+	height: calc(1em + 1px);
 	font-size: calc(1em - 1px);
 	line-height: 1;
 	border: solid 0.5px var(--MI_THEME-divider);
 	border-radius: 3px;
+}
+
+.authorBadge {
+	color: var(--MI_THEME-accent);
+	border-color: var(--MI_THEME-accent);
 }
 
 .username {

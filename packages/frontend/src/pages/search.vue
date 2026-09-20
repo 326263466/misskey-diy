@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
 	<div v-if="tab === 'note'" class="_spacer" style="--MI_SPACER-w: 800px;">
 		<div v-if="notesSearchAvailable || ignoreNotesSearchAvailable">
-			<XNote v-bind="props"/>
+			<XNote v-bind="props" :query="query" @search="query = $event"/>
 		</div>
 		<div v-else>
 			<MkInfo warn>{{ i18n.ts.notesSearchNotAvailable }}</MkInfo>
@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<div v-else-if="tab === 'user'" class="_spacer" style="--MI_SPACER-w: 800px;">
 		<div v-if="usersSearchAvailable">
-			<XUser v-bind="props"/>
+			<XUser v-bind="props" :query="query" @search="query = $event"/>
 		</div>
 		<div v-else>
 			<MkInfo warn>{{ i18n.ts.usersSearchNotAvailable }}</MkInfo>
@@ -26,8 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, ref, toRef } from 'vue';
-import { $i } from '@/i.js';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { notesSearchAvailable, usersSearchAvailable } from '@/utility/check-permissions.js';
@@ -55,7 +54,11 @@ const props = withDefaults(defineProps<{
 const XNote = defineAsyncComponent(() => import('./search.note.vue'));
 const XUser = defineAsyncComponent(() => import('./search.user.vue'));
 
-const tab = ref(toRef(props, 'type').value);
+const tab = ref(props.type);
+const query = ref(props.query);
+
+watch(() => props.query, value => { query.value = value; });
+watch(() => props.type, value => { tab.value = value; });
 
 const headerActions = computed(() => []);
 

@@ -5,6 +5,7 @@
 
 import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
+import { getDeletedText } from '@/utility/deleted-note.js';
 
 /**
  * 投稿を表す文字列を取得します。
@@ -39,8 +40,8 @@ export const getNoteSummary = (note?: Misskey.entities.Note | Misskey.entities.N
 		return '';
 	}
 
-	if ('deletedAt' in note && note.deletedAt) {
-		return `(${i18n.ts.deletedNote})`;
+	if (('deletedAt' in note && note.deletedAt) || ('isDeleted' in note && note.isDeleted)) {
+		return `(${getDeletedText('deletedBy' in note ? note.deletedBy : null)})`;
 	}
 
 	if ('isHidden' in note && note.isHidden) {

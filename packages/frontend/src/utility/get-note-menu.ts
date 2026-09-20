@@ -24,6 +24,7 @@ import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
 import { globalEvents } from '@/events.js';
+import { noteEvents } from '@/composables/use-note-capture.js';
 import { editNote } from '@/utility/edit-note.js';
 
 const isInBrowserTranslationAvailable = (
@@ -195,7 +196,8 @@ export function getNoteMenu(props: {
 			text: i18n.ts.noteDeleteConfirm,
 		}).then(({ canceled }) => {
 			if (canceled) return;
-			if ($i == null) return;
+			const currentUser = $i;
+			if (currentUser == null) return;
 
 			misskeyApi('notes/delete', {
 				noteId: appearNote.id,
@@ -203,35 +205,10 @@ export function getNoteMenu(props: {
 				const renoteId = appearNote.renoteId != null && appearNote.renote?.userId !== appearNote.userId
 					? appearNote.renoteId
 					: null;
-				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId, renoteId);
+				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId, renoteId, appearNote.userId === currentUser.id ? 'author' : 'community');
 			});
 
-			if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === $i.id) {
-				claimAchievement('noteDeletedWithin1min');
-			}
-		});
-	}
-
-	function delEdit(): void {
-		os.confirm({
-			type: 'warning',
-			text: i18n.ts.deleteAndEditConfirm,
-		}).then(({ canceled }) => {
-			if (canceled) return;
-			if ($i == null) return;
-
-			misskeyApi('notes/delete', {
-				noteId: appearNote.id,
-			}).then(() => {
-				const renoteId = appearNote.renoteId != null && appearNote.renote?.userId !== appearNote.userId
-					? appearNote.renoteId
-					: null;
-				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId, renoteId);
-			});
-
-			os.post({ initialNote: appearNote, renote: appearNote.renote, reply: appearNote.reply, channel: appearNote.channel });
-
-			if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === $i.id) {
+			if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === currentUser.id) {
 				claimAchievement('noteDeletedWithin1min');
 			}
 		});
@@ -241,6 +218,14 @@ export function getNoteMenu(props: {
 		os.apiWithDialog(mute ? 'notes/thread-muting/create' : 'notes/thread-muting/delete', {
 			noteId: appearNote.id,
 		});
+	}
+
+	async function toggleFavorite(favorite: boolean): Promise<void> {
+		await os.apiWithDialog(favorite ? 'notes/favorites/create' : 'notes/favorites/delete', {
+			noteId: appearNote.id,
+		});
+		noteEvents.emit(`statsUpdated:${appearNote.id}`);
+		if (favorite) claimAchievement('noteFavorited1');
 	}
 
 	function copyContent(): void {
@@ -401,6 +386,16 @@ export function getNoteMenu(props: {
 
 		menuItems.push({ type: 'divider' });
 
+		menuItems.push(statePromise.then(state => state.isFavorited ? {
+			icon: 'ti ti-star-off',
+			text: i18n.ts.unfavorite,
+			action: () => toggleFavorite(false),
+		} : {
+			icon: 'ti ti-star',
+			text: i18n.ts.favorite,
+			action: () => toggleFavorite(true),
+		}));
+
 		menuItems.push({
 			type: 'parent',
 			icon: 'ti ti-paperclip',
@@ -488,11 +483,11 @@ export function getNoteMenu(props: {
 
 		if (appearNote.userId === $i.id || $i.isModerator || $i.isAdmin) {
 			menuItems.push({ type: 'divider' });
-			if (appearNote.userId === $i.id) {
+			if (appearNote.userId === $i.id && appearNote.user.host == null && !Misskey.note.isPureRenote(appearNote)) {
 				menuItems.push({
 					icon: 'ti ti-edit',
-					text: appearNote.replyId != null ? i18n.ts.edit : i18n.ts.deleteAndEdit,
-					action: appearNote.replyId != null ? () => editNote(appearNote) : delEdit,
+					text: i18n.ts.edit,
+					action: () => editNote(appearNote),
 				});
 			}
 			if (props.currentAntenna != null) {

@@ -28,7 +28,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div v-else ref="timelineEl" class="_gaps">
 				<div v-if="canFetchMore">
-					<MkButton :class="$style.more" :wait="moreFetching" primary rounded @click="fetchMore">{{ i18n.ts.loadMore }}</MkButton>
+					<div :key="messages.at(-1)?.id" v-appear="fetchMore" :class="$style.sentinel" aria-hidden="true"></div>
+					<MkLoading v-if="moreFetching"/>
 				</div>
 
 				<TransitionGroup
@@ -106,7 +107,6 @@ import { ensureSignin } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { prefer } from '@/preferences.js';
-import MkButton from '@/components/MkButton.vue';
 import { useRouter } from '@/router.js';
 import { useMutationObserver } from '@/composables/use-mutation-observer.js';
 import MkInfo from '@/components/MkInfo.vue';
@@ -176,6 +176,7 @@ async function initialize() {
 
 	initializing.value = true;
 	initialized.value = false;
+	canFetchMore.value = false;
 
 	if (props.userId) {
 		const [u, m] = await Promise.all([
@@ -268,23 +269,29 @@ onDeactivated(() => {
 
 async function fetchMore() {
 	const LIMIT = 30;
+	if (!canFetchMore.value || moreFetching.value || initializing.value) return;
+	const untilId = messages.value.at(-1)?.id;
+	if (untilId == null) return;
 
 	moreFetching.value = true;
+	try {
+		const newMessages = props.userId ? await misskeyApi('chat/messages/user-timeline', {
+			userId: user.value!.id,
+			limit: LIMIT,
+			untilId,
+		}) : await misskeyApi('chat/messages/room-timeline', {
+			roomId: room.value!.id,
+			limit: LIMIT,
+			untilId,
+		});
 
-	const newMessages = props.userId ? await misskeyApi('chat/messages/user-timeline', {
-		userId: user.value!.id,
-		limit: LIMIT,
-		untilId: messages.value[messages.value.length - 1].id,
-	}) : await misskeyApi('chat/messages/room-timeline', {
-		roomId: room.value!.id,
-		limit: LIMIT,
-		untilId: messages.value[messages.value.length - 1].id,
-	});
-
-	messages.value.push(...newMessages.map(x => normalizeMessage(x)));
-
-	canFetchMore.value = newMessages.length === LIMIT;
-	moreFetching.value = false;
+		messages.value.push(...newMessages.filter(x => !messages.value.some(message => message.id === x.id)).map(x => normalizeMessage(x)));
+		canFetchMore.value = newMessages.length === LIMIT && messages.value.at(-1)?.id !== untilId;
+	} catch (err) {
+		os.alert({ type: 'error', text: i18n.ts.somethingHappened });
+	} finally {
+		moreFetching.value = false;
+	}
 }
 
 function onMessage(message: Misskey.entities.ChatMessageLite) {
@@ -494,8 +501,8 @@ definePage(computed(() => {
 .root {
 }
 
-.more {
-	margin: 0 auto;
+.sentinel {
+	height: 1px;
 }
 
 .footer {

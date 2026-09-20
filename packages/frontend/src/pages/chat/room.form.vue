@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		ref="textareaEl"
 		v-model="text"
 		:class="$style.textarea"
-		class="_acrylic"
+		class="_acrylic _mfm"
 		:placeholder="i18n.ts.inputMessageHere"
 		:readonly="textareaReadOnly"
 		@keydown="onKeydown"
