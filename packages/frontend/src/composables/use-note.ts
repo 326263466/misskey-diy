@@ -12,6 +12,7 @@ import { shouldCollapsed } from '@@/js/collapsed.js';
 import { host } from '@@/js/config.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import type { OpenOnRemoteOptions } from '@/utility/please-login.js';
+import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { checkWordMute } from '@/utility/check-word-mute.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import * as sound from '@/utility/sound.js';
@@ -349,7 +350,32 @@ export function useNote(
 
 	function onContextmenu(ev: PointerEvent): void {
 		if (props.mock) return;
-		if (ev.target && isLink(ev.target as HTMLElement)) return;
+		if (ev.target && isLink(ev.target as HTMLElement)) {
+			// os.contextMenu はネイティブメニュー設定時に no-op するため、その場合は preventDefault せずブラウザーに任せる
+			const useAppMenu = prefer.s.contextMenu === 'app' || (prefer.s.contextMenu === 'appWithShift' && ev.shiftKey);
+			if (!useAppMenu) return;
+			if (window.getSelection()?.toString() !== '') return;
+			const anchor = (ev.target as HTMLElement).closest?.('a');
+			if (anchor == null || !anchor.hasAttribute('href')) return;
+			ev.preventDefault();
+			os.contextMenu([{
+				type: 'label',
+				text: anchor.href,
+			}, {
+				icon: 'ti ti-external-link',
+				text: i18n.ts.openInNewTab,
+				action: () => {
+					window.open(anchor.href, '_blank', 'noopener');
+				},
+			}, {
+				icon: 'ti ti-link',
+				text: i18n.ts.copyLink,
+				action: () => {
+					copyToClipboard(anchor.href);
+				},
+			}], ev).then(focus);
+			return;
+		}
 		if (window.getSelection()?.toString() !== '') return;
 
 		if (prefer.s.useReactionPickerForContextMenu) {

@@ -9,7 +9,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:behavior="props.navigationBehavior"
 	@click="confirmExternalLink"
 	@auxclick="confirmExternalLink"
-	@contextmenu.stop="() => {}"
 >
 	<template v-if="!self">
 		<span :class="$style.schema">{{ schema }}//</span>
