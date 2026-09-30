@@ -22,6 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 			<MkError v-else-if="error" @retry="fetchNote()"/>
+			<div v-else :class="$style.loading"><MkLoading/></div>
 		</Transition>
 	</div>
 </PageWithHeader>
@@ -140,5 +141,13 @@ definePage(() => ({
 
 .remoteCaution {
 	margin: 20px 20px 0;
+}
+
+// 加载转圈放在帖子内容区内（卡片将出现的位置）居中显示，页面级只保留这一个加载指示
+.loading {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 240px;
 }
 </style>
