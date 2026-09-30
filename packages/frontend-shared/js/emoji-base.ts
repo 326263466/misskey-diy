@@ -8,7 +8,9 @@ const fluentEmojiPngBase = '/fluent-emoji';
 
 export function char2twemojiFilePath(char: string): string {
 	let codes = Array.from(char, x => x.codePointAt(0)?.toString(16));
-	if (!codes.includes('200d')) codes = codes.filter(x => x !== 'fe0f');
+	// 与 Fluent 不同，Twemoji 对这个 ZWJ 资源的命名不带变体选择符
+	const isEyeInSpeechBubble = char.replaceAll('\uFE0F', '') === '\u{1F441}\u200D\u{1F5E8}';
+	if (!codes.includes('200d') || isEyeInSpeechBubble) codes = codes.filter(x => x !== 'fe0f');
 	codes = codes.filter(x => x && x.length);
 	const fileName = codes.join('-');
 	return `${twemojiSvgBase}/${fileName}.svg`;

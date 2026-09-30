@@ -49,15 +49,8 @@ export class HomeTimelineChannel extends Channel {
 
 		if (this.withFiles && (note.fileIds == null || note.fileIds.length === 0)) return;
 
-		if (note.channelId) {
-			// そのチャンネルをフォローしていない
-			if (!this.followingChannels.has(note.channelId)) {
-				return;
-			}
-		} else {
-			// その投稿のユーザーをフォローしていなかったら弾く
-			if (!isMe && !Object.hasOwn(this.following, note.userId)) return;
-		}
+		if (!isMe && !Object.hasOwn(this.following, note.userId) &&
+			!(note.channelId && this.followingChannels.has(note.channelId))) return;
 
 		if (!this.isNoteVisibleForMe(note)) return;
 

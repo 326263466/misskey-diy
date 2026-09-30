@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="[$style.root, { '_forceShrinkSpacer': deviceKind === 'smartphone' }]">
-	<XTitlebar v-if="prefer.r.showTitlebar.value" style="flex-shrink: 0;"/>
+	<XTitlebar v-if="prefer.r.showTitlebar.value" style="flex-shrink: 0;" @contextmenu.stop="onContextmenu"/>
 
 	<!-- 移动端沿用原有布局 -->
 	<div v-if="isMobile" :class="$style.nonTitlebarArea">
@@ -25,9 +25,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<!-- 桌面端: 顶部固定 header + 三栏 -->
 	<template v-else>
-		<XJuejinHeader :class="$style.header"/>
+		<XJuejinHeader :class="$style.header" :dockHidden="dockHidden" @contextmenu.stop="onContextmenu"/>
 
-		<div :class="$style.notices">
+		<div :class="$style.notices" @contextmenu.stop="onContextmenu">
 			<XReloadSuggestion v-if="shouldSuggestReload"/>
 			<XPreferenceRestore v-if="shouldSuggestRestoreBackup"/>
 			<XThemePreviewing v-if="isThemePreviewMode"/>
@@ -36,19 +36,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 
 		<div :class="$style.body" @contextmenu.stop="onContextmenu">
-			<div :class="[$style.columns, pageMetadata?.needWideArea ? $style.wide : null]">
-				<XJuejinDock :class="$style.dock"/>
+			<div :class="[$style.columns, { [$style.wide]: wide, [$style.singleColumn]: singleColumn }]">
+				<XJuejinDock v-if="!singleColumn" :class="$style.dock"/>
 
-				<div :class="$style.stream">
+				<div ref="mainContent" :class="$style.stream">
 					<StackingRouterView v-if="prefer.s['experimental.stackingRouterView']" :class="$style.content"/>
 					<RouterView v-else :class="$style.content"/>
 				</div>
 
-				<div v-if="!pageMetadata?.needWideArea" :class="$style.sidebar">
+				<div v-if="!wide && !singleColumn" :class="$style.sidebar">
+					<XJuejinCheckin v-if="$i"/>
 					<XWidgets/>
 				</div>
 			</div>
 		</div>
+		<XJuejinFloatingActions :content="mainContent"/>
 	</template>
 
 	<XCommon v-model:drawerMenuShowing="drawerMenuShowing" v-model:widgetsShowing="widgetsShowing"/>
@@ -56,7 +58,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, provide, computed, ref } from 'vue';
+import { defineAsyncComponent, provide, computed, ref, onMounted, onUnmounted, useTemplateRef } from 'vue';
 import { instanceName } from '@@/js/config.js';
 import { isLink } from '@@/js/is-link.js';
 import XCommon from './_common_/common.vue';
@@ -68,6 +70,8 @@ import XThemePreviewing from '@/ui/_common_/ThemePreviewing.vue';
 import XTitlebar from '@/ui/_common_/titlebar.vue';
 import XJuejinHeader from '@/ui/_common_/juejin-header.vue';
 import XJuejinDock from '@/ui/_common_/juejin-dock.vue';
+import XJuejinCheckin from '@/ui/_common_/juejin-checkin.vue';
+import XJuejinFloatingActions from '@/ui/_common_/juejin-floating-actions.vue';
 import { isPreviewMode as isThemePreviewMode } from '@/theme.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
@@ -86,17 +90,36 @@ const XStatusBars = defineAsyncComponent(() => import('@/ui/_common_/statusbars.
 const XAnnouncements = defineAsyncComponent(() => import('@/ui/_common_/announcements.vue'));
 
 const isRoot = computed(() => mainRouter.currentRoute.value.name === 'index');
+// 返回时堆叠的页面仍保持挂载，所以布局要跟随当前激活的路由
+const singleColumn = computed(() => [
+	'/@:acct/:page?', '/@:acct/following', '/@:acct/followers',
+	'/checkin', '/community-ranking', '/my/achievements', '/my/benefits',
+].includes(mainRouter.currentRoute.value.path));
 
 const MOBILE_THRESHOLD = 500;
+// 与下方 $dock-collapse-threshold 的左右边距、dock、gap、正文最小宽度保持同步。
+const DOCK_COLLAPSE_THRESHOLD = 16 * 2 + 180 + 20 + 520 - 1;
 
 // デスクトップでウィンドウを狭くしたときモバイルUIが表示されて欲しいことはあるので deviceKind === 'desktop' の判定は行わない
 const isMobile = ref(deviceKind === 'smartphone' || window.innerWidth <= MOBILE_THRESHOLD);
-window.addEventListener('resize', () => {
+const dockCollapsed = ref(window.innerWidth <= DOCK_COLLAPSE_THRESHOLD);
+
+function onResize() {
 	isMobile.value = deviceKind === 'smartphone' || window.innerWidth <= MOBILE_THRESHOLD;
-});
+	dockCollapsed.value = window.innerWidth <= DOCK_COLLAPSE_THRESHOLD;
+}
+
+onMounted(() => window.addEventListener('resize', onResize));
+onUnmounted(() => window.removeEventListener('resize', onResize));
 
 const pageMetadata = ref<null | PageMetadata>(null);
+// 在异步页面元数据到达之前，先确定导航页的布局外壳
+const wide = computed(() => !singleColumn.value && (
+	['/settings', '/admin'].includes(mainRouter.currentRoute.value.path) || pageMetadata.value?.needWideArea === true
+));
+const dockHidden = computed(() => singleColumn.value || wide.value || dockCollapsed.value);
 const widgetsShowing = ref(false);
+const mainContent = useTemplateRef('mainContent');
 
 provide(DI.router, mainRouter);
 provideMetadataReceiver((metadataGetter) => {
@@ -168,6 +191,7 @@ $stream-fit-min-2col: 520px;
 // 「そのカラム構成と左右余白が同時に収まらなくなる幅」を閾値にする。
 // 実数を直書きするとカラム幅を変えたとき追従しないので、必ず幅から計算する。
 $sidebar-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $stream-fit-min-3col + $column-gap + $sidebar-width - 1px;
+// 修改此断点的组成值时，也要同步上方 DOCK_COLLAPSE_THRESHOLD，保证“更多”能补回隐藏入口。
 $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $stream-fit-min-2col - 1px;
 
 .root {
@@ -221,6 +245,12 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 		padding: 0;
 		gap: 0;
 	}
+
+	&.singleColumn {
+		--MI-pageSideInset: 0px;
+		max-width: calc(var(--MI-pageWidth) + #{$body-side-margin * 2});
+		padding-top: 0;
+	}
 }
 
 // 左栏: 掘金的 .dock 固定宽度
@@ -251,10 +281,10 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 	height: 100%;
 }
 
-// 只让中间列顶部操作栏使用卡片主题色；透明度和滚动穿透仍由 MkPageHeader 保持
-.columns:not(.wide) > .stream > .content {
+// 普通页面和宽版页面的顶部操作栏共用卡片样式。
+.columns > .stream > .content {
 	--MI-pageHeaderBg: var(--MI_THEME-panel);
-	--MI-pageHeaderRadius: 0;
+	--MI-pageHeaderRadius: var(--MI-cardRadius);
 	--MI-pageHeaderBorder: none;
 	--MI-pageHeaderOverflow: clip;
 }
@@ -290,13 +320,12 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 	// 単に ._spacer:not(._spacer *) と書くと footer のボタン列がカード端に貼り付く。
 	//
 	// 入れ子の _spacer (MkFolder 等) は内側の余白として意味があるので :not() で除外する
-	:global([data-sticky-container-header-height]) :global(._spacer:not(._spacer *)) {
+	:global([data-sticky-container-header-height]) :global(._spacer:not(._spacer *, ._pageLayout *)) {
 		max-width: min(var(--MI_SPACER-w, 100%), 100%);
-		padding-top: var(--MI-margin);
 	}
 
 	// 提示与操作栏、下面卡片保持 16px 间距；提示本身保持原有样式
-	:global([data-sticky-container-header-height]) :global(._spacer:not(._spacer *) > ._juejinTip:first-child) {
+	:global([data-sticky-container-header-height]) :global(._spacer:not(._spacer *, ._pageLayout *) > ._juejinTip:first-child) {
 		margin-bottom: var(--MI-margin) !important;
 	}
 }
@@ -332,6 +361,8 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 }
 
 .contents {
+	--MI-pageHeaderBg: var(--MI_THEME-navBg);
+	--MI-pageHeaderBgOpacity: 1;
 	display: flex;
 	flex-direction: column;
 	flex: 1;

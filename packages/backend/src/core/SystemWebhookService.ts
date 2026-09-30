@@ -16,7 +16,8 @@ import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import Logger from '@/logger.js';
 import { Packed } from '@/misc/json-schema.js';
-import { AbuseReportResolveType } from '@/models/AbuseUserReport.js';
+import { AbuseReportResolveType, AbuseReportReason } from '@/models/AbuseUserReport.js';
+import type { serializeAbuseReportSnapshot } from '@/misc/abuse-report.js';
 import { ModeratorInactivityRemainingTime } from '@/queue/processors/CheckModeratorsActivityProcessorService.js';
 import type { OnApplicationShutdown } from '@nestjs/common';
 
@@ -33,6 +34,8 @@ export type AbuseReportPayload = {
 	resolved: boolean;
 	forwarded: boolean;
 	comment: string;
+	reason: AbuseReportReason | null;
+	snapshot: ReturnType<typeof serializeAbuseReportSnapshot>;
 	moderationNote: string;
 	resolvedAs: AbuseReportResolveType | null;
 };

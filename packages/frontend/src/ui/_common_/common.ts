@@ -35,7 +35,7 @@ function toolsMenuItems(): MenuItem[] {
 	}, {
 		type: 'link',
 		to: '/api-console',
-		text: 'API Console',
+		text: i18n.ts._apiConsole.title,
 		icon: 'ti ti-terminal-2',
 	}, {
 		type: 'link',
@@ -65,7 +65,7 @@ function toolsMenuItems(): MenuItem[] {
 	return items;
 }
 
-export function openInstanceMenu(ev: PointerEvent) {
+export function openInstanceMenu(ev: PointerEvent, opts?: { contextmenu?: boolean }) {
 	const menuItems: MenuItem[] = [];
 
 	menuItems.push({
@@ -184,6 +184,11 @@ export function openInstanceMenu(ev: PointerEvent) {
 		text: i18n.ts.aboutMisskey,
 		to: '/about-misskey',
 	});
+
+	if (opts?.contextmenu) {
+		os.contextMenu(menuItems, ev);
+		return;
+	}
 
 	os.popupMenu(menuItems, ev.currentTarget ?? ev.target, {
 		align: 'left',

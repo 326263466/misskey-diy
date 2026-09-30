@@ -7,6 +7,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <component
 	:is="self ? 'MkA' : 'a'" ref="el" :class="$style.root" class="_link" :[attr]="maybeRelativeUrl" :rel="rel ?? 'nofollow noopener'" :target="target"
 	:behavior="props.navigationBehavior"
+	@click="confirmExternalLink"
+	@auxclick="confirmExternalLink"
 	@contextmenu.stop="() => {}"
 >
 	<template v-if="!self">
@@ -33,6 +35,7 @@ import type { MkABehavior } from '@/components/global/MkA.vue';
 import * as os from '@/os.js';
 import { useTooltip } from '@/composables/use-tooltip.js';
 import { isEnabledUrlPreview } from '@/utility/url-preview.js';
+import { confirmExternalLink } from '@/utility/external-link.js';
 
 function safeURIDecode(str: string): string {
 	try {

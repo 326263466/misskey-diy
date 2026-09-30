@@ -10,15 +10,49 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts">
-export type MkABehavior = 'window' | 'browser' | null;
-</script>
-
-<script lang="ts" setup>
-import { computed, inject, useTemplateRef } from 'vue';
 import { url } from '@@/js/config.js';
 import * as os from '@/os.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { i18n } from '@/i18n.js';
+import type { Router } from '@/router.js';
+import type { MenuItem } from '@/types/menu.js';
+
+export type MkABehavior = 'window' | 'browser' | null;
+
+export function getLinkMenu(to: string, router: Router): MenuItem[] {
+	return [{
+		type: 'label',
+		text: to,
+	}, {
+		icon: 'ti ti-app-window',
+		text: i18n.ts.openInWindow,
+		action: () => {
+			os.pageWindow(to);
+		},
+	}, {
+		icon: 'ti ti-player-eject',
+		text: i18n.ts.showInPage,
+		action: () => {
+			router.pushByPath(to, 'forcePage');
+		},
+	}, { type: 'divider' }, {
+		icon: 'ti ti-external-link',
+		text: i18n.ts.openInNewTab,
+		action: () => {
+			window.open(to, '_blank', 'noopener');
+		},
+	}, {
+		icon: 'ti ti-link',
+		text: i18n.ts.copyLink,
+		action: () => {
+			copyToClipboard(`${url}${to}`);
+		},
+	}];
+}
+</script>
+
+<script lang="ts" setup>
+import { computed, inject, useTemplateRef } from 'vue';
 import { useRouter } from '@/router.js';
 
 const props = withDefaults(defineProps<{
@@ -52,34 +86,7 @@ const active = computed(() => {
 function onContextmenu(ev: PointerEvent) {
 	const selection = window.getSelection();
 	if (selection && selection.toString() !== '') return;
-	os.contextMenu([{
-		type: 'label',
-		text: props.to,
-	}, {
-		icon: 'ti ti-app-window',
-		text: i18n.ts.openInWindow,
-		action: () => {
-			os.pageWindow(props.to);
-		},
-	}, {
-		icon: 'ti ti-player-eject',
-		text: i18n.ts.showInPage,
-		action: () => {
-			router.pushByPath(props.to, 'forcePage');
-		},
-	}, { type: 'divider' }, {
-		icon: 'ti ti-external-link',
-		text: i18n.ts.openInNewTab,
-		action: () => {
-			window.open(props.to, '_blank', 'noopener');
-		},
-	}, {
-		icon: 'ti ti-link',
-		text: i18n.ts.copyLink,
-		action: () => {
-			copyToClipboard(`${url}${props.to}`);
-		},
-	}], ev);
+	os.contextMenu(getLinkMenu(props.to, router), ev);
 }
 
 function openWindow() {

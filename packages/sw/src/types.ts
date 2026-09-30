@@ -46,7 +46,7 @@ export type BadgeNames =
 	| 'chart-arrows'
 	| 'circle-check'
 	| 'medal'
-	| 'messages'
+	| 'message-dots'
 	| 'plus'
 	| 'quote'
 	| 'repeat'

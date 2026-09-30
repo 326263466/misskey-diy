@@ -6,8 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
 	<div class="_spacer" style="--MI_SPACER-w: 1400px;">
-		<div v-if="tab === 'explore'">
-			<MkFoldableSection class="_margin">
+		<div v-if="tab === 'explore'" class="_gaps">
+			<MkFoldableSection>
 				<template #header><i class="ti ti-clock"></i>{{ i18n.ts.recentPosts }}</template>
 				<MkPagination v-slot="{items}" :paginator="recentPostsPaginator">
 					<div :class="$style.items">
@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</MkPagination>
 			</MkFoldableSection>
-			<MkFoldableSection class="_margin">
+			<MkFoldableSection>
 				<template #header><i class="ti ti-comet"></i>{{ i18n.ts.popularPosts }}</template>
 				<MkPagination v-slot="{items}" :paginator="popularPostsPaginator">
 					<div :class="$style.items">

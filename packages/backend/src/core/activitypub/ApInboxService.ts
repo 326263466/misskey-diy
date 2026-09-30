@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { In } from 'typeorm';
+import { In, IsNull } from 'typeorm';
 import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
@@ -555,26 +555,34 @@ export class ApInboxService {
 
 	@bindThis
 	private async flag(actor: MiRemoteUser, activity: IFlag): Promise<string> {
-		// objectは `(User|Note) | (User|Note)[]` だけど、全パターンDBスキーマと対応させられないので
-		// 対象ユーザーは一番最初のユーザー として あとはコメントとして格納する
 		const uris = getApIds(activity.object);
-
+		const noteIds = uris
+			.filter(uri => uri.startsWith(this.config.url + '/notes/'))
+			.map(uri => uri.slice((this.config.url + '/notes/').length))
+			.filter(id => /^[a-zA-Z0-9]+$/.test(id));
+		const notes = await this.notesRepository.findBy({ id: In(noteIds), userHost: IsNull() });
 		const userIds = uris
 			.filter(uri => uri.startsWith(this.config.url + '/users/'))
 			.map(uri => uri.split('/').at(-1))
 			.filter(x => x != null);
 		const users = await this.usersRepository.findBy({
-			id: In(userIds),
+			id: In([...userIds, ...notes.map(note => note.userId)]),
+			host: IsNull(),
 		});
 		if (users.length < 1) return 'skip';
 
-		await this.abuseReportService.report([{
-			targetUserId: users[0].id,
-			targetUserHost: users[0].host,
-			reporterId: actor.id,
-			reporterHost: actor.host,
-			comment: `${activity.content}\n${JSON.stringify(uris, null, 2)}`,
-		}]);
+		await this.abuseReportService.report(users.flatMap(user => {
+			const userNotes = notes.filter(note => note.userId === user.id);
+			const targets = userNotes.length > 0 ? userNotes.map(note => ({ type: 'note' as const, id: note.id })) : [{ type: 'user' as const }];
+			return targets.map(target => ({
+				targetUserId: user.id,
+				reporterId: actor.id,
+				requestId: null,
+				comment: activity.content ?? '',
+				reason: null,
+				target,
+			}));
+		}));
 
 		return 'ok';
 	}

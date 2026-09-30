@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 
 		<template #controls>
-			<div class="_spacer _gaps">
+			<div class="_spacer _spacerCard _gaps">
 				<div class="_gaps_s">
 					<MkFolder v-for="(layer, i) in layers" :key="layer.id" :defaultOpen="false" :canPage="false">
 						<template #label>

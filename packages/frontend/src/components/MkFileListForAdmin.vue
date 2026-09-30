@@ -16,12 +16,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkA
 				v-for="file in items"
 				:key="file.id"
-				v-tooltip.mfm="`${file.type}\n${bytes(file.size)}\n${dateString(file.createdAt)}\nby ${file.user ? '@' + Misskey.acct.toString(file.user) : 'system'}`"
+				v-tooltip="viewMode === 'grid' ? `${file.name} · ${file.type} · ${bytes(file.size)} · ${dateString(file.createdAt)} · ${file.user ? '@' + Misskey.acct.toString(file.user) : i18n.ts.system}` : undefined"
 				:to="`/admin/file/${file.id}`"
 				:class="[$style.file, '_button']"
+				:aria-label="file.name"
 			>
 				<div v-if="file.isSensitive" :class="$style.sensitiveLabel">{{ i18n.ts.sensitive }}</div>
-				<MkDriveFileThumbnail :class="$style.thumbnail" :file="file" fit="contain" :highlightWhenSensitive="true"/>
+				<MkDriveFileThumbnail :class="$style.thumbnail" :file="file" fit="contain" :highlightWhenSensitive="true" title=""/>
 				<div v-if="viewMode === 'list'" :class="$style.body">
 					<div>
 						<small style="opacity: 0.7;">{{ file.name }}</small>

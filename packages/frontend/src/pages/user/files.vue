@@ -5,8 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_spacer" style="--MI_SPACER-w: 1100px;">
-	<div :class="$style.root">
-		<MkPagination v-slot="{items}" :paginator="paginator" withControl>
+	<div>
+		<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard>
 			<div :class="$style.stream">
 				<MkNoteMediaGrid v-for="note in items" :note="note" square/>
 			</div>
@@ -36,10 +36,6 @@ const paginator = markRaw(new Paginator('users/notes', {
 </script>
 
 <style lang="scss" module>
-.root {
-	padding: 8px;
-}
-
 .stream {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));

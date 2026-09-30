@@ -128,11 +128,28 @@ export const navbarItemDef = reactive<{
 		to: '/channels',
 	},
 	chat: {
-		title: i18n.ts.directMessage_short,
-		icon: 'ti ti-messages',
+		title: i18n.ts.chat,
+		icon: 'ti ti-message-dots',
 		to: '/chat',
 		show: computed(() => $i != null && $i.policies.chatAvailability !== 'unavailable'),
 		indicated: computed(() => $i != null && $i.hasUnreadChatMessages),
+	},
+	checkin: {
+		title: i18n.ts._checkin.dailyCheckin,
+		icon: 'ti ti-calendar-check',
+		show: computed(() => $i != null),
+		to: '/checkin',
+	},
+	communityRanking: {
+		title: i18n.ts.communityRanking,
+		icon: 'ti ti-trophy',
+		to: '/community-ranking',
+	},
+	benefits: {
+		title: i18n.ts._benefits.title,
+		icon: 'ti ti-gift',
+		show: computed(() => $i != null),
+		to: '/my/benefits',
 	},
 	achievements: {
 		title: i18n.ts.achievements,

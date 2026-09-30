@@ -380,7 +380,7 @@ if (props.id) {
 	});
 }
 
-const title = ref(flash.value?.title ?? 'New Play');
+const title = ref(flash.value?.title ?? i18n.ts._play.defaultTitle);
 const summary = ref(flash.value?.summary ?? '');
 const permissions = ref([]); // not implemented yet
 const {
@@ -397,22 +397,22 @@ const script = ref(flash.value?.script ?? PRESET_DEFAULT);
 
 function selectPreset(ev: PointerEvent) {
 	os.popupMenu([{
-		text: 'Omikuji',
+		text: i18n.ts._play._presets.omikuji,
 		action: () => {
 			script.value = PRESET_OMIKUJI;
 		},
 	}, {
-		text: 'Shuffle',
+		text: i18n.ts.shuffle,
 		action: () => {
 			script.value = PRESET_SHUFFLE;
 		},
 	}, {
-		text: 'Quiz',
+		text: i18n.ts._play._presets.quiz,
 		action: () => {
 			script.value = PRESET_QUIZ;
 		},
 	}, {
-		text: 'Timeline viewer',
+		text: i18n.ts._play._presets.timeline,
 		action: () => {
 			script.value = PRESET_TIMELINE;
 		},
@@ -448,7 +448,7 @@ async function save() {
 function show() {
 	if (flash.value == null) {
 		os.alert({
-			text: 'Please save',
+			text: i18n.ts._play.saveBeforePreview,
 		});
 	} else {
 		os.pageWindow(`/play/${flash.value.id}`);

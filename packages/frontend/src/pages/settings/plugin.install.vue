@@ -43,7 +43,7 @@ async function install() {
 	} catch (err: any) {
 		os.alert({
 			type: 'error',
-			title: 'Install failed',
+			title: i18n.ts._externalResourceInstaller._errors._pluginInstallFailed.title,
 			text: err.toString() ?? null,
 		});
 	}

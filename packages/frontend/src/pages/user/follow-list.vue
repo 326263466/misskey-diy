@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div>
-	<MkPagination v-slot="{items}" :paginator="type === 'following' ? followingPaginator : followersPaginator" withControl>
+	<MkPagination v-slot="{items}" :paginator="paginator">
 		<div :class="$style.users">
 			<MkUserInfo v-for="user in items.map(x => type === 'following' ? x.followee! : x.follower!)" :key="user.id" :user="user"/>
 		</div>
@@ -38,6 +38,10 @@ const followersPaginator = markRaw(new Paginator('users/followers', {
 		userId: props.user.id,
 	})),
 }));
+
+const paginator = computed(() => props.type === 'following' ? followingPaginator : followersPaginator);
+
+defineExpose({ paginator });
 </script>
 
 <style lang="scss" module>

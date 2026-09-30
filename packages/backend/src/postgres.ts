@@ -85,6 +85,11 @@ import { MiChatRoom } from '@/models/ChatRoom.js';
 import { MiChatRoomMembership } from '@/models/ChatRoomMembership.js';
 import { MiChatRoomInvitation } from '@/models/ChatRoomInvitation.js';
 import { MiBubbleGameRecord } from '@/models/BubbleGameRecord.js';
+import { MiUserCheckin } from '@/models/UserCheckin.js';
+import { MiUserCheckinExchange } from '@/models/UserCheckinExchange.js';
+import { MiUserCheckinCardBatch } from '@/models/UserCheckinCardBatch.js';
+import { MiCheckinRedemptionCode } from '@/models/CheckinRedemptionCode.js';
+import { MiCheckinRedemptionClaim } from '@/models/CheckinRedemptionClaim.js';
 import { MiReversiGame } from '@/models/ReversiGame.js';
 import { MiChatApproval } from '@/models/ChatApproval.js';
 import { MiSystemAccount } from '@/models/SystemAccount.js';
@@ -255,6 +260,11 @@ export const entities = [
 	MiChatRoomInvitation,
 	MiChatApproval,
 	MiBubbleGameRecord,
+	MiUserCheckin,
+	MiUserCheckinExchange,
+	MiUserCheckinCardBatch,
+	MiCheckinRedemptionCode,
+	MiCheckinRedemptionClaim,
 	MiReversiGame,
 	...charts,
 ];

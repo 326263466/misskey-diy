@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div :class="$style.value" class="_selectable">
 		<slot name="value"></slot>
-		<button v-if="copy" v-tooltip="i18n.ts.copy" class="_textButton" style="margin-left: 0.5em;" @click="copy_"><i class="ti ti-copy"></i></button>
+		<button v-if="copy" v-tooltip="i18n.ts.copy" class="_textButton" style="margin-left: 0.5em;" :aria-label="i18n.ts.copy" @click="copy_"><i class="ti ti-copy"></i></button>
 	</div>
 </div>
 </template>
@@ -38,15 +38,19 @@ const copy_ = () => {
 .root {
 	&.oneline {
 		display: flex;
+		// 标签按内容自适应宽度, 与数据之间只保留固定间距,
+		// 不再用 30%/70% 分栏导致短标签后出现大片空白
+		gap: 16px;
 
 		.key {
-			width: 30%;
+			flex-shrink: 0;
 			font-size: 1em;
-			padding: 0 8px 0 0;
+			padding: 0;
 		}
 
 		.value {
-			width: 70%;
+			flex: 1;
+			min-width: 0;
 			white-space: nowrap;
 			overflow: hidden;
 			text-overflow: ellipsis;

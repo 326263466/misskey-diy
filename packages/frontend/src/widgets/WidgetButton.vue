@@ -28,7 +28,7 @@ const widgetPropsDef = {
 	label: {
 		type: 'string',
 		label: i18n.ts.label,
-		default: 'BUTTON',
+		default: i18n.ts._widgets.button,
 	},
 	colored: {
 		type: 'boolean',
@@ -68,7 +68,7 @@ async function run() {
 		err: (err) => {
 			os.alert({
 				type: 'error',
-				title: 'AiScript Error',
+				title: i18n.ts._aiscript.runtimeError,
 				text: String(err),
 			});
 		},
@@ -83,7 +83,7 @@ async function run() {
 	} catch (err) {
 		os.alert({
 			type: 'error',
-			title: 'Syntax Error',
+			title: i18n.ts._aiscript.syntaxError,
 			text: String(err),
 		});
 		return;
@@ -93,7 +93,7 @@ async function run() {
 	} catch (err) {
 		os.alert({
 			type: 'error',
-			title: 'AiScript Internal Error',
+			title: i18n.ts._aiscript.internalError,
 			text: String(err),
 		});
 	}

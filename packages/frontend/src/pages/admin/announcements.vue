@@ -60,7 +60,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkRadios
 							v-model="announcement.display"
 							:options="[
-								{ value: 'normal', label: i18n.ts.normal },
+								{ value: 'normal', label: i18n.ts._announcement.normalDisplay },
 								{ value: 'banner', label: i18n.ts.banner },
 								{ value: 'dialog', label: i18n.ts.dialog },
 							]"
@@ -113,7 +113,7 @@ const {
 	def: announcementsStatusDef,
 } = useMkSelect({
 	items: [
-		{ label: i18n.ts.active, value: 'active' },
+		{ label: i18n.ts._announcement.active, value: 'active' },
 		{ label: i18n.ts.archived, value: 'archived' },
 	],
 	initialValue: 'active',
@@ -141,7 +141,7 @@ function add() {
 	announcements.value.unshift({
 		_id: genId(),
 		id: null,
-		title: 'New announcement',
+			title: i18n.ts._announcement.newTitle,
 		text: '',
 		imageUrl: null,
 		icon: 'info',

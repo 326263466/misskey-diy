@@ -22,9 +22,14 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { UserService } from '@/core/UserService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
 import { MetaService } from '@/core/MetaService.js';
+import { NotificationService } from '@/core/NotificationService.js';
+import { LoggerService } from '@/core/LoggerService.js';
+import Logger from '@/logger.js';
 
 @Injectable()
 export class SignupService {
+	private logger: Logger;
+
 	constructor(
 		@Inject(DI.db)
 		private db: DataSource,
@@ -45,7 +50,10 @@ export class SignupService {
 		private systemAccountService: SystemAccountService,
 		private metaService: MetaService,
 		private usersChart: UsersChart,
+		private notificationService: NotificationService,
+		private loggerService: LoggerService,
 	) {
+		this.logger = this.loggerService.getLogger('signup');
 	}
 
 	@bindThis
@@ -53,6 +61,7 @@ export class SignupService {
 		username: MiUser['username'];
 		password?: string | null;
 		passwordHash?: MiUserProfile['password'] | null;
+		verifiedEmail?: string;
 		host?: string | null;
 		ignorePreservedUsernames?: boolean;
 	}) {
@@ -146,6 +155,8 @@ export class SignupService {
 				userId: account.id,
 				autoAcceptFollowed: true,
 				password: hash,
+				email: opts.verifiedEmail ?? null,
+				emailVerified: opts.verifiedEmail != null,
 			}));
 
 			await transactionalEntityManager.save(new MiUsedUsername({
@@ -159,6 +170,16 @@ export class SignupService {
 
 		if (this.meta.rootUserId == null) {
 			await this.metaService.update({ rootUserId: account.id });
+		}
+
+		if (account.host == null) {
+			// Only completed accounts reach this point, including email-verified signups.
+			// A notification outage must not turn an already committed signup into an error.
+			try {
+				await this.notificationService.createSystemNotification(account.id, 'welcome');
+			} catch (err) {
+				this.logger.warn(`Could not send welcome notification to ${account.id}`, { error: err });
+			}
 		}
 
 		return { account, secret };

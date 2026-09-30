@@ -21,6 +21,9 @@ import { store } from '@/store.js';
 import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
 import { chartVLine } from '@/utility/chart-vline.js';
 import { initChart } from '@/utility/init-chart.js';
+import { formatChartDate } from '@/utility/chart-date.js';
+import { dateOnly } from '@/filters/date.js';
+import { i18n } from '@/i18n.js';
 
 initChart();
 
@@ -71,7 +74,7 @@ async function renderChart() {
 		data: {
 			datasets: [{
 				parsing: false,
-				label: 'Read',
+				label: i18n.ts._dashboard.read,
 				data: format(raw.read).slice().reverse(),
 				pointRadius: 0,
 				borderWidth: 0,
@@ -83,7 +86,7 @@ async function renderChart() {
 				fill: true,
 			}, {
 				parsing: false,
-				label: 'Write',
+				label: i18n.ts._dashboard.write,
 				data: format(raw.write).slice().reverse(),
 				pointRadius: 0,
 				borderWidth: 0,
@@ -111,10 +114,6 @@ async function renderChart() {
 					offset: true,
 					time: {
 						unit: 'day',
-						displayFormats: {
-							day: 'M/d',
-							month: 'Y/M',
-						},
 					},
 					grid: {
 						display: false,
@@ -123,6 +122,7 @@ async function renderChart() {
 						display: true,
 						maxRotation: 0,
 						autoSkipPadding: 8,
+						callback: value => formatChartDate(value),
 					},
 				},
 				y: {
@@ -152,6 +152,9 @@ async function renderChart() {
 						duration: 0,
 					},
 					external: externalTooltipHandler,
+					callbacks: {
+						title: items => dateOnly(items[0].parsed.x),
+					},
 				},
 				...({ // TSを黙らすため
 					gradient,

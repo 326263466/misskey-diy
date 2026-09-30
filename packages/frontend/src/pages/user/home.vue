@@ -5,13 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <component :is="prefer.s.enablePullToRefresh ? MkPullToRefresh : 'div'" :refresher="() => reload()">
-	<div class="_spacer" :style="{ '--MI_SPACER-w': narrow ? '800px' : '1100px' }">
+	<div class="_spacer" :style="{ '--MI_SPACER-w': singleColumn ? '100%' : narrow ? '800px' : '1100px' }">
 		<div ref="rootEl" class="ftskorzw" :class="{ wide: !narrow }" style="container-type: inline-size;">
 			<div class="main _gaps">
-				<!-- TODO -->
-				<!-- <div class="punished" v-if="user.isSuspended"><i class="ti ti-alert-triangle" style="margin-right: 8px;"></i> {{ i18n.ts.userSuspended }}</div> -->
-				<!-- <div class="punished" v-if="user.isSilenced"><i class="ti ti-alert-triangle" style="margin-right: 8px;"></i> {{ i18n.ts.userSilenced }}</div> -->
-
 				<div class="profile _gaps">
 					<MkAccountMoved v-if="user.movedTo" :movedTo="user.movedTo"/>
 					<MkRemoteCaution v-if="user.host != null" :href="user.url ?? user.uri!"/>
@@ -22,25 +18,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div class="banner" :style="style"></div>
 							<div class="fade"></div>
 							<div class="title">
-								<MkUserName class="name" :user="user" :nowrap="true"/>
-								<div class="bottom">
-									<span class="username"><MkAcct :user="user" :detail="true"/></span>
+								<div class="name" :class="$style.nameRow">
+									<MkUserName :class="$style.displayName" :user="user" :nowrap="true"/>
+									<button v-if="$i && memo" type="button" class="_button" :class="$style.memoButton" :aria-label="i18n.ts.editMemo" :disabled="isMemoBusy" @click="editMemo">#{{ memo }}</button>
+								</div>
+								<div class="bottom" :class="$style.bannerUserInfo">
+									<span class="username" :class="$style.bannerUsername"><MkAcct :user="user" :detail="true"/></span>
 									<span v-if="user.isLocked"><i class="ti ti-lock"></i></span>
 									<span v-if="user.isBot"><i class="ti ti-robot"></i></span>
-									<button v-if="$i && !isEditingMemo && !memoDraft" class="_button add-note-button" @click="showMemoTextarea">
+									<button v-if="$i && !memo" type="button" class="_button add-note-button" :disabled="isMemoBusy" @click="editMemo">
 										<i class="ti ti-edit"></i> {{ i18n.ts.addMemo }}
 									</button>
 								</div>
 							</div>
 							<span v-if="$i && $i.id != user.id && user.isFollowed" class="followed">{{ i18n.ts.followsYou }}</span>
 							<div class="actions">
-								<button class="menu _button" @click="menu"><i class="ti ti-dots"></i></button>
+								<button v-tooltip="i18n.ts.more" class="menu _button" :aria-label="i18n.ts.more" @click="menu"><i class="ti ti-dots"></i></button>
 								<MkFollowButton v-if="$i?.id != user.id" v-model:user="user" :inline="true" :transparent="false" :full="true" class="koudoku"/>
 							</div>
 						</div>
 						<MkAvatar class="avatar" :user="user" indicator/>
 						<div class="title">
-							<MkUserName :user="user" :nowrap="false" class="name"/>
+							<div class="name" :class="[$style.nameRow, $style.centeredNameRow]">
+								<MkUserName :class="$style.displayName" :user="user" :nowrap="true"/>
+								<button v-if="$i && memo" type="button" class="_button" :class="$style.memoButton" :aria-label="i18n.ts.editMemo" :disabled="isMemoBusy" @click="editMemo">#{{ memo }}</button>
+							</div>
 							<div class="bottom">
 								<span class="username"><MkAcct :user="user" :detail="true"/></span>
 								<span v-if="user.isLocked"><i class="ti ti-lock"></i></span>
@@ -62,26 +64,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</span>
 						</div>
 						<div v-if="iAmModerator" class="moderationNote">
-							<MkTextarea v-if="editModerationNote || (moderationNote != null && moderationNote !== '')" v-model="moderationNote" manualSave>
-								<template #label>{{ i18n.ts.moderationNote }}</template>
-								<template #caption>{{ i18n.ts.moderationNoteDescription }}</template>
-							</MkTextarea>
-							<div v-else>
-								<MkButton small @click="editModerationNote = true">{{ i18n.ts.addModerationNote }}</MkButton>
-							</div>
-						</div>
-						<div v-if="isEditingMemo || memoDraft" class="memo" :class="{'no-memo': !memoDraft}">
-							<div class="heading">{{ i18n.ts.memo }}</div>
-							<textarea
-								ref="memoTextareaEl"
-								v-model="memoDraft"
-								rows="1"
-								@focus="isEditingMemo = true"
-								@blur="updateMemo"
-								@input="adjustMemoTextarea"
-							></textarea>
+							<MkModerationNote v-model="moderationNote" :save="saveModerationNote"/>
 						</div>
 						<div class="description">
+							<span class="descriptionLabel">{{ i18n.ts._profile.description }}</span>
 							<MkOmit>
 								<Mfm v-if="user.description" :text="user.description" :isNote="false" :author="user" class="_selectable"/>
 								<p v-else class="empty">{{ i18n.ts.noAccountDescription }}</p>
@@ -91,6 +77,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<dl v-if="user.location" class="field">
 								<dt class="name"><i class="ti ti-map-pin ti-fw"></i> {{ i18n.ts.location }}</dt>
 								<dd class="value">{{ user.location }}</dd>
+							</dl>
+							<dl v-if="user.company" class="field">
+								<dt class="name"><i class="ti ti-building ti-fw" aria-hidden="true"></i> {{ i18n.ts._profile.company }}</dt>
+								<dd class="value">{{ user.company }}</dd>
+							</dl>
+							<dl v-if="user.jobTitle" class="field">
+								<dt class="name"><i class="ti ti-briefcase ti-fw" aria-hidden="true"></i> {{ i18n.ts._profile.jobTitle }}</dt>
+								<dd class="value">{{ user.jobTitle }}</dd>
 							</dl>
 							<dl v-if="user.birthday" class="field">
 								<dt class="name"><i class="ti ti-cake ti-fw"></i> {{ i18n.ts.birthday }}</dt>
@@ -114,16 +108,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<div class="status">
 							<MkA :to="userPage(user, 'notes')">
-								<b>{{ number(user.notesCount) }}</b>
 								<span>{{ i18n.ts.notes }}</span>
+								<b>{{ number(user.notesCount) }}</b>
 							</MkA>
 							<MkA v-if="isFollowingVisibleForMe(user)" :to="userPage(user, 'following')">
-								<b>{{ number(user.followingCount) }}</b>
 								<span>{{ i18n.ts.following }}</span>
+								<b>{{ number(user.followingCount) }}</b>
 							</MkA>
 							<MkA v-if="isFollowersVisibleForMe(user)" :to="userPage(user, 'followers')">
-								<b>{{ number(user.followersCount) }}</b>
 								<span>{{ i18n.ts.followers }}</span>
+								<b>{{ number(user.followersCount) }}</b>
 							</MkA>
 						</div>
 					</div>
@@ -167,10 +161,9 @@ import MkFollowButton from '@/components/MkFollowButton.vue';
 import MkAccountMoved from '@/components/MkAccountMoved.vue';
 import MkFukidashi from '@/components/MkFukidashi.vue';
 import MkRemoteCaution from '@/components/MkRemoteCaution.vue';
-import MkTextarea from '@/components/MkTextarea.vue';
+import MkModerationNote from '@/components/MkModerationNote.vue';
 import MkOmit from '@/components/MkOmit.vue';
 import MkInfo from '@/components/MkInfo.vue';
-import MkButton from '@/components/MkButton.vue';
 import { getUserMenu } from '@/utility/get-user-menu.js';
 import number from '@/filters/number.js';
 import { userPage } from '@/filters/user.js';
@@ -179,7 +172,6 @@ import { i18n } from '@/i18n.js';
 import { $i, iAmModerator } from '@/i.js';
 import { dateString } from '@/filters/date.js';
 import { confetti } from '@/utility/confetti.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/utility/isFfVisibleForMe.js';
 import { useRouter } from '@/router.js';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
@@ -187,6 +179,8 @@ import MkSparkle from '@/components/MkSparkle.vue';
 import { prefer } from '@/preferences.js';
 import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
 import { isBirthday } from '@/utility/is-birthday.js';
+import { useUserStatistics } from '@/composables/use-user-statistics.js';
+import { useUserStatisticsVisibility } from '@/composables/use-user-statistics-visibility.js';
 
 function calcAge(birthdate: string): number {
 	const date = new Date(birthdate);
@@ -209,9 +203,11 @@ const XTimeline = defineAsyncComponent(() => import('./index.timeline.vue'));
 
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed;
+	singleColumn?: boolean;
 	/** Test only; MkNotesTimeline currently causes problems in vitest */
 	disableNotes?: boolean;
 }>(), {
+	singleColumn: false,
 	disableNotes: false,
 });
 
@@ -222,18 +218,20 @@ const emit = defineEmits<{
 const router = useRouter();
 
 const user = ref(props.user);
-const narrow = ref<null | boolean>(null);
-const rootEl = useTemplateRef('rootEl');
-const bannerEl = useTemplateRef('bannerEl');
-const memoTextareaEl = useTemplateRef('memoTextareaEl');
-const memoDraft = ref(props.user.memo);
-const isEditingMemo = ref(false);
-const moderationNote = ref(props.user.moderationNote ?? '');
-const editModerationNote = ref(false);
-
-watch(moderationNote, async () => {
-	await misskeyApi('admin/update-user-note', { userId: props.user.id, text: moderationNote.value });
+watch(() => props.user, value => {
+	user.value = value;
 });
+const narrow = ref<null | boolean>(props.singleColumn ? true : null);
+const rootEl = useTemplateRef('rootEl');
+useUserStatistics(user, { active: useUserStatisticsVisibility(rootEl) });
+const bannerEl = useTemplateRef('bannerEl');
+const memo = ref(props.user.memo ?? '');
+const isMemoBusy = ref(false);
+const moderationNote = ref(props.user.moderationNote ?? '');
+
+async function saveModerationNote(value: string) {
+	await os.apiWithDialog('admin/update-user-note', { userId: props.user.id, text: value });
+}
 
 const style = computed(() => {
 	if (props.user.bannerUrl == null) return {};
@@ -257,29 +255,29 @@ function menu(ev: PointerEvent) {
 	os.popupMenu(menu, ev.currentTarget ?? ev.target).finally(cleanup);
 }
 
-function showMemoTextarea() {
-	isEditingMemo.value = true;
-	nextTick(() => {
-		memoTextareaEl.value?.focus();
-	});
+async function editMemo() {
+	if (isMemoBusy.value) return;
+	isMemoBusy.value = true;
+	const userId = props.user.id;
+	const previousMemo = memo.value;
+	try {
+		const { canceled, result } = await os.inputText({
+			title: previousMemo ? i18n.ts.editMemo : i18n.ts.addMemo,
+			default: previousMemo,
+		});
+		if (canceled || result === previousMemo) return;
+
+		await os.apiWithDialog('users/update-memo', { memo: result, userId });
+		if (userId === props.user.id) memo.value = result;
+	} catch {
+		return;
+	} finally {
+		isMemoBusy.value = false;
+	}
 }
 
-function adjustMemoTextarea() {
-	if (!memoTextareaEl.value) return;
-	memoTextareaEl.value.style.height = '0px';
-	memoTextareaEl.value.style.height = `${memoTextareaEl.value.scrollHeight}px`;
-}
-
-async function updateMemo() {
-	await misskeyApi('users/update-memo', {
-		memo: memoDraft.value,
-		userId: props.user.id,
-	});
-	isEditingMemo.value = false;
-}
-
-watch([props.user], () => {
-	memoDraft.value = props.user.memo;
+watch([() => props.user.id, () => props.user.memo], () => {
+	memo.value = props.user.memo ?? '';
 });
 
 async function reload() {
@@ -318,7 +316,7 @@ function disposeBannerParallaxResizeObserver() {
 }
 
 onMounted(() => {
-	narrow.value = rootEl.value!.clientWidth < 1000;
+	narrow.value = props.singleColumn || rootEl.value!.clientWidth < 1000;
 
 	if (isBirthday(user.value)) {
 		confetti({
@@ -326,10 +324,7 @@ onMounted(() => {
 		});
 	}
 
-	nextTick(() => {
-		calcBannerParallax();
-		adjustMemoTextarea();
-	});
+	nextTick(calcBannerParallax);
 
 	initCalcBannerParallax();
 });
@@ -402,6 +397,8 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 						position: absolute;
 						top: 12px;
 						right: 12px;
+						display: flex;
+						align-items: center;
 						-webkit-backdrop-filter: var(--MI-blur, blur(8px));
 						backdrop-filter: var(--MI-blur, blur(8px));
 						background: rgba(0, 0, 0, 0.2);
@@ -409,7 +406,8 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 						border-radius: 24px;
 
 						> .menu {
-							vertical-align: bottom;
+							display: grid;
+							place-items: center;
 							height: 31px;
 							width: 31px;
 							color: #fff;
@@ -419,7 +417,6 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 
 						> .koudoku {
 							margin-left: 4px;
-							vertical-align: bottom;
 						}
 					}
 
@@ -433,7 +430,6 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 						color: #fff;
 
 						> .name {
-							display: block;
 							margin: -10px;
 							padding: 10px;
 							line-height: 32px;
@@ -529,75 +525,78 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 					margin: 12px 24px 0 154px;
 				}
 
-				> .memo {
-					margin: 12px 24px 0 154px;
-					background: transparent;
-					color: var(--MI_THEME-fg);
-					border: 1px solid var(--MI_THEME-divider);
-					border-radius: 8px;
-					padding: 8px;
-					line-height: 0;
-
-					> .heading {
-						text-align: left;
-						color: color(from var(--MI_THEME-fg) srgb r g b / 0.5);
-						line-height: 1.5;
-						font-size: 85%;
-					}
-
-					textarea {
-						margin: 0;
-						padding: 0;
-						resize: none;
-						border: none;
-						outline: none;
-						width: 100%;
-						height: auto;
-						min-height: 0;
-						line-height: 1.5;
-						color: var(--MI_THEME-fg);
-						overflow: hidden;
-						background: transparent;
-						font-family: inherit;
-					}
-				}
-
 				> .description {
-					padding: 24px 24px 24px 154px;
-					font-size: 0.95em;
+					// 头像下悬 40px (170+120-250), 信息区从其下方开始
+					// 签名与资料/统计同款圆片: 「签名:内容」, 同高度同格式
+					display: flex;
+					width: fit-content;
+					max-width: 100%;
+					align-items: baseline;
+					gap: 6px;
+					margin: 48px 24px 12px;
+					padding: 6px 12px;
+					// panelHighlight 始终相对卡片偏移一档 (亮色调暗/暗色调亮);
+					// 用 bg 在暗色主题下比卡片更黑, 圆片会变成一个个黑洞
+					background: var(--MI_THEME-panelHighlight);
+					border-radius: 999px;
+					font-size: 0.9em;
 
-					> .empty {
+					> *:not(.descriptionLabel) {
+						min-width: 0;
+					}
+
+					> .descriptionLabel {
+						flex-shrink: 0;
+						color: var(--MI_THEME-fgTransparentWeak);
+
+						&::after {
+							content: ":";
+						}
+					}
+
+					.empty {
 						margin: 0;
-						opacity: 0.5;
+						opacity: 0.75;
 					}
 				}
 
 				> .fields {
-					padding: 24px;
+					// 资料条目做成「内容宽度」的灰色圆角小片, 横向排列、放不下自动换行,
+					// 灰底只包住内容本身, 避免通栏灰底右侧大片留白
+					display: flex;
+					flex-wrap: wrap;
+					align-items: center;
+					gap: 8px;
+					margin: 0 24px 12px;
+					padding: 0;
 					font-size: 0.9em;
-					border-top: solid 0.5px var(--MI_THEME-divider);
 
 					> .field {
-						display: flex;
-						padding: 0;
-						margin: 0;
+						display: inline-flex;
 						align-items: center;
-
-						&:not(:last-child) {
-							margin-bottom: 8px;
-						}
+						gap: 6px;
+						margin: 0;
+						padding: 6px 12px;
+						max-width: 100%;
+						background: var(--MI_THEME-panelHighlight);
+						border-radius: 999px;
 
 						> .name {
-							width: 30%;
+							max-width: 160px;
 							overflow: hidden;
 							white-space: nowrap;
 							text-overflow: ellipsis;
-							font-weight: bold;
-							text-align: center;
+							font-weight: normal;
+							color: var(--MI_THEME-fgTransparentWeak);
+
+							&::after {
+								content: ":";
+							}
 						}
 
 						> .value {
-							width: 70%;
+							min-width: 0;
+							max-width: 320px;
 							overflow: hidden;
 							white-space: nowrap;
 							text-overflow: ellipsis;
@@ -611,12 +610,18 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 
 				> .status {
 					display: flex;
-					padding: 24px;
-					border-top: solid 0.5px var(--MI_THEME-divider);
+					flex-wrap: wrap;
+					gap: 8px;
+					margin: 0 24px 24px;
+					padding: 0;
 
 					> a {
-						flex: 1;
-						text-align: center;
+						display: inline-flex;
+						align-items: baseline;
+						gap: 6px;
+						padding: 6px 12px;
+						background: var(--MI_THEME-panelHighlight);
+						border-radius: 999px;
 
 						&.active {
 							color: var(--MI_THEME-accent);
@@ -624,15 +629,19 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 
 						&:hover {
 							text-decoration: none;
-						}
-
-						> b {
-							display: block;
-							line-height: 16px;
+							background: color-mix(in srgb, var(--MI_THEME-fg) 8%, var(--MI_THEME-panelHighlight));
 						}
 
 						> span {
-							font-size: 70%;
+							color: var(--MI_THEME-fgTransparentWeak);
+
+							&::after {
+								content: ":";
+							}
+						}
+
+						> b {
+							font-weight: normal;
 						}
 					}
 				}
@@ -706,21 +715,17 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 					margin: 16px 16px 0 16px;
 				}
 
-				> .memo {
-					margin: 16px 16px 0 16px;
-				}
-
 				> .description {
-					padding: 16px;
-					text-align: center;
+					margin: 16px 16px 12px;
+					padding: 6px 12px;
 				}
 
 				> .fields {
-					padding: 16px;
+					margin: 0 16px 12px;
 				}
 
 				> .status {
-					padding: 16px;
+					margin: 0 16px 16px;
 				}
 			}
 
@@ -764,6 +769,53 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 </style>
 
 <style lang="scss" module>
+.bannerUserInfo {
+	display: flex;
+	align-items: center;
+	min-height: 28px;
+
+	> * {
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
+
+	> .bannerUsername {
+		flex-shrink: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+}
+
+.nameRow {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	line-height: 1.5;
+}
+
+.centeredNameRow {
+	justify-content: center;
+}
+
+.displayName {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.memoButton {
+	min-width: 0;
+	max-width: 50%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 14px;
+	font-weight: normal;
+	line-height: 1;
+	opacity: 0.7;
+}
+
 .tl {
 	background: var(--MI_THEME-bg);
 	border-radius: var(--MI-radius);

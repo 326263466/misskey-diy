@@ -15,31 +15,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 </div>
 <div v-else-if="note != null" ref="rootEl" :class="[$style.root, { [$style.children]: depth > 1 }]">
 	<div :class="[$style.main, { [$style.mainWithReplies]: hasVisibleReplies }]">
-		<div v-if="note.channel && !deleted" :class="$style.colorBar" :style="{ background: note.channel.color }"></div>
+		<div v-if="note.channel && !deleted" :class="$style.colorBar" :style="{ '--MI-channelColor': channelColor(note.channel.color) }"></div>
 		<MkAvatar :class="$style.avatar" :user="note.user" link preview/>
 		<div :class="$style.body">
 			<p v-if="deleted" :class="$style.deletedContent" role="status">{{ getDeletedText(deletedBy, true) }}</p>
 			<div v-else :class="$style.headerRow">
-				<MkNoteHeader :class="$style.header" :note="note" :showTime="false" :showAuthorBadge="isThreadAuthor"/>
+				<MkNoteHeader :class="$style.header" :note="note" :showAuthorBadge="isThreadAuthor"/>
 				<button v-tooltip="i18n.ts.more" type="button" class="_button" :class="[$style.action, $style.menu]" :aria-label="i18n.ts.more" @click="showMenu">
 					<i class="ti ti-dots"></i>
 				</button>
 			</div>
 			<div v-if="!deleted">
-				<p v-if="note.cw != null" :class="$style.cw">
-					<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'respect'"/>
-					<MkCwButton v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll"/>
-				</p>
+				<MkCwButton v-if="note.cw != null" v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll">
+					<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user" :nyaize="'respect'"/>
+				</MkCwButton>
 				<div v-show="note.cw == null || showContent">
 					<MkSubNoteContent :class="$style.text" :note="note" :omitMentionOf="omitMentionOf" :relocateTags="true"/>
 				</div>
 			</div>
 			<MkReactionsViewer v-if="!deleted && captured && captured.reactionCount > 0" :noteId="note.id" :reactions="captured.reactions" :reactionEmojis="captured.reactionEmojis" :myReaction="captured.myReaction"/>
-			<MkNoteTags v-if="!deleted && (note.cw == null || showContent)" :class="$style.tags" :tags="topics.tags"/>
+			<MkNoteTags v-if="!deleted && (note.cw == null || showContent)" :class="$style.tags" :tags="topics.tags" :channel="note.channel"/>
 			<footer v-if="!deleted" :class="$style.footer">
-				<MkA :class="$style.time" :to="notePage(note)"><MkTime :time="note.createdAt"/></MkA>
-				<button v-tooltip="i18n.ts.like" type="button" class="_button" :class="[$style.action, { [$style.liked]: captured?.isLiked }]" :aria-label="i18n.ts.like" :aria-pressed="captured?.isLiked ?? false" :disabled="liking" @click="toggleLike">
-					<i :class="captured?.isLiked ? 'ti ti-thumb-up-filled' : 'ti ti-thumb-up'"></i><span v-if="captured && captured.likeCount > 0">{{ captured.likeCount }}</span>
+				<button v-tooltip="captured?.isLiked ? i18n.ts.unlike : i18n.ts.like" type="button" class="_button" :class="[$style.action, { [$style.liked]: captured?.isLiked }]" :aria-label="captured?.isLiked ? i18n.ts.unlike : i18n.ts.like" :aria-pressed="captured?.isLiked ?? false" :disabled="liking" @click="toggleLike">
+					<i :class="captured?.isLiked ? 'ti ti-heart-filled' : 'ti ti-heart'"></i><span v-if="captured && captured.likeCount > 0">{{ captured.likeCount }}</span>
 				</button>
 				<button v-tooltip="i18n.ts.reply" type="button" class="_button" :class="$style.action" :aria-label="i18n.ts.reply" @click="replyToComment">
 					<i class="ti ti-message-circle"></i><span v-if="captured && captured.repliesCount > 0">{{ captured.repliesCount }}</span>
@@ -65,6 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
+import { channelColor } from '@/utility/channel-color.js';
 import { computed, inject, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
@@ -76,7 +75,6 @@ import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { userPage } from '@/filters/user.js';
 import { checkWordMute } from '@/utility/check-word-mute.js';
-import { notePage } from '@/filters/note.js';
 import { useNoteCapture, useNoteCaptureVisibility } from '@/composables/use-note-capture.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
 import { pleaseLogin } from '@/utility/please-login.js';
@@ -159,9 +157,9 @@ async function showMenu(ev: PointerEvent): Promise<void> {
 	const note = props.note;
 	if (note == null || deleted.value || !await pleaseLogin() || deleted.value) return;
 	const menu: MenuItem[] = note.userId === $i?.id ? [{
-		icon: 'ti ti-trash', text: i18n.ts.delete, danger: true, action: deleteComment,
-	}, {
 		icon: 'ti ti-edit', text: i18n.ts.edit, action: editComment,
+	}, {
+		icon: 'ti ti-trash', text: i18n.ts.delete, danger: true, action: deleteComment,
 	}] : [getAbuseNoteMenu(note, i18n.ts.reportAbuse), {
 		icon: 'ti ti-ban', text: i18n.ts.block, danger: true,
 		action: async () => {
@@ -232,6 +230,7 @@ if (hasMoreReplies.value) void loadReplies();
 </script>
 
 <style lang="scss" module>
+@use "../styles/channel-accent.scss";
 .root {
 	--avatarSize: 40px;
 	--columnGap: 8px;
@@ -270,12 +269,12 @@ if (hasMoreReplies.value) void loadReplies();
 }
 
 .colorBar {
+	@include channel-accent.bar;
 	position: absolute;
-	top: 8px;
-	left: 8px;
-	width: 5px;
-	height: calc(100% - 8px);
-	border-radius: 999px;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 3px;
 	pointer-events: none;
 }
 
@@ -299,14 +298,6 @@ if (hasMoreReplies.value) void loadReplies();
 	font-size: calc(1em - 1px);
 }
 
-.cw {
-	cursor: default;
-	display: block;
-	margin: 0;
-	padding: 0;
-	overflow-wrap: break-word;
-}
-
 .text {
 	margin: 0;
 	padding: 0;
@@ -324,13 +315,6 @@ if (hasMoreReplies.value) void loadReplies();
 	margin-top: 6px;
 	font-size: calc(1em - 1px);
 	color: var(--MI_THEME-fgTransparentWeak);
-}
-
-.time {
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .action {
@@ -358,7 +342,7 @@ if (hasMoreReplies.value) void loadReplies();
 
 .headerRow {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 8px;
 }
 

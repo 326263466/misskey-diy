@@ -265,8 +265,6 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 	> .group {
 		& + .group {
 			margin-top: 16px;
-			padding-top: 16px;
-			border-top: solid 0.5px var(--MI_THEME-divider);
 		}
 
 		> .title {
@@ -276,6 +274,10 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 		}
 
 		> .items {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+
 			> .item {
 				display: flex;
 				align-items: center;
@@ -386,6 +388,7 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 		align-items: center;
 		width: 100%;
 		box-sizing: border-box;
+		margin-bottom: 2px;
 		padding: 9px 16px 9px 8px;
 		border-radius: 9px;
 		font-size: 0.9em;

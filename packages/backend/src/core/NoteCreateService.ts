@@ -636,6 +636,8 @@ export class NoteCreateService implements OnApplicationShutdown {
 		}
 
 		const note = await this.insertNote(user, data, tags, emojis, mentionedUsers);
+		await this.incNotesCountOfUser(user);
+		this.globalEventService.publishUserStats(user.id);
 
 		// 提交后立即通知，避免延迟任务与删除操作交错。
 		if (data.reply) {
@@ -793,9 +795,6 @@ export class NoteCreateService implements OnApplicationShutdown {
 		if (data.visibility === 'public' || data.visibility === 'home') {
 			this.hashtagService.updateHashtags(user, tags);
 		}
-
-		// Increment notes count (user)
-		this.incNotesCountOfUser(user);
 
 		this.pushToTl(note, user);
 
@@ -1053,7 +1052,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 	@bindThis
 	private incNotesCountOfUser(user: { id: MiUser['id']; }) {
-		this.usersRepository.createQueryBuilder().update()
+		return this.usersRepository.createQueryBuilder().update()
 			.set({
 				updatedAt: new Date(),
 				notesCount: () => '"notesCount" + 1',
@@ -1112,12 +1111,28 @@ export class NoteCreateService implements OnApplicationShutdown {
 				select: { followerId: true },
 			});
 
-			for (const channelFollowing of channelFollowings) {
-				if (ordinaryReply) continue;
-				push(`homeTimeline:${channelFollowing.followerId}`, this.meta.perUserHomeTimelineCacheMax);
+			const followings = await this.followingsRepository.find({
+				where: { followeeId: user.id, followerHost: IsNull(), isFollowerHibernated: false },
+				select: { followerId: true, withReplies: true },
+			});
+			const homeRecipients = new Set(followings
+				.filter(following => !ordinaryReply || following.withReplies)
+				.map(following => following.followerId));
+			if (!ordinaryReply) {
+				if (note.userHost == null) homeRecipients.add(user.id);
+				for (const following of channelFollowings) homeRecipients.add(following.followerId);
+			}
+			for (const recipientId of homeRecipients) {
+				if (note.visibility === 'specified' && recipientId !== user.id && !note.visibleUserIds.includes(recipientId)) continue;
+				if (note.visibility === 'followers' && recipientId !== user.id && !followings.some(f => f.followerId === recipientId)) continue;
+				push(`homeTimeline:${recipientId}`, this.meta.perUserHomeTimelineCacheMax);
 				if (note.fileIds.length > 0 || updateFilesOnly) {
-					push(`homeTimelineWithFiles:${channelFollowing.followerId}`, this.meta.perUserHomeTimelineCacheMax / 2);
+					push(`homeTimelineWithFiles:${recipientId}`, this.meta.perUserHomeTimelineCacheMax / 2);
 				}
+			}
+			if (!ordinaryReply && note.visibility === 'public' && note.userHost == null) {
+				push('localTimeline', 1000);
+				if (note.fileIds.length > 0 || updateFilesOnly) push('localTimelineWithFiles', 500);
 			}
 		} else {
 			// TODO: キャッシュ？

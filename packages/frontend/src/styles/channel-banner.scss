@@ -1,0 +1,10 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+@mixin surface {
+	background-color: color-mix(in srgb, var(--MI_THEME-fg) 20%, var(--MI_THEME-panel));
+	background-position: center;
+	background-size: cover;
+}

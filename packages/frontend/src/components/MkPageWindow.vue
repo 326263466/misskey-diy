@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 	</template>
 
-	<div :class="$style.root" class="_forceShrinkSpacer">
+	<div :class="$style.root" class="_forceShrinkSpacer _pageContent">
 		<StackingRouterView v-if="prefer.s['experimental.stackingRouterView']" :key="reloadCount.toString() + ':stacking'" :router="windowRouter"/>
 		<RouterView v-else :key="reloadCount.toString() + ':non-stacking'" :router="windowRouter"/>
 	</div>
@@ -136,6 +136,7 @@ provideMetadataReceiver((metadataGetter) => {
 provideReactiveMetadata(pageMetadata);
 provide('shouldOmitHeaderTitle', true);
 provide('shouldHeaderThin', true);
+provide('shouldOmitHeaderBackButton', true);
 
 const contextmenu = computed(() => ([{
 	icon: 'ti ti-player-eject',
@@ -207,8 +208,28 @@ defineExpose({
 <style lang="scss" module>
 .root {
 	height: 100%;
+	padding: var(--MI-marginHalf);
+	box-sizing: border-box;
 	background: var(--MI_THEME-bg);
 
 	--MI-margin: var(--MI-marginHalf);
+
+	:global(._pageContainer),
+	:global(._pageScrollable),
+	:global(._pageScrollableReversed) {
+		scrollbar-width: none;
+
+		&::-webkit-scrollbar {
+			display: none;
+		}
+	}
+
+	:global(._pageContainer > ._pageLayout) {
+		padding: 0;
+	}
+
+	:global(._pageContainer > ._standalonePage) {
+		padding-top: 0;
+	}
 }
 </style>

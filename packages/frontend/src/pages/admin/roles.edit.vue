@@ -53,7 +53,7 @@ if (props.id) {
 	data.value = role.value;
 } else {
 	data.value = {
-		name: 'New Role',
+		name: i18n.ts._role.newName,
 		description: '',
 		isAdministrator: false,
 		isModerator: false,

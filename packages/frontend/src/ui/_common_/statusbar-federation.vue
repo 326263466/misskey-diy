@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			mode="default"
 		>
 			<MkMarqueeText :key="key" :duration="marqueeDuration" :reverse="marqueeReverse">
-				<span v-for="instance in instances" :key="instance.id" :class="[$style.item, { [$style.colored]: colored }]" :style="{ background: colored ? instance.themeColor ?? '' : '' }">
+				<span v-for="{ instance, style } in instanceItems" :key="instance.id" :class="[$style.item, { [$style.colored]: colored }]" :style="style">
 					<img :class="$style.icon" :src="getInstanceIcon(instance)" alt=""/>
 					<MkA :to="`/instance-info/${instance.host}`" :class="$style.host" class="_monospace">
 						{{ instance.host }}
@@ -31,8 +31,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
+import tinycolor from 'tinycolor2';
 import { useInterval } from '@@/js/use-interval.js';
 import MkMarqueeText from '@/components/MkMarqueeText.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -48,6 +49,15 @@ const props = defineProps<{
 }>();
 
 const instances = ref<Misskey.entities.FederationInstance[]>([]);
+const instanceItems = computed(() => instances.value.map(instance => {
+	const background = tinycolor(instance.themeColor ?? '');
+	// 半透明色は親背景によってコントラストが変わるため、標準の配色に戻す。
+	const style = props.colored && background.isValid() && background.getAlpha() === 1 ? {
+		backgroundColor: background.toHexString(),
+		color: tinycolor.mostReadable(background, ['black', 'white']).toHexString(),
+	} : undefined;
+	return { instance, style };
+}));
 const fetching = ref(true);
 const key = ref(0);
 
@@ -100,7 +110,6 @@ function getInstanceIcon(instance: Misskey.entities.FederationInstance): string 
 
 	&.colored {
 		padding-right: 1em;
-		color: #fff;
 	}
 }
 

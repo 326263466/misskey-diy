@@ -118,7 +118,7 @@ const plugins = prefer.r.plugins;
 async function uninstall(plugin: Plugin) {
 	const { canceled } = await os.confirm({
 		type: 'warning',
-		text: i18n.tsx.removeAreYouSure({ x: plugin.name }),
+		text: i18n.tsx._plugin.uninstallConfirm({ name: plugin.name }),
 	});
 	if (canceled) return;
 

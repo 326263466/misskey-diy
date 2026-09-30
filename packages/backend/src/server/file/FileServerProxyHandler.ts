@@ -237,10 +237,10 @@ export class FileServerProxyHandler {
 		request: FastifyRequest,
 		reply: FastifyReply,
 	): IImageStreamable {
-		if (request.headers.range && 'file' in file && file.file.size > 0) {
-			const { stream, start, end, chunksize } = createRangeStream(request.headers.range as string, file.file.size, file.path);
+		if (request.headers.range && 'size' in file && file.size > 0) {
+			const { stream, start, end, chunksize } = createRangeStream(request.headers.range as string, file.size, file.path);
 
-			reply.header('Content-Range', `bytes ${start}-${end}/${file.file.size}`);
+			reply.header('Content-Range', `bytes ${start}-${end}/${file.size}`);
 			reply.header('Accept-Ranges', 'bytes');
 			reply.header('Content-Length', chunksize);
 			reply.code(206);

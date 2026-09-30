@@ -30,6 +30,8 @@ export type FetchLike = (input: string, init?: {
 	headers: { [key in string]: string }
 }) => Promise<{
 	status: number;
+	headers: Pick<Headers, 'get'>;
+	blob(): Promise<Blob>;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	json(): Promise<any>;
 }>;
@@ -112,7 +114,8 @@ export class APIClient {
 				credentials: 'omit',
 				cache: 'no-cache',
 			}).then(async (res) => {
-				const body = res.status === 204 ? null : await res.json();
+				const isBinary = res.status === 200 && res.headers.get('Content-Type')?.split(';', 1)[0].trim().toLowerCase() === 'application/octet-stream';
+				const body = res.status === 204 ? null : isBinary ? await res.blob() : await res.json();
 
 				if (res.status === 200 || res.status === 204) {
 					resolve(body);

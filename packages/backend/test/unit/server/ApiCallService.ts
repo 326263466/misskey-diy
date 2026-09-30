@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { Readable } from 'node:stream';
+import Fastify from 'fastify';
 import { describe, expect, test, vi } from 'vitest';
 import { ApiCallService } from '@/server/api/ApiCallService.js';
 import Logger from '@/logger.js';
@@ -93,6 +95,64 @@ describe('ApiCallService structured error logging', () => {
 			service.dispose();
 			envOption.quiet = previousQuiet;
 			logManager.setBackend(new PrettyConsoleBackend({ output: () => undefined }));
+		}
+	});
+});
+
+describe('ApiCallService binary responses', () => {
+	test('delivers exact bytes as a private download without content sniffing or caching', async () => {
+		const { service } = createService();
+		const server = Fastify();
+		const original = Buffer.from([0, 255, 42, 128, 13, 10]);
+		const endpoint = {
+			name: 'binary-test',
+			meta: { responseType: 'binary' },
+			params: {},
+			exec: vi.fn().mockResolvedValue(Readable.from(original)),
+		};
+		server.post('/evidence', async (request, reply) => {
+			await service.handleRequest(endpoint as never, request as never, reply);
+			return reply;
+		});
+		try {
+			const response = await server.inject({ method: 'POST', url: '/evidence', payload: {} });
+			expect(response.statusCode).toBe(200);
+			expect(response.rawPayload).toEqual(original);
+			expect(response.headers).toMatchObject({
+				'content-type': 'application/octet-stream',
+				'content-disposition': 'attachment',
+				'cache-control': 'private, no-store',
+				'x-content-type-options': 'nosniff',
+			});
+		} finally {
+			await server.close();
+			service.dispose();
+		}
+	});
+
+	test('keeps binary endpoint authentication failures as JSON errors', async () => {
+		const { service } = createService();
+		const server = Fastify();
+		const endpoint = {
+			name: 'binary-test',
+			meta: { responseType: 'binary', requireCredential: true, kind: 'read:admin:abuse-user-reports' },
+			params: {},
+			exec: vi.fn(),
+		};
+		server.post('/evidence', async (request, reply) => {
+			await service.handleRequest(endpoint as never, request as never, reply);
+			return reply;
+		});
+		try {
+			const response = await server.inject({ method: 'POST', url: '/evidence', payload: {} });
+			expect(response.statusCode).toBe(401);
+			expect(response.json()).toMatchObject({ error: { code: 'CREDENTIAL_REQUIRED' } });
+			expect(response.headers['content-type']).toContain('application/json');
+			expect(response.headers['content-disposition']).toBeUndefined();
+			expect(endpoint.exec).not.toHaveBeenCalled();
+		} finally {
+			await server.close();
+			service.dispose();
 		}
 	});
 });

@@ -327,6 +327,9 @@ export class UserFollowingService implements OnModuleInit {
 			this.perUserFollowingChart.update(follower, followee, true);
 		}
 
+		this.globalEventService.publishUserStats(follower.id);
+		this.globalEventService.publishUserStats(followee.id);
+
 		if (this.userEntityService.isLocalUser(follower) && !silent) {
 			// Publish follow event
 			this.userEntityService.pack(followee.id, follower, {
@@ -380,7 +383,7 @@ export class UserFollowingService implements OnModuleInit {
 
 		this.cacheService.userFollowingsCache.refresh(follower.id);
 
-		this.decrementFollowing(following.follower, following.followee);
+		await this.decrementFollowing(following.follower, following.followee);
 
 		if (!silent && this.userEntityService.isLocalUser(follower)) {
 			// Publish unfollow event
@@ -476,6 +479,9 @@ export class UserFollowingService implements OnModuleInit {
 
 			// TODO: adjust charts
 		}
+
+		this.globalEventService.publishUserStats(follower.id);
+		this.globalEventService.publishUserStats(followee.id);
 	}
 
 	@bindThis
@@ -521,6 +527,7 @@ export class UserFollowingService implements OnModuleInit {
 			followeeInbox: this.userEntityService.isRemoteUser(followee) ? followee.inbox : undefined,
 			followeeSharedInbox: this.userEntityService.isRemoteUser(followee) ? followee.sharedInbox : undefined,
 		});
+		this.globalEventService.publishUserStats(followee.id);
 
 		// Publish receiveRequest event
 		if (this.userEntityService.isLocalUser(followee)) {
@@ -573,6 +580,7 @@ export class UserFollowingService implements OnModuleInit {
 			followeeId: followee.id,
 			followerId: follower.id,
 		});
+		this.globalEventService.publishUserStats(followee.id);
 
 		this.userEntityService.pack(followee.id, followee, {
 			schema: 'MeDetailed',
@@ -677,6 +685,7 @@ export class UserFollowingService implements OnModuleInit {
 		if (!request) return;
 
 		await this.followRequestsRepository.delete(request.id);
+		this.globalEventService.publishUserStats(followee.id);
 	}
 
 	/**
@@ -699,7 +708,7 @@ export class UserFollowingService implements OnModuleInit {
 
 		await this.followingsRepository.delete(following.id);
 
-		this.decrementFollowing(following.follower, following.followee);
+		await this.decrementFollowing(following.follower, following.followee);
 	}
 
 	/**

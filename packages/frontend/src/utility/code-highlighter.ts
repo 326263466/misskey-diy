@@ -15,10 +15,12 @@ import defaultDarkTheme from '@@/themes/d-green-lime.json5';
 import { unique } from './array.js';
 import { deepClone } from './clone.js';
 import { deepMerge } from './merge.js';
+import type { BundledLanguage } from 'shiki/langs';
 import type { HighlighterCore, LanguageRegistration, ThemeRegistration, ThemeRegistrationRaw } from 'shiki/core';
 import { prefer } from '@/preferences.js';
 
-let _highlighter: HighlighterCore | null = null;
+let _highlighter: Promise<HighlighterCore> | null = null;
+const languageLoads = new Map<string, Promise<void>>();
 
 export async function getTheme(mode: 'light' | 'dark', getName: true): Promise<string>;
 export async function getTheme(mode: 'light' | 'dark', getName?: false): Promise<ThemeRegistration | ThemeRegistrationRaw>;
@@ -55,11 +57,33 @@ export async function getTheme(mode: 'light' | 'dark', getName = false): Promise
 	return darkPlus;
 }
 
-export async function getHighlighter(): Promise<HighlighterCore> {
-	if (!_highlighter) {
-		return await initHighlighter();
-	}
+export function getHighlighter(): Promise<HighlighterCore> {
+	_highlighter ??= initHighlighter().catch(error => {
+		_highlighter = null;
+		throw error;
+	});
 	return _highlighter;
+}
+
+export async function loadCodeLanguage(language: string): Promise<BundledLanguage | 'aiscript'> {
+	const highlighter = await getHighlighter();
+	const isAiScript = ['aiscript', 'is', 'ais', 'AiScript'].includes(language);
+	const bundle = bundledLanguagesInfo.find(info => info.id === language || info.aliases?.includes(language))
+		?? bundledLanguagesInfo.find(info => info.id === 'javascript')!;
+	const name = isAiScript ? 'aiscript' : bundle.id as BundledLanguage;
+
+	if (!highlighter.getLoadedLanguages().includes(name)) {
+		let loading = languageLoads.get(name);
+		if (!loading) {
+			loading = highlighter.loadLanguage(isAiScript
+				? async () => (await import('aiscript-vscode/aiscript/syntaxes/aiscript.tmLanguage.json')).default as unknown as LanguageRegistration
+				: bundle.import).finally(() => languageLoads.delete(name));
+			languageLoads.set(name, loading);
+		}
+		await loading;
+	}
+
+	return name;
 }
 
 async function initHighlighter() {
@@ -69,14 +93,10 @@ async function initHighlighter() {
 		...(await Promise.all([getTheme('light'), getTheme('dark')])),
 	]);
 
-	const jsLangInfo = bundledLanguagesInfo.find(t => t.id === 'javascript');
 	const highlighter = await createHighlighterCore({
 		engine: createJavaScriptRegexEngine({ forgiving: true }),
 		themes,
-		langs: [
-			...(jsLangInfo ? [async () => await jsLangInfo.import()] : []),
-			async () => (await import('aiscript-vscode/aiscript/syntaxes/aiscript.tmLanguage.json')).default as unknown as LanguageRegistration,
-		],
+		langs: [],
 	});
 
 	// TODO
@@ -92,8 +112,6 @@ async function initHighlighter() {
 	//		highlighter.loadTheme(newTheme);
 	//	}
 	//});
-
-	_highlighter = highlighter;
 
 	return highlighter;
 }

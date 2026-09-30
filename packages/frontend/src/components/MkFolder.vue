@@ -60,33 +60,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:leaveActiveClass="prefer.s.animation ? $style.transition_toggle_leaveActive : ''"
 				:enterFromClass="prefer.s.animation ? $style.transition_toggle_enterFrom : ''"
 				:leaveToClass="prefer.s.animation ? $style.transition_toggle_leaveTo : ''"
-				@enter="enter"
-				@afterEnter="afterEnter"
-				@leave="leave"
-				@afterLeave="afterLeave"
 			>
 				<KeepAlive>
-					<div v-show="opened">
-						<MkStickyContainer>
-							<template #header>
-								<div v-if="$slots.header" :class="$style.inBodyHeader">
-									<slot name="header"></slot>
-								</div>
-							</template>
+					<div v-show="opened" :class="$style.bodyContent">
+						<div :class="$style.bodyInner">
+							<MkStickyContainer>
+								<template #header>
+									<div v-if="$slots.header" :class="$style.inBodyHeader">
+										<slot name="header"></slot>
+									</div>
+								</template>
 
-							<div v-if="withSpacer" class="_spacer" :style="{ '--MI_SPACER-min': props.spacerMin + 'px', '--MI_SPACER-max': props.spacerMax + 'px' }">
-								<slot></slot>
-							</div>
-							<div v-else>
-								<slot></slot>
-							</div>
-
-							<template #footer>
-								<div v-if="$slots.footer" :class="$style.inBodyFooter">
-									<slot name="footer"></slot>
+								<div v-if="withSpacer" class="_spacer" :style="{ '--MI_SPACER-min': props.spacerMin + 'px', '--MI_SPACER-max': props.spacerMax + 'px' }">
+									<slot></slot>
 								</div>
-							</template>
-						</MkStickyContainer>
+								<div v-else>
+									<slot></slot>
+								</div>
+
+								<template #footer>
+									<div v-if="$slots.footer" :class="$style.inBodyFooter">
+										<slot name="footer"></slot>
+									</div>
+								</template>
+							</MkStickyContainer>
+						</div>
 					</div>
 				</KeepAlive>
 			</Transition>
@@ -130,42 +128,6 @@ const asPage = props.canPage && deviceKind === 'smartphone' && prefer.s['experim
 const bgSame = ref(false);
 const opened = ref(asPage ? false : props.defaultOpen);
 const openedAtLeastOnce = ref(opened.value);
-
-//#region interpolate-sizeに対応していないブラウザ向け（TODO: 主要ブラウザが対応したら消す）
-function enter(el: Element) {
-	if (CSS.supports('interpolate-size', 'allow-keywords')) return;
-	if (!(el instanceof HTMLElement)) return;
-
-	const elementHeight = el.getBoundingClientRect().height;
-	el.style.height = '0';
-	el.offsetHeight; // reflow
-	el.style.height = `${Math.min(elementHeight, props.maxHeight ?? Infinity)}px`;
-}
-
-function afterEnter(el: Element) {
-	if (CSS.supports('interpolate-size', 'allow-keywords')) return;
-	if (!(el instanceof HTMLElement)) return;
-
-	el.style.height = '';
-}
-
-function leave(el: Element) {
-	if (CSS.supports('interpolate-size', 'allow-keywords')) return;
-	if (!(el instanceof HTMLElement)) return;
-
-	const elementHeight = el.getBoundingClientRect().height;
-	el.style.height = `${elementHeight}px`;
-	el.offsetHeight; // reflow
-	el.style.height = '0';
-}
-
-function afterLeave(el: Element) {
-	if (CSS.supports('interpolate-size', 'allow-keywords')) return;
-	if (!(el instanceof HTMLElement)) return;
-
-	el.style.height = '';
-}
-//#endregion
 
 let pageId = pageFolderTeleportCount.value;
 pageFolderTeleportCount.value += 1000;
@@ -211,24 +173,15 @@ watch(opened, (isOpened) => {
 <style lang="scss" module>
 .transition_toggle_enterActive,
 .transition_toggle_leaveActive {
-	overflow-y: hidden; // 子要素のmarginが突き出るため clip を使ってはいけない
-	transition: opacity 0.3s, height 0.3s;
+	// 创建滚动容器会改变内部 sticky 头部的定位基准
+	overflow: clip;
+	// 与 MkFoldableSection 一致: 只过渡高度, 不混 opacity (图表/表单重内容的合成层反复升降会掉帧)
+	transition: grid-template-rows 0.25s;
 }
 
-@supports (interpolate-size: allow-keywords) {
-	.transition_toggle_enterFrom,
-	.transition_toggle_leaveTo {
-		height: 0;
-	}
-
-	.root {
-		interpolate-size: allow-keywords; // heightのtransitionを動作させるために必要
-	}
-}
-
-.transition_toggle_enterFrom,
-.transition_toggle_leaveTo {
-	opacity: 0;
+.bodyContent.transition_toggle_enterFrom,
+.bodyContent.transition_toggle_leaveTo {
+	grid-template-rows: 0fr;
 }
 
 .root {
@@ -241,15 +194,15 @@ watch(opened, (isOpened) => {
 	width: 100%;
 	box-sizing: border-box;
 	padding: 9px 12px 9px 12px;
-	background: var(--MI_THEME-folderHeaderBg);
+	// 与折叠卡片统一: 标题行用卡片色 (白), 内容区用画布浅色
+	background: var(--MI_THEME-panel);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
-	border-radius: 6px;
+	border-radius: var(--MI-cardRadius);
 	transition: border-radius 0.3s;
 
 	&:hover {
 		text-decoration: none;
-		background: var(--MI_THEME-folderHeaderHoverBg);
 	}
 
 	&:focus-within {
@@ -262,7 +215,7 @@ watch(opened, (isOpened) => {
 	}
 
 	&.opened {
-		border-radius: 6px 6px 0 0;
+		border-radius: var(--MI-cardRadius) var(--MI-cardRadius) 0 0;
 	}
 }
 
@@ -321,17 +274,27 @@ watch(opened, (isOpened) => {
 }
 
 .body {
-	background: var(--MI_THEME-panel);
-	border-radius: 0 0 6px 6px;
+	// 内容区用 panelHighlight: 主题里定义为「相对 panel 偏移一档」(亮色调暗 / 暗色调亮),
+	// 所以标题行与内容区始终是同一张卡片上的深浅两区。
+	// 不能用 --MI_THEME-bg —— 那是页面底色, 内容区会溶进页面, 展开后读成两块。
+	background: var(--MI_THEME-panelHighlight);
+	border-radius: 0 0 var(--MI-cardRadius) var(--MI-cardRadius);
 	container-type: inline-size;
 
-	&.bgSame {
-		background: var(--MI_THEME-bg);
-
-		.inBodyHeader {
-			background: color(from var(--MI_THEME-bg) srgb r g b / 0.75);
-		}
+	&.bgSame .inBodyHeader {
+		background: color(from var(--MI_THEME-panelHighlight) srgb r g b / 0.75);
 	}
+}
+
+.bodyContent {
+	display: grid;
+	grid-template-rows: 1fr;
+}
+
+.bodyInner {
+	// Keep sticky content at its natural height while its outer track collapses.
+	min-height: 0;
+	display: flow-root;
 }
 
 .inBodyHeader {
@@ -348,6 +311,6 @@ watch(opened, (isOpened) => {
 	backdrop-filter: var(--MI-blur, blur(15px));
 	background-size: auto auto;
 	background-image: repeating-linear-gradient(135deg, transparent, transparent 5px, var(--MI_THEME-panel) 5px, var(--MI_THEME-panel) 10px);
-	border-radius: 0 0 6px 6px;
+	border-radius: 0 0 var(--MI-cardRadius) var(--MI-cardRadius);
 }
 </style>

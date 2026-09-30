@@ -242,6 +242,13 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						data,
 					}];
 
+				case 'system':
+					return [i18n.ts._welcome.title, {
+						body: i18n.ts._welcome.notificationBody,
+						badge: iconUrl('bell'),
+						data,
+					}];
+
 				case 'app':
 					return [data.body.header ?? data.body.body, {
 						body: data.body.header ? data.body.body : '',
@@ -272,7 +279,7 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 			if (data.body.toRoom != null) {
 				return [`${data.body.toRoom.name}: ${getUserName(data.body.fromUser)}: ${data.body.text}`, {
 					icon: data.body.fromUser.avatarUrl ?? undefined,
-					badge: iconUrl('messages'),
+					badge: iconUrl('message-dots'),
 					tag: `chat:room:${data.body.toRoomId}`,
 					data,
 					renotify: true,
@@ -280,7 +287,7 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 			} else {
 				return [`${getUserName(data.body.fromUser)}: ${data.body.text}`, {
 					icon: data.body.fromUser.avatarUrl ?? undefined,
-					badge: iconUrl('messages'),
+					badge: iconUrl('message-dots'),
 					tag: `chat:user:${data.body.fromUserId}`,
 					data,
 					renotify: true,

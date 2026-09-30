@@ -6,7 +6,7 @@
 import { defineAsyncComponent } from 'vue';
 import type { AsyncComponentLoader } from 'vue';
 import type { RouteDef } from '@/lib/nirax.js';
-import { $i, iAmModerator } from '@/i.js';
+import { $i, iAmAdmin, iAmModerator } from '@/i.js';
 import MkLoading from '@/pages/_loading_.vue';
 import MkError from '@/pages/_error_.vue';
 import PageTimeline from '@/pages/timeline.vue';
@@ -219,6 +219,9 @@ export const ROUTE_DEF = [{
 	path: '/contact',
 	component: page(() => import('@/pages/contact.vue')),
 }, {
+	path: '/feedback',
+	component: page(() => import('@/pages/feedback.vue')),
+}, {
 	path: '/about-misskey',
 	component: page(() => import('@/pages/about-misskey.vue')),
 }, {
@@ -242,6 +245,13 @@ export const ROUTE_DEF = [{
 	path: '/explore',
 	component: page(() => import('@/pages/explore.vue')),
 	hash: 'initialTab',
+}, {
+	path: '/checkin',
+	component: page(() => import('@/pages/checkin.vue')),
+	loginRequired: true,
+}, {
+	path: '/community-ranking',
+	component: page(() => import('@/pages/community-ranking.vue')),
 }, {
 	path: '/search',
 	component: page(() => import('@/pages/search.vue')),
@@ -395,6 +405,13 @@ export const ROUTE_DEF = [{
 		name: 'users',
 		component: page(() => import('@/pages/admin/users.vue')),
 	}, {
+		path: '/checkin',
+		redirect: '/admin/benefits',
+	}, {
+		path: '/benefits',
+		name: 'benefits',
+		component: iAmAdmin ? page(() => import('@/pages/admin/benefits.vue')) : page(() => import('@/pages/not-found.vue')),
+	}, {
 		path: '/emojis',
 		name: 'emojis',
 		component: page(() => import('@/pages/custom-emojis-manager.vue')),
@@ -514,6 +531,7 @@ export const ROUTE_DEF = [{
 	path: '/my/notifications',
 	component: page(() => import('@/pages/notifications.vue')),
 	loginRequired: true,
+	hash: 'initialTab',
 }, {
 	path: '/my/favorites',
 	component: page(() => import('@/pages/favorites.vue')),
@@ -521,6 +539,10 @@ export const ROUTE_DEF = [{
 }, {
 	path: '/my/achievements',
 	component: page(() => import('@/pages/achievements.vue')),
+	loginRequired: true,
+}, {
+	path: '/my/benefits',
+	component: page(() => import('@/pages/benefits.vue')),
 	loginRequired: true,
 }, {
 	path: '/my/drive/folder/:folder',

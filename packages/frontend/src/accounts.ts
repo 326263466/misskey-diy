@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { defineAsyncComponent, ref } from 'vue';
+import { defineAsyncComponent, ref, toRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import { apiUrl, host } from '@@/js/config.js';
 import type { MenuItem } from '@/types/menu.js';
@@ -16,8 +16,22 @@ import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
 import { $i } from '@/i.js';
 import { signout } from '@/signout.js';
+import { getOnlineStatusMenu } from '@/utility/online-status.js';
+import { publishUserProfileUpdate } from '@/composables/use-user-profile.js';
+import { deepEqual } from '@/utility/deep-equal.js';
 
 type AccountWithToken = Misskey.entities.MeDetailed & { token: string };
+
+let accountRevision = 0;
+const accountFieldRevisions = new Map<string, number>();
+
+function sameAccountValue(left: unknown, right: unknown): boolean {
+	if (Object.is(left, right)) return true;
+	if (Array.isArray(left) !== Array.isArray(right)) return false;
+	// API account fields are JSON values. Compare only supplied fields, not a
+	// serialized copy of the entire account, and retain equal collection references.
+	return deepEqual(toRaw(left) as Parameters<typeof deepEqual>[0], toRaw(right) as Parameters<typeof deepEqual>[1]);
+}
 
 export async function getAccounts(): Promise<{
 	host: string;
@@ -124,33 +138,68 @@ function fetchAccount(token: string, id?: string, forceShowDialog?: boolean): Pr
 
 export function updateCurrentAccount(accountData: Misskey.entities.MeDetailed) {
 	if (!$i) return;
+	if (accountData.id !== $i.id) return;
+	const revision = ++accountRevision;
+	for (const key of new Set([...Object.keys($i), ...Object.keys(accountData)])) accountFieldRevisions.set(key, revision);
+	publishUserProfileUpdate($i.id, accountData);
 	const token = $i.token;
+	let changed = false;
 	for (const key of Object.keys($i)) {
-		delete $i[key as keyof typeof $i];
+		if (key !== 'token' && !Object.hasOwn(accountData, key)) {
+			delete $i[key as keyof typeof $i];
+			changed = true;
+		}
 	}
 	for (const [key, value] of Object.entries(accountData)) {
+		if (sameAccountValue($i[key as keyof typeof $i], value)) continue;
 		($i[key as keyof typeof accountData] as any) = value;
+		changed = true;
 	}
+	if (!changed) return;
 	store.set('accountInfos', { ...store.s.accountInfos, [host + '/' + $i.id]: $i });
 	$i.token = token;
 	miLocalStorage.setItem('account', JSON.stringify($i));
 }
 
-export function updateCurrentAccountPartial(accountData: Partial<Misskey.entities.MeDetailed>) {
+export function updateCurrentAccountPartial(accountData: Partial<Misskey.entities.MeDetailed>, options: { fromStream?: boolean } = {}) {
 	if (!$i) return;
+	if (accountData.id != null && accountData.id !== $i.id) return;
+	publishUserProfileUpdate($i.id, accountData);
+	const revision = ++accountRevision;
+	let changed = false;
 	for (const [key, value] of Object.entries(accountData)) {
+		if (value === undefined) continue;
+		const equal = sameAccountValue($i[key as keyof typeof $i], value);
+		// Full streaming snapshots include untouched fields; only an explicit
+		// mutation confirms an unchanged value against an in-flight refresh.
+		if (!equal || !options.fromStream) accountFieldRevisions.set(key, revision);
+		if (equal) continue;
 		($i[key as keyof typeof accountData] as any) = value;
+		changed = true;
 	}
+	if (!changed) return;
 
 	store.set('accountInfos', { ...store.s.accountInfos, [host + '/' + $i.id]: $i });
 
 	miLocalStorage.setItem('account', JSON.stringify($i));
 }
 
-export async function refreshCurrentAccount() {
+export async function refreshCurrentAccount(options: { throwOnError?: boolean } = {}) {
 	if (!$i) return;
 	const me = $i;
-	return fetchAccount($i.token, $i.id).then(updateCurrentAccount).catch(reason => {
+	const revision = accountRevision;
+	return fetchAccount($i.token, $i.id).then(account => {
+		if (revision === accountRevision) {
+			updateCurrentAccount(account);
+		} else {
+			// A save or streaming event may have arrived while /i was in flight.
+			// Refresh other fields without rolling back these newer confirmations.
+			updateCurrentAccountPartial({
+				...Object.fromEntries(Object.entries(account).filter(([key]) => (accountFieldRevisions.get(key) ?? 0) <= revision)),
+				id: account.id,
+			});
+		}
+	}).catch(reason => {
 		if (reason === isAccountDeleted) {
 			removeAccount(host, me.id);
 			if (Object.keys(store.s.accountTokens).length > 0) {
@@ -158,6 +207,8 @@ export async function refreshCurrentAccount() {
 			} else {
 				signout();
 			}
+		} else if (options.throwOnError) {
+			throw reason;
 		}
 	});
 }
@@ -291,6 +342,11 @@ export async function getAccountMenu(opts: {
 			text: i18n.ts.profile,
 			to: `/@${$i.username}`,
 			avatar: $i,
+		}, getOnlineStatusMenu(), {
+			type: 'link',
+			icon: 'ti ti-settings',
+			text: i18n.ts.userSettings,
+			to: '/settings',
 		}, {
 			type: 'divider',
 		});
@@ -299,7 +355,14 @@ export async function getAccountMenu(opts: {
 			menuItems.push(createItem(host, $i.id, $i.username, $i, $i.token));
 		}
 
-		menuItems.push(...accountItems);
+		if (accountItems.length > 0) {
+			menuItems.push({
+				type: 'parent',
+				icon: 'ti ti-switch-horizontal',
+				text: i18n.ts.switchAccount,
+				children: accountItems,
+			});
+		}
 
 		menuItems.push({
 			type: 'parent',

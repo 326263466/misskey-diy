@@ -20,6 +20,9 @@ import { store } from '@/store.js';
 import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
 import { alpha } from '@/utility/color.js';
 import { initChart } from '@/utility/init-chart.js';
+import { formatChartDate } from '@/utility/chart-date.js';
+import { i18n } from '@/i18n.js';
+import { dateOnly } from '@/filters/date.js';
 
 initChart();
 
@@ -77,13 +80,6 @@ async function renderChart() {
 
 	const color = store.s.darkMode ? '#b4e900' : '#86b300';
 
-	const getYYYYMMDD = (date: Date) => {
-		const y = date.getFullYear().toString().padStart(2, '0');
-		const m = (date.getMonth() + 1).toString().padStart(2, '0');
-		const d = date.getDate().toString().padStart(2, '0');
-		return `${y}/${m}/${d}`;
-	};
-
 	const max = (createdAt: string) => raw.find(x => x.createdAt === createdAt)!.users;
 
 	const marginEachCell = 12;
@@ -94,7 +90,7 @@ async function renderChart() {
 		type: 'matrix',
 		data: {
 			datasets: [{
-				label: 'Active',
+				label: i18n.ts._dashboard.retained,
 				data: data as any,
 				borderWidth: 0,
 				borderRadius: 3,
@@ -146,7 +142,7 @@ async function renderChart() {
 					},
 					title: {
 						display: true,
-						text: 'Days later',
+						text: i18n.ts._dashboard.daysLater,
 					},
 				},
 				y: {
@@ -168,6 +164,7 @@ async function renderChart() {
 						font: {
 							size: 9,
 						},
+						callback: value => formatChartDate(value),
 					},
 				},
 			},
@@ -180,15 +177,15 @@ async function renderChart() {
 					callbacks: {
 						title(context) {
 							const v = context[0].dataset.data[context[0].dataIndex] as unknown as typeof data[0];
-							return getYYYYMMDD(new Date(new Date(v.y).getTime() + (v.x * 86400000)));
+							return dateOnly(new Date(new Date(v.y).getTime() + (v.x * 86400000)));
 						},
 						label(context) {
 							const v = context.dataset.data[context.dataIndex] as unknown as typeof data[0];
 							const m = max(v.y);
 							if (m === 0) {
-								return [`Active: ${v.v} (-%)`];
+								return [`${i18n.ts._dashboard.retained}: ${v.v} (-%)`];
 							} else {
-								return [`Active: ${v.v} (${Math.round((v.v / m) * 100)}%)`];
+								return [`${i18n.ts._dashboard.retained}: ${v.v} (${Math.round((v.v / m) * 100)}%)`];
 							}
 						},
 					},

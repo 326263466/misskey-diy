@@ -74,7 +74,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<SearchMarker :keywords="['chat']">
 			<FormSection>
-				<template #label><SearchLabel>{{ i18n.ts.directMessage }}</SearchLabel></template>
+				<template #label><SearchLabel>{{ i18n.ts.chat }}</SearchLabel></template>
 
 				<div class="_gaps_m">
 					<MkInfo v-if="$i.policies.chatAvailability === 'unavailable'">{{ i18n.ts._chat.chatNotAvailableForThisAccountOrServer }}</MkInfo>
@@ -213,6 +213,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ref, computed, watch } from 'vue';
+import { updateCurrentAccountPartial } from '@/accounts.js';
 import type { MkSelectItem } from '@/components/MkSelect.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkSelect from '@/components/MkSelect.vue';
@@ -415,7 +416,7 @@ function save() {
 		followingVisibility: followingVisibility.value,
 		followersVisibility: followersVisibility.value,
 		chatScope: chatScope.value,
-	});
+	}).then(updateCurrentAccountPartial);
 }
 
 const headerActions = computed(() => []);

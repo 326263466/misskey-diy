@@ -2,6 +2,32 @@ import { vi, describe, test, expect } from 'vitest';
 import { APIClient, isAPIError } from '../src/api.js';
 
 describe('API', () => {
+	test('downloads binary report evidence as a Blob', async () => {
+		const original = new Uint8Array([0, 255, 42, 128, 13, 10]);
+		const cli = new APIClient({
+			origin: 'https://misskey.test',
+			fetch: async () => new Response(original, {
+				status: 200,
+				headers: { 'Content-Type': 'application/octet-stream' },
+			}),
+		});
+		const result = await cli.request('admin/abuse-report-evidence', { reportId: 'report', fileId: 'file' });
+		expect(result).toBeInstanceOf(Blob);
+		expect(new Uint8Array(await result.arrayBuffer())).toEqual(original);
+	});
+
+	test('preserves JSON API errors for binary evidence requests', async () => {
+		const cli = new APIClient({
+			origin: 'https://misskey.test',
+			fetch: async () => new Response(JSON.stringify({
+				error: { code: 'ROLE_PERMISSION_DENIED', message: 'A moderator role is required.' },
+			}), { status: 403, headers: { 'Content-Type': 'application/json' } }),
+		});
+		await expect(cli.request('admin/abuse-report-evidence', { reportId: 'report', fileId: 'file' })).rejects.toMatchObject({
+			code: 'ROLE_PERMISSION_DENIED',
+		});
+	});
+
 	test('success', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')

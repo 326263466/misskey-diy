@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<div style="display: flex; flex-direction: column; gap: 1em;">
 				<MkKeyValue :copy="host" oneline>
-					<template #key>Host</template>
+					<template #key>{{ i18n.ts.host }}</template>
 					<template #value><span class="_monospace"><MkLink :url="`https://${host}`">{{ host }}</MkLink></span></template>
 				</MkKeyValue>
 				<MkKeyValue oneline>
@@ -31,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkKeyValue>
 
 			<FormSection v-if="iAmModerator">
-				<template #label>Moderation</template>
+				<template #label>{{ i18n.ts.moderation }}</template>
 				<div class="_gaps_s">
 					<MkKeyValue>
 						<template #key>
@@ -46,11 +46,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSwitch v-model="isBlocked" :disabled="!meta || !instance" @update:modelValue="toggleBlock">{{ i18n.ts.blockThisInstance }}</MkSwitch>
 					<MkSwitch v-model="isSilenced" :disabled="!meta || !instance" @update:modelValue="toggleSilenced">{{ i18n.ts.silenceThisInstance }}</MkSwitch>
 					<MkSwitch v-model="isMediaSilenced" :disabled="!meta || !instance" @update:modelValue="toggleMediaSilenced">{{ i18n.ts.mediaSilenceThisInstance }}</MkSwitch>
-					<MkButton @click="refreshMetadata"><i class="ti ti-refresh"></i> Refresh metadata</MkButton>
-					<MkTextarea v-model="moderationNote" manualSave>
-						<template #label>{{ i18n.ts.moderationNote }}</template>
-						<template #caption>{{ i18n.ts.moderationNoteDescription }}</template>
-					</MkTextarea>
+					<MkButton @click="refreshMetadata"><i class="ti ti-refresh"></i> {{ i18n.ts._instanceInfo.refreshMetadata }}</MkButton>
+					<MkModerationNote v-model="moderationNote" :save="saveModerationNote"/>
 				</div>
 			</FormSection>
 
@@ -71,11 +68,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<FormSection>
 				<MkKeyValue oneline style="margin: 1em 0;">
-					<template #key>Following (Pub)</template>
+					<template #key>{{ i18n.ts.following }} (Pub)</template>
 					<template #value>{{ number(instance.followingCount) }}</template>
 				</MkKeyValue>
 				<MkKeyValue oneline style="margin: 1em 0;">
-					<template #key>Followers (Sub)</template>
+					<template #key>{{ i18n.ts.followers }} (Sub)</template>
 					<template #value>{{ number(instance.followersCount) }}</template>
 				</MkKeyValue>
 			</FormSection>
@@ -106,8 +103,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else-if="tab === 'users'" class="_gaps_m">
 			<MkPagination v-slot="{ items }" :paginator="usersPaginator">
 				<div :class="$style.users">
-					<MkA v-for="user in items" :key="user.id" v-tooltip.mfm="`Last posted: ${user.updatedAt ? dateString(user.updatedAt) : 'unknown'}`" :to="`/admin/user/${user.id}`">
-						<MkUserCardMini :user="user"/>
+					<MkA v-for="user in items" :key="user.id" :to="`/admin/user/${user.id}`">
+						<MkUserCardMini :user="user" :subTooltip="`${i18n.ts.lastPostedAt}: ${user.updatedAt ? dateString(user.updatedAt) : i18n.ts.unknown}`"/>
 					</MkA>
 				</div>
 			</MkPagination>
@@ -121,7 +118,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch, markRaw } from 'vue';
+import { ref, computed, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { ChartSrc } from '@/components/MkChart.vue';
 import MkChart from '@/components/MkChart.vue';
@@ -144,7 +141,7 @@ import MkPagination from '@/components/MkPagination.vue';
 import { getProxiedImageUrlNullable } from '@/utility/media-proxy.js';
 import { dateString } from '@/filters/date.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
-import MkTextarea from '@/components/MkTextarea.vue';
+import MkModerationNote from '@/components/MkModerationNote.vue';
 import { Paginator } from '@/utility/paginator.js';
 
 const props = defineProps<{
@@ -199,11 +196,11 @@ const usersPaginator = iAmModerator ? markRaw(new Paginator('admin/show-users', 
 	offsetMode: true,
 }));
 
-if (iAmModerator) {
-	watch(moderationNote, async () => {
-		if (instance.value == null) return;
-		await misskeyApi('admin/federation/update-instance', { host: instance.value.host, moderationNote: moderationNote.value });
-	});
+async function saveModerationNote(value: string): Promise<unknown> {
+	if (!iAmModerator) throw new Error('Not a moderator');
+	const host = instance.value?.host;
+	if (!host) throw new Error('No instance host');
+	return os.apiWithDialog('admin/federation/update-instance', { host, moderationNote: value });
 }
 
 async function _fetch_(): Promise<void> {
@@ -280,7 +277,7 @@ function refreshMetadata(): void {
 		host: instance.value.host,
 	});
 	os.alert({
-		text: 'Refresh requested',
+		text: i18n.ts._instanceInfo.refreshRequested,
 	});
 }
 
@@ -308,7 +305,7 @@ const headerTabs = computed(() => [{
 	icon: 'ti ti-users',
 }] : []), {
 	key: 'raw',
-	title: 'Raw',
+	title: i18n.ts.rawData,
 	icon: 'ti ti-code',
 }]);
 

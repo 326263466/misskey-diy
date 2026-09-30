@@ -59,9 +59,11 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { ensureSignin } from '@/i.js';
+import { updateCurrentAccountPartial } from '@/accounts.js';
 import MkInfo from '@/components/MkInfo.vue';
 import { definePage } from '@/page.js';
 import { groupAvatarDecorations } from '@/utility/group-avatar-decorations.js';
+import { enqueueProfileSave } from '@/utility/profile-save.js';
 
 const $i = ensureSignin();
 
@@ -84,48 +86,65 @@ async function openDecoration(avatarDecoration: {
 	name: string;
 	roleIdsThatCanBeUsedThisDecoration: string[];
 }, index?: number) {
+	const originalDecorations = JSON.stringify($i.avatarDecorations);
+
+	function canEditAttachedDecoration(): boolean {
+		if (JSON.stringify($i.avatarDecorations) === originalDecorations) return true;
+		// The dialog index may now identify a different decoration. Ask for a fresh edit.
+		void os.alert({ type: 'error', title: i18n.ts.error, text: i18n.ts.tryAgain });
+		return false;
+	}
+
 	const { dispose } = os.popup(XDialog, {
 		decoration: avatarDecoration,
 		usingIndex: index ?? null,
 	}, {
 		'attach': async (payload) => {
-			const decoration = {
-				id: avatarDecoration.id,
-				url: avatarDecoration.url,
-				angle: payload.angle,
-				flipH: payload.flipH,
-				offsetX: payload.offsetX,
-				offsetY: payload.offsetY,
-			};
-			const update = [...$i.avatarDecorations, decoration];
-			await os.apiWithDialog('i/update', {
-				avatarDecorations: update,
+			await enqueueProfileSave(async () => {
+				const decoration = {
+					id: avatarDecoration.id,
+					url: avatarDecoration.url,
+					angle: payload.angle,
+					flipH: payload.flipH,
+					offsetX: payload.offsetX,
+					offsetY: payload.offsetY,
+				};
+				const update = [...$i.avatarDecorations, decoration];
+				const user = await os.apiWithDialog('i/update', {
+					avatarDecorations: update,
+				});
+				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
 			});
-			$i.avatarDecorations = update;
 		},
 		'update': async (payload) => {
-			const decoration = {
-				id: avatarDecoration.id,
-				url: avatarDecoration.url,
-				angle: payload.angle,
-				flipH: payload.flipH,
-				offsetX: payload.offsetX,
-				offsetY: payload.offsetY,
-			};
-			const update = [...$i.avatarDecorations];
-			update[index!] = decoration;
-			await os.apiWithDialog('i/update', {
-				avatarDecorations: update,
+			await enqueueProfileSave(async () => {
+				if (!canEditAttachedDecoration()) return;
+				const decoration = {
+					id: avatarDecoration.id,
+					url: avatarDecoration.url,
+					angle: payload.angle,
+					flipH: payload.flipH,
+					offsetX: payload.offsetX,
+					offsetY: payload.offsetY,
+				};
+				const update = [...$i.avatarDecorations];
+				update[index!] = decoration;
+				const user = await os.apiWithDialog('i/update', {
+					avatarDecorations: update,
+				});
+				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
 			});
-			$i.avatarDecorations = update;
 		},
 		'detach': async () => {
-			const update = [...$i.avatarDecorations];
-			update.splice(index!, 1);
-			await os.apiWithDialog('i/update', {
-				avatarDecorations: update,
+			await enqueueProfileSave(async () => {
+				if (!canEditAttachedDecoration()) return;
+				const update = [...$i.avatarDecorations];
+				update.splice(index!, 1);
+				const user = await os.apiWithDialog('i/update', {
+					avatarDecorations: update,
+				});
+				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
 			});
-			$i.avatarDecorations = update;
 		},
 		closed: () => dispose(),
 	});
@@ -137,10 +156,12 @@ function detachAllDecorations() {
 		text: i18n.ts.areYouSure,
 	}).then(async ({ canceled }) => {
 		if (canceled) return;
-		await os.apiWithDialog('i/update', {
-			avatarDecorations: [],
+		await enqueueProfileSave(async () => {
+			const user = await os.apiWithDialog('i/update', {
+				avatarDecorations: [],
+			});
+			updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
 		});
-		$i.avatarDecorations = [];
 	});
 }
 

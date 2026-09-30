@@ -9,18 +9,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="tab === '-'" class="_gaps">
 			<div :class="$style.queues">
 				<div v-for="q in queueInfos" :key="q.name" :class="$style.queue" @click="tab = q.name">
-					<div style="display: flex; align-items: center; font-weight: bold;"><i class="ti ti-http-que" style="margin-right: 0.5em;"></i>{{ q.name }}<i v-if="!q.isPaused" style="color: var(--MI_THEME-success); margin-left: auto;" class="ti ti-player-play"></i></div>
+					<div :title="q.name" style="display: flex; align-items: center; font-weight: bold;"><i class="ti ti-http-que" style="margin-right: 0.5em;"></i>{{ i18n.ts._queue._types[q.name] }}<i v-if="!q.isPaused" style="color: var(--MI_THEME-success); margin-left: auto;" class="ti ti-player-play"></i></div>
 					<div :class="$style.queueCounts">
 						<MkKeyValue>
-							<template #key>Active</template>
+							<template #key>{{ i18n.ts._queue.active }}</template>
 							<template #value>{{ kmg(q.counts.active, 2) }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Delayed</template>
+							<template #key>{{ i18n.ts._queue.delayed }}</template>
 							<template #value>{{ kmg(q.counts.delayed, 2) }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Waiting</template>
+							<template #key>{{ i18n.ts._queue.waiting }}</template>
 							<template #value>{{ kmg(q.counts.waiting, 2) }}</template>
 						</MkKeyValue>
 					</div>
@@ -30,17 +30,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div v-else-if="queueInfo" class="_gaps">
 			<MkFolder :defaultOpen="true">
-				<template #label>Overview: {{ tab }}</template>
+				<template #label>{{ i18n.tsx._queue.overviewOf({ name: i18n.ts._queue._types[tab] }) }}</template>
 				<template #icon><i class="ti ti-http-que"></i></template>
 				<template #suffix>#{{ queueInfo.db.processId }}:{{ queueInfo.db.port }} / {{ queueInfo.db.runId }}</template>
 				<template #caption>{{ queueInfo.qualifiedName }}</template>
 				<template #footer>
 					<div class="_buttons">
-						<MkButton rounded @click="promoteAllJobs"><i class="ti ti-player-track-next"></i> Promote all jobs</MkButton>
+						<MkButton rounded @click="promoteAllJobs"><i class="ti ti-player-track-next"></i> {{ i18n.ts._queue.promoteAllJobs }}</MkButton>
 						<!-- <MkButton rounded @click="createJob"><i class="ti ti-plus"></i> Add job</MkButton> -->
-						<MkButton v-if="queueInfo.isPaused" rounded @click="resumeQueue"><i class="ti ti-player-play"></i> Resume queue</MkButton>
-						<MkButton v-else rounded danger @click="pauseQueue"><i class="ti ti-player-pause"></i> Pause queue</MkButton>
-						<MkButton rounded danger @click="clearQueue"><i class="ti ti-trash"></i> Empty queue</MkButton>
+						<MkButton v-if="queueInfo.isPaused" rounded @click="resumeQueue"><i class="ti ti-player-play"></i> {{ i18n.ts._queue.resumeQueue }}</MkButton>
+						<MkButton v-else rounded danger @click="pauseQueue"><i class="ti ti-player-pause"></i> {{ i18n.ts._queue.pauseQueue }}</MkButton>
+						<MkButton rounded danger @click="clearQueue"><i class="ti ti-trash"></i> {{ i18n.ts._queue.emptyQueue }}</MkButton>
 					</div>
 				</template>
 
@@ -48,42 +48,42 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<XChart :dataSet="{ completed: queueInfo.metrics.completed.data, failed: queueInfo.metrics.failed.data }" :aspectRatio="5"/>
 					<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
 						<MkKeyValue>
-							<template #key>Active</template>
+							<template #key>{{ i18n.ts._queue.active }}</template>
 							<template #value>{{ kmg(queueInfo.counts.active, 2) }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Delayed</template>
+							<template #key>{{ i18n.ts._queue.delayed }}</template>
 							<template #value>{{ kmg(queueInfo.counts.delayed, 2) }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Waiting</template>
+							<template #key>{{ i18n.ts._queue.waiting }}</template>
 							<template #value>{{ kmg(queueInfo.counts.waiting, 2) }}</template>
 						</MkKeyValue>
 					</div>
 					<hr>
 					<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
 						<MkKeyValue>
-							<template #key>Clients: Connected</template>
+							<template #key>{{ i18n.ts._queue.clientsConnected }}</template>
 							<template #value>{{ queueInfo.db.clients.connected }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Clients: Blocked</template>
+							<template #key>{{ i18n.ts._queue.clientsBlocked }}</template>
 							<template #value>{{ queueInfo.db.clients.blocked }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Memory: Peak</template>
+							<template #key>{{ i18n.ts._queue.memoryPeak }}</template>
 							<template #value>{{ bytes(queueInfo.db.memory.peak, 1) }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Memory: Total</template>
+							<template #key>{{ i18n.ts._queue.memoryTotal }}</template>
 							<template #value>{{ bytes(queueInfo.db.memory.total, 1) }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Memory: Used</template>
+							<template #key>{{ i18n.ts._queue.memoryUsed }}</template>
 							<template #value>{{ bytes(queueInfo.db.memory.used, 1) }}</template>
 						</MkKeyValue>
 						<MkKeyValue>
-							<template #key>Uptime</template>
+							<template #key>{{ i18n.ts._queue.uptime }}</template>
 							<template #value>{{ queueInfo.db.uptime }}</template>
 						</MkKeyValue>
 					</div>
@@ -91,47 +91,47 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkFolder>
 
 			<MkFolder :defaultOpen="true" :withSpacer="false">
-				<template #label>Jobs: {{ tab }}</template>
+				<template #label>{{ i18n.tsx._queue.jobsOf({ name: i18n.ts._queue._types[tab] }) }}</template>
 				<template #icon><i class="ti ti-list-check"></i></template>
-				<template #suffix>&lt;A:{{ kmg(queueInfo.counts.active, 2) }}&gt; &lt;D:{{ kmg(queueInfo.counts.delayed, 2) }}&gt; &lt;W:{{ kmg(queueInfo.counts.waiting, 2) }}&gt;</template>
+				<template #suffix>{{ i18n.tsx._queue.counts({ active: kmg(queueInfo.counts.active, 2), delayed: kmg(queueInfo.counts.delayed, 2), waiting: kmg(queueInfo.counts.waiting, 2) }) }}</template>
 				<template #header>
 					<MkTabs
 						v-model:tab="jobState"
 						:tabs="[{
 							key: 'all',
-							title: 'All',
+							title: i18n.ts._queue.all,
 							icon: 'ti ti-code-asterisk',
 						}, {
 							key: 'latest',
-							title: 'Latest',
+							title: i18n.ts._queue.latest,
 							icon: 'ti ti-logs',
 						}, {
 							key: 'completed',
-							title: 'Completed',
+							title: i18n.ts._queue.completed,
 							icon: 'ti ti-check',
 						}, {
 							key: 'failed',
-							title: 'Failed',
+							title: i18n.ts._queue.failed,
 							icon: 'ti ti-circle-x',
 						}, {
 							key: 'active',
-							title: 'Active',
+							title: i18n.ts._queue.active,
 							icon: 'ti ti-player-play',
 						}, {
 							key: 'delayed',
-							title: 'Delayed',
+							title: i18n.ts._queue.delayed,
 							icon: 'ti ti-clock',
 						}, {
 							key: 'wait',
-							title: 'Waiting',
+							title: i18n.ts._queue.waiting,
 							icon: 'ti ti-hourglass-high',
 						}]"
 					/>
 				</template>
 				<template #footer>
 					<div class="_buttons">
-						<MkButton rounded @click="fetchJobs()"><i class="ti ti-reload"></i> Refresh view</MkButton>
-						<MkButton rounded danger style="margin-left: auto;" @click="removeJobs"><i class="ti ti-trash"></i> Remove jobs</MkButton>
+						<MkButton rounded @click="fetchJobs()"><i class="ti ti-reload"></i> {{ i18n.ts._queue.refreshView }}</MkButton>
+						<MkButton rounded danger style="margin-left: auto;" @click="removeJobs"><i class="ti ti-trash"></i> {{ i18n.ts._queue.removeJobs }}</MkButton>
 					</div>
 				</template>
 
@@ -348,7 +348,7 @@ const headerTabs = computed<{
 	icon: 'ti ti-list-check',
 }, ...Misskey.queueTypes.map((q) => ({
 	key: q,
-	title: q,
+	title: i18n.ts._queue._types[q],
 }))]);
 
 definePage(() => ({

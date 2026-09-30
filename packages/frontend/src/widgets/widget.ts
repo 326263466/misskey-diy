@@ -53,9 +53,7 @@ export const useWidgetPropsManager = <F extends FormWithDefault>(
 
 	watch(() => props.widget?.data, (to) => {
 		if (to != null) {
-			for (const key of Object.keys(propsDef)) {
-				(widgetProps as any)[key] = to[key];
-			}
+			Object.assign(widgetProps, getDefaultFormValues(propsDef), to);
 		}
 	}, { deep: true });
 
@@ -65,9 +63,6 @@ export const useWidgetPropsManager = <F extends FormWithDefault>(
 
 	const configure = async () => {
 		const form = deepClone(propsDef);
-		for (const item of Object.keys(form)) {
-			form[item].default = (widgetProps as any)[item];
-		}
 
 		const res = await new Promise<{
 			canceled: false;
@@ -96,7 +91,9 @@ export const useWidgetPropsManager = <F extends FormWithDefault>(
 			return;
 		}
 
-		for (const key of Object.keys(res.result)) {
+		for (const key of Object.keys(form)) {
+			// Keep live widget data that may have changed while the settings were open.
+			if (form[key].hidden === true || form[key].type === 'button' || !(key in res.result)) continue;
 			(widgetProps as any)[key] = res.result[key];
 		}
 

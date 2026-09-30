@@ -14,35 +14,40 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@pointerleave="scheduleClose"
 	@keydown.esc.stop.prevent="close"
 >
-	<form :class="$style.form" @submit.prevent="submit">
+	<form class="_shadow" :class="$style.form" @submit.prevent="submit">
 		<MkAvatar v-if="$i" :user="$i" :class="$style.avatar" :link="false"/>
-		<input
-			ref="inputEl"
-			v-model="draft"
-			class="_mfm"
-			:class="$style.input"
-			:placeholder="i18n.tsx._boost.placeholder({ name: note.user.name ?? note.user.username })"
-			:aria-label="i18n.ts._boost.title"
-			:aria-invalid="invalid"
-			:disabled="sending"
-			:readonly="note.reactionAcceptance === 'likeOnly'"
-			maxlength="240"
-			@keydown.enter="onEnter"
-			@focus="pinned = true"
-		/>
+		<div :class="$style.editor">
+			<input
+				ref="inputEl"
+				:value="composing ? compositionText : formattedDraft.text"
+				class="_mfm"
+				:class="$style.input"
+				:placeholder="i18n.tsx._boost.placeholder({ name: note.user.name ?? note.user.username })"
+				:aria-label="i18n.ts._boost.title"
+				:aria-invalid="invalid"
+				:disabled="sending"
+				:readonly="note.reactionAcceptance === 'likeOnly'"
+				:maxlength="MAX_CHARS + MAX_GRAPHEMES - 1"
+				@input="onInput"
+				@compositionstart="startComposition"
+				@compositionend="endComposition"
+				@copy="onClipboard"
+				@cut="onClipboard"
+				@keydown.enter="onEnter"
+				@focus="pinned = true"
+			/>
+			<MkEmojiInputOverlay :inputElement="inputEl" :text="composing ? compositionText : formattedDraft.text"/>
+		</div>
 		<button ref="emojiButton" type="button" class="_button" :class="$style.button" :aria-label="i18n.ts.emoji" :disabled="sending || note.reactionAcceptance === 'likeOnly'" @click="pickEmoji">
 			<i class="ti ti-mood-smile" aria-hidden="true"></i>
 		</button>
 		<button type="submit" class="_button" :class="[$style.button, $style.submit]" :aria-label="i18n.ts._boost.title" :disabled="sending || !reaction || invalid">
-			<i :class="sending ? 'ti ti-loader ti-spin' : 'ti ti-circle-check'" aria-hidden="true"></i>
+			<i :class="sending ? 'ti ti-loader ti-spin' : 'ti ti-check'" aria-hidden="true"></i>
 		</button>
 		<button type="button" class="_button" :class="[$style.button, $style.remove]" :aria-label="i18n.ts.close" :disabled="sending" @click="close">
-			<i class="ti ti-circle-x" aria-hidden="true"></i>
+			<i class="ti ti-x" aria-hidden="true"></i>
 		</button>
 	</form>
-	<div v-if="draft && !customEmoji" :class="[$style.counter, { [$style.invalid]: tooLong }]" aria-live="polite">
-		<span v-if="tooLong">{{ i18n.ts.tooLong }}&ensp;</span>{{ length }}/16
-	</div>
 	<p v-if="error" :class="$style.error" role="alert">{{ error }}</p>
 </div>
 </template>
@@ -52,16 +57,19 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch 
 import type * as Misskey from 'misskey-js';
 import { getUnicodeEmojiOrNull } from '@@/js/emojilist.js';
 import MkEmojiPickerDialog from '@/components/MkEmojiPickerDialog.vue';
+import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
 import { calcPopupPosition } from '@/utility/popup-position.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { noteEvents } from '@/composables/use-note-capture.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
+import { boostDisplayOffset, boostRawOffset, formatBoostText, readBoostInput } from '@/utility/boost-text-spacing.js';
 import * as os from '@/os.js';
 
 const props = defineProps<{
 	note: Misskey.entities.Note;
 	anchorElement?: HTMLElement | null;
+	boundaryElement?: HTMLElement | null;
 	focusRequested?: boolean;
 	mock?: boolean;
 }>();
@@ -74,18 +82,21 @@ const emit = defineEmits<{
 const rootEl = useTemplateRef('rootEl');
 const inputEl = useTemplateRef('inputEl');
 const emojiButton = useTemplateRef('emojiButton');
-// Boostは投稿のたびに書き下ろすものなので、既存のBoostを下書きへ引き継がない
 const draft = ref(props.note.reactionAcceptance === 'likeOnly' ? String.fromCodePoint(0x2764) : '');
+const composing = ref(false);
+const compositionText = ref('');
+const formattedDraft = computed(() => formatBoostText(draft.value));
 const pinned = ref(props.focusRequested ?? false);
 const sending = ref(false);
 const error = ref('');
 const zIndex = os.claimZIndex('low');
+const MAX_GRAPHEMES = 16;
+const MAX_CHARS = 240;
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 const normalized = computed(() => draft.value.normalize('NFC').trim());
 const customEmoji = computed(() => /^:[\w+-]+(?:@[\w.-]+)?:$/.test(normalized.value));
 const length = computed(() => [...segmenter.segment(normalized.value)].length);
-const tooLong = computed(() => normalized.value.length > 240 || (!customEmoji.value && length.value > 16));
-const invalid = computed(() => tooLong.value || /[\p{Cc}\u2028\u2029]/u.test(normalized.value));
+const invalid = computed(() => normalized.value.length > MAX_CHARS || (!customEmoji.value && length.value > MAX_GRAPHEMES) || /[\p{Cc}\u2028\u2029]/u.test(normalized.value));
 const reaction = computed(() => {
 	const text = normalized.value;
 	if (!text) return '';
@@ -93,6 +104,66 @@ const reaction = computed(() => {
 	if (getUnicodeEmojiOrNull(text)) return text.includes('\u200d') ? text : text.replace(/\ufe0f/g, '');
 	return `text:${text}`;
 });
+
+// 正在输入的自定义表情。`:blobcat@example.com:` 这类名字本身就超过 16 字素，所以不按字素截断；
+// 只匹配表情名允许的字符，避免把 `:)` 这种颜文字也一起豁免
+const PARTIAL_CUSTOM_EMOJI = /^:[\w+-]*(?:@[\w.-]*)?:?$/;
+
+function clampDraft(value: string) {
+	const limited = value.length > MAX_CHARS ? value.slice(0, MAX_CHARS) : value;
+	if (PARTIAL_CUSTOM_EMOJI.test(limited)) return limited;
+	const graphemes = [...segmenter.segment(limited)];
+	if (graphemes.length <= MAX_GRAPHEMES) return limited;
+	return limited.slice(0, graphemes[MAX_GRAPHEMES].index);
+}
+
+// 输入法拼字完成后才更新 draft；表情选择器等程序写入也遵守同一长度限制。
+watch(draft, value => {
+	const limited = clampDraft(value);
+	if (limited !== value) draft.value = limited;
+});
+
+function onInput(event: Event) {
+	const input = event.target as HTMLInputElement;
+	if (composing.value || (event as InputEvent).isComposing) {
+		compositionText.value = input.value;
+		return;
+	}
+	const edit = readBoostInput(formattedDraft.value, input.value, input.selectionStart ?? input.value.length, input.selectionEnd ?? input.value.length);
+	draft.value = clampDraft(edit.text);
+	input.value = formattedDraft.value.text;
+	const afterSpace = (event as InputEvent).inputType?.endsWith('Forward') ?? false;
+	input.setSelectionRange(
+		boostDisplayOffset(formattedDraft.value, Math.min(edit.start, draft.value.length), afterSpace),
+		boostDisplayOffset(formattedDraft.value, Math.min(edit.end, draft.value.length), afterSpace),
+	);
+}
+
+function startComposition(event: CompositionEvent) {
+	compositionText.value = (event.target as HTMLInputElement).value;
+	composing.value = true;
+}
+
+function endComposition(event: CompositionEvent) {
+	composing.value = false;
+	onInput(event);
+}
+
+function onClipboard(event: ClipboardEvent) {
+	const input = inputEl.value;
+	if (input == null || event.clipboardData == null || composing.value) return;
+	const start = boostRawOffset(formattedDraft.value, input.selectionStart ?? 0);
+	const end = boostRawOffset(formattedDraft.value, input.selectionEnd ?? 0);
+	if (start === end) return;
+	event.clipboardData.setData('text/plain', draft.value.slice(start, end));
+	event.preventDefault();
+	if (event.type === 'cut' && !input.readOnly && !input.disabled) {
+		draft.value = draft.value.slice(0, start) + draft.value.slice(end);
+		input.value = formattedDraft.value.text;
+		const caret = boostDisplayOffset(formattedDraft.value, start);
+		input.setSelectionRange(caret, caret);
+	}
+}
 
 let closeTimer: number | null = null;
 let emojiDispose: (() => void) | null = null;
@@ -127,9 +198,10 @@ function setPosition() {
 	if (!rootEl.value) return;
 	const position = calcPopupPosition(rootEl.value, {
 		anchorElement: props.anchorElement,
+		boundaryElement: props.boundaryElement,
 		x: window.innerWidth / 2 + window.scrollX,
 		y: window.innerHeight / 2 + window.scrollY,
-		direction: 'top', align: 'center', innerMargin: 6,
+		direction: 'bottom', align: 'left', innerMargin: 8,
 	});
 	rootEl.value.style.left = `${position.left}px`;
 	rootEl.value.style.top = `${position.top}px`;
@@ -142,20 +214,28 @@ function onEnter(event: KeyboardEvent) {
 function pickEmoji() {
 	if (!emojiButton.value || sending.value || emojiDispose) return;
 	pinned.value = true;
-	const start = inputEl.value?.selectionStart ?? draft.value.length;
-	const end = inputEl.value?.selectionEnd ?? start;
+	const start = boostRawOffset(formattedDraft.value, inputEl.value?.selectionStart ?? formattedDraft.value.text.length);
+	const end = boostRawOffset(formattedDraft.value, inputEl.value?.selectionEnd ?? formattedDraft.value.text.length);
+	let caret: number | null = null;
 	const { dispose } = os.popup(MkEmojiPickerDialog, {
 		anchorElement: emojiButton.value,
 		asReactionPicker: true,
 		targetNote: props.note,
 	}, {
 		done: emoji => {
-			draft.value = emoji.startsWith(':') || customEmoji.value ? emoji : draft.value.slice(0, start) + emoji + draft.value.slice(end);
+			const replace = emoji.startsWith(':') || customEmoji.value;
+			draft.value = clampDraft(replace ? emoji : draft.value.slice(0, start) + emoji + draft.value.slice(end));
+			caret = replace ? draft.value.length : Math.min(start + emoji.length, draft.value.length);
 		},
-		closed: () => {
+		closed: async () => {
 			dispose();
 			emojiDispose = null;
+			await nextTick();
 			inputEl.value?.focus();
+			if (caret != null) {
+				const offset = boostDisplayOffset(formattedDraft.value, caret);
+				inputEl.value?.setSelectionRange(offset, offset);
+			}
 		},
 	});
 	emojiDispose = dispose;
@@ -192,6 +272,7 @@ onMounted(() => {
 	setPosition();
 	resizing = new ResizeObserver(setPosition);
 	resizing.observe(rootEl.value!);
+	if (props.boundaryElement) resizing.observe(props.boundaryElement);
 	window.addEventListener('resize', setPosition);
 	window.addEventListener('scroll', setPosition, true);
 	window.document.addEventListener('pointerdown', onOutsidePointer);
@@ -215,35 +296,39 @@ onUnmounted(() => {
 .root {
 	position: absolute;
 	box-sizing: border-box;
-	width: 390px;
+	// 宽度跟着内容伸缩会导致每输入一个字就重新定位，所以固定
+	width: 304px;
 	max-width: calc(100dvw - 16px);
 	color: var(--MI_THEME-fg);
 }
 
-// リアクションのバブルと同じピル型。左端はアバターが縁に接するので詰める
 .form {
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 8px;
 	box-sizing: border-box;
-	padding: 6px 8px 6px 6px;
+	padding: 8px;
+	border: 1px solid var(--MI_THEME-divider);
 	border-radius: 50px;
 	background: var(--MI_THEME-popup);
-	// テーマのshadowは薄いので、2枚重ねてピルの縁が背景から浮くようにする
-	box-shadow: 0 1px 4px var(--MI_THEME-shadow), 0 4px 16px var(--MI_THEME-shadow);
 }
 
 .avatar {
-	flex: 0 0 28px;
-	width: 28px;
-	height: 28px;
+	flex: 0 0 24px;
+	width: 24px;
+	height: 24px;
 }
 
-// アバターとアイコンと同じ28pxに揃えて、ピルの中で縦位置が揺れないようにする。
-// ピルの縁に沿う枠は描けないので、フォーカスリングは出さない
-.input {
+.editor {
+	position: relative;
 	flex: 1;
-	width: 0;
+	min-width: 0;
+}
+
+.form .input {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
 	min-width: 0;
 	height: 28px;
 	padding: 0 4px;
@@ -251,27 +336,44 @@ onUnmounted(() => {
 	background: transparent;
 	color: inherit;
 	font: inherit;
-	font-size: 13px;
+	font-size: 14px;
 	line-height: 28px;
 	letter-spacing: 0;
+	text-autospace: no-autospace;
+	text-overflow: ellipsis;
+
+	&::placeholder {
+		color: var(--MI_THEME-fgTransparentWeak);
+		opacity: 1;
+	}
 
 	&:focus-visible {
 		outline: none;
 	}
 }
 
-.button {
+// 和全局 ._button 一样是单类选择器，谁生效取决于加载顺序；
+// 一旦退回 inline-block，align-items 就失效了，所以叠上 .form 保证胜出
+.form .button {
 	display: inline-flex;
-	flex: 0 0 28px;
+	flex: 0 0 24px;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
+	box-sizing: border-box;
+	width: 24px;
+	height: 24px;
 	border-radius: 50%;
 	font-size: 16px;
 	line-height: 1;
 
-	// buttonHoverBgはpanel由来なのでpopupの上では色が合わない。地色を選ばない薄い重ねにする
+	// .ti 的 vertical-align 和 width 是给行内排版做的补正，在 flex 子元素里反而会让图标偏心，
+	// 这里抵消掉，只靠 flex 居中
+	> :global(.ti) {
+		vertical-align: baseline;
+		width: auto;
+		line-height: 1;
+	}
+
 	&:hover:not(:disabled) { background: color-mix(in srgb, var(--MI_THEME-popup), var(--MI_THEME-fg) 10%); }
 
 	&:focus-visible {
@@ -280,8 +382,11 @@ onUnmounted(() => {
 	}
 }
 
+.form .submit, .form .remove {
+	border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+}
+
 .submit { color: var(--MI_THEME-success); }
-.remove, .invalid, .error { color: var(--MI_THEME-error); }
-.counter { margin-top: 4px; padding-right: 12px; font-size: 11px; text-align: right; }
+.remove, .error { color: var(--MI_THEME-error); }
 .error { margin: 4px 0 0; padding-left: 12px; font-size: 12px; }
 </style>

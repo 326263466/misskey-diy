@@ -5,9 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkContainer :showHeader="widgetProps.showHeader" class="mkw-aiscriptApp">
-	<template #header>App</template>
+	<template #header>{{ i18n.ts._widgets.aiscriptApp }}</template>
 	<div :class="$style.root">
-		<div v-if="isSyntaxError">Syntax error :(</div>
+		<div v-if="isSyntaxError">{{ i18n.ts._aiscript.syntaxError }} :(</div>
 		<MkAsUi v-else-if="root" :component="root" :components="components" size="small"/>
 	</div>
 </MkContainer>
@@ -82,7 +82,7 @@ async function run() {
 		err: (err) => {
 			os.alert({
 				type: 'error',
-				title: 'AiScript Error',
+				title: i18n.ts._aiscript.runtimeError,
 				text: String(err),
 			});
 		},
@@ -98,7 +98,7 @@ async function run() {
 		isSyntaxError.value = true;
 		os.alert({
 			type: 'error',
-			title: 'Syntax Error',
+			title: i18n.ts._aiscript.syntaxError,
 			text: String(err),
 		});
 		return;
@@ -108,7 +108,7 @@ async function run() {
 	} catch (err) {
 		os.alert({
 			type: 'error',
-			title: 'AiScript Internal Error',
+			title: i18n.ts._aiscript.internalError,
 			text: String(err),
 		});
 	}
@@ -131,6 +131,6 @@ defineExpose<WidgetComponentExpose>({
 
 <style lang="scss" module>
 .root {
-	padding: 16px;
+	padding: var(--MI-cardPadding, 20px);
 }
 </style>

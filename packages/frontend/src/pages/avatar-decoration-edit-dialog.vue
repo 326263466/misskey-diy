@@ -13,10 +13,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@closed="emit('closed')"
 >
 	<template v-if="avatarDecoration" #header>{{ avatarDecoration.name }}</template>
-	<template v-else #header>New decoration</template>
+	<template v-else #header>{{ i18n.ts._avatarDecoration.new }}</template>
 
 	<div style="display: flex; flex-direction: column; min-height: 100%;">
-		<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px; flex-grow: 1;">
+		<div class="_spacer _spacerCard" style="flex-grow: 1;">
 			<div class="_gaps_m">
 				<div :class="$style.preview">
 					<div :class="[$style.previewItem, $style.light]">
@@ -157,7 +157,7 @@ async function del() {
 
 	const { canceled } = await os.confirm({
 		type: 'warning',
-		text: i18n.tsx.removeAreYouSure({ x: name.value }),
+		text: i18n.tsx.deleteAreYouSure({ x: name.value }),
 	});
 	if (canceled) return;
 
@@ -219,7 +219,7 @@ async function del() {
 	z-index: 10000;
 	bottom: 0;
 	left: 0;
-	padding: 12px;
+	padding: var(--MI-cardPadding, 20px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));

@@ -10,6 +10,7 @@ import ms from 'ms';
 import * as htmlParser from 'node-html-parser';
 import { extractCustomEmojisFromMfm } from '@/misc/extract-custom-emojis-from-mfm.js';
 import { extractHashtags } from '@/misc/extract-hashtags.js';
+import { getUserCustomStatus, getUserOnlineStatus, USER_CUSTOM_STATUS_ICONS, USER_CUSTOM_STATUS_MAX_LENGTH, USER_ONLINE_STATUS_AUTO_REPLY_MAX_LENGTH } from '@/misc/user-online-status.js';
 import * as Acct from '@/misc/acct.js';
 import type { UsersRepository, DriveFilesRepository, MiMeta, UserProfilesRepository, PagesRepository } from '@/models/_.js';
 import type { MiLocalUser, MiUser } from '@/models/User.js';
@@ -31,7 +32,6 @@ import { RemoteUserResolveService } from '@/core/RemoteUserResolveService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import type { Config } from '@/config.js';
-import { safeForSql } from '@/misc/safe-for-sql.js';
 import { AvatarDecorationService } from '@/core/AvatarDecorationService.js';
 import { notificationRecieveConfig } from '@/models/json-schema/user.js';
 import { ApiLoggerService } from '../../ApiLoggerService.js';
@@ -136,6 +136,8 @@ const muteWords = { type: 'array', items: { oneOf: [
 	{ type: 'string' },
 ] } } as const;
 
+const shortProfileText = { type: 'string', nullable: true, maxLength: 128, pattern: '^[^\\u0000-\\u001f\\u007f-\\u009f\\u2028-\\u202e\\u2066-\\u2069]*$' } as const;
+
 export const paramDef = {
 	type: 'object',
 	properties: {
@@ -143,6 +145,8 @@ export const paramDef = {
 		description: { ...descriptionSchema, nullable: true },
 		followedMessage: { ...followedMessageSchema, nullable: true },
 		location: { ...locationSchema, nullable: true },
+		company: shortProfileText,
+		jobTitle: shortProfileText,
 		birthday: { ...birthdaySchema, nullable: true },
 		lang: { type: 'string', enum: [null, ...Object.keys(langmap)] as string[], nullable: true },
 		avatarId: { type: 'string', format: 'misskey:id', nullable: true },
@@ -174,6 +178,23 @@ export const paramDef = {
 		isLocked: { type: 'boolean' },
 		isExplorable: { type: 'boolean' },
 		hideOnlineStatus: { type: 'boolean' },
+		onlineStatusOverride: { type: 'string', enum: ['online', 'away', 'busy', 'doNotDisturb', 'invisible'] },
+		onlineStatusAutoReplies: {
+			type: 'object', additionalProperties: false,
+			properties: {
+				away: { type: 'string', nullable: true, minLength: 1, maxLength: USER_ONLINE_STATUS_AUTO_REPLY_MAX_LENGTH, pattern: '^(?=[\\s\\S]*\\S)[^\\u0000]*$' },
+				busy: { type: 'string', nullable: true, minLength: 1, maxLength: USER_ONLINE_STATUS_AUTO_REPLY_MAX_LENGTH, pattern: '^(?=[\\s\\S]*\\S)[^\\u0000]*$' },
+				doNotDisturb: { type: 'string', nullable: true, minLength: 1, maxLength: USER_ONLINE_STATUS_AUTO_REPLY_MAX_LENGTH, pattern: '^(?=[\\s\\S]*\\S)[^\\u0000]*$' },
+			},
+		},
+		customStatus: {
+			type: 'object', nullable: true, additionalProperties: false,
+			properties: {
+				icon: { type: 'string', enum: USER_CUSTOM_STATUS_ICONS },
+				text: { type: 'string', minLength: 1, maxLength: USER_CUSTOM_STATUS_MAX_LENGTH, pattern: '^(?=.*\\S)[^\\u0000-\\u001f\\u007f-\\u009f\\u2028-\\u202e\\u2066-\\u2069]*$' },
+			},
+			required: ['icon', 'text'],
+		},
 		publicReactions: { type: 'boolean' },
 		carefulBot: { type: 'boolean' },
 		autoAcceptFollowed: { type: 'boolean' },
@@ -273,6 +294,53 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const updates = {} as Partial<MiUser>;
 			const profileUpdates = {} as Partial<MiUserProfile>;
+			const autoRepliesPatch = ps.onlineStatusAutoReplies === undefined ? undefined : Object.fromEntries(
+				Object.entries(ps.onlineStatusAutoReplies).map(([status, text]) => [status, text?.trim() ?? null]),
+			);
+			const presenceRequested = ps.hideOnlineStatus !== undefined || ps.onlineStatusOverride !== undefined || ps.customStatus !== undefined || ps.onlineStatusAutoReplies !== undefined;
+			if (typeof ps.hideOnlineStatus === 'boolean') updates.hideOnlineStatus = ps.hideOnlineStatus;
+			if (ps.customStatus !== undefined) updates.customStatus = ps.customStatus === null ? null : { icon: ps.customStatus.icon, text: ps.customStatus.text.trim() };
+			if (autoRepliesPatch !== undefined) {
+				updates.onlineStatusAutoReplies = {
+					...user.onlineStatusAutoReplies,
+					...autoRepliesPatch,
+				};
+			}
+			if (ps.onlineStatusOverride !== undefined) {
+				updates.onlineStatusOverride = ps.onlineStatusOverride;
+				updates.lastActiveDate = new Date();
+			}
+			const updatedUser = { ...user, ...updates };
+			const oldCustomStatus = getUserCustomStatus(user);
+			const newCustomStatus = getUserCustomStatus(updatedUser);
+			const publicPresenceChanged = presenceRequested && (
+				getUserOnlineStatus(user) !== getUserOnlineStatus(updatedUser) ||
+				oldCustomStatus?.icon !== newCustomStatus?.icon || oldCustomStatus?.text !== newCustomStatus?.text
+			);
+			const presenceOnly = presenceRequested && Object.entries(ps)
+				.every(([key, value]) => !(key in paramDef.properties) || key === 'hideOnlineStatus' || key === 'onlineStatusOverride' || key === 'customStatus' || key === 'onlineStatusAutoReplies' || value === undefined);
+			const saveUpdates = async () => {
+				if (autoRepliesPatch === undefined) {
+					await this.usersRepository.update(user.id, updates);
+					return;
+				}
+				// Merge in the database so concurrent clients cannot overwrite replies for other states.
+				await this.usersRepository.createQueryBuilder().update()
+					.set({ ...updates, onlineStatusAutoReplies: () => '"onlineStatusAutoReplies" || CAST(:autoRepliesPatch AS jsonb)' })
+					.where('id = :id', { id: user.id })
+					.setParameter('autoRepliesPatch', JSON.stringify(autoRepliesPatch))
+					.execute();
+			};
+
+			// Presence updates stay local, including while invisible.
+			if (presenceOnly) {
+				await saveUpdates();
+				this.globalEventService.publishInternalEvent('localUserUpdated', { id: user.id });
+				if (publicPresenceChanged) this.globalEventService.publishUserStats(user.id);
+				const iObj = await this.userEntityService.pack(user.id, user, { schema: 'MeDetailed', includeSecrets: isSecure });
+				this.globalEventService.publishMainStream(user.id, 'meUpdated', iObj);
+				return iObj;
+			}
 
 			const profile = await this.userProfilesRepository.findOneByOrFail({ userId: user.id });
 			let policies: RolePolicies | null = null;
@@ -289,6 +357,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.followedMessage !== undefined) profileUpdates.followedMessage = ps.followedMessage;
 			if (ps.lang !== undefined) profileUpdates.lang = ps.lang;
 			if (ps.location !== undefined) profileUpdates.location = ps.location;
+			if (ps.company !== undefined) profileUpdates.company = ps.company?.trim() || null;
+			if (ps.jobTitle !== undefined) profileUpdates.jobTitle = ps.jobTitle?.trim() || null;
 			if (ps.birthday !== undefined) profileUpdates.birthday = ps.birthday;
 			if (ps.followingVisibility !== undefined) profileUpdates.followingVisibility = ps.followingVisibility;
 			if (ps.followersVisibility !== undefined) profileUpdates.followersVisibility = ps.followersVisibility;
@@ -347,7 +417,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.notificationRecieveConfig !== undefined) profileUpdates.notificationRecieveConfig = ps.notificationRecieveConfig;
 			if (typeof ps.isLocked === 'boolean') updates.isLocked = ps.isLocked;
 			if (typeof ps.isExplorable === 'boolean') updates.isExplorable = ps.isExplorable;
-			if (typeof ps.hideOnlineStatus === 'boolean') updates.hideOnlineStatus = ps.hideOnlineStatus;
 			if (typeof ps.publicReactions === 'boolean') profileUpdates.publicReactions = ps.publicReactions;
 			if (typeof ps.isBot === 'boolean') updates.isBot = ps.isBot;
 			if (typeof ps.carefulBot === 'boolean') profileUpdates.carefulBot = ps.carefulBot;
@@ -525,7 +594,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			//#endregion
 
 			if (Object.keys(updates).length > 0) {
-				await this.usersRepository.update(user.id, updates);
+				await saveUpdates();
 				this.globalEventService.publishInternalEvent('localUserUpdated', { id: user.id });
 			}
 
@@ -533,6 +602,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				...profileUpdates,
 				verifiedLinks: [],
 			});
+			if (ps.followingVisibility !== undefined || ps.followersVisibility !== undefined || publicPresenceChanged) {
+				this.globalEventService.publishUserStats(user.id);
+			}
 
 			const iObj = await this.userEntityService.pack(user.id, user, {
 				schema: 'MeDetailed',
@@ -564,7 +636,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	}
 
 	private async verifyLink(url: string, user: MiLocalUser) {
-		if (!safeForSql(url)) return;
+		if (!URL.canParse(url)) return;
 
 		try {
 			const html = await this.httpRequestService.getHtml(url);
@@ -583,8 +655,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				await this.userProfilesRepository.createQueryBuilder('profile').update()
 					.where('userId = :userId', { userId: user.id })
 					.set({
-						verifiedLinks: () => `array_append("verifiedLinks", '${url}')`, // ここでSQLインジェクションされそうなのでとりあえず safeForSql で弾いている
+						verifiedLinks: () => `array_append("verifiedLinks", :url)`,
 					})
+					.setParameter('url', url)
 					.execute();
 			}
 		} catch (_) {

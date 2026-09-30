@@ -97,6 +97,18 @@ describe('FileServerService', () => {
 		storedPaths.push(dest);
 	}
 
+	/**
+	 * 原本とは別サイズの実ファイルを書き込む。
+	 * webpublic/thumbnail は原本と別ファイルなので、DBの file.size と実サイズがずれる状況を再現するために使う。
+	 */
+	function writeInternalFileWithSize(key: string, size: number) {
+		const dest = internalStorageService.resolvePath(key);
+		fs.mkdirSync(path.dirname(dest), { recursive: true });
+		fs.writeFileSync(dest, Buffer.alloc(size, 1));
+		storedPaths.push(dest);
+		return size;
+	}
+
 	async function insertDriveFile(params: {
 		accessKey: string;
 		thumbnailAccessKey?: string | null;
@@ -319,6 +331,7 @@ describe('FileServerService', () => {
 			expect(res.headers['cache-control']).toBe('max-age=31536000, immutable');
 			expect(res.headers['content-type']).toBe('image/png');
 			expect(res.headers['content-length']).toBe(String(dummySize));
+			expect(res.headers['accept-ranges']).toBe('bytes');
 			expect(res.headers['content-disposition'] ?? '').toMatch(/^inline;/);
 		});
 
@@ -396,6 +409,104 @@ describe('FileServerService', () => {
 			expect(res.headers['content-length']).toBe('4');
 			expect(res.headers['content-type']).toBe('image/png');
 			expect(res.headers['cache-control']).toBe('max-age=31536000, immutable');
+		});
+
+		test('GET /files/:key thumbnail は実ファイルのサイズで Content-Length を返す', async () => {
+			const accessKey = randomString();
+			const thumbnailKey = randomString();
+			// 原本(dummySize)より小さいサムネイルを配置し、DBの file.size と実サイズを意図的にずらす
+			const thumbnailSize = writeInternalFileWithSize(thumbnailKey, 512);
+			expect(thumbnailSize).not.toBe(dummySize);
+			await insertDriveFile({
+				accessKey,
+				thumbnailAccessKey: thumbnailKey,
+				storedInternal: true,
+				isLink: false,
+				name: 'sample.png',
+				size: dummySize,
+			});
+
+			const res = await fastify.inject({
+				method: 'GET',
+				url: `/files/${thumbnailKey}`,
+			});
+
+			expect(res.statusCode).toBe(200);
+			expect(res.headers['content-length']).toBe(String(thumbnailSize));
+			expect(res.rawPayload.length).toBe(thumbnailSize);
+		});
+
+		test('GET /files/:key webpublic は実ファイルのサイズで Content-Length を返す', async () => {
+			const accessKey = randomString();
+			const webpublicKey = randomString();
+			const webpublicSize = writeInternalFileWithSize(webpublicKey, 256);
+			expect(webpublicSize).not.toBe(dummySize);
+			await insertDriveFile({
+				accessKey,
+				webpublicAccessKey: webpublicKey,
+				storedInternal: true,
+				isLink: false,
+				name: 'sample.png',
+				size: dummySize,
+			});
+
+			const res = await fastify.inject({
+				method: 'GET',
+				url: `/files/${webpublicKey}`,
+			});
+
+			expect(res.statusCode).toBe(200);
+			expect(res.headers['content-length']).toBe(String(webpublicSize));
+			expect(res.rawPayload.length).toBe(webpublicSize);
+		});
+
+		test('GET /files/:key thumbnail の Range は実ファイルのサイズを基準にする', async () => {
+			const accessKey = randomString();
+			const thumbnailKey = randomString();
+			const thumbnailSize = writeInternalFileWithSize(thumbnailKey, 512);
+			await insertDriveFile({
+				accessKey,
+				thumbnailAccessKey: thumbnailKey,
+				storedInternal: true,
+				isLink: false,
+				name: 'sample.png',
+				size: dummySize,
+			});
+
+			const res = await fastify.inject({
+				method: 'GET',
+				url: `/files/${thumbnailKey}`,
+				headers: {
+					range: 'bytes=0-',
+				},
+			});
+
+			expect(res.statusCode).toBe(206);
+			// 原本サイズを使うと実ファイルの終端を超えてしまう
+			expect(res.headers['content-range']).toBe(`bytes 0-${thumbnailSize - 1}/${thumbnailSize}`);
+			expect(res.headers['content-length']).toBe(String(thumbnailSize));
+			expect(res.rawPayload.length).toBe(thumbnailSize);
+		});
+
+		test('GET /files/:key 実ファイルが DB の size と異なっても実サイズを返す', async () => {
+			const accessKey = randomString();
+			writeInternalFile(accessKey);
+			// DBの file.size が実ファイルとずれている既存データを模す
+			await insertDriveFile({
+				accessKey,
+				storedInternal: true,
+				isLink: false,
+				size: dummySize + 9999,
+			});
+
+			const res = await fastify.inject({
+				method: 'GET',
+				url: `/files/${accessKey}`,
+			});
+
+			expect(res.statusCode).toBe(200);
+			expect(res.headers['content-length']).toBe(String(dummySize));
+			expect(res.rawPayload.length).toBe(dummySize);
 		});
 
 		test('GET /files/:key thumbnail のファイル名を整形する', async () => {

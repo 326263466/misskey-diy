@@ -3,12 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { describe, test, assert, afterEach } from 'vitest';
+import { describe, test, assert, afterEach, expect, vi } from 'vitest';
 import { render, cleanup, type RenderResult } from '@testing-library/vue';
+import { nextTick } from 'vue';
 import type { SummalyResult } from '@misskey-dev/summaly';
 import { components } from '@/components/index.js';
 import { directives } from '@/directives/index.js';
 import MkUrlPreview from '@/components/MkUrlPreview.vue';
+import { i18n } from '@/i18n.js';
 
 describe('MkUrlPreview', () => {
 	const renderPreviewBy = async (summary: Partial<SummalyResult>): Promise<RenderResult> => {
@@ -60,6 +62,46 @@ describe('MkUrlPreview', () => {
 	afterEach(() => {
 		fetchMock.resetMocks();
 		cleanup();
+		vi.restoreAllMocks();
+		vi.useRealTimers();
+	});
+
+	test.each(['network', 'json', 'http'])('shows the original link instead of loading forever after a %s failure', async failure => {
+		fetchMock.mockOnceIf(req => new URL(req.url).pathname === '/url', () => {
+			if (failure === 'network') return Promise.reject(new Error('Connection lost'));
+			return Promise.resolve({ body: failure === 'json' ? 'not JSON' : '{}', status: failure === 'http' ? 422 : 200 });
+		});
+		const view = render(MkUrlPreview, {
+			props: { url: 'https://example.test/unavailable' },
+			global: { directives, components },
+		});
+		await view.findByText(i18n.ts.failedToPreviewUrl);
+		expect(view.getByRole('link').getAttribute('href')).toBe('https://example.test/unavailable');
+		expect(view.getByRole('heading').textContent).toBe('https://example.test/unavailable');
+	});
+
+	test('aborts a stalled preview and shows the link after the timeout', async () => {
+		vi.useFakeTimers();
+		vi.spyOn(window, 'fetch').mockImplementationOnce((_input, init) => new Promise((_resolve, reject) => {
+			init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+		}));
+		const view = render(MkUrlPreview, { props: { url: 'https://example.test/slow' }, global: { directives, components } });
+		await vi.advanceTimersByTimeAsync(30000);
+		await nextTick();
+		expect(view.getByText(i18n.ts.failedToPreviewUrl)).toBeTruthy();
+		expect(view.getByRole('link').getAttribute('href')).toBe('https://example.test/slow');
+	});
+
+	test('cancels the preview request when the hover panel is unmounted', async () => {
+		let signal: AbortSignal | null | undefined;
+		vi.spyOn(window, 'fetch').mockImplementationOnce((_input, init) => new Promise((_resolve, reject) => {
+			signal = init!.signal;
+			signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+		}));
+		const view = render(MkUrlPreview, { props: { url: 'https://example.test/slow' }, global: { directives, components } });
+		view.unmount();
+		await nextTick();
+		expect(signal?.aborted).toBe(true);
 	});
 
 	test('Should render the description', async () => {
@@ -68,6 +110,7 @@ describe('MkUrlPreview', () => {
 			description: 'Mocked description',
 		});
 		mkUrlPreview.getByText('Mocked description');
+		expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/url?'), expect.objectContaining({ cache: 'no-cache', signal: expect.any(AbortSignal) }));
 	});
 
 	test('Having a player should render a button', async () => {

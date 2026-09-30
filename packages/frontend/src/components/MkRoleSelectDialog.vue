@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@closed="emit('closed')"
 >
 	<template #header>{{ title }}</template>
-	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+	<div class="_spacer _spacerCard">
 		<MkLoading v-if="fetching"/>
 		<div v-else class="_gaps" :class="$style.root">
 			<div :class="$style.header">

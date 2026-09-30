@@ -17,10 +17,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		{{ mode === 'create' ? i18n.ts._abuseReport._notificationRecipient.createRecipient : i18n.ts._abuseReport._notificationRecipient.modifyRecipient }}
 	</template>
 	<div v-if="loading === 0" style="display: flex; flex-direction: column; min-height: 100%;">
-		<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px; flex-grow: 1;">
+		<div class="_spacer _spacerCard" style="flex-grow: 1;">
 			<div :class="$style.root" class="_gaps_m">
 				<MkInput v-model="title">
-					<template #label>{{ i18n.ts.title }}</template>
+					<template #label>{{ i18n.ts.name }}</template>
 				</MkInput>
 				<MkSelect v-model="method" :items="methodDef">
 					<template #label>{{ i18n.ts._abuseReport._notificationRecipient.recipientType }}</template>
@@ -304,7 +304,7 @@ onMounted(async () => {
 	z-index: 10000;
 	bottom: 0;
 	left: 0;
-	padding: 12px;
+	padding: var(--MI-cardPadding, 20px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));

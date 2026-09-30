@@ -151,7 +151,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	}, me: MiLocalUser | null) {
 		const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'),
 			ps.sinceId, ps.untilId)
-			.andWhere('(note.visibility = \'public\') AND (note.userHost IS NULL) AND (note.channelId IS NULL)')
+			.andWhere('(note.visibility = \'public\') AND (note.userHost IS NULL)')
 			.innerJoinAndSelect('note.user', 'user')
 			.leftJoinAndSelect('note.reply', 'reply')
 			.leftJoinAndSelect('note.renote', 'renote')
@@ -167,10 +167,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.list({ requestUserId: me.id }, { idOnly: true })
 				.then(x => x.map(x => x.id));
 			if (mutedChannelIds.length > 0) {
-				query.andWhere(new Brackets(qb => {
-					qb.orWhere('note.renoteChannelId IS NULL')
-						.orWhere('note.renoteChannelId NOT IN (:...mutedChannelIds)', { mutedChannelIds });
-				}));
+				for (const column of ['channelId', 'renoteChannelId']) {
+					query.andWhere(new Brackets(qb => {
+						qb.where(`note.${column} IS NULL`)
+							.orWhere(`note.${column} NOT IN (:...mutedChannelIds)`, { mutedChannelIds });
+					}));
+				}
 			}
 		}
 

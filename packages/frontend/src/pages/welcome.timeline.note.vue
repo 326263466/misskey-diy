@@ -7,18 +7,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :key="note.id" :class="$style.note">
 	<div class="_panel _gaps_s" :class="$style.content">
 		<div v-if="note.cw != null" :class="$style.richcontent">
-			<div><Mfm :text="note.cw" :author="note.user"/></div>
-			<MkCwButton v-model="showContent" :text="note.text" :renote="note.renote" :files="note.files" :poll="note.poll" style="margin: 4px 0;"/>
+			<MkCwButton v-model="showContent" :text="note.text" :renote="note.renote" :files="note.files" :poll="note.poll">
+				<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user"/>
+			</MkCwButton>
 			<div v-if="showContent">
 				<MkA v-if="note.replyId" class="reply" :to="`/notes/${note.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 				<Mfm v-if="note.text" :text="note.text" :author="note.user"/>
-				<MkA v-if="note.renoteId" class="rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
+				<MkA v-if="note.renoteId" class="rp" :to="`/notes/${note.renoteId}`">{{ i18n.ts.renote }}: ...</MkA>
 			</div>
 		</div>
 		<div v-else ref="noteTextEl" :class="[$style.text, { [$style.collapsed]: shouldCollapse }]">
 			<MkA v-if="note.replyId" class="reply" :to="`/notes/${note.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 			<Mfm v-if="note.text" :text="note.text" :author="note.user"/>
-			<MkA v-if="note.renoteId" class="rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
+			<MkA v-if="note.renoteId" class="rp" :to="`/notes/${note.renoteId}`">{{ i18n.ts.renote }}: ...</MkA>
 		</div>
 		<div v-if="note.files && note.files.length > 0 && (note.cw == null || showContent)" :class="$style.richcontent">
 			<MkMediaList :mediaList="note.files.slice(0, 4)"/>
@@ -37,6 +38,7 @@ import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkMediaList from '@/components/MkMediaList.vue';
 import MkPoll from '@/components/MkPoll.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
+import { i18n } from '@/i18n.js';
 
 defineProps<{
 	note: Misskey.entities.Note;

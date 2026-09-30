@@ -4,14 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div v-if="tab === 'featured'">
+<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
+	<div v-if="tab === 'featured'" data-page-body>
 		<XFeatured/>
 	</div>
-	<div v-else-if="tab === 'users'">
+	<div v-else-if="tab === 'users'" data-page-body>
 		<XUsers/>
 	</div>
-	<div v-else-if="tab === 'roles'">
+	<div v-else-if="tab === 'roles'" data-page-body>
 		<XRoles/>
 	</div>
 </PageWithHeader>
@@ -32,8 +32,6 @@ const props = withDefaults(defineProps<{
 });
 
 const tab = ref(props.initialTab);
-
-const headerActions = computed(() => []);
 
 const headerTabs = computed(() => [{
 	key: 'featured',

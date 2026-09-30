@@ -82,6 +82,15 @@ export class NotificationEntityService implements OnModuleInit {
 
 		if (options.checkValidNotifier !== false && !(await this.#isValidNotifier(notification, meId))) return null;
 
+		if (notification.type === 'system') {
+			return {
+				id: notification.id,
+				createdAt: new Date(notification.createdAt).toISOString(),
+				type: notification.type,
+				message: notification.message,
+			};
+		}
+
 		const needsNote = NOTE_REQUIRED_NOTIFICATION_TYPES.has(notification.type) && 'noteId' in notification;
 		const noteIfNeed = needsNote ? (
 			hint?.packedNotes != null

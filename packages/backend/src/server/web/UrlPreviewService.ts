@@ -125,7 +125,8 @@ export class UrlPreviewService implements OnApplicationShutdown {
 			this.logger.warn(`Failed to get preview of ${url}: ${err}`);
 
 			reply.code(422);
-			reply.header('Cache-Control', 'max-age=86400, immutable');
+			// A temporary upstream failure must not prevent the next request from retrying.
+			reply.header('Cache-Control', 'no-store');
 			return {
 				error: new ApiError({
 					message: 'Failed to get preview',
@@ -155,7 +156,7 @@ export class UrlPreviewService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	private fetchSummaryFromProxy(url: string, lang?: string): Promise<SummalyResult> {
+	private async fetchSummaryFromProxy(url: string, lang?: string): Promise<SummalyResult> {
 		const proxy = this.meta.urlPreviewSummaryProxyUrl!;
 		const queryStr = query({
 			url: url,
@@ -167,7 +168,13 @@ export class UrlPreviewService implements OnApplicationShutdown {
 			contentLengthRequired: this.meta.urlPreviewRequireContentLength,
 		});
 
-		return this.httpRequestService.getJson<SummalyResult>(`${proxy}?${queryStr}`, 'application/json, */*', undefined, true);
+		const response = await this.httpRequestService.send(`${proxy}?${queryStr}`, {
+			headers: { Accept: 'application/json, */*' },
+			timeout: this.meta.urlPreviewTimeout,
+			size: 1024 * 256,
+			isLocalAddressAllowed: true,
+		});
+		return await response.json() as SummalyResult;
 	}
 
 	@bindThis

@@ -23,11 +23,27 @@ export class MiUserProfile {
 	@JoinColumn()
 	public user: MiUser | null;
 
+	@Column('integer', { default: 0 })
+	public checkinPoints: number;
+
+	@Column('integer', { default: 0 })
+	public checkinMakeupCards: number;
+
 	@Column('varchar', {
 		length: 128, nullable: true,
 		comment: 'The location of the User.',
 	})
 	public location: string | null;
+
+	@Column('varchar', {
+		length: 128, nullable: true,
+	})
+	public company: string | null;
+
+	@Column('varchar', {
+		length: 128, nullable: true,
+	})
+	public jobTitle: string | null;
 
 	// Note: There's index named IDX_de22cd2b445eee31ae51cdbe99 for SUBSTR("birthday", 6, 5)
 	@Column('char', {
@@ -296,7 +312,10 @@ export class MiUserProfile {
 	}
 }
 
+export const CHECKIN_ACHIEVEMENT_TYPES = ['checkin1', 'checkinStreak7', 'checkinStreak30', 'checkinTotal30', 'checkinTotal100', 'checkinTotal365'] as const;
+
 export const ACHIEVEMENT_TYPES = [
+	...CHECKIN_ACHIEVEMENT_TYPES,
 	'notes1',
 	'notes10',
 	'notes100',

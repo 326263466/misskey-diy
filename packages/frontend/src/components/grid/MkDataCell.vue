@@ -416,7 +416,8 @@ $cellHeight: 28px;
 	height: $cellHeight - 2;
 	outline: none;
 	border: none;
-	font-family: 'Hiragino Maru Gothic Pro', "BIZ UDGothic", Roboto, HelveticaNeue, Arial, sans-serif;
+	// input 不继承页面字体（UA 默认），显式接回全局字体栈
+	font-family: inherit;
 }
 
 </style>

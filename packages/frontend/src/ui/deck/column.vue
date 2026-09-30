@@ -140,7 +140,7 @@ function getMenu() {
 		icon: 'ti ti-settings',
 		text: i18n.ts._deck.configureColumn,
 		action: async () => {
-			const name = props.column.name ?? i18n.ts._deck._columns[props.column.type];
+			const name = props.column.name ?? (props.column.type === 'chat' ? i18n.ts.chat : i18n.ts._deck._columns[props.column.type]);
 			const { canceled, result } = await os.form(name, {
 				name: {
 					type: 'string',

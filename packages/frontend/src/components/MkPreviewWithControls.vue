@@ -81,7 +81,7 @@ defineSlots<{
 }
 
 .controls {
-	overflow-y: scroll;
+	overflow-y: auto;
 }
 
 @container (max-width: 800px) {

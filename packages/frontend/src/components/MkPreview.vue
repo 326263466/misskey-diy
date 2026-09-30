@@ -7,10 +7,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="$style.preview">
 	<div>
 		<MkInput v-model="text">
-			<template #label>Text</template>
+			<template #label>{{ i18n.ts.text }}</template>
 		</MkInput>
 		<MkSwitch v-model="flag" :class="$style.preview__content1__switch_button">
-			<span>Switch is now {{ flag ? 'on' : 'off' }}</span>
+			<span>{{ flag ? i18n.ts.on : i18n.ts.off }}</span>
 		</MkSwitch>
 		<div :class="$style.preview__content1__button">
 			<MkButton inline>This is</MkButton>
@@ -21,10 +21,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<Mfm :text="mfm"/>
 	</div>
 	<div :class="$style.preview__content3">
-		<MkButton inline primary @click="openMenu">Open menu</MkButton>
-		<MkButton inline primary @click="openDialog">Open dialog</MkButton>
-		<MkButton inline primary @click="openForm">Open form</MkButton>
-		<MkButton inline primary @click="openDrive">Open drive</MkButton>
+		<MkButton inline primary @click="openMenu">{{ i18n.ts._preview.openMenu }}</MkButton>
+		<MkButton inline primary @click="openDialog">{{ i18n.ts._preview.openDialog }}</MkButton>
+		<MkButton inline primary @click="openForm">{{ i18n.ts._preview.openForm }}</MkButton>
+		<MkButton inline primary @click="openDrive">{{ i18n.ts._preview.openDrive }}</MkButton>
 	</div>
 </div>
 </template>
@@ -38,6 +38,7 @@ import MkSwitch from '@/components/MkSwitch.vue';
 import * as os from '@/os.js';
 import { $i } from '@/i.js';
 import { chooseDriveFile } from '@/utility/drive.js';
+import { i18n } from '@/i18n.js';
 
 const text = ref('');
 const flag = ref(true);

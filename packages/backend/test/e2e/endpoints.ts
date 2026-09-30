@@ -6,13 +6,17 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
+import { randomUUID } from 'node:crypto';
 import { describe, beforeAll, test, expect, vi } from 'vitest';
 // node-fetch only supports it's own Blob yet
 // https://github.com/node-fetch/node-fetch/pull/1664
 import { Blob } from 'node-fetch';
-import { api, castAsError, initTestDb, post, role, signup, simpleGet, uploadFile } from '../utils.js';
+import { api, castAsError, createAppToken, initTestDb, post, randomString, role, signup, simpleGet, uploadFile } from '../utils.js';
 import type * as misskey from 'misskey-js';
-import { MiUser } from '@/models/_.js';
+import { MiUser, MiUserCheckin, MiUserProfile } from '@/models/_.js';
+import { IdService } from '@/core/IdService.js';
+import { checkinDate, previousCheckinDate } from '@/core/CheckinService.js';
+import { loadConfig } from '@/config.js';
 
 const waitForPushToTlOptions = { timeout: 3000, interval: 25 };
 
@@ -29,6 +33,137 @@ describe('Endpoints', () => {
 		dave = await signup({ username: 'dave' });
 		await api('admin/update-meta', { federation: 'all' }, alice as misskey.entities.SignupResponse);
 	}, 1000 * 60 * 2);
+
+	describe('check-in rewards', () => {
+		test('requires authentication and write-account scope for signing in', async () => {
+			expect((await api('i/checkin', {})).status).toBe(401);
+			expect((await api('i/checkin-makeup', { date: '2026-01-01' })).status).toBe(401);
+			expect((await api('i/checkin-exchange', { requestId: randomUUID() })).status).toBe(401);
+			const token = await createAppToken(bob, ['read:account']);
+			const response = await api('i/checkin', {}, { token });
+			expect(response.status).toBe(403);
+			expect(castAsError(response.body).error.code).toBe('PERMISSION_DENIED');
+			const exchange = await api('i/checkin-exchange', { requestId: randomUUID() }, { token });
+			expect(exchange.status).toBe(403);
+			expect(castAsError(exchange.body).error.code).toBe('PERMISSION_DENIED');
+		});
+
+		test('persists one point per day and exposes the updated administrator balance', async () => {
+			const first = await api('i/checkin', {}, bob);
+			expect(first.status).toBe(200);
+			expect(first.body).toMatchObject({ newlyCheckedIn: true, earnedPoints: 1, points: 1, totalDays: 1, makeupCards: 0, earnedMakeupCards: 0, makeupCardProgress: 1, makeupCardTarget: 7, makeupCardExchangeCost: 7 });
+			const repeated = await api('i/checkin', {}, bob);
+			expect(repeated.body).toMatchObject({ newlyCheckedIn: false, earnedPoints: 0, points: 1, totalDays: 1 });
+			expect((await api('i/checkin-status', {}, bob)).body).toMatchObject({ checkedInToday: true, points: 1, makeupDates: [] });
+			expect((await api('admin/show-user', { userId: bob.id }, alice)).body).toMatchObject({ checkinPoints: 1, checkinMakeupCards: 0 });
+		});
+
+		test('denies card grants to ordinary users and moderators', async () => {
+			const moderator = await role(alice, { isModerator: true });
+			await api('admin/roles/assign', { roleId: moderator.id, userId: carol.id }, alice);
+			for (const actor of [bob, carol]) {
+				const result = await api('admin/checkin/grant-cards', { userId: bob.id, amount: 1 }, actor);
+				expect(result.status).toBe(403);
+				expect(castAsError(result.body).error.code).toBe('ROLE_PERMISSION_DENIED');
+			}
+		});
+
+		test('validates card amounts and records administrator grants', async () => {
+			for (const amount of [0, -1, 1.5, 10001]) {
+				const result = await api('admin/checkin/grant-cards', { userId: bob.id, amount }, alice);
+				expect(result.status).toBe(400);
+			}
+			const granted = await api('admin/checkin/grant-cards', { userId: bob.id, amount: 2 }, alice);
+			expect(granted.status).toBe(200);
+			expect(granted.body).toEqual({ makeupCards: 2 });
+			expect((await api('admin/show-user', { userId: bob.id }, alice)).body).toMatchObject({ checkinMakeupCards: 2 });
+			const logs = await api('admin/show-moderation-logs', { type: 'grantCheckinCards' }, alice);
+			expect(logs.body).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'grantCheckinCards', info: expect.objectContaining({ userId: bob.id, amount: 2, before: 0, after: 2 }) })]));
+		});
+
+		test('makes up a missed day through HTTP and retries without charging twice', async () => {
+			const db = await initTestDb(true);
+			const oldUser = { id: new IdService(loadConfig()).gen(Date.now() - 4 * 86400000), token: randomString() };
+			try {
+				await db.getRepository(MiUser).insert({ ...oldUser, username: 'checkin-http', usernameLower: 'checkin-http' });
+				await db.getRepository(MiUserProfile).insert({ userId: oldUser.id });
+			} finally {
+				await db.destroy();
+			}
+			const date = previousCheckinDate(checkinDate(new Date()));
+			const noCards = await api('i/checkin-makeup', { date }, oldUser);
+			expect(noCards.status).toBe(400);
+			expect(castAsError(noCards.body).error.code).toBe('NO_MAKEUP_CARDS');
+			await api('admin/checkin/grant-cards', { userId: oldUser.id, amount: 1 }, alice);
+			const makeup = await api('i/checkin-makeup', { date }, oldUser);
+			expect(makeup.status).toBe(200);
+			expect(makeup.body).toMatchObject({ newlyCheckedIn: true, earnedPoints: 1, points: 1, makeupCards: 0, makeupDates: [date], month: date.slice(0, 7) });
+			expect((await api('i/checkin-makeup', { date }, oldUser)).body).toMatchObject({ newlyCheckedIn: false, earnedPoints: 0, points: 1, makeupCards: 0 });
+			const today = await api('i/checkin-makeup', { date: checkinDate(new Date()) }, oldUser);
+			expect(castAsError(today.body).error.code).toBe('INVALID_CHECKIN_DATE');
+		});
+
+		test('protects administrator card analytics from anonymous, ordinary, moderator and unscoped token requests', async () => {
+			const unscoped = { token: await createAppToken(alice, ['read:account']) };
+			const moderator = await role(alice, { isModerator: true });
+			await api('admin/roles/assign', { roleId: moderator.id, userId: carol.id }, alice);
+			for (const endpoint of ['admin/checkin/stats', 'admin/checkin/history', 'admin/checkin/users'] as const) {
+				expect((await api(endpoint, {})).status).toBe(401);
+				for (const actor of [bob, carol]) {
+					const response = await api(endpoint, {}, actor);
+					expect(response.status).toBe(403);
+					expect(castAsError(response.body).error.code).toBe('ROLE_PERMISSION_DENIED');
+				}
+				const response = await api(endpoint, {}, unscoped);
+				expect(response.status).toBe(403);
+				expect(castAsError(response.body).error.code).toBe('PERMISSION_DENIED');
+			}
+		});
+
+		test('exposes accurate recipient balances and paginated audit details through the administrator read scope', async () => {
+			const actor = { token: await createAppToken(alice, ['read:admin:show-user']) };
+			const stats = await api('admin/checkin/stats', { userId: bob.id }, actor);
+			expect(stats.status).toBe(200);
+			expect(stats.body).toEqual({ grantedCards: 2, grantCount: 1, grantedUsers: 1, usedCards: 0, usedUsers: 0, exchangedCards: 0, availableCards: 2 });
+			const history = await api('admin/checkin/history', { userId: bob.id, type: 'grant', limit: 1 }, actor);
+			expect(history.status).toBe(200);
+			expect(history.body).toMatchObject({ total: 1, items: [{ userId: bob.id, user: { id: bob.id }, operator: { id: alice.id }, amount: 2, before: 0, after: 2 }] });
+			expect((await api('admin/checkin/history', { userId: bob.id, type: 'grant', limit: 1, offset: 1 }, actor)).body).toEqual({ total: 1, items: [] });
+			const users = await api('admin/checkin/users', { userId: bob.id }, actor);
+			expect(users.status).toBe(200);
+			expect(users.body).toMatchObject({ total: 1, items: [{ user: { id: bob.id }, grantedCards: 2, usedCards: 0, exchangedCards: 0, availableCards: 2, points: 1 }] });
+		});
+
+		test('gifts the seventh actual check-in card and exchanges seven points idempotently through HTTP', async () => {
+			const db = await initTestDb(true);
+			const oldUser = { id: new IdService(loadConfig()).gen(Date.now() - 15 * 86400000), token: randomString() };
+			const today = checkinDate(new Date());
+			try {
+				await db.getRepository(MiUser).insert({ ...oldUser, username: 'checkin-rewards', usernameLower: 'checkin-rewards' });
+				await db.getRepository(MiUserProfile).insert({ userId: oldUser.id, checkinPoints: 6 });
+				await db.getRepository(MiUserCheckin).insert(Array.from({ length: 6 }, (_, index) => ({
+					userId: oldUser.id,
+					date: new Date(new Date(`${today}T00:00:00Z`).getTime() - (7 - index) * 86400000).toISOString().slice(0, 10),
+					createdAt: new Date(), totalDays: index + 1, consecutiveDays: index + 1, isMakeup: false,
+				})));
+			} finally {
+				await db.destroy();
+			}
+			const signed = await api('i/checkin', {}, oldUser);
+			expect(signed.status).toBe(200);
+			expect(signed.body).toMatchObject({ earnedMakeupCards: 1, points: 7, makeupCards: 1, makeupCardProgress: 0 });
+			const requestId = randomUUID();
+			const exchange = await api('i/checkin-exchange', { requestId }, oldUser);
+			expect(exchange.status).toBe(200);
+			expect(exchange.body).toEqual({ points: 0, makeupCards: 2, exchanged: true });
+			expect((await api('i/checkin-exchange', { requestId }, oldUser)).body).toEqual({ points: 0, makeupCards: 2, exchanged: false });
+			const makeup = await api('i/checkin-makeup', { date: previousCheckinDate(today) }, oldUser);
+			expect(makeup.body).toMatchObject({ points: 1, makeupCards: 1, earnedMakeupCards: 0, makeupCardProgress: 0 });
+			const insufficient = await api('i/checkin-exchange', { requestId: randomUUID() }, oldUser);
+			expect(insufficient.status).toBe(400);
+			expect(castAsError(insufficient.body).error.code).toBe('INSUFFICIENT_CHECKIN_POINTS');
+		});
+	});
 
 	describe('signup', () => {
 		test('不正なユーザー名でアカウントが作成できない', async () => {

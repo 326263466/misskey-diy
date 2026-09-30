@@ -13,9 +13,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span class="name"><MkUserName class="name" :user="user"/></span>
 					<span class="sub"><span class="acct _monospace">@{{ acct(user) }}</span></span>
 					<span class="state">
-						<span v-if="suspended" class="suspended">Suspended</span>
-						<span v-if="silenced" class="silenced">Silenced</span>
-						<span v-if="moderator" class="moderator">Moderator</span>
+						<span v-if="suspended" class="suspended">{{ i18n.ts._userStatus.suspended }}</span>
+						<span v-if="silenced" class="silenced">{{ i18n.ts._userStatus.silenced }}</span>
+						<span v-if="moderator" class="moderator">{{ i18n.ts.moderator }}</span>
 					</span>
 				</div>
 			</div>
@@ -51,10 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</template>
 			</div>
 
-			<MkTextarea v-if="!isSystem" v-model="moderationNote" manualSave>
-				<template #label>{{ i18n.ts.moderationNote }}</template>
-				<template #caption>{{ i18n.ts.moderationNoteDescription }}</template>
-			</MkTextarea>
+			<MkModerationNote v-if="!isSystem" v-model="moderationNote" :save="saveModerationNote"/>
 
 			<!--
 				<FormSection>
@@ -115,7 +112,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #icon><i class="ti ti-password"></i></template>
 						<template #label>IP</template>
 						<MkInfo v-if="!iAmAdmin" warn>{{ i18n.ts.requireAdminForView }}</MkInfo>
-						<MkInfo v-else>The date is the IP address was first acknowledged.</MkInfo>
+						<MkInfo v-else>{{ i18n.ts._adminUser.ipFirstSeenDescription }}</MkInfo>
 						<template v-if="iAmAdmin && ips">
 							<div v-for="record in ips" :key="record.ip" class="_monospace" :class="$style.ip" style="margin: 1em 0;">
 								<span class="date">{{ record.createdAt }}</span>
@@ -144,9 +141,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<button v-else class="_button" :class="$style.roleUnassign" disabled><i class="ti ti-ban"></i></button>
 				</div>
 				<div v-if="expandedRoleIds.includes(role.id)" :class="$style.roleItemSub">
-					<div>Assigned: <MkTime :time="info.roleAssigns.find(a => a.roleId === role.id)!.createdAt" mode="detail"/></div>
-					<div v-if="info.roleAssigns.find(a => a.roleId === role.id)!.expiresAt">Period: {{ new Date(info.roleAssigns.find(a => a.roleId === role.id)!.expiresAt!).toLocaleString() }}</div>
-					<div v-else>Period: {{ i18n.ts.indefinitely }}</div>
+					<div>{{ i18n.ts._role.assignedAt }}: <MkTime :time="info.roleAssigns.find(a => a.roleId === role.id)!.createdAt" mode="detail"/></div>
+					<div v-if="info.roleAssigns.find(a => a.roleId === role.id)!.expiresAt">{{ i18n.ts.expirationDate }}: {{ new Date(info.roleAssigns.find(a => a.roleId === role.id)!.expiresAt!).toLocaleString() }}</div>
+					<div v-else>{{ i18n.ts.expirationDate }}: {{ i18n.ts.indefinitely }}</div>
 				</div>
 			</div>
 		</div>
@@ -213,7 +210,7 @@ import { url } from '@@/js/config.js';
 import type { ChartSrc } from '@/components/MkChart.vue';
 import MkChart from '@/components/MkChart.vue';
 import MkObjectView from '@/components/MkObjectView.vue';
-import MkTextarea from '@/components/MkTextarea.vue';
+import MkModerationNote from '@/components/MkModerationNote.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import FormLink from '@/components/form/link.vue';
 import FormSection from '@/components/form/section.vue';
@@ -263,7 +260,7 @@ const moderator = ref(info.value.isModerator);
 const silenced = ref(info.value.isSilenced);
 const suspended = ref(info.value.isSuspended);
 const isSystem = ref(user.value.host == null && user.value.username.includes('.'));
-const moderationNote = ref(info.value.moderationNote);
+const moderationNote = ref(info.value.moderationNote ?? '');
 const filesPaginator = markRaw(new Paginator('admin/drive/files', {
 	limit: 10,
 	computedParams: computed(() => ({
@@ -276,7 +273,7 @@ const {
 	def: announcementsStatusDef,
 } = useMkSelect({
 	items: [
-		{ label: i18n.ts.active, value: 'active' },
+		{ label: i18n.ts._announcement.active, value: 'active' },
 		{ label: i18n.ts.archived, value: 'archived' },
 	],
 	initialValue: 'active',
@@ -305,10 +302,10 @@ function _fetch_() {
 	}));
 }
 
-watch(moderationNote, async () => {
-	await misskeyApi('admin/update-user-note', { userId: user.value.id, text: moderationNote.value });
+async function saveModerationNote(value: string) {
+	await os.apiWithDialog('admin/update-user-note', { userId: user.value.id, text: value });
 	await refreshUser();
-});
+}
 
 async function refreshUser() {
 	const result = await _fetch_();
@@ -319,7 +316,7 @@ async function refreshUser() {
 	silenced.value = info.value.isSilenced;
 	suspended.value = info.value.isSuspended;
 	isSystem.value = user.value.host == null && user.value.username.includes('.');
-	moderationNote.value = info.value.moderationNote;
+	moderationNote.value = info.value.moderationNote ?? '';
 }
 
 async function updateRemoteUser() {
@@ -448,7 +445,7 @@ async function deleteAccount() {
 	} else {
 		os.alert({
 			type: 'error',
-			text: 'input not match',
+			text: i18n.ts._adminUser.confirmationMismatch,
 		});
 	}
 }
@@ -543,7 +540,7 @@ const headerTabs = computed(() => isSystem.value ? [{
 	icon: 'ti ti-info-circle',
 }, {
 	key: 'raw',
-	title: 'Raw',
+	title: i18n.ts.rawData,
 	icon: 'ti ti-code',
 }] : [{
 	key: 'overview',
@@ -567,7 +564,7 @@ const headerTabs = computed(() => isSystem.value ? [{
 	icon: 'ti ti-chart-line',
 }, {
 	key: 'raw',
-	title: 'Raw',
+	title: i18n.ts.rawData,
 	icon: 'ti ti-code',
 }]);
 

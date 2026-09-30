@@ -4,18 +4,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="note" :class="$style.root">
+<div v-if="note" :class="[$style.root, { [$style.compact]: compact }]">
 	<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null]" :user="note.user" link preview/>
 	<div :class="$style.main">
 		<MkNoteHeader :class="$style.header" :note="note" :mini="true"/>
 		<div>
-			<p v-if="note.cw != null" :class="$style.cw">
-				<Mfm v-if="note.cw != ''" style="margin-right: 8px;" :text="note.cw" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
-				<MkCwButton v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll"/>
-			</p>
+			<MkCwButton v-if="note.cw != null" v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll">
+				<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
+			</MkCwButton>
 			<div v-show="note.cw == null || showContent">
-				<MkSubNoteContent :class="$style.text" :note="note" :relocateTags="true"/>
-				<MkNoteTags :class="$style.tags" :tags="topics.tags"/>
+				<MkSubNoteContent :class="[$style.text, { [$style.clamp]: compact }]" :note="note" :relocateTags="true"/>
+				<MkNoteTags :class="$style.tags" :tags="topics.tags" :channel="note.channel"/>
 			</div>
 		</div>
 	</div>
@@ -41,6 +40,7 @@ import { getDeletedText } from '@/utility/deleted-note.js';
 
 const props = defineProps<{
 	note: Misskey.entities.Note | null;
+	compact?: boolean;
 }>();
 
 const showContent = ref(false);
@@ -95,18 +95,20 @@ useGlobalEvent('noteEdited', (id, content) => {
 	margin-bottom: 2px;
 }
 
-.cw {
-	cursor: default;
-	display: block;
-	margin: 0;
-	padding: 0;
-	overflow-wrap: break-word;
-}
-
 .text {
 	cursor: default;
 	margin: 0;
 	padding: 0;
+}
+
+.clamp {
+	> div:first-child {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow: hidden;
+	}
 }
 
 .tags {
@@ -134,6 +136,14 @@ useGlobalEvent('noteEdited', (id, content) => {
 		margin: 0 12px 0 0;
 		width: 48px;
 		height: 48px;
+	}
+}
+
+.compact {
+	.avatar {
+		width: 30px;
+		height: 30px;
+		margin: 0 8px 0 0;
 	}
 }
 

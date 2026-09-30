@@ -6,39 +6,39 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_gaps">
 	<div :class="$style.status">
-		<div :class="$style.statusItem" class="_panel"><div :class="$style.statusLabel">Process</div>{{ number(activeSincePrevTick) }}</div>
-		<div :class="$style.statusItem" class="_panel"><div :class="$style.statusLabel">Active</div>{{ number(active) }}</div>
-		<div :class="$style.statusItem" class="_panel"><div :class="$style.statusLabel">Waiting</div>{{ number(waiting) }}</div>
-		<div :class="$style.statusItem" class="_panel"><div :class="$style.statusLabel">Delayed</div>{{ number(delayed) }}</div>
+		<div :class="$style.statusItem" class="_panel"><div :class="$style.statusLabel">{{ i18n.ts._queue.process }}</div>{{ number(activeSincePrevTick) }}</div>
+		<div :class="$style.statusItem" class="_panel"><div :class="$style.statusLabel">{{ i18n.ts._queue.active }}</div>{{ number(active) }}</div>
+		<div :class="$style.statusItem" class="_panel"><div :class="$style.statusLabel">{{ i18n.ts._queue.waiting }}</div>{{ number(waiting) }}</div>
+		<div :class="$style.statusItem" class="_panel"><div :class="$style.statusLabel">{{ i18n.ts._queue.delayed }}</div>{{ number(delayed) }}</div>
 	</div>
 	<div :class="$style.charts">
 		<div :class="$style.chart">
-			<div :class="$style.chartTitle">Process</div>
+			<div :class="$style.chartTitle">{{ i18n.ts._queue.process }}</div>
 			<XChart ref="chartProcess" type="process"/>
 		</div>
 		<div :class="$style.chart">
-			<div :class="$style.chartTitle">Active</div>
+			<div :class="$style.chartTitle">{{ i18n.ts._queue.active }}</div>
 			<XChart ref="chartActive" type="active"/>
 		</div>
 		<div :class="$style.chart">
-			<div :class="$style.chartTitle">Delayed</div>
+			<div :class="$style.chartTitle">{{ i18n.ts._queue.delayed }}</div>
 			<XChart ref="chartDelayed" type="delayed"/>
 		</div>
 		<div :class="$style.chart">
-			<div :class="$style.chartTitle">Waiting</div>
+			<div :class="$style.chartTitle">{{ i18n.ts._queue.waiting }}</div>
 			<XChart ref="chartWaiting" type="waiting"/>
 		</div>
 	</div>
 	<MkFolder :defaultOpen="true" :max-height="250">
 		<template #icon><i class="ti ti-alert-triangle"></i></template>
-		<template #label>Errored instances</template>
-		<template #suffix>({{ number(jobs.reduce((a, b) => a + b[1], 0)) }} jobs)</template>
+		<template #label>{{ i18n.ts._queue.erroredInstances }}</template>
+		<template #suffix>{{ i18n.tsx._queue.nJobs({ n: number(jobs.reduce((a, b) => a + b[1], 0)) }) }}</template>
 
 		<div>
 			<div v-if="jobs.length > 0">
 				<div v-for="job in jobs" :key="job[0]">
 					<MkA :to="`/instance-info/${job[0]}`" behavior="window">{{ job[0] }}</MkA>
-					<span style="margin-left: 8px; opacity: 0.7;">({{ number(job[1]) }} jobs)</span>
+					<span style="margin-left: 8px; opacity: 0.7;">{{ i18n.tsx._queue.nJobs({ n: number(job[1]) }) }}</span>
 				</div>
 			</div>
 			<span v-else style="opacity: 0.5;">{{ i18n.ts.noJobs }}</span>

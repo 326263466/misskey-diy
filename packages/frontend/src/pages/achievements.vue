@@ -4,22 +4,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 1200px;">
-		<MkAchievements :user="$i"/>
-	</div>
-</PageWithHeader>
+<MkCommunityHub active="achievements">
+	<MkAchievements :key="refreshKey" :user="$i" card :withLocked="false"/>
+</MkCommunityHub>
 </template>
 
 <script lang="ts" setup>
-import { onActivated, onDeactivated, onMounted, onUnmounted } from 'vue';
+import { inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import MkAchievements from '@/components/MkAchievements.vue';
+import MkCommunityHub from '@/components/MkCommunityHub.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { ensureSignin } from '@/i.js';
 import { claimAchievement } from '@/utility/achievements.js';
+import { DI } from '@/di.js';
 
 const $i = ensureSignin();
+const refreshKey = ref(0);
+const pageActive = inject(DI.pageActive, ref(true));
+watch(pageActive, value => { if (value) refreshKey.value++; });
 
 let timer: number | null;
 
@@ -39,6 +42,7 @@ onUnmounted(() => {
 });
 
 onActivated(() => {
+	refreshKey.value++;
 	if (timer == null) timer = window.setTimeout(viewAchievements3min, 1000 * 60 * 3);
 });
 
@@ -52,9 +56,7 @@ onDeactivated(() => {
 definePage(() => ({
 	title: i18n.ts.achievements,
 	icon: 'ti ti-medal',
+	needWideArea: true,
 }));
 </script>
 
-<style lang="scss" module>
-
-</style>

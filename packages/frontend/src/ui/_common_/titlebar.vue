@@ -65,6 +65,8 @@ function goBack() {
 	aspect-ratio: 1;
 	border-radius: 5px;
 	margin-right: 8px;
+	// 若以图片为目标，应用内上下文菜单会因图片被排除而弹出原生菜单
+	pointer-events: none;
 }
 
 .instanceTitle {

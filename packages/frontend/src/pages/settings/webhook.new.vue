@@ -84,7 +84,7 @@ const headerActions = computed(() => []);
 const headerTabs = computed(() => []);
 
 definePage(() => ({
-	title: 'Create new webhook',
+	title: i18n.ts._webhookSettings.createWebhook,
 	icon: 'ti ti-webhook',
 }));
 </script>

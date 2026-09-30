@@ -66,8 +66,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkFolder :defaultOpen="true">
 						<template #icon><SearchIcon><i class="ti ti-bolt"></i></SearchIcon></template>
 						<template #label><SearchLabel>Misskey® Fan-out Timeline Technology™ (FTT)</SearchLabel></template>
-						<template v-if="fttForm.savedState.enableFanoutTimeline" #suffix>Enabled</template>
-						<template v-else #suffix>Disabled</template>
+						<template v-if="fttForm.savedState.enableFanoutTimeline" #suffix>{{ i18n.ts.enabled }}</template>
+						<template v-else #suffix>{{ i18n.ts.disabled }}</template>
 						<template v-if="fttForm.modified.value" #footer>
 							<MkFormFooter :form="fttForm"/>
 						</template>
@@ -123,8 +123,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkFolder :defaultOpen="true">
 						<template #icon><SearchIcon><i class="ti ti-bolt"></i></SearchIcon></template>
 						<template #label><SearchLabel>Misskey® Reactions Boost Technology™ (RBT)</SearchLabel></template>
-						<template v-if="rbtForm.savedState.enableReactionsBuffering" #suffix>Enabled</template>
-						<template v-else #suffix>Disabled</template>
+						<template v-if="rbtForm.savedState.enableReactionsBuffering" #suffix>{{ i18n.ts.enabled }}</template>
+						<template v-else #suffix>{{ i18n.ts.disabled }}</template>
 						<template v-if="rbtForm.modified.value" #footer>
 							<MkFormFooter :form="rbtForm"/>
 						</template>
@@ -143,9 +143,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<SearchMarker>
 					<MkFolder :defaultOpen="true">
 						<template #icon><SearchIcon><i class="ti ti-recycle"></i></SearchIcon></template>
-						<template #label><SearchLabel>Remote Notes Cleaning (仮)</SearchLabel></template>
-						<template v-if="remoteNotesCleaningForm.savedState.enableRemoteNotesCleaning" #suffix>Enabled</template>
-						<template v-else #suffix>Disabled</template>
+						<template #label><SearchLabel>{{ i18n.ts._serverSettings.remoteNotesCleaning }}</SearchLabel></template>
+						<template v-if="remoteNotesCleaningForm.savedState.enableRemoteNotesCleaning" #suffix>{{ i18n.ts.enabled }}</template>
+						<template v-else #suffix>{{ i18n.ts.disabled }}</template>
 						<template v-if="remoteNotesCleaningForm.modified.value" #footer>
 							<MkFormFooter :form="remoteNotesCleaningForm"/>
 						</template>

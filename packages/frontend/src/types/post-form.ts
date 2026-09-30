@@ -20,6 +20,9 @@ export interface PostFormProps {
 	mention?: Misskey.entities.User;
 	specified?: Misskey.entities.UserDetailed;
 	initialText?: string;
+	/** Initial body rows; omitted keeps the existing composer size. Content can grow beyond this. */
+	initialRows?: number;
+	initialHashtags?: string[];
 	initialCw?: string;
 	initialVisibility?: (typeof Misskey.noteVisibilities)[number];
 	initialFiles?: Misskey.entities.DriveFile[];

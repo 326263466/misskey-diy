@@ -90,19 +90,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 					<div class="_gaps_m">
 						<MkSwitch v-model="skipNoteRender">
-							<template #label>Enable note render skipping</template>
+							<template #label>{{ i18n.ts._settings.enableNoteRenderSkipping }}</template>
 						</MkSwitch>
 						<MkSwitch v-model="stackingRouterView">
-							<template #label>Enable stacking router view</template>
+							<template #label>{{ i18n.ts._settings.enableStackingRouterView }}</template>
 						</MkSwitch>
 						<MkSwitch v-model="enableFolderPageView">
-							<template #label>Enable folder page view</template>
+							<template #label>{{ i18n.ts._settings.enableFolderPageView }}</template>
 						</MkSwitch>
 						<MkSwitch v-model="enableHapticFeedback">
-							<template #label>Enable haptic feedback</template>
+							<template #label>{{ i18n.ts._settings.enableHapticFeedback }}</template>
 						</MkSwitch>
 						<MkSwitch v-model="enableWebTranslatorApi">
-							<template #label>Enable in-browser translator API</template>
+							<template #label>{{ i18n.ts._settings.enableBrowserTranslator }}</template>
 						</MkSwitch>
 					</div>
 				</MkFolder>

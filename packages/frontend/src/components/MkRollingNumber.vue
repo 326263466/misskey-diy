@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, onScopeDispose, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { prefer } from '@/preferences.js';
 import number from '@/filters/number.js';
 import { numberFormat } from '@@/js/intl-const.js';
@@ -36,17 +36,8 @@ const compactFormat = new Intl.NumberFormat(numberFormat.resolvedOptions().local
 const displayedValue = ref(props.value);
 const label = computed(() => displayedValue.value > 0 ? compactFormat.format(displayedValue.value) : '');
 const width = ref(Math.max(1, label.value.length));
-const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-const reducedMotion = ref(media.matches);
-const animated = computed(() => prefer.s.animation && !reducedMotion.value);
+const animated = computed(() => prefer.s.animation);
 let rolling = false;
-
-function updateReducedMotion(event: MediaQueryListEvent): void {
-	reducedMotion.value = event.matches;
-}
-
-media.addEventListener('change', updateReducedMotion);
-onScopeDispose(() => media.removeEventListener('change', updateReducedMotion));
 
 function updateValue(): void {
 	if (!animated.value) rolling = false;

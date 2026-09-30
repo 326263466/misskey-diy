@@ -135,6 +135,32 @@ describe('UserSearchService', () => {
 	});
 
 	describe('searchByUsernameAndHost', () => {
+		test.each(['123456', 'newuser'])('finds an unfollowed user with no update timestamp: %s', async (username) => {
+			const user = await createUser({ username, usernameLower: username, updatedAt: null });
+
+			const result = await service.searchByUsernameAndHost({ username }, { limit: 10 }, root);
+
+			expect(result).toEqual([user.id]);
+		});
+
+		test.each([3, 4, 100])('preserves following and activity priority with null timestamps and limit %i', async (limit) => {
+			await createFollowings(root, [alycia, alysha]);
+			await setActive([alysha, alyce]);
+			await setInactive([alyson]);
+
+			const result = await service.searchByUsernameAndHost({ username: 'al' }, { limit }, root);
+
+			expect(result).toEqual([alysha, alycia, alyce, alice, alyson, alyssa].slice(0, limit).map(user => user.id));
+		});
+
+		test('excludes suspended users with null timestamps from local search', async () => {
+			await setSuspended([alice, alyce, alycia]);
+
+			const result = await service.searchByUsernameAndHost({ username: 'al', host: '.' }, { limit: 100 }, root);
+
+			expect(result).toEqual([alysha.id]);
+		});
+
 		test('フォロー中のアクティブユーザのうち、"al"から始まる人が全員ヒットする', async () => {
 			await createFollowings(root, [alice, alyce, alycia, alysha, alyson, alyssa, bob, bobbi, bobbie, bobby]);
 			await setActive([alice, alyce, alyssa, bob, bobbi, bobbie, bobby]);

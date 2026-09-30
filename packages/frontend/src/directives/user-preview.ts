@@ -8,6 +8,7 @@ import type { Directive } from 'vue';
 import * as Misskey from 'misskey-js';
 import { popup } from '@/os.js';
 import { isTouchUsing } from '@/utility/touch.js';
+import { claimUserPopup } from '@/utility/user-popup.js';
 
 export class UserPreview {
 	private el: HTMLElement;
@@ -16,6 +17,7 @@ export class UserPreview {
 	private hideTimer: number | null = null;
 	private checkTimer: number | null = null;
 	private promise: null | { cancel: () => void } = null;
+	private releasePopup: (() => void) | null = null;
 
 	constructor(el: HTMLElement, user: string | Misskey.entities.UserDetailed) {
 		this.el = el;
@@ -50,6 +52,7 @@ export class UserPreview {
 				if (this.showTimer) window.clearTimeout(this.showTimer);
 				this.hideTimer = window.setTimeout(this.close, 500);
 			},
+			close: this.close,
 			closed: () => dispose(),
 		});
 
@@ -69,14 +72,22 @@ export class UserPreview {
 	}
 
 	private close() {
+		if (this.showTimer) window.clearTimeout(this.showTimer);
+		if (this.hideTimer) window.clearTimeout(this.hideTimer);
+		if (this.checkTimer) window.clearInterval(this.checkTimer);
+		this.showTimer = null;
+		this.hideTimer = null;
+		this.checkTimer = null;
 		if (this.promise) {
-			if (this.checkTimer) window.clearInterval(this.checkTimer);
 			this.promise.cancel();
 			this.promise = null;
 		}
+		this.releasePopup?.();
+		this.releasePopup = null;
 	}
 
 	private onMouseover() {
+		this.releasePopup ??= claimUserPopup(this.close);
 		if (this.showTimer) window.clearTimeout(this.showTimer);
 		if (this.hideTimer) window.clearTimeout(this.hideTimer);
 		this.showTimer = window.setTimeout(this.show, 500);
@@ -100,6 +111,7 @@ export class UserPreview {
 	}
 
 	public detach() {
+		this.close();
 		this.el.removeEventListener('mouseover', this.onMouseover);
 		this.el.removeEventListener('mouseleave', this.onMouseleave);
 		this.el.removeEventListener('click', this.onClick);

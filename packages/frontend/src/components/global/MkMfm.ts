@@ -21,6 +21,8 @@ import MkGoogle from '@/components/MkGoogle.vue';
 import MkSparkle from '@/components/MkSparkle.vue';
 import MkA from '@/components/global/MkA.vue';
 import { prefer } from '@/preferences.js';
+import { spaceMfmText } from '@/utility/mfm-text-spacing.js';
+import { normalizeMfmUnicodeEmoji } from '@/utility/unicode-emoji.js';
 
 function safeParseFloat(str: unknown): number | null {
 	if (typeof str !== 'string' || str === '') return null;
@@ -50,6 +52,7 @@ type MfmProps = {
 	parsedNodes?: mfm.MfmNode[] | null;
 	enableEmojiMenu?: boolean;
 	enableEmojiMenuReaction?: boolean;
+	noEmojiTooltip?: boolean;
 	linkNavigationBehavior?: MkABehavior;
 };
 
@@ -68,7 +71,7 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 	if (props.text == null || props.text === '') return;
 
-	const rootAst = props.parsedNodes ?? (props.plain ? mfm.parseSimple : mfm.parse)(props.text);
+	const rootAst = spaceMfmText(normalizeMfmUnicodeEmoji(props.parsedNodes ?? (props.plain ? mfm.parseSimple : mfm.parse)(props.text)));
 
 	const validTime = (t: string | boolean | null | undefined) => {
 		if (t == null) return null;
@@ -233,7 +236,9 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 						if (!useAnim) {
 							return genEl(token.children, scale);
 						}
-						return h(MkSparkle, {}, { default: () => genEl(token.children, scale) });
+						// 在插槽函数内调用 genEl，会让 MkSparkle 每次重渲染都重建子 VNode
+						const sparkleChildren = genEl(token.children, scale);
+						return h(MkSparkle, {}, { default: () => sparkleChildren });
 					}
 					case 'rotate': {
 						const degrees = safeParseFloat(token.props.args.deg) ?? 90;
@@ -361,12 +366,14 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 			}
 
 			case 'link': {
+				// 在插槽函数内调用 genEl，会让每次重渲染都重建子 VNode
+				const linkChildren = genEl(token.children, scale, true);
 				return [h(MkLink, {
 					key: Math.random(),
 					url: token.props.url,
 					rel: 'nofollow noopener',
 					navigationBehavior: props.linkNavigationBehavior,
-				}, { default: () => genEl(token.children, scale, true) })];
+				}, { default: () => linkChildren })];
 			}
 
 			case 'mention': {
@@ -419,6 +426,7 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 					return [h(MkCustomEmoji, {
 						key: Math.random(),
 						name: token.props.name,
+						noTooltip: props.noEmojiTooltip,
 						normal: props.plain,
 						host: null,
 						useOriginalSize: scale >= 2.5,
@@ -434,6 +442,7 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 						return [h(MkCustomEmoji, {
 							key: Math.random(),
 							name: token.props.name,
+							noTooltip: props.noEmojiTooltip,
 							url: props.emojiUrls && props.emojiUrls[token.props.name],
 							normal: props.plain,
 							host: props.author.host,
@@ -449,6 +458,7 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 				return [h(MkEmoji, {
 					key: Math.random(),
 					emoji: token.props.emoji,
+					noTooltip: props.noEmojiTooltip,
 					menu: props.enableEmojiMenu,
 					menuReaction: props.enableEmojiMenuReaction,
 				})];
@@ -485,6 +495,6 @@ export default function (props: MfmProps, { emit }: { emit: SetupContext<MfmEven
 	return h('span', {
 		class: '_mfm',
 		// https://codeday.me/jp/qa/20190424/690106.html
-		style: props.nowrap ? 'white-space: pre; word-wrap: normal; overflow: hidden; text-overflow: ellipsis;' : 'white-space: pre-wrap;',
+		style: 'text-autospace: no-autospace;' + (props.nowrap ? 'white-space: pre; word-wrap: normal; overflow: hidden; text-overflow: ellipsis;' : 'white-space: pre-wrap;'),
 	}, genEl(rootAst, props.rootScale ?? 1));
 }

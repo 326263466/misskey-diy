@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="[$style.header, { [$style.mini]: mini }]" @contextmenu.prevent.stop="onContextmenu">
 				<span :class="$style.headerLeft">
 					<template v-if="!minimized">
-						<button v-for="button in buttonsLeft" v-tooltip="button.title" class="_button" :class="[$style.headerButton, { [$style.highlighted]: button.highlighted }]" @click="button.onClick"><i :class="button.icon"></i></button>
+						<button v-for="button in buttonsLeft" v-tooltip="button.title" class="_button" :class="[$style.headerButton, { [$style.highlighted]: button.highlighted }]" :aria-label="button.title" @click="button.onClick"><i :class="button.icon"></i></button>
 					</template>
 				</span>
 				<span :class="$style.headerTitle" @pointerdown.prevent="onHeaderPointerdown">
@@ -25,13 +25,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</span>
 				<span :class="$style.headerRight">
 					<template v-if="!minimized">
-						<button v-for="button in buttonsRight" v-tooltip="button.title" class="_button" :class="[$style.headerButton, { [$style.highlighted]: button.highlighted }]" @click="button.onClick"><i :class="button.icon"></i></button>
+						<button v-for="button in buttonsRight" v-tooltip="button.title" class="_button" :class="[$style.headerButton, { [$style.highlighted]: button.highlighted }]" :aria-label="button.title" @click="button.onClick"><i :class="button.icon"></i></button>
 					</template>
-					<button v-if="canResize && minimized" v-tooltip="i18n.ts.windowRestore" class="_button" :class="$style.headerButton" @click="unMinimize()"><i class="ti ti-maximize"></i></button>
-					<button v-else-if="canResize && !maximized" v-tooltip="i18n.ts.windowMinimize" class="_button" :class="$style.headerButton" @click="minimize()"><i class="ti ti-minimize"></i></button>
-					<button v-if="canResize && maximized" v-tooltip="i18n.ts.windowRestore" class="_button" :class="$style.headerButton" @click="unMaximize()"><i class="ti ti-picture-in-picture"></i></button>
-					<button v-else-if="canResize && !maximized && !minimized" v-tooltip="i18n.ts.windowMaximize" class="_button" :class="$style.headerButton" @click="maximize()"><i class="ti ti-rectangle"></i></button>
-					<button v-if="closeButton" v-tooltip="i18n.ts.close" class="_button" :class="$style.headerButton" @click="close()"><i class="ti ti-x"></i></button>
+					<button v-if="canResize && minimized" v-tooltip="i18n.ts.windowRestore" class="_button" :class="$style.headerButton" :aria-label="i18n.ts.windowRestore" @click="unMinimize()"><i class="ti ti-maximize"></i></button>
+					<button v-else-if="canResize && !maximized" v-tooltip="i18n.ts.windowMinimize" class="_button" :class="$style.headerButton" :aria-label="i18n.ts.windowMinimize" @click="minimize()"><i class="ti ti-minimize"></i></button>
+					<button v-if="canResize && maximized" v-tooltip="i18n.ts.windowRestore" class="_button" :class="$style.headerButton" :aria-label="i18n.ts.windowRestore" @click="unMaximize()"><i class="ti ti-picture-in-picture"></i></button>
+					<button v-else-if="canResize && !maximized && !minimized" v-tooltip="i18n.ts.windowMaximize" class="_button" :class="$style.headerButton" :aria-label="i18n.ts.windowMaximize" @click="maximize()"><i class="ti ti-rectangle"></i></button>
+					<button v-if="closeButton" v-tooltip="i18n.ts.close" class="_button" :class="$style.headerButton" :aria-label="i18n.ts.close" @click="close()"><i class="ti ti-x"></i></button>
 				</span>
 			</div>
 			<div :class="$style.content">
@@ -194,6 +194,7 @@ function unMaximize() {
 	rootEl.value.style.left = unResizedLeft;
 	rootEl.value.style.width = unResizedWidth;
 	rootEl.value.style.height = unResizedHeight;
+	onBrowserResize();
 }
 
 function minimize() {
@@ -207,19 +208,11 @@ function minimize() {
 
 function unMinimize() {
 	if (rootEl.value == null) return;
-	const main = rootEl.value;
 
 	minimized.value = false;
 	rootEl.value.style.width = unResizedWidth;
 	rootEl.value.style.height = unResizedHeight;
-	const browserWidth = window.innerWidth;
-	const browserHeight = window.innerHeight;
-	const windowWidth = main.offsetWidth;
-	const windowHeight = main.offsetHeight;
-
-	const position = main.getBoundingClientRect();
-	if (position.top + windowHeight > browserHeight) main.style.top = browserHeight - windowHeight + 'px';
-	if (position.left + windowWidth > browserWidth) main.style.left = browserWidth - windowWidth + 'px';
+	onBrowserResize();
 }
 
 function onBodyPointerDown() {
@@ -480,17 +473,18 @@ function applyTransformLeft(left: number) {
 
 function onBrowserResize() {
 	const main = rootEl.value;
-	if (main == null) return;
+	if (main == null || maximized.value) return;
 
-	const position = main.getBoundingClientRect();
+	applyTransformWidth(main.offsetWidth);
+	applyTransformHeight(main.offsetHeight);
+
+	const position = window.getComputedStyle(main);
 	const browserWidth = window.innerWidth;
 	const browserHeight = window.innerHeight;
 	const windowWidth = main.offsetWidth;
 	const windowHeight = main.offsetHeight;
-	if (position.left < 0) main.style.left = '0'; // 左はみ出し
-	if (position.top + windowHeight > browserHeight) main.style.top = browserHeight - windowHeight + 'px'; // 下はみ出し
-	if (position.left + windowWidth > browserWidth) main.style.left = browserWidth - windowWidth + 'px'; // 右はみ出し
-	if (position.top < 0) main.style.top = '0'; // 上はみ出し
+	main.style.left = Math.max(0, Math.min(Number.parseFloat(position.left), browserWidth - windowWidth)) + 'px';
+	main.style.top = Math.max(0, Math.min(Number.parseFloat(position.top), browserHeight - windowHeight)) + 'px';
 }
 
 onMounted(() => {
@@ -612,6 +606,10 @@ defineExpose({
 	text-overflow: ellipsis;
 	cursor: move;
 	touch-action: none;
+
+	> i {
+		vertical-align: middle;
+	}
 }
 
 .content {

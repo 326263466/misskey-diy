@@ -13,8 +13,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@close="onCloseModalWindow"
 	@closed="emit('closed')"
 >
-	<template #header>Server setup wizard</template>
-	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+	<template #header>{{ i18n.ts._serverSetupWizard.title }}</template>
+	<div class="_spacer _spacerCard">
 		<Suspense>
 			<template #default>
 				<MkServerSetupWizard @finished="onWizardFinished"/>
@@ -31,6 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { useTemplateRef } from 'vue';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkServerSetupWizard from '@/components/MkServerSetupWizard.vue';
+import { i18n } from '@/i18n.js';
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;

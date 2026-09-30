@@ -251,7 +251,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #valueText>{{ valuesModel.wordMuteLimit }}</template>
 			<template #default="{ disabled }">
 				<MkInput v-model="valuesModel.wordMuteLimit" type="number" :disabled="disabled">
-					<template #suffix>chars</template>
+					<template #suffix>{{ i18n.ts._role.characters }}</template>
 				</MkInput>
 			</template>
 		</XFolder>

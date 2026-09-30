@@ -26,6 +26,7 @@ import { getPluginHandlers } from '@/plugin.js';
 import { globalEvents } from '@/events.js';
 import { noteEvents } from '@/composables/use-note-capture.js';
 import { editNote } from '@/utility/edit-note.js';
+import { copyNoteLink, shareNote } from '@/utility/share-note.js';
 
 const isInBrowserTranslationAvailable = (
 	'LanguageDetector' in window &&
@@ -142,12 +143,10 @@ export function getAbuseNoteMenu(note: Misskey.entities.Note, text: string): Men
 		text,
 		action: async (): Promise<void> => {
 			const localUrl = `${url}/notes/${note.id}`;
-			let noteInfo = '';
-			if (note.url ?? note.uri != null) noteInfo = `Note: ${note.url ?? note.uri}\n`;
-			noteInfo += `Local Note: ${localUrl}\n`;
 			const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
 				user: note.user,
-				initialComment: `${noteInfo}-----\n`,
+				reportTarget: { reportType: 'note', targetId: note.id },
+				context: { label: i18n.ts._abuseReport._linkLabels.localNote, text: note.text, url: localUrl, sourceUrl: note.url ?? note.uri ?? undefined },
 			}, {
 				closed: () => dispose(),
 			});
@@ -159,9 +158,7 @@ export function getCopyNoteLinkMenu(note: Misskey.entities.Note, text: string): 
 	return {
 		icon: 'ti ti-link',
 		text,
-		action: (): void => {
-			copyToClipboard(`${url}/notes/${note.id}`);
-		},
+		action: () => copyNoteLink(note),
 	};
 }
 
@@ -353,7 +350,11 @@ export function getNoteMenu(props: {
 			icon: 'ti ti-copy',
 			text: i18n.ts.copyContent,
 			action: copyContent,
-		}, getCopyNoteLinkMenu(appearNote, i18n.ts.copyLink));
+		}, getCopyNoteLinkMenu(appearNote, i18n.ts.copyLink), {
+			icon: 'ti ti-share',
+			text: i18n.ts.share,
+			action: () => shareNote(appearNote),
+		});
 
 		if (link) {
 			menuItems.push({
@@ -522,7 +523,11 @@ export function getNoteMenu(props: {
 			icon: 'ti ti-copy',
 			text: i18n.ts.copyContent,
 			action: copyContent,
-		}, getCopyNoteLinkMenu(appearNote, i18n.ts.copyLink));
+		}, getCopyNoteLinkMenu(appearNote, i18n.ts.copyLink), {
+			icon: 'ti ti-share',
+			text: i18n.ts.share,
+			action: () => shareNote(appearNote),
+		});
 
 		if (link != null) {
 			menuItems.push({

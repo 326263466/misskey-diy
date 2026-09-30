@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkResult type="error"/>
 	</div>
 	<div v-else-if="list" class="_spacer" style="--MI_SPACER-w: 700px;">
-		<div v-if="list" class="members _margin">
+		<div v-if="list" :class="$style.members">
 			<div :class="$style.member_text">{{ i18n.ts.members }}</div>
 			<div class="_gaps_s">
 				<div v-for="user in users" :key="user.id" :class="$style.userItem">
@@ -106,6 +106,10 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.members {
+	margin-bottom: var(--MI-margin);
+}
+
 .userItem {
 	display: flex;
 }
@@ -120,7 +124,7 @@ definePage(() => ({
 	}
 }
 .member_text {
-	margin: 5px;
+	margin: 0 5px 5px;
 }
 
 .root {

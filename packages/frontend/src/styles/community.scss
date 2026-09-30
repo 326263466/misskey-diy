@@ -1,0 +1,18 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+@mixin error {
+	margin: 0 0 20px;
+	padding: 0;
+	color: var(--MI_THEME-error);
+	font-size: var(--MI-communityBodyFontSize, 14px);
+	font-weight: normal;
+	line-height: 1.7;
+
+	button {
+		margin-left: 8px;
+		font: inherit;
+	}
+}

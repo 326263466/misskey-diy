@@ -5,6 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
+	<div class="_panel _juejinCard" :class="$style.rankingCard">
+		<MkA class="_button" :class="$style.item" :activeClass="$style.itemActive" to="/community-ranking">
+			<i class="ti-fw ti ti-trophy" :class="$style.itemIcon"></i>
+			<span :class="$style.itemText">{{ i18n.ts.communityRanking }}</span>
+		</MkA>
+	</div>
 	<nav class="_panel _juejinCard" :class="$style.nav" :aria-label="i18n.ts.menu">
 		<component
 			:is="navbarItemDef[item].to ? 'MkA' : 'button'"
@@ -23,11 +29,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-else class="_indicatorCircle"></i>
 			</span>
 		</component>
-		<div v-if="$i != null && ($i.isAdmin || $i.isModerator)" :class="$style.divider"></div>
-		<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" :class="$style.item" :activeClass="$style.itemActive" to="/admin">
-			<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw"></i>
-			<span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
-		</MkA>
 	</nav>
 </div>
 </template>
@@ -36,22 +37,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed } from 'vue';
 import { navbarItemDef } from '@/navbar.js';
 import { i18n } from '@/i18n.js';
-import { $i } from '@/i.js';
 import { prefer } from '@/preferences.js';
 
 // header 已有的条目不在左侧菜单重复显示（通知、搜索、主要板块和"更多"按钮已由 header 提供）
-// 菜单配置里的分割线 (-) 也不显示，控制面板前的分隔线由模板固定提供
 const duplicatedWithHeader = ['notifications', 'explore', 'channels', 'announcements', 'search'];
+const rankingCardItems = ['checkin', 'communityRanking'];
 const fixedDockItems = ['games', 'about'] as const;
 
 // 可见性判定放在这里而不是模板的 v-if，避免与 v-for 同元素共存
 // navbarItemDef 是索引签名字典，未知 key 取到的是 undefined，故用 Object.hasOwn 判定存在性
 const menu = computed(() => [...new Set([...prefer.r.menu.value, ...fixedDockItems])].filter(item => {
-	if (item === '-' || duplicatedWithHeader.includes(item)) return false;
+	if (item === '-' || duplicatedWithHeader.includes(item) || rankingCardItems.includes(item)) return false;
 	if (!Object.hasOwn(navbarItemDef, item)) return false;
 	const def = navbarItemDef[item];
 	return def.show == null || def.show.value !== false;
 }));
+
 </script>
 
 <style lang="scss" module>
@@ -71,6 +72,17 @@ const menu = computed(() => [...new Set([...prefer.r.menu.value, ...fixedDockIte
 .nav {
 	padding: 8px;
 	box-sizing: border-box;
+}
+
+.rankingCard {
+	padding: 3px 8px;
+	margin-bottom: 8px;
+	box-sizing: border-box;
+
+	// 单项卡片里去掉列表项之间的下外边距，避免内容整体上移、看起来没垂直居中
+	.item {
+		margin-bottom: 0;
+	}
 }
 
 .item {
@@ -98,7 +110,6 @@ const menu = computed(() => [...new Set([...prefer.r.menu.value, ...fixedDockIte
 	&.itemActive {
 		color: var(--MI_THEME-accent);
 		background: var(--MI_THEME-accentedBg);
-		font-weight: 700;
 	}
 }
 
@@ -125,8 +136,4 @@ const menu = computed(() => [...new Set([...prefer.r.menu.value, ...fixedDockIte
 	font-size: 10px;
 }
 
-.divider {
-	margin: 8px 12px;
-	border-top: solid 0.5px var(--MI_THEME-divider);
-}
 </style>

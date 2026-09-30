@@ -35,6 +35,21 @@ export const packedNotificationSchema = {
 			type: {
 				type: 'string',
 				optional: false, nullable: false,
+				enum: ['system'],
+			},
+			message: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['welcome'],
+			},
+		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
 				enum: ['note'],
 			},
 			user: {

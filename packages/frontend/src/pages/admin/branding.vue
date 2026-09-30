@@ -12,8 +12,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkRadios
 						v-model="entrancePageStyle"
 						:options="[
-							{ value: 'classic' },
-							{ value: 'simple' },
+							{ value: 'classic', label: i18n.ts.classic },
+							{ value: 'simple', label: i18n.ts._serverSettings.entrancePageStyleSimple },
 						]"
 					>
 						<template #label><SearchLabel>{{ i18n.ts._serverSettings.entrancePageStyle }}</SearchLabel></template>

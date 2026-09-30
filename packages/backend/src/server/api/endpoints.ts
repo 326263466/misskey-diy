@@ -18,10 +18,13 @@ interface IEndpointMetaBase {
 			readonly message: string;
 			readonly code: string;
 			readonly id: string;
+			readonly kind?: 'client' | 'server' | 'permission';
+			readonly httpStatusCode?: number;
 		};
 	};
 
 	readonly res?: Schema;
+	readonly responseType?: 'binary';
 
 	/**
 	 * このエンドポイントにリクエストするのにユーザー情報が必須か否か

@@ -7,13 +7,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkTooltip ref="tooltip" :showing="showing" :anchorElement="anchorElement" :maxWidth="340" @closed="emit('closed')">
 	<div :class="$style.root">
 		<MkReactionIcon :allowTextBoost="allowTextBoost" :reaction="reaction" :class="$style.icon" :noStyle="true"/>
-<div :class="[$style.name, { _mfm: allowTextBoost && isTextBoost(reaction) }]">{{ allowTextBoost && isTextBoost(reaction) ? getBoostText(reaction) : reaction.replace('@.', '') }}</div>
+		<div :class="$style.name">
+			<Mfm v-if="allowTextBoost && isTextBoost(reaction)" :text="getBoostText(reaction)" :plain="true"/>
+			<template v-else-if="reaction.startsWith(':')">{{ reaction.replace('@.', '') }}</template>
+			<Mfm v-else :text="getEmojiName(reaction)" :plain="true"/>
+		</div>
 	</div>
 </MkTooltip>
 </template>
 
 <script lang="ts" setup>
 import { } from 'vue';
+import { getEmojiName } from '@@/js/emojilist.js';
 import MkTooltip from './MkTooltip.vue';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
 import { getBoostText, isTextBoost } from '@/utility/boost.js';

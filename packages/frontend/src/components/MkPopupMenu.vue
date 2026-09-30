@@ -6,10 +6,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModal
 	ref="modal"
-	v-slot="{ type, maxHeight }"
+	v-slot="{ type, maxHeight, guardInitialPointer, anchorWidth }"
 	:manualShowing="manualShowing"
 	:zPriority="'high'"
 	:anchorElement="anchorElement"
+	:menu="true"
+	:menuMatchAnchorWidth="matchAnchorWidth"
+	:getContentHeight="getContentHeight"
 	:transparentBg="true"
 	:returnFocusTo="returnFocusTo"
 	@click="click"
@@ -17,10 +20,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@closed="onModalClosed"
 >
 	<MkMenu
+		ref="menu"
 		:items="items"
 		:align="align"
-		:width="width"
+		:width="matchAnchorWidth ? (anchorWidth ?? width) : width"
 		:max-height="maxHeight"
+		:guardInitialPointer="guardInitialPointer"
 		:asDrawer="type === 'drawer'"
 		:returnFocusTo="returnFocusTo"
 		:debugDisablePredictionCone="debugDisablePredictionCone"
@@ -28,6 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:class="{ [$style.drawer]: type === 'drawer' }"
 		@close="onMenuClose"
 		@hide="hide"
+		@actioned="emit('actioned')"
 	/>
 </MkModal>
 </template>
@@ -41,6 +47,8 @@ import type { MenuItem } from '@/types/menu.js';
 defineProps<{
 	items: MenuItem[];
 	align?: 'center' | string;
+	/** 菜单宽度跟随触发元素（select 类下拉），默认按内容自适应 */
+	matchAnchorWidth?: boolean;
 	width?: number;
 	anchorElement?: HTMLElement | null;
 	returnFocusTo?: HTMLElement | null;
@@ -51,11 +59,17 @@ defineProps<{
 const emit = defineEmits<{
 	(ev: 'closed'): void;
 	(ev: 'closing'): void;
+	(ev: 'actioned'): void;
 }>();
 
 const modal = useTemplateRef('modal');
+const menu = useTemplateRef('menu');
 const manualShowing = ref(true);
 const hiding = ref(false);
+
+function getContentHeight() {
+	return menu.value?.getContentHeight?.();
+}
 
 function click() {
 	close();

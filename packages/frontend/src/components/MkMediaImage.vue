@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			title: image.name,
 			class: $style.imageContainer,
 			href: image.url,
-			style: 'cursor: zoom-in;'
+			style: 'cursor: pointer;'
 		}"
 	>
 		<MkImgWithBlurhash
@@ -30,9 +30,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:style="hide ? 'filter: brightness(0.7);' : null"
 			:class="$style.image"
 			:marker="marker"
+			@error="onImageError"
 		/>
 		<div
-			v-else-if="prefer.s.dataSaver.media || hide"
+			v-else-if="hide"
 			:title="image.comment || image.name"
 			:style="hide ? 'background: #888;' : null"
 			:class="$style.image"
@@ -44,6 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:title="image.comment || image.name"
 			:class="$style.image"
 			:data-marker="marker"
+			@error="onImageError"
 		/>
 	</component>
 	<template v-if="hide">
@@ -99,12 +101,22 @@ const emit = defineEmits<{
 
 const hide = ref(true);
 
-const url = computed(() => (props.raw || prefer.s.loadRawImages)
+const previewUrl = computed(() => (props.raw || prefer.s.loadRawImages)
 	? props.image.url
 	: prefer.s.disableShowingAnimatedImages
 		? getStaticImageUrl(props.image.url)
-		: props.image.thumbnailUrl!,
+		: props.image.thumbnailUrl || props.image.url,
 );
+const failedPreviewUrl = ref<string | null>(null);
+const url = computed(() => failedPreviewUrl.value === previewUrl.value ? props.image.url : previewUrl.value);
+
+function onImageError() {
+	failedPreviewUrl.value = previewUrl.value;
+}
+
+watch([previewUrl, () => props.image.url], () => {
+	failedPreviewUrl.value = null;
+});
 
 async function onClick(ev: PointerEvent) {
 	if (!props.controls) {

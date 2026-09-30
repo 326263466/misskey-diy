@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkPostForm
 			v-if="state === 'writing'"
 			fixed
+			:initialRows="3"
 			:instant="true"
 			:initialText="initialText"
 			:initialVisibility="visibility"

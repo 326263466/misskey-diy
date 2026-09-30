@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 
 		<template #controls>
-			<div class="_spacer _gaps">
+			<div class="_spacer _spacerCard _gaps">
 				<MkRange v-model="params.borderThickness" :min="0" :max="0.2" :step="0.01" :continuousUpdate="true">
 					<template #label>{{ i18n.ts._imageFrameEditor.borderThickness }}</template>
 				</MkRange>
@@ -295,7 +295,7 @@ async function initRenderer() {
 			canvas: canvasEl.value,
 			image: sampleImage_3_2,
 			exif: null,
-			caption: 'Example caption',
+			caption: i18n.ts._imageEffector.exampleCaption,
 			filename: 'example_file_name.jpg',
 			renderAsPreview: true,
 		});
@@ -304,7 +304,7 @@ async function initRenderer() {
 			canvas: canvasEl.value,
 			image: sampleImage_2_3,
 			exif: null,
-			caption: 'Example caption',
+			caption: i18n.ts._imageEffector.exampleCaption,
 			filename: 'example_file_name.jpg',
 			renderAsPreview: true,
 		});

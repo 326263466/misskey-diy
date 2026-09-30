@@ -183,7 +183,7 @@ defineExpose<WidgetComponentExpose>({
 	justify-content: center;
 	gap: 1em;
 	opacity: 0.75;
-	padding: 8px 8px;
+	padding: 8px var(--MI-cardPadding, 20px);
 	margin: 0 auto;
 	border-bottom: solid 0.5px var(--MI_THEME-divider);
 }

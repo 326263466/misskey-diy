@@ -4,11 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<component :is="link ? MkA : 'span'" v-user-preview="preview ? user.id : undefined" v-bind="bound" class="_noSelect" :class="[$style.root, { [$style.animation]: animation, [$style.cat]: user.isCat, [$style.square]: squareAvatars }]" :style="{ color }" :title="acct(user)" @click="onClick">
-	<MkImgWithBlurhash v-if="prefer.s.enableHighQualityImagePlaceholders" :class="$style.inner" :src="url" :hash="user.avatarBlurhash" :cover="true" :onlyAvgColor="true"/>
+<component :is="link ? MkA : 'span'" v-user-preview="preview ? user.id : undefined" v-bind="bound" class="_noSelect" :class="[$style.root, { [$style.animation]: animation, [$style.cat]: avatar.isCat, [$style.square]: squareAvatars }]" :style="{ color }" :title="preview ? '' : acct(user)" :aria-label="link ? acct(user) : undefined" @click="onClick">
+	<MkImgWithBlurhash v-if="prefer.s.enableHighQualityImagePlaceholders" :class="$style.inner" :src="url" :hash="avatar.avatarBlurhash" :cover="true" :onlyAvgColor="true"/>
 	<img v-else :class="$style.inner" :src="url" alt="" decoding="async" style="pointer-events: none;"/>
-	<MkUserOnlineIndicator v-if="indicator" :class="$style.indicator" :user="user"/>
-	<div v-if="user.isCat" :class="[$style.ears]">
+	<MkUserOnlineIndicator v-if="indicator" :class="$style.indicator" :user="user" :tooltip="indicatorTooltip" title=""/>
+	<div v-if="avatar.isCat" :class="[$style.ears]">
 		<div :class="$style.earLeft">
 			<div v-if="false" :class="$style.layer">
 				<div :class="$style.plot" :style="{ backgroundImage: `url(${JSON.stringify(url)})` }"></div>
@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template v-if="showDecoration">
 		<img
-			v-for="decoration in decorations ?? user.avatarDecorations"
+			v-for="decoration in decorations ?? avatar.avatarDecorations"
 			:class="[$style.decoration, { [$style.decorationBlink]: getDecorationIsBrink(decoration) }]"
 			:src="getDecorationUrl(decoration)"
 			:style="{
@@ -43,8 +43,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { watch, ref, computed } from 'vue';
-import * as Misskey from 'misskey-js';
+import { ref, computed } from 'vue';
+import type * as Misskey from 'misskey-js';
 import { extractAvgColorFromBlurhash } from '@@/js/extract-avg-color-from-blurhash.js';
 import MkImgWithBlurhash from '../MkImgWithBlurhash.vue';
 import MkA from './MkA.vue';
@@ -52,6 +52,7 @@ import { getStaticImageUrl } from '@/utility/media-proxy.js';
 import { acct, userPage } from '@/filters/user.js';
 import MkUserOnlineIndicator from '@/components/MkUserOnlineIndicator.vue';
 import { prefer } from '@/preferences.js';
+import { getUserAvatar } from '@/utility/get-user-avatar.js';
 
 const animation = ref(prefer.s.animation);
 const squareAvatars = ref(prefer.s.squareAvatars);
@@ -65,6 +66,7 @@ const props = withDefaults(defineProps<{
 	link?: boolean;
 	preview?: boolean;
 	indicator?: boolean;
+	indicatorTooltip?: boolean;
 	decorations?: DecorationEditorDecoration[];
 	forceShowDecoration?: boolean;
 }>(), {
@@ -72,6 +74,7 @@ const props = withDefaults(defineProps<{
 	link: false,
 	preview: false,
 	indicator: false,
+	indicatorTooltip: true,
 	decorations: undefined,
 	forceShowDecoration: false,
 });
@@ -81,14 +84,15 @@ const emit = defineEmits<{
 }>();
 
 const showDecoration = props.forceShowDecoration || prefer.s.showAvatarDecorations;
+const avatar = computed(() => getUserAvatar(props.user));
 
 const bound = computed(() => props.link
 	? { to: userPage(props.user), target: props.target }
 	: {});
 
 const url = computed(() => {
-	if (prefer.s.disableShowingAnimatedImages || prefer.s.dataSaver.avatar) return getStaticImageUrl(props.user.avatarUrl);
-	return props.user.avatarUrl;
+	if (prefer.s.disableShowingAnimatedImages || prefer.s.dataSaver.avatar) return getStaticImageUrl(avatar.value.avatarUrl);
+	return avatar.value.avatarUrl;
 });
 
 function onClick(ev: PointerEvent): void {
@@ -121,13 +125,9 @@ function getDecorationIsBrink(decoration: Decoration | DecorationEditorDecoratio
 	return 'blink' in decoration && decoration.blink === true;
 }
 
-const color = ref<string | undefined>();
-
-watch(() => props.user.avatarBlurhash, () => {
-	if (props.user.avatarBlurhash == null) return;
-	color.value = extractAvgColorFromBlurhash(props.user.avatarBlurhash);
-}, {
-	immediate: true,
+const color = computed(() => {
+	const hash = avatar.value.avatarBlurhash;
+	return hash == null ? undefined : extractAvgColorFromBlurhash(hash);
 });
 </script>
 
@@ -162,10 +162,12 @@ watch(() => props.user.avatarBlurhash, () => {
 
 .root {
 	position: relative;
+	isolation: isolate;
 	display: inline-block;
 	vertical-align: bottom;
 	flex-shrink: 0;
 	border-radius: 100%;
+	overflow: visible;
 	line-height: 16px;
 }
 
@@ -185,11 +187,11 @@ watch(() => props.user.avatarBlurhash, () => {
 
 .indicator {
 	position: absolute;
-	z-index: 2;
+	z-index: 3;
 	bottom: 0;
-	left: 0;
-	width: 20%;
-	height: 20%;
+	right: 0;
+	--MI-statusIconSize: 28%;
+	min-width: 12px;
 }
 
 .square {

@@ -25,6 +25,8 @@ import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
 import { chartVLine } from '@/utility/chart-vline.js';
 import { initChart } from '@/utility/init-chart.js';
 import { chartLegend } from '@/utility/chart-legend.js';
+import { dateOnly } from '@/filters/date.js';
+import { i18n } from '@/i18n.js';
 import MkChartLegend from '@/components/MkChartLegend.vue';
 
 initChart();
@@ -98,10 +100,10 @@ async function renderChart() {
 		type: 'bar',
 		data: {
 			datasets: [
-				makeDataset('Follow (local)', format(raw.local.followings.inc).slice().reverse(), { backgroundColor: colorFollowLocal, stack: 'follow' }),
-				makeDataset('Follow (remote)', format(raw.remote.followings.inc).slice().reverse(), { backgroundColor: colorFollowRemote, stack: 'follow' }),
-				makeDataset('Followed (local)', format(raw.local.followers.inc).slice().reverse(), { backgroundColor: colorFollowedLocal, stack: 'followed' }),
-				makeDataset('Followed (remote)', format(raw.remote.followers.inc).slice().reverse(), { backgroundColor: colorFollowedRemote, stack: 'followed' }),
+				makeDataset(i18n.ts._chartSeries.followLocal, format(raw.local.followings.inc).slice().reverse(), { backgroundColor: colorFollowLocal, stack: 'follow' }),
+				makeDataset(i18n.ts._chartSeries.followRemote, format(raw.remote.followings.inc).slice().reverse(), { backgroundColor: colorFollowRemote, stack: 'follow' }),
+				makeDataset(i18n.ts._chartSeries.followedLocal, format(raw.local.followers.inc).slice().reverse(), { backgroundColor: colorFollowedLocal, stack: 'followed' }),
+				makeDataset(i18n.ts._chartSeries.followedRemote, format(raw.remote.followers.inc).slice().reverse(), { backgroundColor: colorFollowedRemote, stack: 'followed' }),
 			],
 		},
 		options: {
@@ -161,6 +163,12 @@ async function renderChart() {
 					mode: 'index',
 					animation: {
 						duration: 0,
+					},
+					callbacks: {
+						// 日期跟随客户端语言 (Chart.js 的 date-fns 适配器默认固定 en-US 格式)
+						title(context) {
+							return dateOnly(context[0].parsed.x as number);
+						},
 					},
 					external: externalTooltipHandler,
 				},

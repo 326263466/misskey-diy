@@ -6,6 +6,8 @@
 import { Module } from '@nestjs/common';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import { AbuseReportService } from '@/core/AbuseReportService.js';
+import { AbuseReportSnapshotService } from '@/core/AbuseReportSnapshotService.js';
+import { AbuseReportEvidenceService } from '@/core/AbuseReportEvidenceService.js';
 import { SystemWebhookEntityService } from '@/core/entities/SystemWebhookEntityService.js';
 import {
 	AbuseReportNotificationRecipientEntityService,
@@ -22,6 +24,9 @@ import { SensitiveMediaDetectionService } from './SensitiveMediaDetectionService
 import { AnnouncementService } from './AnnouncementService.js';
 import { AntennaService } from './AntennaService.js';
 import { AchievementService } from './AchievementService.js';
+import { CheckinService } from './CheckinService.js';
+import { CheckinAdminService } from './CheckinAdminService.js';
+import { CheckinRedemptionService } from './CheckinRedemptionService.js';
 import { AvatarDecorationService } from './AvatarDecorationService.js';
 import { CaptchaService } from './CaptchaService.js';
 import { CustomEmojiService } from './CustomEmojiService.js';
@@ -169,6 +174,9 @@ const $SensitiveMediaDetectionService: Provider = { provide: 'SensitiveMediaDete
 const $AnnouncementService: Provider = { provide: 'AnnouncementService', useExisting: AnnouncementService };
 const $AntennaService: Provider = { provide: 'AntennaService', useExisting: AntennaService };
 const $AchievementService: Provider = { provide: 'AchievementService', useExisting: AchievementService };
+const $CheckinService: Provider = { provide: 'CheckinService', useExisting: CheckinService };
+const $CheckinAdminService: Provider = { provide: 'CheckinAdminService', useExisting: CheckinAdminService };
+const $CheckinRedemptionService: Provider = { provide: 'CheckinRedemptionService', useExisting: CheckinRedemptionService };
 const $AvatarDecorationService: Provider = { provide: 'AvatarDecorationService', useExisting: AvatarDecorationService };
 const $CaptchaService: Provider = { provide: 'CaptchaService', useExisting: CaptchaService };
 const $CustomEmojiService: Provider = { provide: 'CustomEmojiService', useExisting: CustomEmojiService };
@@ -316,6 +324,8 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 	providers: [
 		LoggerService,
 		AbuseReportService,
+		AbuseReportSnapshotService,
+		AbuseReportEvidenceService,
 		AbuseReportNotificationService,
 		AccountMoveService,
 		AccountUpdateService,
@@ -323,6 +333,9 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		AnnouncementService,
 		AntennaService,
 		AchievementService,
+		CheckinService,
+		CheckinAdminService,
+		CheckinRedemptionService,
 		AvatarDecorationService,
 		CaptchaService,
 		CustomEmojiService,
@@ -475,6 +488,9 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$AnnouncementService,
 		$AntennaService,
 		$AchievementService,
+		$CheckinService,
+		$CheckinAdminService,
+		$CheckinRedemptionService,
 		$AvatarDecorationService,
 		$CaptchaService,
 		$CustomEmojiService,
@@ -620,6 +636,8 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		QueueModule,
 		LoggerService,
 		AbuseReportService,
+		AbuseReportSnapshotService,
+		AbuseReportEvidenceService,
 		AbuseReportNotificationService,
 		AccountMoveService,
 		AccountUpdateService,
@@ -627,6 +645,9 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		AnnouncementService,
 		AntennaService,
 		AchievementService,
+		CheckinService,
+		CheckinAdminService,
+		CheckinRedemptionService,
 		AvatarDecorationService,
 		CaptchaService,
 		CustomEmojiService,
@@ -778,6 +799,9 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$AnnouncementService,
 		$AntennaService,
 		$AchievementService,
+		$CheckinService,
+		$CheckinAdminService,
+		$CheckinRedemptionService,
 		$AvatarDecorationService,
 		$CaptchaService,
 		$CustomEmojiService,

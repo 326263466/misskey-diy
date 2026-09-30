@@ -122,6 +122,7 @@ export class NoteDeleteService {
 		});
 
 		if (deletedNotes.length === 0) return;
+		for (const authorId of authors.keys()) this.globalEventService.publishUserStats(authorId);
 		if (!quiet) {
 			for (const ancestor of ancestors) this.globalEventService.publishNoteStream(ancestor, 'unreplied', { noteId: note.id, deletedBy });
 			for (const { note: original, removed } of renoteTargets.values()) {

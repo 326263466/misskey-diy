@@ -44,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</template>
 				<template #controls>
-					<div class="_spacer _gaps">
+					<div class="_spacer _spacerCard _gaps">
 						<MkInput v-if="isEmbedWithScrollbar" v-model="maxHeight" type="number" :min="0">
 							<template #label>{{ i18n.ts._embedCodeGen.maxHeight }}</template>
 							<template #suffix>px</template>
@@ -351,7 +351,7 @@ onUnmounted(() => {
 
 .embedCodeGenResultRoot {
 	box-sizing: border-box;
-	padding: 24px;
+	padding: var(--MI-cardPadding, 20px);
 	height: 100%;
 	max-width: 700px;
 	margin: 0 auto;

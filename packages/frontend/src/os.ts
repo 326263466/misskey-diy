@@ -608,9 +608,11 @@ export async function cropImageFile<F extends File | Blob>(imageFile: F, options
 
 export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElement | EventTarget | null, options?: {
 	align?: string;
+	matchAnchorWidth?: boolean;
 	width?: number;
 	onClosing?: () => void;
 	onClosed?: () => void;
+	onAction?: () => void;
 	debugDisablePredictionCone?: boolean;
 	debugShowPredictionCone?: boolean;
 }): Promise<void> {
@@ -625,6 +627,7 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 			anchorElement,
 			width: options?.width,
 			align: options?.align,
+			matchAnchorWidth: options?.matchAnchorWidth,
 			returnFocusTo,
 			debugDisablePredictionCone: options?.debugDisablePredictionCone,
 			debugShowPredictionCone: options?.debugShowPredictionCone,
@@ -637,6 +640,9 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 			},
 			closing: () => {
 				options?.onClosing?.();
+			},
+			actioned: () => {
+				options?.onAction?.();
 			},
 		});
 	}));

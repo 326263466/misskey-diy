@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div ref="rootEl" :class="$style.root" class="_popup _shadow" :style="{ zIndex }" @contextmenu.prevent="() => {}">
 	<ol v-if="type === 'user'" ref="suggests" :class="$style.list">
 		<li v-for="user in users" tabindex="-1" :class="$style.item" @click="complete(type, user)" @keydown="onKeydown">
-			<img :class="$style.avatar" :src="user.avatarUrl"/>
+			<img :class="$style.avatar" :src="getUserAvatar(user).avatarUrl"/>
 			<span :class="$style.userName">
 				<MkUserName :key="user.id" :user="user"/>
 			</span>
@@ -48,7 +48,6 @@ import { markRaw, ref, useTemplateRef, computed, onUpdated, onMounted, onBeforeU
 import * as Misskey from 'misskey-js';
 import sanitizeHtml from 'sanitize-html';
 import { emojilist, getEmojiName } from '@@/js/emojilist.js';
-import { char2twemojiFilePath, char2fluentEmojiFilePath } from '@@/js/emoji-base.js';
 import { MFM_TAGS, MFM_PARAMS } from '@@/js/const.js';
 import type { EmojiDef } from '@/utility/search-emoji.js';
 import { elementContains } from '@/utility/element-contains.js';
@@ -60,7 +59,7 @@ import { i18n } from '@/i18n.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { customEmojis } from '@/custom-emojis.js';
 import { searchEmoji, searchEmojiExact } from '@/utility/search-emoji.js';
-import { prefer } from '@/preferences.js';
+import { getUserAvatar } from '@/utility/get-user-avatar.js';
 
 export type CompleteInfo = {
 	user: {
@@ -98,12 +97,9 @@ const lib = emojilist.filter(x => x.category !== 'flags');
 
 const unicodeEmojiDB = computed(() => {
 	//#region Unicode Emoji
-	const char2path = prefer.r.emojiStyle.value === 'twemoji' ? char2twemojiFilePath : char2fluentEmojiFilePath;
-
 	const unicodeEmojiDB: EmojiDef[] = lib.map(x => ({
 		emoji: x.char,
 		name: x.name,
-		url: char2path(x.char),
 	}));
 
 	for (const index of Object.values(store.s.additionalUnicodeEmojiIndexes)) {
@@ -113,7 +109,6 @@ const unicodeEmojiDB = computed(() => {
 					emoji: emoji,
 					name: k,
 					aliasOf: getEmojiName(emoji),
-					url: char2path(emoji),
 				});
 			}
 		}
@@ -215,18 +210,21 @@ function setPosition() {
 	if (!rootEl.value) return;
 
 	const width = rootEl.value.offsetWidth;
-	const height = rootEl.value.offsetHeight;
+	const height = Math.min(suggests.value?.scrollHeight || rootEl.value.offsetHeight, 198);
 
-	// 右侧放不下就贴住右边缘，但左边缘优先级更高，否则窄屏时会算出负值飘到屏幕外
 	let left = props.x;
 	if (left + width > window.innerWidth) left = window.innerWidth - width;
 	if (left < 0) left = 0;
 	rootEl.value.style.left = `${left}px`;
 
-	// 下方放不下时向上翻转，但上方同样放不下就维持向下，避免翻过去露出得更少
-	const spaceBelow = window.innerHeight - props.y;
-	if (height > spaceBelow && height <= props.y) {
-		rootEl.value.style.top = (props.y - height) + 'px';
+	const marginTop = Number.parseFloat(window.getComputedStyle(rootEl.value).fontSize) + 8;
+	const spaceAbove = Math.max(0, props.y);
+	const spaceBelow = Math.max(0, window.innerHeight - props.y - marginTop);
+	const opensAbove = height > spaceBelow && spaceAbove > spaceBelow;
+	const availableHeight = opensAbove ? spaceAbove : spaceBelow;
+	rootEl.value.style.setProperty('--MI-autocomplete-max-height', `${Math.min(198, availableHeight)}px`);
+	if (opensAbove) {
+		rootEl.value.style.top = (props.y - Math.min(height, availableHeight)) + 'px';
 		rootEl.value.style.marginTop = '0';
 	} else {
 		rootEl.value.style.top = props.y + 'px';
@@ -414,6 +412,7 @@ onUpdated(() => {
 
 onMounted(() => {
 	setPosition();
+	window.addEventListener('resize', setPosition);
 
 	props.textarea.addEventListener('keydown', onKeydown);
 
@@ -431,6 +430,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	window.removeEventListener('resize', setPosition);
 	props.textarea.removeEventListener('keydown', onKeydown);
 
 	window.document.body.removeEventListener('mousedown', onMousedown);
@@ -448,9 +448,10 @@ onBeforeUnmount(() => {
 
 .list {
 	display: block;
+	box-sizing: border-box;
 	margin: 0;
 	padding: 4px 0;
-	max-height: 190px;
+	max-height: var(--MI-autocomplete-max-height, 198px);
 	max-width: 500px;
 	overflow: auto;
 	list-style: none;
@@ -474,12 +475,12 @@ onBeforeUnmount(() => {
 
 	&[data-selected='true'] {
 		background: var(--MI_THEME-accent);
-		color: #fff !important;
+		color: var(--MI_THEME-fgOnAccent) !important;
 	}
 
 	&:active {
 		background: hsl(from var(--MI_THEME-accent) h s calc(l - 10));
-		color: #fff !important;
+		color: var(--MI_THEME-fgOnAccent) !important;
 	}
 }
 

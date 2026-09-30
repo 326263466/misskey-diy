@@ -23,6 +23,8 @@ export const meta = {
 		type: 'object',
 		nullable: false, optional: false,
 		properties: {
+			checkinPoints: { type: 'integer', optional: false, nullable: false },
+			checkinMakeupCards: { type: 'integer', optional: false, nullable: false },
 			email: {
 				type: 'string',
 				optional: false, nullable: true,
@@ -231,6 +233,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const roles = await this.roleService.getUserRoles(user.id);
 
 			return {
+				checkinPoints: profile.checkinPoints,
+				checkinMakeupCards: profile.checkinMakeupCards,
 				email: profile.email,
 				emailVerified: profile.emailVerified,
 				followedMessage: profile.followedMessage,

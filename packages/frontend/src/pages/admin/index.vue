@@ -4,27 +4,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="el" class="hiyeyicy" :class="{ wide: !narrow }">
-	<div v-if="!narrow || currentPage?.route.name == null" class="nav">
-		<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px;">
-			<div class="lxpfedzu _gaps">
-				<div class="banner">
-					<img :src="instance.iconUrl || '/favicon.ico'" alt="" class="icon"/>
-				</div>
-
-				<div class="_gaps_s">
-					<MkInfo v-if="thereIsUnresolvedAbuseReport" warn>{{ i18n.ts.thereIsUnresolvedAbuseReportWarning }} <MkA to="/admin/abuses" class="_link">{{ i18n.ts.check }}</MkA></MkInfo>
-					<MkInfo v-if="noMaintainerInformation" warn>{{ i18n.ts.noMaintainerInformationWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
-					<MkInfo v-if="noInquiryUrl" warn>{{ i18n.ts.noInquiryUrlWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
-					<MkInfo v-if="noBotProtection" warn>{{ i18n.ts.noBotProtectionWarning }} <MkA to="/admin/security" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
-					<MkInfo v-if="noEmailServer" warn>{{ i18n.ts.noEmailServerWarning }} <MkA to="/admin/email-settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
-				</div>
-
-				<MkSuperMenu :def="menuDef" :searchIndex="searchIndex" :grid="narrow"></MkSuperMenu>
+<div ref="el" class="_pageLayout" :class="{ _pageLayoutWithSidebar: !narrow }">
+	<nav v-if="!narrow || currentPage?.route.name == null" class="_pageNavigation" :aria-label="i18n.ts.controlPanel">
+		<div class="_gaps">
+			<div :class="$style.banner">
+				<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.icon"/>
 			</div>
+
+			<div class="_gaps_s">
+				<MkInfo v-if="thereIsUnresolvedAbuseReport" warn>{{ i18n.ts.thereIsUnresolvedAbuseReportWarning }} <MkA to="/admin/abuses" class="_link">{{ i18n.ts.check }}</MkA></MkInfo>
+				<MkInfo v-if="noMaintainerInformation" warn>{{ i18n.ts.noMaintainerInformationWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+				<MkInfo v-if="noInquiryUrl" warn>{{ i18n.ts.noInquiryUrlWarning }} <MkA to="/admin/settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+				<MkInfo v-if="noBotProtection" warn>{{ i18n.ts.noBotProtectionWarning }} <MkA to="/admin/security" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+				<MkInfo v-if="noEmailServer" warn>{{ i18n.ts.noEmailServerWarning }} <MkA to="/admin/email-settings" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+			</div>
+
+			<MkSuperMenu :def="menuDef" :searchIndex="searchIndex" :grid="narrow"></MkSuperMenu>
 		</div>
-	</div>
-	<div v-if="!(narrow && currentPage?.route.name == null)" class="main _pageContainer" style="height: 100%;">
+	</nav>
+	<div v-if="!(narrow && currentPage?.route.name == null)" class="_pageContent _pageContainer">
 		<NestedRouterView/>
 	</div>
 </div>
@@ -35,6 +33,7 @@ import { onActivated, onMounted, onUnmounted, provide, watch, ref, computed } fr
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import type { PageMetadata } from '@/page.js';
 import { i18n } from '@/i18n.js';
+import { iAmAdmin } from '@/i.js';
 import MkSuperMenu from '@/components/MkSuperMenu.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import { instance } from '@/instance.js';
@@ -45,6 +44,7 @@ import { lookupUser, lookupUserByEmail, lookupFile } from '@/utility/admin-looku
 import { definePage, provideMetadataReceiver, provideReactiveMetadata } from '@/page.js';
 import { useRouter } from '@/router.js';
 import { genSearchIndexes } from '@/utility/inapp-search.js';
+import { useScrollPositionKeeper } from '@/composables/use-scroll-position-keeper.js';
 
 const searchIndex = await import('search-index:admin').then(({ searchIndexes }) => genSearchIndexes(searchIndexes));
 
@@ -67,6 +67,7 @@ const childInfo = ref<null | PageMetadata>(null);
 const narrow = ref(false);
 const view = ref(null);
 const el = ref<HTMLDivElement | null>(null);
+useScrollPositionKeeper(el);
 const pageProps = ref({});
 const noMaintainerInformation = computed(() => isEmpty(instance.maintainerName) || isEmpty(instance.maintainerEmail));
 const noBotProtection = computed(() => !instance.disableRegistration && !instance.enableHcaptcha && !instance.enableRecaptcha && !instance.enableTurnstile && !instance.enableMcaptcha);
@@ -113,7 +114,12 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.users,
 		to: '/admin/users',
 		active: currentPage.value?.route.name === 'users',
-	}, {
+	}, ...(iAmAdmin ? [{
+		icon: 'ti ti-gift',
+		text: i18n.ts._benefits.adminTitle,
+		to: '/admin/benefits',
+		active: currentPage.value?.route.name === 'benefits',
+	}] : []), {
 		icon: 'ti ti-user-plus',
 		text: i18n.ts.invite,
 		to: '/admin/invites',
@@ -265,7 +271,10 @@ onUnmounted(() => {
 	ro.disconnect();
 });
 
-watch(router.currentRef, (to) => {
+watch(router.currentRef, (to, from) => {
+	if (!narrow.value && to.route.path === '/admin' && from.route.path === '/admin') {
+		el.value?.querySelector('._pageContent')?.scrollTo({ top: 0, behavior: 'instant' });
+	}
 	if (to.route.path === '/admin' && to.child?.route.name == null && !narrow.value) {
 		router.replace('/admin/overview');
 	}
@@ -332,61 +341,15 @@ const headerTabs = computed(() => []);
 definePage(() => INFO.value);
 </script>
 
-<style lang="scss" scoped>
-.hiyeyicy {
-	height: 100%;
+<style lang="scss" module>
+.banner {
+	margin: var(--MI-margin);
+}
 
-	&.wide {
-		display: flex;
-		// 掘金の本体幅と揃えた 2 カラム (全幅ではなく 1200px 中央寄せ)
-		// settings 側は外側の _spacer が左右余白を作るが、admin にはそれが無いので
-		// padding で同等の余白を持たせる (幅は内容 1200px を保つため padding 分を足す)
-		gap: 20px;
-		max-width: calc(1200px + var(--MI-margin) * 2);
-		padding: var(--MI-margin);
-		margin: 0 auto;
-		box-sizing: border-box;
-
-		> .nav {
-			position: sticky;
-			top: var(--MI-margin);
-			width: 32%;
-			max-width: 280px;
-			flex-shrink: 0;
-			box-sizing: border-box;
-			// カード化したので区切り線は不要 (背景で境界を表現する)
-			background: var(--MI_THEME-panel);
-			border-radius: var(--MI-radius);
-			overflow: auto;
-			// 親の上下 padding 分を引かないとカードが下にはみ出して角丸が切れる
-			height: calc(100cqh - var(--MI-margin) * 2);
-			// universal.vue の dock/sidebar と同じく、スクロール自体は残してバーだけ隠す
-			scrollbar-width: none;
-
-			&::-webkit-scrollbar {
-				display: none;
-			}
-		}
-
-		> .main {
-			flex: 1;
-			min-width: 0;
-		}
-	}
-
-	> .nav {
-		.lxpfedzu {
-			> .banner {
-				margin: 16px;
-
-				> .icon {
-					display: block;
-					margin: auto;
-					height: 42px;
-					border-radius: 8px;
-				}
-			}
-		}
-	}
+.icon {
+	display: block;
+	margin: auto;
+	height: 42px;
+	border-radius: var(--MI-radius);
 }
 </style>

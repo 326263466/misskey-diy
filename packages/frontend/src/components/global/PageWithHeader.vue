@@ -4,22 +4,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" :class="reversed ? '_pageScrollableReversed' : '_pageScrollable'">
+<div ref="rootEl" :class="[$style.root, reversed ? '_pageScrollableReversed' : '_pageScrollable']">
 	<MkStickyContainer>
-		<template #header>
-			<MkPageHeader v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" v-bind="pageHeaderPropsWithoutTabs"/>
-			<MkPageHeader v-else v-model:tab="tab" v-bind="pageHeaderProps"/>
+		<template v-if="!hideHeader" #header>
+			<MkPageHeader v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" v-bind="pageHeaderPropsWithoutTabs">
+				<template v-if="$slots['header-actions']" #actions><slot name="header-actions"></slot></template>
+			</MkPageHeader>
+			<MkPageHeader v-else v-model:tab="tab" v-bind="pageHeaderProps">
+				<template v-if="$slots['header-actions']" #actions><slot name="header-actions"></slot></template>
+			</MkPageHeader>
 		</template>
-		<div :class="$style.body">
+		<div :class="$style.body" data-page-body>
 			<MkSwiper v-if="prefer.s.enableHorizontalSwipe && swipable && (props.tabs?.length ?? 1) > 1" v-model:tab="tab" :class="$style.swiper" :tabs="props.tabs ?? []">
-				<slot></slot>
+				<div data-page-body><slot></slot></div>
 			</MkSwiper>
 			<slot v-else></slot>
 		</div>
 		<template #footer>
 			<slot name="footer"></slot>
 			<div v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" :class="$style.footerTabs">
-				<MkTabs v-model:tab="tab" :tabs="props.tabs" :centered="true" :tabHighlightUpper="true"/>
+				<MkTabs v-model:tab="tab" :class="$style.footerTabItems" :tabs="props.tabs" :centered="true" :tabHighlightUpper="true"/>
 			</div>
 		</template>
 	</MkStickyContainer>
@@ -39,18 +43,20 @@ import MkTabs from '@/components/MkTabs.vue';
 const props = withDefaults(defineProps<PageHeaderProps & {
 	reversed?: boolean;
 	swipable?: boolean;
+	hideHeader?: boolean;
 }>(), {
 	reversed: false,
 	swipable: true,
+	hideHeader: false,
 });
 
 const pageHeaderProps = computed(() => {
-	const { reversed, tab, ...rest } = props;
+	const { reversed, tab, hideHeader, ...rest } = props;
 	return rest;
 });
 
 const pageHeaderPropsWithoutTabs = computed(() => {
-	const { reversed, tabs, ...rest } = props;
+	const { reversed, tabs, hideHeader, ...rest } = props;
 	return rest;
 });
 
@@ -75,14 +81,24 @@ defineExpose({
 </script>
 
 <style lang="scss" module>
+@use "../../styles/page-header.scss";
+
+.root {
+	// Clip the scrolling content to the same outline as the stationary header.
+	border-radius: var(--MI-pageHeaderRadius, var(--MI-cardRadius));
+	isolation: isolate;
+}
+
 .body, .swiper {
 	min-height: calc(100cqh - (var(--MI-stickyTop, 0px) + var(--MI-stickyBottom, 0px)));
 }
 
 .footerTabs {
-	background: color(from var(--MI_THEME-pageHeaderBg) srgb r g b / 0.75);
-	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
-	backdrop-filter: var(--MI-blur, blur(15px));
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	@include page-header.surface;
+
+	> .footerTabItems {
+		--height: inherit;
+		font-size: inherit;
+	}
 }
 </style>

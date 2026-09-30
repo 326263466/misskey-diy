@@ -52,6 +52,7 @@ export class Autocomplete {
 	constructor(textarea: HTMLInputElement | HTMLTextAreaElement, textRef: Ref<string | number | null>, onlyType?: SuggestionType[]) {
 		//#region BIND
 		this.onInput = this.onInput.bind(this);
+		this.onLayoutChange = this.onLayoutChange.bind(this);
 		this.complete = this.complete.bind(this);
 		this.close = this.close.bind(this);
 		//#endregion
@@ -70,6 +71,8 @@ export class Autocomplete {
 	 */
 	public attach() {
 		this.textarea.addEventListener('input', this.onInput);
+		window.addEventListener('scroll', this.onLayoutChange, true);
+		window.addEventListener('resize', this.onLayoutChange);
 	}
 
 	/**
@@ -77,7 +80,13 @@ export class Autocomplete {
 	 */
 	public detach() {
 		this.textarea.removeEventListener('input', this.onInput);
+		window.removeEventListener('scroll', this.onLayoutChange, true);
+		window.removeEventListener('resize', this.onLayoutChange);
 		this.close();
+	}
+
+	private onLayoutChange() {
+		if (this.suggestion && this.currentType) this.open(this.currentType, this.suggestion.q.value);
 	}
 
 	/**

@@ -5,8 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_selectable">
-	<div :class="$style.label" @click="focus"><slot name="label"></slot></div>
-	<div :class="[$style.input, { [$style.inline]: inline, [$style.disabled]: disabled, [$style.focused]: focused }]">
+	<div :id="`${id}-label`" :class="$style.label" @click="focus"><slot name="label"></slot></div>
+	<div :class="[$style.input, { [$style.inline]: inline, [$style.disabled]: disabled, [$style.focused]: focused }]" @mouseleave="onLeave">
 		<div ref="prefixEl" :class="$style.prefix"><slot name="prefix"></slot></div>
 		<input
 			ref="inputEl"
@@ -18,6 +18,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:required="required"
 			:readonly="readonly"
 			:placeholder="placeholder"
+			:aria-labelledby="$slots.label ? `${id}-label` : undefined"
+			:maxlength="maxLength"
 			:pattern="pattern"
 			:autocomplete="autocomplete"
 			:autocapitalize="autocapitalize"
@@ -28,10 +30,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:min="min"
 			:max="max"
 			@focus="focused = true"
-			@blur="focused = false"
+			@blur="onBlur"
+			@compositionstart="composing = true"
+			@compositionend="onCompositionEnd"
 			@keydown="onKeydown($event)"
 			@input="onInput"
 		>
+		<MkEmojiInputOverlay v-if="emojiOverlay" :inputElement="inputEl" :text="typeof v === 'string' ? v : null"/>
 		<datalist v-if="datalist" :id="id">
 			<option v-for="data in datalist" :key="data" :value="data"></option>
 		</datalist>
@@ -39,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div :class="$style.caption"><slot name="caption"></slot></div>
 
-	<MkButton v-if="manualSave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
+	<MkButton v-if="manualSave && !saveOnLeave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 </div>
 </template>
 
@@ -57,6 +62,7 @@ import { throttle, debounce } from 'throttle-debounce';
 import type { InputHTMLAttributes } from 'vue';
 import type { SuggestionType } from '@/utility/autocomplete.js';
 import MkButton from '@/components/MkButton.vue';
+import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
 import { i18n } from '@/i18n.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
 import { genId } from '@/utility/id.js';
@@ -77,12 +83,14 @@ const props = defineProps<{
 	inputmode?: InputHTMLAttributes['inputmode'];
 	step?: InputHTMLAttributes['step'];
 	datalist?: string[];
-	min?: number;
-	max?: number;
+	min?: InputHTMLAttributes['min'];
+	max?: InputHTMLAttributes['max'];
+	maxLength?: number;
 	inline?: boolean;
 	debounce?: boolean | number;
 	throttle?: boolean | number;
 	manualSave?: boolean;
+	saveOnLeave?: (value: ModelValueType<T>) => Promise<void>;
 	small?: boolean;
 	large?: boolean;
 }>();
@@ -100,8 +108,15 @@ const v = ref<ModelValueType<T> | null>(modelValue.value);
 const id = genId();
 const focused = ref(false);
 const changed = ref(false);
+const composing = ref(false);
+let saveAfterComposition = false;
+let savingOnLeave = false;
+let saveAfterPending = false;
+let retrySave = false;
 const invalid = ref(false);
 const filled = computed(() => v.value !== '' && v.value != null);
+// MFM 内容需要和预览使用相同的自定义表情图案；其他输入类型（尤其是密码框）必须保留原生显示
+const emojiOverlay = computed(() => !!props.mfmAutocomplete && (props.type == null || props.type === 'text'));
 const inputEl = useTemplateRef('inputEl');
 const prefixEl = useTemplateRef('prefixEl');
 const suffixEl = useTemplateRef('suffixEl');
@@ -117,23 +132,77 @@ const onInput = (event: InputEvent) => {
 	emit('change', event);
 };
 const onKeydown = (ev: KeyboardEvent) => {
-	if (ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
+	if (composing.value || ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
 
 	emit('keydown', ev);
 
-	if (ev.code === 'Enter') {
+	if (ev.key === 'Enter' || ev.code === 'Enter') {
+		if (props.saveOnLeave) {
+			ev.preventDefault();
+			void onLeave();
+			inputEl.value?.blur();
+		}
 		emit('enter', ev);
 	}
 };
 
 const updated = () => {
 	changed.value = false;
+	let value: ModelValueType<T>;
 	if (props.type === 'number') {
-		emit('update:modelValue', typeof v.value === 'number' ? v.value as ModelValueType<T> : parseFloat(v.value ?? '0') as ModelValueType<T>);
+		value = typeof v.value === 'number' ? v.value as ModelValueType<T> : parseFloat(v.value ?? '0') as ModelValueType<T>;
 	} else {
-		emit('update:modelValue', v.value ?? '');
+		value = (v.value ?? '') as ModelValueType<T>;
 	}
+	emit('update:modelValue', value);
+	return value;
 };
+
+async function onLeave(): Promise<void> {
+	if (!props.saveOnLeave || props.disabled || props.readonly || !changed.value) return;
+	if (composing.value) {
+		saveAfterComposition = true;
+		return;
+	}
+	if (savingOnLeave) {
+		saveAfterPending = true;
+		return;
+	}
+	if (!retrySave && v.value === modelValue.value) {
+		changed.value = false;
+		return;
+	}
+	if (inputEl.value && !inputEl.value.validity.valid) return;
+	const value = updated();
+	savingOnLeave = true;
+	retrySave = false;
+	try {
+		await props.saveOnLeave(value);
+	} catch {
+		changed.value = true;
+		retrySave = true;
+	} finally {
+		savingOnLeave = false;
+		if (saveAfterPending) {
+			saveAfterPending = false;
+			void onLeave();
+		}
+	}
+}
+
+function onBlur(): void {
+	focused.value = false;
+	void onLeave();
+}
+
+async function onCompositionEnd(): Promise<void> {
+	composing.value = false;
+	await nextTick();
+	if (saveAfterComposition) {
+		saveAfterComposition = false;
+		void onLeave();
+	}
+}
 
 const throttledUpdated = throttle(typeof props.throttle === 'number' ? props.throttle : 1000, updated);
 const debouncedUpdated = debounce(typeof props.debounce === 'number' ? props.debounce : 1000, updated);
@@ -143,7 +212,7 @@ watch(modelValue, newValue => {
 });
 
 watch(v, () => {
-	if (!props.manualSave) {
+	if (!props.manualSave && !props.saveOnLeave) {
 		if (props.throttle === true || typeof props.throttle === 'number') {
 			throttledUpdated();
 		} else if (props.debounce === true || typeof props.debounce === 'number') {
@@ -240,7 +309,6 @@ defineExpose({
 	&.focused {
 		> .inputCore {
 			border-color: var(--MI_THEME-accent) !important;
-			//box-shadow: 0 0 0 4px var(--MI_THEME-focus);
 		}
 	}
 
@@ -276,6 +344,11 @@ defineExpose({
 
 	&:hover {
 		border-color: var(--MI_THEME-inputBorderHover) !important;
+	}
+
+	&:focus {
+		border-color: var(--MI_THEME-accent) !important;
+		outline: none;
 	}
 }
 

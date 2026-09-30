@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { STATUS_CODES } from 'node:http';
 import type { Config } from '@/config.js';
 import endpoints, { IEndpoint } from '../endpoints.js';
 import { errors as basicErrors } from './errors.js';
@@ -43,19 +44,23 @@ export function genOpenapiSpec(config: Config, includeSelfRef = false) {
 	// 書き換えたりするのでディープコピーしておく。そのまま編集するとメモリ上の値が汚れて次回以降の出力に影響する
 	const copiedEndpoints = JSON.parse(JSON.stringify(endpoints)) as IEndpoint[];
 	for (const endpoint of copiedEndpoints) {
-		const errors = {} as any;
+		const errors: Record<string, Record<string, { value: { error: NonNullable<IEndpoint['meta']['errors']>[string] } }>> = {};
 
 		if (endpoint.meta.errors) {
 			for (const e of Object.values(endpoint.meta.errors)) {
-				errors[e.code] = {
+				const kind = e.kind ?? 'client';
+				const status = e.httpStatusCode ?? (kind === 'permission' ? 403 : kind === 'server' ? 500 : 400);
+				errors[status] ??= {};
+				errors[status][e.code] = {
 					value: {
-						error: e,
+						error: { message: e.message, code: e.code, id: e.id, kind },
 					},
 				};
 			}
 		}
 
-		const resSchema = endpoint.meta.res ? convertSchemaToOpenApiSchema(endpoint.meta.res, 'res', includeSelfRef) : {};
+		const binaryResponse = endpoint.meta.responseType === 'binary';
+		const resSchema = binaryResponse ? { type: 'string', format: 'binary' } : endpoint.meta.res ? convertSchemaToOpenApiSchema(endpoint.meta.res, 'res', includeSelfRef) : {};
 
 		let desc = (endpoint.meta.description ? endpoint.meta.description : 'No description provided.') + '\n\n';
 
@@ -119,11 +124,11 @@ export function genOpenapiSpec(config: Config, includeSelfRef = false) {
 				},
 			} : {}),
 			responses: {
-				...(endpoint.meta.res ? {
+				...(binaryResponse || endpoint.meta.res ? {
 					'200': {
 						description: 'OK (with results)',
 						content: {
-							'application/json': {
+							[binaryResponse ? 'application/octet-stream' : 'application/json']: {
 								schema: resSchema,
 							},
 						},
@@ -145,7 +150,7 @@ export function genOpenapiSpec(config: Config, includeSelfRef = false) {
 							schema: {
 								$ref: '#/components/schemas/Error',
 							},
-							examples: { ...errors, ...basicErrors['400'] },
+							examples: basicErrors['400'],
 						},
 					},
 				},
@@ -206,6 +211,15 @@ export function genOpenapiSpec(config: Config, includeSelfRef = false) {
 						},
 					},
 				},
+				...Object.fromEntries(Object.entries(errors).map(([status, examples]) => [status, {
+					description: STATUS_CODES[status] ?? 'Error',
+					content: {
+						'application/json': {
+							schema: { $ref: '#/components/schemas/Error' },
+							examples: { ...basicErrors[status as keyof typeof basicErrors], ...examples },
+						},
+					},
+				}])),
 			},
 		};
 

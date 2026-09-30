@@ -42,7 +42,7 @@ function createService(selected = reply, subtree = [selected], ancestors = [pare
 	};
 	const commit = vi.fn();
 	const db = { transaction: vi.fn(async (work: (transaction: typeof manager) => Promise<void>) => { await work(manager); commit(); }) };
-	const events = { publishNoteStream: vi.fn() };
+	const events = { publishNoteStream: vi.fn(), publishUserStats: vi.fn() };
 	const search = { unindexNote: vi.fn().mockResolvedValue(undefined) };
 	const charts = { update: vi.fn() };
 	const users = { findOneByOrFail: vi.fn().mockResolvedValue(user) };
@@ -57,6 +57,16 @@ function createService(selected = reply, subtree = [selected], ancestors = [pare
 }
 
 describe('NoteDeleteService', () => {
+	test('invalidates every affected author once after deletion and count recalculation commit', async () => {
+		const otherAuthor = { ...user, id: 'other-author' };
+		const otherReply = makeNote('other-reply', { userId: otherAuthor.id, replyId: parent.id });
+		const fixture = createService(parent, [parent, reply, otherReply], []);
+		fixture.manager.findBy.mockResolvedValue([user, otherAuthor]);
+		await fixture.service.delete(user, parent, true);
+		expect(fixture.events.publishUserStats.mock.calls).toEqual([[user.id], [otherAuthor.id]]);
+		expect(fixture.commit.mock.invocationCallOrder[0]).toBeLessThan(fixture.events.publishUserStats.mock.invocationCallOrder[0]);
+	});
+
 	test.each(['author', 'moderator', 'administrator'])('records the deletion source for comments removed by %s', async actorId => {
 		const actor = { ...user, id: actorId };
 		const fixture = createService();

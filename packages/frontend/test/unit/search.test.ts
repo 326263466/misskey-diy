@@ -16,6 +16,7 @@ import type { IPaginator } from '@/utility/paginator.js';
 const mocks = vi.hoisted(() => ({
 	api: vi.fn(), confirm: vi.fn(), lookup: vi.fn(), selectUser: vi.fn(),
 	push: vi.fn(), pushByPath: vi.fn(),
+	permissions: { notesSearchAvailable: true, usersSearchAvailable: true },
 }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/utility/lookup.js', () => ({ apLookup: mocks.lookup }));
@@ -24,7 +25,7 @@ vi.mock('@/router.js', () => ({ useRouter: () => ({ push: mocks.push, pushByPath
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
 vi.mock('@/instance.js', () => ({ instance: { federation: 'all', noteSearchableScope: 'global' } }));
 vi.mock('@/i.js', () => ({ $i: { id: 'self', username: 'self', host: null } }));
-vi.mock('@/utility/check-permissions.js', () => ({ notesSearchAvailable: true, usersSearchAvailable: true }));
+vi.mock('@/utility/check-permissions.js', () => mocks.permissions);
 vi.mock('@/components/MkInput.vue', () => ({ default: {
 	props: ['modelValue', 'type'],
 	emits: ['update:modelValue', 'enter'],
@@ -57,7 +58,7 @@ vi.mock('@/components/MkUserList.vue', () => ({ default: {
 	template: '<div data-testid="user-results"/>',
 } }));
 
-async function renderSearch(component: Component, props: Record<string, unknown> = {}) {
+async function renderSearch(component: Component, props: Record<string, unknown> = {}, searchAvailable = true) {
 	const view = render({
 		render: () => h('div', [h(Suspense, null, { default: () => h(component, props) })]),
 	}, {
@@ -71,12 +72,16 @@ async function renderSearch(component: Component, props: Record<string, unknown>
 			},
 		},
 	});
-	await waitFor(() => expect(view.getByRole('searchbox')).toBeTruthy());
+	if (searchAvailable) {
+		await waitFor(() => expect(view.getByRole('searchbox')).toBeTruthy());
+	}
 	return view;
 }
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	mocks.permissions.notesSearchAvailable = true;
+	mocks.permissions.usersSearchAvailable = true;
 	mocks.api.mockResolvedValue([]);
 	mocks.confirm.mockResolvedValue({ canceled: true });
 	mocks.selectUser.mockResolvedValue({ id: 'selected-user', username: 'selected', host: null });
@@ -105,6 +110,17 @@ describe.each(cases)('$type 搜索提交', ({ type, component, endpoint }) => {
 		await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith(endpoint, expect.objectContaining({ query: 'new keyword' })));
 	});
 
+	test.each(['', '   '])('空关键词 %j 禁用按钮，回车也不搜索或跳转', async query => {
+		const view = await renderSearch(component, { query });
+		expect(view.getByRole('button', { name: i18n.ts.search })).toHaveProperty('disabled', true);
+		await fireEvent.keyDown(view.getByRole('searchbox'), { key: 'Enter' });
+		expect(mocks.api).not.toHaveBeenCalled();
+		expect(mocks.confirm).not.toHaveBeenCalled();
+		expect(mocks.lookup).not.toHaveBeenCalled();
+		expect(mocks.push).not.toHaveBeenCalled();
+		expect(mocks.pushByPath).not.toHaveBeenCalled();
+	});
+
 	test.each(['https://example.com/notes/1', '@alice', '#topic'])('自动加载 %s 直接搜索，不弹出特殊跳转确认', async query => {
 		await renderSearch(component, { query });
 		await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith(endpoint, expect.objectContaining({ query })));
@@ -114,13 +130,53 @@ describe.each(cases)('$type 搜索提交', ({ type, component, endpoint }) => {
 		expect(mocks.pushByPath).not.toHaveBeenCalled();
 	});
 
-	test('主动提交特殊关键词仍保留跳转确认', async () => {
+	test.each(['https://example.com/notes/1', '@alice', '#topic'])('主动提交 %s 留在搜索页显示结果', async query => {
 		const view = await renderSearch(component);
-		await fireEvent.update(view.getByRole('searchbox'), '@alice');
+		await fireEvent.update(view.getByRole('searchbox'), `  ${query}  `);
 		await fireEvent.click(view.getByRole('button', { name: i18n.ts.search }));
-		await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce());
-		await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith(endpoint, expect.objectContaining({ query: '@alice' })));
+		await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith(endpoint, expect.objectContaining({ query })));
+		expect(mocks.confirm).not.toHaveBeenCalled();
+		expect(mocks.lookup).not.toHaveBeenCalled();
+		expect(mocks.push).not.toHaveBeenCalled();
+		expect(mocks.pushByPath).not.toHaveBeenCalled();
 	});
+});
+
+test.each([
+	{ notes: true, users: true, endpoint: 'notes/search' },
+	{ notes: true, users: false, endpoint: 'notes/search' },
+	{ notes: false, users: true, endpoint: 'users/search' },
+])('未指定分类时根据管理员策略选择可用搜索（帖子 $notes，用户 $users）', async ({ notes, users, endpoint }) => {
+	mocks.permissions.notesSearchAvailable = notes;
+	mocks.permissions.usersSearchAvailable = users;
+	await renderSearch(Search, { query: 'keyword' });
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith(endpoint, expect.objectContaining({ query: 'keyword' })));
+});
+
+test.each([
+	{ type: 'note', permission: 'notesSearchAvailable' as const, message: i18n.ts.notesSearchNotAvailable },
+	{ type: 'user', permission: 'usersSearchAvailable' as const, message: i18n.ts.usersSearchNotAvailable },
+])('显式指定被禁用的 $type 分类时保留权限提示，不请求搜索', async ({ type, permission, message }) => {
+	mocks.permissions[permission] = false;
+	const view = await renderSearch(Search, { query: 'keyword', type }, false);
+	expect(view.getByText(message)).toBeTruthy();
+	expect(view.queryByRole('searchbox')).toBeNull();
+	expect(mocks.api).not.toHaveBeenCalled();
+});
+
+test('管理员关闭所有搜索时显示权限提示，不请求搜索', async () => {
+	mocks.permissions.notesSearchAvailable = false;
+	mocks.permissions.usersSearchAvailable = false;
+	const view = await renderSearch(Search, { query: 'keyword' }, false);
+	expect(view.getByText(i18n.ts.notesSearchNotAvailable)).toBeTruthy();
+	expect(view.queryByRole('searchbox')).toBeNull();
+	expect(mocks.api).not.toHaveBeenCalled();
+});
+
+test('Storybook 的帖子搜索覆盖参数仍默认展示帖子', async () => {
+	mocks.permissions.notesSearchAvailable = false;
+	await renderSearch(Search, { query: 'keyword', ignoreNotesSearchAvailable: true });
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith('notes/search', expect.objectContaining({ query: 'keyword' })));
 });
 
 test('结果页提交新词后切换分类，始终使用最近已提交的关键词', async () => {

@@ -4,6 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
+<Teleport :to="fullscreenTarget ?? 'body'" :disabled="fullscreenTarget == null">
 <Transition
 	:name="transitionName"
 	:enterActiveClass="normalizeClass({
@@ -32,13 +33,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 	})"
 	:duration="transitionDuration" appear @afterLeave="onClosed" @enter="emit('opening')" @afterEnter="onOpened"
 >
-	<div v-show="manualShowing != null ? manualShowing : showing" ref="modalRootEl" v-hotkey.global="keymap" :class="[$style.root, { [$style.drawer]: type === 'drawer', [$style.dialog]: type === 'dialog', [$style.popup]: type === 'popup' }]" :style="{ zIndex, pointerEvents: (manualShowing != null ? manualShowing : showing) ? 'auto' : 'none', '--transformOrigin': transformOrigin }">
+	<div v-show="manualShowing != null ? manualShowing : showing" ref="modalRootEl" v-hotkey.global="keymap" v-bind="$attrs" :class="[$style.root, { [$style.drawer]: type === 'drawer', [$style.dialog]: type === 'dialog', [$style.popup]: type === 'popup', [$style.menu]: menu }]" :style="{ zIndex, pointerEvents: (manualShowing != null ? manualShowing : showing) ? 'auto' : 'none', '--transformOrigin': transformOrigin }">
 		<div data-testid="bg" :data-test-is-transparent="isEnableBgTransparent" class="_modalBg" :class="[$style.bg, { [$style.bgTransparent]: isEnableBgTransparent }]" :style="{ zIndex }" @click="onBgClick" @mousedown="onBgClick" @contextmenu.prevent.stop="() => {}"></div>
 		<div ref="content" :class="[$style.content, { [$style.fixed]: fixed }]" :style="{ zIndex }" @click.self="onBgClick">
-			<slot :max-height="maxHeight" :type="type"></slot>
+			<slot :max-height="maxHeight" :type="type" :guardInitialPointer="menuOverlapsAnchor" :anchorWidth="anchorWidth"></slot>
 		</div>
 	</div>
 </Transition>
+</Teleport>
 </template>
 
 <script lang="ts" setup>
@@ -51,6 +53,9 @@ import { focusTrap } from '@/utility/focus-trap.js';
 import { focusParent } from '@/utility/focus.js';
 import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
+import { calcDropdownPosition } from '@/utility/menu-position.js';
+
+defineOptions({ inheritAttrs: false });
 
 function getFixedContainer(el: Element | null): Element | null {
 	if (el == null || el.tagName === 'BODY') return null;
@@ -64,23 +69,33 @@ function getFixedContainer(el: Element | null): Element | null {
 
 type ModalTypes = 'popup' | 'dialog' | 'drawer';
 
+// Menus opened in a fullscreen player must remain in the fullscreen subtree.
+const fullscreenTarget = window.document.fullscreenElement;
+
 const props = withDefaults(defineProps<{
 	manualShowing?: boolean | null;
 	anchor?: { x: string; y: string; };
 	anchorElement?: HTMLElement | null;
+	align?: 'left' | 'center' | 'right';
 	preferType?: ModalTypes | 'auto';
 	zPriority?: 'low' | 'middle' | 'high';
 	noOverlap?: boolean;
+	menu?: boolean;
+	menuMatchAnchorWidth?: boolean;
+	getContentHeight?: () => number | undefined;
 	transparentBg?: boolean;
 	hasInteractionWithOtherFocusTrappedEls?: boolean;
 	returnFocusTo?: HTMLElement | null;
 }>(), {
 	manualShowing: null,
 	anchorElement: null,
+	align: 'center',
 	anchor: () => ({ x: 'center', y: 'bottom' }),
 	preferType: 'auto',
 	zPriority: 'low',
 	noOverlap: true,
+	menu: false,
+	menuMatchAnchorWidth: false,
 	transparentBg: false,
 	hasInteractionWithOtherFocusTrappedEls: false,
 	returnFocusTo: null,
@@ -98,6 +113,8 @@ const emit = defineEmits<{
 provide(DI.inModal, true);
 
 const maxHeight = ref<number>();
+const anchorWidth = ref<number>();
+const menuOverlapsAnchor = ref(false);
 const fixed = ref(false);
 const transformOrigin = ref('center');
 const showing = ref(true);
@@ -171,21 +188,43 @@ const keymap = {
 
 const MARGIN = 16;
 const SCROLLBAR_THICKNESS = 16;
+const POPUP_GAP = 8;
 
 const align = () => {
 	if (props.anchorElement == null) return;
+	if (!props.anchorElement.isConnected || props.anchorElement.getClientRects().length === 0) return;
 	if (type.value === 'drawer') return;
 	if (type.value === 'dialog') return;
 
 	if (content.value == null) return;
 
-	// 每次重新定位都先恢复自然高度，避免视口变大后沿用旧的滚动上限。
-	maxHeight.value = undefined;
-
 	const anchorRect = props.anchorElement.getBoundingClientRect();
 
 	const width = content.value!.offsetWidth;
 	const height = content.value!.offsetHeight;
+
+	// 按钮菜单锚定触发元素本身：默认挂在下方并与其起始边对齐，放不下就整体换方位。
+	// 光标锚点的四角展开是右键菜单的语义，由 MkContextMenu 负责，不能混用。
+	if (props.menu) {
+		if (props.menuMatchAnchorWidth) anchorWidth.value = anchorRect.width;
+		const position = calcDropdownPosition(
+			// 传自然高度而非 offsetHeight，否则上一次施加的 maxHeight 会让菜单显得“放得下”
+			{ width, height: props.getContentHeight?.() ?? height },
+			anchorRect,
+			{ width: window.innerWidth, height: window.innerHeight },
+			{
+				// 宽度跟随锚点的下拉（select）不应该甩到侧面
+				allowSideFlip: !props.menuMatchAnchorWidth,
+				rtl: window.getComputedStyle(props.anchorElement).direction === 'rtl',
+			},
+		);
+		maxHeight.value = position.maxHeight ?? undefined;
+		transformOrigin.value = position.transformOrigin;
+		menuOverlapsAnchor.value = position.overlapsAnchor;
+		content.value.style.left = `${position.left + (fixed.value ? 0 : window.scrollX)}px`;
+		content.value.style.top = `${position.top + (fixed.value ? 0 : window.scrollY)}px`;
+		return;
+	}
 
 	let left = 0;
 	let top = 0;
@@ -194,91 +233,54 @@ const align = () => {
 	const y = anchorRect.top + (fixed.value ? 0 : window.scrollY);
 
 	if (props.anchor.x === 'center') {
-		left = x + (props.anchorElement.offsetWidth / 2) - (width / 2);
+		left = props.align === 'left' ? x : props.align === 'right' ? x + anchorRect.width - width : x + (anchorRect.width / 2) - (width / 2);
 	} else if (props.anchor.x === 'left') {
-		// 与 right 对称，展开到锚点左侧
-		left = x - width;
+		left = x - width - POPUP_GAP;
 	} else if (props.anchor.x === 'right') {
-		left = x + props.anchorElement.offsetWidth;
+		left = x + anchorRect.width + POPUP_GAP;
 	}
 
 	if (props.anchor.y === 'center') {
-		top = (y - (height / 2));
+		top = y + (anchorRect.height / 2) - (height / 2);
 	} else if (props.anchor.y === 'top') {
-		// 与 bottom 对称，展开到锚点上方
-		top = y - height;
+		top = y - height - POPUP_GAP;
 	} else if (props.anchor.y === 'bottom') {
-		top = y + props.anchorElement.offsetHeight;
+		top = y + anchorRect.height + POPUP_GAP;
 	}
 
-	if (fixed.value) {
-		// 画面から横にはみ出る場合
-		if (left + width > (window.innerWidth - SCROLLBAR_THICKNESS)) {
-			left = (window.innerWidth - SCROLLBAR_THICKNESS) - width;
-		}
+	const viewportLeft = fixed.value ? 0 : window.scrollX;
+	const viewportTop = (fixed.value ? 0 : window.scrollY) + MARGIN;
+	const viewportRight = viewportLeft + window.innerWidth - SCROLLBAR_THICKNESS;
+	const viewportBottom = (fixed.value ? 0 : window.scrollY) + window.innerHeight - SCROLLBAR_THICKNESS - MARGIN;
+	let availableHeight = Math.max(0, viewportBottom - viewportTop);
 
-		const viewportHeight = window.innerHeight - SCROLLBAR_THICKNESS - (MARGIN * 2);
-
-		// 画面から縦にはみ出る場合
-		if (top + height > ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN)) {
-			if (props.noOverlap && props.anchor.x === 'center') {
-				// 下方空间不足时反向展开；两侧都不足时使用空间更大的一侧
-				if (height <= viewportHeight) {
-					top = Math.min(Math.max(top, MARGIN), (window.innerHeight - SCROLLBAR_THICKNESS - MARGIN) - height);
-				} else {
-					// 整个可视区也放不下时，限制到可视区高度并在菜单内滚动
-					maxHeight.value = viewportHeight;
-					top = MARGIN;
-				}
-			} else {
-				top = ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN) - height;
-			}
-		}
-	} else {
-		// 画面から横にはみ出る場合
-		if (left + width - window.scrollX > (window.innerWidth - SCROLLBAR_THICKNESS)) {
-			left = (window.innerWidth - SCROLLBAR_THICKNESS) - width + window.scrollX - 1;
-		}
-
-		const viewportHeight = window.innerHeight - SCROLLBAR_THICKNESS - (MARGIN * 2);
-
-		// 画面から縦にはみ出る場合
-		if (top + height - window.scrollY > ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN)) {
-			if (props.noOverlap && props.anchor.x === 'center') {
-				// 下方空间不足时反向展开；两侧都不足时使用空间更大的一侧
-				if (height <= viewportHeight) {
-					top = Math.min(Math.max(top, window.scrollY + MARGIN), window.scrollY + (window.innerHeight - SCROLLBAR_THICKNESS - MARGIN) - height);
-				} else {
-					// 整个可视区也放不下时，限制到可视区高度并在菜单内滚动
-					maxHeight.value = viewportHeight;
-					top = window.scrollY + MARGIN;
-				}
-			} else {
-				top = ((window.innerHeight - SCROLLBAR_THICKNESS) - MARGIN) - height + window.scrollY - 1;
-			}
-		}
+	if (props.noOverlap && props.anchor.x === 'center' && props.anchor.y !== 'center') {
+		const spaceAbove = Math.max(0, Math.min(y - POPUP_GAP, viewportBottom) - viewportTop);
+		const spaceBelow = Math.max(0, viewportBottom - Math.max(y + anchorRect.height + POPUP_GAP, viewportTop));
+		const opensAbove = props.anchor.y === 'top'
+			? height <= spaceAbove || (height > spaceBelow && spaceAbove >= spaceBelow)
+			: height > spaceBelow && (height <= spaceAbove || spaceAbove > spaceBelow);
+		availableHeight = opensAbove ? spaceAbove : spaceBelow;
+		top = opensAbove ? y - POPUP_GAP - Math.min(height, availableHeight) : y + anchorRect.height + POPUP_GAP;
 	}
 
-	if (top < 0) {
-		top = MARGIN;
-	}
+	maxHeight.value = availableHeight;
+	const visibleHeight = Math.min(height, availableHeight);
+	left = Math.max(viewportLeft, Math.min(left, viewportRight - width));
+	top = Math.max(viewportTop, Math.min(top, viewportBottom - visibleHeight));
 
-	if (left < 0) {
-		left = 0;
-	}
-
-	let transformOriginX = 'center';
+	let transformOriginX: string = props.anchor.x === 'center' ? props.align : 'center';
 	let transformOriginY = 'center';
 
-	if (top >= anchorRect.top + props.anchorElement.offsetHeight + (fixed.value ? 0 : window.scrollY)) {
+	if (top >= y + anchorRect.height) {
 		transformOriginY = 'top';
-	} else if ((top + height) <= anchorRect.top + (fixed.value ? 0 : window.scrollY)) {
+	} else if ((top + visibleHeight) <= y) {
 		transformOriginY = 'bottom';
 	}
 
-	if (left >= anchorRect.left + props.anchorElement.offsetWidth + (fixed.value ? 0 : window.scrollX)) {
+	if (left >= x + anchorRect.width) {
 		transformOriginX = 'left';
-	} else if ((left + width) <= anchorRect.left + (fixed.value ? 0 : window.scrollX)) {
+	} else if ((left + width) <= x) {
 		transformOriginX = 'right';
 	}
 
@@ -298,6 +300,7 @@ const onOpened = () => {
 
 		// モーダルコンテンツにマウスボタンが押され、コンテンツ外でマウスボタンが離されたときにモーダルバックグラウンドクリックと判定させないためにマウスイベントを監視しフラグ管理する
 		const el = content.value.children[0];
+		if (el == null) return;
 		el.addEventListener('mousedown', ev => {
 			contentClicking = true;
 			window.addEventListener('mouseup', ev => {
@@ -318,12 +321,27 @@ const alignObserver = new ResizeObserver((entries, observer) => {
 	align();
 });
 
+function onViewportChange(event: Event) {
+	if (event.type === 'scroll' && event.target instanceof Node && content.value?.contains(event.target)) return;
+	align();
+}
+
+function onFullscreenChange() {
+	if (window.document.fullscreenElement !== fullscreenTarget) emit('click');
+}
+
 onMounted(() => {
-	watch(() => props.anchorElement, async () => {
-		if (props.anchorElement) {
-			props.anchorElement.style.pointerEvents = 'none';
+	if (fullscreenTarget != null) window.document.addEventListener('fullscreenchange', onFullscreenChange);
+	window.addEventListener('resize', onViewportChange, { passive: true });
+	window.document.addEventListener('scroll', onViewportChange, { capture: true, passive: true });
+
+	watch(() => props.anchorElement, async (anchor, previousAnchor) => {
+		if (previousAnchor) alignObserver.unobserve(previousAnchor);
+		if (anchor) {
+			anchor.style.pointerEvents = 'none';
+			alignObserver.observe(anchor);
 		}
-		fixed.value = (type.value === 'drawer') || (getFixedContainer(props.anchorElement) != null);
+		fixed.value = (type.value === 'drawer') || (getFixedContainer(anchor) != null);
 
 		await nextTick();
 
@@ -350,7 +368,13 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+	// The owning composer can dispose a picker directly while starting a post.
+	if (props.anchorElement) props.anchorElement.style.pointerEvents = 'auto';
+	releaseFocusTrap?.();
+	window.document.removeEventListener('fullscreenchange', onFullscreenChange);
 	alignObserver.disconnect();
+	window.removeEventListener('resize', onViewportChange);
+	window.document.removeEventListener('scroll', onViewportChange, true);
 });
 
 defineExpose({
@@ -483,6 +507,10 @@ defineExpose({
 	}
 
 	&.popup {
+		&.menu > .content {
+			transform: none !important;
+		}
+
 		> .content {
 			position: absolute;
 

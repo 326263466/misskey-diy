@@ -15,6 +15,7 @@ import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
 import { chartVLine } from '@/utility/chart-vline.js';
 import { alpha } from '@/utility/color.js';
 import { initChart } from '@/utility/init-chart.js';
+import { i18n } from '@/i18n.js';
 
 initChart();
 
@@ -57,7 +58,7 @@ onMounted(() => {
 		data: {
 			labels: [],
 			datasets: [{
-				label: 'Completed',
+				label: i18n.ts._queue.completed,
 				pointRadius: 0,
 				tension: 0.3,
 				borderWidth: 2,
@@ -67,7 +68,7 @@ onMounted(() => {
 				fill: true,
 				data: [],
 			}, {
-				label: 'Failed',
+				label: i18n.ts._queue.failed,
 				pointRadius: 0,
 				tension: 0.3,
 				borderWidth: 2,

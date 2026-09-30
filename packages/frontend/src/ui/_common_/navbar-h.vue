@@ -7,37 +7,37 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="[$style.root, acrylic ? $style.acrylic : null]">
 	<div :class="$style.body">
 		<div>
-			<button v-click-anime :class="[$style.item, $style.instance]" class="_button" @click="openInstanceMenu">
-				<img :class="$style.instanceIcon" :src="instance.iconUrl ?? '/favicon.ico'" draggable="false"/>
+			<button v-click-anime v-tooltip="instance.name ?? i18n.ts.instance" :class="[$style.item, $style.instance]" class="_button" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
+				<img :class="$style.instanceIcon" :src="instance.iconUrl ?? '/favicon.ico'" alt="" draggable="false"/>
 			</button>
-			<MkA v-click-anime v-tooltip="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" to="/" exact>
+			<MkA v-click-anime v-tooltip="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.timeline" to="/" exact>
 				<i :class="$style.itemIcon" class="ti ti-home ti-fw"></i>
 			</MkA>
 			<template v-for="item in menu">
 				<div v-if="item === '-'" :class="$style.divider"></div>
-				<component :is="navbarItemDef[item].to ? 'MkA' : 'button'" v-else-if="navbarItemDef[item] && (navbarItemDef[item].show == null || navbarItemDef[item].show.value !== false)" v-click-anime v-tooltip="navbarItemDef[item].title" class="_button" :class="$style.item" :activeClass="$style.active" :to="navbarItemDef[item].to" v-on="navbarItemDef[item].action ? { click: navbarItemDef[item].action } : {}">
+				<component :is="navbarItemDef[item].to ? 'MkA' : 'button'" v-else-if="navbarItemDef[item] && (navbarItemDef[item].show == null || navbarItemDef[item].show.value !== false)" v-click-anime v-tooltip="navbarItemDef[item].title" class="_button" :class="$style.item" :activeClass="$style.active" :aria-label="navbarItemDef[item].title" :to="navbarItemDef[item].to" v-on="navbarItemDef[item].action ? { click: navbarItemDef[item].action } : {}">
 					<i :class="[$style.itemIcon, navbarItemDef[item].icon]" class="ti-fw"></i>
 					<span v-if="navbarItemDef[item].indicated" :class="$style.indicator" class="_blink"><i class="_indicatorCircle"></i></span>
 				</component>
 			</template>
 			<div :class="$style.divider"></div>
-			<MkA v-if="$i && ($i.isAdmin || $i.isModerator)" v-click-anime v-tooltip="i18n.ts.controlPanel" class="item" :activeClass="$style.active" to="/admin" :behavior="settingsWindowed ? 'window' : null">
+			<MkA v-if="$i && ($i.isAdmin || $i.isModerator)" v-click-anime v-tooltip="i18n.ts.controlPanel" class="item" :activeClass="$style.active" :aria-label="i18n.ts.controlPanel" to="/admin" :behavior="settingsWindowed ? 'window' : null">
 				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw"></i>
 			</MkA>
-			<button v-click-anime :class="$style.item" class="_button" @click="more">
+			<button v-click-anime v-tooltip="i18n.ts.more" :class="$style.item" class="_button" :aria-label="i18n.ts.more" @click="more">
 				<i :class="$style.itemIcon" class="ti ti-dots ti-fw"></i>
 				<span v-if="otherNavItemIndicated" :class="$style.indicator" class="_blink"><i class="_indicatorCircle"></i></span>
 			</button>
 		</div>
 		<div :class="$style.right">
-			<MkA v-click-anime v-tooltip="i18n.ts.settings" :class="$style.item" :activeClass="$style.active" to="/settings" :behavior="settingsWindowed ? 'window' : null">
+			<MkA v-click-anime v-tooltip="i18n.ts.settings" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.settings" to="/settings" :behavior="settingsWindowed ? 'window' : null">
 				<i :class="$style.itemIcon" class="ti ti-settings ti-fw"></i>
 			</MkA>
-			<button v-if="$i" v-click-anime :class="[$style.item, $style.account]" class="_button" @click="openAccountMenu">
-				<MkAvatar :user="$i" :class="$style.avatar"/><MkAcct :class="$style.acct" :user="$i"/>
+			<button v-if="$i" v-click-anime v-tooltip="accountIconOnly ? userName($i) : null" :class="[$style.item, $style.account]" class="_button" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu">
+				<MkAvatar :user="$i" :class="$style.avatar" title=""/><MkAcct :class="$style.acct" :user="$i"/>
 			</button>
-			<div :class="$style.post" @click="os.post()">
-				<MkButton :class="$style.postButton" gradate rounded>
+			<div :class="$style.post">
+				<MkButton v-tooltip="i18n.ts._postForm.post" :class="$style.postButton" :aria-label="i18n.ts._postForm.post" gradate rounded @click="os.post()">
 					<i class="ti ti-plus ti-fw"></i>
 				</MkButton>
 			</div>
@@ -47,7 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
@@ -57,6 +57,7 @@ import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
+import { userName } from '@/filters/user.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 
 const WINDOW_THRESHOLD = 1400;
@@ -66,6 +67,8 @@ const props = defineProps<{
 }>();
 
 const settingsWindowed = ref(window.innerWidth > WINDOW_THRESHOLD);
+const accountMedia = window.matchMedia('(max-width: 1200px)');
+const accountIconOnly = ref(accountMedia.matches);
 const menu = ref(prefer.s.menu);
 // const menuDisplay = store.model('menuDisplay');
 const otherNavItemIndicated = computed<boolean>(() => {
@@ -96,10 +99,17 @@ async function openAccountMenu(ev: PointerEvent) {
 	os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
 }
 
+function onBrowserResize() {
+	settingsWindowed.value = (window.innerWidth >= WINDOW_THRESHOLD);
+	accountIconOnly.value = accountMedia.matches;
+}
+
 onMounted(() => {
-	window.addEventListener('resize', () => {
-		settingsWindowed.value = (window.innerWidth >= WINDOW_THRESHOLD);
-	}, { passive: true });
+	window.addEventListener('resize', onBrowserResize, { passive: true });
+});
+
+onBeforeUnmount(() => {
+	window.removeEventListener('resize', onBrowserResize);
 });
 
 </script>

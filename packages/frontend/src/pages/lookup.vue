@@ -60,7 +60,7 @@ function _fetch_() {
 			} else {
 				os.alert({
 					type: 'error',
-					text: 'Not a user',
+					text: i18n.ts._lookup.unsupportedType,
 				});
 			}
 		});

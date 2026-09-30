@@ -13,7 +13,8 @@ import type { Config } from '@/config.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { Promiseable } from '@/misc/prelude/await-all.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
-import { USER_ACTIVE_THRESHOLD, USER_ONLINE_THRESHOLD } from '@/const.js';
+import { isUserFollowCountVisible } from '@/misc/is-user-follow-count-visible.js';
+import { getUserCustomStatus, getUserOnlineStatus } from '@/misc/user-online-status.js';
 import type { MiLocalUser, MiPartialLocalUser, MiPartialRemoteUser, MiRemoteUser, MiUser } from '@/models/User.js';
 import {
 	birthdaySchema,
@@ -371,15 +372,8 @@ export class UserEntityService implements OnModuleInit {
 	}
 
 	@bindThis
-	public getOnlineStatus(user: MiUser): 'unknown' | 'online' | 'active' | 'offline' {
-		if (user.hideOnlineStatus) return 'unknown';
-		if (user.lastActiveDate == null) return 'unknown';
-		const elapsed = Date.now() - user.lastActiveDate.getTime();
-		return (
-			elapsed < USER_ONLINE_THRESHOLD ? 'online' :
-			elapsed < USER_ACTIVE_THRESHOLD ? 'active' :
-			'offline'
-		);
+	public getOnlineStatus(user: MiUser) {
+		return getUserOnlineStatus(user);
 	}
 
 	@bindThis
@@ -408,7 +402,9 @@ export class UserEntityService implements OnModuleInit {
 		options?: {
 			schema?: S,
 			includeSecrets?: boolean,
+			includeProfessionalProfile?: boolean,
 			userProfile?: MiUserProfile,
+			userProfessionalProfile?: Pick<MiUserProfile, 'company' | 'jobTitle'> | null,
 			userRelations?: Map<MiUser['id'], UserRelation>,
 			userMemos?: Map<MiUser['id'], string | null>,
 			pinNotes?: Map<MiUser['id'], MiUserNotePining[]>,
@@ -429,6 +425,12 @@ export class UserEntityService implements OnModuleInit {
 		const profile = isDetailed
 			? (opts.userProfile ?? await this.userProfilesRepository.findOneByOrFail({ userId: user.id }))
 			: null;
+		const professionalProfile = opts.includeProfessionalProfile
+			? (opts.userProfessionalProfile !== undefined ? opts.userProfessionalProfile : profile ?? await this.userProfilesRepository.findOne({
+				where: { userId: user.id },
+				select: { company: true, jobTitle: true },
+			}))
+			: profile;
 
 		let relation: UserRelation | null = null;
 		if (meId && !isMe && isDetailed) {
@@ -462,15 +464,9 @@ export class UserEntityService implements OnModuleInit {
 			}
 		}
 
-		const followingCount = profile == null ? null :
-			(profile.followingVisibility === 'public') || isMe || iAmModerator ? user.followingCount :
-			(profile.followingVisibility === 'followers') && (relation && relation.isFollowing) ? user.followingCount :
-			null;
-
-		const followersCount = profile == null ? null :
-			(profile.followersVisibility === 'public') || isMe || iAmModerator ? user.followersCount :
-			(profile.followersVisibility === 'followers') && (relation && relation.isFollowing) ? user.followersCount :
-			null;
+		const countVisibility = { isMe, isModerator: iAmModerator, isFollowing: relation?.isFollowing ?? false };
+		const followingCount = isUserFollowCountVisible(profile?.followingVisibility, countVisibility) ? user.followingCount : null;
+		const followersCount = isUserFollowCountVisible(profile?.followersVisibility, countVisibility) ? user.followersCount : null;
 
 		const isModerator = isMe && isDetailed ? this.roleService.isModerator(user) : undefined;
 		const isAdmin = isMe && isDetailed ? this.roleService.isAdministrator(user) : undefined;
@@ -513,6 +509,11 @@ export class UserEntityService implements OnModuleInit {
 			} : undefined) : undefined,
 			emojis: this.customEmojiService.populateEmojis(user.emojis, user.host),
 			onlineStatus: this.getOnlineStatus(user),
+			customStatus: getUserCustomStatus(user, isDetailed && isMe),
+			...(isDetailed || opts.includeProfessionalProfile ? {
+				company: professionalProfile?.company ?? null,
+				jobTitle: professionalProfile?.jobTitle ?? null,
+			} : {}),
 			// パフォーマンス上の理由で、明示的に設定しない場合はローカルユーザーのみ取得
 			badgeRoles: (this.meta.showRoleBadgesOfRemoteUsers || user.host == null) ? this.roleService.getUserBadgeRoles(user.id).then((rs) => rs
 				.filter((r) => r.isPublic || iAmModerator)
@@ -600,6 +601,8 @@ export class UserEntityService implements OnModuleInit {
 				isDeleted: user.isDeleted,
 				twoFactorBackupCodesStock: profile?.twoFactorBackupSecret?.length === 5 ? 'full' : (profile?.twoFactorBackupSecret?.length ?? 0) > 0 ? 'partial' : 'none',
 				hideOnlineStatus: user.hideOnlineStatus,
+				onlineStatusOverride: user.onlineStatusOverride,
+				onlineStatusAutoReplies: user.onlineStatusAutoReplies ?? {},
 				hasUnreadSpecifiedNotes: false, // 後方互換性のため
 				hasUnreadMentions: false, // 後方互換性のため
 				hasUnreadChatMessages: this.chatService.hasUnreadMessages(user.id),
@@ -662,8 +665,11 @@ export class UserEntityService implements OnModuleInit {
 		options?: {
 			schema?: S,
 			includeSecrets?: boolean,
+			includeProfessionalProfile?: boolean,
 		},
 	): Promise<Packed<S>[]> {
+		if (users.length === 0) return [];
+
 		// -- IDのみの要素を補完して完全なエンティティ一覧を作る
 
 		const _users = users.filter((user): user is MiUser => typeof user !== 'string');
@@ -674,16 +680,17 @@ export class UserEntityService implements OnModuleInit {
 				}),
 			);
 		}
-		const _userIds = _users.map(u => u.id);
+		const _userIds = [...new Set(_users.map(u => u.id))];
 
 		// -- 実行者の有無や指定スキーマの種別によって要否が異なる値群を取得
 
 		let profilesMap: Map<MiUser['id'], MiUserProfile> = new Map();
+		let professionalProfilesMap: Map<MiUser['id'], Pick<MiUserProfile, 'company' | 'jobTitle'>> = new Map();
 		let userRelations: Map<MiUser['id'], UserRelation> = new Map();
 		let userMemos: Map<MiUser['id'], string | null> = new Map();
 		let pinNotes: Map<MiUser['id'], MiUserNotePining[]> = new Map();
 
-		if (options?.schema !== 'UserLite') {
+		if (options?.schema != null && options.schema !== 'UserLite') {
 			profilesMap = await this.userProfilesRepository.findBy({ userId: In(_userIds) })
 				.then(profiles => new Map(profiles.map(p => [p.userId, p])));
 
@@ -713,6 +720,11 @@ export class UserEntityService implements OnModuleInit {
 						});
 				}
 			}
+		} else if (options?.includeProfessionalProfile && _userIds.length > 0) {
+			professionalProfilesMap = await this.userProfilesRepository.find({
+				where: { userId: In(_userIds) },
+				select: { userId: true, company: true, jobTitle: true },
+			}).then(profiles => new Map(profiles.map(profile => [profile.userId, profile])));
 		}
 
 		return Promise.all(
@@ -722,6 +734,7 @@ export class UserEntityService implements OnModuleInit {
 				{
 					...options,
 					userProfile: profilesMap?.get(u.id),
+					userProfessionalProfile: profilesMap.get(u.id) ?? professionalProfilesMap.get(u.id) ?? null,
 					userRelations: userRelations,
 					userMemos: userMemos,
 					pinNotes: pinNotes,

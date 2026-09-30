@@ -59,7 +59,7 @@ function close(): void { dialogEl.value?.close(); }
 </script>
 
 <style lang="scss" module>
-.content { padding: 8px 20px 20px; }
+.content { padding: var(--MI-cardPadding, 20px); }
 .users { display: flex; flex-direction: column; }
 .user {
 	display: flex;

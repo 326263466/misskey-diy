@@ -117,7 +117,7 @@ defineExpose<WidgetComponentExpose>({
 .root {
 	&:global {
 		> .init {
-			padding: 16px;
+			padding: var(--MI-cardPadding, 20px);
 		}
 
 		> .users {
@@ -125,7 +125,7 @@ defineExpose<WidgetComponentExpose>({
 			grid-template-columns: repeat(auto-fill, minmax(30px, 40px));
 			grid-gap: 12px;
 			place-content: center;
-			padding: 16px;
+			padding: var(--MI-cardPadding, 20px);
 
 			> .user {
 				width: 100%;

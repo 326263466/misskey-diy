@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div>
-	<span v-if="!available">Loading<MkEllipsis/></span>
+	<span v-if="!available">{{ i18n.ts.loading }}<MkEllipsis/></span>
 	<div v-if="props.provider == 'mcaptcha'">
 		<iframe
 			v-if="mCaptchaIframeUrl != null"
@@ -33,6 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, useTemplateRef, computed, onMounted, onBeforeUnmount, watch, onUnmounted, nextTick } from 'vue';
 import type Reciever_typeReferenceOnly from '@mcaptcha/core-glue';
 import { store } from '@/store.js';
+import { i18n } from '@/i18n.js';
 
 // APIs provided by Captcha services
 // see: https://docs.hcaptcha.com/configuration/#javascript-api

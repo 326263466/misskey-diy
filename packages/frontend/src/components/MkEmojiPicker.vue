@@ -12,6 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		data-prevent-emoji-insert
 		:class="{ filled: q != null && q != '' }"
 		:placeholder="i18n.ts.search"
+		:aria-label="i18n.ts.search"
 		type="search"
 		autocapitalize="off"
 		@input="input()"
@@ -64,7 +65,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkCustomEmoji v-if="!emoji.hasOwnProperty('char')" class="emoji" :name="getKey(emoji)" :normal="true"/>
 						<MkEmoji v-else class="emoji" :emoji="getKey(emoji)" :normal="true"/>
 					</button>
-					<button v-tooltip="i18n.ts.settings" class="_button config" @click="settings"><i class="ti ti-settings"></i></button>
+					<button v-tooltip="i18n.ts.settings" class="_button config" :aria-label="i18n.ts.settings" @click="settings"><i class="ti ti-settings"></i></button>
 				</div>
 			</section>
 
@@ -103,14 +104,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div v-once class="group">
 			<header class="_acrylic">{{ i18n.ts.emoji }}</header>
-			<XSection v-for="category in categories" :key="category" :emojis="emojiCharByCategory.get(category) ?? []" :hasChildSection="false" @chosen="chosen">{{ category }}</XSection>
+			<XSection v-for="category in categories" :key="category" :emojis="emojiCharByCategory.get(category) ?? []" :hasChildSection="false" @chosen="chosen">{{ i18n.ts._emojiCategories[category] }}</XSection>
 		</div>
 	</div>
 	<div class="tabs">
-		<button class="_button tab" :class="{ active: tab === 'index' }" @click="tab = 'index'"><i class="ti ti-asterisk ti-fw"></i></button>
-		<button class="_button tab" :class="{ active: tab === 'custom' }" @click="tab = 'custom'"><i class="ti ti-mood-happy ti-fw"></i></button>
-		<button class="_button tab" :class="{ active: tab === 'unicode' }" @click="tab = 'unicode'"><i class="ti ti-leaf ti-fw"></i></button>
-		<button class="_button tab" :class="{ active: tab === 'tags' }" @click="tab = 'tags'"><i class="ti ti-hash ti-fw"></i></button>
+		<button v-tooltip="`${i18n.ts.pinned} / ${i18n.ts.recentUsed}`" class="_button tab" :class="{ active: tab === 'index' }" :aria-label="`${i18n.ts.pinned} / ${i18n.ts.recentUsed}`" :aria-pressed="tab === 'index'" @click="tab = 'index'"><i class="ti ti-asterisk ti-fw"></i></button>
+		<button v-tooltip="i18n.ts.customEmojis" class="_button tab" :class="{ active: tab === 'custom' }" :aria-label="i18n.ts.customEmojis" :aria-pressed="tab === 'custom'" @click="tab = 'custom'"><i class="ti ti-mood-happy ti-fw"></i></button>
+		<button v-tooltip="i18n.ts.emoji" class="_button tab" :class="{ active: tab === 'unicode' }" :aria-label="i18n.ts.emoji" :aria-pressed="tab === 'unicode'" @click="tab = 'unicode'"><i class="ti ti-leaf ti-fw"></i></button>
+		<button v-tooltip="i18n.ts.tags" class="_button tab" :class="{ active: tab === 'tags' }" :aria-label="i18n.ts.tags" :aria-pressed="tab === 'tags'" @click="tab = 'tags'"><i class="ti ti-hash ti-fw"></i></button>
 	</div>
 </div>
 </template>

@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #value><span class="_monospace">{{ file.type }}</span></template>
 				</MkKeyValue>
 				<MkKeyValue oneline style="margin: 1em 0;">
-					<template #key>Size</template>
+					<template #key>{{ i18n.ts.size }}</template>
 					<template #value><span class="_monospace">{{ bytes(file.size) }}</span></template>
 				</MkKeyValue>
 				<MkKeyValue :copy="file.id" oneline style="margin: 1em 0;">
@@ -49,10 +49,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				v-model:tab="usageTab"
 				:tabs="[{
 					key: 'note',
-					title: 'Note',
+					title: i18n.ts.note,
 				}, {
 					key: 'chat',
-					title: 'Chat',
+					title: i18n.ts.chat,
 				}]"
 			/>
 			<XNotes v-if="usageTab === 'note'" :fileId="props.file.id"/>
@@ -111,7 +111,7 @@ const XChat = defineAsyncComponent(() => import('./admin-file.chat.vue'));
 async function del() {
 	const { canceled } = await os.confirm({
 		type: 'warning',
-		text: i18n.tsx.removeAreYouSure({ x: props.file.name }),
+		text: i18n.tsx.deleteAreYouSure({ x: props.file.name }),
 	});
 	if (canceled) return;
 
@@ -157,7 +157,7 @@ const headerTabs = computed(() => [{
 	icon: 'ti ti-password',
 } : null, {
 	key: 'raw',
-	title: 'Raw data',
+	title: i18n.ts.rawData,
 	icon: 'ti ti-code',
 }].filter(x => x != null));
 </script>

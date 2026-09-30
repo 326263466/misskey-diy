@@ -123,7 +123,7 @@ defineExpose<WidgetComponentExpose>({
 
 <style lang="scss" scoped>
 .mkw-unixClock {
-	padding: 16px 0;
+	padding: var(--MI-cardPadding, 20px) 0;
 	text-align: center;
 
 	> .label {

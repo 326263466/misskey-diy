@@ -5,10 +5,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div style="position: relative;">
-	<MkA :to="`/channels/${channel.id}`" class="eftoefju _panel" @click="updateLastReadedAt">
+	<component :is="preview ? 'div' : 'MkA'" :to="preview ? undefined : `/channels/${channel.id}`" class="eftoefju _panel" @click="!preview && updateLastReadedAt()">
 		<div class="banner" :style="bannerStyle">
 			<div class="fade"></div>
-			<div class="name"><i class="ti ti-device-tv"></i> {{ channel.name }}</div>
+			<div class="name"><i class="ti ti-device-tv"></i> {{ channel.name }} <span v-if="channel.isArchived" class="archivedLabel"><i class="ti ti-archive"></i> {{ i18n.ts.archived }}</span></div>
 			<div v-if="channel.isSensitive" class="sensitiveIndicator">{{ i18n.ts.sensitive }}</div>
 			<div class="status">
 				<div>
@@ -41,9 +41,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				{{ i18n.ts.updatedAt }}: <MkTime :time="channel.lastNotedAt"/>
 			</span>
 		</footer>
-	</MkA>
+	</component>
 	<div
-		v-if="channel.lastNotedAt && (channel.isFavorited || channel.isFollowing) && (!lastReadedAt || Date.parse(channel.lastNotedAt) > lastReadedAt)"
+		v-if="!preview && channel.lastNotedAt && (channel.isFavorited || channel.isFollowing) && (!lastReadedAt || Date.parse(channel.lastNotedAt) > lastReadedAt)"
 		class="indicator"
 	></div>
 </div>
@@ -51,13 +51,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
-import * as Misskey from 'misskey-js';
+import type * as Misskey from 'misskey-js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { miLocalStorage } from '@/local-storage.js';
 
 const props = defineProps<{
 	channel: Misskey.entities.Channel;
+	preview?: boolean;
 }>();
 
 const getLastReadedAt = (): number | null => {
@@ -78,12 +79,22 @@ const bannerStyle = computed(() => {
 	if (props.channel.bannerUrl) {
 		return { backgroundImage: `url(${props.channel.bannerUrl})` };
 	} else {
-		return { backgroundColor: '#4c5e6d' };
+		return {};
 	}
 });
 </script>
 
 <style lang="scss" scoped>
+@use "@/styles/channel-banner.scss" as channelBanner;
+
+.archivedLabel {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 8px;
+	font-size: 0.75em;
+}
+
 .eftoefju {
 	display: block;
 	position: relative;
@@ -111,11 +122,10 @@ const bannerStyle = computed(() => {
 	}
 
 	> .banner {
+		@include channelBanner.surface;
 		position: relative;
 		width: 100%;
 		height: 200px;
-		background-position: center;
-		background-size: cover;
 
 		> .fade {
 			position: absolute;

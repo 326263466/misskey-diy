@@ -26,7 +26,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.root">
 		<div :class="$style.reaction">
 			<MkReactionIcon :allowTextBoost="true" :reaction="reaction" :class="$style.reactionIcon" :noStyle="true"/>
-			<div :class="[$style.reactionName, { _mfm: isTextBoost(reaction) }]">{{ isTextBoost(reaction) ? getBoostText(reaction) : getReactionName(reaction) }}</div>
+			<div :class="$style.reactionName">
+				<Mfm v-if="isTextBoost(reaction)" :text="getBoostText(reaction)" :plain="true"/>
+				<template v-else-if="reaction.startsWith(':')">{{ getReactionName(reaction) }}</template>
+				<Mfm v-else :text="getReactionName(reaction)" :plain="true"/>
+			</div>
 		</div>
 		<div :class="$style.users">
 			<div v-for="u in users" :key="u.id" :class="$style.user">
@@ -114,7 +118,7 @@ function close(): void {
 }
 
 .dialogContent {
-	padding: 8px 20px 20px;
+	padding: var(--MI-cardPadding, 20px);
 }
 
 .dialogUsers {

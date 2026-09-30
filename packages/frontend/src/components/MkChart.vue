@@ -54,10 +54,12 @@ import { store } from '@/store.js';
 import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
 import { chartVLine } from '@/utility/chart-vline.js';
 import { alpha } from '@/utility/color.js';
-import date from '@/filters/date.js';
+import date, { dateOnly } from '@/filters/date.js';
 import bytes from '@/filters/bytes.js';
 import { initChart } from '@/utility/init-chart.js';
+import { formatChartDate } from '@/utility/chart-date.js';
 import { chartLegend } from '@/utility/chart-legend.js';
+import { i18n } from '@/i18n.js';
 import MkChartLegend from '@/components/MkChartLegend.vue';
 
 initChart();
@@ -210,10 +212,6 @@ const render = () => {
 					offset: false,
 					time: {
 						unit: props.span === 'day' ? 'month' : 'day',
-						displayFormats: {
-							day: 'M/d',
-							month: 'Y/M',
-						},
 					},
 					grid: {
 					},
@@ -222,6 +220,7 @@ const render = () => {
 						display: props.detailed,
 						maxRotation: 0,
 						autoSkipPadding: 16,
+						callback: value => formatChartDate(value, props.span === 'day' ? 'month' : 'day'),
 					},
 					min: getDate(props.limit).getTime(),
 				},
@@ -259,6 +258,7 @@ const render = () => {
 					},
 					external: externalTooltipHandler,
 					callbacks: {
+						title: (items) => props.span === 'day' ? dateOnly(items[0].parsed.x) : date(items[0].parsed.x),
 						label: (item) => `${item.dataset.label}: ${chartData?.bytes ? bytes(item.parsed.y * 1000, 1) : item.parsed.y.toString()}`,
 					},
 				},
@@ -303,44 +303,44 @@ const fetchFederationChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/federation', { limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Received',
+			name: i18n.ts._chartSeries.federationReceived,
 			type: 'area',
 			data: format(raw.inboxInstances),
 			color: colors.blue,
 		}, {
-			name: 'Delivered',
+			name: i18n.ts._chartSeries.federationDelivered,
 			type: 'area',
 			data: format(raw.deliveredInstances),
 			color: colors.green,
 		}, {
-			name: 'Stalled',
+			name: i18n.ts._chartSeries.federationStalled,
 			type: 'area',
 			data: format(raw.stalled),
 			color: colors.red,
 		}, {
-			name: 'Pub Active',
+			name: i18n.ts._chartSeries.federationPubActive,
 			type: 'line',
 			data: format(raw.pubActive),
 			color: colors.purple,
 		}, {
-			name: 'Sub Active',
+			name: i18n.ts._chartSeries.federationSubActive,
 			type: 'line',
 			data: format(raw.subActive),
 			color: colors.orange,
 		}, {
-			name: 'Pub & Sub',
+			name: i18n.ts._chartSeries.federationPubSub,
 			type: 'line',
 			data: format(raw.pubsub),
 			dashed: true,
 			color: colors.cyan,
 		}, {
-			name: 'Pub',
+			name: i18n.ts._chartSeries.federationPub,
 			type: 'line',
 			data: format(raw.pub),
 			dashed: true,
 			color: colors.purple,
 		}, {
-			name: 'Sub',
+			name: i18n.ts._chartSeries.federationSub,
 			type: 'line',
 			data: format(raw.sub),
 			dashed: true,
@@ -353,17 +353,17 @@ const fetchApRequestChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/ap-request', { limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'In',
+			name: i18n.ts._dashboard.apIn,
 			type: 'area',
 			color: '#008FFB',
 			data: format(raw.inboxReceived),
 		}, {
-			name: 'Out (succ)',
+			name: i18n.ts._dashboard.apOutSucceeded,
 			type: 'area',
 			color: '#00E396',
 			data: format(raw.deliverSucceeded),
 		}, {
-			name: 'Out (fail)',
+			name: i18n.ts._dashboard.apOutFailed,
 			type: 'area',
 			color: '#FEB019',
 			data: format(raw.deliverFailed),
@@ -375,7 +375,7 @@ const fetchNotesChart = async (type: 'local' | 'remote' | 'combined'): Promise<t
 	const raw = await misskeyApiGet('charts/notes', { limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'All',
+			name: i18n.ts.all,
 			type: 'line',
 			data: format(type === 'combined'
 				? sum(raw.local.inc, negate(raw.local.dec), raw.remote.inc, negate(raw.remote.dec))
@@ -383,7 +383,7 @@ const fetchNotesChart = async (type: 'local' | 'remote' | 'combined'): Promise<t
 			),
 			color: '#888888',
 		}, {
-			name: 'Renotes',
+			name: i18n.ts.renotes,
 			type: 'area',
 			data: format(type === 'combined'
 				? sum(raw.local.diffs.renote, raw.remote.diffs.renote)
@@ -391,7 +391,7 @@ const fetchNotesChart = async (type: 'local' | 'remote' | 'combined'): Promise<t
 			),
 			color: colors.green,
 		}, {
-			name: 'Replies',
+			name: i18n.ts.replies,
 			type: 'area',
 			data: format(type === 'combined'
 				? sum(raw.local.diffs.reply, raw.remote.diffs.reply)
@@ -399,7 +399,7 @@ const fetchNotesChart = async (type: 'local' | 'remote' | 'combined'): Promise<t
 			),
 			color: colors.yellow,
 		}, {
-			name: 'Normal',
+			name: i18n.ts._chartSeries.notesNormal,
 			type: 'area',
 			data: format(type === 'combined'
 				? sum(raw.local.diffs.normal, raw.remote.diffs.normal)
@@ -407,7 +407,7 @@ const fetchNotesChart = async (type: 'local' | 'remote' | 'combined'): Promise<t
 			),
 			color: colors.blue,
 		}, {
-			name: 'With file',
+			name: i18n.ts._chartSeries.notesWithFile,
 			type: 'area',
 			data: format(type === 'combined'
 				? sum(raw.local.diffs.withFile, raw.remote.diffs.withFile)
@@ -422,15 +422,15 @@ const fetchNotesTotalChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/notes', { limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Combined',
+			name: i18n.ts._chartSeries.combined,
 			type: 'line',
 			data: format(sum(raw.local.total, raw.remote.total)),
 		}, {
-			name: 'Local',
+			name: i18n.ts.local,
 			type: 'area',
 			data: format(raw.local.total),
 		}, {
-			name: 'Remote',
+			name: i18n.ts.remote,
 			type: 'area',
 			data: format(raw.remote.total),
 		}],
@@ -441,21 +441,21 @@ const fetchUsersChart = async (total: boolean): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/users', { limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Combined',
+			name: i18n.ts._chartSeries.combined,
 			type: 'line',
 			data: format(total
 				? sum(raw.local.total, raw.remote.total)
 				: sum(raw.local.inc, negate(raw.local.dec), raw.remote.inc, negate(raw.remote.dec)),
 			),
 		}, {
-			name: 'Local',
+			name: i18n.ts.local,
 			type: 'area',
 			data: format(total
 				? raw.local.total
 				: sum(raw.local.inc, negate(raw.local.dec)),
 			),
 		}, {
-			name: 'Remote',
+			name: i18n.ts.remote,
 			type: 'area',
 			data: format(total
 				? raw.remote.total
@@ -469,47 +469,47 @@ const fetchActiveUsersChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/active-users', { limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Read & Write',
+			name: i18n.ts._chartSeries.activeReadWrite,
 			type: 'area',
 			data: format(raw.readWrite),
 			color: colors.orange,
 		}, {
-			name: 'Write',
+			name: i18n.ts._dashboard.write,
 			type: 'area',
 			data: format(raw.write),
 			color: colors.lime,
 		}, {
-			name: 'Read',
+			name: i18n.ts._dashboard.read,
 			type: 'area',
 			data: format(raw.read),
 			color: colors.blue,
 		}, {
-			name: '< Week',
+			name: i18n.ts._chartSeries.activeRegisteredWithinWeek,
 			type: 'area',
 			data: format(raw.registeredWithinWeek),
 			color: colors.green,
 		}, {
-			name: '< Month',
+			name: i18n.ts._chartSeries.activeRegisteredWithinMonth,
 			type: 'area',
 			data: format(raw.registeredWithinMonth),
 			color: colors.yellow,
 		}, {
-			name: '< Year',
+			name: i18n.ts._chartSeries.activeRegisteredWithinYear,
 			type: 'area',
 			data: format(raw.registeredWithinYear),
 			color: colors.red,
 		}, {
-			name: '> Week',
+			name: i18n.ts._chartSeries.activeRegisteredOutsideWeek,
 			type: 'area',
 			data: format(raw.registeredOutsideWeek),
 			color: colors.yellow,
 		}, {
-			name: '> Month',
+			name: i18n.ts._chartSeries.activeRegisteredOutsideMonth,
 			type: 'area',
 			data: format(raw.registeredOutsideMonth),
 			color: colors.red,
 		}, {
-			name: '> Year',
+			name: i18n.ts._chartSeries.activeRegisteredOutsideYear,
 			type: 'area',
 			data: format(raw.registeredOutsideYear),
 			color: colors.purple,
@@ -522,7 +522,7 @@ const fetchDriveChart = async (): Promise<typeof chartData> => {
 	return {
 		bytes: true,
 		series: [{
-			name: 'All',
+			name: i18n.ts.all,
 			type: 'line',
 			dashed: true,
 			data: format(
@@ -534,19 +534,19 @@ const fetchDriveChart = async (): Promise<typeof chartData> => {
 				),
 			),
 		}, {
-			name: 'Local +',
+			name: i18n.ts._chartSeries.localInc,
 			type: 'area',
 			data: format(raw.local.incSize),
 		}, {
-			name: 'Local -',
+			name: i18n.ts._chartSeries.localDec,
 			type: 'area',
 			data: format(negate(raw.local.decSize)),
 		}, {
-			name: 'Remote +',
+			name: i18n.ts._chartSeries.remoteInc,
 			type: 'area',
 			data: format(raw.remote.incSize),
 		}, {
-			name: 'Remote -',
+			name: i18n.ts._chartSeries.remoteDec,
 			type: 'area',
 			data: format(negate(raw.remote.decSize)),
 		}],
@@ -557,7 +557,7 @@ const fetchDriveFilesChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/drive', { limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'All',
+			name: i18n.ts.all,
 			type: 'line',
 			dashed: true,
 			data: format(
@@ -569,19 +569,19 @@ const fetchDriveFilesChart = async (): Promise<typeof chartData> => {
 				),
 			),
 		}, {
-			name: 'Local +',
+			name: i18n.ts._chartSeries.localInc,
 			type: 'area',
 			data: format(raw.local.incCount),
 		}, {
-			name: 'Local -',
+			name: i18n.ts._chartSeries.localDec,
 			type: 'area',
 			data: format(negate(raw.local.decCount)),
 		}, {
-			name: 'Remote +',
+			name: i18n.ts._chartSeries.remoteInc,
 			type: 'area',
 			data: format(raw.remote.incCount),
 		}, {
-			name: 'Remote -',
+			name: i18n.ts._chartSeries.remoteDec,
 			type: 'area',
 			data: format(negate(raw.remote.decCount)),
 		}],
@@ -595,17 +595,17 @@ const fetchInstanceRequestsChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/instance', { host: host, limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'In',
+			name: i18n.ts._dashboard.apIn,
 			type: 'area',
 			color: '#008FFB',
 			data: format(raw.requests.received),
 		}, {
-			name: 'Out (succ)',
+			name: i18n.ts._dashboard.apOutSucceeded,
 			type: 'area',
 			color: '#00E396',
 			data: format(raw.requests.succeeded),
 		}, {
-			name: 'Out (fail)',
+			name: i18n.ts._dashboard.apOutFailed,
 			type: 'area',
 			color: '#FEB019',
 			data: format(raw.requests.failed),
@@ -620,7 +620,7 @@ const fetchInstanceUsersChart = async (total: boolean): Promise<typeof chartData
 	const raw = await misskeyApiGet('charts/instance', { host: host, limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Users',
+			name: i18n.ts.users,
 			type: 'area',
 			color: '#008FFB',
 			data: format(total
@@ -638,7 +638,7 @@ const fetchInstanceNotesChart = async (total: boolean): Promise<typeof chartData
 	const raw = await misskeyApiGet('charts/instance', { host: host, limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Notes',
+			name: i18n.ts.notes,
 			type: 'area',
 			color: '#008FFB',
 			data: format(total
@@ -656,7 +656,7 @@ const fetchInstanceFfChart = async (total: boolean): Promise<typeof chartData> =
 	const raw = await misskeyApiGet('charts/instance', { host: host, limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Following',
+			name: i18n.ts.following,
 			type: 'area',
 			color: '#008FFB',
 			data: format(total
@@ -664,7 +664,7 @@ const fetchInstanceFfChart = async (total: boolean): Promise<typeof chartData> =
 				: sum(raw.following.inc, negate(raw.following.dec)),
 			),
 		}, {
-			name: 'Followers',
+			name: i18n.ts.followers,
 			type: 'area',
 			color: '#00E396',
 			data: format(total
@@ -683,7 +683,7 @@ const fetchInstanceDriveUsageChart = async (total: boolean): Promise<typeof char
 	return {
 		bytes: true,
 		series: [{
-			name: 'Drive usage',
+			name: i18n.ts.driveUsage,
 			type: 'area',
 			color: '#008FFB',
 			data: format(total
@@ -701,7 +701,7 @@ const fetchInstanceDriveFilesChart = async (total: boolean): Promise<typeof char
 	const raw = await misskeyApiGet('charts/instance', { host: host, limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Drive files',
+			name: i18n.ts._chartSeries.driveFiles,
 			type: 'area',
 			color: '#008FFB',
 			data: format(total
@@ -719,27 +719,27 @@ const fetchPerUserNotesChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/user/notes', { userId: userId, limit: props.limit, span: props.span });
 	return {
 		series: [...(props.args?.withoutAll ? [] : [{
-			name: 'All',
+			name: i18n.ts.all,
 			type: 'line' as const,
 			data: format(sum(raw.inc, negate(raw.dec))),
 			color: '#888888',
 		}]), {
-			name: 'With file',
+			name: i18n.ts._chartSeries.notesWithFile,
 			type: 'area',
 			data: format(raw.diffs.withFile),
 			color: colors.purple,
 		}, {
-			name: 'Renotes',
+			name: i18n.ts.renotes,
 			type: 'area',
 			data: format(raw.diffs.renote),
 			color: colors.green,
 		}, {
-			name: 'Replies',
+			name: i18n.ts.replies,
 			type: 'area',
 			data: format(raw.diffs.reply),
 			color: colors.yellow,
 		}, {
-			name: 'Normal',
+			name: i18n.ts._chartSeries.notesNormal,
 			type: 'area',
 			data: format(raw.diffs.normal),
 			color: colors.blue,
@@ -754,22 +754,22 @@ const fetchPerUserPvChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/user/pv', { userId: userId, limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Unique PV (user)',
+			name: i18n.ts._chartSeries.uniquePvUser,
 			type: 'area',
 			data: format(raw.upv.user),
 			color: colors.purple,
 		}, {
-			name: 'PV (user)',
+			name: i18n.ts._chartSeries.pvUser,
 			type: 'area',
 			data: format(raw.pv.user),
 			color: colors.green,
 		}, {
-			name: 'Unique PV (visitor)',
+			name: i18n.ts._chartSeries.uniquePvVisitor,
 			type: 'area',
 			data: format(raw.upv.visitor),
 			color: colors.yellow,
 		}, {
-			name: 'PV (visitor)',
+			name: i18n.ts._chartSeries.pvVisitor,
 			type: 'area',
 			data: format(raw.pv.visitor),
 			color: colors.blue,
@@ -784,11 +784,11 @@ const fetchPerUserFollowingChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/user/following', { userId: userId, limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Local',
+			name: i18n.ts.local,
 			type: 'area',
 			data: format(raw.local.followings.total),
 		}, {
-			name: 'Remote',
+			name: i18n.ts.remote,
 			type: 'area',
 			data: format(raw.remote.followings.total),
 		}],
@@ -802,11 +802,11 @@ const fetchPerUserFollowersChart = async (): Promise<typeof chartData> => {
 	const raw = await misskeyApiGet('charts/user/following', { userId: userId, limit: props.limit, span: props.span });
 	return {
 		series: [{
-			name: 'Local',
+			name: i18n.ts.local,
 			type: 'area',
 			data: format(raw.local.followers.total),
 		}, {
-			name: 'Remote',
+			name: i18n.ts.remote,
 			type: 'area',
 			data: format(raw.remote.followers.total),
 		}],
@@ -821,11 +821,11 @@ const fetchPerUserDriveChart = async (): Promise<typeof chartData> => {
 	return {
 		bytes: true,
 		series: [{
-			name: 'Inc',
+			name: i18n.ts._chartSeries.inc,
 			type: 'area',
 			data: format(raw.incSize),
 		}, {
-			name: 'Dec',
+			name: i18n.ts._chartSeries.dec,
 			type: 'area',
 			data: format(raw.decSize),
 		}],

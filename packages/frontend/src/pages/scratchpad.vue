@@ -139,7 +139,7 @@ async function run() {
 			pushLog('print', value.type === 'str' ? value.value : utils.valToString(value));
 		},
 		err: (err) => {
-			processError('AiScript Error', err);
+			processError(i18n.ts._aiscript.runtimeError, err);
 		},
 		log: (type, params) => {
 			switch (type) {
@@ -156,14 +156,14 @@ async function run() {
 	try {
 		ast = parser.parse(code.value);
 	} catch (err: any) {
-		processError('Syntax Error', err);
+		processError(i18n.ts._aiscript.syntaxError, err);
 		return;
 	}
 	try {
 		await aiscript.exec(ast);
 	} catch (err: any) {
 		// in case AiScript Interpreter has some bug
-		processError('AiScript Internal Error', err);
+		processError(i18n.ts._aiscript.internalError, err);
 	}
 }
 

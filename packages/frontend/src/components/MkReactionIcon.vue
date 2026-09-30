@@ -4,9 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<span v-if="allowTextBoost && isTextBoost(reaction)" ref="elRef" class="_mfm" :class="$style.text">{{ getBoostText(reaction) }}</span>
-<MkCustomEmoji v-else-if="reaction[0] === ':'" ref="elRef" :name="reaction" :normal="true" :noStyle="noStyle" :url="emojiUrl" :fallbackToImage="true"/>
-<MkEmoji v-else ref="elRef" :emoji="reaction" :normal="true" :noStyle="noStyle"/>
+<span v-if="allowTextBoost && isTextBoost(reaction)" ref="elRef" :class="$style.text"><Mfm :text="getBoostText(reaction)" :plain="true" :nowrap="nowrap" :noEmojiTooltip="withTooltip"/></span>
+<MkCustomEmoji v-else-if="reaction[0] === ':'" ref="elRef" :name="reaction" :normal="true" :noStyle="noStyle" :url="emojiUrl" :fallbackToImage="true" :noTooltip="withTooltip"/>
+<MkEmoji v-else ref="elRef" :emoji="reaction" :normal="true" :noStyle="noStyle" :noTooltip="withTooltip"/>
 </template>
 
 <script lang="ts" setup>
@@ -21,6 +21,7 @@ const props = defineProps<{
 	emojiUrl?: string;
 	withTooltip?: boolean;
 	allowTextBoost?: boolean;
+	nowrap?: boolean;
 }>();
 
 const allowTextBoost = props.allowTextBoost ?? false;

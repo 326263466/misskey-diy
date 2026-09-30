@@ -1,0 +1,48 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+@mixin surface {
+	--height: var(--MI-pageHeaderHeight, 50px);
+	box-sizing: border-box;
+	width: 100%;
+	font-size: 1rem;
+	background: color(from var(--MI-pageHeaderBg, var(--MI_THEME-pageHeaderBg)) srgb r g b / var(--MI-pageHeaderBgOpacity, 0.75));
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
+	border-radius: var(--MI-pageHeaderRadius, var(--MI-cardRadius));
+	border-bottom: var(--MI-pageHeaderBorder, none);
+	overflow: var(--MI-pageHeaderOverflow, clip);
+	color: var(--MI_THEME-pageHeaderFg);
+}
+
+@mixin action {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	height: var(--height);
+	width: calc(var(--height) - 8px);
+	box-sizing: border-box;
+	border-radius: 5px;
+	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%);
+	transition: color 0.1s;
+
+	> i {
+		position: relative;
+		isolation: isolate;
+
+		&::after {
+			content: '';
+			position: absolute;
+			inset: -8px;
+			z-index: -1;
+			border-radius: 50%;
+		}
+	}
+
+	&:hover > i::after {
+		background: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05));
+	}
+}

@@ -83,7 +83,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:leaveToClass="$style.transition_notification_leaveTo"
 >
 	<div v-for="notification in notifications" :key="notification.id" :class="$style.notification">
-		<XNotification :notification="notification"/>
+		<XNotification
+			:notification="notification"
+			@close="dismissNotification(notification.id)"
+			@pause="pausedNotifications.add(notification.id)"
+			@resume="resumeNotification(notification.id)"
+		/>
 	</div>
 </component>
 
@@ -129,6 +134,25 @@ const widgetsShowing = defineModel<boolean>('widgetsShowing');
 const dev = _DEV_;
 
 const notifications = ref<Misskey.entities.Notification[]>([]);
+const pausedNotifications = new Set<string>();
+
+function dismissNotification(id: string) {
+	pausedNotifications.delete(id);
+	notifications.value = notifications.value.filter(notification => notification.id !== id);
+}
+
+function trimNotifications() {
+	while (notifications.value.length > 3) {
+		const oldest = notifications.value.findLast(notification => !pausedNotifications.has(notification.id));
+		if (oldest == null) return;
+		dismissNotification(oldest.id);
+	}
+}
+
+function resumeNotification(id: string) {
+	pausedNotifications.delete(id);
+	trimNotifications();
+}
 
 function onNotification(notification: Misskey.entities.Notification, isClient = false) {
 	if (window.document.visibilityState === 'visible') {
@@ -140,13 +164,7 @@ function onNotification(notification: Misskey.entities.Notification, isClient = 
 		}
 
 		notifications.value.unshift(notification);
-		window.setTimeout(() => {
-			if (notifications.value.length > 3) notifications.value.pop();
-		}, 500);
-
-		window.setTimeout(() => {
-			notifications.value = notifications.value.filter(x => x.id !== notification.id);
-		}, 6000);
+		window.setTimeout(trimNotifications, 500);
 	}
 
 	sound.playMisskeySfx('notification');

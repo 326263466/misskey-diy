@@ -103,6 +103,7 @@ describe('notes/update endpoint', () => {
 	test.each([
 		['a reply', { replyId: 'parent' }],
 		['a top-level note', { replyId: null, renoteId: null }],
+		['a channel post', { replyId: null, renoteId: null, channelId: 'channel' }],
 		['a quote', { replyId: null, renoteId: 'quote' }],
 	] as const)('updates %s in place while preserving attached data, counters and relationships', async (_label, overrides) => {
 		const { exec, note, query, events, search } = createEndpoint({ hasPoll: true, ...overrides });
@@ -124,6 +125,7 @@ describe('notes/update endpoint', () => {
 
 	test.each<[string, Partial<MiNote>]>([
 		['another author', { userId: 'other' }],
+		['another author\'s channel post', { userId: 'other', channelId: 'channel' }],
 		['a remote note', { userHost: 'remote.test' }],
 		['a pure renote', { replyId: null, text: null, cw: null, fileIds: [], hasPoll: false }],
 	])('rejects editing %s', async (_label, overrides) => {

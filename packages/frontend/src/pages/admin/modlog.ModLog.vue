@@ -10,6 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:class="{
 				[$style.logGreen]: [
 					'createRole',
+					'grantCheckinCards',
 					'addCustomEmoji',
 					'createGlobalAnnouncement',
 					'createUserAnnouncement',
@@ -20,6 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					'createAbuseReportNotificationRecipient',
 				].includes(log.type),
 				[$style.logYellow]: [
+					'revokeCheckinCards',
 					'markSensitiveDriveFile',
 					'resetPassword',
 					'unsetMfa',
@@ -46,6 +48,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			}"
 		>{{ i18n.ts._moderationLogTypes[log.type] }}</b>
 		<span v-if="log.type === 'updateUserNote'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
+		<span v-else-if="log.type === 'grantCheckinCards' || log.type === 'revokeCheckinCards'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
 		<span v-else-if="log.type === 'suspend'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
 		<span v-else-if="log.type === 'unsuspend'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
 		<span v-else-if="log.type === 'resetPassword'">: @{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</span>
@@ -87,6 +90,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 	<template #icon>
 		<i v-if="log.type === 'updateServerSettings'" class="ti ti-settings"></i>
+		<i v-else-if="log.type === 'grantCheckinCards' || log.type === 'revokeCheckinCards'" class="ti ti-ticket"></i>
 		<i v-else-if="log.type === 'updateUserNote'" class="ti ti-pencil"></i>
 		<i v-else-if="log.type === 'suspend'" class="ti ti-user-x"></i>
 		<i v-else-if="log.type === 'unsuspend'" class="ti ti-user-check"></i>
@@ -150,6 +154,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.diff">
 				<CodeDiff :context="5" :hideHeader="true" :oldString="log.info.before ?? ''" :newString="log.info.after ?? ''" maxHeight="300px"/>
 			</div>
+		</template>
+		<template v-else-if="log.type === 'grantCheckinCards' || log.type === 'revokeCheckinCards'">
+			<div>{{ i18n.ts.user }}: <MkA :to="`/admin/user/${log.info.userId}`" class="_link">@{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</MkA></div>
+			<div>{{ log.type === 'grantCheckinCards' ? i18n.tsx._checkin.grantLogSummary({ amount: log.info.amount, before: log.info.before, after: log.info.after }) : i18n.tsx._checkin.revokeLogSummary({ amount: log.info.amount, before: log.info.before, after: log.info.after }) }}</div>
 		</template>
 		<template v-else-if="log.type === 'suspend'">
 			<div>{{ i18n.ts.user }}: <MkA :to="`/admin/user/${log.info.userId}`" class="_link">@{{ log.info.userUsername }}{{ log.info.userHost ? '@' + log.info.userHost : '' }}</MkA></div>
@@ -223,7 +231,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 
 		<details>
-			<summary>raw</summary>
+			<summary>{{ i18n.ts.rawData }}</summary>
 			<pre>{{ JSON5.stringify(log, null, '\t') }}</pre>
 		</details>
 	</div>

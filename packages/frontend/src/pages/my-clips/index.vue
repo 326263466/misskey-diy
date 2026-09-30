@@ -4,7 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
+	<template v-if="tab === 'my' || tab === 'favorites'" #header-actions>
+		<MkPaginationControl :key="tab" :paginator="tab === 'my' ? paginator : favoritesPaginator" compact/>
+	</template>
 	<div class="_spacer _gaps" style="--MI_SPACER-w: 700px;">
 		<MkTip k="clips">
 			{{ i18n.ts._clip.tip }}
@@ -12,12 +15,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="tab === 'my'" class="_gaps">
 			<MkButton primary rounded class="add" @click="create"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
 
-			<MkPagination v-slot="{ items }" :paginator="paginator" class="_gaps" withControl>
+			<MkPagination v-slot="{ items }" :paginator="paginator" class="_gaps">
 				<MkClipPreview v-for="item in items" :key="item.id" :clip="item" :noUserInfo="true"/>
 			</MkPagination>
 		</div>
 		<div v-else-if="tab === 'favorites'">
-			<MkPagination v-slot="{ items }" :paginator="favoritesPaginator" class="_gaps" withControl>
+			<MkPagination v-slot="{ items }" :paginator="favoritesPaginator" class="_gaps">
 				<MkClipPreview v-for="item in items" :key="item.id" :clip="item" :noUserInfo="true"/>
 			</MkPagination>
 		</div>
@@ -26,9 +29,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { watch, ref, computed, markRaw } from 'vue';
-import * as Misskey from 'misskey-js';
+import { ref, computed, markRaw } from 'vue';
 import MkPagination from '@/components/MkPagination.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkClipPreview from '@/components/MkClipPreview.vue';
 import * as os from '@/os.js';
@@ -76,24 +79,12 @@ async function create() {
 	paginator.reload();
 }
 
-function onClipCreated() {
-	paginator.reload();
-}
-
-function onClipDeleted() {
-	paginator.reload();
-}
-
-const headerActions = computed(() => []);
-
 const headerTabs = computed(() => [{
 	key: 'my',
 	title: i18n.ts.myClips,
-	icon: 'ti ti-paperclip',
 }, {
 	key: 'favorites',
 	title: i18n.ts.favorites,
-	icon: 'ti ti-heart',
 }]);
 
 definePage(() => ({

@@ -128,7 +128,7 @@ const fgColors = [
 
 const theme = ref<Theme>({
 	id: genId(),
-	name: 'untitled',
+	name: i18n.ts.untitled,
 	author: `@${$i.username}@${toUnicode(host)}`,
 	base: 'light',
 	props: deepClone(lightTheme.props),

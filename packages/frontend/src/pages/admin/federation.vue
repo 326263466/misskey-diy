@@ -7,24 +7,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
 	<div class="_spacer" style="--MI_SPACER-w: 900px;">
 		<div class="_gaps">
-			<div>
-				<MkInput v-model="host" :debounce="true" class="">
+			<div :class="$style.filters">
+				<MkInput v-model="host" :debounce="true">
 					<template #prefix><i class="ti ti-search"></i></template>
 					<template #label>{{ i18n.ts.host }}</template>
 				</MkInput>
-				<FormSplit style="margin-top: var(--MI-margin);">
-					<MkSelect v-model="state" :items="stateDef">
-						<template #label>{{ i18n.ts.state }}</template>
-					</MkSelect>
-					<MkSelect v-model="sort" :items="sortDef">
-						<template #label>{{ i18n.ts.sort }}</template>
-					</MkSelect>
-				</FormSplit>
+				<MkSelect v-model="state" :items="stateDef">
+					<template #label>{{ i18n.ts.state }}</template>
+				</MkSelect>
+				<MkSelect v-model="sort" :items="sortDef">
+					<template #label>{{ i18n.ts.sort }}</template>
+				</MkSelect>
 			</div>
 
 			<MkPagination v-slot="{items}" :key="host + state" :paginator="paginator">
 				<div :class="$style.instances">
-					<MkA v-for="instance in items" :key="instance.id" v-tooltip.mfm="`Status: ${getStatus(instance)}`" :class="$style.instance" :to="`/instance-info/${instance.host}`">
+					<MkA v-for="instance in items" :key="instance.id" v-tooltip.mfm="`${i18n.ts.state}: ${getStatus(instance)}`" :class="$style.instance" :to="`/instance-info/${instance.host}`">
 						<MkInstanceCardMini :instance="instance"/>
 					</MkA>
 				</div>
@@ -41,7 +39,6 @@ import MkInput from '@/components/MkInput.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import MkInstanceCardMini from '@/components/MkInstanceCardMini.vue';
-import FormSplit from '@/components/form/split.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
@@ -105,18 +102,18 @@ const paginator = markRaw(new Paginator('federation/instances', {
 function getStatus(instance: Misskey.entities.FederationInstance) {
 	switch (instance.suspensionState) {
 		case 'manuallySuspended':
-			return 'Manually Suspended';
+			return i18n.ts._instanceStatus.manuallySuspended;
 		case 'goneSuspended':
-			return 'Automatically Suspended (Gone)';
+			return i18n.ts._instanceStatus.autoSuspendedGone;
 		case 'autoSuspendedForNotResponding':
-			return 'Automatically Suspended (Not Responding)';
+			return i18n.ts._instanceStatus.autoSuspendedNotResponding;
 		case 'none':
 			break;
 	}
-	if (instance.isBlocked) return 'Blocked';
-	if (instance.isSilenced) return 'Silenced';
-	if (instance.isNotResponding) return 'Error';
-	return 'Alive';
+	if (instance.isBlocked) return i18n.ts.blocked;
+	if (instance.isSilenced) return i18n.ts._instanceStatus.silenced;
+	if (instance.isNotResponding) return i18n.ts.error;
+	return i18n.ts._instanceStatus.alive;
 }
 
 const headerActions = computed(() => []);
@@ -130,6 +127,18 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px;
+
+	> * {
+		flex: 1 1 220px;
+		min-width: 0;
+	}
+}
+
 .instances {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));

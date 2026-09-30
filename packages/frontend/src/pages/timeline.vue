@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader v-model:tab="src" :actions="headerActions" :tabs="$i ? headerTabs : headerTabsWhenNotLogin" :swipable="true" :displayMyAvatar="true" :canOmitTitle="true">
 	<div class="_spacer" style="--MI_SPACER-w: 800px;">
-		<MkPostForm v-if="prefer.r.showFixedPostForm.value" :class="[$style.postForm, '_juejinCard']" class="_panel" fixed style="margin-bottom: var(--MI-margin);"/>
+		<MkPostForm v-if="prefer.r.showFixedPostForm.value" class="_panel" fixed :initialRows="3" :autofocus="false" style="margin-bottom: var(--MI-margin);"/>
 		<MkStreamingNotesTimeline
 			ref="tlComponent"
 			:key="effectiveSrc + withRenotes + withReplies + onlyFiles + withSensitive"
@@ -228,10 +228,6 @@ definePage(() => ({
 	margin: var(--MI-margin) auto 0 auto;
 	padding: 8px 16px;
 	border-radius: 32px;
-}
-
-.postForm {
-	border-radius: var(--MI-radius);
 }
 
 .tl {

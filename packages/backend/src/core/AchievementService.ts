@@ -25,24 +25,23 @@ export class AchievementService {
 	public async create(
 		userId: MiUser['id'],
 		type: typeof ACHIEVEMENT_TYPES[number],
-	): Promise<void> {
-		if (!ACHIEVEMENT_TYPES.includes(type)) return;
+	): Promise<boolean> {
+		if (!ACHIEVEMENT_TYPES.includes(type)) return false;
 
 		const date = Date.now();
 
-		const profile = await this.userProfilesRepository.findOneByOrFail({ userId: userId });
-
-		if (profile.achievements.some(a => a.name === type)) return;
-
-		await this.userProfilesRepository.update(userId, {
-			achievements: [...profile.achievements, {
-				name: type,
-				unlockedAt: date,
-			}],
-		});
+		// Atomic append prevents concurrent awards from overwriting one another or notifying twice.
+		const result = await this.userProfilesRepository.createQueryBuilder().update()
+			.set({ achievements: () => '"achievements" || CAST(:achievement AS jsonb)' })
+			.where('"userId" = :userId', { userId })
+			.andWhere('NOT ("achievements" @> CAST(:match AS jsonb))')
+			.setParameters({ achievement: JSON.stringify([{ name: type, unlockedAt: date }]), match: JSON.stringify([{ name: type }]) })
+			.execute();
+		if (!result.affected) return false;
 
 		this.notificationService.createNotification(userId, 'achievementEarned', {
 			achievement: type,
 		});
+		return true;
 	}
 }

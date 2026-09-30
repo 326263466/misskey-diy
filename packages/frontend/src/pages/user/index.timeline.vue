@@ -6,20 +6,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkStickyContainer>
 	<template #header>
-		<MkTab
-			v-model="tab"
-			:tabs="[
-				{ key: 'featured', label: i18n.ts.featured },
-				{ key: 'notes', label: i18n.ts.notes },
-				{ key: 'all', label: i18n.ts.all },
-				{ key: 'files', label: i18n.ts.withFiles },
-			]"
-			:class="$style.tab"
-		>
-		</MkTab>
+		<div :class="$style.tabBar">
+			<MkPaginationControl :paginator="tab === 'featured' ? featuredPaginator : notesPaginator" card>
+				<template #header>
+					<MkTab
+						v-model="tab"
+						:tabs="[
+							{ key: 'featured', label: i18n.ts.featured },
+							{ key: 'notes', label: i18n.ts.notes },
+							{ key: 'all', label: i18n.ts.all },
+							{ key: 'files', label: i18n.ts.withFiles },
+						]"
+					/>
+				</template>
+			</MkPaginationControl>
+		</div>
 	</template>
-	<MkNotesTimeline v-if="tab === 'featured'" :noGap="true" :paginator="featuredPaginator" :pullToRefresh="false" :class="$style.tl"/>
-	<MkNotesTimeline v-else :noGap="true" :paginator="notesPaginator" :pullToRefresh="false" :class="$style.tl"/>
+	<MkNotesTimeline v-if="tab === 'featured'" :noGap="true" :paginator="featuredPaginator" :pullToRefresh="false" :withControl="false" :class="$style.tl"/>
+	<MkNotesTimeline v-else :noGap="true" :paginator="notesPaginator" :pullToRefresh="false" :withControl="false" :class="$style.tl"/>
 </MkStickyContainer>
 </template>
 
@@ -27,6 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, computed, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import MkTab from '@/components/MkTab.vue';
 import { i18n } from '@/i18n.js';
 import { Paginator } from '@/utility/paginator.js';
@@ -57,8 +62,8 @@ const notesPaginator = markRaw(new Paginator('users/notes', {
 </script>
 
 <style lang="scss" module>
-.tab {
-	padding: calc(var(--MI-margin) / 2) 0;
+.tabBar {
+	padding-bottom: calc(var(--MI-margin) / 2);
 	background: var(--MI_THEME-bg);
 }
 

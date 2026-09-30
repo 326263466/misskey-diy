@@ -1,0 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+@mixin bar {
+	background: var(--MI-channelColor);
+}
+
+// 透明预览等场景用的斜纹底
+@mixin stripes {
+	background: repeating-linear-gradient(135deg, var(--MI-channelColor) 0 3px, color-mix(in srgb, var(--MI-channelColor) 18%, var(--MI_THEME-panel)) 3px 6px);
+}

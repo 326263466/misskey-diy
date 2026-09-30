@@ -8,10 +8,50 @@
 
 :root {
 	--MI-radius: 8px;
+	--MI-cardRadius: 4px;
+	--MI-cardPadding: 20px;
 	--MI-marginFull: 16px;
 	--MI-marginHalf: 10px;
 
 	--MI-margin: var(--MI-marginFull);
+	--MI-pageGap: 20px;
+	--MI-pageWidth: 1200px;
+	--MI-pageNavigationWidth: 220px;
+
+	// Presence colors stay recognizable independently of the selected accent color.
+	--MI-statusOnline: #22e58a;
+	--MI-statusOnlineStart: #3cf291;
+	--MI-statusOnlineEnd: #0bd983;
+	--MI-statusAway: #bbbec8;
+	--MI-statusAwayStart: #c8cbd3;
+	--MI-statusAwayEnd: #afb2be;
+	--MI-statusBusy: #ff738b;
+	--MI-statusBusyStart: #ff8ea1;
+	--MI-statusBusyEnd: #ff5a77;
+	--MI-statusInvisible: #ffa15a;
+	--MI-statusInvisibleStart: #ffc17d;
+	--MI-statusInvisibleEnd: #ff8a39;
+	--MI-statusForeground: #fff;
+	--MI-statusCustomStart: #ac99fb;
+	--MI-statusCustomEnd: #8c75eb;
+	--MI-statusCoffeeStart: #e6b07f;
+	--MI-statusCoffeeEnd: #cc8a54;
+	--MI-statusMusicStart: #b28bff;
+	--MI-statusMusicEnd: #8d6be9;
+	--MI-statusGamepadStart: #7c9cfa;
+	--MI-statusGamepadEnd: #5878e7;
+	--MI-statusBriefcaseStart: #6bb8fb;
+	--MI-statusBriefcaseEnd: #428fe4;
+	--MI-statusBookStart: #59d1bc;
+	--MI-statusBookEnd: #26b098;
+	--MI-statusMoonStart: #9a9bee;
+	--MI-statusMoonEnd: #7273cc;
+	--MI-statusHeartStart: var(--MI-statusBusyStart);
+	--MI-statusHeartEnd: var(--MI-statusBusyEnd);
+	--MI-statusPlaneStart: #62cbea;
+	--MI-statusPlaneEnd: #36a8d5;
+	--MI-statusSunStart: #ffd16c;
+	--MI-statusSunEnd: #f6ae38;
 
 	// switch dynamically
 	--MI-minBottomSpacingMobile: calc(72px + max(12px, env(safe-area-inset-bottom, 0px)));
@@ -25,7 +65,7 @@
 html {
 	overflow: auto;
 	overflow-wrap: break-word;
-	font-family: 'Hiragino Maru Gothic Pro', "BIZ UDGothic", Roboto, HelveticaNeue, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+	font-family: -apple-system, system-ui, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 	font-size: 14px;
 	line-height: 1.35;
 	text-size-adjust: 100%;
@@ -149,6 +189,31 @@ rt {
 	white-space: initial;
 }
 
+// 进度条统一自绘：消除浏览器原生控件的默认渲染（含 hover 等交互态差异）。
+// 基础层只定外观基调，各使用处按需覆盖尺寸、颜色（color 同时决定进度条填充色）
+progress {
+	appearance: none;
+	border: 0;
+	border-radius: 999px;
+	overflow: hidden;
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
+
+	&::-webkit-progress-bar {
+		background: var(--MI_THEME-accentedBg);
+	}
+
+	&::-webkit-progress-value {
+		background: currentColor;
+		border-radius: 999px;
+	}
+
+	&::-moz-progress-bar {
+		background: currentColor;
+		border-radius: 999px;
+	}
+}
+
 :focus-visible {
 	outline: var(--MI_THEME-focus) solid 2px;
 	outline-offset: -2px;
@@ -170,6 +235,33 @@ rt {
 .ti-fw {
 	display: inline-block;
 	text-align: center;
+}
+
+._tabUnderline {
+	position: relative;
+
+	&::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		bottom: 0;
+		transform: translateX(-50%);
+		width: calc((100% - var(--MI-tabPaddingInline, 0px) * 2) * 0.6);
+		height: var(--MI-tabUnderlineHeight, 3px);
+		border-radius: 999px;
+		background: var(--MI-tabUnderlineColor, var(--MI_THEME-accent));
+		opacity: var(--MI-tabUnderlineOpacity, 0);
+		pointer-events: none;
+	}
+
+	&._tabUnderlineUpper::after {
+		top: 0;
+		bottom: auto;
+	}
+
+	&._tabUnderlineAnimated::after {
+		transition: opacity 0.15s ease;
+	}
 }
 
 /* TODO: 引数は現在CSS変数経由で受け取っているが、将来的にはattr()を使った方が綺麗そう */
@@ -202,11 +294,96 @@ rt {
 	}
 }
 
+// カードやダイアログの本文は画面幅によらず共通の内余白を使う。
+._spacer._spacerCard {
+	max-width: min(var(--MI_SPACER-w, 100%), calc(100% - (var(--MI-cardPadding, 20px) * 2)));
+	padding: var(--MI-cardPadding, 20px) 0;
+}
+
 ._pageContainer {
 	container-type: size;
 	contain: strict;
 	overflow: auto;
 	overscroll-behavior: contain;
+}
+
+._pageLayout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
+	width: 100%;
+	max-width: calc(var(--MI-pageWidth) + var(--MI-pageSideInset, var(--MI-margin)) * 2);
+	height: 100%;
+	min-height: 0;
+	margin: 0 auto;
+	padding: var(--MI-pageGap) var(--MI-pageSideInset, var(--MI-margin));
+	box-sizing: border-box;
+	overflow: clip;
+}
+
+._pageLayout._pageLayoutWithSidebar {
+	height: calc(100% - var(--MI-pageGap) * 2);
+	margin-block: var(--MI-pageGap);
+	padding-block: 0;
+	grid-template-columns: var(--MI-pageNavigationWidth) minmax(0, 1fr);
+	gap: var(--MI-pageGap);
+	background: var(--MI_THEME-bg);
+
+	> ._pageContent {
+		grid-column: 2;
+		border-radius: var(--MI-pageHeaderRadius, var(--MI-cardRadius));
+	}
+}
+
+._pageNavigation {
+	align-self: start;
+	min-width: 0;
+	min-height: 0;
+	max-height: 100%;
+	padding: 8px;
+	box-sizing: border-box;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-cardRadius);
+}
+
+._pageContent {
+	min-width: 0;
+	min-height: 0;
+	height: 100%;
+	container-type: size;
+}
+
+._pageLayout {
+	._pageNavigation,
+	._pageContent,
+	._pageScrollable,
+	._pageScrollableReversed {
+		scrollbar-width: none;
+
+		&::-webkit-scrollbar {
+			display: none;
+		}
+	}
+}
+
+[data-page-body] > ._spacer {
+	padding-top: 0;
+}
+
+// 只处理路由级别的 spacer；卡片内部和 sticky 底部操作栏保留各自的内边距
+._pageContent > ._spacer,
+._pageContent [data-page-body] > ._spacer,
+._pageContent [data-profile-content] ._spacer:not(._spacer *) {
+	max-width: 100%;
+	padding: 0;
+}
+
+._standalonePage {
+	padding-top: var(--MI-pageGap);
+	box-sizing: border-box;
+	container-type: size;
 }
 
 ._pageScrollable {
@@ -363,13 +540,13 @@ rt {
 
 ._panel {
 	background: var(--MI_THEME-panel);
-	border-radius: var(--MI-radius);
+	border-radius: var(--MI-cardRadius);
 	overflow: clip;
 }
 
 // 掘金风格的可见卡片；只对明确添加此类的外层容器生效
 ._juejinCard {
-	border-radius: 4px !important;
+	border-radius: var(--MI-cardRadius) !important;
 }
 
 ._margin {

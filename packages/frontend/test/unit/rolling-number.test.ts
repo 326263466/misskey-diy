@@ -127,22 +127,29 @@ describe('rolling number', () => {
 		expect(view.labels().map(element => element.textContent)).toEqual(['5']);
 	});
 
-	test('respects reduced motion changes and removes its media listener on unmount', async () => {
+	test('uses the app animation preference even when the system requests reduced motion', async () => {
 		media.matches = true;
-		const removeListener = vi.spyOn(media, 'removeEventListener');
 		const view = renderNumber(1);
 		await view.rerender({ value: 2 });
-		expect(view.labels().map(element => element.textContent)).toEqual(['2']);
+		expect(view.labels().map(element => element.textContent)).toEqual(['1', '2']);
 		media.matches = false;
 		media.dispatchEvent(Object.assign(new Event('change'), { matches: false }));
 		await nextTick();
-		await view.rerender({ value: 3 });
-		expect(view.labels()).toHaveLength(2);
+		expect(view.labels().map(element => element.textContent)).toEqual(['1', '2']);
 		media.matches = true;
 		media.dispatchEvent(Object.assign(new Event('change'), { matches: true }));
 		await nextTick();
+		expect(view.labels().map(element => element.textContent)).toEqual(['1', '2']);
+		prefer.s.animation = false;
+		await nextTick();
+		expect(view.labels().map(element => element.textContent)).toEqual(['2']);
+		await view.rerender({ value: 3 });
 		expect(view.labels().map(element => element.textContent)).toEqual(['3']);
-		view.unmount();
-		expect(removeListener).toHaveBeenCalledWith('change', expect.any(Function));
+		prefer.s.animation = true;
+		await nextTick();
+		await view.rerender({ value: 4 });
+		expect(view.labels().map(element => element.textContent)).toEqual(['3', '4']);
+		await vi.advanceTimersByTimeAsync(400);
+		expect(view.labels().map(element => element.textContent)).toEqual(['4']);
 	});
 });

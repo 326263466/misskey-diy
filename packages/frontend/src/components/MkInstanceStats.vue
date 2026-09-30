@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.root">
 	<MkFoldableSection class="item">
-		<template #header>Chart</template>
+		<template #header>{{ i18n.ts.charts }}</template>
 		<div :class="$style.chart">
 			<div class="selects">
 				<MkSelect v-model="chartSrc" :items="chartSrcDef" style="margin: 0; flex: 1;"></MkSelect>
@@ -19,15 +19,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</MkFoldableSection>
 
 	<MkFoldableSection class="item">
-		<template #header>Active users heatmap</template>
+		<template #header>{{ i18n.ts._dashboard.activeUsersHeatmap }}</template>
 		<MkSelect v-model="heatmapSrc" :items="heatmapSrcDef" style="margin: 0 0 12px 0;"></MkSelect>
 		<div class="_panel" :class="$style.heatmap">
-			<MkHeatmap :src="heatmapSrc" :label="'Read & Write'"/>
+			<MkHeatmap :src="heatmapSrc"/>
 		</div>
 	</MkFoldableSection>
 
 	<MkFoldableSection class="item">
-		<template #header>Retention rate</template>
+		<template #header>{{ i18n.ts._dashboard.retentionRate }}</template>
 		<div class="_panel" :class="$style.retentionHeatmap">
 			<MkRetentionHeatmap/>
 		</div>
@@ -37,15 +37,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</MkFoldableSection>
 
 	<MkFoldableSection v-if="shouldShowFederation" class="item">
-		<template #header>Federation</template>
+		<template #header>{{ i18n.ts.federation }}</template>
 		<div :class="$style.federation">
 			<div class="pies">
 				<div class="sub">
-					<div class="title">Sub</div>
+					<div class="title">{{ i18n.ts.subscribing }}</div>
 					<canvas ref="subDoughnutEl"></canvas>
 				</div>
 				<div class="pub">
-					<div class="title">Pub</div>
+					<div class="title">{{ i18n.ts.publishing }}</div>
 					<canvas ref="pubDoughnutEl"></canvas>
 				</div>
 			</div>
@@ -153,12 +153,12 @@ const {
 	def: heatmapSrcDef,
 } = useMkSelect({
 	items: computed(() => [
-		{ value: 'active-users' as const, label: 'Active Users' },
-		{ value: 'notes' as const, label: 'Notes' },
+		{ value: 'active-users' as const, label: i18n.ts._charts.activeUsers },
+		{ value: 'notes' as const, label: i18n.ts.notes },
 		...(shouldShowFederation.value ? [
-			{ value: 'ap-requests-inbox-received' as const, label: 'AP Requests: inboxReceived' },
-			{ value: 'ap-requests-deliver-succeeded' as const, label: 'AP Requests: deliverSucceeded' },
-			{ value: 'ap-requests-deliver-failed' as const, label: 'AP Requests: deliverFailed' },
+			{ value: 'ap-requests-inbox-received' as const, label: i18n.ts._dashboard.apRequestsInboxReceived },
+			{ value: 'ap-requests-deliver-succeeded' as const, label: i18n.ts._dashboard.apRequestsDeliverSucceeded },
+			{ value: 'ap-requests-deliver-failed' as const, label: i18n.ts._dashboard.apRequestsDeliverFailed },
 		] : []),
 	]),
 	initialValue: 'active-users',
@@ -245,7 +245,7 @@ onMounted(() => {
 		}));
 
 		subs.push({
-			name: '(other)',
+			name: i18n.ts.other,
 			color: '#80808080',
 			value: fedStats.otherFollowersCount,
 		});
@@ -264,7 +264,7 @@ onMounted(() => {
 		}));
 
 		pubs.push({
-			name: '(other)',
+			name: i18n.ts.other,
 			color: '#80808080',
 			value: fedStats.otherFollowingCount,
 		});

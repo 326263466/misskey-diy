@@ -14,6 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<template #header>{{ antenna == null ? i18n.ts.createAntenna : i18n.ts.editAntenna }}</template>
 	<XAntennaEditor
+		class="_spacerCard"
 		:antenna="antenna"
 		@created="onAntennaCreated"
 		@updated="onAntennaUpdated"

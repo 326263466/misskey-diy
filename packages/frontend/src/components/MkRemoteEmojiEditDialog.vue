@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>:{{ name }}:</template>
 
 	<div style="display: flex; flex-direction: column; min-height: 100%;">
-		<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px; flex-grow: 1;">
+		<div class="_spacer _spacerCard" style="flex-grow: 1;">
 			<div class="_gaps_m">
 				<div v-if="imgUrl != null" :class="$style.imgs">
 					<div style="background: #000;" :class="$style.imgContainer">
@@ -123,7 +123,7 @@ async function done() {
 	z-index: 10000;
 	bottom: 0;
 	left: 0;
-	padding: 12px;
+	padding: var(--MI-cardPadding, 20px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));

@@ -5,13 +5,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
+	<template v-if="tab === 'liked'" #header-actions>
+		<MkPaginationControl :paginator="likedFlashsPaginator" compact/>
+	</template>
 	<div class="_spacer" style="--MI_SPACER-w: 700px;">
 		<div v-if="tab === 'search'">
 			<div class="_gaps">
-				<MkInput v-model="searchQuery" :large="true" type="search">
-					<template #prefix><i class="ti ti-search"></i></template>
-				</MkInput>
-				<MkButton large primary gradate rounded style="margin: 0 auto;" @click="search">{{ i18n.ts.search }}</MkButton>
+				<div :class="$style.searchRow">
+					<MkInput v-model="searchQuery" :class="$style.searchInput" :large="true" type="search">
+						<template #prefix><i class="ti ti-search"></i></template>
+					</MkInput>
+					<MkButton large primary gradate rounded @click="search">{{ i18n.ts.search }}</MkButton>
+				</div>
 				<MkPagination v-if="searchPaginator" v-slot="{items}" :key="searchKey" :paginator="searchPaginator">
 					<div class="_gaps_s">
 						<MkFlashPreview v-for="flash in items" :key="flash.id" :flash="flash"/>
@@ -40,7 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 
 		<div v-else-if="tab === 'liked'">
-			<MkPagination v-slot="{items}" :paginator="likedFlashsPaginator" withControl>
+			<MkPagination v-slot="{items}" :paginator="likedFlashsPaginator">
 				<div class="_gaps_s">
 					<MkFlashPreview v-for="like in items" :key="like.flash.id" :flash="like.flash"/>
 				</div>
@@ -55,6 +60,7 @@ import { computed, markRaw, ref, shallowRef } from 'vue';
 import type { IPaginator } from '@/utility/paginator.js';
 import MkFlashPreview from '@/components/MkFlashPreview.vue';
 import MkPagination from '@/components/MkPagination.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import { i18n } from '@/i18n.js';
@@ -130,3 +136,17 @@ definePage(() => ({
 	icon: 'ti ti-player-play',
 }));
 </script>
+
+<style lang="scss" module>
+.searchRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.searchInput {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+</style>

@@ -103,7 +103,7 @@ function onLogin(res: Misskey.entities.SigninFlowResponse & { finished: true }) 
 }
 
 .content {
-	padding: 32px;
+	padding: var(--MI-cardPadding, 20px);
 	box-sizing: border-box;
 }
 </style>

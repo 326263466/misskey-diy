@@ -12,10 +12,8 @@ export interface Locale extends ILocale {
      */
     "headlineMisskey": string;
     /**
-     * ようこそ！Misskeyは、オープンソースの分散型マイクロブログサービスです。
-     * 「ノート」を作成して、いま起こっていることを共有したり、あなたについて皆に発信しよう📡
-     * 「リアクション」機能で、皆のノートに素早く反応を追加することもできます👍
-     * 新しい世界を探検しよう🚀
+     * Misskeyへようこそ！オープンソースの分散型マイクロブログサービスです。
+     * ノートで出来事や思いを共有し、リアクションで気持ちを伝え、新しい世界を探検しましょう！
      */
     "introMisskey": string;
     /**
@@ -55,9 +53,7 @@ export interface Locale extends ILocale {
      */
     "initialPasswordIsIncorrect": string;
     /**
-     * Misskeyを自分でインストールした場合は、設定ファイルに入力したパスワードを使用してください。
-     * Misskeyのホスティングサービスなどを使用している場合は、提供されたパスワードを使用してください。
-     * パスワードを設定していない場合は、空欄にしたまま続行してください。
+     * 設定ファイルのパスワード、またはホスティング事業者から提供されたパスワードを入力してください。未設定の場合は空欄で進めます。
      */
     "initialPasswordForSetupDescription": string;
     /**
@@ -109,6 +105,10 @@ export interface Locale extends ILocale {
      */
     "settings": string;
     /**
+     * ユーザー設定
+     */
+    "userSettings": string;
+    /**
      * 通知の設定
      */
     "notificationSettings": string;
@@ -133,7 +133,11 @@ export interface Locale extends ILocale {
      */
     "timeline": string;
     /**
-     * 自己紹介はありません
+     * コミュニティランキング
+     */
+    "communityRanking": string;
+    /**
+     * 自己紹介はまだ書かれていません
      */
     "noAccountDescription": string;
     /**
@@ -301,11 +305,11 @@ export interface Locale extends ILocale {
      */
     "youGotNewFollower": string;
     /**
-     * フォローリクエストされました
+     * フォロー申請が届きました
      */
     "receiveFollowRequest": string;
     /**
-     * フォローが承認されました
+     * フォロー申請が承認されました
      */
     "followRequestAccepted": string;
     /**
@@ -341,7 +345,7 @@ export interface Locale extends ILocale {
      */
     "download": string;
     /**
-     * ファイル「{name}」を削除しますか？このファイルを使用した一部のコンテンツも削除されます。
+     * ファイル「{name}」を削除しますか？このファイルを使用しているコンテンツで表示できなくなります。
      */
     "driveFileDeleteConfirm": ParameterizedString<"name">;
     /**
@@ -461,7 +465,7 @@ export interface Locale extends ILocale {
      */
     "unfollow": string;
     /**
-     * フォロー許可待ち
+     * フォロー申請を送信しました。承認を待っています
      */
     "followRequestPending": string;
     /**
@@ -550,7 +554,7 @@ export interface Locale extends ILocale {
          */
         "title": string;
         /**
-         * Boost @{name}...
+         * Boost {name}...
          */
         "placeholder": ParameterizedString<"name">;
     };
@@ -723,7 +727,7 @@ export interface Locale extends ILocale {
      */
     "cacheRemoteFiles": string;
     /**
-     * この設定を有効にすると、リモートファイルをこのサーバーのストレージにキャッシュするようになります。画像の表示が高速になりますが、サーバーのストレージを多く消費します。リモートユーザーがどれほどキャッシュを保持するかは、ロールによるドライブ容量制限によって決定されます。この制限を超えた場合、古いファイルからキャッシュが削除されリンクになります。この設定が無効の場合、リモートのファイルを最初からリンクとして保持します。
+     * リモート画像の表示を高速化しますが、ストレージを消費します。キャッシュ上限はリモートユーザーのロールのドライブ容量で決まり、超過時は古い順にリンクへ切り替わります。無効時はリンクのみ保持します。
      */
     "cacheRemoteFilesDescription": string;
     /**
@@ -831,13 +835,21 @@ export interface Locale extends ILocale {
      */
     "proxyAccount": string;
     /**
-     * プロキシアカウントは、特定の条件下でユーザーのリモートフォローを代行するアカウントです。例えば、ユーザーがリモートユーザーをリストに入れたとき、リストに入れられたユーザーを誰もフォローしていないとアクティビティがサーバーに配達されないため、代わりにプロキシアカウントがフォローするようにします。
+     * リモートフォローを代行します。例えば、リストに追加したリモートユーザーを誰もフォローしていない場合、代わりにフォローしてアクティビティを受信します。
      */
     "proxyAccountDescription": string;
     /**
      * ホスト
      */
     "host": string;
+    /**
+     * ユーザーID
+     */
+    "userId": string;
+    /**
+     * MIMEタイプ
+     */
+    "mimeType": string;
     /**
      * 自分を選択
      */
@@ -926,6 +938,14 @@ export interface Locale extends ILocale {
      * メタデータ
      */
     "metadata": string;
+    /**
+     * {n}レコード
+     */
+    "nRecords": ParameterizedString<"n">;
+    /**
+     * 生データ
+     */
+    "rawData": string;
     /**
      * {n}つのファイル
      */
@@ -1042,6 +1062,10 @@ export interface Locale extends ILocale {
      * 完了
      */
     "done": string;
+    /**
+     * 確認
+     */
+    "confirm": string;
     /**
      * 処理中
      */
@@ -1167,17 +1191,13 @@ export interface Locale extends ILocale {
      */
     "imageUrl": string;
     /**
-     * 削除
+     * 取り除く
      */
     "remove": string;
     /**
      * 削除しました
      */
     "removed": string;
-    /**
-     * 「{x}」を削除しますか？
-     */
-    "removeAreYouSure": ParameterizedString<"x">;
     /**
      * 「{x}」を削除しますか？
      */
@@ -2339,7 +2359,23 @@ export interface Locale extends ILocale {
      */
     "objectStorageSetPublicRead": string;
     /**
-     * s3ForcePathStyleを有効にすると、バケット名をURLのホスト名ではなくパスの一部として指定することを強制します。セルフホストされたMinioなどの使用時に有効にする必要がある場合があります。
+     * アクセスキー
+     */
+    "accessKey": string;
+    /**
+     * シークレットキー
+     */
+    "secretKey": string;
+    /**
+     * 公開鍵
+     */
+    "publicKey": string;
+    /**
+     * 秘密鍵
+     */
+    "privateKey": string;
+    /**
+     * s3ForcePathStyleを有効にすると、Bucket名をホスト名ではなくURLパスに含めます。セルフホストのMinIOなどで必要な場合があります。
      */
     "s3ForcePathStyleDesc": string;
     /**
@@ -2351,11 +2387,11 @@ export interface Locale extends ILocale {
      */
     "deleteAll": string;
     /**
-     * タイムライン上部に投稿フォームを表示する
+     * 投稿フォームを表示する
      */
     "showFixedPostForm": string;
     /**
-     * タイムライン上部に投稿フォームを表示する(チャンネル)
+     * 投稿フォームを表示する（チャンネル）
      */
     "showFixedPostFormInChannel": string;
     /**
@@ -2539,11 +2575,11 @@ export interface Locale extends ILocale {
      */
     "deleteAllFilesConfirm": string;
     /**
-     * フォローを全解除
+     * このサーバーからのフォロワーをすべて解除
      */
     "removeAllFollowing": string;
     /**
-     * {host}からのフォローをすべて解除します。そのサーバーがもう存在しなくなった場合などに実行してください。
+     * {host}上のアカウントからのフォローをすべて解除します。そのサーバーがもう存在しなくなった場合などに実行してください。
      */
     "removeAllFollowingDescription": ParameterizedString<"host">;
     /**
@@ -2854,10 +2890,6 @@ export interface Locale extends ILocale {
      * 正規表現エラー
      */
     "regexpError": string;
-    /**
-     * {tab}ワードミュートの{line}行目の正規表現にエラーが発生しました:
-     */
-    "regexpErrorDescription": ParameterizedString<"tab" | "line">;
     /**
      * サーバーミュート
      */
@@ -3303,7 +3335,7 @@ export interface Locale extends ILocale {
      */
     "sendErrorReports": string;
     /**
-     * オンにすると、問題が発生したときにエラーの詳細情報がMisskeyに共有され、ソフトウェアの品質向上に役立てることができます。エラー情報には、OSのバージョン、ブラウザの種類、行動履歴などが含まれます。
+     * エラーの詳細をMisskeyに共有し、品質改善に役立てます。OSのバージョン、ブラウザーの種類、操作履歴などが含まれます。
      */
     "sendErrorReportsDescription": string;
     /**
@@ -3486,6 +3518,244 @@ export interface Locale extends ILocale {
      * オンライン状態
      */
     "onlineStatus": string;
+    "_onlineStatus": {
+        /**
+         * 退席中
+         */
+        "away": string;
+        /**
+         * 取り込み中
+         */
+        "busy": string;
+        /**
+         * 応答不可
+         */
+        "doNotDisturb": string;
+        /**
+         * 非表示
+         */
+        "invisible": string;
+        /**
+         * {status}に切り替える
+         */
+        "switchTo": ParameterizedString<"status">;
+        /**
+         * 自動返信
+         */
+        "autoReply": string;
+        /**
+         * 自動返信をカスタマイズ
+         */
+        "customAutoReply": string;
+        /**
+         * 返信内容
+         */
+        "autoReplyContent": string;
+        /**
+         * 留守中に送るメッセージを入力
+         */
+        "autoReplyPlaceholder": string;
+        /**
+         * {max}文字以内で入力してください。
+         */
+        "autoReplyLimit": ParameterizedString<"max">;
+        "_autoReplyPresets": {
+            /**
+             * 席を外しています。後ほど返信します。
+             */
+            "away": string;
+            /**
+             * 作業中です。後ほど返信します。
+             */
+            "work": string;
+            /**
+             * 食事中です。後ほど返信します。
+             */
+            "meal": string;
+        };
+        "_display": {
+            /**
+             * オンライン
+             */
+            "online": string;
+            /**
+             * アクティブ
+             */
+            "active": string;
+            /**
+             * 退席中
+             */
+            "away": string;
+            /**
+             * 取り込み中
+             */
+            "busy": string;
+            /**
+             * 応答不可
+             */
+            "doNotDisturb": string;
+            /**
+             * オフライン
+             */
+            "offline": string;
+            /**
+             * 非表示
+             */
+            "invisible": string;
+            /**
+             * 不明
+             */
+            "unknown": string;
+        };
+        /**
+         * カスタム状態
+         */
+        "customStatus": string;
+        /**
+         * この状態にする
+         */
+        "useStatus": string;
+        /**
+         * 今の気分をひとこと
+         */
+        "customStatusPlaceholder": string;
+        /**
+         * {max}文字以内で入力してください。
+         */
+        "customStatusLimit": ParameterizedString<"max">;
+        /**
+         * 改行や制御文字は使用できません。
+         */
+        "customStatusInvalidCharacters": string;
+        /**
+         * カスタム状態を適用するとオンラインに切り替わり、選択したアイコンとテキストが表示されます。適用後も編集できます。非表示中は他の人に公開されません。
+         */
+        "customStatusVisibility": string;
+        "_icons": {
+            /**
+             * 休憩中
+             */
+            "coffee": string;
+            /**
+             * 音楽を聴いている
+             */
+            "music": string;
+            /**
+             * ゲーム中
+             */
+            "gamepad": string;
+            /**
+             * 仕事中
+             */
+            "briefcase": string;
+            /**
+             * 勉強中
+             */
+            "book": string;
+            /**
+             * 睡眠中
+             */
+            "moon": string;
+            /**
+             * ときめき中
+             */
+            "heart": string;
+            /**
+             * 旅行中
+             */
+            "plane": string;
+            /**
+             * 食事中
+             */
+            "food": string;
+            /**
+             * おうちでのんびり
+             */
+            "home": string;
+            /**
+             * ペットと一緒
+             */
+            "pet": string;
+            /**
+             * コードを書いてる
+             */
+            "code": string;
+            /**
+             * 集中中
+             */
+            "focus": string;
+            /**
+             * 物語に夢中
+             */
+            "film": string;
+            /**
+             * 移動中
+             */
+            "car": string;
+            /**
+             * 休暇中
+             */
+            "vacation": string;
+            /**
+             * 運動中
+             */
+            "exercise": string;
+            /**
+             * 心は晴れ模様
+             */
+            "sun": string;
+            /**
+             * 静かに過ごす
+             */
+            "cloud": string;
+            /**
+             * ひと休みで充電
+             */
+            "battery": string;
+            /**
+             * おしゃべり歓迎
+             */
+            "chat": string;
+            /**
+             * 今日はお祝い
+             */
+            "celebrate": string;
+            /**
+             * 贈り物を準備中
+             */
+            "gift": string;
+            /**
+             * 仲間募集中
+             */
+            "handshake": string;
+        };
+        "_groups": {
+            /**
+             * 日々の暮らし
+             */
+            "daily": string;
+            /**
+             * 仕事と学び
+             */
+            "focus": string;
+            /**
+             * くつろぎ時間
+             */
+            "relax": string;
+            /**
+             * お出かけ
+             */
+            "travel": string;
+            /**
+             * 今の気分
+             */
+            "mood": string;
+            /**
+             * 人とつながる
+             */
+            "social": string;
+        };
+    };
     /**
      * オンライン状態を隠す
      */
@@ -3499,7 +3769,7 @@ export interface Locale extends ILocale {
      */
     "online": string;
     /**
-     * アクティブ
+     * 最近アクティブ
      */
     "active": string;
     /**
@@ -3703,7 +3973,7 @@ export interface Locale extends ILocale {
      */
     "accountDeletionInProgress": string;
     /**
-     * サーバー上であなたのアカウントを一意に識別するための名前。アルファベット(a~z, A~Z)、数字(0~9)、およびアンダーバー(_)が使用できます。ユーザー名は後から変更することは出来ません。
+     * サーバー内でアカウントを識別する名前です。英字、数字、アンダースコア（_）を使えます。後から変更できません。
      */
     "usernameInfo": string;
     /**
@@ -3715,7 +3985,7 @@ export interface Locale extends ILocale {
      */
     "devMode": string;
     /**
-     * CWを維持する
+     * 返信時に元のノートのCWを引き継ぐ
      */
     "keepCw": string;
     /**
@@ -4035,6 +4305,10 @@ export interface Locale extends ILocale {
      */
     "lastActiveDate": string;
     /**
+     * 最終投稿日時
+     */
+    "lastPostedAt": string;
+    /**
      * ステータスバー
      */
     "statusbar": string;
@@ -4107,7 +4381,7 @@ export interface Locale extends ILocale {
      */
     "cannotUploadBecauseUnallowedFileType": string;
     /**
-     * ベータ
+     * Beta
      */
     "beta": string;
     /**
@@ -4261,11 +4535,11 @@ export interface Locale extends ILocale {
      */
     "remindMeLater": string;
     /**
-     * Misskeyを気に入っていただけましたか？
+     * ご意見をお聞かせください
      */
     "didYouLikeMisskey": string;
     /**
-     * Misskeyは{host}が使用している無料のソフトウェアです。これからも開発を続けられるように、ぜひ寄付をお願いします！
+     * {host}をご利用いただきありがとうございます。このプロジェクトは日々改善を続けています。ご意見やご要望があれば、ぜひお聞かせください。
      */
     "pleaseDonate": ParameterizedString<"host">;
     /**
@@ -4677,7 +4951,7 @@ export interface Locale extends ILocale {
      */
     "preservedUsernames": string;
     /**
-     * 予約するユーザー名を改行で列挙します。ここで指定されたユーザー名はアカウント作成時に使えなくなりますが、管理者によるアカウント作成時はこの制限を受けません。また、既に存在するアカウントも影響を受けません。
+     * 予約するユーザー名を1行に1つ指定します。通常の新規登録では使用できません。管理者による作成や既存アカウントには影響しません。
      */
     "preservedUsernamesDescription": string;
     /**
@@ -4725,7 +4999,7 @@ export interface Locale extends ILocale {
      */
     "preventAiLearning": string;
     /**
-     * 外部の文章生成AIや画像生成AIに対して、投稿したノートや画像などのコンテンツを学習の対象にしないように要求します。これはnoaiフラグをHTMLレスポンスに含めることによって実現されますが、この要求に従うかはそのAI次第であるため、学習を完全に防止するものではありません。
+     * HTMLにnoaiフラグを追加し、投稿や画像をAIの学習に使わないよう要求します。相手が従うとは限らず、完全には防げません。
      */
     "preventAiLearningDescription": string;
     /**
@@ -5037,7 +5311,7 @@ export interface Locale extends ILocale {
      */
     "repositoryUrl": string;
     /**
-     * ソースコードが公開されているリポジトリがある場合、そのURLを記入します。Misskeyを現状のまま（ソースコードにいかなる変更も加えずに）使用している場合は https://github.com/misskey-dev/misskey と記入します。
+     * 公開ソースコードのリポジトリURL。Misskeyを改変せず使用する場合は https://github.com/misskey-dev/misskey を指定します。
      */
     "repositoryUrlDescription": string;
     /**
@@ -5048,6 +5322,20 @@ export interface Locale extends ILocale {
      * フィードバック
      */
     "feedback": string;
+    "_feedback": {
+        /**
+         * フィードバックのヒント
+         */
+        "howToTitle": string;
+        /**
+         * お困りの点やご要望の内容、発生した状況、ご利用の端末やバージョンをあわせてお知らせいただけると、状況を把握しやすくなります。可能であればスクリーンショットもぜひ添えてください。
+         */
+        "howToDescription": string;
+    };
+    /**
+     * トップに戻る
+     */
+    "backToTop": string;
     /**
      * フィードバックURL
      */
@@ -5557,10 +5845,8 @@ export interface Locale extends ILocale {
      */
     "federationJobs": string;
     /**
-     * ドライブでは、過去にアップロードしたファイルの一覧が表示されます。<br>
-     * ノートに添付する際に再利用したり、あとで投稿するファイルを予めアップロードしておくこともできます。<br>
-     * <b>ファイルを削除すると、今までそのファイルを使用した全ての場所(ノート、ページ、アバター、バナー等)からも見えなくなるので注意してください。</b><br>
-     * フォルダを作って整理することもできます。
+     * アップロードしたファイルを管理・再利用でき、投稿前のアップロードやフォルダーでの整理もできます。<br>
+     * <b>削除したファイルは、ノート・ページ・アバターなど、使用中の場所すべてで表示されなくなります。</b>
      */
     "driveAboutTip": string;
     /**
@@ -6339,6 +6625,34 @@ export interface Locale extends ILocale {
              */
             "sendOnEnter": string;
         };
+        /**
+         * 表示範囲外のノートの描画をスキップする
+         */
+        "enableNoteRenderSkipping": string;
+        /**
+         * ページ移動時に状態を保持する
+         */
+        "enableStackingRouterView": string;
+        /**
+         * スマートフォンで折りたたみ項目を別ページで開く
+         */
+        "enableFolderPageView": string;
+        /**
+         * 触覚フィードバックを有効にする
+         */
+        "enableHapticFeedback": string;
+        /**
+         * ブラウザーの翻訳APIを有効にする
+         */
+        "enableBrowserTranslator": string;
+        /**
+         * ミュート日時
+         */
+        "mutedAt": string;
+        /**
+         * ブロック日時
+         */
+        "blockedAt": string;
     };
     "_preferencesProfile": {
         /**
@@ -6365,6 +6679,10 @@ export interface Locale extends ILocale {
          * 複数のデバイスで同期したい設定項目が存在する場合は、個別に「複数のデバイスで同期」オプションを有効にしてください。
          */
         "useSyncBetweenDevicesOptionIfYouWantToSyncSetting": string;
+        /**
+         * 設定をテキストとしてコピー
+         */
+        "copyAsText": string;
     };
     "_preferencesBackup": {
         /**
@@ -6456,9 +6774,57 @@ export interface Locale extends ILocale {
     };
     "_abuseUserReport": {
         /**
+         * 通報対象のユーザー
+         */
+        "reportedUser": string;
+        /**
+         * 通報時のスナップショット
+         */
+        "snapshot": string;
+        /**
+         * この通報には保存されたスナップショットがありません。
+         */
+        "snapshotUnavailable": string;
+        /**
+         * 保存日時
+         */
+        "snapshotCapturedAt": string;
+        /**
+         * 通報時の添付ファイル情報
+         */
+        "snapshotFiles": string;
+        /**
+         * 通報時のファイル本体を保存しています。元のファイルが変更・削除された場合も、保存された証拠をダウンロードできます。
+         */
+        "snapshotFilesDescription": string;
+        /**
+         * ファイルのSHA-256
+         */
+        "fileHash": string;
+        /**
+         * 保存された証拠ファイルをダウンロードできませんでした。
+         */
+        "evidenceDownloadFailed": string;
+        /**
+         * 内容を読み込めません。リンク先を確認してください。
+         */
+        "contentUnavailable": string;
+        /**
+         * 補足説明はありません
+         */
+        "noDescription": string;
+        /**
+         * 通報理由の記載はありません
+         */
+        "reasonNotProvided": string;
+        /**
          * 転送
          */
         "forward": string;
+        /**
+         * 転送キューに追加済み
+         */
+        "forwarded": string;
         /**
          * 匿名のシステムアカウントとして、リモートサーバーに通報を転送します。
          */
@@ -6570,8 +6936,54 @@ export interface Locale extends ILocale {
              */
             "section3": string;
         };
+        /**
+         * クレジット
+         */
+        "credits": string;
+        /**
+         * 藍のイラスト: {name}
+         */
+        "illustrationCredit": ParameterizedString<"name">;
+        /**
+         * 合成の順番
+         */
+        "fusionSequence": string;
+        /**
+         * {count}チェーン！
+         */
+        "chain": ParameterizedString<"count">;
+        "_modes": {
+            /**
+             * ノーマル
+             */
+            "normal": string;
+            /**
+             * スクエア
+             */
+            "square": string;
+            /**
+             * 円
+             */
+            "yen": string;
+            /**
+             * スイーツ
+             */
+            "sweets": string;
+            /**
+             * 宇宙
+             */
+            "space": string;
+        };
+        /**
+         * ゲームを終了
+         */
+        "quit": string;
     };
     "_announcement": {
+        /**
+         * 新しいお知らせ
+         */
+        "newTitle": string;
         /**
          * 既存ユーザーのみ
          */
@@ -6620,6 +7032,14 @@ export interface Locale extends ILocale {
          * オンにすると、このお知らせは通知されず、既読にする必要もなくなります。
          */
         "silenceDescription": string;
+        /**
+         * 公開中
+         */
+        "active": string;
+        /**
+         * 通常
+         */
+        "normalDisplay": string;
     };
     "_initialAccountSetting": {
         /**
@@ -6827,7 +7247,7 @@ export interface Locale extends ILocale {
                  */
                 "direct": string;
                 /**
-                 * 機密情報は送信する際は注意してください。
+                 * 機密情報を送信する際は注意してください。
                  */
                 "doNotSendConfidencialOnDirect1": string;
                 /**
@@ -6965,7 +7385,7 @@ export interface Locale extends ILocale {
          */
         "shortNameDescription": string;
         /**
-         * 有効にすると、各種タイムラインを取得する際のパフォーマンスが大幅に向上し、データベースへの負荷を軽減することが可能です。ただし、Redisのメモリ使用量は増加します。サーバーのメモリ容量が少ない場合、または動作が不安定な場合は無効にすることができます。
+         * タイムラインの取得を高速化し、データベースの負荷を軽減しますが、Redisのメモリ使用量は増えます。メモリ不足や動作が不安定な場合は無効にしてください。
          */
         "fanoutTimelineDescription": string;
         /**
@@ -6997,6 +7417,34 @@ export interface Locale extends ILocale {
          */
         "remoteNotesCleaningExpiryDaysForEachNotes": string;
         /**
+         * メールアドレスの有効性検証
+         */
+        "activeEmailValidation": string;
+        /**
+         * 禁止するメールドメイン
+         */
+        "bannedEmailDomains": string;
+        /**
+         * 禁止するメールドメインのリスト
+         */
+        "bannedEmailDomainsList": string;
+        /**
+         * IPアドレスを記録
+         */
+        "logIpAddress": string;
+        /**
+         * {x} APIを使用
+         */
+        "useXApi": ParameterizedString<"x">;
+        /**
+         * {x} APIの認証キー
+         */
+        "xApiAuthKey": ParameterizedString<"x">;
+        /**
+         * {x} APIのエンドポイント
+         */
+        "xApiEndpoint": ParameterizedString<"x">;
+        /**
          * 問い合わせ先URL
          */
         "inquiryUrl": string;
@@ -7021,7 +7469,7 @@ export interface Locale extends ILocale {
          */
         "deliverSuspendedSoftware": string;
         /**
-         * 脆弱性などの理由で、サーバーのソフトウェアの名前及びバージョンの範囲を指定して配信を停止できます。このバージョン情報はサーバーが提供したものであり、信頼性は保証されません。バージョン指定には semver の範囲指定が使用できますが、>= 2024.3.1 と指定すると 2024.3.1-custom.0 のようなカスタムバージョンが含まれないため、>= 2024.3.1-0 のように prerelease の指定を行うことを推奨します。
+         * 指定したソフトウェアとバージョンへの配信を停止します。相手が提供するバージョン情報の信頼性は保証されません。semver範囲を使用でき、>= 2024.3.1-0なら2024.3.1-custom.0などのprereleaseを含みます（>= 2024.3.1では対象外）。
          */
         "deliverSuspendedSoftwareDescription": string;
         /**
@@ -7102,6 +7550,14 @@ export interface Locale extends ILocale {
              */
             "none": string;
         };
+        /**
+         * 初期設定ウィザードを開く
+         */
+        "openSetupWizard": string;
+        /**
+         * シンプル
+         */
+        "entrancePageStyleSimple": string;
     };
     "_accountMigration": {
         /**
@@ -7117,9 +7573,8 @@ export interface Locale extends ILocale {
          */
         "moveFromLabel": ParameterizedString<"n">;
         /**
-         * 別のアカウントからこのアカウントに移行したい場合、ここでエイリアスを作成しておく必要があります。
-         * 移行元のアカウントをこのように入力してください: @username@server.example.com
-         * 削除するには、入力欄を空にして保存します（非推奨）。
+         * 移行前に、移行元のエイリアスを作成してください（@username@server.example.com）。
+         * 空欄で保存すると削除されます（非推奨）。
          */
         "moveFromDescription": string;
         /**
@@ -7135,20 +7590,13 @@ export interface Locale extends ILocale {
          */
         "moveCannotBeUndone": string;
         /**
-         * 新しいアカウントへ移行します。
-         * 　・フォロワーが新しいアカウントを自動でフォローします
-         * 　・このアカウントからのフォローは全て解除されます
-         * 　・このアカウントではノートの作成などができなくなります
-         *
-         * フォロワーの移行は自動ですが、フォローの移行は手動で行う必要があります。移行前にこのアカウントでフォローエクスポートし、移行後すぐに移行先アカウントでインポートを行なってください。
-         * リスト・ミュート・ブロックについても同様ですので、手動で移行する必要があります。
-         *
-         * （この説明はこのサーバー（Misskey v13.12.0以降）の仕様です。Mastodonなどの他のActivityPubソフトウェアでは挙動が異なる場合があります。）
+         * フォロワーは移行先を自動でフォローします。このアカウントは全フォローを解除し、ノート作成などができなくなります。
+         * 移行前にフォロー・リスト・ミュート・ブロックをエクスポートし、移行先でインポートしてください。
+         * Misskey v13.12.0以降の仕様です。Mastodonなど他のActivityPubソフトウェアでは異なる場合があります。
          */
         "moveAccountDescription": string;
         /**
-         * アカウントの移行には、まずは移行先のアカウントでこのアカウントに対しエイリアスを作成します。
-         * エイリアス作成後、移行先のアカウントを次のように入力してください: @username@server.example.com
+         * 移行先でこのアカウントのエイリアスを作成し、移行先を入力してください（@username@server.example.com）。
          */
         "moveAccountHowTo": string;
         /**
@@ -7156,7 +7604,7 @@ export interface Locale extends ILocale {
          */
         "startMigration": string;
         /**
-         * 本当にこのアカウントを {account} に移行しますか？一度移行すると取り消せず、二度とこのアカウントを元の状態で使用できなくなります。
+         * {account}に移行しますか？取り消しや、このアカウントを元の状態に戻すことはできません。
          */
         "migrationConfirm": ParameterizedString<"account">;
         /**
@@ -7166,8 +7614,7 @@ export interface Locale extends ILocale {
          */
         "movedAndCannotBeUndone": string;
         /**
-         * このアカウントからのフォロー解除は移行操作から24時間後に実行されます。
-         * このアカウントのフォロー・フォロワー数は0になっています。フォロワーの解除はされないため、あなたのフォロワーはこのアカウントのフォロワー向け投稿を引き続き閲覧できます。
+         * 移行後、フォロー・フォロワー数は0と表示され、24時間後に全フォローが解除されます。フォロワーは解除されず、フォロワー向け投稿を引き続き閲覧できます。
          */
         "postMigrationNote": string;
         /**
@@ -7181,6 +7628,66 @@ export interface Locale extends ILocale {
          */
         "earnedAt": string;
         "_types": {
+            "_checkin1": {
+                /**
+                 * はじめの一日
+                 */
+                "title": string;
+                /**
+                 * 初めて手動でチェックインした
+                 */
+                "description": string;
+            };
+            "_checkinStreak7": {
+                /**
+                 * 一週間の足あと
+                 */
+                "title": string;
+                /**
+                 * 7日連続でチェックインした
+                 */
+                "description": string;
+            };
+            "_checkinStreak30": {
+                /**
+                 * 毎日の習慣
+                 */
+                "title": string;
+                /**
+                 * 30日連続でチェックインした
+                 */
+                "description": string;
+            };
+            "_checkinTotal30": {
+                /**
+                 * 30日の記録
+                 */
+                "title": string;
+                /**
+                 * 累計30日チェックインした
+                 */
+                "description": string;
+            };
+            "_checkinTotal100": {
+                /**
+                 * 百日の足あと
+                 */
+                "title": string;
+                /**
+                 * 累計100日チェックインした
+                 */
+                "description": string;
+            };
+            "_checkinTotal365": {
+                /**
+                 * 一年分の思い出
+                 */
+                "title": string;
+                /**
+                 * 累計365日チェックインした
+                 */
+                "description": string;
+            };
             "_notes1": {
                 /**
                  * just setting up my msky
@@ -7589,7 +8096,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォローが10人を超した
+                 * フォロー数が10人に達した
                  */
                 "description": string;
             };
@@ -7599,7 +8106,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォローが50人を超した
+                 * フォロー数が50人に達した
                  */
                 "description": string;
             };
@@ -7609,7 +8116,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォローが100人を超した
+                 * フォロー数が100人に達した
                  */
                 "description": string;
             };
@@ -7619,7 +8126,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォローが300人を超した
+                 * フォロー数が300人に達した
                  */
                 "description": string;
             };
@@ -7639,7 +8146,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォロワーが10人を超した
+                 * フォロワー数が10人に達した
                  */
                 "description": string;
             };
@@ -7649,7 +8156,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォロワーが50人を超した
+                 * フォロワー数が50人に達した
                  */
                 "description": string;
             };
@@ -7659,7 +8166,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォロワーが100人を超した
+                 * フォロワー数が100人に達した
                  */
                 "description": string;
             };
@@ -7669,7 +8176,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォロワーが300人を超した
+                 * フォロワー数が300人に達した
                  */
                 "description": string;
             };
@@ -7679,7 +8186,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォロワーが500人を超した
+                 * フォロワー数が500人に達した
                  */
                 "description": string;
             };
@@ -7689,7 +8196,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * フォロワーが1,000人を超した
+                 * フォロワー数が1,000人に達した
                  */
                 "description": string;
             };
@@ -8029,6 +8536,14 @@ export interface Locale extends ILocale {
          */
         "new": string;
         /**
+         * 新しいロール
+         */
+        "newName": string;
+        /**
+         * アサイン日時
+         */
+        "assignedAt": string;
+        /**
          * ロールの編集
          */
         "edit": string;
@@ -8338,7 +8853,7 @@ export interface Locale extends ILocale {
              */
             "uploadableFileTypes_caption2": ParameterizedString<"x">;
             /**
-             * サーバーサイドのノートの下書きの作成可能数
+             * サーバー保存のノート下書き上限
              */
             "noteDraftLimit": string;
             /**
@@ -8428,6 +8943,10 @@ export interface Locale extends ILocale {
              */
             "not": string;
         };
+        /**
+         * 文字
+         */
+        "characters": string;
     };
     "_sensitiveMediaDetection": {
         /**
@@ -8459,7 +8978,7 @@ export interface Locale extends ILocale {
          */
         "analyzeVideosDescription": string;
         /**
-         * センシティブメディアの判定は外部サービス (sensitive-detector) に分離されました。この機能を利用するには、別途サイドカーサービスをセットアップし、下記の接続先を設定する必要があります。接続先が未設定の場合、判定は行われません (非センシティブ扱い)。
+         * sensitive-detector Sidecarの設置と接続先の設定が必要です。未設定時は判定せず、非センシティブとして扱います。
          */
         "externalServiceInfo": string;
         /**
@@ -8467,7 +8986,7 @@ export interface Locale extends ILocale {
          */
         "apiUrl": string;
         /**
-         * sensitive-detector サービスのベースURL (例: http://localhost:3009)。プライベートネットワーク上のサービスに接続する場合は、設定ファイルの allowedPrivateNetworks で接続先ネットワークを許可してください。プロキシを使用している場合は、proxyBypassHosts も設定してください。空欄の場合、センシティブ判定は行われません。
+         * sensitive-detectorのBase URL（例: http://localhost:3009）。設定ファイルのallowedPrivateNetworksで内部ネットワークを許可し、Proxy使用時はproxyBypassHostsも設定してください。空欄では判定しません。
          */
         "apiUrlDescription": string;
         /**
@@ -8491,7 +9010,7 @@ export interface Locale extends ILocale {
          */
         "maxImagesPerRequest": string;
         /**
-         * 動画など複数フレームを判定する際、1回のリクエストにまとめて送る画像の最大枚数です。これを超える分は分割して順次送信されます。sensitive-detector 側の maxParts 設定（デフォルト: 10）を超えないように設定してください。超えた場合、そのチャンクは全件非センシティブ扱いとなります。
+         * 1回に送る画像の上限です。超過分は分割送信します。sensitive-detectorのmaxParts（既定: 10）を超えると、そのバッチ全体が非センシティブ扱いになるため、超えない値にしてください。
          */
         "maxImagesPerRequestDescription": string;
     };
@@ -8541,6 +9060,14 @@ export interface Locale extends ILocale {
          */
         "almostThere": string;
         /**
+         * 1〜20文字の半角英数字とアンダースコア（_）を使えます。大文字・小文字を区別せず、サーバー内で一意の名前になります。
+         */
+        "usernameRules": string;
+        /**
+         * 表示名は最初はユーザー名と同じです。登録後、プロフィール設定で自由に変更できます。
+         */
+        "displayNameInfo": string;
+        /**
          * あなたが使っているメールアドレスを入力してください。メールアドレスが公開されることはありません。
          */
         "emailAddressInfo": string;
@@ -8581,6 +9108,10 @@ export interface Locale extends ILocale {
          */
         "back": string;
         /**
+         * 形状
+         */
+        "shape": string;
+        /**
          * この広告の表示頻度を下げる
          */
         "reduceFrequencyOfThisAd": string;
@@ -8597,7 +9128,7 @@ export interface Locale extends ILocale {
          */
         "adsSettings": string;
         /**
-         * リアルタイム更新中に広告を配信する間隔（ノートの個数）
+         * リアルタイム更新時の広告間隔（ノート数）
          */
         "notesPerOneAd": string;
         /**
@@ -8608,6 +9139,24 @@ export interface Locale extends ILocale {
          * 広告の配信間隔が極めて短いため、ユーザー体験が著しく損われる可能性があります。
          */
         "adsTooClose": string;
+        /**
+         * {host}の広告
+         */
+        "adsBy": ParameterizedString<"host">;
+    };
+    "_externalServices": {
+        /**
+         * 測定ID
+         */
+        "measurementId": string;
+        /**
+         * 認証キー
+         */
+        "authKey": string;
+        /**
+         * Proアカウント
+         */
+        "proAccount": string;
     };
     "_forgotPassword": {
         /**
@@ -8642,6 +9191,10 @@ export interface Locale extends ILocale {
         "unlike": string;
     };
     "_email": {
+        /**
+         * これはテスト配信です。
+         */
+        "testEmailBody": string;
         "_follow": {
             /**
              * フォローされました
@@ -8676,6 +9229,10 @@ export interface Locale extends ILocale {
          * ログを表示
          */
         "viewLog": string;
+        /**
+         * 「{name}」をアンインストールしますか？
+         */
+        "uninstallConfirm": ParameterizedString<"name">;
     };
     "_preferencesBackups": {
         /**
@@ -8814,6 +9371,10 @@ export interface Locale extends ILocale {
          * プロジェクトメンバー
          */
         "projectMembers": string;
+        /**
+         * スペシャルサンクス
+         */
+        "specialThanks": string;
     };
     "_displayOfSensitiveMedia": {
         /**
@@ -8857,6 +9418,36 @@ export interface Locale extends ILocale {
          */
         "quiet": string;
     };
+    "_channelPicker": {
+        /**
+         * 自分のチャンネル
+         */
+        "mine": string;
+        /**
+         * その他
+         */
+        "other": string;
+        /**
+         * チャンネル名で検索
+         */
+        "searchPlaceholder": string;
+        /**
+         * チャンネルを選択しない
+         */
+        "noChannel": string;
+        /**
+         * 投稿できるチャンネルが見つかりません
+         */
+        "empty": string;
+        /**
+         * チャンネルへの投稿は誰でも閲覧でき、このサーバー内でのみ公開されます。
+         */
+        "description": string;
+        /**
+         * この下書きは現在のチャンネルのものではありません。通常の投稿フォームから開いてください。
+         */
+        "draftChannelMismatch": string;
+    };
     "_channel": {
         /**
          * チャンネルを作成
@@ -8866,6 +9457,30 @@ export interface Locale extends ILocale {
          * チャンネルを編集
          */
         "edit": string;
+        /**
+         * ミュート
+         */
+        "mute": string;
+        /**
+         * ミュート解除
+         */
+        "unmute": string;
+        /**
+         * ミュートする期間
+         */
+        "mutePeriod": string;
+        /**
+         * カスタムカラー
+         */
+        "customColor": string;
+        /**
+         * ランダムに選択
+         */
+        "randomColor": string;
+        /**
+         * カラーコードの形式が正しくありません（例: #88cc00）
+         */
+        "invalidColor": string;
         /**
          * バナーを設定
          */
@@ -8938,6 +9553,10 @@ export interface Locale extends ILocale {
          * キーワードをスラッシュで囲むと正規表現になります。
          */
         "muteWordsDescription2": string;
+        /**
+         * {line}行目の正規表現にエラーがあります:
+         */
+        "invalidRegexp": ParameterizedString<"line">;
     };
     "_instanceMute": {
         /**
@@ -9393,7 +10012,7 @@ export interface Locale extends ILocale {
          */
         "step3Title": string;
         /**
-         * アプリに表示されている確認コード（トークン）を入力します。
+         * アプリに表示されている確認コードを入力して、設定を完了します。
          */
         "step3": string;
         /**
@@ -9695,7 +10314,7 @@ export interface Locale extends ILocale {
          */
         "write:admin:unset-user-avatar": string;
         /**
-         * ユーザーのバーナーを削除する
+         * ユーザーのバナーを削除する
          */
         "write:admin:unset-user-banner": string;
         /**
@@ -9941,6 +10560,36 @@ export interface Locale extends ILocale {
          */
         "saturday": string;
     };
+    "_weekdayShort": {
+        /**
+         * 日
+         */
+        "sunday": string;
+        /**
+         * 月
+         */
+        "monday": string;
+        /**
+         * 火
+         */
+        "tuesday": string;
+        /**
+         * 水
+         */
+        "wednesday": string;
+        /**
+         * 木
+         */
+        "thursday": string;
+        /**
+         * 金
+         */
+        "friday": string;
+        /**
+         * 土
+         */
+        "saturday": string;
+    };
     "_widgets": {
         /**
          * プロフィール
@@ -9954,6 +10603,18 @@ export interface Locale extends ILocale {
          * 付箋
          */
         "memo": string;
+        /**
+         * やることリスト
+         */
+        "todo": string;
+        /**
+         * ポモドーロタイマー
+         */
+        "pomodoro": string;
+        /**
+         * カウントダウン
+         */
+        "countdown": string;
         /**
          * 通知
          */
@@ -10065,6 +10726,120 @@ export interface Locale extends ILocale {
          */
         "chat": string;
     };
+    "_widgetTodo": {
+        /**
+         * やることを追加
+         */
+        "addTask": string;
+        /**
+         * やることはまだありません
+         */
+        "empty": string;
+        /**
+         * 残り {count} 件
+         */
+        "remaining": ParameterizedString<"count">;
+        /**
+         * 完了した項目を削除
+         */
+        "clearCompleted": string;
+        /**
+         * 項目を削除
+         */
+        "deleteTask": string;
+    };
+    "_widgetPomodoro": {
+        /**
+         * 集中
+         */
+        "focus": string;
+        /**
+         * 休憩
+         */
+        "rest": string;
+        /**
+         * 集中時間（分）
+         */
+        "focusDuration": string;
+        /**
+         * 休憩時間（分）
+         */
+        "restDuration": string;
+        /**
+         * 開始
+         */
+        "start": string;
+        /**
+         * 一時停止
+         */
+        "pause": string;
+        /**
+         * 再開
+         */
+        "resume": string;
+        /**
+         * リセット
+         */
+        "reset": string;
+        /**
+         * 完了しました
+         */
+        "completed": string;
+        /**
+         * 集中を始めましょう
+         */
+        "readyFocus": string;
+        /**
+         * ひと休みしましょう
+         */
+        "readyRest": string;
+        /**
+         * 集中しています
+         */
+        "focusing": string;
+        /**
+         * 休憩しています
+         */
+        "resting": string;
+        /**
+         * 一時停止中
+         */
+        "paused": string;
+    };
+    "_widgetCountdown": {
+        /**
+         * 予定の名前
+         */
+        "title": string;
+        /**
+         * 目標の日時
+         */
+        "targetDate": string;
+        /**
+         * カウントダウンを設定
+         */
+        "set": string;
+        /**
+         * カウントダウンを編集
+         */
+        "edit": string;
+        /**
+         * 楽しみにしている日時を設定しましょう
+         */
+        "empty": string;
+        /**
+         * 設定した日時になりました
+         */
+        "finished": string;
+        /**
+         * 有効な日時を選択してください
+         */
+        "invalidDate": string;
+        /**
+         * 現在より後の日時を指定してください。
+         */
+        "futureDateRequired": string;
+    };
     "_widgetOptions": {
         /**
          * ヘッダーを表示
@@ -10086,6 +10861,42 @@ export interface Locale extends ILocale {
         };
         "_clock": {
             /**
+             * 文字盤のスタイル
+             */
+            "design": string;
+            /**
+             * 軌道リング
+             */
+            "orbit": string;
+            /**
+             * HUD メーター
+             */
+            "hud": string;
+            /**
+             * 軌道サブダイヤル
+             */
+            "satellite": string;
+            /**
+             * リニアカーソル
+             */
+            "linear": string;
+            /**
+             * 横長デジタル
+             */
+            "digital": string;
+            /**
+             * 文字マトリクス
+             */
+            "words": string;
+            /**
+             * ja
+             */
+            "wordClockLayout": string;
+            /**
+             * 現在は静かな時午前午後夜の空零一二三四五六七八九十一二時零一二三四五十零一二三四五六七八九時刻分秒
+             */
+            "wordClockGrid": string;
+            /**
              * サイズ
              */
             "size": string;
@@ -10105,50 +10916,6 @@ export interface Locale extends ILocale {
              * 太い
              */
             "thicknessThick": string;
-            /**
-             * 文字盤の目盛り
-             */
-            "graduations": string;
-            /**
-             * ドット
-             */
-            "graduationDots": string;
-            /**
-             * アラビア数字
-             */
-            "graduationArabic": string;
-            /**
-             * 目盛りをフェード
-             */
-            "fadeGraduations": string;
-            /**
-             * 秒針のアニメーション
-             */
-            "sAnimation": string;
-            /**
-             * リアル
-             */
-            "sAnimationElastic": string;
-            /**
-             * 滑らか
-             */
-            "sAnimationEaseOut": string;
-            /**
-             * 24時間表示
-             */
-            "twentyFour": string;
-            /**
-             * 時刻
-             */
-            "labelTime": string;
-            /**
-             * タイムゾーン
-             */
-            "labelTz": string;
-            /**
-             * 時刻とタイムゾーン
-             */
-            "labelTimeAndTz": string;
             /**
              * タイムゾーン
              */
@@ -10204,6 +10971,22 @@ export interface Locale extends ILocale {
         };
     };
     "_cw": {
+        /**
+         * 内容は折りたたまれています
+         */
+        "contentHidden": string;
+        /**
+         * 内容を表示中
+         */
+        "contentShown": string;
+        /**
+         * 内容を表示
+         */
+        "showContent": string;
+        /**
+         * 内容を隠す
+         */
+        "hideContent": string;
         /**
          * 隠す
          */
@@ -10351,6 +11134,26 @@ export interface Locale extends ILocale {
     };
     "_postForm": {
         /**
+         * 内容を折りたたむ
+         */
+        "cwTitle": string;
+        /**
+         * 公開する概要を入力
+         */
+        "cwSummary": string;
+        /**
+         * 概要は表示され、本文は折りたたまれます
+         */
+        "cwHint": string;
+        /**
+         * 折りたたまれる本文
+         */
+        "cwBody": string;
+        /**
+         * 折りたたみを解除
+         */
+        "cwRemove": string;
+        /**
          * アップロードされていないファイルがありますが、破棄してフォームを閉じますか？
          */
         "quitInspiteOfThereAreUnuploadedFilesConfirm": string;
@@ -10374,6 +11177,14 @@ export interface Locale extends ILocale {
          * フォームの説明を表示
          */
         "showHowToUse": string;
+        /**
+         * 本文の下でのみ議論
+         */
+        "onlyDiscussUnderPost": string;
+        /**
+         * チェックボックスで議論内容の表示範囲を設定できます。議論内容は自動的に投稿として生成されサイト内で推薦されますが、「本文の下でのみ議論」をオンにすると、内容は現在の投稿の議論エリアにのみ表示されます。
+         */
+        "onlyDiscussUnderPostDescription": string;
         "_howToUse": {
             /**
              * 本文
@@ -10450,12 +11261,28 @@ export interface Locale extends ILocale {
              */
             "f": string;
         };
+        /**
+         * 選択したアカウントのTokenが見つかりません。ログインし直してください。
+         */
+        "accountTokenMissing": string;
+        /**
+         * 投稿
+         */
+        "post": string;
+        /**
+         * 公開先
+         */
+        "visibleUsers": string;
     };
     "_profile": {
         /**
          * 名前
          */
         "name": string;
+        /**
+         * 表示名は50文字までで、他の人と同じ名前も使えます。いつでも変更でき、空欄にするとユーザー名が表示されます。
+         */
+        "nameDescription": string;
         /**
          * ユーザー名
          */
@@ -10464,6 +11291,22 @@ export interface Locale extends ILocale {
          * 自己紹介
          */
         "description": string;
+        /**
+         * 会社・組織
+         */
+        "company": string;
+        /**
+         * 職種・役職
+         */
+        "jobTitle": string;
+        /**
+         * 会社や組織の名前
+         */
+        "companyPlaceholder": string;
+        /**
+         * 職種や役職を入力
+         */
+        "jobTitlePlaceholder": string;
         /**
          * ハッシュタグを含めることができます。
          */
@@ -10477,7 +11320,7 @@ export interface Locale extends ILocale {
          */
         "metadataEdit": string;
         /**
-         * プロフィールに表として追加情報を表示することができます。
+         * プロフィールに表形式で追加情報を表示できます。
          */
         "metadataDescription": string;
         /**
@@ -10555,7 +11398,7 @@ export interface Locale extends ILocale {
          */
         "excludeInactiveUsers": string;
         /**
-         * 返信をTLに含むかの情報がファイルにない場合に、インポートした人による返信をTLに含むようにする
+         * ファイルに指定がなければ返信もタイムラインに表示
          */
         "withReplies": string;
     };
@@ -10738,6 +11581,28 @@ export interface Locale extends ILocale {
          * 非公開に設定するとプロフィールに表示されなくなりますが、URLを知っている人は引き続きアクセスできます。
          */
         "visibilityDescription": string;
+        /**
+         * 新しいPlay
+         */
+        "defaultTitle": string;
+        /**
+         * プレビューする前に保存してください。
+         */
+        "saveBeforePreview": string;
+        "_presets": {
+            /**
+             * おみくじ
+             */
+            "omikuji": string;
+            /**
+             * クイズ
+             */
+            "quiz": string;
+            /**
+             * タイムラインビューア
+             */
+            "timeline": string;
+        };
     };
     "_pages": {
         /**
@@ -10928,6 +11793,10 @@ export interface Locale extends ILocale {
                 "detailed": string;
             };
         };
+        /**
+         * {title}（コピー）
+         */
+        "duplicateTitle": ParameterizedString<"title">;
     };
     "_relayStatus": {
         /**
@@ -10969,11 +11838,11 @@ export interface Locale extends ILocale {
          */
         "youWereFollowed": string;
         /**
-         * フォローリクエストが来ました
+         * フォロー申請が届きました
          */
         "youReceivedFollowRequest": string;
         /**
-         * フォローリクエストが承認されました
+         * フォロー申請が承認されました
          */
         "yourFollowRequestAccepted": string;
         /**
@@ -11149,6 +12018,10 @@ export interface Locale extends ILocale {
              * 連携アプリからの通知
              */
             "app": string;
+            /**
+             * システム
+             */
+            "system": string;
         };
         "_actions": {
             /**
@@ -11457,46 +12330,100 @@ export interface Locale extends ILocale {
     };
     "_abuseReport": {
         /**
-         * 通報の理由を選択
+         * 通報を送信
+         */
+        "submit": string;
+        /**
+         * 通報理由
          */
         "selectReason": string;
+        /**
+         * 通報内容
+         */
+        "reportedContent": string;
+        /**
+         * 通報の説明
+         */
+        "description": string;
+        /**
+         * 状況や問題点を補足してください（任意）
+         */
+        "descriptionHint": string;
+        /**
+         * 「その他の理由」を選択した場合は、具体的な問題点を入力してください（必須）
+         */
+        "otherDescriptionHint": string;
+        "_linkLabels": {
+            /**
+             * ローカルノート
+             */
+            "localNote": string;
+            /**
+             * ノート
+             */
+            "note": string;
+            /**
+             * ページ
+             */
+            "page": string;
+            /**
+             * ギャラリー投稿
+             */
+            "gallery": string;
+            /**
+             * Play
+             */
+            "play": string;
+            /**
+             * チャットメッセージ
+             */
+            "chat": string;
+        };
         "_reasons": {
             /**
              * 性的・わいせつな内容
              */
             "sexualContent": string;
             /**
-             * スパム・宣伝
+             * スパム・広告
              */
             "spam": string;
             /**
-             * 詐欺・フィッシング
+             * 詐欺・不正行為
              */
             "scam": string;
+            /**
+             * 暴力・危険行為
+             */
+            "violence": string;
             /**
              * 政治的に過激な内容
              */
             "sensitivePolitics": string;
             /**
-             * 誹謗中傷・人格攻撃
+             * 嫌がらせ・人格攻撃
              */
             "harassment": string;
             /**
-             * 差別・ヘイト表現
+             * ヘイトスピーチ・差別
              */
             "hateSpeech": string;
             /**
-             * 対立の煽動・荒らし
+             * 対立の煽動・秩序の妨害
              */
             "inciting": string;
             /**
-             * プライバシーの侵害
+             * 個人情報の漏えい
              */
             "privacyViolation": string;
             /**
              * なりすまし
              */
             "impersonation": string;
+            /**
+             * 虚偽情報
+             */
+            "misinformation": string;
             /**
              * 著作権・肖像権の侵害
              */
@@ -11770,6 +12697,14 @@ export interface Locale extends ILocale {
          * プロキシアカウントの説明を更新
          */
         "updateProxyAccountDescription": string;
+        /**
+         * チェックインの補填カードを付与
+         */
+        "grantCheckinCards": string;
+        /**
+         * チェックインの補填カードを回収
+         */
+        "revokeCheckinCards": string;
     };
     "_fileViewer": {
         /**
@@ -11980,7 +12915,7 @@ export interface Locale extends ILocale {
              */
             "title": string;
             /**
-             * MFMなどでコードハイライト記法が使われている場合、タップするまで読み込まれなくなります。コードハイライトではハイライトする言語ごとにその定義ファイルを読み込む必要がありますが、それらが自動で読み込まれなくなるため、通信量の削減が見込めます。
+             * MFMなどのコードハイライトをタップ時に読み込みます。言語定義ファイルの自動ダウンロードを減らし、通信量を節約します。
              */
             "description": string;
         };
@@ -12069,11 +13004,11 @@ export interface Locale extends ILocale {
          */
         "surrender": string;
         /**
-         * 投了により
+         * 相手の投了
          */
         "surrendered": string;
         /**
-         * 時間切れ
+         * 相手の時間切れ
          */
         "timeout": string;
         /**
@@ -12172,16 +13107,138 @@ export interface Locale extends ILocale {
          * 石をアイコンにする
          */
         "useAvatarAsStone": string;
+        "_maps": {
+            /**
+             * {size} 角丸
+             */
+            "rounded": ParameterizedString<"size">;
+            /**
+             * {size} 角丸 {variant}
+             */
+            "roundedVariant": ParameterizedString<"size" | "variant">;
+            /**
+             * {size} ハンデ {stones}枚
+             */
+            "handicap": ParameterizedString<"size" | "stones">;
+            /**
+             * 8x8 切り欠き
+             */
+            "withNotch": string;
+            /**
+             * 8x8 穴あき
+             */
+            "withHoles": string;
+            /**
+             * 円
+             */
+            "circle": string;
+            /**
+             * 笑顔
+             */
+            "smile": string;
+            /**
+             * 窓
+             */
+            "window": string;
+            /**
+             * 予約席
+             */
+            "reserved": string;
+            /**
+             * 平行
+             */
+            "parallel": string;
+            /**
+             * 黒石なし
+             */
+            "lackOfBlack": string;
+            /**
+             * 四角パーティー
+             */
+            "squareParty": string;
+            /**
+             * マインスイーパー
+             */
+            "minesweeper": string;
+            /**
+             * 大きな穴
+             */
+            "hole": string;
+            /**
+             * 格子
+             */
+            "grid": string;
+            /**
+             * 十字
+             */
+            "cross": string;
+            /**
+             * 文字 {letter}
+             */
+            "letter": ParameterizedString<"letter">;
+            /**
+             * 壁
+             */
+            "walls": string;
+            /**
+             * 市松模様
+             */
+            "checker": string;
+            /**
+             * 日本のカレー
+             */
+            "japaneseCurry": string;
+            /**
+             * モザイク
+             */
+            "mosaic": string;
+            /**
+             * アリーナ
+             */
+            "arena": string;
+            /**
+             * リアクター
+             */
+            "reactor": string;
+            /**
+             * 火花
+             */
+            "spark": string;
+            /**
+             * 島々
+             */
+            "islands": string;
+            /**
+             * 銀河
+             */
+            "galaxy": string;
+            /**
+             * 三角形
+             */
+            "triangle": string;
+            /**
+             * 2つの盤面
+             */
+            "twoBoard": string;
+        };
+        /**
+         * 特殊
+         */
+        "specialMaps": string;
     };
     "_offlineScreen": {
         /**
-         * オフライン - サーバーに接続できません
+         * サーバーに接続できません
          */
         "title": string;
         /**
-         * サーバーに接続できません
+         * ただいまサーバーに接続できません
          */
         "header": string;
+        /**
+         * ネットワーク接続をご確認ください。解決しない場合は、しばらく時間を置いてから再度お試しください。
+         */
+        "description": string;
     };
     "_urlPreviewSetting": {
         /**
@@ -12247,6 +13304,38 @@ export interface Locale extends ILocale {
     };
     "_mediaControls": {
         /**
+         * メディアを読み込めませんでした。再試行してください。
+         */
+        "loadFailed": string;
+        /**
+         * 全画面表示
+         */
+        "enterFullscreen": string;
+        /**
+         * 全画面表示を終了
+         */
+        "exitFullscreen": string;
+        /**
+         * ブラウザー内で全画面表示
+         */
+        "enterWebFullscreen": string;
+        /**
+         * ブラウザー内の全画面表示を終了
+         */
+        "exitWebFullscreen": string;
+        /**
+         * 再生
+         */
+        "play": string;
+        /**
+         * 一時停止
+         */
+        "pause": string;
+        /**
+         * 再生位置
+         */
+        "seek": string;
+        /**
          * ピクチャインピクチャ
          */
         "pip": string;
@@ -12258,6 +13347,170 @@ export interface Locale extends ILocale {
          * ループ再生
          */
         "loop": string;
+        /**
+         * {percent}% 読み込み済み
+         */
+        "buffered": ParameterizedString<"percent">;
+        /**
+         * ミュート
+         */
+        "mute": string;
+        /**
+         * ミュート解除
+         */
+        "unmute": string;
+    };
+    "_topics": {
+        /**
+         * トピック
+         */
+        "title": string;
+        /**
+         * トピックを追加
+         */
+        "add": string;
+        /**
+         * トピックを検索・入力
+         */
+        "search": string;
+        /**
+         * 最近使ったトピック
+         */
+        "recent": string;
+        /**
+         * 人気のトピック
+         */
+        "trending": string;
+        /**
+         * 検索結果
+         */
+        "results": string;
+        /**
+         * 一致するトピックがありません
+         */
+        "empty": string;
+        /**
+         * 「{tag}」を使う
+         */
+        "create": ParameterizedString<"tag">;
+        /**
+         * 追加済み
+         */
+        "selected": string;
+        /**
+         * トピック「{tag}」を削除
+         */
+        "remove": ParameterizedString<"tag">;
+        /**
+         * 既存のトピックを選ぶか、新しく入力してEnterで追加
+         */
+        "hint": string;
+        /**
+         * 空白や特殊文字は使えません。128文字以内で入力してください
+         */
+        "invalid": string;
+        /**
+         * トピックは32個まで追加できます
+         */
+        "limit": string;
+        /**
+         * トピックは1つまで追加できます。変更するには現在のトピックを削除してください
+         */
+        "singleLimit": string;
+        /**
+         * 検索できませんでした。再試行するか、そのまま追加できます
+         */
+        "searchFailed": string;
+        /**
+         * 再試行
+         */
+        "retry": string;
+    };
+    "_share": {
+        /**
+         * コピー済み
+         */
+        "copied": string;
+        /**
+         * その他のアプリで共有
+         */
+        "system": string;
+        /**
+         * 共有先
+         */
+        "shareTo": string;
+        /**
+         * WeChat
+         */
+        "wechat": string;
+        /**
+         * QQ
+         */
+        "qq": string;
+        /**
+         * QQ空間
+         */
+        "qzone": string;
+        /**
+         * Weibo
+         */
+        "weibo": string;
+        /**
+         * X
+         */
+        "x": string;
+        /**
+         * Telegram
+         */
+        "telegram": string;
+        /**
+         * Facebook
+         */
+        "facebook": string;
+        /**
+         * WhatsApp
+         */
+        "whatsapp": string;
+        /**
+         * QRコード
+         */
+        "qrCode": string;
+        /**
+         * このコードをスキャンしてリンクを開けます。
+         */
+        "qrCodeDescription": string;
+        /**
+         * WeChatでこのコードをスキャンしてください。画像を保存して共有することもできます。
+         */
+        "wechatDescription": string;
+        /**
+         * QRコードを保存
+         */
+        "saveQrCode": string;
+        /**
+         * QRコードを作成できませんでした。リンクをコピーするか、もう一度お試しください。
+         */
+        "qrCodeFailed": string;
+        /**
+         * QRコードを保存できませんでした。もう一度お試しください。
+         */
+        "saveQrCodeFailed": string;
+        /**
+         * 内容をコピーできませんでした。もう一度お試しください。
+         */
+        "copyContentFailed": string;
+        /**
+         * リンクをコピーできませんでした。リンクを選択してコピーしてください。
+         */
+        "copyFailed": string;
+        /**
+         * 共有できませんでした。リンクをコピーするか、別の方法をお試しください。
+         */
+        "shareFailed": string;
+        /**
+         * このノートの公開範囲は制限されています。リンクを共有しても、閲覧できる人は変わりません。
+         */
+        "restrictedNote": string;
     };
     "_contextMenu": {
         /**
@@ -12330,6 +13583,18 @@ export interface Locale extends ILocale {
              */
             "searchSettingCaption": string;
             /**
+             * エイリアス
+             */
+            "aliases": string;
+            /**
+             * 更新日時（開始）
+             */
+            "updatedAtFrom": string;
+            /**
+             * 更新日時（終了）
+             */
+            "updatedAtTo": string;
+            /**
              * 表示件数
              */
             "searchLimit": string;
@@ -12351,6 +13616,14 @@ export interface Locale extends ILocale {
             "alertEmojisRegisterFailedDescription": string;
         };
         "_logs": {
+            /**
+             * 失敗
+             */
+            "failed": string;
+            /**
+             * ログ
+             */
+            "log": string;
             /**
              * 成功ログを表示
              */
@@ -12481,6 +13754,34 @@ export interface Locale extends ILocale {
                 "confirmUploadEmojisDescription": ParameterizedString<"count">;
             };
         };
+        /**
+         * 選択モード
+         */
+        "selectMode": string;
+        /**
+         * すべて選択
+         */
+        "selectAll": string;
+        /**
+         * カテゴリを設定
+         */
+        "setCategory": string;
+        /**
+         * エイリアスを設定
+         */
+        "setAliases": string;
+        /**
+         * エイリアスを追加
+         */
+        "addAliases": string;
+        /**
+         * エイリアスを削除
+         */
+        "removeAliases": string;
+        /**
+         * ライセンスを設定
+         */
+        "setLicense": string;
     };
     "_embedCodeGen": {
         /**
@@ -12716,6 +14017,10 @@ export interface Locale extends ILocale {
     };
     "_search": {
         /**
+         * キーワードで検索
+         */
+        "placeholder": string;
+        /**
          * 全て
          */
         "searchScopeAll": string;
@@ -12919,6 +14224,14 @@ export interface Locale extends ILocale {
              */
             "text3": string;
         };
+        /**
+         * サーバー設定ウィザード
+         */
+        "title": string;
+        /**
+         * Misskeyへようこそ！
+         */
+        "welcome": string;
     };
     "_uploader": {
         /**
@@ -13355,6 +14668,18 @@ export interface Locale extends ILocale {
              */
             "circle": string;
         };
+        /**
+         * 適用前
+         */
+        "before": string;
+        /**
+         * 適用後
+         */
+        "after": string;
+        /**
+         * キャプションの例
+         */
+        "exampleCaption": string;
     };
     /**
      * 下書き
@@ -13432,6 +14757,14 @@ export interface Locale extends ILocale {
     "qr": string;
     "_qr": {
         /**
+         * ユーザーのQRコードを表示
+         */
+        "showUser": string;
+        /**
+         * Fediverseのユーザープロフィール
+         */
+        "userShareText": string;
+        /**
          * 表示
          */
         "showTabTitle": string;
@@ -13487,5 +14820,1729 @@ export interface Locale extends ILocale {
          * MFM
          */
         "mfm": string;
+    };
+    "_dashboard": {
+        /**
+         * ヒートマップ
+         */
+        "heatmap": string;
+        /**
+         * アクティブユーザーのヒートマップ
+         */
+        "activeUsersHeatmap": string;
+        /**
+         * 継続率
+         */
+        "retentionRate": string;
+        /**
+         * 継続ユーザー
+         */
+        "retained": string;
+        /**
+         * フォロー・フォロワー
+         */
+        "followsAndFollowers": string;
+        /**
+         * モデレーター
+         */
+        "moderators": string;
+        /**
+         * 新規ユーザー
+         */
+        "newUsers": string;
+        /**
+         * APリクエスト
+         */
+        "apRequests": string;
+        /**
+         * 配送キュー
+         */
+        "deliverQueue": string;
+        /**
+         * 受信キュー
+         */
+        "inboxQueue": string;
+        /**
+         * 経過日数
+         */
+        "daysLater": string;
+        /**
+         * {n}日後
+         */
+        "nDaysLater": ParameterizedString<"n">;
+        /**
+         * 継続率 (%)
+         */
+        "retentionRateAxis": string;
+        /**
+         * 割合上位{n}サーバー
+         */
+        "topN": ParameterizedString<"n">;
+        /**
+         * 閲覧
+         */
+        "read": string;
+        /**
+         * 投稿
+         */
+        "write": string;
+        /**
+         * 送信: 成功
+         */
+        "apOutSucceeded": string;
+        /**
+         * 送信: 失敗
+         */
+        "apOutFailed": string;
+        /**
+         * 受信
+         */
+        "apIn": string;
+        /**
+         * APリクエスト: 受信
+         */
+        "apRequestsInboxReceived": string;
+        /**
+         * APリクエスト: 配送成功
+         */
+        "apRequestsDeliverSucceeded": string;
+        /**
+         * APリクエスト: 配送失敗
+         */
+        "apRequestsDeliverFailed": string;
+    };
+    "_queue": {
+        /**
+         * すべて
+         */
+        "all": string;
+        /**
+         * ジョブ情報
+         */
+        "info": string;
+        /**
+         * 実行履歴
+         */
+        "timeline": string;
+        /**
+         * エラー
+         */
+        "error": string;
+        /**
+         * ログ
+         */
+        "logs": string;
+        /**
+         * ジョブオプション
+         */
+        "options": string;
+        /**
+         * 作成日時
+         */
+        "createdAt": string;
+        /**
+         * ジョブを削除
+         */
+        "removeJob": string;
+        /**
+         * データを更新
+         */
+        "updateData": string;
+        /**
+         * 処理
+         */
+        "process": string;
+        /**
+         * 実行中
+         */
+        "active": string;
+        /**
+         * 遅延実行待ち
+         */
+        "delayed": string;
+        /**
+         * 待機中
+         */
+        "waiting": string;
+        /**
+         * 完了
+         */
+        "completed": string;
+        /**
+         * 失敗
+         */
+        "failed": string;
+        /**
+         * 最新
+         */
+        "latest": string;
+        /**
+         * 概要: {name}
+         */
+        "overviewOf": ParameterizedString<"name">;
+        /**
+         * ジョブ: {name}
+         */
+        "jobsOf": ParameterizedString<"name">;
+        /**
+         * 実行中: {active} / 遅延実行待ち: {delayed} / 待機中: {waiting}
+         */
+        "counts": ParameterizedString<"active" | "delayed" | "waiting">;
+        /**
+         * 繰り返し
+         */
+        "repeat": string;
+        "_types": {
+            /**
+             * システム
+             */
+            "system": string;
+            /**
+             * アンケート終了通知
+             */
+            "endedPollNotification": string;
+            /**
+             * ノートの予約投稿
+             */
+            "postScheduledNote": string;
+            /**
+             * 配送
+             */
+            "deliver": string;
+            /**
+             * 受信
+             */
+            "inbox": string;
+            /**
+             * データベース
+             */
+            "db": string;
+            /**
+             * フォロー関係
+             */
+            "relationship": string;
+            /**
+             * オブジェクトストレージ
+             */
+            "objectStorage": string;
+            /**
+             * ユーザーWebhook配信
+             */
+            "userWebhookDeliver": string;
+            /**
+             * システムWebhook配信
+             */
+            "systemWebhookDeliver": string;
+        };
+        /**
+         * すべての遅延ジョブを今すぐ実行
+         */
+        "promoteAllJobs": string;
+        /**
+         * このジョブを今すぐ実行
+         */
+        "promoteJob": string;
+        /**
+         * 配送
+         */
+        "deliver": string;
+        /**
+         * 受信
+         */
+        "inbox": string;
+        /**
+         * キューを再開
+         */
+        "resumeQueue": string;
+        /**
+         * キューを一時停止
+         */
+        "pauseQueue": string;
+        /**
+         * キューを空にする
+         */
+        "emptyQueue": string;
+        /**
+         * 表示を更新
+         */
+        "refreshView": string;
+        /**
+         * ジョブを削除
+         */
+        "removeJobs": string;
+        /**
+         * エラーが発生したサーバー
+         */
+        "erroredInstances": string;
+        /**
+         * {n}件のジョブ
+         */
+        "nJobs": ParameterizedString<"n">;
+        /**
+         * 接続中のクライアント
+         */
+        "clientsConnected": string;
+        /**
+         * ブロック中のクライアント
+         */
+        "clientsBlocked": string;
+        /**
+         * メモリ: ピーク
+         */
+        "memoryPeak": string;
+        /**
+         * メモリ: 合計
+         */
+        "memoryTotal": string;
+        /**
+         * メモリ: 使用中
+         */
+        "memoryUsed": string;
+        /**
+         * 稼働時間
+         */
+        "uptime": string;
+        /**
+         * 処理日時
+         */
+        "processedAt": string;
+        /**
+         * 完了日時
+         */
+        "finishedAt": string;
+        /**
+         * 所要時間
+         */
+        "spent": string;
+        /**
+         * 失敗した理由
+         */
+        "failedReason": string;
+        /**
+         * 試行回数
+         */
+        "attempts": string;
+        /**
+         * {current}/{max}回
+         */
+        "attemptsOf": ParameterizedString<"current" | "max">;
+        /**
+         * 進捗
+         */
+        "progress": string;
+        /**
+         * データ
+         */
+        "data": string;
+        /**
+         * データ (編集)
+         */
+        "dataEdit": string;
+        /**
+         * 結果
+         */
+        "result": string;
+        /**
+         * 生データをコピー
+         */
+        "copyRaw": string;
+        /**
+         * ログを読み込む
+         */
+        "loadLogs": string;
+        /**
+         * 完了
+         */
+        "eventFinished": string;
+        /**
+         * 処理開始
+         */
+        "eventProcessed": string;
+        /**
+         * 試行 #{n}
+         */
+        "eventAttempt": ParameterizedString<"n">;
+        /**
+         * 作成
+         */
+        "eventCreated": string;
+        /**
+         * 日時
+         */
+        "atTime": string;
+    };
+    "_instanceStatus": {
+        /**
+         * 正常
+         */
+        "alive": string;
+        /**
+         * サイレンス中
+         */
+        "silenced": string;
+        /**
+         * 手動で配信停止
+         */
+        "manuallySuspended": string;
+        /**
+         * 自動で配信停止 (消滅)
+         */
+        "autoSuspendedGone": string;
+        /**
+         * 自動で配信停止 (応答なし)
+         */
+        "autoSuspendedNotResponding": string;
+    };
+    "_chartSeries": {
+        /**
+         * 受信したサーバー
+         */
+        "federationReceived": string;
+        /**
+         * 配送成功したサーバー
+         */
+        "federationDelivered": string;
+        /**
+         * 配送失敗したサーバー
+         */
+        "federationStalled": string;
+        /**
+         * 配送先
+         */
+        "federationPub": string;
+        /**
+         * 購読先
+         */
+        "federationSub": string;
+        /**
+         * 配送先 (稼働中)
+         */
+        "federationPubActive": string;
+        /**
+         * 購読先 (稼働中)
+         */
+        "federationSubActive": string;
+        /**
+         * 相互
+         */
+        "federationPubSub": string;
+        /**
+         * ローカル+リモート
+         */
+        "combined": string;
+        /**
+         * 通常のノート
+         */
+        "notesNormal": string;
+        /**
+         * ファイル付き
+         */
+        "notesWithFile": string;
+        /**
+         * 閲覧と投稿
+         */
+        "activeReadWrite": string;
+        /**
+         * 登録1週間以内
+         */
+        "activeRegisteredWithinWeek": string;
+        /**
+         * 登録1ヶ月以内
+         */
+        "activeRegisteredWithinMonth": string;
+        /**
+         * 登録1年以内
+         */
+        "activeRegisteredWithinYear": string;
+        /**
+         * 登録1週間以上
+         */
+        "activeRegisteredOutsideWeek": string;
+        /**
+         * 登録1ヶ月以上
+         */
+        "activeRegisteredOutsideMonth": string;
+        /**
+         * 登録1年以上
+         */
+        "activeRegisteredOutsideYear": string;
+        /**
+         * フォロー (ローカル)
+         */
+        "followLocal": string;
+        /**
+         * フォロー (リモート)
+         */
+        "followRemote": string;
+        /**
+         * フォロワー (ローカル)
+         */
+        "followedLocal": string;
+        /**
+         * フォロワー (リモート)
+         */
+        "followedRemote": string;
+        /**
+         * ローカル: 増加
+         */
+        "localInc": string;
+        /**
+         * ローカル: 減少
+         */
+        "localDec": string;
+        /**
+         * リモート: 増加
+         */
+        "remoteInc": string;
+        /**
+         * リモート: 減少
+         */
+        "remoteDec": string;
+        /**
+         * 増加
+         */
+        "inc": string;
+        /**
+         * 減少
+         */
+        "dec": string;
+        /**
+         * ファイル数
+         */
+        "driveFiles": string;
+        /**
+         * ユニーク閲覧数 (ログインユーザー)
+         */
+        "uniquePvUser": string;
+        /**
+         * 閲覧数 (ログインユーザー)
+         */
+        "pvUser": string;
+        /**
+         * ユニーク閲覧数 (ゲスト)
+         */
+        "uniquePvVisitor": string;
+        /**
+         * 閲覧数 (ゲスト)
+         */
+        "pvVisitor": string;
+        /**
+         * ユニーク閲覧数 / 総閲覧数
+         */
+        "profileViews": string;
+    };
+    /**
+     * 無効なURLです
+     */
+    "invalidUrl": string;
+    "_apiConsole": {
+        /**
+         * APIコンソール
+         */
+        "title": string;
+        /**
+         * パラメーター（JSON / JSON5）
+         */
+        "parameters": string;
+        /**
+         * 認証情報を付与
+         */
+        "withCredential": string;
+        /**
+         * レスポンス
+         */
+        "response": string;
+    };
+    "_aiscript": {
+        /**
+         * 構文エラー
+         */
+        "syntaxError": string;
+        /**
+         * AiScript内部エラー
+         */
+        "internalError": string;
+        /**
+         * AiScriptエラー
+         */
+        "runtimeError": string;
+        /**
+         * 実行
+         */
+        "run": string;
+    };
+    "_serverStats": {
+        /**
+         * 論理コア数: {n}
+         */
+        "logicalCores": ParameterizedString<"n">;
+        /**
+         * 空き容量
+         */
+        "free": string;
+    };
+    /**
+     * GitHubでソースコードを見る
+     */
+    "viewSourceOnGitHub": string;
+    "_userStatus": {
+        /**
+         * 凍結中
+         */
+        "suspended": string;
+        /**
+         * サイレンス中
+         */
+        "silenced": string;
+    };
+    "_adminUser": {
+        /**
+         * 表示日時は、このIPアドレスを初めて記録した日時です。
+         */
+        "ipFirstSeenDescription": string;
+        /**
+         * 入力したユーザー名が一致しません。
+         */
+        "confirmationMismatch": string;
+    };
+    "_statusbar": {
+        /**
+         * 背景を黒にする
+         */
+        "blackBackground": string;
+        /**
+         * ニュース
+         */
+        "news": string;
+        /**
+         * リストタイムライン
+         */
+        "listTimeline": string;
+    };
+    "_avatarDecoration": {
+        /**
+         * デコレーションを追加
+         */
+        "new": string;
+    };
+    "_instanceInfo": {
+        /**
+         * メタデータを更新
+         */
+        "refreshMetadata": string;
+        /**
+         * 更新をリクエストしました
+         */
+        "refreshRequested": string;
+    };
+    "_lookup": {
+        /**
+         * ユーザーまたはノートのリンクを指定してください。
+         */
+        "unsupportedType": string;
+    };
+    /**
+     * ロールが見つかりません
+     */
+    "roleNotFound": string;
+    "_emojiCategories": {
+        /**
+         * 顔と感情
+         */
+        "face": string;
+        /**
+         * 人と身体
+         */
+        "people": string;
+        /**
+         * 動物と自然
+         */
+        "animals_and_nature": string;
+        /**
+         * 食べ物と飲み物
+         */
+        "food_and_drink": string;
+        /**
+         * 活動
+         */
+        "activity": string;
+        /**
+         * 旅行と場所
+         */
+        "travel_and_places": string;
+        /**
+         * 物
+         */
+        "objects": string;
+        /**
+         * 記号
+         */
+        "symbols": string;
+        /**
+         * 旗
+         */
+        "flags": string;
+    };
+    "_preview": {
+        /**
+         * メニューを開く
+         */
+        "openMenu": string;
+        /**
+         * ダイアログを開く
+         */
+        "openDialog": string;
+        /**
+         * フォームを開く
+         */
+        "openForm": string;
+        /**
+         * ドライブを開く
+         */
+        "openDrive": string;
+    };
+    "_welcome": {
+        /**
+         * ご登録ありがとうございます！
+         */
+        "title": string;
+        /**
+         * コミュニティへようこそ。投稿を始める前に、サーバールールや使い方、困ったときの相談先をご確認ください。
+         */
+        "notificationBody": string;
+        /**
+         * 歓迎メッセージを読む
+         */
+        "readGuide": string;
+        /**
+         * {name}へようこそ！
+         */
+        "greeting": ParameterizedString<"name">;
+        /**
+         * ご参加いただきありがとうございます。気になる話題を見つけたり、日々の出来事を共有したり、あなたのペースで交流をお楽しみください。安心してご利用いただくために、まずはサーバールールと使い方をご確認ください。わからないことがあれば、ヘルプから運営者の連絡先をご確認いただけます。
+         */
+        "introduction": string;
+        /**
+         * 使い方ガイド
+         */
+        "userGuide": string;
+        /**
+         * このメッセージはシステムから自動送信されました。返信には対応していません。
+         */
+        "systemNote": string;
+    };
+    "_checkin": {
+        /**
+         * 補填カードを付与
+         */
+        "grantCards": string;
+        /**
+         * ローカルユーザーを選択し、付与する枚数を入力してください。カードは即時反映され、操作は管理ログに記録されます。
+         */
+        "grantDescription": string;
+        /**
+         * ユーザーのチェックイン残高を読み込めませんでした。もう一度お試しください。
+         */
+        "grantLoadFailed": string;
+        /**
+         * カード配布の概要
+         */
+        "grantOverview": string;
+        /**
+         * 累計付与枚数
+         */
+        "grantTotal": string;
+        /**
+         * 付与されたユーザー
+         */
+        "grantRecipients": string;
+        /**
+         * 累計使用枚数
+         */
+        "cardsUsed": string;
+        /**
+         * 現在の所持枚数
+         */
+        "cardsHeld": string;
+        /**
+         * ポイント交換枚数
+         */
+        "cardsExchanged": string;
+        /**
+         * 使用枚数には、チェックイン報酬・ポイント交換・管理者からの配布によるすべての補填カードを含みます。
+         */
+        "cardsUsageDescription": string;
+        /**
+         * 付与履歴
+         */
+        "grantHistory": string;
+        /**
+         * 統計を読み込めませんでした。もう一度お試しください。
+         */
+        "grantDashboardLoadFailed": string;
+        /**
+         * 履歴を読み込めませんでした。もう一度お試しください。
+         */
+        "grantHistoryLoadFailed": string;
+        /**
+         * すべてのユーザー
+         */
+        "grantScopeAll": string;
+        /**
+         * 選択中のユーザー
+         */
+        "grantScopeSelected": string;
+        /**
+         * 受け取ったユーザー
+         */
+        "grantRecipient": string;
+        /**
+         * 付与した管理者
+         */
+        "grantOperator": string;
+        /**
+         * 所持枚数の変化
+         */
+        "grantBalanceChange": string;
+        /**
+         * 付与日時
+         */
+        "grantTime": string;
+        /**
+         * 付与回数
+         */
+        "grantCount": string;
+        /**
+         * 使用したユーザー数
+         */
+        "cardsUsedUsers": string;
+        /**
+         * 使用履歴
+         */
+        "cardUseHistory": string;
+        /**
+         * 交換履歴
+         */
+        "cardExchangeHistory": string;
+        /**
+         * ユーザー統計
+         */
+        "cardUsers": string;
+        /**
+         * 補填カード枚数
+         */
+        "cardsAmount": string;
+        /**
+         * 補填した日付
+         */
+        "cardUseDate": string;
+        /**
+         * 消費ポイント
+         */
+        "cardPointsSpent": string;
+        /**
+         * 記録がありません
+         */
+        "grantRecordsEmpty": string;
+        /**
+         * {current} / {total}ページ
+         */
+        "grantPage": ParameterizedString<"current" | "total">;
+        /**
+         * 前のページ
+         */
+        "grantPreviousPage": string;
+        /**
+         * 次のページ
+         */
+        "grantNextPage": string;
+        /**
+         * 付与する枚数
+         */
+        "grantAmount": string;
+        /**
+         * 1回につき1〜10,000枚を付与できます。
+         */
+        "grantAmountDescription": string;
+        /**
+         * 補填カードを{amount}枚付与しました。
+         */
+        "grantSucceeded": ParameterizedString<"amount">;
+        /**
+         * 補填カードを付与できませんでした。もう一度お試しください。
+         */
+        "grantFailed": string;
+        /**
+         * このユーザーには補填カードを付与できません。ローカルの通常アカウントを選択してください。
+         */
+        "grantNotAllowed": string;
+        /**
+         * 補填カードの所持上限を超えるため、付与できません。
+         */
+        "cardLimitExceeded": string;
+        /**
+         * {amount}枚を付与（所持数：{before}枚 → {after}枚）
+         */
+        "grantLogSummary": ParameterizedString<"amount" | "before" | "after">;
+        /**
+         * {amount}枚を回収（所持数：{before}枚 → {after}枚）
+         */
+        "revokeLogSummary": ParameterizedString<"amount" | "before" | "after">;
+        /**
+         * 使用状況
+         */
+        "grantUsageStatus": string;
+        /**
+         * 未使用
+         */
+        "grantUnused": string;
+        /**
+         * 一部使用済み
+         */
+        "grantPartiallyUsed": string;
+        /**
+         * 使用済み
+         */
+        "grantUsed": string;
+        /**
+         * 回収済み
+         */
+        "grantRevoked": string;
+        /**
+         * 過去の記録（追跡不可）
+         */
+        "grantLegacy": string;
+        /**
+         * 回収可能
+         */
+        "grantRemaining": string;
+        /**
+         * 使用済み
+         */
+        "grantUsedAmount": string;
+        /**
+         * 回収済み
+         */
+        "grantRevokedAmount": string;
+        /**
+         * 補填カードを回収
+         */
+        "revokeCards": string;
+        /**
+         * @{username}の未使用カード{amount}枚を回収しますか？使用済みのカードには影響しません。
+         */
+        "revokeCardsConfirm": ParameterizedString<"username" | "amount">;
+        /**
+         * 補填カードを{amount}枚回収しました。
+         */
+        "revokeCardsSucceeded": ParameterizedString<"amount">;
+        /**
+         * 補填カードを回収できませんでした。もう一度お試しください。
+         */
+        "revokeCardsFailed": string;
+        /**
+         * これらのカードは使用または回収されています。更新してもう一度お試しください。
+         */
+        "revokeCardsUnavailable": string;
+        /**
+         * 過去の付与記録は具体的な使用状況を確認できないため、回収できません。
+         */
+        "grantLegacyDescription": string;
+        "_history": {
+            /**
+             * 自分の補填カード履歴
+             */
+            "title": string;
+            /**
+             * 獲得履歴
+             */
+            "earned": string;
+            /**
+             * 交換履歴
+             */
+            "exchange": string;
+            /**
+             * 使用履歴
+             */
+            "use": string;
+            /**
+             * 入手方法
+             */
+            "source": string;
+            /**
+             * 枚数
+             */
+            "amount": string;
+            /**
+             * 日時
+             */
+            "createdAt": string;
+            /**
+             * 補填した日付
+             */
+            "makeupDate": string;
+            /**
+             * 消費ポイント
+             */
+            "pointsSpent": string;
+            /**
+             * 使用済み
+             */
+            "used": string;
+            /**
+             * 残り
+             */
+            "remaining": string;
+            /**
+             * 回収済み
+             */
+            "revoked": string;
+            /**
+             * 管理者からの配布
+             */
+            "sourceAdmin": string;
+            /**
+             * ポイント交換
+             */
+            "sourceExchange": string;
+            /**
+             * チェックイン報酬
+             */
+            "sourceReward": string;
+            /**
+             * 引き換えコード
+             */
+            "sourceRedemption": string;
+            /**
+             * 過去の残高
+             */
+            "sourceLegacy": string;
+            /**
+             * 過去の記録
+             */
+            "sourceUnknown": string;
+            /**
+             * 過去の残高は追跡開始時の所持枚数です。元の入手日時や入手方法は記録されていません。
+             */
+            "legacyDescription": string;
+            /**
+             * 記録がありません
+             */
+            "empty": string;
+            /**
+             * 履歴を読み込めませんでした。もう一度お試しください。
+             */
+            "loadFailed": string;
+            /**
+             * {current} / {total}ページ
+             */
+            "page": ParameterizedString<"current" | "total">;
+        };
+        "_codes": {
+            /**
+             * 引き換えコードを作成
+             */
+            "create": string;
+            /**
+             * 特典名
+             */
+            "name": string;
+            /**
+             * 祝日の特典など、管理用の名前。
+             */
+            "nameDescription": string;
+            /**
+             * 1人あたりの枚数
+             */
+            "amount": string;
+            /**
+             * 受け取れる人数
+             */
+            "maxRedemptions": string;
+            /**
+             * 有効期限
+             */
+            "expiresAt": string;
+            /**
+             * 無期限
+             */
+            "noExpiry": string;
+            /**
+             * 1人1回のみ受け取れます。人数の上限と有効期限を設定できます。
+             */
+            "description": string;
+            /**
+             * 引き換えコード一覧
+             */
+            "list": string;
+            /**
+             * 引き換えコード
+             */
+            "code": string;
+            /**
+             * 受け取り履歴
+             */
+            "claims": string;
+            /**
+             * 受け取り済み
+             */
+            "claimsCount": string;
+            /**
+             * 受け取り可能
+             */
+            "enabled": string;
+            /**
+             * 停止中
+             */
+            "disabled": string;
+            /**
+             * 期限切れ
+             */
+            "expired": string;
+            /**
+             * 上限に達しました
+             */
+            "exhausted": string;
+            /**
+             * 有効にする
+             */
+            "enable": string;
+            /**
+             * 停止する
+             */
+            "disable": string;
+            /**
+             * 引き換えコードを作成しました
+             */
+            "createSucceeded": string;
+            /**
+             * 引き換えコードを作成できませんでした。もう一度お試しください。
+             */
+            "createFailed": string;
+            /**
+             * 引き換えコードを読み込めませんでした。もう一度お試しください。
+             */
+            "loadFailed": string;
+            /**
+             * 状態を更新できませんでした。もう一度お試しください。
+             */
+            "updateFailed": string;
+            /**
+             * 受け取り履歴を読み込めませんでした。もう一度お試しください。
+             */
+            "claimsFailed": string;
+            /**
+             * 引き換えコードはありません
+             */
+            "empty": string;
+            /**
+             * 受け取り履歴はありません
+             */
+            "noClaims": string;
+            /**
+             * 将来の有効期限を指定してください。
+             */
+            "invalidExpiry": string;
+        };
+        /**
+         * おはようございます！
+         */
+        "morningGreeting": string;
+        /**
+         * こんにちは！
+         */
+        "afternoonGreeting": string;
+        /**
+         * こんばんは！
+         */
+        "eveningGreeting": string;
+        /**
+         * チェックイン済み
+         */
+        "signed": string;
+        /**
+         * 毎日のチェックイン
+         */
+        "dailyCheckin": string;
+        /**
+         * 今日の一歩を、コミュニティの記録に。
+         */
+        "description": string;
+        /**
+         * チェックインする
+         */
+        "checkIn": string;
+        /**
+         * 今日はチェックイン済み
+         */
+        "checkedIn": string;
+        /**
+         * チェックイン中…
+         */
+        "checkingIn": string;
+        /**
+         * ポイント
+         */
+        "points": string;
+        /**
+         * 補填カード
+         */
+        "makeupCards": string;
+        /**
+         * 補填カード：{n}枚
+         */
+        "makeupCardsCount": ParameterizedString<"n">;
+        /**
+         * 毎日のチェックインで +1 ポイント
+         */
+        "dailyReward": string;
+        /**
+         * +{n} ポイント
+         */
+        "pointsEarned": ParameterizedString<"n">;
+        /**
+         * チェックインしました。{n}ポイント獲得！
+         */
+        "rewardReceived": ParameterizedString<"n">;
+        /**
+         * チェックイン成功
+         */
+        "successTitle": string;
+        /**
+         * 本日のチェックイン報酬：{n}ポイント
+         */
+        "successReward": ParameterizedString<"n">;
+        /**
+         * {n}日連続でチェックインしました
+         */
+        "successStreak": ParameterizedString<"n">;
+        /**
+         * 補填する
+         */
+        "makeup": string;
+        /**
+         * 補填待ち
+         */
+        "pendingMakeup": string;
+        /**
+         * 今日
+         */
+        "todayLabel": string;
+        /**
+         * 補填カードが足りません
+         */
+        "noMakeupCardsTitle": string;
+        /**
+         * 累計で{target}日、当日にチェックインすると補填カードを1枚獲得します。連続でなくてもよく、補填した日は数えません。
+         */
+        "cardRewardRule": ParameterizedString<"target">;
+        /**
+         * 次の補填カードまで {current} / {target}日
+         */
+        "cardRewardProgress": ParameterizedString<"current" | "target">;
+        /**
+         * 補填カードを{n}枚獲得しました！
+         */
+        "cardRewardReceived": ParameterizedString<"n">;
+        /**
+         * 補填カードを交換
+         */
+        "exchangeCard": string;
+        /**
+         * {cost}ポイントで補填カードを1枚と交換できます。
+         */
+        "exchangeCost": ParameterizedString<"cost">;
+        /**
+         * 今すぐ交換
+         */
+        "exchangeNow": string;
+        /**
+         * 今は交換しない
+         */
+        "exchangeLater": string;
+        /**
+         * 交換中…
+         */
+        "exchangingCard": string;
+        /**
+         * {cost}ポイントを消費して、補填カードを1枚と交換します。交換後はカレンダーから補填する日を選択できます。
+         */
+        "exchangeConfirm": ParameterizedString<"cost">;
+        /**
+         * 補填カードがありません。{cost}ポイントで1枚交換できます。交換後、カレンダーから補填する日を選んでください。
+         */
+        "noCardsExchange": ParameterizedString<"cost">;
+        /**
+         * 交換には{cost}ポイント必要です。通常のチェックインを累計{target}日行うと無料で1枚獲得できます。現在の進捗は{current} / {target}日です。
+         */
+        "noPointsForCard": ParameterizedString<"cost" | "target" | "current" | "target">;
+        /**
+         * 補填カードを1枚交換しました。カレンダーから補填する日を選べます。
+         */
+        "cardExchangeSuccess": string;
+        /**
+         * 交換結果を確認できませんでした。もう一度お試しください。同じ操作の再試行でポイントが二重に引かれることはありません。
+         */
+        "cardExchangeFailed": string;
+        /**
+         * 補填済み
+         */
+        "madeUp": string;
+        /**
+         * {date}のチェックインを補填
+         */
+        "makeupDate": ParameterizedString<"date">;
+        /**
+         * {date}のチェックインを補填しますか？補填カードを1枚消費し、1ポイント獲得します。
+         */
+        "makeupConfirm": ParameterizedString<"date">;
+        /**
+         * {date}を補填しました。{n}ポイント獲得！
+         */
+        "makeupSuccess": ParameterizedString<"date" | "n">;
+        /**
+         * この日にはすでにチェックインしています。カードは消費されませんでした。
+         */
+        "alreadyMadeUp": string;
+        /**
+         * 補填できませんでした。もう一度お試しください。
+         */
+        "makeupFailed": string;
+        /**
+         * 補填カードがありません。通常のチェックインによる獲得、ポイント交換、または管理者からの配布で入手できます。
+         */
+        "noMakeupCards": string;
+        /**
+         * 登録日以降、昨日までの未チェックイン日を選んでください。
+         */
+        "invalidMakeupDate": string;
+        /**
+         * 登録前
+         */
+        "beforeRegistration": string;
+        /**
+         * 登録日以降、昨日までの未チェックイン日を選んで補填できます。1日につきカード1枚で1ポイント獲得し、連続日数も再計算されます。
+         */
+        "makeupRule": string;
+        /**
+         * 補填カードは管理者から配布されます。
+         */
+        "cardsFromAdmin": string;
+        /**
+         * チェックインしました
+         */
+        "success": string;
+        /**
+         * 今日はすでにチェックインしています
+         */
+        "alreadyCheckedIn": string;
+        /**
+         * チェックインできませんでした。もう一度お試しください。
+         */
+        "checkinFailed": string;
+        /**
+         * 記録を読み込めませんでした。
+         */
+        "loadFailed": string;
+        /**
+         * 連続チェックイン
+         */
+        "consecutiveDays": string;
+        /**
+         * 累計チェックイン
+         */
+        "totalDays": string;
+        /**
+         * 表示月のチェックイン
+         */
+        "monthlyDays": string;
+        /**
+         * {n}日
+         */
+        "days": ParameterizedString<"n">;
+        /**
+         * チェックインのルール
+         */
+        "rules": string;
+        /**
+         * {timeZone} の毎日0時に日付が変わり、1日1回チェックインできます。
+         */
+        "rulesDescription": ParameterizedString<"timeZone">;
+        /**
+         * 1日休むと連続日数はリセットされます。累計日数と獲得済みの実績は残ります。
+         */
+        "streakRule": string;
+        /**
+         * チェックインは手動で行います。過去のログイン記録は自動で振り替えられません。漏れた日は補填カードで補填できます。
+         */
+        "historyRule": string;
+        /**
+         * 同じ日数は同順位です。連続記録は今日または昨日にチェックインしたユーザーが対象です。
+         */
+        "rankingRule": string;
+        /**
+         * 公開ランキングは「見つけやすくする」が有効なローカルユーザーが対象です。自分のチェックインカレンダーは自分だけが閲覧できます。
+         */
+        "privacyRule": string;
+        /**
+         * 前の月
+         */
+        "previousMonth": string;
+        /**
+         * 次の月
+         */
+        "nextMonth": string;
+        /**
+         * 今月
+         */
+        "currentMonth": string;
+        /**
+         * チェックインカレンダー
+         */
+        "calendar": string;
+        /**
+         * 未チェックイン
+         */
+        "notCheckedIn": string;
+        /**
+         * 未チェックイン
+         */
+        "missed": string;
+        /**
+         * これから
+         */
+        "future": string;
+        /**
+         * {date}：{state}
+         */
+        "dateState": ParameterizedString<"date" | "state">;
+        /**
+         * チェックインの実績
+         */
+        "checkinAchievements": string;
+        /**
+         * すべての実績
+         */
+        "allAchievements": string;
+        /**
+         * 獲得済み
+         */
+        "earned": string;
+        /**
+         * 未獲得
+         */
+        "locked": string;
+        /**
+         * {date}に獲得
+         */
+        "unlockedOn": ParameterizedString<"date">;
+        /**
+         * 進捗 {current} / {target}
+         */
+        "progress": ParameterizedString<"current" | "target">;
+        /**
+         * コミュニティで重ねた日々を、一緒に振り返りましょう。
+         */
+        "rankingDescription": string;
+        /**
+         * 連続チェックイン
+         */
+        "consecutiveRanking": string;
+        /**
+         * 累計チェックイン
+         */
+        "totalRanking": string;
+        /**
+         * 今月のチェックイン
+         */
+        "monthlyRanking": string;
+        /**
+         * 自分の順位
+         */
+        "myRank": string;
+        /**
+         * ランキング対象外
+         */
+        "notRanked": string;
+        /**
+         * 上位100人を表示します。同じ日数の場合は同順位となり、次の順位は人数分進みます。
+         */
+        "rankingFootnote": string;
+        /**
+         * まだチェックインの記録がありません
+         */
+        "noEntries": string;
+        /**
+         * 今日のチェックインから始めましょう。
+         */
+        "noEntriesDescription": string;
+        /**
+         * {time} 時点
+         */
+        "updatedAt": ParameterizedString<"time">;
+        /**
+         * チェックインへ
+         */
+        "goCheckin": string;
+        /**
+         * ログインしてチェックインと自分の順位を確認しましょう。
+         */
+        "signInPrompt": string;
+        /**
+         * 未チェックイン、連続記録の中断、またはプロフィールの公開設定により、順位が表示されない場合があります。
+         */
+        "notRankedHelp": string;
+    };
+    "_externalLink": {
+        /**
+         * 外部サイトへの移動
+         */
+        "title": string;
+        /**
+         * このサーバーを離れて外部サイトに移動します。リンク先の安全性は保証されません。アドレスを確認し、個人情報やパスワードの入力にはご注意ください。
+         */
+        "description": string;
+        /**
+         * 外部サイトを開く
+         */
+        "continue": string;
+    };
+    "_benefits": {
+        /**
+         * 自分の特典
+         */
+        "title": string;
+        /**
+         * 特典管理
+         */
+        "adminTitle": string;
+        /**
+         * 直接配布
+         */
+        "directGrant": string;
+        /**
+         * 引き換えコード
+         */
+        "redemptionCodes": string;
+        /**
+         * 補填カード
+         */
+        "checkinCard": string;
+        /**
+         * 受け取った特典を確認し、コードの引き換えや使用履歴を確認できます。
+         */
+        "myDescription": string;
+        /**
+         * 特典コードを引き換える
+         */
+        "codeEntry": string;
+        /**
+         * チェックインへ
+         */
+        "goCheckin": string;
+        /**
+         * 自分のカード
+         */
+        "myCards": string;
+        /**
+         * 利用可能
+         */
+        "availableCards": string;
+        /**
+         * チェックインを忘れた日に1枚使うと、その日の記録を補填できます。
+         */
+        "cardDescription": string;
+        /**
+         * チェックイン報酬やポイント交換、管理者からの配布、引き換えコードで入手できます。
+         */
+        "noCards": string;
+        /**
+         * 受け取ったコードを入力すると、特典が自分のアカウントに追加されます。各コードは1人1回まで利用できます。
+         */
+        "redeemDescription": string;
+        /**
+         * 特典を受け取る
+         */
+        "redeem": string;
+        /**
+         * 32文字のコードを入力してください。大文字・小文字は区別しません。
+         */
+        "codeFormat": string;
+        /**
+         * 0〜9とA〜Fの32文字のコードを入力してください。
+         */
+        "invalidCodeFormat": string;
+        /**
+         * 補填カードを使う
+         */
+        "useCards": string;
+        /**
+         * カードを入手する
+         */
+        "earnCards": string;
+        /**
+         * チェックインの報酬やポイント交換で入手できます。チェックインページで進捗の確認と交換ができます。
+         */
+        "earnDescription": string;
+        /**
+         * 報酬、配布、コードの引き換え、ポイント交換を含むすべての獲得履歴です。
+         */
+        "earnedHistoryDescription": string;
+        /**
+         * ポイントを消費して交換したカードの履歴です。コードの引き換えは獲得履歴に表示されます。
+         */
+        "exchangeHistoryDescription": string;
+        /**
+         * チェックインの補填に使用したカードと対象の日付を確認できます。
+         */
+        "useHistoryDescription": string;
+        /**
+         * 補填カードを{amount}枚受け取りました。
+         */
+        "redeemSucceeded": ParameterizedString<"amount">;
+        /**
+         * このコードの特典は受け取り済みです。所持枚数と履歴を更新しました。
+         */
+        "alreadyRedeemed": string;
+        /**
+         * コードが見つかりません。入力内容を確認してください。
+         */
+        "invalidCode": string;
+        /**
+         * このコードの受け付けは停止されています。
+         */
+        "codeUnavailable": string;
+        /**
+         * このアカウントでは特典を受け取れません。
+         */
+        "redeemNotAllowed": string;
+        /**
+         * 受け取り結果を確認できませんでした。同じコードで再試行しても、特典が重複して追加されることはありません。
+         */
+        "redeemFailed": string;
+        /**
+         * 特典の配布方法を選び、配布状況と受け取り履歴を管理します。
+         */
+        "adminDescription": string;
+        /**
+         * 特典の種類
+         */
+        "benefitType": string;
+        /**
+         * 配布方法
+         */
+        "distributionMethod": string;
+        /**
+         * ユーザーを指定してカードを配布し、利用状況の確認や未使用分の回収を行います。
+         */
+        "directGrantDescription": string;
+        /**
+         * コードを共有してカードを配布します。同じユーザーが受け取れるのは、各コードにつき1回です。
+         */
+        "redemptionDescription": string;
+        /**
+         * コードを作成
+         */
+        "createCode": string;
+        /**
+         * 管理用の名前
+         */
+        "codeName": string;
+        /**
+         * 1人あたりの枚数
+         */
+        "cardsPerClaim": string;
+        /**
+         * 受け取り人数の上限
+         */
+        "claimLimit": string;
+        /**
+         * 最大配布枚数：{amount}枚
+         */
+        "codeCapacity": ParameterizedString<"amount">;
+        /**
+         * 引き換えコードを作成しました
+         */
+        "codeCreated": string;
+        /**
+         * コードを作成できませんでした。入力内容を確認して再試行してください。
+         */
+        "codeCreateFailed": string;
+        /**
+         * 名前、枚数、人数上限と有効期限を確認してください。有効期限は未来の日時を指定します。
+         */
+        "invalidCodeConfiguration": string;
+        /**
+         * 作成したコード
+         */
+        "codeList": string;
+        /**
+         * 引き換えコード
+         */
+        "code": string;
+        /**
+         * 受け取り状況
+         */
+        "codeClaims": string;
+        /**
+         * 作成されたコードはまだありません。
+         */
+        "codeListEmpty": string;
+        /**
+         * コードを読み込めませんでした。
+         */
+        "codeLoadFailed": string;
+        /**
+         * コードの状態を変更できませんでした。
+         */
+        "codeUpdateFailed": string;
+        /**
+         * 期限切れ
+         */
+        "codeExpired": string;
+        /**
+         * 上限到達
+         */
+        "codeExhausted": string;
+        /**
+         * 受付停止
+         */
+        "disableCode": string;
+        /**
+         * 受付再開
+         */
+        "enableCode": string;
+        /**
+         * 「{name}」の受付を停止しますか？新しい受け取りはできなくなります。配布済みのカードは回収されません。
+         */
+        "disableCodeConfirm": ParameterizedString<"name">;
+        /**
+         * 受付を停止しました。
+         */
+        "codeDisabled": string;
+        /**
+         * 受付を再開しました。
+         */
+        "codeEnabled": string;
+        /**
+         * 残り{count}人
+         */
+        "claimsRemaining": ParameterizedString<"count">;
+        /**
+         * 受け取り履歴：{name}
+         */
+        "claimsTitle": ParameterizedString<"name">;
+        /**
+         * このコードで受け取ったユーザーはまだいません。
+         */
+        "claimsEmpty": string;
+        /**
+         * 受け取り履歴を読み込めませんでした。
+         */
+        "claimsLoadFailed": string;
+        /**
+         * コピーできませんでした。コードを選択してコピーしてください。
+         */
+        "copyFailed": string;
     };
 }

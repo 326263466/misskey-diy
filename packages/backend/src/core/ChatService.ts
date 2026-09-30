@@ -5,7 +5,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
-import { Brackets } from 'typeorm';
+import { Brackets, In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -28,6 +28,9 @@ import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { emojiRegex } from '@/misc/emoji-regex.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { LoggerService } from '@/core/LoggerService.js';
+import { getUserOnlineStatusAutoReply } from '@/misc/user-online-status.js';
+import type Logger from '@/logger.js';
 
 const MAX_ROOM_MEMBERS = 50;
 const MAX_REACTIONS_PER_MESSAGE = 100;
@@ -49,6 +52,8 @@ function normalizeEmojiString(x: string) {
 
 @Injectable()
 export class ChatService {
+	private logger: Logger;
+
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
@@ -91,7 +96,9 @@ export class ChatService {
 		private userFollowingService: UserFollowingService,
 		private customEmojiService: CustomEmojiService,
 		private moderationLogService: ModerationLogService,
+		private loggerService: LoggerService,
 	) {
+		this.logger = this.loggerService.getLogger('chat');
 	}
 
 	@bindThis
@@ -133,6 +140,8 @@ export class ChatService {
 		text?: string | null;
 		file?: MiDriveFile | null;
 		uri?: string | null;
+		/** Internal only; never accepted from a public chat endpoint. */
+		isAutoReply?: boolean;
 	}): Promise<Packed<'ChatMessageLiteFor1on1'>> {
 		if (fromUser.id === toUser.id) {
 			throw new Error('yourself');
@@ -191,17 +200,18 @@ export class ChatService {
 			fileId: params.file ? params.file.id : null,
 			reads: [],
 			uri: params.uri ?? null,
+			isAutoReply: params.isAutoReply ?? false,
 		} satisfies Partial<MiChatMessage>;
 
 		const inserted = await this.chatMessagesRepository.insertOne(message);
 
 		// 相手を許可しておく
-		if (!iApprovedOther) {
-			this.chatApprovalsRepository.insertOne({
-				id: this.idService.gen(),
-				userId: fromUser.id,
-				otherId: toUser.id,
-			});
+		if (!iApprovedOther && !params.isAutoReply) {
+			await this.chatApprovalsRepository.createQueryBuilder()
+				.insert()
+				.values({ id: this.idService.gen(), userId: fromUser.id, otherId: toUser.id })
+				.orIgnore()
+				.execute();
 		}
 
 		const packedMessage = await this.chatEntityService.packMessageLiteFor1on1(inserted);
@@ -232,11 +242,38 @@ export class ChatService {
 
 				const packedMessageForTo = await this.chatEntityService.packMessageDetailed(inserted, toUser);
 				this.globalEventService.publishMainStream(toUser.id, 'newChatMessage', packedMessageForTo);
-				this.pushNotificationService.pushNotification(toUser.id, 'newChatMessage', packedMessageForTo);
+				const currentRecipient = await this.usersRepository.findOneBy({ id: toUser.id });
+				if (currentRecipient && currentRecipient.onlineStatusOverride !== 'doNotDisturb') {
+					this.pushNotificationService.pushNotification(toUser.id, 'newChatMessage', packedMessageForTo);
+				}
 			}, 3000);
 		}
 
+		if (!params.isAutoReply && fromUser.host === null && toUser.host === null && getUserOnlineStatusAutoReply(toUser)) {
+			// A failed automatic reply must not make the sender retry an already saved message.
+			await this.sendStatusAutoReply(toUser.id, fromUser.id).catch(() => {
+				this.logger.warn('Could not send chat status auto reply.');
+			});
+		}
+
 		return packedMessage;
+	}
+
+	@bindThis
+	private async sendStatusAutoReply(fromUserId: MiUser['id'], toUserId: MiUser['id']): Promise<void> {
+		// Re-read the recipient's settings so switching to invisible takes effect immediately.
+		const fromUser = await this.usersRepository.findOneBy({ id: fromUserId });
+		if (!fromUser || fromUser.host !== null || fromUser.isSuspended || fromUser.isDeleted || fromUser.movedToUri) return;
+		const text = getUserOnlineStatusAutoReply(fromUser);
+		if (!text) return;
+
+		const toUser = await this.usersRepository.findOneBy({ id: toUserId });
+		if (!toUser || toUser.host !== null || toUser.isSuspended || toUser.isDeleted || toUser.movedToUri) return;
+		if (!(await this.getChatAvailability(fromUser.id)).write) return;
+		if (await this.userBlockingService.checkBlocked(fromUser.id, toUser.id)) return;
+
+		// This reuses the receiving user's scope, role, and block checks without approving new chats.
+		await this.createMessageToUser(fromUser, toUser, { text, isAutoReply: true });
 	}
 
 	@bindThis
@@ -296,13 +333,22 @@ export class ChatService {
 			if (markers.every(marker => marker[1] == null)) return;
 
 			const packedMessageForTo = await this.chatEntityService.packMessageDetailed(inserted);
+			const quietUsers = new Set((await this.usersRepository.find({
+				where: {
+					id: In(membershipsOtherThanMe.filter((_, i) => markers[i][1] != null).map(member => member.userId)),
+					onlineStatusOverride: 'doNotDisturb',
+				},
+				select: { id: true },
+			})).map(user => user.id));
 
 			for (let i = 0; i < membershipsOtherThanMe.length; i++) {
 				const marker = markers[i][1];
 				if (marker == null) continue;
 
 				this.globalEventService.publishMainStream(membershipsOtherThanMe[i].userId, 'newChatMessage', packedMessageForTo);
-				this.pushNotificationService.pushNotification(membershipsOtherThanMe[i].userId, 'newChatMessage', packedMessageForTo);
+				if (!quietUsers.has(membershipsOtherThanMe[i].userId)) {
+					this.pushNotificationService.pushNotification(membershipsOtherThanMe[i].userId, 'newChatMessage', packedMessageForTo);
+				}
 			}
 		}, 3000);
 
@@ -898,9 +944,10 @@ export class ChatService {
 
 		await this.chatMessagesRepository.createQueryBuilder().update()
 			.set({
-				reactions: () => `array_append("reactions", '${userId}/${reaction}')`,
+				reactions: () => `array_append("reactions", :pair)`,
 			})
 			.where('id = :id', { id: message.id })
+			.setParameter('pair', `${userId}/${reaction}`)
 			.execute();
 
 		if (room) {
@@ -942,9 +989,10 @@ export class ChatService {
 
 		await this.chatMessagesRepository.createQueryBuilder().update()
 			.set({
-				reactions: () => `array_remove("reactions", '${userId}/${reaction}')`,
+				reactions: () => `array_remove("reactions", :pair)`,
 			})
 			.where('id = :id', { id: message.id })
+			.setParameter('pair', `${userId}/${reaction}`)
 			.execute();
 
 		// TODO: 実際に削除が行われたときのみイベントを発行する

@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_gaps" style="padding: 16px;">
 							<div style="font-size: 90%;"><i class="ti ti-music"></i> {{ i18n.ts.soundWillBePlayed }}</div>
 							<MkSwitch v-model="mute">
-								<template #label>{{ i18n.ts.mute }}</template>
+								<template #label>{{ i18n.ts._mediaControls.mute }}</template>
 							</MkSwitch>
 						</div>
 					</div>
@@ -40,7 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div class="_woodenFrame">
 					<div class="_woodenFrameInner">
 						<div class="_gaps_s" style="padding: 16px;">
-							<div><b>{{ i18n.tsx.lastNDays({ n: 7 }) }} {{ i18n.ts.ranking }}</b> ({{ gameMode.toUpperCase() }})</div>
+							<div><b>{{ i18n.tsx.lastNDays({ n: 7 }) }} {{ i18n.ts.ranking }}</b> ({{ i18n.ts._bubbleGame._modes[gameMode] }})</div>
 							<div v-if="ranking" class="_gaps_s">
 								<div v-for="r in ranking" :key="r.id" :class="$style.rankingRecord">
 									<MkAvatar v-if="r.user" :link="true" style="width: 24px; height: 24px; margin-right: 4px;" :user="r.user"/>
@@ -65,9 +65,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div class="_woodenFrame">
 					<div class="_woodenFrameInner">
 						<div class="_gaps_s" style="padding: 16px;">
-							<div><b>Credit</b></div>
+							<div><b>{{ i18n.ts._bubbleGame.credits }}</b></div>
 							<div>
-								<div>Ai-chan illustration: @poteriri@misskey.io</div>
+								<div>{{ i18n.tsx._bubbleGame.illustrationCredit({ name: '@poteriri@misskey.io' }) }}</div>
 								<div>BGM: @ys@misskey.design</div>
 							</div>
 						</div>
@@ -97,10 +97,10 @@ const {
 	def: gameModeDef,
 } = useMkSelect({
 	items: [
-		{ label: 'NORMAL', value: 'normal' },
-		{ label: 'SQUARE', value: 'square' },
-		{ label: 'YEN', value: 'yen' },
-		{ label: 'SWEETS', value: 'sweets' },
+		{ label: i18n.ts._bubbleGame._modes.normal, value: 'normal' },
+		{ label: i18n.ts._bubbleGame._modes.square, value: 'square' },
+		{ label: i18n.ts._bubbleGame._modes.yen, value: 'yen' },
+		{ label: i18n.ts._bubbleGame._modes.sweets, value: 'sweets' },
 		//{ label: 'SPACE', value: 'space' },
 	],
 	initialValue: 'normal',

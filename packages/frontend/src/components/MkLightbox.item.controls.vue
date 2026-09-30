@@ -4,35 +4,63 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root">
+<div :class="[$style.root, { [$style.animated]: prefer.s.animation, [$style.videoControls]: isVideo }]" @keydown.left.stop @keydown.right.stop>
 	<div :class="[$style.seekbar]">
 		<MkMediaRange
 			v-model="rangePercent"
 			:buffer="bufferedDataRatio"
+			:durationMs="durationMs"
+			:label="i18n.ts._mediaControls.seek"
 		/>
 	</div>
 
 	<div :class="[$style.controlsChild, $style.controlsLeft]">
-		<button class="_button" :class="$style.controlButton" @click="togglePlayPause">
-			<i v-if="isPlaying" class="ti ti-player-pause"></i>
+		<button class="_button" :class="$style.controlButton" :aria-label="playPauseActive ? i18n.ts._mediaControls.pause : i18n.ts._mediaControls.play" @click="togglePlayPause">
+			<i v-if="playPauseActive" class="ti ti-player-pause"></i>
 			<i v-else class="ti ti-player-play"></i>
 		</button>
-
-		<div :class="[$style.controlsChild, $style.controlsTime]">{{ hms(elapsedTimeMs) }} / {{ hms(durationMs) }}</div>
 	</div>
-	<div :class="[$style.controlsChild, $style.controlsCenter]">
-	</div>
-	<div :class="[$style.controlsChild, $style.controlsRight]">
-		<button class="_button" :class="$style.controlButton" @click="toggleMute">
+	<div v-if="isVideo" :class="$style.controlsTime">{{ hms(elapsedTimeMs) }} / {{ hms(durationMs) }}</div>
+	<div :class="[$style.controlsChild, $style.controlsVolume]">
+		<button class="_button" :class="$style.controlButton" :aria-label="volume === 0 ? i18n.ts._mediaControls.unmute : i18n.ts._mediaControls.mute" @click="toggleMute">
 			<i v-if="volume === 0" class="ti ti-volume-3"></i>
 			<i v-else class="ti ti-volume"></i>
 		</button>
 		<MkMediaRange
 			v-model="volume"
 			:class="$style.volumeSeekbar"
+			:label="i18n.ts.volume"
+			:valueText="volumeText"
+			:step="0.01"
 		/>
-		<button class="_button" :class="$style.controlButton" @click="showMenu">
+		<span :class="$style.volumeValue" aria-hidden="true">{{ volumeText }}</span>
+	</div>
+	<div v-if="!isVideo" :class="$style.controlsTime">{{ hms(elapsedTimeMs) }} / {{ hms(durationMs) }}</div>
+	<div :class="[$style.controlsChild, $style.controlsRight]">
+		<button class="_button" :class="[$style.controlButton, $style.settingsButton]" :aria-label="i18n.ts.settings" :aria-expanded="menuShowing" @click="showMenu">
 			<i class="ti ti-settings"></i>
+		</button>
+		<button
+			v-if="isVideo && !fullscreen"
+			class="_button"
+			:class="$style.controlButton"
+			:aria-label="webFullscreen ? i18n.ts._mediaControls.exitWebFullscreen : i18n.ts._mediaControls.enterWebFullscreen"
+			:title="webFullscreen ? i18n.ts._mediaControls.exitWebFullscreen : i18n.ts._mediaControls.enterWebFullscreen"
+			:aria-pressed="webFullscreen"
+			@click="webFullscreen = !webFullscreen"
+		>
+			<i :class="webFullscreen ? 'ti ti-layout-navbar' : 'ti ti-browser-maximize'" aria-hidden="true"></i>
+		</button>
+		<button
+			v-if="fullscreenSupported"
+			class="_button"
+			:class="$style.controlButton"
+			:aria-label="fullscreen ? i18n.ts._mediaControls.exitFullscreen : i18n.ts._mediaControls.enterFullscreen"
+			:title="fullscreen ? i18n.ts._mediaControls.exitFullscreen : i18n.ts._mediaControls.enterFullscreen"
+			:disabled="fullscreenPending"
+			@click="toggleFullscreen"
+		>
+			<i :class="fullscreen ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize'"></i>
 		</button>
 	</div>
 </div>
@@ -44,27 +72,111 @@ import type { MenuItem } from '@/types/menu.js';
 import { DI } from '@/di.js';
 import { hms } from '@/filters/hms.js';
 import { i18n } from '@/i18n.js';
+import { prefer } from '@/preferences.js';
 import * as os from '@/os.js';
-import hasAudio from '@/utility/media-has-audio.js';
 import MkMediaRange from '@/components/MkMediaRange.vue';
 
 const props = withDefaults(defineProps<{
 	/** 音量をメディア要素に適用しない（ビジュアライザー用） */
 	externalVolumeControl?: boolean;
+	playerEl?: HTMLElement | null;
+	controlsVisible?: boolean;
+	playbackPending?: boolean;
+	managedPlayback?: boolean;
 }>(), {
 	externalVolumeControl: false,
+	playerEl: null,
+	controlsVisible: true,
+	playbackPending: false,
+	managedPlayback: false,
 });
 
+const emit = defineEmits<{
+	(ev: 'pause'): void;
+	(ev: 'play'): void;
+}>();
+
 const volume = defineModel<number>('volume', { required: true });
+const webFullscreen = defineModel<boolean>('webFullscreen', { default: false });
+const volumeText = computed(() => `${Math.round(volume.value * 100)}%`);
 
 const mediaEl = inject(DI.mkLightboxItemMediaEl, shallowRef<HTMLVideoElement | HTMLAudioElement | null>(null));
 const isVideo = computed(() => mediaEl.value instanceof HTMLVideoElement);
+const fullscreen = ref(false);
+const fullscreenPending = ref(false);
+let fullscreenToggleQueued = false;
+let fullscreenRequestGeneration = 0;
+let fullscreenCancelled = false;
+const fullscreenSupported = computed(() => isVideo.value && props.playerEl != null && window.document.fullscreenEnabled);
+
+function syncFullscreen() {
+	const isCurrentPlayer = props.playerEl != null && window.document.fullscreenElement === props.playerEl;
+	fullscreen.value = isCurrentPlayer && !fullscreenCancelled;
+	if (isCurrentPlayer && fullscreenCancelled) void leaveFullscreen();
+}
+
+async function leaveFullscreen() {
+	if (props.playerEl == null || window.document.fullscreenElement !== props.playerEl) return;
+	try {
+		await window.document.exitFullscreen();
+	} catch (err) {
+		if (_DEV_) console.warn('Failed to exit fullscreen:', err);
+	}
+}
+
+function exitFullscreenIfActive() {
+	if (!fullscreen.value && !fullscreenPending.value) return false;
+	cancelFullscreen();
+	return true;
+}
+
+function cancelFullscreen() {
+	fullscreenToggleQueued = false;
+	fullscreenRequestGeneration++;
+	fullscreenCancelled = true;
+	fullscreen.value = false;
+	void leaveFullscreen();
+}
+
+async function toggleFullscreen() {
+	if (!fullscreenSupported.value || props.playerEl == null) return;
+	if (fullscreenPending.value) {
+		fullscreenToggleQueued = !fullscreenToggleQueued;
+		return;
+	}
+	const player = props.playerEl;
+	const signal = abortController?.signal;
+	const generation = ++fullscreenRequestGeneration;
+	fullscreenCancelled = false;
+	fullscreenPending.value = true;
+	try {
+		if (fullscreen.value) {
+			await leaveFullscreen();
+		} else {
+			await player.requestFullscreen();
+			if (signal?.aborted || generation !== fullscreenRequestGeneration) {
+				if (window.document.fullscreenElement === player) await window.document.exitFullscreen();
+				return;
+			}
+		}
+		syncFullscreen();
+	} catch (err) {
+		fullscreenToggleQueued = false;
+		if (_DEV_) console.warn('Failed to toggle fullscreen:', err);
+	} finally {
+		fullscreenPending.value = false;
+		if (fullscreenToggleQueued && !signal?.aborted && generation === fullscreenRequestGeneration) {
+			fullscreenToggleQueued = false;
+			void toggleFullscreen();
+		}
+	}
+}
 
 // Menu
 const menuShowing = ref(false);
 
-function showMenu(ev: PointerEvent) {
-	const menu: MenuItem[] = [
+function getSettingsMenu(): MenuItem[] {
+	return [
 		// TODO: 再生キューに追加
 		{
 			type: 'switch',
@@ -106,9 +218,11 @@ function showMenu(ev: PointerEvent) {
 			action: togglePictureInPicture,
 		}] : []),
 	];
+}
 
+function showMenu(ev: PointerEvent) {
 	menuShowing.value = true;
-	os.popupMenu(menu, ev.currentTarget ?? ev.target, {
+	os.popupMenu(getSettingsMenu(), ev.currentTarget ?? ev.target, {
 		align: 'right',
 		onClosing: () => {
 			menuShowing.value = false;
@@ -116,10 +230,40 @@ function showMenu(ev: PointerEvent) {
 	});
 }
 
+function showContextMenu(ev: PointerEvent) {
+	const menu: MenuItem[] = [{
+		text: playPauseActive.value ? i18n.ts._mediaControls.pause : i18n.ts._mediaControls.play,
+		icon: playPauseActive.value ? 'ti ti-player-pause' : 'ti ti-player-play',
+		action: togglePlayPause,
+	}, {
+		text: volume.value === 0 ? i18n.ts._mediaControls.unmute : i18n.ts._mediaControls.mute,
+		icon: volume.value === 0 ? 'ti ti-volume' : 'ti ti-volume-3',
+		action: toggleMute,
+	}];
+	if (fullscreenSupported.value) {
+		menu.push({
+			text: fullscreen.value ? i18n.ts._mediaControls.exitFullscreen : i18n.ts._mediaControls.enterFullscreen,
+			icon: fullscreen.value ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize',
+			action: toggleFullscreen,
+		});
+	}
+	if (isVideo.value && !fullscreen.value) {
+		menu.push({
+			text: webFullscreen.value ? i18n.ts._mediaControls.exitWebFullscreen : i18n.ts._mediaControls.enterWebFullscreen,
+			icon: webFullscreen.value ? 'ti ti-layout-navbar' : 'ti ti-browser-maximize',
+			action: () => { webFullscreen.value = !webFullscreen.value; },
+		});
+	}
+	menu.push({ type: 'divider' }, ...getSettingsMenu());
+	menuShowing.value = true;
+	void os.contextMenu(menu, ev).finally(() => { menuShowing.value = false; });
+}
+
 // MediaControl: Common State
 const oncePlayed = ref(false);
 const isReady = ref(false);
 const isPlaying = ref(false); // ユーザーが再生中であることを期待する状態か
+const playPauseActive = computed(() => isPlaying.value || props.playbackPending);
 const isActuallyPlaying = ref(false); // 実際に再生中か (バッファリング等で一時停止している場合は false)
 const elapsedTimeMs = ref(0);
 const durationMs = ref(0);
@@ -142,10 +286,13 @@ const bufferedDataRatio = computed(() => {
 
 // state の更新はすべてメディア要素のイベント側に任せる
 function togglePlayPause() {
-	if (!isReady.value) return;
+	if (mediaEl.value == null) return;
 
-	if (isPlaying.value) {
-		mediaEl.value?.pause();
+	if (playPauseActive.value) {
+		emit('pause');
+		mediaEl.value.pause();
+	} else if (props.managedPlayback) {
+		emit('play');
 	} else {
 		// 自動再生のブロック等で reject しうるが、再生ボタンが出たままになるだけなので握りつぶす
 		mediaEl.value?.play().catch(err => {
@@ -167,10 +314,16 @@ function togglePictureInPicture() {
 	}
 }
 
+const volumeBeforeMute = ref(volume.value > 0 ? volume.value : 0.5);
+watch(volume, value => {
+	if (value > 0) volumeBeforeMute.value = value;
+});
+
 function toggleMute() {
 	if (volume.value === 0) {
-		volume.value = .5;
+		volume.value = volumeBeforeMute.value;
 	} else {
+		volumeBeforeMute.value = volume.value;
 		volume.value = 0;
 	}
 }
@@ -184,6 +337,7 @@ let loopObserver: MutationObserver | null = null;
 let elapsedTickFrameId: number | null = null;
 
 function syncElapsedTime() {
+	if (!props.controlsVisible) return;
 	if (mediaEl.value == null) return;
 	elapsedTimeMs.value = mediaEl.value.currentTime * 1000;
 }
@@ -194,7 +348,7 @@ function elapsedTick() {
 }
 
 function startElapsedTick() {
-	if (elapsedTickFrameId != null) return;
+	if (!props.controlsVisible || elapsedTickFrameId != null) return;
 	elapsedTickFrameId = window.requestAnimationFrame(elapsedTick);
 }
 
@@ -236,10 +390,32 @@ function init() {
 
 	abortController = new AbortController();
 	const signal = abortController.signal;
+	window.document.addEventListener('fullscreenchange', syncFullscreen, { signal });
+	syncFullscreen();
 
 	const on = (type: keyof HTMLMediaElementEventMap, listener: () => void) => {
 		el.addEventListener(type, listener, { signal });
 	};
+	let audioTracksChecked = false;
+	const checkAudioTracks = () => {
+		if (audioTracksChecked || !(el instanceof HTMLVideoElement) || el.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+		const video = el as HTMLVideoElement & {
+			audioTracks?: { length: number };
+			mozHasAudio?: boolean;
+			webkitAudioDecodedByteCount?: number;
+		};
+		// デコード量が 0 でも、まだ音声をデコードしていないだけかもしれない。
+		// 音声の不在はトラック情報で確定できた場合だけ扱う。
+		if ((video.audioTracks?.length ?? 0) > 0 || video.mozHasAudio === true || (video.webkitAudioDecodedByteCount ?? 0) > 0) {
+			audioTracksChecked = true;
+			return;
+		}
+		if (video.audioTracks?.length !== 0 && video.mozHasAudio !== false) return;
+		audioTracksChecked = true;
+		// 再生中の要素をそのまま調べ、ユーザーの pause や loop 設定を後から上書きしない。
+		el.loop = el.muted = true;
+	};
+	on('loadeddata', checkAudioTracks);
 
 	on('play', () => {
 		isPlaying.value = true;
@@ -248,6 +424,7 @@ function init() {
 	});
 
 	on('playing', () => {
+		checkAudioTracks();
 		isActuallyPlaying.value = true;
 		startElapsedTick();
 	});
@@ -289,6 +466,7 @@ function init() {
 	});
 	on('progress', syncBuffered);
 	on('emptied', () => {
+		audioTracksChecked = false;
 		isReady.value = false;
 		isPlaying.value = false;
 		isActuallyPlaying.value = false;
@@ -336,19 +514,7 @@ function init() {
 		el.volume = volume.value;
 	}
 
-	// 音声トラックを持たない動画はGIFのように扱う
-	if (isVideo.value) {
-		hasAudio(el).then(had => {
-			// 判定を待っている間に teardown / 再 init されている可能性があるので、世代が変わっていたら何もしない
-			if (signal.aborted) return;
-			if (!had) {
-				el.loop = el.muted = true;
-				el.play().catch(err => {
-					if (_DEV_) console.warn('Failed to play media:', err);
-				});
-			}
-		});
-	}
+	checkAudioTracks();
 }
 
 function teardown() {
@@ -358,6 +524,7 @@ function teardown() {
 	loopObserver = null;
 	stopElapsedTick();
 	isReady.value = false;
+	menuShowing.value = false;
 	// メディア要素を差し替えた場合、古い要素のイベントはもう届かないのでここで戻しておく
 	// (isPlaying / loop / speed 等は init() が新しい要素から取り込み直す)
 	isActuallyPlaying.value = false;
@@ -386,25 +553,50 @@ watch(mediaEl, () => {
 	init();
 }, { immediate: true });
 
-onBeforeUnmount(teardown);
+watch(() => props.controlsVisible, (visible) => {
+	if (!visible) {
+		stopElapsedTick();
+		return;
+	}
+	syncElapsedTime();
+	if (isActuallyPlaying.value) startElapsedTick();
+});
+
+onBeforeUnmount(() => {
+	cancelFullscreen();
+	teardown();
+});
 
 defineExpose({
 	isPlaying,
 	isReady,
 	isActuallyPlaying,
+	fullscreen,
+	menuShowing,
+	showContextMenu,
+	toggleFullscreen,
+	cancelFullscreen,
+	exitFullscreen: exitFullscreenIfActive,
 });
 </script>
 
 <style lang="scss" module>
 .root {
+	--MI-mediaSeekFg: var(--MI_THEME-accent);
+	--MI-mediaRangeThumbSize: 12px;
+	--MI-mediaRangeThumbBg: currentColor;
+	--MI-mediaRangeThumbShadow: none;
+	--MI-mediaRangeBufferFg: color-mix(in srgb, var(--MI-mediaStageFg, var(--MI_THEME-fg)) 45%, transparent);
 	display: grid;
 	grid-template-areas:
-		"seekbar seekbar seekbar"
-		"left center right";
-	grid-template-columns: auto 1fr auto;
+		"seekbar seekbar seekbar seekbar seekbar"
+		"left volume time center right";
+	grid-template-columns: auto auto auto minmax(0, 1fr) auto;
 	align-items: center;
-	gap: 4px 8px;
+	gap: 0 8px;
 	width: 100%;
+	min-width: 0;
+	color: var(--MI-mediaStageFg, var(--MI_THEME-fg));
 }
 
 .controlsChild {
@@ -421,35 +613,252 @@ defineExpose({
 	grid-area: right;
 }
 
-.controlsCenter {
-	grid-area: center;
-	justify-content: center;
+.controlsVolume {
+	grid-area: volume;
 }
 
 .controlButton {
-	padding: 6px;
-	border-radius: 4px;
+	display: grid;
+	place-items: center;
+	flex: 0 0 36px;
+	width: 36px;
+	height: 36px;
+	box-sizing: border-box;
+	padding: 0;
+	border-radius: 50%;
+	font-size: 21px;
+
+	> i {
+		display: inline-block;
+	}
 
 	&:disabled {
 		opacity: 0.7;
 		cursor: not-allowed;
 	}
 
-	&:hover {
-		background-color: var(--MI_THEME-accentedBg);
-		color: var(--MI_THEME-accent);
+	&:not(:disabled):is(:hover, :focus-visible) {
+		background: color-mix(in srgb, currentColor 18%, transparent);
+		color: inherit;
 	}
 
 	&:focus-visible {
-		outline: none;
+		outline: 2px solid currentColor;
+		outline-offset: 2px;
 	}
 }
 
+.animated .controlButton {
+	transition: color 160ms ease, background-color 160ms ease;
+
+	> i {
+		transition: scale 160ms ease, rotate 160ms ease;
+	}
+
+	&:not(:disabled):is(:hover, :focus-visible) > i {
+		scale: 1.15;
+	}
+
+	&:not(:disabled):active > i {
+		scale: 0.94;
+	}
+}
+
+.animated .settingsButton:not(:disabled):is(:hover, :focus-visible) > i {
+	rotate: 45deg;
+}
+
 .controlsTime {
-	font-size: 85%;
+	grid-area: time;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.volumeSeekbar {
+	--MI-mediaRangeFg: var(--MI-mediaStageFg, var(--MI_THEME-fg));
+	--MI-mediaRangeThumbSize: 10px;
+	width: 72px;
+}
+
+.volumeValue {
+	width: 4ch;
+	font-size: 11px;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
 }
 
 .seekbar {
+	--MI-mediaRangeFg: var(--MI-mediaSeekFg);
 	grid-area: seekbar;
+	min-width: 0;
+}
+
+.videoControls {
+	grid-template-areas:
+		"seekbar seekbar seekbar seekbar seekbar"
+		"left time center volume right";
+	grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+
+	.controlsVolume {
+		position: relative;
+	}
+
+	.controlsTime {
+		font-size: 13px;
+	}
+
+	.volumeSeekbar {
+		width: 56px;
+	}
+
+	.volumeValue {
+		display: none;
+	}
+
+	.seekbar {
+		--MI-mediaRangeTrackHeight: 3px;
+	}
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.videoControls .seekbar {
+		--MI-mediaRangeThumbScale: 0;
+
+		&:is(:hover, :focus-within) {
+			--MI-mediaRangeTrackHeight: 5px;
+			--MI-mediaRangeThumbScale: 1;
+		}
+	}
+}
+
+.animated.videoControls .seekbar {
+	--MI-mediaRangeTransition: 160ms ease;
+}
+
+@container (max-width: 560px) {
+	.volumeValue {
+		display: none;
+	}
+
+	.volumeSeekbar {
+		width: 56px;
+	}
+
+	.videoControls {
+		column-gap: 4px;
+
+		.volumeSeekbar {
+			position: absolute;
+			bottom: calc(100% + 12px);
+			right: 0;
+			width: 88px;
+			padding: 6px 12px;
+			border-radius: 6px;
+			background: var(--MI-mediaStageBg, var(--MI_THEME-panel));
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		.controlsVolume:is(:hover, :focus-within) .volumeSeekbar {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		.controlsVolume:is(:hover, :focus-within)::before {
+			content: "";
+			position: absolute;
+			bottom: 100%;
+			right: 0;
+			width: 112px;
+			height: 12px;
+		}
+	}
+}
+
+@container (max-width: 440px) {
+	.root {
+		grid-template-areas:
+			"seekbar seekbar seekbar seekbar"
+			"left volume center right";
+		grid-template-columns: auto auto minmax(0, 1fr) auto;
+		column-gap: 4px;
+
+		.controlsTime {
+			display: none;
+		}
+	}
+
+	.videoControls {
+		grid-template-areas:
+			"seekbar seekbar seekbar seekbar seekbar"
+			"left time center volume right";
+		grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+		column-gap: 2px;
+
+		.controlsTime {
+			display: block;
+			font-size: 11px;
+		}
+
+		.controlButton {
+			flex-basis: 30px;
+			width: 30px;
+			font-size: 19px;
+		}
+	}
+}
+
+@container (max-width: 300px) {
+	.root {
+		column-gap: 2px;
+
+		.controlsChild {
+			gap: 2px;
+		}
+
+		.controlButton {
+			flex-basis: 30px;
+			width: 30px;
+			height: 30px;
+			font-size: 19px;
+		}
+
+		.volumeSeekbar {
+			width: 40px;
+		}
+	}
+
+	.videoControls {
+		grid-template-areas:
+			"seekbar seekbar seekbar seekbar seekbar"
+			"left time center volume right";
+		grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+		column-gap: 0;
+
+		.controlsTime {
+			font-size: 10px;
+		}
+
+		.volumeSeekbar {
+			width: 88px;
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animated.videoControls .seekbar {
+		--MI-mediaRangeTransition: none;
+	}
+
+	.animated .controlButton,
+	.animated .controlButton > i {
+		transition: none;
+	}
+
+	.animated .controlButton:not(:disabled):is(:hover, :focus-visible, :active) > i {
+		scale: 1;
+		rotate: none;
+	}
 }
 </style>

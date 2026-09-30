@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <section>
 	<div v-if="permissions.length > 0">
-		<p>{{ i18n.tsx._auth.permission({ name }) }}</p>
+		<p :class="$style.permissionMessage">{{ i18n.tsx._auth.permission({ name }) }}</p>
 		<ul>
 			<li v-for="p in permissions" :key="p">{{ i18n.ts._permissions[p] ?? p }}</li>
 		</ul>
@@ -67,6 +67,10 @@ function accept() {
 </script>
 
 <style lang="scss" module>
+.permissionMessage {
+	margin-top: 0;
+}
+
 .buttons {
 	margin-top: 16px;
 	display: flex;

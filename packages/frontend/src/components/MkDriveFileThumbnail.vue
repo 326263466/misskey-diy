@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:hash="file.blurhash"
 		:src="file.thumbnailUrl"
 		:alt="file.name"
-		:title="file.name"
+		:title="title ?? file.name"
 		:class="$style.thumbnail"
 		:cover="fit !== 'contain'"
 		:forceBlurhash="forceBlurhash"
@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		v-else-if="isThumbnailAvailable && file.thumbnailUrl != null"
 		:src="file.thumbnailUrl"
 		:alt="file.name"
-		:title="file.name"
+		:title="title ?? file.name"
 		:class="$style.thumbnail"
 		:style="{ objectFit: fit }"
 	/>
@@ -51,6 +51,7 @@ import { prefer } from '@/preferences.js';
 const props = defineProps<{
 	file: Misskey.entities.DriveFile;
 	fit: 'cover' | 'contain';
+	title?: string;
 	highlightWhenSensitive?: boolean;
 	forceBlurhash?: boolean;
 	large?: boolean;

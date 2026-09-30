@@ -10,6 +10,14 @@ const isTouchSupported = 'maxTouchPoints' in navigator && navigator.maxTouchPoin
 
 export let isTouchUsing = deviceKind === 'tablet' || deviceKind === 'smartphone';
 
+// 与 isTouchUsing 不同，这个会在触摸/鼠标混合设备上跟随当前的输入方式
+export let lastPointerType: string | null = null;
+const recordPointer = (ev: PointerEvent) => {
+	lastPointerType = ev.pointerType;
+};
+window.addEventListener('pointerdown', recordPointer, { capture: true, passive: true });
+window.addEventListener('pointermove', recordPointer, { capture: true, passive: true });
+
 if (isTouchSupported && !isTouchUsing) {
 	window.addEventListener('touchstart', () => {
 		// maxTouchPointsなどでの判定だけだと、「タッチ機能付きディスプレイを使っているがマウスでしか操作しない」場合にも

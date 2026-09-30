@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:src="transformPlayerUrl(player.url)"
 			:style="{ border: 0 }"
 		></iframe>
-		<span v-else>invalid url</span>
+		<span v-else>{{ i18n.ts.invalidUrl }}</span>
 	</div>
 	<div :class="$style.action">
 		<MkButton :small="true" inline @click="playerEnabled = false">
@@ -44,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 </template>
 <div v-else>
-	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="maybeRelativeUrl" rel="nofollow noopener" :target="target" :title="url">
+	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="maybeRelativeUrl" rel="nofollow noopener" :target="target" :title="url" @click="confirmExternalLink" @auxclick="confirmExternalLink">
 		<div v-if="thumbnail && !sensitive" :class="$style.thumbnail" :style="prefer.s.dataSaver.urlPreviewThumbnail ? '' : { backgroundImage: `url('${thumbnail}')` }">
 		</div>
 		<article :class="$style.body">
@@ -95,6 +95,7 @@ import { transformPlayerUrl } from '@/utility/url-preview.js';
 import { store } from '@/store.js';
 import { prefer } from '@/preferences.js';
 import { maybeMakeRelative } from '@@/js/url.js';
+import { confirmExternalLink } from '@/utility/external-link.js';
 
 const props = withDefaults(defineProps<{
 	url: string;
@@ -148,7 +149,11 @@ if (requestUrl.hostname === 'music.youtube.com' && requestUrl.pathname.match('^/
 
 requestUrl.hash = '';
 
-window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLang}`)
+let disposed = false;
+const requestController = new AbortController();
+const requestTimeout = window.setTimeout(() => requestController.abort(), 30000);
+
+window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLang}`, { signal: requestController.signal, cache: 'no-cache' })
 	.then(res => {
 		if (!res.ok) {
 			if (_DEV_) {
@@ -160,6 +165,7 @@ window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLa
 		return res.json();
 	})
 	.then((info: SummalyResult | null) => {
+		if (disposed) return;
 		if (!info || info.url == null) {
 			fetching.value = false;
 			unknownUrl.value = true;
@@ -170,6 +176,14 @@ window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLa
 		unknownUrl.value = false;
 
 		summalyResult.value = info;
+	})
+	.catch(() => {
+		if (disposed) return;
+		fetching.value = false;
+		unknownUrl.value = true;
+	})
+	.finally(() => {
+		window.clearTimeout(requestTimeout);
 	});
 
 function adjustTweetHeight(message: MessageEvent) {
@@ -196,6 +210,9 @@ function openPlayer(): void {
 window.addEventListener('message', adjustTweetHeight);
 
 onUnmounted(() => {
+	disposed = true;
+	window.clearTimeout(requestTimeout);
+	requestController.abort();
 	window.removeEventListener('message', adjustTweetHeight);
 });
 </script>

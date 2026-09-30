@@ -13,16 +13,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.search }}</template>
 				</MkInput>
 				<MkSwitch v-model="selectMode" style="margin: 8px 0;">
-					<template #label>Select mode</template>
+					<template #label>{{ i18n.ts._customEmojisManager.selectMode }}</template>
 				</MkSwitch>
 				<div v-if="selectMode" class="_buttons">
-					<MkButton inline @click="selectAll">Select all</MkButton>
-					<MkButton inline @click="setCategoryBulk">Set category</MkButton>
-					<MkButton inline @click="setTagBulk">Set tag</MkButton>
-					<MkButton inline @click="addTagBulk">Add tag</MkButton>
-					<MkButton inline @click="removeTagBulk">Remove tag</MkButton>
-					<MkButton inline @click="setLicenseBulk">Set License</MkButton>
-					<MkButton inline danger @click="delBulk">Delete</MkButton>
+					<MkButton inline @click="selectAll">{{ i18n.ts._customEmojisManager.selectAll }}</MkButton>
+					<MkButton inline @click="setCategoryBulk">{{ i18n.ts._customEmojisManager.setCategory }}</MkButton>
+					<MkButton inline @click="setTagBulk">{{ i18n.ts._customEmojisManager.setAliases }}</MkButton>
+					<MkButton inline @click="addTagBulk">{{ i18n.ts._customEmojisManager.addAliases }}</MkButton>
+					<MkButton inline @click="removeTagBulk">{{ i18n.ts._customEmojisManager.removeAliases }}</MkButton>
+					<MkButton inline @click="setLicenseBulk">{{ i18n.ts._customEmojisManager.setLicense }}</MkButton>
+					<MkButton inline danger @click="delBulk">{{ i18n.ts.delete }}</MkButton>
 				</div>
 				<MkPagination ref="emojisPaginationComponent" :paginator="paginator">
 					<template #empty><span>{{ i18n.ts.noCustomEmojis }}</span></template>
@@ -255,7 +255,7 @@ const menu = (ev: PointerEvent) => {
 
 const setCategoryBulk = async () => {
 	const { canceled, result } = await os.inputText({
-		title: 'Category',
+		title: i18n.ts.category,
 	});
 	if (canceled) return;
 	await os.apiWithDialog('admin/emoji/set-category-bulk', {
@@ -267,7 +267,7 @@ const setCategoryBulk = async () => {
 
 const setLicenseBulk = async () => {
 	const { canceled, result } = await os.inputText({
-		title: 'License',
+		title: i18n.ts.license,
 	});
 	if (canceled) return;
 	await os.apiWithDialog('admin/emoji/set-license-bulk', {
@@ -279,7 +279,7 @@ const setLicenseBulk = async () => {
 
 const addTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
-		title: 'Tag',
+		title: i18n.ts._customEmojisManager._gridCommon.aliases,
 	});
 	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/add-aliases-bulk', {
@@ -291,7 +291,7 @@ const addTagBulk = async () => {
 
 const removeTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
-		title: 'Tag',
+		title: i18n.ts._customEmojisManager._gridCommon.aliases,
 	});
 	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/remove-aliases-bulk', {
@@ -303,7 +303,7 @@ const removeTagBulk = async () => {
 
 const setTagBulk = async () => {
 	const { canceled, result } = await os.inputText({
-		title: 'Tag',
+		title: i18n.ts._customEmojisManager._gridCommon.aliases,
 	});
 	if (canceled || result == null) return;
 	await os.apiWithDialog('admin/emoji/set-aliases-bulk', {

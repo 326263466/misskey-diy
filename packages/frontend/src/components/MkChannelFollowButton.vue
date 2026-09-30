@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 	</template>
 	<template v-else>
-		<span v-if="full" :class="$style.text">{{ i18n.ts.processing }}</span><MkLoading :em="true"/>
+		<span v-if="full" :class="$style.text">{{ i18n.ts.processing }}</span><MkLoading :em="true" :colored="false"/>
 	</template>
 </button>
 </template>
@@ -68,14 +68,13 @@ async function onClick() {
 	position: relative;
 	display: inline-block;
 	font-weight: bold;
-	color: var(--MI_THEME-accent);
-	background: transparent;
-	border: solid 1px var(--MI_THEME-accent);
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-panel);
+	border: solid 1px var(--MI_THEME-divider);
 	padding: 0;
 	height: 31px;
 	font-size: 16px;
 	border-radius: 32px;
-	background: #fff;
 
 	&.full {
 		padding: 0 8px 0 12px;
@@ -101,15 +100,14 @@ async function onClick() {
 	&.active {
 		color: var(--MI_THEME-fgOnAccent);
 		background: var(--MI_THEME-accent);
+		border-color: color-mix(in srgb, var(--MI_THEME-accent), var(--MI_THEME-fgOnAccent) 15%);
 
 		&:hover {
 			background: hsl(from var(--MI_THEME-accent) h s calc(l + 10));
-			border-color: hsl(from var(--MI_THEME-accent) h s calc(l + 10));
 		}
 
 		&:active {
 			background: hsl(from var(--MI_THEME-accent) h s calc(l - 10));
-			border-color: hsl(from var(--MI_THEME-accent) h s calc(l - 10));
 		}
 	}
 

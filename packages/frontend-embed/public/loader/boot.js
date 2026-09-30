@@ -36,14 +36,36 @@
 	/** @type { string } */
 	let lang = localStorage.getItem('lang');
 	if (lang == null || !supportedLangs.includes(lang)) {
-		if (supportedLangs.includes(navigator.language)) {
-			lang = navigator.language;
-		} else {
-			lang = supportedLangs.find(x => x.split('-')[0] === navigator.language);
+		lang = null;
+		for (const preferredLang of navigator.languages?.length ? navigator.languages : [navigator.language]) {
+			if (typeof preferredLang !== 'string') continue;
+			let locale = preferredLang.toLowerCase();
+			lang = supportedLangs.find(x => x.toLowerCase() === locale);
+			if (lang != null) break;
 
-			// Fallback
-			if (lang == null) lang = 'en-US';
+			if (typeof Intl !== 'undefined' && typeof Intl.Locale === 'function') {
+				try {
+					locale = new Intl.Locale(preferredLang).maximize().baseName.toLowerCase();
+				} catch {
+					continue;
+				}
+			} else if (!/^[a-z]{2,8}(?:-[a-z0-9]{1,8})*$/.test(locale)) {
+				continue;
+			}
+
+			const parts = locale.split('-');
+			if (parts[0] === 'zh') {
+				// Keep the requested writing system; an explicit script takes precedence over its region.
+				const script = parts[1]?.length === 4 ? parts[1] : undefined;
+				const region = parts[script ? 2 : 1];
+				const chineseLang = script === 'hant' || (script == null && ['tw', 'hk', 'mo'].includes(region)) ? 'zh-TW' : 'zh-CN';
+				lang = supportedLangs.find(x => x === chineseLang);
+			} else {
+				lang = supportedLangs.find(x => x.split('-')[0] === parts[0]);
+			}
+			if (lang != null) break;
 		}
+		if (lang == null) lang = 'en-US';
 	}
 
 	// for https://github.com/misskey-dev/misskey/issues/10202

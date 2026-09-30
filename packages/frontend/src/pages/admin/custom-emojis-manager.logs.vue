@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div>
-	<div v-if="logs.length > 0" style="display:flex; flex-direction: column; overflow-y: scroll; gap: 16px;">
+	<div v-if="logs.length > 0" style="display:flex; flex-direction: column; overflow-y: auto; gap: 16px;">
 		<MkSwitch v-model="showingSuccessLogs">
 			<template #label>{{ i18n.ts._customEmojisManager._logs.showSuccessLogSwitch }}</template>
 		</MkSwitch>
@@ -54,10 +54,10 @@ function setupGrid(): GridSetting {
 			},
 		},
 		cols: [
-			{ bindTo: 'failed', title: 'failed', type: 'boolean', editable: false, width: 50 },
+			{ bindTo: 'failed', title: i18n.ts._customEmojisManager._logs.failed, type: 'boolean', editable: false, width: 50 },
 			{ bindTo: 'url', icon: 'ti-icons', type: 'image', editable: false, width: 'auto' },
-			{ bindTo: 'name', title: 'name', type: 'text', editable: false, width: 140 },
-			{ bindTo: 'error', title: 'log', type: 'text', editable: false, width: 'auto' },
+			{ bindTo: 'name', title: i18n.ts.name, type: 'text', editable: false, width: 140 },
+			{ bindTo: 'error', title: i18n.ts._customEmojisManager._logs.log, type: 'text', editable: false, width: 'auto' },
 		],
 		cells: {
 			contextMenuFactory: (col, row, value, context) => {

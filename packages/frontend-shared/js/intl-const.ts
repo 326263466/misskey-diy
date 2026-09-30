@@ -34,6 +34,25 @@ try {
 }
 export const dateTimeFormat = _dateTimeFormat;
 
+let _dateFormat: Intl.DateTimeFormat;
+try {
+	_dateFormat = new Intl.DateTimeFormat(versatileLang, {
+		year: 'numeric',
+		month: 'numeric',
+		day: 'numeric',
+	});
+} catch (err) {
+	console.warn(err);
+	if (_DEV_) console.log('[Intl] Fallback to en-US');
+
+	_dateFormat = new Intl.DateTimeFormat('en-US', {
+		year: 'numeric',
+		month: 'numeric',
+		day: 'numeric',
+	});
+}
+export const dateOnlyFormat = _dateFormat;
+
 export const timeZone = dateTimeFormat.resolvedOptions().timeZone;
 
 export const hemisphere = /^(australia|pacific|antarctica|indian)\//i.test(timeZone) ? 'S' : 'N';

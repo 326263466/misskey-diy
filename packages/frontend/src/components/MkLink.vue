@@ -7,7 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <component
 	:is="self ? 'MkA' : 'a'" ref="el" style="word-break: break-all;" class="_link" :[attr]="maybeRelativeUrl" :rel="rel ?? 'nofollow noopener'" :target="target"
 	:behavior="props.navigationBehavior"
-	:title="url"
+	:title="enablePreview ? '' : url"
+	@click="confirmExternalLink"
+	@auxclick="confirmExternalLink"
 >
 	<slot></slot>
 	<i v-if="target === '_blank'" class="ti ti-external-link" :class="$style.icon"></i>
@@ -22,6 +24,7 @@ import type { MkABehavior } from '@/components/global/MkA.vue';
 import { useTooltip } from '@/composables/use-tooltip.js';
 import * as os from '@/os.js';
 import { isEnabledUrlPreview } from '@/utility/url-preview.js';
+import { confirmExternalLink } from '@/utility/external-link.js';
 
 const props = withDefaults(defineProps<{
 	url: string;
@@ -36,8 +39,9 @@ const attr = self ? 'to' : 'href';
 const target = self ? null : '_blank';
 
 const el = ref<HTMLElement | { $el: HTMLElement }>();
+const enablePreview = isEnabledUrlPreview.value;
 
-if (isEnabledUrlPreview.value) {
+if (enablePreview) {
 	useTooltip(el, (showing) => {
 		const anchorElement = el.value instanceof HTMLElement ? el.value : el.value?.$el;
 		if (anchorElement == null) return;

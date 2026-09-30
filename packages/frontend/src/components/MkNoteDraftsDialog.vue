@@ -20,27 +20,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<MkStickyContainer>
 		<template #header>
-			<MkTabs
-				v-model:tab="tab"
-				centered
-				:class="$style.tabs"
-				:tabs="[
-					{
-						key: 'drafts',
-						title: i18n.ts.drafts,
-						icon: 'ti ti-pencil-question',
-					},
-					{
-						key: 'scheduled',
-						title: i18n.ts.scheduled,
-						icon: 'ti ti-calendar-clock',
-					},
-				]"
-			/>
+			<MkPaginationControl :paginator="tab === 'scheduled' ? scheduledPaginator : draftsPaginator" :class="$style.tabs">
+				<template #header>
+					<MkTabs
+						v-model:tab="tab"
+						:tabs="[
+							{
+								key: 'drafts',
+								title: i18n.ts.drafts,
+								icon: 'ti ti-pencil-question',
+							},
+							{
+								key: 'scheduled',
+								title: i18n.ts.scheduled,
+								icon: 'ti ti-calendar-clock',
+							},
+						]"
+					/>
+				</template>
+			</MkPaginationControl>
 		</template>
 
-		<div class="_spacer">
-			<MkPagination :key="tab" :paginator="tab === 'scheduled' ? scheduledPaginator : draftsPaginator" withControl>
+		<div class="_spacer _spacerCard">
+			<MkPagination :key="tab" :paginator="tab === 'scheduled' ? scheduledPaginator : draftsPaginator">
 				<template #empty>
 					<MkResult type="empty" :text="i18n.ts._drafts.noDrafts"/>
 				</template>
@@ -164,6 +166,7 @@ import { ref, shallowRef, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkPagination from '@/components/MkPagination.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import { getNoteSummary } from '@/utility/get-note-summary.js';
 import { i18n } from '@/i18n.js';
@@ -296,6 +299,7 @@ async function cancelSchedule(draft: Misskey.entities.NoteDraft) {
 }
 
 .tabs {
+	padding: 0 var(--MI-marginHalf);
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.75);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));

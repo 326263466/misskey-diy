@@ -4,10 +4,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_selectable">
-	<div :class="$style.label" @click="focus"><slot name="label"></slot></div>
-	<div :class="{ [$style.disabled]: disabled, [$style.focused]: focused, [$style.tall]: tall, [$style.pre]: pre }" style="position: relative;">
+<div ref="rootEl" class="_selectable" @focusout="onFocusout">
+	<label v-if="!collapsible || expanded || filled" :for="id" :class="$style.label" @click="focus"><slot name="label"></slot></label>
+	<button v-if="collapsible && !expanded" type="button" class="_button" :class="$style.collapsed" :disabled="disabled" @click="focus">
+		<Mfm v-if="v && !code" :text="v" :plain="true" :noEmojiTooltip="true"/>
+		<template v-else>{{ v || collapsedPlaceholder || placeholder || i18n.ts.edit }}</template>
+	</button>
+	<div v-show="!collapsible || expanded" :class="{ [$style.disabled]: disabled, [$style.focused]: focused, [$style.tall]: tall, [$style.pre]: pre }" style="position: relative;">
 		<textarea
+			:id="id"
 			ref="inputEl"
 			v-model="v"
 			v-adaptive-border
@@ -23,11 +28,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@blur="focused = false"
 			@keydown="onKeydown($event)"
 			@input="onInput"
+			@compositionstart="composing = true"
+			@compositionend="onCompositionEnd"
 		></textarea>
+		<MkEmojiInputOverlay :inputElement="inputEl" :text="v" :disabled="code"/>
 	</div>
-	<div :class="$style.caption"><slot name="caption"></slot></div>
-	<button v-if="mfmPreview" style="font-size: 0.85em;" class="_textButton" type="button" @click="preview = !preview">{{ i18n.ts.preview }}</button>
-	<div v-if="mfmPreview" v-show="preview" v-panel :class="$style.mfmPreview">
+	<div v-if="!collapsible || expanded" :class="$style.caption"><slot name="caption"></slot></div>
+	<button v-if="mfmPreview && (!collapsible || expanded)" style="font-size: 0.85em;" class="_textButton" type="button" @click="preview = !preview">{{ i18n.ts.preview }}</button>
+	<div v-if="mfmPreview" v-show="preview && (!collapsible || expanded)" v-panel :class="$style.mfmPreview">
 		<Mfm :text="v"/>
 	</div>
 
@@ -40,8 +48,10 @@ import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useTemp
 import { debounce } from 'throttle-debounce';
 import type { SuggestionType } from '@/utility/autocomplete.js';
 import MkButton from '@/components/MkButton.vue';
+import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
 import { i18n } from '@/i18n.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
+import { genId } from '@/utility/id.js';
 
 const props = defineProps<{
 	modelValue: string | null;
@@ -60,6 +70,8 @@ const props = defineProps<{
 	code?: boolean;
 	tall?: boolean;
 	pre?: boolean;
+	collapsible?: boolean;
+	collapsedPlaceholder?: string;
 }>();
 
 const emit = defineEmits<{
@@ -72,6 +84,12 @@ const emit = defineEmits<{
 
 const { modelValue, autofocus } = toRefs(props);
 const v = ref<string>(modelValue.value ?? '');
+let lastUpdatedValue = v.value;
+const composing = ref(false);
+let collapseAfterComposition = false;
+const id = genId();
+const rootEl = useTemplateRef('rootEl');
+const expanded = ref(false);
 const focused = ref(false);
 const changed = ref(false);
 const invalid = ref(false);
@@ -81,11 +99,58 @@ const preview = ref(false);
 let autocompleteWorker: Autocomplete | null = null;
 
 function focus() {
-	inputEl.value?.focus();
+	if (props.disabled) return;
+	if (!props.collapsible) {
+		inputEl.value?.focus();
+		return;
+	}
+	expanded.value = true;
+	nextTick(() => inputEl.value?.focus());
+}
+
+function collapse() {
+	if (!props.collapsible) return;
+	expanded.value = false;
+	focused.value = false;
+}
+
+function onFocusout(event: FocusEvent) {
+	if (event.relatedTarget instanceof Node && rootEl.value?.contains(event.relatedTarget)) return;
+	if (event.relatedTarget == null) {
+		// 焦点移入编辑器之前，折叠按钮就已被移除
+		nextTick(() => {
+			if (!rootEl.value?.contains(window.document.activeElement)) finishEditing();
+		});
+		return;
+	}
+	finishEditing();
+}
+
+function onOutsidePointerDown(event: PointerEvent) {
+	if (event.target instanceof Node && !rootEl.value?.contains(event.target)) finishEditing();
+}
+
+function finishEditing() {
+	if (!props.collapsible || !expanded.value) return;
+	if (composing.value) {
+		collapseAfterComposition = true;
+		return;
+	}
+	debouncedUpdated.cancel();
+	updated();
+	collapse();
+}
+
+function onCompositionEnd() {
+	composing.value = false;
+	if (collapseAfterComposition) {
+		collapseAfterComposition = false;
+		nextTick(finishEditing);
+	}
 }
 
 function onInput(ev: InputEvent) {
-	changed.value = true;
+	changed.value = !props.collapsible || v.value !== lastUpdatedValue;
 	emit('change', ev);
 }
 
@@ -110,13 +175,22 @@ function onKeydown(ev: KeyboardEvent) {
 }
 
 function updated() {
+	if (props.collapsible && composing.value) {
+		collapseAfterComposition = true;
+		return;
+	}
 	changed.value = false;
-	emit('update:modelValue', v.value ?? '');
+	if (!props.collapsible || v.value !== lastUpdatedValue) {
+		lastUpdatedValue = v.value;
+		emit('update:modelValue', v.value ?? '');
+	}
+	if (props.manualSave) collapse();
 }
 
 const debouncedUpdated = debounce(1000, updated);
 
 watch(modelValue, newValue => {
+	lastUpdatedValue = newValue ?? '';
 	v.value = newValue ?? '';
 });
 
@@ -137,6 +211,8 @@ watch([changed, invalid], ([newChanged, newInvalid]) => {
 }, { immediate: true });
 
 onMounted(() => {
+	if (props.collapsible) window.document.addEventListener('pointerdown', onOutsidePointerDown);
+
 	nextTick(() => {
 		if (autofocus.value) {
 			focus();
@@ -149,6 +225,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+	window.document.removeEventListener('pointerdown', onOutsidePointerDown);
+
 	if (autocompleteWorker) {
 		autocompleteWorker.detach();
 	}
@@ -157,6 +235,7 @@ onUnmounted(() => {
 
 <style lang="scss" module>
 .label {
+	display: block;
 	font-size: 0.85em;
 	padding: 0 0 8px 0;
 	user-select: none;
@@ -184,6 +263,7 @@ onUnmounted(() => {
 	min-width: 100%;
 	max-width: 100%;
 	min-height: 130px;
+	resize: none;
 	margin: 0;
 	padding: 12px;
 	font: inherit;
@@ -200,6 +280,31 @@ onUnmounted(() => {
 
 	&:hover {
 		border-color: var(--MI_THEME-inputBorderHover) !important;
+	}
+
+	&:focus {
+		border-color: var(--MI_THEME-accent) !important;
+		outline: none;
+	}
+}
+
+.collapsed {
+	display: -webkit-box;
+	width: 100%;
+	padding: 8px 12px;
+	box-sizing: border-box;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-buttonBg);
+	text-align: left;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+
+	&:hover {
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 }
 

@@ -6,7 +6,7 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
-import { beforeAll, beforeEach, describe, test } from 'vitest';
+import { beforeAll, beforeEach, describe, test, vi } from 'vitest';
 import { inspect } from 'node:util';
 import { api, post, role, signup, successfulApiCall, uploadFile } from '../utils.js';
 import type * as misskey from 'misskey-js';
@@ -44,6 +44,7 @@ describe('ユーザー', () => {
 			instance: user.instance,
 			emojis: user.emojis,
 			onlineStatus: user.onlineStatus,
+			customStatus: user.customStatus,
 			badgeRoles: user.badgeRoles,
 
 			// BUG isAdmin/isModeratorはUserLiteではなくMeDetailedOnlyに含まれる。
@@ -70,6 +71,8 @@ describe('ユーザー', () => {
 			isSuspended: user.isSuspended,
 			description: user.description,
 			location: user.location,
+			company: user.company,
+			jobTitle: user.jobTitle,
 			birthday: user.birthday,
 			lang: user.lang,
 			fields: user.fields,
@@ -130,6 +133,8 @@ describe('ユーザー', () => {
 			isDeleted: user.isDeleted,
 			twoFactorBackupCodesStock: user.twoFactorBackupCodesStock,
 			hideOnlineStatus: user.hideOnlineStatus,
+			onlineStatusOverride: user.onlineStatusOverride,
+			onlineStatusAutoReplies: user.onlineStatusAutoReplies,
 			hasUnreadSpecifiedNotes: user.hasUnreadSpecifiedNotes,
 			hasUnreadMentions: user.hasUnreadMentions,
 			hasUnreadAnnouncement: user.hasUnreadAnnouncement,
@@ -309,7 +314,7 @@ describe('ユーザー', () => {
 		assert.strictEqual(response.name, null);
 		assert.strictEqual(response.username, 'zoe');
 		assert.strictEqual(response.host, null);
-		response.avatarUrl && assert.match(response.avatarUrl, /^[-a-zA-Z0-9@:%._\+~#&?=\/]+$/);
+		if (response.avatarUrl) assert.match(response.avatarUrl, /^[-a-zA-Z0-9@:%._\+~#&?=\/]+$/);
 		assert.strictEqual(response.avatarBlurhash, null);
 		assert.deepStrictEqual(response.avatarDecorations, []);
 		assert.strictEqual(response.isBot, false);
@@ -376,8 +381,8 @@ describe('ユーザー', () => {
 		assert.strictEqual(response.hasUnreadAntenna, false);
 		assert.strictEqual(response.hasUnreadChannel, false);
 		assert.strictEqual(response.hasUnreadChatMessages, false);
-		assert.strictEqual(response.hasUnreadNotification, false);
-		assert.strictEqual(response.unreadNotificationsCount, 0);
+		assert.strictEqual(response.hasUnreadNotification, true);
+		assert.strictEqual(response.unreadNotificationsCount, 1);
 		assert.strictEqual(response.hasPendingReceivedFollowRequest, false);
 		assert.deepStrictEqual(response.unreadAnnouncements, []);
 		assert.deepStrictEqual(response.mutedWords, []);
@@ -397,6 +402,59 @@ describe('ユーザー', () => {
 		assert.deepStrictEqual(response.securityKeysList, []);
 	});
 
+	describe('signup welcome system message', () => {
+		test('delivers exactly one private system welcome to each new account', async () => {
+			const user = await signup();
+			const other = await signup();
+			assert.strictEqual(user.hasUnreadNotification, true);
+			assert.strictEqual(user.unreadNotificationsCount, 1);
+
+			const notifications = await successfulApiCall({ endpoint: 'i/notifications', parameters: { markAsRead: false }, user });
+			assert.strictEqual(notifications.length, 1);
+			const welcome = notifications[0];
+			assert.deepStrictEqual(welcome, {
+				id: welcome.id,
+				createdAt: welcome.createdAt,
+				type: 'system',
+				message: 'welcome',
+			});
+			const grouped = await successfulApiCall({ endpoint: 'i/notifications-grouped', parameters: { markAsRead: false }, user });
+			assert.deepStrictEqual(grouped, notifications);
+			const othersNotifications = await successfulApiCall({ endpoint: 'i/notifications', parameters: { markAsRead: false }, user: other });
+			assert.strictEqual(othersNotifications.length, 1);
+			assert.strictEqual(othersNotifications[0].type, 'system');
+			assert.notStrictEqual(othersNotifications[0].id, welcome.id);
+			const current = await successfulApiCall({ endpoint: 'i', parameters: {}, user });
+			assert.strictEqual(current.hasUnreadNotification, true);
+			assert.strictEqual(current.unreadNotificationsCount, 1);
+		});
+
+		test('marks the welcome as read while retaining it in the inbox', async () => {
+			const user = await signup();
+			const notifications = await successfulApiCall({ endpoint: 'i/notifications', parameters: { markAsRead: false }, user });
+			assert.strictEqual(notifications.length, 1);
+			await successfulApiCall({ endpoint: 'notifications/mark-all-as-read', parameters: {}, user });
+			await vi.waitFor(async () => {
+				const current = await successfulApiCall({ endpoint: 'i', parameters: {}, user });
+				assert.strictEqual(current.hasUnreadNotification, false);
+				assert.strictEqual(current.unreadNotificationsCount, 0);
+			});
+			const retained = await successfulApiCall({ endpoint: 'i/notifications', parameters: { markAsRead: false }, user });
+			assert.deepStrictEqual(retained, notifications);
+		});
+
+		test('does not send another welcome for a repeated signup or account refresh', async () => {
+			const user = await signup();
+			const notifications = await successfulApiCall({ endpoint: 'i/notifications', parameters: { markAsRead: false }, user });
+			assert.strictEqual(notifications.length, 1);
+			const repeated = await api('signup', { username: user.username, password: 'test' });
+			assert.strictEqual(repeated.status, 400);
+			await successfulApiCall({ endpoint: 'i', parameters: {}, user });
+			const retained = await successfulApiCall({ endpoint: 'i/notifications', parameters: { markAsRead: false }, user });
+			assert.deepStrictEqual(retained, notifications);
+		});
+	});
+
 	//#endregion
 	//#region 自分の情報(i)
 
@@ -413,6 +471,180 @@ describe('ユーザー', () => {
 
 	//#endregion
 	//#region 自分の情報の更新(i/update)
+	describe('professional profile', () => {
+		test('includes company and job title in single notes, timelines, and quoted authors', async () => {
+			const user = await signup();
+			const professionalProfile = { company: '示例科技', jobTitle: '产品设计师' };
+			await successfulApiCall({ endpoint: 'i/update', parameters: professionalProfile, user });
+			const note = await post(user, { text: 'Professional author profile' });
+			const single = await successfulApiCall({ endpoint: 'notes/show', parameters: { noteId: note.id } });
+			const timeline = await successfulApiCall({ endpoint: 'users/notes', parameters: { userId: user.id } });
+			const quote = await post(root, { renoteId: note.id, text: 'Quoted author profile' });
+			for (const author of [note.user, single.user, timeline.find(item => item.id === note.id)?.user, quote.renote?.user]) {
+				assert.ok(author);
+				assert.strictEqual(author.company, professionalProfile.company);
+				assert.strictEqual(author.jobTitle, professionalProfile.jobTitle);
+			}
+			await successfulApiCall({ endpoint: 'i/update', parameters: { company: null }, user });
+			const updated = await successfulApiCall({ endpoint: 'notes/show', parameters: { noteId: note.id } });
+			assert.strictEqual(updated.user.company, null);
+			assert.strictEqual(updated.user.jobTitle, professionalProfile.jobTitle);
+		});
+
+		test('saves public company and job title, and clears either without changing the other', async () => {
+			const user = await signup();
+			assert.strictEqual(user.company, null);
+			assert.strictEqual(user.jobTitle, null);
+			const updated = await successfulApiCall({ endpoint: 'i/update', parameters: { company: '  示例科技  ', jobTitle: '  产品设计师  ' }, user });
+			assert.strictEqual(updated.company, '示例科技');
+			assert.strictEqual(updated.jobTitle, '产品设计师');
+			const publicUser = await show(user.id);
+			assert.strictEqual(publicUser.company, '示例科技');
+			assert.strictEqual(publicUser.jobTitle, '产品设计师');
+			await successfulApiCall({ endpoint: 'i/update', parameters: { company: '' }, user });
+			assert.strictEqual((await show(user.id)).company, null);
+			assert.strictEqual((await show(user.id)).jobTitle, '产品设计师');
+			await successfulApiCall({ endpoint: 'i/update', parameters: { jobTitle: null }, user });
+			assert.strictEqual((await show(user.id)).jobTitle, null);
+		});
+
+		test.each(['company', 'jobTitle'] as const)('rejects invalid %s values', async field => {
+			const user = await signup();
+			for (const value of ['a'.repeat(129), 'a\u0000b', 'a\nb']) {
+				const response = await api('i/update', { [field]: value }, user);
+				assert.strictEqual(response.status, 400);
+			}
+		});
+	});
+
+	describe('manual online status', () => {
+		test.each(['online', 'away', 'busy', 'doNotDisturb'] as const)('persists %s and exposes only the public status to other users', async onlineStatusOverride => {
+			const user = await signup();
+			const updated = await successfulApiCall({ endpoint: 'i/update', parameters: { onlineStatusOverride, hideOnlineStatus: false }, user });
+			assert.strictEqual(updated.onlineStatusOverride, onlineStatusOverride);
+			assert.strictEqual(updated.onlineStatus, onlineStatusOverride);
+			const current = await successfulApiCall({ endpoint: 'i', parameters: {}, user });
+			assert.strictEqual(current.onlineStatusOverride, onlineStatusOverride);
+			const publicUser = await show(user.id);
+			assert.strictEqual(publicUser.onlineStatus, onlineStatusOverride);
+			assert.ok(!('onlineStatusOverride' in publicUser));
+			const batch = await successfulApiCall({ endpoint: 'users/show-partial-bulk', parameters: { userIds: [user.id] }, user: root });
+			assert.strictEqual(batch[0].onlineStatus, onlineStatusOverride);
+		});
+
+		test('keeps completely hidden users without a status and preserves their selection', async () => {
+			const user = await signup();
+			await successfulApiCall({ endpoint: 'i/update', parameters: { onlineStatusOverride: 'busy', hideOnlineStatus: true }, user });
+			assert.strictEqual((await show(user.id)).onlineStatus, null);
+			const batch = await successfulApiCall({ endpoint: 'users/show-partial-bulk', parameters: { userIds: [user.id] }, user: root });
+			assert.strictEqual(batch[0].onlineStatus, null);
+			await successfulApiCall({ endpoint: 'i/update', parameters: { onlineStatusOverride: 'invisible' }, user });
+			assert.strictEqual((await show(user.id)).onlineStatus, null);
+			await successfulApiCall({ endpoint: 'i/update', parameters: { hideOnlineStatus: false }, user });
+			assert.strictEqual((await show(user.id)).onlineStatus, 'unknown');
+			await successfulApiCall({ endpoint: 'i/update', parameters: { hideOnlineStatus: false, onlineStatusOverride: 'online' }, user });
+			assert.strictEqual((await show(user.id)).onlineStatus, 'online');
+		});
+
+		test('keeps invisible presence unknown for others and exposes the saved selection only to self', async () => {
+			const user = await signup();
+			const updated = await successfulApiCall({ endpoint: 'i/update', parameters: { onlineStatusOverride: 'invisible' }, user });
+			assert.strictEqual(updated.hideOnlineStatus, false);
+			assert.strictEqual(updated.onlineStatusOverride, 'invisible');
+			assert.strictEqual(updated.onlineStatus, 'unknown');
+			const publicUser = await show(user.id);
+			assert.strictEqual(publicUser.onlineStatus, 'unknown');
+			assert.ok(!('onlineStatusOverride' in publicUser));
+			const batch = await successfulApiCall({ endpoint: 'users/show-partial-bulk', parameters: { userIds: [user.id] }, user: root });
+			assert.strictEqual(batch[0].onlineStatus, 'unknown');
+		});
+
+		test('rejects unsupported manual statuses', async () => {
+			const response = await api('i/update', { onlineStatusOverride: 'unsupported' as never }, alice);
+			assert.strictEqual(response.status, 400);
+		});
+
+		test('keeps custom status independent of visibility and only returns saved hidden text to self', async () => {
+			const user = await signup();
+			const customStatus = { icon: 'music', text: 'Music' } as const;
+			await successfulApiCall({ endpoint: 'i/update', parameters: { hideOnlineStatus: true, onlineStatusOverride: 'busy' }, user });
+			const updated = await successfulApiCall({ endpoint: 'i/update', parameters: { customStatus }, user });
+			assert.strictEqual(updated.hideOnlineStatus, true);
+			assert.strictEqual(updated.onlineStatusOverride, 'busy');
+			assert.deepStrictEqual(updated.customStatus, customStatus);
+			const publicUser = await show(user.id);
+			assert.strictEqual(publicUser.onlineStatus, null);
+			assert.strictEqual(publicUser.customStatus, null);
+			assert.ok(!('hideOnlineStatus' in publicUser));
+			const parameters = { userIds: [user.id] };
+			const selfBatch = await api('users/show-partial-bulk', parameters, user);
+			assert.deepStrictEqual(selfBatch.body[0].customStatus, customStatus);
+			assert.match(selfBatch.headers.get('cache-control') ?? '', /private/);
+			const publicBatch = await successfulApiCall({ endpoint: 'users/show-partial-bulk', parameters, user: root });
+			assert.strictEqual(publicBatch[0].customStatus, null);
+			await successfulApiCall({ endpoint: 'i/update', parameters: { hideOnlineStatus: false, onlineStatusOverride: 'online' }, user });
+			assert.deepStrictEqual((await show(user.id)).customStatus, customStatus);
+			await successfulApiCall({ endpoint: 'i/update', parameters: { customStatus: null }, user });
+			assert.strictEqual((await show(user.id)).customStatus, null);
+		});
+
+		test.each(['', 'a'.repeat(9), 'hello\nworld'])('rejects invalid custom text %j', async text => {
+			const response = await api('i/update', { customStatus: { icon: 'music', text } }, alice);
+			assert.strictEqual(response.status, 400);
+		});
+
+		test('preserves the extended custom status icons in public user responses', async () => {
+			const user = await signup();
+			for (const icon of [
+				'food', 'home', 'pet', 'code', 'focus', 'film', 'car', 'vacation',
+				'exercise', 'sun', 'cloud', 'battery', 'chat', 'celebrate', 'gift', 'handshake',
+			] as const) {
+				const customStatus = { icon, text: '自定义状态' };
+				const updated = await successfulApiCall({ endpoint: 'i/update', parameters: { customStatus, onlineStatusOverride: 'online' }, user });
+				assert.deepStrictEqual(updated.customStatus, customStatus);
+				assert.deepStrictEqual((await show(user.id)).customStatus, customStatus);
+			}
+		});
+
+		test('persists private per-state automatic replies and preserves explicit None', async () => {
+			const user = await signup();
+			assert.deepStrictEqual(user.onlineStatusAutoReplies, {});
+			await successfulApiCall({ endpoint: 'i/update', parameters: { onlineStatusAutoReplies: { away: '稍后回复', busy: '工作中' } }, user });
+			const updated = await successfulApiCall({ endpoint: 'i/update', parameters: { onlineStatusOverride: 'doNotDisturb', onlineStatusAutoReplies: { away: null, doNotDisturb: '请勿打扰' } }, user });
+			assert.deepStrictEqual(updated.onlineStatusAutoReplies, { away: null, busy: '工作中', doNotDisturb: '请勿打扰' });
+			assert.ok(!('onlineStatusAutoReplies' in await show(user.id)));
+		});
+
+		test.each(['away', 'busy', 'doNotDisturb'] as const)('replies to every private message for %s without reciprocal replies', async status => {
+			const sender = await signup();
+			const recipient = await signup();
+			await successfulApiCall({ endpoint: 'i/update', parameters: { chatScope: 'none', hideOnlineStatus: false, onlineStatusOverride: 'away', onlineStatusAutoReplies: { away: 'Sender is away' } }, user: sender });
+			await successfulApiCall({ endpoint: 'i/update', parameters: { chatScope: 'everyone', hideOnlineStatus: false, onlineStatusOverride: status, onlineStatusAutoReplies: { [status]: '稍后联系。' } }, user: recipient });
+			// A caller cannot forge the internal marker or bypass normal message handling.
+			const parameters = { toUserId: recipient.id, text: 'hello', isAutoReply: true };
+			const incoming = await successfulApiCall({ endpoint: 'chat/messages/create-to-user', parameters, user: sender });
+			assert.strictEqual(incoming.isAutoReply, false);
+			await successfulApiCall({ endpoint: 'chat/messages/create-to-user', parameters: { toUserId: recipient.id, text: 'hello again' }, user: sender });
+			const timeline = await successfulApiCall({ endpoint: 'chat/messages/user-timeline', parameters: { userId: recipient.id }, user: sender });
+			assert.strictEqual(timeline.length, 4);
+			const replies = timeline.filter(message => message.isAutoReply);
+			assert.strictEqual(replies.length, 2);
+			for (const reply of replies) {
+				assert.strictEqual(reply.fromUserId, recipient.id);
+				assert.strictEqual(reply.text, '稍后联系。');
+			}
+		});
+
+		test.each(['invisible', 'hidden', 'disabled'] as const)('does not automatically reply when %s', async mode => {
+			const sender = await signup();
+			const recipient = await signup();
+			await successfulApiCall({ endpoint: 'i/update', parameters: { chatScope: 'everyone', hideOnlineStatus: mode === 'hidden', onlineStatusOverride: mode === 'invisible' ? 'invisible' : 'away', onlineStatusAutoReplies: { away: mode === 'disabled' ? null : 'Away' } }, user: recipient });
+			await successfulApiCall({ endpoint: 'chat/messages/create-to-user', parameters: { toUserId: recipient.id, text: 'hello' }, user: sender });
+			const timeline = await successfulApiCall({ endpoint: 'chat/messages/user-timeline', parameters: { userId: recipient.id }, user: sender });
+			assert.strictEqual(timeline.length, 1);
+			assert.strictEqual(timeline[0].isAutoReply, false);
+		});
+	});
 
 	test.each([
 		{ parameters: () => ({ name: null }) },
@@ -718,6 +950,76 @@ describe('ユーザー', () => {
 	});
 	test.todo('をID指定のリスト形式で取得することができる(リモート)');
 
+	describe('users/show-partial-bulk', () => {
+		const partialUser = (user: misskey.entities.UserDetailed) => ({
+			id: user.id,
+			onlineStatus: user.onlineStatus,
+			customStatus: user.customStatus,
+			notesCount: user.notesCount,
+			followingCount: user.followingCount,
+			followersCount: user.followersCount,
+			followingVisibility: user.followingVisibility,
+			followersVisibility: user.followersVisibility,
+			isFollowing: user.isFollowing ?? false,
+			isFollowed: user.isFollowed ?? false,
+			hasPendingFollowRequestFromYou: user.hasPendingFollowRequestFromYou ?? false,
+		});
+
+		test.each([false, true])('returns only current counts and relationships in request order (authenticated: %s)', async authenticated => {
+			const viewer = authenticated ? alice : undefined;
+			const userIds = [userFollowedByAlice.id, alice.id, userFollowingAlice.id];
+			const response = await api('users/show-partial-bulk', { userIds }, viewer);
+			assert.strictEqual(response.status, 200);
+			const expected = await Promise.all(userIds.map(async userId => partialUser(await successfulApiCall({
+				endpoint: 'users/show', parameters: { userId }, user: viewer,
+			}))));
+			assert.deepStrictEqual(response.body, expected);
+		});
+
+		test('distinguishes a pending request from an accepted follow', async () => {
+			const response = await api('users/show-partial-bulk', { userIds: [userFollowRequested.id] }, userFollowRequesting);
+			assert.strictEqual(response.status, 200);
+			assert.strictEqual(response.body[0].isFollowing, false);
+			assert.strictEqual(response.body[0].isFollowed, false);
+			assert.strictEqual(response.body[0].hasPendingFollowRequestFromYou, true);
+		});
+
+		test('applies the same private and followers-only count visibility as users/show', async () => {
+			const target = await signup({ username: 'partialCountsTarget' });
+			const follower = await signup({ username: 'partialCountsFollower' });
+			await successfulApiCall({ endpoint: 'following/create', parameters: { userId: target.id }, user: follower });
+			await successfulApiCall({ endpoint: 'following/create', parameters: { userId: follower.id }, user: target });
+			for (const visibility of ['public', 'followers', 'private'] as const) {
+				await successfulApiCall({ endpoint: 'i/update', parameters: { followingVisibility: visibility, followersVisibility: visibility }, user: target });
+				for (const viewer of [undefined, bob, follower, target, root]) {
+					const response = await api('users/show-partial-bulk', { userIds: [target.id] }, viewer);
+					assert.strictEqual(response.status, 200);
+					const canSeeCounts = visibility === 'public' || viewer === target || viewer === root || (visibility === 'followers' && viewer === follower);
+					assert.strictEqual(response.body[0].followingCount, canSeeCounts ? 1 : 0);
+					assert.strictEqual(response.body[0].followersCount, canSeeCounts ? 1 : 0);
+					const detailed = await successfulApiCall({ endpoint: 'users/show', parameters: { userId: target.id }, user: viewer });
+					assert.deepStrictEqual(response.body, [partialUser(detailed)]);
+				}
+			}
+		});
+
+		test.each([false, true])('omits suspended users unless the viewer is a moderator (moderator: %s)', async moderator => {
+			const response = await api('users/show-partial-bulk', { userIds: [userSuspended.id, bob.id] }, moderator ? userModerator : alice);
+			assert.strictEqual(response.status, 200);
+			assert.deepStrictEqual(response.body.map(user => user.id), moderator ? [userSuspended.id, bob.id] : [bob.id]);
+		});
+
+		test.each([
+			{ label: 'empty', userIds: () => [] },
+			{ label: 'duplicate', userIds: () => [alice.id, alice.id] },
+			{ label: 'invalid ID', userIds: () => ['invalid/id'] },
+			{ label: 'over the batch limit', userIds: () => Array.from({ length: 101 }, (_, index) => index.toString(36).padStart(10, '0')) },
+		])('rejects $label batches', async ({ userIds }) => {
+			const response = await api('users/show-partial-bulk', { userIds: userIds() }, alice);
+			assert.strictEqual(response.status, 400);
+		});
+	});
+
 	//#endregion
 	//#region 検索(users/search)
 
@@ -891,4 +1193,42 @@ describe('ユーザー', () => {
 	test.todo('を管理人として確認することができる(admin/show-user)');
 	test.todo('を管理人として確認することができる(admin/show-users)');
 	test.todo('をサーバー向けに取得することができる(federation/users)');
+});
+
+describe('manual daily check-in', () => {
+	test('requires authentication to check in and to read a private calendar', async () => {
+		assert.strictEqual((await api('i/checkin', {})).status, 401);
+		assert.strictEqual((await api('i/checkin-status', {})).status, 401);
+	});
+
+	test('records one day for concurrent requests and returns fresh achievements', async () => {
+		const member = await signup({ username: 'checkin_member' });
+		assert.ok(member.token, 'Test member signup failed');
+		const before = await api('i/checkin-status', {}, member);
+		assert.strictEqual(before.status, 200);
+		assert.strictEqual(before.body.totalDays, 0);
+		assert.strictEqual(before.body.checkedInToday, false);
+		const responses = await Promise.all(Array.from({ length: 8 }, () => api('i/checkin', {}, member)));
+		assert.ok(responses.every(response => response.status === 200));
+		assert.strictEqual(responses.filter(response => response.body.newlyCheckedIn).length, 1);
+		assert.strictEqual(responses.flatMap(response => response.body.earnedAchievements).filter(name => name === 'checkin1').length, 1);
+		const after = await api('i/checkin-status', {}, member);
+		assert.strictEqual(after.body.timeZone, 'Asia/Shanghai');
+		assert.strictEqual(after.body.totalDays, 1);
+		assert.strictEqual(after.body.checkedInDates.length, 1);
+		assert.ok(after.body.achievements.some(achievement => achievement.name === 'checkin1'));
+		const forged = await api('i/claim-achievement', { name: 'checkinTotal365' } as never, member);
+		assert.strictEqual(forged.status, 400);
+	});
+
+	test('lets a non-explorable member check in without listing them publicly', async () => {
+		const member = await signup({ username: 'checkin_hidden' });
+		assert.ok(member.token, 'Test member signup failed');
+		await api('i/update', { isExplorable: false }, member);
+		assert.strictEqual((await api('i/checkin', {}, member)).status, 200);
+		const ranking = await api('checkin/ranking', { type: 'monthly', limit: 50 }, member);
+		assert.strictEqual(ranking.status, 200);
+		assert.ok(ranking.body.items.every(item => item.user.id !== member.id));
+		assert.strictEqual(ranking.body.myRank, null);
+	});
 });

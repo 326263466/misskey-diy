@@ -24,8 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
-import * as Misskey from 'misskey-js';
+import { computed, ref, shallowRef } from 'vue';
 import { useInterval } from '@@/js/use-interval.js';
 import { useWidgetPropsManager } from './widget.js';
 import type { WidgetComponentEmits, WidgetComponentExpose, WidgetComponentProps } from './widget.js';
@@ -35,6 +34,8 @@ import MkMiniChart from '@/components/MkMiniChart.vue';
 import { misskeyApiGet } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
+import { useLowresTime } from '@/composables/use-lowres-time.js';
+import { getVisibleTrends, mergeTrendsWithCache, readTrendsCache, saveTrendsCache } from '@/utility/trends-cache.js';
 
 const name = 'trends';
 
@@ -57,17 +58,25 @@ const { widgetProps, configure } = useWidgetPropsManager(name,
 	emit,
 );
 
-const stats = ref<Misskey.entities.HashtagsTrendResponse>([]);
-const fetching = ref(true);
+const snapshot = shallowRef(readTrendsCache());
+const now = useLowresTime();
+// 后端只返回当前排行窗口内的话题，窗口一过就是空数组。
+// 没有新趋势补入时保留旧话题，避免刷新后面板变空。
+const stats = computed(() => getVisibleTrends(snapshot.value, now.value));
+const fetching = ref(snapshot.value == null);
 
-const fetch = () => {
+const load = () => {
 	misskeyApiGet('hashtags/trend').then(res => {
-		stats.value = res;
+		snapshot.value = mergeTrendsWithCache(res, snapshot.value);
+		saveTrendsCache(snapshot.value);
+		fetching.value = false;
+	}).catch(() => {
+		// 拉取失败时继续显示缓存内容，下一次轮询再试
 		fetching.value = false;
 	});
 };
 
-useInterval(fetch, 1000 * 60, {
+useInterval(load, 1000 * 60, {
 	immediate: true,
 	afterMounted: true,
 });
@@ -92,7 +101,7 @@ defineExpose<WidgetComponentExpose>({
 		> div {
 			display: flex;
 			align-items: center;
-			padding: 14px 16px;
+			padding: 14px var(--MI-cardPadding, 20px);
 			border-bottom: solid 0.5px var(--MI_THEME-divider);
 
 			> .tag {

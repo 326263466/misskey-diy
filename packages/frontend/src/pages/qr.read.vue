@@ -39,16 +39,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 		>
 			<MkStickyContainer>
 				<template #header>
-					<MkTab
-						v-model="tab"
-						:tabs="[
-							{ key: 'users', label: i18n.ts.users },
-							{ key: 'notes', label: i18n.ts.notes },
-							{ key: 'all', label: i18n.ts.all },
-						]"
-						:class="$style.tab"
-					>
-					</MkTab>
+					<div :class="$style.tabBar">
+						<MkTab
+							v-model="tab"
+							:tabs="[
+								{ key: 'users', label: i18n.ts.users },
+								{ key: 'notes', label: i18n.ts.notes },
+								{ key: 'all', label: i18n.ts.all },
+							]"
+							:class="$style.tabCard"
+						>
+						</MkTab>
+					</div>
 				</template>
 				<div v-if="tab === 'users'" :class="[$style.users, '_margin']" style="padding-bottom: var(--MI-margin);">
 					<MkUserInfo v-for="user in users" :key="user.id" :user="user"/>
@@ -395,9 +397,15 @@ html[data-color-scheme=light] .view {
 	padding-top: calc(var(--MI-margin) / 2);
 }
 
-.tab {
+.tabBar {
 	padding: calc(var(--MI-margin) / 2) 0;
 	background: var(--MI_THEME-bg);
+}
+
+.tabCard {
+	padding: 6px 12px;
+	background: var(--MI_THEME-panel);
+	border-radius: 4px;
 }
 
 .users {

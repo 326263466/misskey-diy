@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkFolder>
 	<template #label>
-		<span v-if="job.opts.repeat != null" style="margin-right: 1em;">&lt;repeat&gt;</span>
+		<span v-if="job.opts.repeat != null" style="margin-right: 1em;">{{ i18n.ts._queue.repeat }}</span>
 		<span v-else style="margin-right: 1em;">#{{ job.id }}</span>
 		<span>{{ job.name }}</span>
 	</template>
@@ -25,44 +25,44 @@ SPDX-License-Identifier: AGPL-3.0-only
 			v-model:tab="tab"
 			:tabs="[{
 					key: 'info',
-					title: 'Info',
+					title: i18n.ts._queue.info,
 					icon: 'ti ti-info-circle',
 				}, {
 					key: 'timeline',
-					title: 'Timeline',
+					title: i18n.ts._queue.timeline,
 					icon: 'ti ti-timeline-event',
 				}, {
 					key: 'data',
-					title: 'Data',
+					title: i18n.ts._queue.data,
 					icon: 'ti ti-package',
 				}, ...(canEdit ? [{
 					key: 'dataEdit',
-					title: 'Data (edit)',
+					title: i18n.ts._queue.dataEdit,
 					icon: 'ti ti-package',
 				}] : []),
 				...(job.returnValue != null ? [{
 					key: 'result',
-					title: 'Result',
+					title: i18n.ts._queue.result,
 					icon: 'ti ti-check',
 				}] : []),
 				...(job.stacktrace.length > 0 ? [{
 					key: 'error',
-					title: 'Error',
+					title: i18n.ts._queue.error,
 					icon: 'ti ti-alert-triangle',
 				}] : []), {
 					key: 'logs',
-					title: 'Logs',
+					title: i18n.ts._queue.logs,
 					icon: 'ti ti-logs',
 				}]"
 		/>
 	</template>
 	<template #footer>
 		<div class="_buttons">
-			<MkButton rounded @click="copyRaw()"><i class="ti ti-copy"></i> Copy raw</MkButton>
-			<MkButton rounded @click="refresh()"><i class="ti ti-reload"></i> Refresh view</MkButton>
-			<MkButton rounded @click="promoteJob()"><i class="ti ti-player-track-next"></i> Promote</MkButton>
+			<MkButton rounded @click="copyRaw()"><i class="ti ti-copy"></i> {{ i18n.ts._queue.copyRaw }}</MkButton>
+			<MkButton rounded @click="refresh()"><i class="ti ti-reload"></i> {{ i18n.ts._queue.refreshView }}</MkButton>
+			<MkButton rounded @click="promoteJob()"><i class="ti ti-player-track-next"></i> {{ i18n.ts._queue.promoteJob }}</MkButton>
 			<!-- <MkButton rounded @click="moveJob"><i class="ti ti-arrow-right"></i> Move to</MkButton> -->
-			<MkButton danger rounded style="margin-left: auto;" @click="removeJob()"><i class="ti ti-trash"></i> Remove</MkButton>
+			<MkButton danger rounded style="margin-left: auto;" @click="removeJob()"><i class="ti ti-trash"></i> {{ i18n.ts._queue.removeJob }}</MkButton>
 		</div>
 	</template>
 
@@ -73,36 +73,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #value>{{ job.id }}</template>
 			</MkKeyValue>
 			<MkKeyValue>
-				<template #key>Created at</template>
+				<template #key>{{ i18n.ts._queue.createdAt }}</template>
 				<template #value><MkTime :time="job.timestamp" mode="detail"/></template>
 			</MkKeyValue>
 			<MkKeyValue v-if="job.processedOn != null">
-				<template #key>Processed at</template>
+				<template #key>{{ i18n.ts._queue.processedAt }}</template>
 				<template #value><MkTime :time="job.processedOn" mode="detail"/></template>
 			</MkKeyValue>
 			<MkKeyValue v-if="job.finishedOn != null">
-				<template #key>Finished at</template>
+				<template #key>{{ i18n.ts._queue.finishedAt }}</template>
 				<template #value><MkTime :time="job.finishedOn" mode="detail"/></template>
 			</MkKeyValue>
 			<MkKeyValue v-if="job.processedOn != null && job.finishedOn != null">
-				<template #key>Spent</template>
+				<template #key>{{ i18n.ts._queue.spent }}</template>
 				<template #value>{{ job.finishedOn - job.processedOn }}ms</template>
 			</MkKeyValue>
 			<MkKeyValue v-if="job.failedReason != null">
-				<template #key>Failed reason</template>
+				<template #key>{{ i18n.ts._queue.failedReason }}</template>
 				<template #value><i style="color: var(--MI_THEME-error)" class="ti ti-alert-triangle"></i> {{ job.failedReason }}</template>
 			</MkKeyValue>
 			<MkKeyValue v-if="job.opts.attempts != null && job.opts.attempts > 0">
-				<template #key>Attempts</template>
-				<template #value>{{ job.attempts }} of {{ job.opts.attempts }}</template>
+				<template #key>{{ i18n.ts._queue.attempts }}</template>
+				<template #value>{{ i18n.tsx._queue.attemptsOf({ current: job.attempts, max: job.opts.attempts }) }}</template>
 			</MkKeyValue>
 			<MkKeyValue v-if="job.progress != null && typeof job.progress === 'number' && job.progress > 0">
-				<template #key>Progress</template>
+				<template #key>{{ i18n.ts._queue.progress }}</template>
 				<template #value>{{ Math.floor(job.progress) }}%</template>
 			</MkKeyValue>
 		</div>
 		<MkFolder :withSpacer="false">
-			<template #label>Options</template>
+			<template #label>{{ i18n.ts._queue.options }}</template>
 			<MkCode :code="JSON5.stringify(job.opts, null, '\t')" lang="js"/>
 		</MkFolder>
 	</div>
@@ -112,30 +112,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div>
 					<template v-if="event.type === 'finished'">
 						<template v-if="job.isFailed">
-							<b>Finished</b> <i class="ti ti-circle-x" style="color: var(--MI_THEME-error);"></i>
+							<b>{{ i18n.ts._queue.eventFinished }}</b> <i class="ti ti-circle-x" style="color: var(--MI_THEME-error);"></i>
 						</template>
 						<template v-else>
-							<b>Finished</b> <i class="ti ti-check" style="color: var(--MI_THEME-success);"></i>
+							<b>{{ i18n.ts._queue.eventFinished }}</b> <i class="ti ti-check" style="color: var(--MI_THEME-success);"></i>
 						</template>
 					</template>
 					<template v-else-if="event.type === 'processed'">
-						<b>Processed</b> <i class="ti ti-player-play"></i>
+						<b>{{ i18n.ts._queue.eventProcessed }}</b> <i class="ti ti-player-play"></i>
 					</template>
 					<template v-else-if="event.type === 'attempt'">
-						<b>Attempt #{{ event.attempt }}</b> <i class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);"></i>
+						<b>{{ i18n.tsx._queue.eventAttempt({ n: event.attempt }) }}</b> <i class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);"></i>
 					</template>
 					<template v-else-if="event.type === 'created'">
-						<b>Created</b> <i class="ti ti-plus"></i>
+						<b>{{ i18n.ts._queue.eventCreated }}</b> <i class="ti ti-plus"></i>
 					</template>
 				</div>
 			</template>
 			<template #right="{ event, timestamp, delta }">
 				<div style="margin: 8px 0;">
 					<template v-if="event.type === 'attempt'">
-						<div>at ?</div>
+						<div>{{ i18n.ts._queue.atTime }}: ?</div>
 					</template>
 					<template v-else>
-						<div>at <MkTime :time="timestamp" mode="detail"/></div>
+						<div>{{ i18n.ts._queue.atTime }}: <MkTime :time="timestamp" mode="detail"/></div>
 						<div style="font-size: 90%; opacity: 0.7;">{{ timestamp }} (+{{ msSMH(delta) }})</div>
 					</template>
 				</div>
@@ -147,7 +147,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div v-else-if="tab === 'dataEdit'" class="_gaps_s">
 		<MkCodeEditor v-model="editData" lang="json5"></MkCodeEditor>
-		<MkButton><i class="ti ti-device-floppy"></i> Update</MkButton>
+		<MkButton><i class="ti ti-device-floppy"></i> {{ i18n.ts._queue.updateData }}</MkButton>
 	</div>
 	<div v-else-if="tab === 'result'">
 		<MkCode :code="JSON5.stringify(job.returnValue, null, '\t')" lang="json5"/>
@@ -156,7 +156,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkCode v-for="log in job.stacktrace" :code="log" lang="stacktrace"/>
 	</div>
 	<div v-else-if="tab === 'logs'">
-		<MkButton primary rounded @click="loadLogs()"><i class="ti ti-refresh"></i> Load logs</MkButton>
+		<MkButton primary rounded @click="loadLogs()"><i class="ti ti-refresh"></i> {{ i18n.ts._queue.loadLogs }}</MkButton>
 		<div v-for="log in logs">{{ log }}</div>
 	</div>
 </MkFolder>

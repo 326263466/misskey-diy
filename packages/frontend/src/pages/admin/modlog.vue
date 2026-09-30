@@ -7,14 +7,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
 	<div class="_spacer" style="--MI_SPACER-w: 900px;">
 		<div class="_gaps">
-			<MkPaginationControl :paginator="paginator" canFilter>
-				<MkSelect v-model="type" :items="typeDef" style="margin: 0; flex: 1;">
-					<template #label>{{ i18n.ts.type }}</template>
-				</MkSelect>
+			<MkPaginationControl :paginator="paginator" canFilter card>
+				<div :class="$style.filters">
+					<MkSelect v-model="type" :items="typeDef">
+						<template #label>{{ i18n.ts.type }}</template>
+					</MkSelect>
 
-				<MkInput v-model="moderatorId" style="margin: 0; flex: 1;">
-					<template #label>{{ i18n.ts.moderator }}(ID)</template>
-				</MkInput>
+					<MkInput v-model="moderatorId">
+						<template #label>{{ i18n.ts.moderator }}(ID)</template>
+					</MkInput>
+				</div>
 			</MkPaginationControl>
 
 			<MkPagination :paginator="paginator">
@@ -89,3 +91,11 @@ definePage(() => ({
 	icon: 'ti ti-list-search',
 }));
 </script>
+
+<style lang="scss" module>
+.filters {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+	gap: 12px;
+}
+</style>

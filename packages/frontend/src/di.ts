@@ -10,6 +10,7 @@ import type { Router } from '@/router.js';
 export const DI = {
 	routerCurrentDepth: Symbol() as InjectionKey<number>,
 	router: Symbol() as InjectionKey<Router>,
+	pageActive: Symbol() as InjectionKey<Readonly<Ref<boolean>>>,
 	mock: Symbol() as InjectionKey<boolean>,
 	pageMetadata: Symbol() as InjectionKey<Ref<PageMetadata | null>>,
 	viewId: Symbol() as InjectionKey<string>,

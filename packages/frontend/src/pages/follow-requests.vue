@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
 	<div :key="tab" class="_spacer" style="--MI_SPACER-w: 800px;">
 		<MkPagination :paginator="paginator">
 			<template #empty><MkResult type="empty" :text="i18n.ts.noFollowRequests"/></template>
@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<MkButton class="command" rounded danger @click="reject(displayUser(req))"><i class="ti ti-x"></i> {{ i18n.ts.reject }}</MkButton>
 							</div>
 							<div v-else class="commands">
-								<MkButton class="command" rounded danger @click="cancel(displayUser(req))"><i class="ti ti-x"></i> {{ i18n.ts.cancel }}</MkButton>
+								<MkButton class="command" rounded danger :wait="cancelingUserIds.has(displayUser(req).id)" @click="cancel(displayUser(req))"><i class="ti ti-x"></i> {{ i18n.ts.cancel }}</MkButton>
 							</div>
 						</div>
 					</div>
@@ -46,6 +46,7 @@ import { $i } from '@/i.js';
 import { Paginator } from '@/utility/paginator.js';
 
 const tab = ref($i?.isLocked ? 'list' : 'sent');
+const cancelingUserIds = ref(new Set<string>());
 
 let paginator: Paginator<'following/requests/list' | 'following/requests/sent'>;
 
@@ -77,23 +78,20 @@ async function reject(user: Misskey.entities.UserLite) {
 }
 
 async function cancel(user: Misskey.entities.UserLite) {
-	const { canceled } = await os.confirm({
-		type: 'question',
-		text: i18n.tsx.cancelFollowRequestConfirm({ name: user.name || user.username }),
-	});
+	if (cancelingUserIds.value.has(user.id)) return;
+	cancelingUserIds.value.add(user.id);
 
-	if (canceled) return;
-
-	await os.apiWithDialog('following/requests/cancel', { userId: user.id }).then(() => {
+	try {
+		await os.apiWithDialog('following/requests/cancel', { userId: user.id });
 		paginator.reload();
-	});
+	} finally {
+		cancelingUserIds.value.delete(user.id);
+	}
 }
 
 function displayUser(req: Misskey.entities.FollowingRequestsListResponse[number]) {
 	return tab.value === 'list' ? req.follower : req.followee;
 }
-
-const headerActions = computed(() => []);
 
 const headerTabs = computed(() => [
 	{

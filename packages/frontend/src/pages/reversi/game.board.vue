@@ -66,8 +66,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 								mode="default"
 							>
 								<template v-if="useAvatarAsStone">
-									<img v-if="stone === true" :class="$style.boardCellStone" :src="blackUser.avatarUrl ?? undefined"/>
-									<img v-else-if="stone === false" :class="$style.boardCellStone" :src="whiteUser.avatarUrl ?? undefined"/>
+									<img v-if="stone === true" :class="$style.boardCellStone" :src="blackAvatarUrl ?? undefined"/>
+									<img v-else-if="stone === false" :class="$style.boardCellStone" :src="whiteAvatarUrl ?? undefined"/>
 								</template>
 								<template v-else>
 									<img v-if="stone === true" :class="$style.boardCellStone" src="/client-assets/reversi/stone_b.png"/>
@@ -131,7 +131,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<div class="_buttonsCenter">
 			<MkButton v-if="!game.isEnded && iAmPlayer" danger @click="surrender">{{ i18n.ts._reversi.surrender }}</MkButton>
-			<MkButton @click="share">{{ i18n.ts.share }}</MkButton>
+			<MkButton @click="share"><i class="ti ti-share" aria-hidden="true"></i> {{ i18n.ts.share }}</MkButton>
 		</div>
 
 		<MkA v-if="game.isEnded" :to="`/reversi`">
@@ -147,6 +147,7 @@ import * as Misskey from 'misskey-js';
 import * as Reversi from 'misskey-reversi';
 import { useInterval } from '@@/js/use-interval.js';
 import { url } from '@@/js/config.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 import MkButton from '@/components/MkButton.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
@@ -159,6 +160,7 @@ import * as sound from '@/utility/sound.js';
 import * as os from '@/os.js';
 import { confetti } from '@/utility/confetti.js';
 import { genId } from '@/utility/id.js';
+import { getUserAvatar } from '@/utility/get-user-avatar.js';
 
 const props = defineProps<{
 	game: Misskey.entities.ReversiGameDetailed;
@@ -202,6 +204,9 @@ const blackUser = computed(() => {
 const whiteUser = computed(() => {
 	return game.value.black === 1 ? game.value.user2 : game.value.user1;
 });
+
+const blackAvatarUrl = computed(() => getUserAvatar(blackUser.value).avatarUrl);
+const whiteAvatarUrl = computed(() => getUserAvatar(whiteUser.value).avatarUrl);
 
 const turnUser = computed(() => {
 	if (engine.value.turn === true) {
@@ -448,6 +453,10 @@ function autoplay() {
 }
 
 function share() {
+	openShareDialog({ title: 'Misskey Reversi', text: '#MisskeyReversi', url: `${url}/reversi/g/${game.value.id}` }, { shareWithNote });
+}
+
+function shareWithNote() {
 	os.post({
 		initialText: `#MisskeyReversi\n${url}/reversi/g/${game.value.id}`,
 		instant: true,

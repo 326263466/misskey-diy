@@ -41,6 +41,9 @@ import type Channel from './channel.js';
 import type { EventEmitter } from 'events';
 
 const MAX_CHANNELS_PER_CONNECTION = 32;
+const MAX_SUBSCRIBING_NOTES_PER_CONNECTION = 1536;
+const MAX_USER_STATS_SUBSCRIPTIONS = 100;
+const USER_STATS_BATCH_DELAY = 250;
 
 /**
  * Main stream connection
@@ -53,7 +56,10 @@ export default class Connection {
 	private wsConnection: WebSocket.WebSocket;
 	public subscriber: StreamEventEmitter;
 	private channels: Map<string, Channel> = new Map();
-	private subscribingNotes: Partial<Record<string, number>> = {};
+	private subscribingNotes: Map<string, number> = new Map();
+	private subscribingUsers = new Map<string, number>();
+	private pendingUserStats = new Set<string>();
+	private userStatsTimer: NodeJS.Timeout | null = null;
 	public userProfile: MiUserProfile | null = null;
 	public following: Record<string, Pick<MiFollowing, 'withReplies'> | undefined> = {};
 	public followingChannels: Set<string> = new Set();
@@ -152,6 +158,8 @@ export default class Connection {
 			case 'sr': this.onSubscribeNote(body); break;
 			case 'unsubNote': this.onUnsubscribeNote(body); break;
 			case 'un': this.onUnsubscribeNote(body); break; // alias
+			case 'subUser': this.onSubscribeUser(body); break;
+			case 'unsubUser': this.onUnsubscribeUser(body); break;
 			case 'connect': this.onChannelConnectRequested(body); break;
 			case 'disconnect': this.onChannelDisconnectRequested(body); break;
 			case 'channel': this.onChannelMessageRequested(body); break;
@@ -177,9 +185,22 @@ export default class Connection {
 		if (!isJsonObject(payload)) return;
 		if (!payload.id || typeof payload.id !== 'string') return;
 
-		const current = this.subscribingNotes[payload.id] ?? 0;
+		const current = this.subscribingNotes.get(payload.id) ?? 0;
+
+		if (current === 0 && this.subscribingNotes.size >= MAX_SUBSCRIBING_NOTES_PER_CONNECTION) {
+			// 新規購読 かつ 購読上限に達している場合は、最も古い購読を解除して新規購読を追加する
+			const oldestId = this.subscribingNotes.keys().next().value;
+			if (oldestId != null) {
+				this.subscriber.off(`noteStream:${oldestId}`, this.onNoteStreamMessage);
+				this.subscribingNotes.delete(oldestId);
+			}
+		} else {
+			// access 順を更新して LRU を保つ
+			this.subscribingNotes.delete(payload.id);
+		}
+
 		const updated = current + 1;
-		this.subscribingNotes[payload.id] = updated;
+		this.subscribingNotes.set(payload.id, updated);
 
 		if (updated === 1) {
 			this.subscriber.on(`noteStream:${payload.id}`, this.onNoteStreamMessage);
@@ -194,13 +215,14 @@ export default class Connection {
 		if (!isJsonObject(payload)) return;
 		if (!payload.id || typeof payload.id !== 'string') return;
 
-		const current = this.subscribingNotes[payload.id];
+		const current = this.subscribingNotes.get(payload.id);
 		if (current == null) return;
 		const updated = current - 1;
-		this.subscribingNotes[payload.id] = updated;
 		if (updated <= 0) {
-			delete this.subscribingNotes[payload.id];
+			this.subscribingNotes.delete(payload.id);
 			this.subscriber.off(`noteStream:${payload.id}`, this.onNoteStreamMessage);
+		} else {
+			this.subscribingNotes.set(payload.id, updated);
 		}
 	}
 
@@ -224,6 +246,44 @@ export default class Connection {
 			type: data.type,
 			body: data.body.body,
 		});
+	}
+
+	@bindThis
+	private onSubscribeUser(payload: JsonValue | undefined) {
+		if (!isJsonObject(payload) || typeof payload.id !== 'string' || payload.id.length === 0 || payload.id.length > 32) return;
+		const current = this.subscribingUsers.get(payload.id) ?? 0;
+		if (current === 0 && this.subscribingUsers.size >= MAX_USER_STATS_SUBSCRIPTIONS) return;
+		this.subscribingUsers.set(payload.id, current + 1);
+		if (current === 0) this.subscriber.on(`userStatsStream:${payload.id}`, this.onUserStatsMessage);
+	}
+
+	@bindThis
+	private onUnsubscribeUser(payload: JsonValue | undefined) {
+		if (!isJsonObject(payload) || typeof payload.id !== 'string') return;
+		const current = this.subscribingUsers.get(payload.id);
+		if (current == null) return;
+		if (current > 1) {
+			this.subscribingUsers.set(payload.id, current - 1);
+			return;
+		}
+		this.subscribingUsers.delete(payload.id);
+		this.pendingUserStats.delete(payload.id);
+		this.subscriber.off(`userStatsStream:${payload.id}`, this.onUserStatsMessage);
+	}
+
+	@bindThis
+	private onUserStatsMessage(data: GlobalEvents['userStats']['payload']) {
+		if (!this.subscribingUsers.has(data.id)) return;
+		this.pendingUserStats.add(data.id);
+		if (this.userStatsTimer != null) return;
+		this.userStatsTimer = setTimeout(() => {
+			this.userStatsTimer = null;
+			const userIds = [...this.pendingUserStats];
+			this.pendingUserStats.clear();
+			if (userIds.length > 0 && this.wsConnection.readyState === WebSocket.WebSocket.OPEN) {
+				this.sendMessageToWs('userStatsUpdated', { userIds });
+			}
+		}, USER_STATS_BATCH_DELAY);
 	}
 
 	/**
@@ -381,9 +441,24 @@ export default class Connection {
 	@bindThis
 	public dispose() {
 		if (this.fetchIntervalId) clearInterval(this.fetchIntervalId);
+		if (this.userStatsTimer) clearTimeout(this.userStatsTimer);
+		this.userStatsTimer = null;
+		this.pendingUserStats.clear();
+		for (const userId of this.subscribingUsers.keys()) {
+			this.subscriber.off(`userStatsStream:${userId}`, this.onUserStatsMessage);
+		}
+		this.subscribingUsers.clear();
+		this.wsConnection?.off('message', this.onWsConnectionMessage);
+
 		for (const c of this.channels.values()) {
 			if (c.dispose) c.dispose();
 		}
+		this.channels.clear();
+
+		for (const id of this.subscribingNotes.keys()) {
+			this.subscriber.off(`noteStream:${id}`, this.onNoteStreamMessage);
+		}
+		this.subscribingNotes.clear();
 	}
 }
 

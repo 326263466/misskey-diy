@@ -84,6 +84,26 @@ function streamFixture(withReplies = false) {
 	return { request, roles, notes, hiding, params: { withReplies }, sent: request.connection.sendMessageToWs };
 }
 
+describe('public channel posts in timelines', () => {
+	test.each(['local', 'global'] as const)('%s stream includes channel posts and preserves privacy and channel muting', async kind => {
+		const { request, roles, notes, hiding, params, sent } = streamFixture();
+		const channel = kind === 'local' ? new LocalTimelineChannel(request, {} as any, roles, notes, hiding)
+			: new GlobalTimelineChannel(request, {} as any, roles, notes, hiding);
+		await channel.init(params);
+		const onNote = request.connection.subscriber.listeners('notesStream')[0];
+		const note = makeNote('channel-post', { channelId: 'channel' });
+		await onNote(note as unknown as Packed<'Note'>);
+		expect(sent).toHaveBeenCalledWith('channel', expect.objectContaining({ body: note }));
+		vi.mocked(sent).mockClear();
+		await onNote(makeNote('private', { channelId: 'channel', visibility: 'followers' }) as unknown as Packed<'Note'>);
+		expect(sent).not.toHaveBeenCalled();
+		request.connection.mutingChannels.add('channel');
+		await onNote(note as unknown as Packed<'Note'>);
+		expect(sent).not.toHaveBeenCalled();
+		channel.dispose();
+	});
+});
+
 describe('ordinary replies in timelines', () => {
 	test.each([undefined, false, true])('creates one reply and keeps publication separate from renotes: %s', async publish => {
 		const reply = makeNote('comment', { replyId: 'parent' });

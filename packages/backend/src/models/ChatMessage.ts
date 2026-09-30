@@ -55,6 +55,11 @@ export class MiChatMessage {
 	})
 	public text: string | null;
 
+	@Column('boolean', {
+		default: false,
+	})
+	public isAutoReply: boolean;
+
 	@Column('varchar', {
 		length: 512, nullable: true,
 	})

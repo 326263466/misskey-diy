@@ -9,7 +9,44 @@ import { MiUser } from './User.js';
 
 export type AbuseReportResolveType = 'accept' | 'reject';
 
+export const abuseReportReasons = ['spam', 'scam', 'sexualContent', 'violence', 'harassment', 'hateSpeech', 'privacyViolation', 'impersonation', 'misinformation', 'copyrightViolation', 'inciting', 'other'] as const;
+export type AbuseReportReason = typeof abuseReportReasons[number];
+
+export type AbuseReportEvidenceArchive = {
+	storage: 'local' | 'object';
+	key: string;
+	sha256: string;
+	size: number;
+	encryptionKey: string;
+	iv: string;
+	authTag: string;
+};
+
+export type AbuseReportSnapshot = {
+	version: 1;
+	capturedAt: string;
+	type: 'user' | 'note' | 'boost' | 'chat' | 'page' | 'gallery' | 'play';
+	sourceUrl: string;
+	user: {
+		id: string;
+		username: string;
+		host: string | null;
+		name: string | null;
+	};
+	content: string;
+	files: {
+		id: string;
+		name: string;
+		type: string;
+		size: number;
+		url: string;
+		comment: string | null;
+		archive: AbuseReportEvidenceArchive;
+	}[];
+};
+
 @Entity('abuse_user_report')
+@Index('IDX_abuse_user_report_reporter_request', ['reporterId', 'requestId'], { unique: true })
 export class MiAbuseUserReport {
 	@PrimaryColumn(id())
 	public id: string;
@@ -19,7 +56,7 @@ export class MiAbuseUserReport {
 	public targetUserId: MiUser['id'];
 
 	@ManyToOne(() => MiUser, {
-		onDelete: 'CASCADE',
+		createForeignKeyConstraints: false,
 	})
 	@JoinColumn()
 	public targetUser: MiUser | null;
@@ -29,10 +66,16 @@ export class MiAbuseUserReport {
 	public reporterId: MiUser['id'];
 
 	@ManyToOne(() => MiUser, {
-		onDelete: 'CASCADE',
+		createForeignKeyConstraints: false,
 	})
 	@JoinColumn()
 	public reporter: MiUser | null;
+
+	@Column('varchar', { length: 36, nullable: true })
+	public requestId: string | null;
+
+	@Column('varchar', { length: 64, nullable: true })
+	public requestFingerprint: string | null;
 
 	@Column({
 		...id(),
@@ -60,10 +103,14 @@ export class MiAbuseUserReport {
 	})
 	public forwarded: boolean;
 
-	@Column('varchar', {
-		length: 2048,
-	})
+	@Column('text')
 	public comment: string;
+
+	@Column('varchar', { length: 256, nullable: true })
+	public reason: AbuseReportReason | null;
+
+	@Column('jsonb', { nullable: true })
+	public snapshot: AbuseReportSnapshot | null;
 
 	@Column('varchar', {
 		length: 8192, default: '',

@@ -20,6 +20,7 @@ import { mainRouter } from '@/router.js';
 import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 
 export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router = mainRouter) {
 	const meId = $i ? $i.id : null;
@@ -97,6 +98,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 	async function reportAbuse() {
 		const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
 			user: user,
+			reportTarget: { reportType: 'user' },
 		}, {
 			closed: () => dispose(),
 		});
@@ -105,7 +107,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 	async function getConfirmed(text: string): Promise<boolean> {
 		const confirm = await os.confirm({
 			type: 'warning',
-			title: 'confirm',
+			title: i18n.ts.areYouSure,
 			text,
 		});
 
@@ -176,11 +178,19 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 	});
 
 	menuItems.push({
-		icon: 'ti ti-share',
+		icon: 'ti ti-link',
 		text: i18n.ts.copyProfileUrl,
 		action: () => {
 			const canonical = user.host === null ? `@${user.username}` : `@${user.username}@${toUnicode(user.host)}`;
 			copyToClipboard(`${url}/${canonical}`);
+		},
+	});
+	menuItems.push({
+		icon: 'ti ti-share',
+		text: i18n.ts.share,
+		action: () => {
+			const canonical = user.host === null ? `@${user.username}` : `@${user.username}@${toUnicode(user.host)}`;
+			openShareDialog({ title: user.name ?? user.username, url: `${url}/${canonical}` });
 		},
 	});
 
@@ -189,6 +199,16 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 		text: i18n.ts.copyRSS,
 		action: () => {
 			copyToClipboard(`${user.host ?? host}/@${user.username}.atom`);
+		},
+	});
+
+	menuItems.push({
+		icon: 'ti ti-qrcode',
+		text: i18n.ts._qr.showUser,
+		action: () => {
+			const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserQrDialog.vue')), { user }, {
+				closed: () => dispose(),
+			});
 		},
 	});
 
@@ -392,7 +412,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 		if ($i.policies.chatAvailability === 'available' && user.canChat && user.host == null) {
 			menuItems.push({
 				type: 'link',
-				icon: 'ti ti-messages',
+				icon: 'ti ti-message-dots',
 				text: i18n.ts._chat.chatWithThisUser,
 				to: `/chat/user/${user.id}`,
 			});
@@ -427,7 +447,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 		});
 	}
 
-	if (user.host !== null) {
+	if ($i != null && user.host !== null) {
 		menuItems.push({ type: 'divider' }, {
 			icon: 'ti ti-refresh',
 			text: i18n.ts.updateRemoteUser,

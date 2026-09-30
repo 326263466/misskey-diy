@@ -172,9 +172,12 @@ export class ReactionsBufferingService implements OnApplicationShutdown {
 
 		// TODO: SQL一個にまとめたい
 		for (const [noteId, buffered] of bufferedMap) {
+			const deltas = Object.entries(buffered.deltas);
+			if (deltas.length === 0) continue;
+
 			const parameters: Record<string, string | number> = {};
 			let sql = '"reactions"';
-			for (const [index, [reaction, count]] of Object.entries(buffered.deltas).entries()) {
+			for (const [index, [reaction, count]] of deltas.entries()) {
 				parameters[`reaction${index}`] = reaction;
 				parameters[`delta${index}`] = count;
 				// 每个增量只修改自己的键，避免后面的更新覆盖前面的结果。

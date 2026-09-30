@@ -4,11 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader class="_standalonePage" :actions="headerActions" :tabs="headerTabs">
+	<template v-if="followList" #header-actions>
+		<MkPaginationControl :paginator="followList.paginator" compact/>
+	</template>
 	<div class="_spacer" style="--MI_SPACER-w: 1000px;">
 		<Transition name="fade" mode="out-in">
 			<div v-if="user">
-				<XFollowList :user="user" type="following"/>
+				<XFollowList ref="followList" :user="user" type="following"/>
 			</div>
 			<MkError v-else-if="error" @retry="fetchUser()"/>
 			<MkLoading v-else/>
@@ -18,9 +21,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, ref } from 'vue';
+import { computed, watch, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import XFollowList from './follow-list.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
@@ -32,6 +36,7 @@ const props = withDefaults(defineProps<{
 
 const user = ref<null | Misskey.entities.UserDetailed>(null);
 const error = ref<any>(null);
+const followList = useTemplateRef('followList');
 
 function fetchUser(): void {
 	if (props.acct == null) return;

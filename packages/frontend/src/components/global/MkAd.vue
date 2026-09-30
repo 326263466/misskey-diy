@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</component>
 	</div>
 	<div v-else :class="$style.menu">
-		<div>Ads by {{ host }}</div>
+		<div>{{ i18n.tsx._ad.adsBy({ host }) }}</div>
 		<!--<MkButton class="button" primary>{{ i18n.ts._ad.like }}</MkButton>-->
 		<MkButton v-if="chosen.ratio !== 0" :class="$style.menuButton" @click="reduceFrequency">{{ i18n.ts._ad.reduceFrequencyOfThisAd }}</MkButton>
 		<button class="_textButton" @click="toggleMenu">{{ i18n.ts._ad.back }}</button>

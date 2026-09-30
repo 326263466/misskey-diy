@@ -46,6 +46,6 @@ onMounted(() => {
 });
 
 definePage({
-	title: i18n.ts.directMessage,
+	title: i18n.ts.chat,
 });
 </script>

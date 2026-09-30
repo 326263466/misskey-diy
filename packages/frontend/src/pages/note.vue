@@ -4,14 +4,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs" displayBackButton>
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+<PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideHeader="note != null" displayBackButton>
+	<div class="_spacer" style="--MI_SPACER-w: 800px;" :style="note ? { paddingTop: 0 } : undefined">
 		<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
 			<div v-if="note" class="_gaps">
-				<div class="_gaps_s">
-					<MkRemoteCaution v-if="note.user.host != null" :href="note.url ?? note.uri"/>
-					<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" :class="[$style.note, '_juejinCard']"/>
-				</div>
+				<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" separateActivity>
+					<template #header>
+						<MkPageHeader :overridePageMetadata="{ title: note.replyId ? i18n.ts.reply : i18n.ts.notes }" embedded displayBackButton/>
+						<MkRemoteCaution v-if="note.user.host != null" :class="$style.remoteCaution" :href="note.url ?? note.uri"/>
+					</template>
+				</MkNoteDetailed>
 				<div v-if="clips && clips.length > 0">
 					<div style="font-weight: bold; padding: 12px;">{{ i18n.ts.clip }}</div>
 					<div class="_gaps">
@@ -137,8 +139,7 @@ definePage(() => ({
 	opacity: 0;
 }
 
-.note {
-	border-radius: var(--MI-radius);
-	background: var(--MI_THEME-panel);
+.remoteCaution {
+	margin: 20px 20px 0;
 }
 </style>

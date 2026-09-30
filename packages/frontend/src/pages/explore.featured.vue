@@ -5,23 +5,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_spacer" style="--MI_SPACER-w: 800px;">
-	<MkTab
-		v-model="tab"
-		:tabs="[
-			{ key: 'notes', label: i18n.ts.notes },
-			{ key: 'polls', label: i18n.ts.poll },
-		]"
-		style="margin-bottom: var(--MI-margin);"
-	>
-	</MkTab>
-	<MkNotesTimeline v-if="tab === 'notes'" :paginator="paginatorForNotes"/>
-	<MkNotesTimeline v-else-if="tab === 'polls'" :paginator="paginatorForPolls"/>
+	<MkPaginationControl :paginator="tab === 'notes' ? paginatorForNotes : paginatorForPolls" card style="margin-bottom: var(--MI-margin);">
+		<template #header>
+			<MkTab
+				v-model="tab"
+				:tabs="[
+					{ key: 'notes', label: i18n.ts.notes },
+					{ key: 'polls', label: i18n.ts.poll },
+				]"
+			/>
+		</template>
+	</MkPaginationControl>
+	<MkNotesTimeline v-if="tab === 'notes'" :paginator="paginatorForNotes" :withControl="false"/>
+	<MkNotesTimeline v-else-if="tab === 'polls'" :paginator="paginatorForPolls" :withControl="false"/>
 </div>
 </template>
 
 <script lang="ts" setup>
 import { markRaw, ref } from 'vue';
 import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import MkTab from '@/components/MkTab.vue';
 import { i18n } from '@/i18n.js';
 import { Paginator } from '@/utility/paginator.js';

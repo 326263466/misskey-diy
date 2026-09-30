@@ -15,16 +15,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:class="$style.textarea"
 		class="_acrylic _mfm"
 		:placeholder="i18n.ts.inputMessageHere"
+		:aria-label="i18n.ts.inputMessageHere"
 		:readonly="textareaReadOnly"
 		@keydown="onKeydown"
 		@paste="onPaste"
 	></textarea>
+	<MkEmojiInputOverlay :inputElement="textareaEl" :text="text"/>
 	<footer :class="$style.footer">
 		<div v-if="file" :class="$style.file" @click="file = null">{{ file.name }}</div>
 		<div :class="$style.buttons">
-			<button class="_button" :class="$style.button" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
-			<button class="_button" :class="$style.button" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
-			<button class="_button" :class="[$style.button, $style.send]" :disabled="!canSend || sending" :title="i18n.ts.send" @click="send">
+			<button v-tooltip="i18n.ts.attachFile" class="_button" :class="$style.button" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
+			<button v-tooltip="i18n.ts.emoji" class="_button" :class="$style.button" :aria-label="i18n.ts.emoji" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-tooltip="i18n.ts.send" class="_button" :class="[$style.button, $style.send]" :disabled="!canSend || sending" :aria-label="i18n.ts.send" @click="send">
 				<template v-if="!sending"><i class="ti ti-send"></i></template><template v-if="sending"><MkLoading :em="true"/></template>
 			</button>
 		</div>
@@ -47,13 +49,14 @@ import { prefer } from '@/preferences.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
 import { emojiPicker } from '@/utility/emoji-picker.js';
 import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
+import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
 
 const props = defineProps<{
 	user?: Misskey.entities.UserDetailed | null;
 	room?: Misskey.entities.ChatRoom | null;
 }>();
 
-const textareaEl = shallowRef<HTMLTextAreaElement>();
+const textareaEl = shallowRef<HTMLTextAreaElement | null>(null);
 const fileEl = shallowRef<HTMLInputElement>();
 
 const text = ref<string>('');
@@ -249,9 +252,9 @@ function deleteDraft() {
 }
 
 async function insertEmoji(ev: MouseEvent) {
-	textareaReadOnly.value = true;
 	const target = ev.currentTarget ?? ev.target;
 	if (target == null) return;
+	textareaReadOnly.value = true;
 
 	// emojiPickerはダイアログが閉じずにtextareaとやりとりするので、
 	// focustrapをかけているとinsertTextAtCursorが効かない
@@ -268,11 +271,14 @@ async function insertEmoji(ev: MouseEvent) {
 			const textAfter = text.value.substring(posEnd);
 			text.value = textBefore + emoji + textAfter;
 			pos += emoji.length;
-			posEnd += emoji.length;
+			posEnd = pos;
 		},
 		() => {
 			textareaReadOnly.value = false;
-			nextTick(() => focus());
+			nextTick(() => {
+				textareaEl.value?.focus();
+				textareaEl.value?.setSelectionRange(pos, pos);
+			});
 		},
 	);
 }
@@ -320,7 +326,9 @@ onBeforeUnmount(() => {
 	font-family: inherit;
 	outline: none;
 	border: none;
-	border-radius: 0;
+	// _acrylic 的 backdrop-filter 会生成独立合成层，跳出父级的 overflow: clip，
+	// 所以圆角必须在 textarea 上再写一遍，否则滚动时能看到直角残留
+	border-radius: 14px 14px 0 0;
 	box-shadow: none;
 	box-sizing: border-box;
 	color: var(--MI_THEME-fg);

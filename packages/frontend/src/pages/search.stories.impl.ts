@@ -53,7 +53,9 @@ export const Default = {
 
 export const NoteSearchDisabled = {
 	...Default,
-	args: {},
+	args: {
+		type: 'note',
+	},
 } satisfies StoryObj<typeof search_>;
 
 export const WithUsernameLocal = {

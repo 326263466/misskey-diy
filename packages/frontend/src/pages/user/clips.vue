@@ -6,8 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_spacer" style="--MI_SPACER-w: 700px;">
 	<div>
-		<MkPagination v-slot="{items}" :paginator="paginator" withControl>
-			<MkA v-for="item in items" :key="item.id" :to="`/clips/${item.id}`" :class="$style.item" class="_panel _margin">
+		<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard>
+			<MkA v-for="item in items" :key="item.id" :to="`/clips/${item.id}`" :class="$style.item" class="_panel">
 				<b>{{ item.name }}</b>
 				<div v-if="item.description" :class="$style.description">{{ item.description }}</div>
 			</MkA>

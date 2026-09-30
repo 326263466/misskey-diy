@@ -4,17 +4,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="el" :class="$style.tabs" :style="{ '--tabAnchorName': tabAnchorName }" @wheel="onTabWheel">
+<div :class="$style.tabs" @wheel="onTabWheel">
 	<div :class="$style.tabsInner">
 		<button
 			v-for="t in tabs"
-			:ref="(el) => tabRefs[t.key] = (el as HTMLElement)"
-			class="_button"
+			:key="t.key"
+			class="_button _tabUnderline"
 			:class="[$style.tab, {
 				[$style.active]: t.key != null && t.key === props.tab,
-				[$style.animate]: prefer.s.animation
+				[$style.animate]: prefer.s.animation,
+				_tabUnderlineAnimated: prefer.s.animation,
 			}]"
-			:style="getTabStyle(t)"
 			@mousedown="(ev) => onTabMousedown(t, ev)"
 			@click="(ev) => onTabClick(t, ev)"
 		>
@@ -35,10 +35,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</button>
 	</div>
-	<div
-		ref="tabHighlightEl"
-		:class="[$style.tabHighlight, { [$style.animate]: prefer.s.animation }]"
-	></div>
 </div>
 </template>
 
@@ -53,12 +49,7 @@ export type Tab = {
 </script>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, onUnmounted, useTemplateRef, watch } from 'vue';
 import { prefer } from '@/preferences.js';
-import { genId } from '@/utility/id.js';
-
-const cssAnchorSupported = CSS.supports('position-anchor', '--anchor-name');
-const tabAnchorName = `--${genId()}-currentTab`;
 
 const props = withDefaults(defineProps<{
 	tabs?: Tab[];
@@ -73,24 +64,9 @@ const emit = defineEmits<{
 	(ev: 'tabClick', key: string): void;
 }>();
 
-const el = useTemplateRef('el');
-const tabHighlightEl = useTemplateRef('tabHighlightEl');
-const tabRefs: Record<string, HTMLElement | null> = {};
-
-function getTabStyle(t: Tab) {
-	if (!cssAnchorSupported) return {};
-	if (t.key === props.tab) {
-		return {
-			anchorName: tabAnchorName,
-		};
-	} else {
-		return {};
-	}
-}
-
 function onTabMousedown(tab: Tab, ev: MouseEvent): void {
 	// ユーザビリティの観点からmousedown時にはonClickは呼ばない
-	if (tab.key) {
+	if (ev.button === 0 && tab.key && tab.key !== props.tab) {
 		emit('update:tab', tab.key);
 	}
 }
@@ -104,22 +80,8 @@ function onTabClick(t: Tab, ev: PointerEvent): void {
 		t.onClick(ev);
 	}
 
-	if (t.key) {
+	if (t.key && t.key !== props.tab) {
 		emit('update:tab', t.key);
-	}
-}
-
-function renderTab() {
-	if (cssAnchorSupported) return;
-
-	const tabEl = props.tab ? tabRefs[props.tab] : undefined;
-	if (tabEl && tabHighlightEl.value && tabHighlightEl.value.parentElement) {
-		// offsetWidth や offsetLeft は少数を丸めてしまうため getBoundingClientRect を使う必要がある
-		// https://developer.mozilla.org/ja/docs/Web/API/HTMLElement/offsetWidth#%E5%80%A4
-		const parentRect = tabHighlightEl.value.parentElement.getBoundingClientRect();
-		const rect = tabEl.getBoundingClientRect();
-		tabHighlightEl.value.style.width = rect.width + 'px';
-		tabHighlightEl.value.style.left = (rect.left - parentRect.left + tabHighlightEl.value.parentElement.scrollLeft) + 'px';
 	}
 }
 
@@ -135,30 +97,22 @@ function onTabWheel(ev: WheelEvent) {
 	return false;
 }
 
-let entering = false;
-
-async function enter(el: Element) {
+function enter(el: Element) {
 	if (!(el instanceof HTMLElement)) return;
-	entering = true;
 	const elementWidth = el.getBoundingClientRect().width;
 	el.style.width = '0';
 	el.style.paddingLeft = '0';
 	el.offsetWidth; // reflow
 	el.style.width = `${elementWidth}px`;
 	el.style.paddingLeft = '';
-	nextTick(() => {
-		entering = false;
-	});
-
-	window.setTimeout(renderTab, 170);
 }
 
 function afterEnter(el: Element) {
 	if (!(el instanceof HTMLElement)) return;
-	// element.style.width = '';
+	el.style.width = '';
 }
 
-async function leave(el: Element) {
+function leave(el: Element) {
 	if (!(el instanceof HTMLElement)) return;
 	const elementWidth = el.getBoundingClientRect().width;
 	el.style.width = `${elementWidth}px`;
@@ -173,33 +127,6 @@ function afterLeave(el: Element) {
 	el.style.width = '';
 }
 
-let ro2: ResizeObserver | null;
-
-onMounted(() => {
-	if (!cssAnchorSupported) {
-		watch([() => props.tab, () => props.tabs], () => {
-			nextTick(() => {
-				if (entering) return;
-				renderTab();
-			});
-		}, {
-			immediate: true,
-		});
-
-		if (props.rootEl) {
-			ro2 = new ResizeObserver(() => {
-				if (window.document.body.contains(el.value as HTMLElement)) {
-					nextTick(() => renderTab());
-				}
-			});
-			ro2.observe(props.rootEl);
-		}
-	}
-});
-
-onUnmounted(() => {
-	if (ro2) ro2.disconnect();
-});
 </script>
 
 <style lang="scss" module>
@@ -222,24 +149,23 @@ onUnmounted(() => {
 	white-space: nowrap;
 }
 
-// 下划线以按钮宽度为基准，所以按钮不留左右内边距，标签之间的间距交给 .tabsInner 的 gap
 .tab {
 	display: inline-block;
 	position: relative;
 	padding: 0;
 	height: 100%;
 	font-weight: normal;
-	opacity: 0.7;
-
-	&:hover {
-		opacity: 1;
-	}
 
 	&.active {
+		--MI-tabUnderlineOpacity: 1;
+	}
+
+	&:hover > .tabInner,
+	&.active > .tabInner {
 		opacity: 1;
 	}
 
-	&.animate {
+	&.animate > .tabInner {
 		transition: opacity 0.2s ease;
 	}
 }
@@ -247,6 +173,7 @@ onUnmounted(() => {
 .tabInner {
 	display: flex;
 	align-items: center;
+	opacity: 0.7;
 }
 
 .tabIcon + .tabTitle {
@@ -261,24 +188,4 @@ onUnmounted(() => {
 	}
 }
 
-.tabHighlight {
-	position: absolute;
-	bottom: 0;
-	height: 3px;
-	background: var(--MI_THEME-accent);
-	border-radius: 999px;
-	transition: none;
-	pointer-events: none;
-
-	&.animate {
-		transition: width 0.15s ease, left 0.15s ease;
-	}
-}
-
-@supports (position-anchor: --anchor-name) {
-	.tabHighlight {
-		left: anchor(var(--tabAnchorName) start);
-		width: anchor-size(var(--tabAnchorName) width);
-	}
-}
 </style>

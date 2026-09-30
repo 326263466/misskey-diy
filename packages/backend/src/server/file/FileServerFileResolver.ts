@@ -30,6 +30,8 @@ export type FileResolveResult =
 		mime: string;
 		ext: string | null;
 		path: string;
+		/** `path` の実サイズ。webpublic/thumbnail は原本と別ファイルなので file.size とは一致しない */
+		size: number;
 	}
 	| {
 		kind: 'remote';
@@ -40,6 +42,8 @@ export type FileResolveResult =
 		mime: string;
 		ext: string | null;
 		path: string;
+		/** `path` の実サイズ。webpublic/thumbnail は原本と別ファイルなので file.size とは一致しない */
+		size: number;
 		cleanup: () => void;
 	};
 
@@ -87,7 +91,8 @@ export class FileServerFileResolver {
 			if (!(file.isLink && file.uri)) return { kind: 'unavailable' };
 			const result = await this.downloadAndDetectTypeFromUrl(file.uri);
 			const { kind: _kind, ...downloaded } = result;
-			file.size = (await fs.promises.stat(downloaded.path)).size;	// DB file.sizeは正確とは限らないので
+			const size = (await fs.promises.stat(downloaded.path)).size;	// DB file.sizeは正確とは限らないので
+			file.size = size;
 			return {
 				kind: 'remote',
 				...downloaded,
@@ -95,13 +100,17 @@ export class FileServerFileResolver {
 				fileRole: isThumbnail ? 'thumbnail' : isWebpublic ? 'webpublic' : 'original',
 				file,
 				filename: file.name,
+				size,
 			};
 		}
 
 		const path = this.internalStorageService.resolvePath(key);
 
 		if (isThumbnail || isWebpublic) {
-			const { mime, ext } = await this.fileInfoService.detectType(path);
+			const [{ mime, ext }, stats] = await Promise.all([
+				this.fileInfoService.detectType(path),
+				fs.promises.stat(path),
+			]);
 			return {
 				kind: 'stored',
 				fileRole: isThumbnail ? 'thumbnail' : 'webpublic',
@@ -109,6 +118,7 @@ export class FileServerFileResolver {
 				filename: file.name,
 				mime, ext,
 				path,
+				size: stats.size,
 			};
 		}
 
@@ -121,6 +131,7 @@ export class FileServerFileResolver {
 			mime: this.fileInfoService.fixMime(file.type),
 			ext: null,
 			path,
+			size: (await fs.promises.stat(path)).size,	// DB file.sizeは正確とは限らないので実ファイルを見る
 		};
 	}
 }

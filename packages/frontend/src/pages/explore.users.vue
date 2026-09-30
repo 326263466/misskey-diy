@@ -4,39 +4,39 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 1200px;">
-	<MkTab
-		v-if="instance.federation !== 'none'"
-		v-model="origin"
-		:tabs="[
-			{ key: 'local', label: i18n.ts.local },
-			{ key: 'remote', label: i18n.ts.remote },
-		]"
-		style="margin-bottom: var(--MI-margin);"
-	>
-	</MkTab>
-	<div v-if="origin === 'local'">
+<div class="_spacer _gaps" style="--MI_SPACER-w: 1200px;">
+	<div v-if="instance.federation !== 'none'" :class="$style.tabBar">
+		<MkTab
+			v-model="origin"
+			:tabs="[
+				{ key: 'local', label: i18n.ts.local },
+				{ key: 'remote', label: i18n.ts.remote },
+			]"
+		>
+		</MkTab>
+	</div>
+	<div v-if="origin === 'local'" class="_gaps">
 		<template v-if="tag == null">
-			<MkFoldableSection class="_margin" persistKey="explore-pinned-users">
+			<MkFoldableSection persistKey="explore-pinned-users">
 				<template #header><i class="ti ti-bookmark ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.pinnedUsers }}</template>
 				<MkUserList :paginator="pinnedUsersPaginator"/>
 			</MkFoldableSection>
-			<MkFoldableSection class="_margin" persistKey="explore-popular-users">
+			<MkFoldableSection persistKey="explore-popular-users">
 				<template #header><i class="ti ti-chart-line ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.popularUsers }}</template>
 				<MkUserList :paginator="popularUsersPaginator"/>
 			</MkFoldableSection>
-			<MkFoldableSection class="_margin" persistKey="explore-recently-updated-users">
+			<MkFoldableSection persistKey="explore-recently-updated-users">
 				<template #header><i class="ti ti-message ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.recentlyUpdatedUsers }}</template>
 				<MkUserList :paginator="recentlyUpdatedUsersPaginator"/>
 			</MkFoldableSection>
-			<MkFoldableSection class="_margin" persistKey="explore-recently-registered-users">
+			<MkFoldableSection persistKey="explore-recently-registered-users">
 				<template #header><i class="ti ti-plus ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.recentlyRegisteredUsers }}</template>
 				<MkUserList :paginator="recentlyRegisteredUsersPaginator"/>
 			</MkFoldableSection>
 		</template>
 	</div>
-	<div v-else>
-		<MkFoldableSection :foldable="true" :expanded="false" class="_margin">
+	<div v-else class="_gaps">
+		<MkFoldableSection :foldable="true" :expanded="false">
 			<template #header><i class="ti ti-hash ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.popularTags }}</template>
 
 			<div>
@@ -45,21 +45,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</MkFoldableSection>
 
-		<MkFoldableSection v-if="tagUsersPaginator != null" :key="`${tag}`" class="_margin">
+		<MkFoldableSection v-if="tagUsersPaginator != null" :key="`${tag}`">
 			<template #header><i class="ti ti-hash ti-fw" style="margin-right: 0.5em;"></i>{{ tag }}</template>
 			<MkUserList :paginator="tagUsersPaginator"/>
 		</MkFoldableSection>
 
 		<template v-if="tag == null">
-			<MkFoldableSection class="_margin">
+			<MkFoldableSection>
 				<template #header><i class="ti ti-chart-line ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.popularUsers }}</template>
 				<MkUserList :paginator="popularUsersFPaginator"/>
 			</MkFoldableSection>
-			<MkFoldableSection class="_margin">
+			<MkFoldableSection>
 				<template #header><i class="ti ti-message ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.recentlyUpdatedUsers }}</template>
 				<MkUserList :paginator="recentlyUpdatedUsersFPaginator"/>
 			</MkFoldableSection>
-			<MkFoldableSection class="_margin">
+			<MkFoldableSection>
 				<template #header><i class="ti ti-rocket ti-fw" style="margin-right: 0.5em;"></i>{{ i18n.ts.recentlyDiscoveredUsers }}</template>
 				<MkUserList :paginator="recentlyRegisteredUsersFPaginator"/>
 			</MkFoldableSection>
@@ -172,3 +172,11 @@ misskeyApi('hashtags/list', {
 	tagsRemote.value = tags;
 });
 </script>
+
+<style lang="scss" module>
+.tabBar {
+	padding: 6px 12px;
+	background: var(--MI_THEME-panel);
+	border-radius: 4px;
+}
+</style>

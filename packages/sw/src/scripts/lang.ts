@@ -15,7 +15,7 @@ class SwLang {
 	public cacheName = `mk-cache-${_VERSION_}`;
 
 	public lang: Promise<string> = get('lang').then(async prelang => {
-		if (!prelang) return 'en-US';
+		if (typeof prelang !== 'string' || !_LANGS_.some(([code]) => code === prelang)) return 'en-US';
 		return prelang;
 	});
 

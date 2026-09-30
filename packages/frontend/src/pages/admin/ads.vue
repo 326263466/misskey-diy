@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						{ value: 'horizontal-big' },
 					]"
 				>
-					<template #label>Form</template>
+					<template #label>{{ i18n.ts._ad.shape }}</template>
 				</MkRadios>
 
 				<FormSplit>
@@ -76,7 +76,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						></i> {{ i18n.ts.save }}
 					</MkButton>
 					<MkButton inline danger @click="remove(ad)">
-						<i class="ti ti-trash"></i> {{ i18n.ts.remove }}
+						<i class="ti ti-trash"></i> {{ i18n.ts.delete }}
 					</MkButton>
 				</div>
 			</div>
@@ -171,7 +171,7 @@ function add() {
 function remove(ad: Misskey.entities.Ad) {
 	os.confirm({
 		type: 'warning',
-		text: i18n.tsx.removeAreYouSure({ x: ad.url }),
+		text: i18n.tsx.deleteAreYouSure({ x: ad.url }),
 	}).then(({ canceled }) => {
 		if (canceled) return;
 		ads.value = ads.value.filter(x => x !== ad);

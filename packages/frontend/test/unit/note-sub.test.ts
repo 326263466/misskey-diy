@@ -23,7 +23,6 @@ vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/utility/please-login.js', () => ({ pleaseLogin: async () => true }));
 vi.mock('@/utility/show-moved-dialog.js', () => ({ showMovedDialog: () => {} }));
 vi.mock('@/utility/get-note-menu.js', () => ({ getAbuseNoteMenu: (_note: unknown, text: string) => ({ text, action: vi.fn() }) }));
-vi.mock('@/components/MkNoteHeader.vue', () => ({ default: { props: ['note'], template: '<header>{{ note.user.username }}</header>' } }));
 vi.mock('@/components/MkSubNoteContent.vue', () => ({ default: { props: ['note'], template: '<p>{{ note.text }}</p>' } }));
 vi.mock('@/components/MkReactionsViewer.vue', () => ({ default: { props: ['reactions'], template: '<div data-testid="reactions">{{ reactions }}</div>' } }));
 
@@ -49,8 +48,11 @@ function renderComment(note: Misskey.entities.Note) {
 				MkAvatar: { props: ['user'], template: '<img :alt="user.username" :src="user.avatarUrl" />' },
 				MkA: { props: ['to'], template: '<a :href="to"><slot/></a>' },
 				MkTime: { props: ['time'], template: '<time :datetime="time">{{ time }}</time>' },
+				MkUserName: { props: ['user'], template: '<span>{{ user.username }}</span>' },
+				MkAcct: { props: ['user'], template: '<span>@{{ user.username }}</span>' },
+				Mfm: { props: ['text'], template: '<span>{{ text }}</span>' },
 			},
-			directives: { tooltip: () => {} },
+			directives: { tooltip: () => {}, 'user-preview': () => {} },
 		},
 	});
 }
@@ -65,6 +67,31 @@ describe('comment actions', () => {
 		mocks.confirm.mockResolvedValue({ canceled: false });
 	});
 	afterEach(() => cleanup());
+
+	test.each(['#000', '#000000', '#ff8800'])('preserves the saved channel color in the striped accent (%s)', (color) => {
+		const view = renderComment(makeNote('channel-comment', {
+			channel: { id: 'channel', name: 'Channel', color } as Misskey.entities.Note['channel'],
+			tags: ['Photography'],
+		}));
+		expect(view.container.querySelector<HTMLElement>('[class*="colorBar"]')?.style.getPropertyValue('--MI-channelColor')).toBe(color);
+		const links = view.getByRole('link', { name: 'Channel' }).parentElement!.querySelectorAll('a');
+		expect([...links].map(link => link.getAttribute('href'))).toEqual(['/channels/channel', '/tags/Photography']);
+	});
+
+	test('keeps a comment body and its topics behind its CW control', async () => {
+		const comment = makeNote('cw-comment', { text: 'Hidden comment body', cw: 'Comment summary', tags: ['Spoiler'] });
+		const view = renderComment(comment);
+		const body = view.getByText(comment.text!);
+		expect(view.getByText(comment.cw!)).toBeTruthy();
+		expect(body.parentElement?.style.display).toBe('none');
+		expect(view.queryByRole('link', { name: '#Spoiler' })).toBeNull();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts._cw.showContent }));
+		expect(body.parentElement?.style.display).not.toBe('none');
+		expect(view.getByRole('link', { name: '#Spoiler' })).toBeTruthy();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts._cw.hideContent }));
+		expect(body.parentElement?.style.display).toBe('none');
+		expect(view.queryByRole('link', { name: '#Spoiler' })).toBeNull();
+	});
 
 	test('replaces a deleted parent with a placeholder and preserves its children', async () => {
 		const parent = makeNote('deleted-parent', { repliesCount: 1 });
@@ -115,7 +142,8 @@ describe('comment actions', () => {
 		const child = makeNote('child', { replyId: parent.id });
 		mocks.api.mockImplementation(async (endpoint: string) => endpoint === 'notes/replies' ? [child] : []);
 		const view = renderComment(parent);
-		await waitFor(() => expect(view.container.querySelectorAll('footer time')).toHaveLength(2));
+		await waitFor(() => expect(view.container.querySelectorAll('header time')).toHaveLength(2));
+		expect(view.container.querySelectorAll('footer time')).toHaveLength(0);
 		expect(view.getAllByRole('button', { name: i18n.ts.like })).toHaveLength(2);
 		for (const menu of view.getAllByRole('button', { name: i18n.ts.more })) expect(menu.closest('footer')).toBeNull();
 		await fireEvent.click(view.getAllByRole('button', { name: i18n.ts.reply })[1]);

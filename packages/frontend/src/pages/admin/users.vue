@@ -8,25 +8,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_spacer" style="--MI_SPACER-w: 900px;">
 		<div class="_gaps">
 			<div :class="$style.inputs">
-				<MkButton style="margin-left: auto" @click="resetQuery">{{ i18n.ts.reset }}</MkButton>
-			</div>
-			<div :class="$style.inputs">
-				<MkSelect v-model="sort" :items="sortDef" style="flex: 1;">
+				<MkSelect v-model="sort" :items="sortDef" :class="$style.input">
 					<template #label>{{ i18n.ts.sort }}</template>
 				</MkSelect>
-				<MkSelect v-model="state" :items="stateDef" style="flex: 1;">
+				<MkSelect v-model="state" :items="stateDef" :class="$style.input">
 					<template #label>{{ i18n.ts.state }}</template>
 				</MkSelect>
-				<MkSelect v-model="origin" :items="originDef" style="flex: 1;">
+				<MkSelect v-model="origin" :items="originDef" :class="$style.input">
 					<template #label>{{ i18n.ts.instance }}</template>
 				</MkSelect>
+				<MkButton :class="$style.reset" @click="resetQuery">{{ i18n.ts.reset }}</MkButton>
 			</div>
 			<div :class="$style.inputs">
-				<MkInput v-model="searchUsername" style="flex: 1;" type="text" :spellcheck="false">
+				<MkInput v-model="searchUsername" :class="$style.input" type="text" :spellcheck="false">
 					<template #prefix>@</template>
 					<template #label>{{ i18n.ts.username }}</template>
 				</MkInput>
-				<MkInput v-model="searchHost" style="flex: 1;" type="text" :spellcheck="false" :disabled="paginator.computedParams?.value?.origin === 'local'">
+				<MkInput v-model="searchHost" :class="$style.input" type="text" :spellcheck="false" :disabled="paginator.computedParams?.value?.origin === 'local'">
 					<template #prefix>@</template>
 					<template #label>{{ i18n.ts.host }}</template>
 				</MkInput>
@@ -34,8 +32,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<MkPagination v-slot="{items}" :paginator="paginator">
 				<div :class="$style.users">
-					<MkA v-for="user in items" :key="user.id" v-tooltip.mfm="`Last posted: ${user.updatedAt ? dateString(user.updatedAt) : 'Unknown'}`" :class="$style.user" :to="`/admin/user/${user.id}`">
-						<MkUserCardMini :user="user"/>
+					<MkA v-for="user in items" :key="user.id" :class="$style.user" :to="`/admin/user/${user.id}`">
+						<MkUserCardMini :user="user" :subTooltip="`${i18n.ts.lastPostedAt}: ${user.updatedAt ? dateString(user.updatedAt) : i18n.ts.unknown}`"/>
 					</MkA>
 				</div>
 			</MkPagination>
@@ -196,8 +194,19 @@ definePage(() => ({
 <style lang="scss" module>
 .inputs {
 	display: flex;
+	align-items: flex-end;
 	gap: 8px;
 	flex-wrap: wrap;
+}
+
+.input {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.reset {
+	flex: none;
+	margin-left: auto;
 }
 
 .users {

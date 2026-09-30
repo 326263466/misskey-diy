@@ -359,7 +359,7 @@ function onContextmenu(ev: PointerEvent) {
 		position: relative;
 		width: 18px;
 		height: 18px;
-		background: #fff;
+		background: var(--MI_THEME-panel);
 		border: solid 2px var(--MI_THEME-divider);
 		border-radius: 4px;
 		box-sizing: border-box;
@@ -373,7 +373,7 @@ function onContextmenu(ev: PointerEvent) {
 				top: 50%;
 				left: 50%;
 				transform: translate(-50%, -50%);
-				color: #fff;
+				color: var(--MI_THEME-fgOnAccent);
 				font-size: 12px;
 				line-height: 18px;
 			}

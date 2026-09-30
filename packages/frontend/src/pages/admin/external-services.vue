@@ -16,11 +16,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<SearchMarker>
 								<MkInput v-model="googleAnalyticsMeasurementId">
 									<template #prefix><i class="ti ti-key"></i></template>
-									<template #label><SearchLabel>Measurement ID</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.ts._externalServices.measurementId }}</SearchLabel></template>
 								</MkInput>
 							</SearchMarker>
 
-							<MkButton primary @click="save_googleAnalytics">Save</MkButton>
+							<MkButton primary @click="save_googleAnalytics">{{ i18n.ts.save }}</MkButton>
 						</div>
 					</MkFolder>
 				</SearchMarker>
@@ -33,17 +33,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<SearchMarker>
 								<MkInput v-model="deeplAuthKey">
 									<template #prefix><i class="ti ti-key"></i></template>
-									<template #label><SearchLabel>Auth Key</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.ts._externalServices.authKey }}</SearchLabel></template>
 								</MkInput>
 							</SearchMarker>
 
 							<SearchMarker>
 								<MkSwitch v-model="deeplIsPro">
-									<template #label><SearchLabel>Pro account</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.ts._externalServices.proAccount }}</SearchLabel></template>
 								</MkSwitch>
 							</SearchMarker>
 
-							<MkButton primary @click="save_deepl">Save</MkButton>
+							<MkButton primary @click="save_deepl">{{ i18n.ts.save }}</MkButton>
 						</div>
 					</MkFolder>
 				</SearchMarker>

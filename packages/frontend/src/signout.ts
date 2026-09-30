@@ -6,15 +6,26 @@
 import { apiUrl } from '@@/js/config.js';
 import { cloudBackup } from '@/preferences/utility.js';
 import { store } from '@/store.js';
-import { waiting } from '@/os.js';
+import { alert, waiting } from '@/os.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { clear } from '@/utility/idb-proxy.js';
 import { $i } from '@/i.js';
+import { prefer } from '@/preferences.js';
+import { i18n } from '@/i18n.js';
 
 export async function signout() {
 	if (!$i) return;
 
-	waiting();
+	const done = waiting();
+
+	try {
+		await prefer.flushCloudSync();
+	} catch (err) {
+		done();
+		console.error(err);
+		alert({ type: 'error', title: i18n.ts.somethingHappened });
+		return;
+	}
 
 	if (store.s.enablePreferencesAutoCloudBackup) {
 		await cloudBackup();

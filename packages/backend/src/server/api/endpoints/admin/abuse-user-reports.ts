@@ -9,6 +9,8 @@ import type { AbuseUserReportsRepository } from '@/models/_.js';
 import { QueryService } from '@/core/QueryService.js';
 import { DI } from '@/di-symbols.js';
 import { AbuseUserReportEntityService } from '@/core/entities/AbuseUserReportEntityService.js';
+import { abuseReportSnapshotSchema } from '@/models/json-schema/abuse-report-snapshot.js';
+import { abuseReportReasons } from '@/models/AbuseUserReport.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -39,6 +41,8 @@ export const meta = {
 					type: 'string',
 					nullable: false, optional: false,
 				},
+				snapshot: { ...abuseReportSnapshotSchema, nullable: true },
+				reason: { type: 'string', enum: [...abuseReportReasons, null], nullable: true, optional: false },
 				resolved: {
 					type: 'boolean',
 					nullable: false, optional: false,
@@ -61,12 +65,12 @@ export const meta = {
 				},
 				reporter: {
 					type: 'object',
-					nullable: false, optional: false,
+					nullable: true, optional: false,
 					ref: 'UserDetailedNotMe',
 				},
 				targetUser: {
 					type: 'object',
-					nullable: false, optional: false,
+					nullable: true, optional: false,
 					ref: 'UserDetailedNotMe',
 				},
 				assignee: {

@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_panel main">
 							<div class="title">{{ flash.title }}</div>
 							<div class="summary"><Mfm :text="flash.summary"/></div>
-							<MkButton class="start" gradate rounded large @click="start">Play</MkButton>
+							<MkButton class="start" gradate rounded large @click="start">{{ i18n.ts.start }}</MkButton>
 							<div class="info">
 								<span v-tooltip="i18n.ts.numberOfLikes"><i class="ti ti-heart"></i> {{ flash.likedCount }}</span>
 							</div>
@@ -44,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkCode :code="flash.script" lang="is" class="_monospace"/>
 				</MkFolder>
 				<div :class="$style.footer">
-					<Mfm :text="`By @${flash.user.username}`"/>
+					<Mfm :text="`${i18n.ts.author}: @${flash.user.username}`"/>
 					<div class="date">
 						<div v-if="flash.createdAt != flash.updatedAt"><i class="ti ti-clock"></i> {{ i18n.ts.updatedAt }}: <MkTime :time="flash.updatedAt" mode="detail"/></div>
 						<div><i class="ti ti-clock"></i> {{ i18n.ts.createdAt }}: <MkTime :time="flash.createdAt" mode="detail"/></div>
@@ -82,7 +82,7 @@ import MkFolder from '@/components/MkFolder.vue';
 import MkCode from '@/components/MkCode.vue';
 import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
-import { isSupportShare } from '@/utility/navigator.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 
@@ -104,42 +104,19 @@ function fetchFlash() {
 	});
 }
 
-function share(ev: PointerEvent) {
+function share() {
 	if (!flash.value) return;
-
-	const menuItems: MenuItem[] = [];
-
-	menuItems.push({
-		text: i18n.ts.shareWithNote,
-		icon: 'ti ti-pencil',
-		action: shareWithNote,
-	});
-
-	if (isSupportShare()) {
-		menuItems.push({
-			text: i18n.ts.share,
-			icon: 'ti ti-share',
-			action: shareWithNavigator,
-		});
-	}
-
-	os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
+	openShareDialog({
+		title: flash.value.title,
+		text: flash.value.summary,
+		url: `${url}/play/${flash.value.id}`,
+	}, { shareWithNote });
 }
 
 function copyLink() {
 	if (!flash.value) return;
 
 	copyToClipboard(`${url}/play/${flash.value.id}`);
-}
-
-function shareWithNavigator() {
-	if (!flash.value) return;
-
-	navigator.share({
-		title: flash.value.title,
-		text: flash.value.summary,
-		url: `${url}/play/${flash.value.id}`,
-	});
 }
 
 function shareWithNote() {
@@ -235,7 +212,7 @@ async function run() {
 		err: (err) => {
 			os.alert({
 				type: 'error',
-				title: 'AiScript Error',
+				title: i18n.ts._aiscript.runtimeError,
 				text: String(err),
 			});
 		},
@@ -252,7 +229,7 @@ async function run() {
 	} catch (err) {
 		os.alert({
 			type: 'error',
-			title: 'Syntax Error',
+			title: i18n.ts._aiscript.syntaxError,
 			text: String(err),
 		});
 		return;
@@ -262,7 +239,7 @@ async function run() {
 	} catch (err: any) {
 		os.alert({
 			type: 'error',
-			title: 'AiScript Internal Error',
+			title: i18n.ts._aiscript.internalError,
 			text: String(err),
 		});
 	}
@@ -275,7 +252,8 @@ async function reportAbuse() {
 
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
 		user: flash.value.user,
-		initialComment: `Play: ${pageUrl}\n-----\n`,
+		reportTarget: { reportType: 'play', targetId: flash.value.id },
+		context: { label: flash.value.title, url: pageUrl },
 	}, {
 		closed: () => dispose(),
 	});

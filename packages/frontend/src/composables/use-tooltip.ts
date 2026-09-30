@@ -9,7 +9,7 @@ import type { Ref } from 'vue';
 export function useTooltip(
 	elRef: Ref<HTMLElement | { $el: HTMLElement } | null | undefined>,
 	onShow: (showing: Ref<boolean>) => void,
-	delay = 300,
+	delay = 600,
 ): void {
 	let isHovering = false;
 

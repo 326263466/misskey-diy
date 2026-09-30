@@ -6,12 +6,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModal ref="modal" v-slot="{ type }" :preferType="deviceKind === 'smartphone' ? 'drawer' : 'dialog'" @click="onBgClick" @closed="emit('closed')" @esc="emit('esc')">
 	<div ref="rootEl" :class="[$style.root, type === 'drawer' ? $style.asDrawer : null, autoHeight ? $style.autoHeight : null]" :style="type === 'drawer' ? undefined : rootStyle">
-		<div :class="$style.header">
-			<button v-if="withCloseButton" :class="$style.headerButton" class="_button" data-testid="modal-window-close" @click="emit('close')"><i class="ti ti-x"></i></button>
+		<div :class="[$style.header, { [$style.closeButtonRight]: closeButtonRight }]">
+			<button v-if="withCloseButton" :class="$style.headerButton" class="_button" :aria-label="i18n.ts.close" data-testid="modal-window-close" @click="emit('close')"><i class="ti ti-x" aria-hidden="true"></i></button>
 			<span :class="$style.title">
 				<slot name="header"></slot>
 			</span>
-			<div v-if="withOkButton" style="padding: 0 16px; place-content: center;">
+			<div v-if="withOkButton" :class="$style.headerActions">
 				<MkButton primary gradate small rounded :disabled="okButtonDisabled" @click="emit('ok')">{{ i18n.ts.done }} <i class="ti ti-check"></i></MkButton>
 			</div>
 		</div>
@@ -35,6 +35,7 @@ import { deviceKind } from '@/utility/device-kind.js';
 const props = withDefaults(defineProps<{
 	withOkButton?: boolean;
 	withCloseButton?: boolean;
+	closeButtonRight?: boolean;
 	okButtonDisabled?: boolean;
 	width?: number;
 	height?: number;
@@ -44,6 +45,7 @@ const props = withDefaults(defineProps<{
 }>(), {
 	withOkButton: false,
 	withCloseButton: true,
+	closeButtonRight: false,
 	okButtonDisabled: false,
 	width: 400,
 	height: 500,
@@ -87,40 +89,53 @@ defineExpose({
 	contain: content;
 	border-radius: var(--MI-radius);
 
-	--root-margin: 24px;
-
-	--MI_THEME-headerHeight: 46px;
-	--MI_THEME-headerHeightNarrow: 42px;
-
-	@media (max-width: 500px) {
-		--root-margin: 16px;
-	}
+	--MI_THEME-headerHeight: 40px;
+	--MI_THEME-headerHeightNarrow: 40px;
 
 	&.asDrawer {
 		height: calc(100dvh - 30px);
 		border-radius: 0;
+
+		&.autoHeight {
+			height: auto;
+			max-height: calc(100dvh - 30px);
+		}
 
 		.body {
 			padding-bottom: env(safe-area-inset-bottom, 0px);
 		}
 
 		.footer {
-			padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+			padding-bottom: max(var(--MI-cardPadding, 20px), env(safe-area-inset-bottom, 0px));
 		}
 	}
 }
 
 .header {
 	display: flex;
+	align-items: center;
 	flex-shrink: 0;
+	min-height: var(--MI_THEME-headerHeight);
 	background: var(--MI_THEME-windowHeader);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
+
+	@media (max-width: 500px) {
+		min-height: var(--MI_THEME-headerHeightNarrow);
+	}
 }
 
 .headerButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
 	height: var(--MI_THEME-headerHeight);
 	width: var(--MI_THEME-headerHeight);
+
+	> i {
+		line-height: 1.3;
+	}
 
 	@media (max-width: 500px) {
 		height: var(--MI_THEME-headerHeightNarrow);
@@ -130,7 +145,8 @@ defineExpose({
 
 .title {
 	flex: 1;
-	line-height: var(--MI_THEME-headerHeight);
+	min-width: 0;
+	line-height: 1.3;
 	padding-left: 32px;
 	font-weight: bold;
 	white-space: nowrap;
@@ -138,14 +154,32 @@ defineExpose({
 	text-overflow: ellipsis;
 	pointer-events: none;
 
+	> i {
+		vertical-align: middle;
+	}
+
 	@media (max-width: 500px) {
-		line-height: var(--MI_THEME-headerHeightNarrow);
 		padding-left: 16px;
 	}
 }
 
+.headerActions {
+	flex-shrink: 0;
+	padding: 0 16px;
+}
+
 .headerButton + .title {
 	padding-left: 0;
+}
+
+.closeButtonRight {
+	.headerButton {
+		order: 1;
+	}
+
+	.title {
+		padding-left: 20px;
+	}
 }
 
 .body {
@@ -163,8 +197,9 @@ defineExpose({
 }
 
 .footer {
-	padding: 12px 16px;
-	overflow: auto;
+	flex-shrink: 0;
+	padding: var(--MI-cardPadding, 20px);
+	overflow: clip;
 	background: var(--MI_THEME-bg);
 	border-top: 1px solid var(--MI_THEME-divider);
 }

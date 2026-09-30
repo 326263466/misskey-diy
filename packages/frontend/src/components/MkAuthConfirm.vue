@@ -389,12 +389,12 @@ defineExpose({
 	}
 
 	&:checked:focus-visible + .accountSelectorItem {
-		outline-color: #fff;
+		outline-color: var(--MI_THEME-fgOnAccent);
 	}
 
 	&:checked + .accountSelectorItem {
 		background: var(--MI_THEME-accent);
-		color: #fff;
+		color: var(--MI_THEME-fgOnAccent);
 	}
 }
 

@@ -1,0 +1,22 @@
+<!--
+SPDX-FileCopyrightText: syuilo and misskey-project
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+<defs>
+<linearGradient id="purpleDeep" x1="0" y1="0" x2="0.7" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#9878d8"/><stop offset="1" stop-color="#59408f"/></linearGradient>
+<linearGradient id="purple" x1="0" y1="0" x2="0.7" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#c8afff"/><stop offset="1" stop-color="#8161d3"/></linearGradient>
+<linearGradient id="ink" x1="0" y1="0" x2="0.7" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#405881"/><stop offset="1" stop-color="#243553"/></linearGradient>
+</defs>
+
+<rect x="4" y="27" width="88" height="59" rx="17" fill="#4d3876"/>
+<rect x="4" y="21" width="88" height="59" rx="17" fill="url(#purpleDeep)"/>
+<path d="M21 21V17Q21 9 30 9H57Q65 9 65 17V21" fill="none" stroke="url(#purple)" stroke-width="10" stroke-linecap="round"/>
+<rect x="10" y="29" width="76" height="40" rx="10" fill="url(#ink)"/>
+<path d="M16 35H79" fill="none" stroke="#607393" stroke-width="2" stroke-linecap="round"/>
+<g transform="translate(17 38) scale(0.92)" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path transform="translate(0 0)" d="M2 5L9 0V24M2 24H16"/><path transform="translate(26 0)" d="M9 0C3 0 0 4 0 12S3 24 9 24S18 20 18 12S15 0 9 0Z"/><path transform="translate(52 0)" d="M9 0C3 0 0 4 0 12S3 24 9 24S18 20 18 12S15 0 9 0Z"/></g>
+<path d="M16 75H73" fill="none" stroke="#cbb1ff" stroke-width="3" stroke-linecap="round"/>
+<circle cx="78" cy="20" r="15" fill="#5e418e"/>
+<circle cx="78" cy="17" r="15" fill="url(#purple)"/>
+<path d="M71 17H85M78 10V24" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+</svg>

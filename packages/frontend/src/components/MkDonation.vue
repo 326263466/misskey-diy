@@ -22,8 +22,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					{{ instance.name ?? host }}
 				</template>
 			</I18n>
-			<div style="margin-top: 0.2em;">
-				<MkLink target="_blank" url="https://misskey-hub.net/docs/for-users/resources/donate/">{{ i18n.ts.learnMore }}</MkLink>
+			<div :class="$style.learnMore">
+				<MkA to="/feedback" @click="close">{{ i18n.ts.feedback }}</MkA>
 			</div>
 		</div>
 		<div class="_buttons">
@@ -36,9 +36,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import MkButton from '@/components/MkButton.vue';
-import MkLink from '@/components/MkLink.vue';
 import { host } from '@@/js/config.js';
+import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { miLocalStorage } from '@/local-storage.js';
@@ -73,11 +72,13 @@ function neverShow() {
 	width: calc(100% - (var(--MI-margin) * 2));
 	max-width: 500px;
 	display: flex;
+	align-items: center;
 }
 
 .icon {
-	text-align: center;
-	padding-top: 25px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	width: 100px;
 	color: var(--MI_THEME-accent);
 }
@@ -106,9 +107,14 @@ function neverShow() {
 
 .title {
 	font-weight: bold;
+	font-size: 1em;
 }
 
 .text {
 	margin: 0.7em 0 1em 0;
+}
+
+.learnMore {
+	margin-top: 0.4em;
 }
 </style>

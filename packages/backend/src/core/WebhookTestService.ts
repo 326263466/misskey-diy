@@ -4,6 +4,7 @@
  */
 
 import { Injectable } from '@nestjs/common';
+import { serializeAbuseReport } from '@/misc/abuse-report.js';
 import { MiAbuseUserReport, MiNote, MiUser, MiWebhook } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { MiSystemWebhook, type SystemWebhookEventType } from '@/models/SystemWebhook.js';
@@ -24,6 +25,8 @@ function generateDummyUser(override?: Partial<MiUser>): MiUser {
 		lastFetchedAt: new Date(Date.now() - oneDayMillis * 5),
 		lastActiveDate: new Date(Date.now() - oneDayMillis * 3),
 		hideOnlineStatus: false,
+		onlineStatusOverride: 'online',
+		customStatus: null,
 		username: 'dummy1',
 		usernameLower: 'dummy1',
 		name: 'DummyUser1',
@@ -348,6 +351,10 @@ export class WebhookTestService {
 			resolved: false,
 			forwarded: false,
 			comment: 'This is a dummy report for testing purposes.',
+			snapshot: null,
+			reason: null,
+			requestId: null,
+			requestFingerprint: null,
 			targetUserHost: null,
 			reporterHost: null,
 			resolvedAs: null,
@@ -356,7 +363,7 @@ export class WebhookTestService {
 		};
 
 		return {
-			...result,
+			...serializeAbuseReport(result),
 			targetUser: result.targetUser ? await this.toPackedUserLite(result.targetUser) : null,
 			reporter: result.reporter ? await this.toPackedUserLite(result.reporter) : null,
 			assignee: result.assignee ? await this.toPackedUserLite(result.assignee) : null,
@@ -452,6 +459,8 @@ export class WebhookTestService {
 			isSuspended: user.isSuspended,
 			description: null,
 			location: null,
+			company: null,
+			jobTitle: null,
 			birthday: null,
 			lang: null,
 			fields: [],

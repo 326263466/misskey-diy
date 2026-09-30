@@ -34,6 +34,7 @@ describe('note editing', () => {
 	test.each([
 		['a reply', { replyId: 'parent' }],
 		['an ordinary post', { replyId: null }],
+		['a channel post', { replyId: null, channelId: 'channel' }],
 		['a quote', { replyId: null, renoteId: 'quoted' }],
 	] as const)('opens %s with its original identity and relationships', async (_label, overrides) => {
 		const original = { ...note, ...overrides };
@@ -61,6 +62,7 @@ describe('note editing', () => {
 
 	test('does not offer writes for another author, a remote note or a pure renote', async () => {
 		await editNote({ ...note, userId: 'other' });
+		await editNote({ ...note, userId: 'other', channelId: 'channel' });
 		await editNote({ ...note, user: { ...note.user, host: 'remote.test' } });
 		await editNote({ ...note, replyId: null, renoteId: 'quoted', text: null, cw: null, fileIds: [], files: [], poll: undefined });
 		expect(mocks.post).not.toHaveBeenCalled();

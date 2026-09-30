@@ -5,35 +5,39 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
-	<div class="_gaps_m">
-		<div :class="$style.userMInfoRoot">
-			<MkAvatar :class="$style.userMInfoAvatar" :user="user" indicator link preview/>
-			<div :class="$style.userMInfoMetaRoot">
-				<span :class="$style.userMInfoMetaName"><MkUserName :class="$style.userMInfoMetaName" :user="user"/></span>
-				<span :class="$style.userMInfoMetaSub"><span class="acct _monospace">@{{ acct(user) }}</span></span>
-				<span :class="$style.userMInfoMetaState">
-					<span v-if="suspended" :class="$style.suspended">Suspended</span>
-					<span v-if="silenced" :class="$style.silenced">Silenced</span>
-					<span v-if="moderator" :class="$style.moderator">Moderator</span>
-				</span>
+	<div class="_panel" :class="$style.card">
+		<div class="_gaps_m">
+			<div :class="$style.userMInfoRoot">
+				<MkAvatar :class="$style.userMInfoAvatar" :user="user" indicator link preview/>
+				<div :class="$style.userMInfoMetaRoot">
+					<span :class="$style.userMInfoMetaName"><MkUserName :class="$style.userMInfoMetaName" :user="user"/></span>
+					<span :class="$style.userMInfoMetaSub"><span class="acct _monospace">@{{ acct(user) }}</span></span>
+					<span :class="$style.userMInfoMetaState">
+						<span v-if="suspended" :class="$style.suspended">{{ i18n.ts._userStatus.suspended }}</span>
+						<span v-if="silenced" :class="$style.silenced">{{ i18n.ts._userStatus.silenced }}</span>
+						<span v-if="moderator" :class="$style.moderator">{{ i18n.ts.moderator }}</span>
+					</span>
+				</div>
 			</div>
-		</div>
 
-		<div style="display: flex; flex-direction: column; gap: 1em;">
-			<MkKeyValue :copy="user.id" oneline>
-				<template #key>ID</template>
-				<template #value><span class="_monospace">{{ user.id }}</span></template>
-			</MkKeyValue>
-			<MkKeyValue oneline>
-				<template #key>{{ i18n.ts.createdAt }}</template>
-				<template #value><span class="_monospace"><MkTime :time="user.createdAt" :mode="'detail'"/></span></template>
-			</MkKeyValue>
-		</div>
+			<div :class="[$style.inset, $style.kvList]">
+				<MkKeyValue :copy="user.id" oneline>
+					<template #key>ID</template>
+					<template #value><span class="_monospace">{{ user.id }}</span></template>
+				</MkKeyValue>
+				<MkKeyValue oneline>
+					<template #key>{{ i18n.ts.createdAt }}</template>
+					<template #value><span class="_monospace"><MkTime :time="user.createdAt" :mode="'detail'"/></span></template>
+				</MkKeyValue>
+			</div>
 
-		<FormSection>
-			<template #label>Raw</template>
-			<MkObjectView tall :value="user"></MkObjectView>
-		</FormSection>
+			<FormSection>
+				<template #label>{{ i18n.ts.rawData }}</template>
+				<div :class="$style.inset">
+					<MkObjectView tall :value="user"></MkObjectView>
+				</div>
+			</FormSection>
+		</div>
 	</div>
 </div>
 </template>
@@ -57,6 +61,23 @@ const suspended = computed(() => props.user.isSuspended ?? false);
 </script>
 
 <style lang="scss" module>
+// 整页一张白卡, 数据块用画布灰做圆角内嵌底, 与个人主页信息区同一套语言
+.card {
+	padding: 24px;
+}
+
+.inset {
+	padding: 14px 18px;
+	background: var(--MI_THEME-bg);
+	border-radius: var(--MI-cardRadius);
+}
+
+.kvList {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
 .userMInfoRoot {
 	display: flex;
 	align-items: center;

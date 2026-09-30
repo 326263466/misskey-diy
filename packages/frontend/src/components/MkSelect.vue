@@ -18,7 +18,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div ref="prefixEl" :class="$style.prefix"><slot name="prefix"></slot></div>
 		<div
 			ref="inputEl"
-			v-adaptive-border
 			tabindex="-1"
 			:class="$style.inputCore"
 			:disabled="disabled"
@@ -204,7 +203,8 @@ function show() {
 	}
 
 	os.popupMenu(menu, container.value, {
-		width: container.value?.offsetWidth,
+		matchAnchorWidth: true,
+		width: container.value?.getBoundingClientRect().width,
 		onClosing: () => {
 			opening.value = false;
 		},
@@ -283,7 +283,7 @@ function show() {
 	font-size: 1em;
 	color: var(--MI_THEME-fg);
 	background: var(--MI_THEME-panel);
-	border: solid 1px var(--MI_THEME-panel);
+	border: solid 1px var(--MI_THEME-inputBorder);
 	border-radius: 6px;
 	outline: none;
 	box-shadow: none;

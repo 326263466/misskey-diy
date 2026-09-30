@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<div class="uylguesu _monospace">
 		<textarea v-model="widgetProps.script" placeholder="(1 + 1)"></textarea>
-		<button class="_buttonPrimary" @click="run">RUN</button>
+		<button class="_buttonPrimary" @click="run">{{ i18n.ts._aiscript.run }}</button>
 		<div class="logs">
 			<div v-for="log in logs" :key="log.id" class="log" :class="log.type">{{ log.text }}</div>
 		</div>
@@ -91,7 +91,7 @@ const run = async () => {
 			pushLog('print', value.type === 'str' ? value.value : utils.valToString(value));
 		},
 		err: (err) => {
-			processError('AiScript Error', err);
+			processError(i18n.ts._aiscript.runtimeError, err);
 		},
 		log: (type, params) => {
 			if (type === 'end') {
@@ -104,13 +104,13 @@ const run = async () => {
 	try {
 		ast = parser.parse(widgetProps.script);
 	} catch (err: any) {
-		processError('Syntax Error', err);
+		processError(i18n.ts._aiscript.syntaxError, err);
 		return;
 	}
 	try {
 		await aiscript.exec(ast);
 	} catch (err: any) {
-		processError('AiScript Internal Error', err);
+		processError(i18n.ts._aiscript.internalError, err);
 	}
 };
 
@@ -130,7 +130,7 @@ defineExpose<WidgetComponentExpose>({
 		width: 100%;
 		max-width: 100%;
 		min-width: 100%;
-		padding: 16px;
+		padding: var(--MI-cardPadding, 20px);
 		color: var(--MI_THEME-fg);
 		background: transparent;
 		border: none;
@@ -161,7 +161,7 @@ defineExpose<WidgetComponentExpose>({
 	> .logs {
 		border-top: solid 0.5px var(--MI_THEME-divider);
 		text-align: left;
-		padding: 16px;
+		padding: var(--MI-cardPadding, 20px);
 
 		&:empty {
 			display: none;

@@ -18,6 +18,7 @@ import {
 	MiAvatarDecoration,
 	MiBlocking,
 	MiBubbleGameRecord,
+	MiUserCheckin,
 	MiChannel,
 	MiChannelFavorite,
 	MiChannelFollowing,
@@ -545,6 +546,12 @@ const $bubbleGameRecordsRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $userCheckinsRepository: Provider = {
+	provide: DI.userCheckinsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiUserCheckin).extend(miRepository as MiRepository<MiUserCheckin>),
+	inject: [DI.db],
+};
+
 const $reversiGamesRepository: Provider = {
 	provide: DI.reversiGamesRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiReversiGame).extend(miRepository as MiRepository<MiReversiGame>),
@@ -630,6 +637,7 @@ const $reversiGamesRepository: Provider = {
 		$chatRoomInvitationsRepository,
 		$chatApprovalsRepository,
 		$bubbleGameRecordsRepository,
+		$userCheckinsRepository,
 		$reversiGamesRepository,
 	],
 	exports: [
@@ -709,6 +717,7 @@ const $reversiGamesRepository: Provider = {
 		$chatRoomInvitationsRepository,
 		$chatApprovalsRepository,
 		$bubbleGameRecordsRepository,
+		$userCheckinsRepository,
 		$reversiGamesRepository,
 	],
 })

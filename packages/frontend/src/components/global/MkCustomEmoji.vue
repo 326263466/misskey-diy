@@ -8,7 +8,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	v-if="shouldMute"
 	:class="[$style.root, { [$style.normal]: normal, [$style.noStyle]: noStyle }]"
 	src="/client-assets/unknown.png"
-	:title="alt"
+	:alt="alt"
+	:title="noTooltip ? '' : alt"
 	draggable="false"
 	style="-webkit-user-drag: none;"
 	@click="onClick"
@@ -17,7 +18,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	v-else-if="errored && fallbackToImage"
 	:class="[$style.root, { [$style.normal]: normal, [$style.noStyle]: noStyle }]"
 	src="/client-assets/dummy.png"
-	:title="alt"
+	:alt="alt"
+	:title="noTooltip ? '' : alt"
 	draggable="false"
 	style="-webkit-user-drag: none;"
 />
@@ -27,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:class="[$style.root, { [$style.normal]: normal, [$style.noStyle]: noStyle }]"
 	:src="url"
 	:alt="alt"
-	:title="alt"
+	:title="noTooltip ? '' : alt"
 	decoding="async"
 	draggable="false"
 	@error="errored = true"
@@ -64,9 +66,10 @@ const props = defineProps<{
 	menuReaction?: boolean;
 	fallbackToImage?: boolean;
 	ignoreMuted?: boolean;
+	noTooltip?: boolean;
 }>();
 
-const react = inject(DI.mfmEmojiReactCallback);
+const react = inject(DI.mfmEmojiReactCallback, null);
 
 const customEmojiName = computed(() => normalizeCustomEmojiName(props.name));
 const isLocal = computed(() => isLocalCustomEmojiName(customEmojiName.value, props.host));

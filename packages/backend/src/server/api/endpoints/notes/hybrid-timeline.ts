@@ -19,7 +19,6 @@ import { UserFollowingService } from '@/core/UserFollowingService.js';
 import { MiLocalUser } from '@/models/User.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
-import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
 import { isOrdinaryReply } from '@/misc/is-reply.js';
 import { ApiError } from '../../error.js';
 
@@ -90,7 +89,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queryService: QueryService,
 		private userFollowingService: UserFollowingService,
 		private channelMutingService: ChannelMutingService,
-		private channelFollowingService: ChannelFollowingService,
 		private fanoutTimelineEndpointService: FanoutTimelineEndpointService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
@@ -203,9 +201,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		const mutingChannelIds = await this.channelMutingService
 			.list({ requestUserId: me.id }, { idOnly: true })
 			.then(x => x.map(x => x.id));
-		const followingChannelIds = await this.channelFollowingService
-			.list({ requestUserId: me.id }, { idOnly: true })
-			.then(x => x.map(x => x.id).filter(x => !mutingChannelIds.includes(x)));
 
 		const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), ps.sinceId, ps.untilId)
 			.andWhere(new Brackets(qb => {
@@ -224,20 +219,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			.leftJoinAndSelect('reply.user', 'replyUser')
 			.leftJoinAndSelect('renote.user', 'renoteUser');
 
-		if (followingChannelIds.length > 0) {
-			query.andWhere(new Brackets(qb => {
-				qb.where('note.channelId IN (:...followingChannelIds)', { followingChannelIds });
-				qb.orWhere('note.channelId IS NULL');
-			}));
-		} else {
-			query.andWhere('note.channelId IS NULL');
-		}
-
 		if (mutingChannelIds.length > 0) {
-			query.andWhere(new Brackets(qb => {
-				qb.orWhere('note.renoteChannelId IS NULL');
-				qb.orWhere('note.renoteChannelId NOT IN (:...mutingChannelIds)', { mutingChannelIds });
-			}));
+			for (const column of ['channelId', 'renoteChannelId']) {
+				query.andWhere(new Brackets(qb => {
+					qb.where(`note.${column} IS NULL`)
+						.orWhere(`note.${column} NOT IN (:...mutingChannelIds)`, { mutingChannelIds });
+				}));
+			}
 		}
 
 		if (!ps.withReplies) {

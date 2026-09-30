@@ -98,7 +98,7 @@ definePage(() => ({
 	max-width: 500px;
 	width: calc(100vw - 64px);
 	height: min(65svh, calc(100svh - calc(env(safe-area-inset-bottom, 0px) + 64px)));
-	overflow-y: scroll;
+	overflow-y: auto;
 }
 
 .redirectRoot {
@@ -112,7 +112,7 @@ definePage(() => ({
 	padding: 12px;
 	border-radius: var(--MI-radius);
 	background-color: var(--MI_THEME-panel);
-	overflow-x: scroll;
+	overflow-x: auto;
 	white-space: nowrap;
 }
 </style>

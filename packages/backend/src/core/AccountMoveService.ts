@@ -302,6 +302,9 @@ export class AccountMoveService {
 		if (oldFollowings.length > 0) {
 			await this.usersRepository.decrement({ id: In(oldFollowings.map(following => following.followeeId)) }, 'followersCount', 1);
 		}
+		for (const userId of new Set([oldAccount.id, ...localFollowerIds, ...oldFollowings.map(following => following.followeeId)])) {
+			this.globalEventService.publishUserStats(userId);
+		}
 
 		// Update instance stats by decreasing remote followers count by the number of local followers who were following the old account.
 		if (this.meta.enableStatsForFederatedInstances) {

@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:class="[$style.form, { [$style.maximized]: maximized }]"
 		class="_popup"
 		v-bind="props"
-		autofocus
+		:autofocus="false"
 		freezeAfterPosted
 		canMaximize
 		@posted="onPosted"

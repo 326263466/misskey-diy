@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:class="[$style.codeBlockFallbackRoot, {
 					[$style.outerStyle]: withOuterStyle,
 				}]"
-			><code :class="$style.codeBlockFallbackCode">Loading...</code></pre>
+			><code :class="$style.codeBlockFallbackCode">{{ code }}</code></pre>
 		</template>
 		<XCode
 			v-if="show && lang"
@@ -94,12 +94,13 @@ function copy() {
 	display: block;
 	overflow-wrap: anywhere;
 	overflow: auto;
+	font-family: Consolas, Monaco, Andale Mono, Ubuntu Mono, monospace;
 }
 
 .outerStyle.codeBlockFallbackRoot {
 	background: var(--MI_THEME-bg);
 	padding: 1em;
-	margin: .5em 0;
+	margin: 0;
 	border-radius: 8px;
 	border: 1px solid var(--MI_THEME-divider);
 }

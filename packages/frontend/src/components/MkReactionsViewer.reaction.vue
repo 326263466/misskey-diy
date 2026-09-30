@@ -4,30 +4,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<span v-if="isTextBoost(reaction)" ref="bubbleEl" :class="$style.bubble">
-	<button v-if="author != null" ref="avatarEl" class="_button" :class="$style.bubbleAvatar" :aria-label="acct(author)" @click="showUserPopup()">
-		<MkAvatar :user="author"/>
+<span ref="bubbleEl" :class="[$style.bubble, { [$style.reacted]: isMine }]">
+	<button v-if="author != null && !mock" ref="avatarButton" type="button" class="_button" :class="$style.bubbleAvatar" :aria-label="acct(author)" aria-haspopup="dialog" :aria-expanded="authorShown" @click.stop="toggleAuthor">
+		<MkAvatar :class="$style.bubbleAvatar" :user="author" :link="false" :preview="false" title=""/>
 	</button>
-	<span v-else :class="$style.bubbleAvatar"><i class="ti ti-rocket" aria-hidden="true"></i></span>
-	<button v-if="bubbleAction != null" class="_button" :class="$style.bubbleText" :aria-expanded="actionShown" @click="actionShown = !actionShown">{{ getBoostText(reaction) }}</button>
-	<span v-else :class="$style.bubbleText">{{ getBoostText(reaction) }}</span>
-	<button v-if="actionShown && bubbleAction === 'remove'" class="_button" :class="$style.bubbleAction" :disabled="busy" :aria-label="i18n.ts.delete" @click="removeBoost()"><i class="ti ti-trash" aria-hidden="true"></i></button>
-	<button v-else-if="actionShown && bubbleAction === 'report'" class="_button" :class="$style.bubbleAction" :aria-label="i18n.ts.reportAbuse" @click="reportBoost()"><i class="ti ti-flag" aria-hidden="true"></i></button>
+	<MkAvatar v-else-if="author != null" :class="$style.bubbleAvatar" :user="author" :link="false" :preview="false"/>
+	<span v-else :class="[$style.bubbleAvatar, $style.bubbleAvatarFallback]"><i class="ti ti-rocket" aria-hidden="true"></i></span>
+	<template v-if="isTextBoost(reaction)">
+		<button v-if="bubbleAction != null" class="_button" :class="$style.bubbleText" :aria-expanded="actionShown" @click="actionShown = !actionShown"><MkReactionIcon :reaction="reaction" :allowTextBoost="true" :nowrap="true"/></button>
+		<span v-else :class="$style.bubbleText"><MkReactionIcon :reaction="reaction" :allowTextBoost="true" :nowrap="true"/></span>
+		<button v-if="actionShown && bubbleAction === 'remove'" v-tooltip="i18n.ts.delete" class="_button" :class="$style.bubbleAction" :disabled="busy" :aria-label="i18n.ts.delete" @click="removeBoost()"><i class="ti ti-trash" aria-hidden="true"></i></button>
+		<button v-else-if="actionShown && bubbleAction === 'report'" v-tooltip="i18n.ts.reportAbuse" class="_button" :class="$style.bubbleAction" :aria-label="i18n.ts.reportAbuse" @click="reportBoost()"><i class="ti ti-flag" aria-hidden="true"></i></button>
+	</template>
+	<button
+		v-else
+		ref="buttonEl"
+		v-ripple="canToggle"
+		class="_button"
+		:class="$style.emojiContent"
+		:aria-pressed="isMine"
+		:disabled="busy"
+		@click="onClick"
+		@contextmenu.prevent.stop="menu"
+	>
+		<MkReactionIcon style="pointer-events: none;" :class="prefer.s.limitWidthOfReaction ? $style.limitWidth : ''" :reaction="reaction" :emojiUrl="reactionEmojis[emojiName]"/>
+		<span v-if="count > 1" :class="$style.count">×{{ count }}</span>
+	</button>
 </span>
-<button
-	v-else
-	ref="buttonEl"
-	v-ripple="canToggle"
-	class="_button"
-	:class="[$style.root, { [$style.reacted]: myReaction == reaction, [$style.canToggle]: canToggle, [$style.interactive]: !canToggle, [$style.small]: prefer.s.reactionsDisplaySize === 'small', [$style.large]: prefer.s.reactionsDisplaySize === 'large' }]"
-	:aria-pressed="myReaction == reaction"
-	:disabled="busy"
-	@click="onClick"
-	@contextmenu.prevent.stop="menu"
->
-	<MkReactionIcon :allowTextBoost="true" style="pointer-events: none;" :class="prefer.s.limitWidthOfReaction ? $style.limitWidth : ''" :reaction="reaction" :emojiUrl="reactionEmojis[emojiName]"/>
-	<span :class="$style.count">×{{ count }}</span>
-</button>
 </template>
 
 <script lang="ts" setup>
@@ -57,6 +60,8 @@ import { addToEmojiPalette } from '@/utility/emoji-palette.js';
 import { haptic } from '@/utility/haptic.js';
 import { getBoostText, isTextBoost } from '@/utility/boost.js';
 import MkAvatar from '@/components/global/MkAvatar.vue';
+import { claimUserPopup } from '@/utility/user-popup.js';
+import { normalizeReaction } from '@/utility/normalize-reaction.js';
 import { acct } from '@/filters/user.js';
 
 const props = defineProps<{
@@ -79,12 +84,14 @@ const emit = defineEmits<{
 
 const buttonEl = useTemplateRef('buttonEl');
 const bubbleEl = useTemplateRef('bubbleEl');
-const avatarEl = useTemplateRef('avatarEl');
+const avatarButton = useTemplateRef('avatarButton');
+const authorShown = ref(false);
+let authorDispose: (() => void) | null = null;
+let releaseAuthorPopup: (() => void) | null = null;
 const busy = ref(false);
 const actionShown = ref(false);
-let userPopupOpen = false;
+let dialogOpen = false;
 
-// バブルの外をクリックしたら操作アイコンを畳む
 watch(actionShown, shown => {
 	if (!shown) {
 		window.document.removeEventListener('pointerdown', onOutsidePointer, { capture: true });
@@ -94,6 +101,8 @@ watch(actionShown, shown => {
 });
 
 function onOutsidePointer(ev: PointerEvent) {
+	// 举报窗在气泡外面，打开期间保留操作图标。
+	if (dialogOpen) return;
 	const target = ev.target as HTMLElement | null;
 	if (target != null && bubbleEl.value?.contains(target)) return;
 	actionShown.value = false;
@@ -101,14 +110,46 @@ function onOutsidePointer(ev: PointerEvent) {
 
 onBeforeUnmount(() => {
 	window.document.removeEventListener('pointerdown', onOutsidePointer, { capture: true });
+	closeAuthor();
 });
 
-const isMine = computed(() => $i != null && props.myReaction === props.reaction);
+const isMine = computed(() => $i != null && props.myReaction != null && normalizeReaction(props.myReaction) === normalizeReaction(props.reaction));
 
-// 参加者一覧の取得を待たずにアバターを出せるよう、自分のBoostは$iを優先する
 const author = computed(() => (isMine.value ? $i : users.value[0]) ?? null);
 
-// 本文をクリックしたときにアイコンを出す。自分のBoostは消すだけ、他人のBoostは通報だけ
+watch(() => author.value?.id, closeAuthor);
+
+function closeAuthor() {
+	authorShown.value = false;
+	releaseAuthorPopup?.();
+	releaseAuthorPopup = null;
+	const dispose = authorDispose;
+	authorDispose = null;
+	dispose?.();
+}
+
+function toggleAuthor() {
+	if (authorShown.value) {
+		closeAuthor();
+		return;
+	}
+	if (mock || author.value == null || avatarButton.value == null || authorDispose != null) return;
+	releaseAuthorPopup = claimUserPopup(closeAuthor);
+	authorShown.value = true;
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserPopup.vue')), {
+		showing: authorShown,
+		q: author.value.id,
+		source: avatarButton.value,
+		interactive: true,
+	}, {
+		close: closeAuthor,
+		closed: () => {
+			if (authorDispose === dispose) closeAuthor();
+		},
+	});
+	authorDispose = dispose;
+}
+
 const bubbleAction = computed<'remove' | 'report' | null>(() => {
 	if ($i == null) return null;
 	if (isMine.value) return 'remove';
@@ -117,16 +158,15 @@ const bubbleAction = computed<'remove' | 'report' | null>(() => {
 
 const emojiName = computed(() => getEmojiNameFromReaction(props.reaction));
 
-const isLocalCustomEmoji = computed(() => isLocalCustomEmojiReaction(props.reaction));
+const isLocalCustomEmoji = computed(() => isLocalCustomEmojiReaction(normalizeReaction(props.reaction)));
 
 const canToggle = computed(() => {
-	// Boostは投稿したら取り消せない
 	if (isTextBoost(props.reaction)) return false;
 	const emoji = isLocalCustomEmoji.value ? customEmojisMap.get(emojiName.value) : getUnicodeEmojiOrNull(props.reaction);
 
 	// TODO
 	//return $i != null && emoji != null && checkReactionPermissions($i, props.note, emoji);
-	return $i != null && (emoji != null || props.myReaction === props.reaction);
+	return $i != null && (emoji != null || isMine.value);
 });
 
 function onClick() {
@@ -137,38 +177,9 @@ function onClick() {
 	}
 }
 
-// hoverで開くv-user-previewとは別系統。クリックで開くので外側のクリックで閉じる
-function showUserPopup() {
-	if (mock || author.value == null || avatarEl.value == null || userPopupOpen) return;
-	const anchor = avatarEl.value;
-	const showing = ref(true);
-	userPopupOpen = true;
-
-	const onPointerDown = (ev: PointerEvent) => {
-		const target = ev.target as HTMLElement | null;
-		if (target != null && (anchor.contains(target) || target.closest('._popup') != null)) return;
-		showing.value = false;
-	};
-	window.document.addEventListener('pointerdown', onPointerDown, { capture: true });
-
-	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserPopup.vue')), {
-		showing,
-		q: author.value.id,
-		source: anchor,
-	}, {
-		closed: () => {
-			window.document.removeEventListener('pointerdown', onPointerDown, { capture: true });
-			userPopupOpen = false;
-			dispose();
-		},
-	});
-}
-
 async function removeBoost() {
 	if (!isMine.value || $i == null || busy.value) return;
 	const userId = $i.id;
-	const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts.deleteConfirm });
-	if (canceled) return;
 	actionShown.value = false;
 	busy.value = true;
 	try {
@@ -187,11 +198,16 @@ async function removeBoost() {
 
 async function reportBoost() {
 	if (mock || author.value == null) return;
+	dialogOpen = true;
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
 		user: author.value,
-		initialComment: `Boost: ${getBoostText(props.reaction)}\nNote: ${url}/notes/${props.noteId}\n-----\n`,
+		reportTarget: { reportType: 'boost', targetId: props.noteId, reaction: props.reaction },
+		context: { label: i18n.ts._boost.title, text: getBoostText(props.reaction), url: `${url}/notes/${props.noteId}` },
 	}, {
-		closed: () => dispose(),
+		closed: () => {
+			dialogOpen = false;
+			dispose();
+		},
 	});
 }
 
@@ -213,16 +229,16 @@ async function toggleReaction() {
 	if (!canToggle.value || $i == null || busy.value) return;
 	const userId = $i.id;
 	const oldReaction = props.myReaction;
-	const removing = oldReaction === props.reaction;
+	const removing = isMine.value;
 	busy.value = true;
 	try {
-		if (oldReaction) {
+		if (oldReaction && !removing) {
 			const { canceled } = await os.confirm({
 				type: 'warning',
-				text: removing ? i18n.ts.cancelReactionConfirm : i18n.ts.changeReactionConfirm,
+				text: i18n.ts.changeReactionConfirm,
 			});
 			if (canceled) return;
-		} else if (prefer.s.confirmOnReact) {
+		} else if (!removing && prefer.s.confirmOnReact) {
 			const { canceled } = await os.confirm({ type: 'question', text: i18n.tsx.reactAreYouSure({ emoji: props.reaction.replace('@.', '') }) });
 			if (canceled) return;
 		}
@@ -331,8 +347,6 @@ onMounted(() => {
 	if (!props.isInitial) anime();
 });
 
-// Boostのバブルはアバターと本文で誰が何を言ったか完結しているので、ツールチップは出さない。
-// (テキストBoostではbuttonElが存在しないため、ここでの購読は絵文字リアクションにだけ効く)
 if (!mock) {
 	useTooltip(buttonEl, (showing) => {
 		if (buttonEl.value == null) return;
@@ -346,70 +360,22 @@ if (!mock) {
 		}, {
 			closed: () => dispose(),
 		});
-	}, 100);
+	});
 }
 </script>
 
 <style lang="scss" module>
-// Boostのピルとバブルの地色。buttonBgはボタンやタグなど他の16箇所でも共有されているので、
-// Boostだけ色を変えられるよう独立した変数にしておく
-.root,
 .bubble {
-	--boost-bubble-bg: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 8%);
+	--boost-bubble-bg: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 6%);
 }
 
-	.root {
+.bubble .emojiContent {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	box-sizing: border-box;
 	gap: 4px;
-	height: 32px;
-	padding: 4px 8px 4px 4px;
-	// Boostのバブルと同じ見た目。絵文字の高さは1.25emなので、アバターと同じ24pxになるfont-sizeを置く
-	border-radius: 50px;
-	font-size: 19.2px;
-
-	&.canToggle {
-		background: var(--boost-bubble-bg);
-
-		// 黒の重ねだとダークテーマで暗くなってしまうので、地色に応じて明暗を変える
-		&:hover {
-			background: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 14%);
-		}
-	}
-
-	&:not(.canToggle) {
-		cursor: default;
-	}
-
-	&.interactive {
-		cursor: pointer;
-	}
-
-	&.small {
-		height: 28px;
-		font-size: 16px;
-	}
-
-	&.large {
-		height: 40px;
-		font-size: 25.6px;
-	}
-
-	&.reacted, &.reacted:hover {
-		background: var(--MI_THEME-accentedBg);
-		color: var(--MI_THEME-accent);
-		box-shadow: 0 0 0 1px var(--MI_THEME-accent) inset;
-
-		> .count {
-			color: var(--MI_THEME-accent);
-		}
-
-		> .icon {
-			filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
-		}
-	}
+	font-size: 1.5em;
+	line-height: 1.2;
 }
 
 .limitWidth {
@@ -417,43 +383,46 @@ if (!mock) {
 	object-fit: contain;
 }
 
-// バブルの本文と同じ大きさ。絵文字側のfont-sizeが大きいので固定値で指定する
 .count {
-	font-size: 12px;
+	font-size: 0.7em;
 	line-height: 1.2;
 }
 
-// アバターと本文をひとつの丸いバブルにまとめる。左はアバターが縁に接するので詰める
 .bubble {
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
+	box-sizing: border-box;
+	// 高度写死，点开删除/举报图标时气泡不会跟着变高；内容由 align-items 居中
+	height: 28px;
+	gap: 3px;
 	max-width: 280px;
-	padding: 4px 8px 4px 4px;
+	padding: 0 7px 0 2px;
 	border-radius: 50px;
-	font-size: 12px;
+	font-size: 0.85em;
 	line-height: 1;
 	background: var(--boost-bubble-bg);
+
+	&.reacted {
+		// 自己的 boost 不填充底色，仅保留 accent 边框环（沿用默认气泡底色）
+		box-shadow: 0 0 0 1px color-mix(in srgb, var(--MI_THEME-accent) 45%, var(--MI_THEME-divider)) inset;
+	}
 }
 
-.bubbleAvatar {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+.bubble .bubbleAvatar {
 	flex-shrink: 0;
 	width: 24px;
 	height: 24px;
 	border-radius: 50%;
-	overflow: hidden;
 	background: var(--MI_THEME-divider);
+}
+
+.bubble .bubbleAvatarFallback {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 
 	> :global(.ti) {
 		line-height: 1;
-	}
-
-	> :global(*) {
-		width: 100%;
-		height: 100%;
 	}
 }
 
@@ -468,13 +437,13 @@ if (!mock) {
 
 .bubbleAction {
 	flex-shrink: 0;
-	padding: 4px;
-	margin-left: 4px;
+	padding: 2px;
+	margin: 0 -3px 0 0;
 	line-height: 1;
 	color: var(--MI_THEME-fgTransparentWeak);
 
 	> :global(.ti) {
-		font-size: 12px;
+		font-size: inherit;
 	}
 
 	&:hover {

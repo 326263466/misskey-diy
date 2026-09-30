@@ -27,9 +27,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</div>
 							<div class="other">
 								<button v-if="$i && $i.id === post.user.id" v-tooltip="i18n.ts.edit" v-click-anime class="_button" @click="edit"><i class="ti ti-pencil ti-fw"></i></button>
-								<button v-tooltip="i18n.ts.shareWithNote" v-click-anime class="_button" @click="shareWithNote"><i class="ti ti-repeat ti-fw"></i></button>
 								<button v-tooltip="i18n.ts.copyLink" v-click-anime class="_button" @click="copyLink"><i class="ti ti-link ti-fw"></i></button>
-								<button v-if="isSupportShare()" v-tooltip="i18n.ts.share" v-click-anime class="_button" @click="share"><i class="ti ti-share ti-fw"></i></button>
+								<button v-tooltip="i18n.ts.share" v-click-anime class="_button" @click="share"><i class="ti ti-share ti-fw"></i></button>
 								<button v-if="$i && $i.id !== post.user.id" v-click-anime class="_button" @click="showMenu"><i class="ti ti-dots ti-fw"></i></button>
 							</div>
 						</div>
@@ -77,7 +76,7 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
-import { isSupportShare } from '@/utility/navigator.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { useRouter } from '@/router.js';
 import { Paginator } from '@/utility/paginator.js';
@@ -115,11 +114,11 @@ function copyLink() {
 
 function share() {
 	if (!post.value) return;
-	navigator.share({
+	openShareDialog({
 		title: post.value.title,
 		text: post.value.description ?? undefined,
 		url: `${url}/gallery/${post.value.id}`,
-	});
+	}, { shareWithNote });
 }
 
 function shareWithNote() {
@@ -170,7 +169,8 @@ async function reportAbuse() {
 
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
 		user: post.value.user,
-		initialComment: `Post: ${pageUrl}\n-----\n`,
+		reportTarget: { reportType: 'gallery', targetId: post.value.id },
+		context: { label: i18n.ts.gallery, text: post.value.title, url: pageUrl },
 	}, {
 		closed: () => dispose(),
 	});

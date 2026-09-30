@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							:class="[$style.col1, $style.row1]"
 							@enter="onSearchRequest"
 						>
-							<template #label>name</template>
+							<template #label>{{ i18n.ts.name }}</template>
 						</MkInput>
 						<MkInput
 							v-model="queryHost"
@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							:class="[$style.col2, $style.row1]"
 							@enter="onSearchRequest"
 						>
-							<template #label>host</template>
+							<template #label>{{ i18n.ts.host }}</template>
 						</MkInput>
 						<MkInput
 							v-model="queryLicense"
@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							:class="[$style.col3, $style.row1]"
 							@enter="onSearchRequest"
 						>
-							<template #label>license</template>
+							<template #label>{{ i18n.ts.license }}</template>
 						</MkInput>
 
 						<MkInput
@@ -200,9 +200,9 @@ function setupGrid(): GridSetting {
 		cols: [
 			{ bindTo: 'checked', icon: 'ti-download', type: 'boolean', editable: true, width: 34 },
 			{ bindTo: 'url', icon: 'ti-icons', type: 'image', editable: false, width: 'auto' },
-			{ bindTo: 'name', title: 'name', type: 'text', editable: false, width: 'auto' },
-			{ bindTo: 'host', title: 'host', type: 'text', editable: false, width: 'auto' },
-			{ bindTo: 'license', title: 'license', type: 'text', editable: false, width: 200 },
+			{ bindTo: 'name', title: i18n.ts.name, type: 'text', editable: false, width: 'auto' },
+			{ bindTo: 'host', title: i18n.ts.host, type: 'text', editable: false, width: 'auto' },
+			{ bindTo: 'license', title: i18n.ts.license, type: 'text', editable: false, width: 200 },
 			{ bindTo: 'uri', title: 'uri', type: 'text', editable: false, width: 'auto' },
 			{ bindTo: 'publicUrl', title: 'publicUrl', type: 'text', editable: false, width: 'auto' },
 		],
@@ -415,7 +415,7 @@ onMounted(async () => {
 }
 
 .root {
-	padding: 16px;
+	padding: 0 16px 16px;
 }
 
 .changedRow {

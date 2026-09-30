@@ -88,6 +88,12 @@ export class NotificationService implements OnApplicationShutdown {
 		);
 	}
 
+	/** Wait for storage so the first signed-in response already includes the unread message. */
+	@bindThis
+	public createSystemNotification(notifieeId: MiUser['id'], message: 'welcome') {
+		return this.#createNotificationInternal(notifieeId, 'system', { message });
+	}
+
 	async #createNotificationInternal<T extends MiNotification['type']>(
 		notifieeId: MiUser['id'],
 		type: T,

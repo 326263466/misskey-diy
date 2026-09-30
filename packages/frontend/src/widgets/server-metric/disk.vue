@@ -7,10 +7,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div class="zbwaqsat">
 	<XPie class="pie" :value="usage"/>
 	<div>
-		<p><i class="ti ti-database"></i>Disk</p>
-		<p>Total: {{ bytes(total, 1) }}</p>
-		<p>Free: {{ bytes(available, 1) }}</p>
-		<p>Used: {{ bytes(used, 1) }}</p>
+		<p><i class="ti ti-database"></i>{{ i18n.ts.disk }}</p>
+		<p>{{ i18n.ts.total }}: {{ bytes(total, 1) }}</p>
+		<p>{{ i18n.ts._serverStats.free }}: {{ bytes(available, 1) }}</p>
+		<p>{{ i18n.ts.used }}: {{ bytes(used, 1) }}</p>
 	</div>
 </div>
 </template>
@@ -20,6 +20,7 @@ import { computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import XPie from './pie.vue';
 import bytes from '@/filters/bytes.js';
+import { i18n } from '@/i18n.js';
 
 const props = defineProps<{
 	meta: Misskey.entities.ServerInfoResponse;
@@ -34,7 +35,7 @@ const available = computed(() => props.meta.fs.total - props.meta.fs.used);
 <style lang="scss" scoped>
 .zbwaqsat {
 	display: flex;
-	padding: 16px;
+	padding: var(--MI-cardPadding, 20px);
 
 	> .pie {
 		height: 82px;

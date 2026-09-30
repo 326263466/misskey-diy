@@ -7,31 +7,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="[$style.root, { [$style.iconOnly]: iconOnly }]">
 	<div :class="$style.body">
 		<div :class="$style.top">
-			<button v-tooltip.noDelay.right="iconOnly ? (instance.name ?? i18n.ts.instance) : null" class="_button" :class="$style.instance" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
+			<button v-tooltip.right="instance.name ?? i18n.ts.instance" class="_button" :class="$style.instance" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
 				<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.instanceIcon" style="view-transition-name: navbar-serverIcon;"/>
 			</button>
-			<button v-if="!iconOnly" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" :aria-label="i18n.ts.realtimeMode" :aria-pressed="store.r.realtimeMode.value" @click="toggleRealtimeMode">
+			<button v-if="!iconOnly" v-tooltip.right="i18n.ts.realtimeMode" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" :aria-label="i18n.ts.realtimeMode" :aria-pressed="store.r.realtimeMode.value" @click="toggleRealtimeMode">
 				<i v-if="store.r.realtimeMode.value" class="ti ti-bolt ti-fw"></i>
 				<i v-else class="ti ti-bolt-off ti-fw"></i>
 			</button>
-			<button v-if="!iconOnly && showWidgetButton" class="_button" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
+			<button v-if="!iconOnly && showWidgetButton" v-tooltip.right="i18n.ts.widgets" class="_button" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
 				<i class="ti ti-apps ti-fw"></i>
 			</button>
 		</div>
 		<div :class="$style.middle">
-			<MkA v-tooltip.noDelay.right="iconOnly ? i18n.ts.timeline : null" :class="$style.item" :activeClass="$style.active" to="/" exact>
+			<MkA v-tooltip.right="iconOnly ? i18n.ts.communityRanking : null" class="_button" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.communityRanking" to="/community-ranking">
+				<i :class="$style.itemIcon" class="ti ti-trophy ti-fw" style="view-transition-name: navbar-communityRanking;"></i><span :class="$style.itemText">{{ i18n.ts.communityRanking }}</span>
+			</MkA>
+			<div :class="$style.divider"></div>
+			<MkA v-tooltip.right="iconOnly ? i18n.ts.timeline : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.timeline" to="/" exact>
 				<i :class="$style.itemIcon" class="ti ti-home ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 			</MkA>
-			<template v-for="item in prefer.r.menu.value">
+			<template v-for="item in prefer.r.menu.value.filter(item => item !== 'communityRanking')">
 				<div v-if="item === '-'" :class="$style.divider"></div>
 				<component
 					:is="navbarItemDef[item].to ? 'MkA' : 'button'"
 					v-else-if="navbarItemDef[item] && (navbarItemDef[item].show == null || navbarItemDef[item].show.value !== false)"
-					v-tooltip.noDelay.right="iconOnly ? navbarItemDef[item].title : null"
+					v-tooltip.right="iconOnly ? navbarItemDef[item].title : null"
 					class="_button"
 					:class="[$style.item]"
 					:activeClass="$style.active"
 					:to="navbarItemDef[item].to"
+					:aria-label="navbarItemDef[item].title"
 					v-on="navbarItemDef[item].action ? { click: navbarItemDef[item].action } : {}"
 				>
 					<i class="ti-fw" :class="[$style.itemIcon, navbarItemDef[item].icon]" :style="{ viewTransitionName: 'navbar-item-' + item }"></i><span :class="$style.itemText">{{ navbarItemDef[item].title }}</span>
@@ -42,30 +47,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</component>
 			</template>
 			<div :class="$style.divider"></div>
-			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip.noDelay.right="iconOnly ? i18n.ts.controlPanel : null" :class="$style.item" :activeClass="$style.active" to="/admin">
+			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip.right="iconOnly ? i18n.ts.controlPanel : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.controlPanel" to="/admin">
 				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw" style="view-transition-name: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
 			</MkA>
-			<button class="_button" :class="$style.item" @click="more">
+			<button v-tooltip.right="iconOnly ? i18n.ts.more : null" class="_button" :class="$style.item" :aria-label="i18n.ts.more" @click="more">
 				<i :class="$style.itemIcon" class="ti ti-grid-dots ti-fw" style="view-transition-name: navbar-more;"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>
 				<span v-if="otherMenuItemIndicated" :class="$style.itemIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
 			</button>
-			<MkA v-tooltip.noDelay.right="iconOnly ? i18n.ts.settings : null" :class="$style.item" :activeClass="$style.active" to="/settings">
+			<MkA v-tooltip.right="iconOnly ? i18n.ts.settings : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.settings" to="/settings">
 				<i :class="$style.itemIcon" class="ti ti-settings ti-fw" style="view-transition-name: navbar-settings;"></i><span :class="$style.itemText">{{ i18n.ts.settings }}</span>
 			</MkA>
 		</div>
 		<div :class="$style.bottom">
-			<button v-if="iconOnly && showWidgetButton" v-tooltip.noDelay.right="i18n.ts.widgets" class="_button" :class="[$style.widget]" @click="() => emit('widgetButtonClick')">
+			<button v-if="iconOnly && showWidgetButton" v-tooltip.right="i18n.ts.widgets" class="_button" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
 				<i class="ti ti-apps ti-fw"></i>
 			</button>
-			<button v-if="iconOnly" v-tooltip.noDelay.right="i18n.ts.realtimeMode" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" @click="toggleRealtimeMode">
+			<button v-if="iconOnly" v-tooltip.right="i18n.ts.realtimeMode" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" :aria-label="i18n.ts.realtimeMode" :aria-pressed="store.r.realtimeMode.value" @click="toggleRealtimeMode">
 				<i v-if="store.r.realtimeMode.value" class="ti ti-bolt ti-fw"></i>
 				<i v-else class="ti ti-bolt-off ti-fw"></i>
 			</button>
-			<button v-tooltip.noDelay.right="iconOnly ? i18n.ts.note : null" class="_button" :class="[$style.post]" data-testid="open-post-form" @click="() => { os.post(); }">
-				<i class="ti ti-plus ti-fw" :class="$style.postIcon"></i><span :class="$style.postText">{{ i18n.ts.note }}</span>
+			<button v-tooltip.right="iconOnly ? i18n.ts._postForm.post : null" class="_button" :class="[$style.post]" data-testid="open-post-form" :aria-label="i18n.ts._postForm.post" @click="() => { os.post(); }">
+				<i class="ti ti-plus ti-fw" :class="$style.postIcon"></i><span :class="$style.postText">{{ i18n.ts._postForm.post }}</span>
 			</button>
-			<button v-if="$i != null" v-tooltip.noDelay.right="iconOnly ? `${i18n.ts.account}: @${$i.username}` : null" class="_button" :class="[$style.account]" @click="openAccountMenu">
-				<MkAvatar :user="$i" :class="$style.avatar" style="view-transition-name: navbar-avatar;"/><MkAcct class="_nowrap" :class="$style.acct" :user="$i"/>
+			<button v-if="$i != null" v-tooltip.right="iconOnly ? userName($i) : null" class="_button" :class="[$style.account]" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu">
+				<MkAvatar :user="$i" :class="$style.avatar" title="" style="view-transition-name: navbar-avatar;"/><MkAcct class="_nowrap" :class="$style.acct" :user="$i"/>
 			</button>
 		</div>
 	</div>
@@ -116,6 +121,7 @@ import { useRouter } from '@/router.js';
 import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
+import { userName } from '@/filters/user.js';
 
 const router = useRouter();
 
@@ -182,6 +188,7 @@ async function more(ev: PointerEvent) {
 function menuEdit() {
 	router.push('/settings/navbar');
 }
+
 </script>
 
 <style lang="scss" module>
@@ -566,13 +573,12 @@ function menuEdit() {
 				content: "";
 				display: block;
 				width: calc(100% - 34px);
-				height: 100%;
 				margin: auto;
 				position: absolute;
-				top: 0;
+				top: 1px;
 				left: 0;
 				right: 0;
-				bottom: 0;
+				bottom: 1px;
 				border-radius: 999px;
 				background: var(--MI_THEME-accentedBg);
 			}

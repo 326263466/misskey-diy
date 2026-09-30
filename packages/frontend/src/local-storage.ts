@@ -17,6 +17,7 @@ export type Keys = (
 	'lang' |
 	'drafts' |
 	'hashtags' |
+	'trendsCache' |
 	'colorScheme' |
 	'useSystemFont' |
 	'fontSize' |

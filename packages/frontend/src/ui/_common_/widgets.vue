@@ -15,8 +15,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		@exit="editMode = false"
 	/>
 
-	<button v-if="editMode" class="_textButton" style="font-size: 0.9em;" @click="editMode = false"><i class="ti ti-check"></i> {{ i18n.ts.editWidgetsExit }}</button>
-	<button v-else class="_textButton" data-testid="widget-edit" :class="$style.edit" style="font-size: 0.9em; margin-top: 16px;" @click="editMode = true"><i class="ti ti-pencil"></i> {{ i18n.ts.editWidgets }}</button>
+	<div v-if="editMode" class="_buttonsCenter" style="font-size: 0.9em;">
+		<button class="_textButton" @click="editMode = false"><i class="ti ti-check"></i> {{ i18n.ts.editWidgetsExit }}</button>
+		<button class="_textButton" data-testid="widget-reset" @click="resetWidgets"><i class="ti ti-restore"></i> {{ i18n.ts.resetToDefaultValue }}</button>
+	</div>
+	<button v-else class="_textButton" data-testid="widget-edit" :class="$style.edit" style="font-size: 0.9em;" @click="editMode = true"><i class="ti ti-pencil"></i> {{ i18n.ts.editWidgets }}</button>
 </div>
 </template>
 
@@ -30,6 +33,7 @@ import type { DefaultStoredWidget, Widget } from '@/components/MkWidgets.vue';
 import XWidgets from '@/components/MkWidgets.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
+import { getInitialPrefValue } from '@/preferences/manager.js';
 
 const props = withDefaults(defineProps<{
 	// null = 全てのウィジェットを表示
@@ -84,10 +88,16 @@ function updateWidgets(thisWidgets: Widget[]) {
 		...thisWidgets.map(w => ({ ...w, place: 'right' })),
 	]);
 }
+
+function resetWidgets() {
+	prefer.commit('widgets', getInitialPrefValue('widgets'));
+}
 </script>
 
 <style lang="scss" module>
-.edit {
-	width: 100%;
+button.edit {
+	display: block;
+	width: fit-content;
+	margin: 16px auto 0;
 }
 </style>

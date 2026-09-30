@@ -8,6 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	ref="dialogEl"
 	:withOkButton="true"
 	:okButtonDisabled="selected == null"
+	:autoHeight="true"
 	@click="cancel()"
 	@close="cancel()"
 	@ok="ok()"
@@ -39,13 +40,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkUserName :user="user" :class="$style.userName"/>
 						<MkAcct :user="user" :class="$style.userAcct"/>
 					</div>
+					<i v-if="selected && selected.id === user.id" class="ti ti-check" :class="$style.check" aria-hidden="true"></i>
 				</div>
 			</div>
 			<div v-else :class="$style.empty">
 				<span>{{ i18n.ts.noUsers }}</span>
 			</div>
 		</div>
-		<div v-if="username == '' && host == ''" :class="$style.recent">
+		<div v-if="username == '' && host == '' && recentUsers.length > 0" :class="$style.recent">
 			<div :class="$style.users">
 				<div v-for="user in recentUsers" :key="user.id" class="_button" :class="[$style.user, { [$style.selected]: selected && selected.id === user.id }]" @click="selected = user" @dblclick="ok()">
 					<MkAvatar :user="user" :class="$style.avatar" indicator/>
@@ -53,6 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkUserName :user="user" :class="$style.userName"/>
 						<MkAcct :user="user" :class="$style.userAcct"/>
 					</div>
+					<i v-if="selected && selected.id === user.id" class="ti ti-check" :class="$style.check" aria-hidden="true"></i>
 				</div>
 			</div>
 		</div>
@@ -166,15 +169,13 @@ onMounted(() => {
 <style lang="scss" module>
 
 .form {
-	padding: calc(var(--root-margin) / 2) var(--root-margin);
+	padding: var(--MI-cardPadding, 20px);
 }
 
 .result,
 .recent {
 	display: flex;
 	flex-direction: column;
-	overflow: auto;
-	height: 100%;
 
 	&.result.hit {
 		padding: 0;
@@ -186,15 +187,14 @@ onMounted(() => {
 }
 
 .users {
-	flex: 1;
-	overflow: auto;
-	padding: 8px 0;
+	padding: 0 0 var(--MI-cardPadding, 20px);
 }
 
 .user {
 	display: flex;
 	align-items: center;
-	padding: 8px var(--root-margin);
+	gap: 8px;
+	padding: 8px var(--MI-cardPadding, 20px);
 	font-size: 14px;
 
 	&:hover {
@@ -202,19 +202,30 @@ onMounted(() => {
 	}
 
 	&.selected {
-		background: var(--MI_THEME-accent);
-		color: #fff;
+		background: var(--MI_THEME-accentedBg);
+
+		.userName {
+			color: var(--MI_THEME-accent);
+		}
 	}
 }
 
 .userBody {
-	padding: 0 8px;
+	flex: 1;
 	min-width: 0;
 }
 
 .avatar {
-	width: 45px;
-	height: 45px;
+	flex-shrink: 0;
+	width: 34px;
+	height: 34px;
+}
+
+.check {
+	flex-shrink: 0;
+	margin-left: 4px;
+	color: var(--MI_THEME-accent);
+	font-size: 18px;
 }
 
 .userName {
@@ -229,6 +240,6 @@ onMounted(() => {
 .empty {
 	opacity: 0.7;
 	text-align: center;
-	padding: 16px;
+	padding: var(--MI-cardPadding, 20px);
 }
 </style>

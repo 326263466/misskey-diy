@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:leaveToClass="prefer.s.animation ? $style.transition_x_leaveTo : ''"
 	:moveClass="prefer.s.animation ? $style.transition_x_move : ''"
 	:duration="200"
-	tag="div" :class="$style.tabs"
+	tag="div" :class="$style.tabs" :data-current-page="tabs[tabs.length - 1].fullPath"
 >
 	<div v-for="(tab, i) in tabs" :key="tab.fullPath" :class="$style.tab" :style="{ '--i': i - 1 }">
 		<div v-if="i > 0" :class="$style.tabBg" @click="back()"></div>
@@ -26,14 +26,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button :class="$style.tabMenuButton" class="_button" @click.stop="back"><i class="ti ti-x"></i></button>
 			</div>
 			<div v-if="i > 0" :class="$style.tabBorder"></div>
-			<div :class="$style.tabContent" class="_pageContainer" @click.stop="">
-				<Suspense :timeout="0">
-					<component :is="tab.component" v-bind="Object.fromEntries(tab.props)"/>
+			<div :class="$style.tabContent" class="_pageContainer" :data-page-path="tab.fullPath" @click.stop="">
+				<PageActivity :active="i === tabs.length - 1">
+					<Suspense :timeout="0">
+						<component :is="tab.component" v-bind="Object.fromEntries(tab.props)"/>
 
-					<template #fallback>
-						<MkLoading/>
-					</template>
-				</Suspense>
+						<template #fallback>
+							<MkLoading/>
+						</template>
+					</Suspense>
+				</PageActivity>
 			</div>
 		</div>
 	</div>
@@ -41,12 +43,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { inject, provide, shallowRef } from 'vue';
+import { computed, defineComponent, inject, provide, shallowRef } from 'vue';
 import type { Router } from '@/router.js';
 import { prefer } from '@/preferences.js';
 import MkLoadingPage from '@/pages/_loading_.vue';
 import { DI } from '@/di.js';
 import { deepEqual } from '@/utility/deep-equal.js';
+
+const PageActivity = defineComponent((props: { active: boolean }, { slots }) => {
+	const parentActive = inject(DI.pageActive, null);
+	provide(DI.pageActive, computed(() => props.active && (parentActive?.value ?? true)));
+	return () => slots.default?.();
+}, { props: ['active'] });
 
 const props = defineProps<{
 	router?: Router;

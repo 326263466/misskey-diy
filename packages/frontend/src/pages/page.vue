@@ -115,7 +115,7 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { deepClone } from '@/utility/clone.js';
 import { $i } from '@/i.js';
-import { isSupportShare } from '@/utility/navigator.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 import { instance } from '@/instance.js';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
@@ -163,26 +163,13 @@ function fetchPage() {
 	});
 }
 
-function share(ev: PointerEvent) {
+function share() {
 	if (!page.value) return;
-
-	const menuItems: MenuItem[] = [];
-
-	menuItems.push({
-		text: i18n.ts.shareWithNote,
-		icon: 'ti ti-pencil',
-		action: shareWithNote,
-	});
-
-	if (isSupportShare()) {
-		menuItems.push({
-			text: i18n.ts.share,
-			icon: 'ti ti-share',
-			action: shareWithNavigator,
-		});
-	}
-
-	os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
+	openShareDialog({
+		title: page.value.title || page.value.name,
+		text: page.value.summary ?? undefined,
+		url: `${url}/@${page.value.user.username}/pages/${page.value.name}`,
+	}, { shareWithNote });
 }
 
 function copyLink() {
@@ -197,16 +184,6 @@ function shareWithNote() {
 	os.post({
 		initialText: `${page.value.title || page.value.name}\n${url}/@${page.value.user.username}/pages/${page.value.name}`,
 		instant: true,
-	});
-}
-
-function shareWithNavigator() {
-	if (!page.value) return;
-
-	navigator.share({
-		title: page.value.title ?? page.value.name,
-		text: page.value.summary ?? undefined,
-		url: `${url}/@${page.value.user.username}/pages/${page.value.name}`,
 	});
 }
 
@@ -252,7 +229,8 @@ async function reportAbuse() {
 
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
 		user: page.value.user,
-		initialComment: `Page: ${pageUrl}\n-----\n`,
+		reportTarget: { reportType: 'page', targetId: page.value.id },
+		context: { label: i18n.ts.pages, text: page.value.title, url: pageUrl },
 	}, {
 		closed: () => dispose(),
 	});

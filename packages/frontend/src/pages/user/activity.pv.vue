@@ -25,6 +25,8 @@ import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
 import { chartVLine } from '@/utility/chart-vline.js';
 import { initChart } from '@/utility/init-chart.js';
 import { chartLegend } from '@/utility/chart-legend.js';
+import { dateOnly } from '@/filters/date.js';
+import { i18n } from '@/i18n.js';
 import MkChartLegend from '@/components/MkChartLegend.vue';
 
 initChart();
@@ -98,10 +100,10 @@ async function renderChart() {
 		type: 'bar',
 		data: {
 			datasets: [
-				makeDataset('UPV (user)', format(raw.upv.user).slice().reverse(), { backgroundColor: colorUser, stack: 'u' }),
-				makeDataset('UPV (visitor)', format(raw.upv.visitor).slice().reverse(), { backgroundColor: colorVisitor, stack: 'u' }),
-				makeDataset('NPV (user)', format(raw.pv.user).slice().reverse(), { backgroundColor: colorUser2, stack: 'n' }),
-				makeDataset('NPV (visitor)', format(raw.pv.visitor).slice().reverse(), { backgroundColor: colorVisitor2, stack: 'n' }),
+				makeDataset(i18n.ts._chartSeries.uniquePvUser, format(raw.upv.user).slice().reverse(), { backgroundColor: colorUser, stack: 'u' }),
+				makeDataset(i18n.ts._chartSeries.uniquePvVisitor, format(raw.upv.visitor).slice().reverse(), { backgroundColor: colorVisitor, stack: 'u' }),
+				makeDataset(i18n.ts._chartSeries.pvUser, format(raw.pv.user).slice().reverse(), { backgroundColor: colorUser2, stack: 'n' }),
+				makeDataset(i18n.ts._chartSeries.pvVisitor, format(raw.pv.visitor).slice().reverse(), { backgroundColor: colorVisitor2, stack: 'n' }),
 			],
 		},
 		options: {
@@ -155,7 +157,7 @@ async function renderChart() {
 			plugins: {
 				title: {
 					display: true,
-					text: 'Unique/Natural PV',
+					text: i18n.ts._chartSeries.profileViews,
 					padding: {
 						top: 0,
 						bottom: 12,
@@ -169,6 +171,12 @@ async function renderChart() {
 					mode: 'index',
 					animation: {
 						duration: 0,
+					},
+					callbacks: {
+						// 日期跟随客户端语言 (Chart.js 的 date-fns 适配器默认固定 en-US 格式)
+						title(context) {
+							return dateOnly(context[0].parsed.x as number);
+						},
 					},
 					external: externalTooltipHandler,
 				},

@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:ref="(comp) => { mediaComponents.set(media.id, comp as InstanceType<typeof XImage> | null); }"
 					:marker="`${markerId}:${media.id}`"
 					:disableImageLink="true"
-					:class="$style.media"
+					:class="[$style.media, $style.image]"
 					:image="media"
 					:raw="raw"
 					@mediaClick="onMediaClick(media)"
@@ -273,7 +273,10 @@ defineExpose({
 .media {
 	overflow: hidden; // clipにするとバグる
 	border-radius: 8px;
-	cursor: zoom-in;
+}
+
+.image {
+	cursor: pointer;
 }
 
 @container (min-width: 500px) {

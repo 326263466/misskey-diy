@@ -105,6 +105,16 @@ describe('Timelines', () => {
 		}, 1000 * 60 * 2);
 
 		describe('Home TL', () => {
+			test('自分の未フォローチャンネルへの投稿が含まれる', async () => {
+				const alice = await signup();
+				const channel = await createChannel('channel', alice);
+				const aliceNote = await post(alice, { text: 'channel post', channelId: channel.id });
+				await vi.waitFor(async () => {
+					const res = await api('notes/timeline', { limit: 100 }, alice);
+					assert.strictEqual(res.body.some(note => note.id === aliceNote.id), true);
+				}, waitForPushToTlOptions);
+			});
+
 			test('自分の visibility: followers なノートが含まれる', async () => {
 				const [alice] = await Promise.all([signup()]);
 
@@ -544,7 +554,7 @@ describe('Timelines', () => {
 				}, waitForPushToTlOptions);
 			}, 1000 * 30);
 
-			test('フォローしているユーザーのチャンネル投稿が含まれない', async () => {
+			test('フォローしているユーザーのチャンネル投稿が含まれる', async () => {
 				const [alice, bob] = await Promise.all([signup(), signup()]);
 
 				const channel = await api('channels/create', { name: 'channel' }, bob).then(x => x.body);
@@ -555,7 +565,7 @@ describe('Timelines', () => {
 
 				const res = await api('notes/timeline', { limit: 100 }, alice);
 
-				assert.strictEqual(res.body.some(note => note.id === bobNote.id), false);
+				assert.strictEqual(res.body.some(note => note.id === bobNote.id), true);
 			});
 
 			test('自分の visibility: specified なノートが含まれる', async () => {
@@ -685,7 +695,7 @@ describe('Timelines', () => {
 					}, waitForPushToTlOptions);
 				});
 
-				test('チャンネル未フォロー　＋　ユーザフォロー　＝　TLに流れない', async () => {
+				test('チャンネル未フォロー　＋　ユーザフォロー　＝　TLに流れる', async () => {
 					const [alice, bob] = await Promise.all([signup(), signup()]);
 					await api('following/create', { userId: bob.id }, alice);
 
@@ -698,7 +708,7 @@ describe('Timelines', () => {
 
 					const res = await api('notes/timeline', { limit: 100 }, alice);
 
-					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), false);
+					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), true);
 				});
 
 				test('チャンネルフォロー　＋　ユーザフォロー　＝　TLに流れる', async () => {
@@ -1113,6 +1123,20 @@ describe('Timelines', () => {
 			});
 		});
 
+		describe('Global TL channel posts', () => {
+			test('includes public channel posts and excludes muted channels', async () => {
+				const [alice, bob] = await Promise.all([signup(), signup()]);
+				const channel = await createChannel('channel', bob);
+				const bobNote = await post(bob, { text: 'public channel post', channelId: channel.id });
+				const visible = await api('notes/global-timeline', { limit: 100 }, alice);
+				assert.strictEqual(visible.status, 200);
+				assert.strictEqual(visible.body.some(note => note.id === bobNote.id), true);
+				await muteChannel(channel.id, alice);
+				const muted = await api('notes/global-timeline', { limit: 100 }, alice);
+				assert.strictEqual(muted.body.some(note => note.id === bobNote.id), false);
+			});
+		});
+
 		describe('Local TL', () => {
 			test('visibility: home なノートが含まれない', async () => {
 				const [alice, bob, carol] = await Promise.all([signup(), signup(), signup()]);
@@ -1156,7 +1180,7 @@ describe('Timelines', () => {
 				}, waitForPushToTlOptions);
 			});
 
-			test('チャンネル投稿が含まれない', async () => {
+			test('チャンネル投稿が含まれる', async () => {
 				const [alice, bob] = await Promise.all([signup(), signup()]);
 
 				const channel = await api('channels/create', { name: 'channel' }, bob).then(x => x.body);
@@ -1166,7 +1190,7 @@ describe('Timelines', () => {
 
 				const res = await api('notes/local-timeline', { limit: 100 }, alice);
 
-				assert.strictEqual(res.body.some(note => note.id === bobNote.id), false);
+				assert.strictEqual(res.body.some(note => note.id === bobNote.id), true);
 			});
 
 			test('リモートユーザーのノートが含まれない', async () => {
@@ -1341,7 +1365,7 @@ describe('Timelines', () => {
 			}, 1000 * 10);
 
 			describe('Channel', () => {
-				test('チャンネル未フォロー　＋　ユーザ未フォロー　＝　TLに流れない', async () => {
+				test('チャンネル未フォロー　＋　ユーザ未フォロー　＝　TLに流れる', async () => {
 					const [alice, bob] = await Promise.all([signup(), signup()]);
 
 					const channel = await createChannel('channel', bob);
@@ -1353,10 +1377,10 @@ describe('Timelines', () => {
 
 					const res = await api('notes/local-timeline', { limit: 100 }, alice);
 
-					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), false);
+					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), true);
 				});
 
-				test('チャンネルフォロー　＋　ユーザ未フォロー　＝　TLに流れない', async () => {
+				test('チャンネルフォロー　＋　ユーザ未フォロー　＝　TLに流れる', async () => {
 					const [alice, bob] = await Promise.all([signup(), signup()]);
 
 					const channel = await createChannel('channel', bob);
@@ -1369,10 +1393,10 @@ describe('Timelines', () => {
 
 					const res = await api('notes/local-timeline', { limit: 100 }, alice);
 
-					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), false);
+					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), true);
 				});
 
-				test('チャンネル未フォロー　＋　ユーザフォロー　＝　TLに流れない', async () => {
+				test('チャンネル未フォロー　＋　ユーザフォロー　＝　TLに流れる', async () => {
 					const [alice, bob] = await Promise.all([signup(), signup()]);
 					await api('following/create', { userId: bob.id }, alice);
 
@@ -1385,10 +1409,10 @@ describe('Timelines', () => {
 
 					const res = await api('notes/local-timeline', { limit: 100 }, alice);
 
-					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), false);
+					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), true);
 				});
 
-				test('チャンネルフォロー　＋　ユーザフォロー　＝　TLに流れない', async () => {
+				test('チャンネルフォロー　＋　ユーザフォロー　＝　TLに流れる', async () => {
 					const [alice, bob] = await Promise.all([signup(), signup()]);
 					await api('following/create', { userId: bob.id }, alice);
 
@@ -1402,7 +1426,7 @@ describe('Timelines', () => {
 
 					const res = await api('notes/local-timeline', { limit: 100 }, alice);
 
-					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), false);
+					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), true);
 				});
 
 				test('チャンネル未フォロー　＋　ユーザ未フォロー　＋　チャンネルミュート　＝　TLに流れない', async () => {
@@ -1832,7 +1856,7 @@ describe('Timelines', () => {
 			}, 1000 * 10);
 
 			describe('Channel', () => {
-				test('チャンネル未フォロー　＋　ユーザ未フォロー　＝　TLに流れない', async () => {
+				test('チャンネル未フォロー　＋　ユーザ未フォロー　＝　TLに流れる', async () => {
 					const [alice, bob] = await Promise.all([signup(), signup()]);
 
 					const channel = await createChannel('channel', bob);
@@ -1844,7 +1868,7 @@ describe('Timelines', () => {
 
 					const res = await api('notes/hybrid-timeline', { limit: 100 }, alice);
 
-					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), false);
+					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), true);
 				});
 
 				test('チャンネルフォロー　＋　ユーザ未フォロー　＝　TLに流れる', async () => {
@@ -1863,7 +1887,7 @@ describe('Timelines', () => {
 					}, waitForPushToTlOptions);
 				});
 
-				test('チャンネル未フォロー　＋　ユーザフォロー　＝　TLに流れない', async () => {
+				test('チャンネル未フォロー　＋　ユーザフォロー　＝　TLに流れる', async () => {
 					const [alice, bob] = await Promise.all([signup(), signup()]);
 					await api('following/create', { userId: bob.id }, alice);
 
@@ -1876,7 +1900,7 @@ describe('Timelines', () => {
 
 					const res = await api('notes/hybrid-timeline', { limit: 100 }, alice);
 
-					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), false);
+					assert.strictEqual(res.body.some((note: any) => note.id === bobNote.id), true);
 				});
 
 				test('チャンネルフォロー　＋　ユーザフォロー　＝　TLに流れる', async () => {

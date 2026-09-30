@@ -4,27 +4,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
-	<Transition
-		:enterActiveClass="prefer.s.animation ? $style.transition_toast_enterActive : ''"
-		:leaveActiveClass="prefer.s.animation ? $style.transition_toast_leaveActive : ''"
-		:enterFromClass="prefer.s.animation ? $style.transition_toast_enterFrom : ''"
-		:leaveToClass="prefer.s.animation ? $style.transition_toast_leaveTo : ''"
-		appear @afterLeave="emit('closed')"
+<MkModal ref="modal" preferType="dialog" zPriority="high" :returnFocusTo="returnFocusTo" @click="dismiss" @esc="dismiss" @closed="emit('closed')">
+	<div
+		ref="container"
+		:class="$style.root"
+		role="dialog"
+		aria-modal="true"
+		:aria-labelledby="messageId"
+		tabindex="-1"
 	>
-		<div v-if="showing" class="_acrylic" :class="$style.root" :style="{ zIndex }">
-			<div style="padding: 16px 24px;">
-				{{ message }}
-			</div>
-		</div>
-	</Transition>
-</div>
+		<i class="ti ti-info-circle" :class="$style.icon" aria-hidden="true"></i>
+		<div :id="messageId" class="_selectable" :class="$style.message">{{ message }}</div>
+	</div>
+</MkModal>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
-import * as os from '@/os.js';
-import { prefer } from '@/preferences.js';
+import { onBeforeUnmount, onMounted, useId, useTemplateRef } from 'vue';
+import MkModal from '@/components/MkModal.vue';
 
 defineProps<{
 	message: string;
@@ -34,41 +31,68 @@ const emit = defineEmits<{
 	(ev: 'closed'): void;
 }>();
 
-const zIndex = os.claimZIndex('high');
-const showing = ref(true);
+const modal = useTemplateRef('modal');
+const container = useTemplateRef('container');
+const messageId = useId();
+const returnFocusTo = window.document.activeElement instanceof HTMLElement ? window.document.activeElement : null;
+let timeout: number | undefined;
+let closing = false;
+
+function dismiss() {
+	if (closing) return;
+	closing = true;
+	window.clearTimeout(timeout);
+	modal.value?.close();
+}
 
 onMounted(() => {
-	window.setTimeout(() => {
-		showing.value = false;
-	}, 4000);
+	container.value?.focus({ preventScroll: true });
+	timeout = window.setTimeout(dismiss, 3000);
+});
+
+onBeforeUnmount(() => {
+	window.clearTimeout(timeout);
 });
 </script>
 
 <style lang="scss" module>
-.transition_toast_enterActive,
-.transition_toast_leaveActive {
-	transition: opacity 0.3s, transform 0.3s !important;
-}
-.transition_toast_enterFrom,
-.transition_toast_leaveTo {
-	opacity: 0;
-	transform: translateY(-100%);
-}
-
 .root {
-	position: fixed;
-	left: 0;
-	right: 0;
-	top: 50px;
-	margin: 0 auto;
-	margin-top: 16px;
-	min-width: 300px;
-	max-width: calc(100% - 32px);
-	width: min-content;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+	position: relative;
+	display: flex;
+	align-items: center;
+	align-self: flex-start;
+	gap: 12px;
+	// Keep the original 66px top offset, including MkModal's padding.
+	margin: 34px auto 0;
+	padding: 16px;
+	width: max-content;
+	max-width: min(420px, 100%);
+	min-width: min(300px, 100%);
+	box-sizing: border-box;
+	text-align: left;
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-panel);
 	border-radius: 8px;
 	overflow: clip;
-	text-align: center;
-	pointer-events: none;
+
+	@media (max-width: 500px) {
+		margin-top: 50px;
+	}
+}
+
+.icon {
+	flex-shrink: 0;
+	font-size: 20px;
+	line-height: 1;
+	color: var(--MI_THEME-accent);
+}
+
+.message {
+	flex: 1;
+	min-width: 0;
+	font-weight: 500;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
 </style>

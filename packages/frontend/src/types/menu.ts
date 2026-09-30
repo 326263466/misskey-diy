@@ -7,6 +7,7 @@ import * as Misskey from 'misskey-js';
 import type { Component, ComputedRef, Ref, MaybeRef } from 'vue';
 import type { ComponentProps as CP } from 'vue-component-type-helpers';
 import type { OptionValue } from '@/types/option-value.js';
+import type { CustomStatusIcon, StatusIconStatus } from '@/utility/status-icons.js';
 
 type ComponentProps<T extends Component> = { [K in keyof CP<T>]: MaybeRef<CP<T>[K]> };
 
@@ -22,6 +23,7 @@ export interface MenuButton {
 	indicate?: boolean;
 	danger?: boolean;
 	active?: boolean | ComputedRef<boolean>;
+	actionOnActive?: boolean;
 	avatar?: Misskey.entities.User;
 	action: MenuAction;
 }
@@ -104,11 +106,18 @@ export interface MenuParent extends TextMenuBase {
 	children: MenuItem[] | (() => Promise<MenuItem[]> | MenuItem[]);
 }
 
+export interface MenuGrid extends MenuBase {
+	type: 'grid';
+	text: Text;
+	columns?: number;
+	items: (MenuButton & { color?: string; status?: StatusIconStatus; customIcon?: CustomStatusIcon })[];
+}
+
 export interface MenuPending extends MenuBase {
 	type: 'pending';
 }
 
-type OuterMenuItem = MenuDivider | MenuLabel | MenuLink | MenuA | MenuUser | MenuSwitch | MenuButton | MenuRadio | MenuRadioOption | MenuComponent | MenuParent;
-type OuterPromiseMenuItem = Promise<MenuLabel | MenuLink | MenuA | MenuUser | MenuSwitch | MenuButton | MenuComponent | MenuParent>;
+type OuterMenuItem = MenuDivider | MenuLabel | MenuLink | MenuA | MenuUser | MenuSwitch | MenuButton | MenuRadio | MenuRadioOption | MenuComponent | MenuParent | MenuGrid;
+type OuterPromiseMenuItem = Promise<MenuLabel | MenuLink | MenuA | MenuUser | MenuSwitch | MenuButton | MenuComponent | MenuParent | MenuGrid>;
 export type MenuItem = OuterMenuItem | OuterPromiseMenuItem;
-export type InnerMenuItem = MenuDivider | MenuPending | MenuLabel | MenuLink | MenuA | MenuUser | MenuSwitch | MenuButton | MenuRadio | MenuRadioOption | MenuComponent | MenuParent;
+export type InnerMenuItem = MenuDivider | MenuPending | MenuLabel | MenuLink | MenuA | MenuUser | MenuSwitch | MenuButton | MenuRadio | MenuRadioOption | MenuComponent | MenuParent | MenuGrid;

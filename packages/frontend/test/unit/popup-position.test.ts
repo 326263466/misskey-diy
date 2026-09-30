@@ -44,6 +44,58 @@ describe('calcPopupPosition', () => {
 		window.scrollY = 0;
 	});
 
+	test.each([
+		{ anchorLeft: 260, boundaryLeft: 200, boundaryWidth: 400, expected: 260, origin: 'left top' },
+		{ anchorLeft: 480, boundaryLeft: 200, boundaryWidth: 400, expected: 320, origin: 'right top' },
+		{ anchorLeft: 480, boundaryLeft: 450, boundaryWidth: 150, expected: 480, origin: 'left top' },
+		{ anchorLeft: 280, boundaryLeft: 200, boundaryWidth: 220, expected: 280, origin: 'left top' },
+	])('keeps or flips the anchor alignment within a panel: $anchorLeft/$boundaryWidth', ({ anchorLeft, boundaryLeft, boundaryWidth, expected, origin }) => {
+		window.scrollX = 80;
+		const position = calcPopupPosition(mockEl({ width: 200, height: 100 }), {
+			anchorElement: mockAnchor({ left: anchorLeft, top: 100, width: 40, height: 20 }),
+			boundaryElement: mockAnchor({ left: boundaryLeft, top: 0, width: boundaryWidth, height: 500 }),
+			direction: 'bottom', align: 'left', innerMargin: 8,
+		});
+		expect(position.left).toBe(expected + window.scrollX);
+		expect(position.top).toBe(128);
+		expect(position.transformOrigin).toBe(origin);
+	});
+
+	test('clamps to the viewport when a narrow panel cannot fit the popup', () => {
+		const position = calcPopupPosition(mockEl({ width: 200, height: 100 }), {
+			anchorElement: mockAnchor({ left: VIEWPORT_WIDTH - 80, top: 100, width: 40, height: 20 }),
+			boundaryElement: mockAnchor({ left: VIEWPORT_WIDTH - 150, top: 0, width: 150, height: 500 }),
+			direction: 'bottom', align: 'left', innerMargin: 8,
+		});
+		expect(position.left).toBe(VIEWPORT_WIDTH - 201);
+	});
+
+	test.each([20, 60])('keeps a 12px panel gap from a %ipx trigger border box', height => {
+		const content = mockEl({ width: 100, height: 32 });
+		const anchor = mockAnchor({ left: 400, top: 100, width: 40, height });
+		const { top } = calcPopupPosition(content, {
+			anchorElement: anchor, direction: 'bottom', align: 'center', innerMargin: 12,
+		});
+		expect(top - anchor.getBoundingClientRect().bottom).toBe(12);
+	});
+
+	test.each([
+		{ direction: 'top', left: 330.5, top: 188.5 },
+		{ direction: 'bottom', left: 330.5, top: 343 },
+		{ direction: 'left', left: 188.25, top: 265.75 },
+		{ direction: 'right', left: 472.75, top: 265.75 },
+	] as const)('positions $direction against the displayed rectangle of a scaled trigger', ({ direction, left, top }) => {
+		const content = mockEl({ width: 200, height: 100 });
+		const anchor = mockAnchor({ left: 400.25, top: 300.5, width: 60.5, height: 30.5 });
+		Object.defineProperty(anchor, 'offsetWidth', { value: 40 });
+		Object.defineProperty(anchor, 'offsetHeight', { value: 20 });
+		const position = calcPopupPosition(content, {
+			anchorElement: anchor, direction, align: 'center', innerMargin: 12,
+		});
+		expect(position.left).toBe(left);
+		expect(position.top).toBe(top);
+	});
+
 	describe('縦方向', () => {
 		test('下に十分な余白があれば下に出す', () => {
 			const content = mockEl({ width: 200, height: 300 });
@@ -216,6 +268,53 @@ describe('calcPopupPosition', () => {
 	});
 
 	describe('align', () => {
+		test.each([
+			{ direction: 'top', align: 'left', left: 400, top: 188, origin: 'left bottom', offsetSign: 1 },
+			{ direction: 'top', align: 'right', left: 240, top: 188, origin: 'right bottom', offsetSign: -1 },
+			{ direction: 'bottom', align: 'left', left: 400, top: 372, origin: 'left top', offsetSign: 1 },
+			{ direction: 'bottom', align: 'right', left: 240, top: 372, origin: 'right top', offsetSign: -1 },
+		] as const)('aligns $direction panels to the anchor $align edge with an inward offset', ({ direction, align, left, top, origin, offsetSign }) => {
+			const content = mockEl({ width: 200, height: 100 });
+			const anchor = mockAnchor({ left: 400, top: 300, width: 40, height: 60 });
+			const options = { anchorElement: anchor, direction, align, innerMargin: 12 };
+
+			expect(calcPopupPosition(content, options)).toEqual({ left, top, transformOrigin: origin });
+			expect(calcPopupPosition(content, { ...options, alignOffset: 12 })).toEqual({
+				left: left + offsetSign * 12, top, transformOrigin: origin,
+			});
+		});
+
+		test('keeps the left edge aligned when a bottom panel flips above the anchor', () => {
+			const content = mockEl({ width: 380, height: 56 });
+			const anchor = mockAnchor({ left: 100, top: 750, width: 40, height: 32 });
+
+			expect(calcPopupPosition(content, {
+				anchorElement: anchor, direction: 'bottom', align: 'left', innerMargin: 12,
+			})).toEqual({ left: 100, top: 682, transformOrigin: 'left bottom' });
+		});
+
+		test.each([
+			{ anchorLeft: 0, align: 'right', expectedLeft: 0 },
+			{ anchorLeft: 980, align: 'left', expectedLeft: 799 },
+		] as const)('keeps a $align-aligned panel inside the horizontal viewport', ({ anchorLeft, align, expectedLeft }) => {
+			const content = mockEl({ width: 200, height: 100 });
+			const anchor = mockAnchor({ left: anchorLeft, top: 100, width: 20, height: 20 });
+
+			const { left } = calcPopupPosition(content, {
+				anchorElement: anchor, direction: 'bottom', align, innerMargin: 12,
+			});
+
+			expect(left).toBe(expectedLeft);
+		});
+
+		test.each(['left', 'right'] as const)('keeps coordinate-only panels centered when align is %s', align => {
+			const content = mockEl({ width: 200, height: 100 });
+
+			expect(calcPopupPosition(content, {
+				x: 500, y: 300, direction: 'bottom', align, alignOffset: 12, innerMargin: 12,
+			})).toEqual({ left: 400, top: 312, transformOrigin: 'center top' });
+		});
+
 		test('direction: right / align: bottom はアンカーの下端に揃える', () => {
 			const content = mockEl({ width: 200, height: 100 });
 			const anchor = mockAnchor({ left: 100, top: 300, width: 40, height: 60 });
@@ -247,6 +346,20 @@ describe('calcPopupPosition', () => {
 	});
 
 	describe('スクロール中', () => {
+		test.each([
+			{ align: 'left', left: 520 },
+			{ align: 'right', left: 360 },
+		] as const)('adds both scroll offsets to $align-aligned panels', ({ align, left }) => {
+			window.scrollX = 120;
+			window.scrollY = 500;
+			const content = mockEl({ width: 200, height: 100 });
+			const anchor = mockAnchor({ left: 400, top: 100, width: 40, height: 20 });
+
+			expect(calcPopupPosition(content, {
+				anchorElement: anchor, direction: 'bottom', align, innerMargin: 12,
+			})).toEqual({ left, top: 632, transformOrigin: `${align} top` });
+		});
+
 		test('スクロール量を加味した絶対座標を返す', () => {
 			window.scrollY = 500;
 			const content = mockEl({ width: 200, height: 100 });

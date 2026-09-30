@@ -112,7 +112,7 @@ export function uploadFile(file: File | Blob, options: {
 				} else {
 					os.alert({
 						type: 'error',
-						title: 'Failed to upload',
+						title: i18n.ts.failedToUpload,
 						text: `${JSON.stringify(ev.target?.response)}, ${JSON.stringify(xhr.response)}`,
 					});
 				}

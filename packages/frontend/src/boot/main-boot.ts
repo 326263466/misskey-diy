@@ -26,9 +26,11 @@ import { mainRouter } from '@/router.js';
 import { makeHotkey } from '@/utility/hotkey.js';
 import { addCustomEmoji, removeCustomEmojis, updateCustomEmojis } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { refreshCurrentAccount, updateCurrentAccountPartial } from '@/accounts.js';
+import { initializeAccountReconnectSync } from '@/utility/account-reconnect-sync.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { isBirthday } from '@/utility/is-birthday.js';
+import { initializeUserStatisticsSync } from '@/composables/use-user-statistics.js';
 
 export async function mainBoot() {
 	const { isClientUpdated, lastVersion } = await common(async () => {
@@ -63,6 +65,7 @@ export async function mainBoot() {
 
 	reactionPicker.init();
 	emojiPicker.init();
+	initializeUserStatisticsSync();
 
 	if (isClientUpdated && $i) {
 		const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkUpdated.vue')), {}, {
@@ -293,6 +296,7 @@ export async function mainBoot() {
 
 		if (store.s.realtimeMode) {
 			const stream = useStream();
+			initializeAccountReconnectSync(stream, () => refreshCurrentAccount({ throwOnError: true }));
 
 			let reloadDialogShowing = false;
 			stream.on('_disconnected_', async () => {
@@ -331,8 +335,9 @@ export async function mainBoot() {
 
 			// 自分の情報が更新されたとき
 			main.on('meUpdated', i => {
-				updateCurrentAccountPartial(i);
+				updateCurrentAccountPartial(i, { fromStream: true });
 			});
+			initializeUserStatisticsSync(main);
 
 			main.on('readAllNotifications', () => {
 				updateCurrentAccountPartial({
@@ -351,7 +356,7 @@ export async function mainBoot() {
 
 			main.on('newChatMessage', () => {
 				updateCurrentAccountPartial({ hasUnreadChatMessages: true });
-				sound.playMisskeySfx('chatMessage');
+				if ($i?.onlineStatusOverride !== 'doNotDisturb') sound.playMisskeySfx('chatMessage');
 			});
 
 			main.on('readAllAnnouncements', () => {

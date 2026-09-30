@@ -30,6 +30,9 @@ import { chartVLine } from '@/utility/chart-vline.js';
 import { store } from '@/store.js';
 import { alpha } from '@/utility/color.js';
 import { initChart } from '@/utility/init-chart.js';
+import { formatChartDate } from '@/utility/chart-date.js';
+import { dateOnly } from '@/filters/date.js';
+import { i18n } from '@/i18n.js';
 
 initChart();
 
@@ -89,7 +92,7 @@ onMounted(async () => {
 		data: {
 			datasets: [{
 				parsing: false,
-				label: 'Out: Succ',
+				label: i18n.ts._dashboard.apOutSucceeded,
 				data: format(raw.deliverSucceeded).slice().reverse(),
 				tension: 0.3,
 				pointRadius: 0,
@@ -102,7 +105,7 @@ onMounted(async () => {
 				clip: 8,
 			}, {
 				parsing: false,
-				label: 'Out: Fail',
+				label: i18n.ts._dashboard.apOutFailed,
 				data: formatMinus(raw.deliverFailed).slice().reverse(),
 				tension: 0.3,
 				pointRadius: 0,
@@ -140,6 +143,7 @@ onMounted(async () => {
 						display: true,
 						maxRotation: 0,
 						autoSkipPadding: 16,
+						callback: value => formatChartDate(value),
 					},
 					min: getDate(chartLimit).getTime(),
 				},
@@ -178,6 +182,7 @@ onMounted(async () => {
 					},
 					external: externalTooltipHandler,
 					callbacks: {
+						title: items => dateOnly(items[0].parsed.x),
 						label: context => `${context.dataset.label}: ${Math.abs(context.parsed.y)}`,
 					},
 				},
@@ -194,7 +199,7 @@ onMounted(async () => {
 		data: {
 			datasets: [{
 				parsing: false,
-				label: 'In',
+				label: i18n.ts._dashboard.apIn,
 				data: format(raw.inboxReceived).slice().reverse(),
 				tension: 0.3,
 				pointRadius: 0,
@@ -224,10 +229,6 @@ onMounted(async () => {
 					offset: false,
 					time: {
 						unit: 'day',
-						displayFormats: {
-							day: 'M/d',
-							month: 'Y/M',
-						},
 					},
 					grid: {
 						display: false,
@@ -268,6 +269,9 @@ onMounted(async () => {
 						duration: 0,
 					},
 					external: externalTooltipHandler2,
+					callbacks: {
+						title: items => dateOnly(items[0].parsed.x),
+					},
 				},
 				...({ // TSを黙らすため
 					gradient,
@@ -302,4 +306,3 @@ onUnmounted(() => {
 	}
 }
 </style>
-

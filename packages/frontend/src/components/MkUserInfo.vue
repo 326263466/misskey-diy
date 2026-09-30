@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_panel" :class="$style.root">
+<div ref="rootEl" class="_panel" :class="$style.root">
 	<div :class="$style.banner" :style="user.bannerUrl ? { backgroundImage: `url(${prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl})` } : ''"></div>
 	<MkA :to="userPage(user)">
 		<MkAvatar :class="$style.avatar" :user="user" indicator/>
@@ -15,6 +15,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<span v-if="$i && $i.id !== user.id && user.isFollowed" :class="$style.followed">{{ i18n.ts.followsYou }}</span>
 	<div :class="$style.description">
+		<dl v-if="user.company || user.jobTitle" :class="$style.work">
+			<div v-if="user.company">
+				<dt>{{ i18n.ts._profile.company }}</dt>
+				<dd>{{ user.company }}</dd>
+			</div>
+			<div v-if="user.jobTitle">
+				<dt>{{ i18n.ts._profile.jobTitle }}</dt>
+				<dd>{{ user.jobTitle }}</dd>
+			</div>
+		</dl>
 		<div v-if="user.description" :class="$style.mfm">
 			<Mfm :text="user.description" :author="user"/>
 		</div>
@@ -36,6 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
+import { ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkFollowButton from '@/components/MkFollowButton.vue';
 import number from '@/filters/number.js';
@@ -45,10 +56,21 @@ import { $i } from '@/i.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/utility/isFfVisibleForMe.js';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
 import { prefer } from '@/preferences.js';
+import { useUserStatistics } from '@/composables/use-user-statistics.js';
+import { useUserStatisticsVisibility } from '@/composables/use-user-statistics-visibility.js';
+import { useUserProfile } from '@/composables/use-user-profile.js';
 
-defineProps<{
+const props = defineProps<{
 	user: Misskey.entities.UserDetailed;
 }>();
+
+const sourceUser = ref(props.user);
+const user = useUserProfile(sourceUser);
+const rootEl = useTemplateRef('rootEl');
+useUserStatistics(sourceUser, { active: useUserStatisticsVisibility(rootEl) });
+watch(() => props.user, value => {
+	sourceUser.value = value;
+});
 </script>
 
 <style lang="scss" module>
@@ -118,6 +140,30 @@ defineProps<{
 	-webkit-line-clamp: 3;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
+}
+
+.work {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	margin: 0 0 8px;
+
+	> div {
+		display: flex;
+		gap: 6px;
+		min-width: 0;
+	}
+
+	dt {
+		flex-shrink: 0;
+		opacity: 0.7;
+	}
+
+	dd {
+		margin: 0;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
 }
 
 .status {

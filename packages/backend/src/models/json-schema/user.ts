@@ -3,6 +3,17 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { USER_CUSTOM_STATUS_ICONS, USER_CUSTOM_STATUS_MAX_LENGTH, USER_ONLINE_STATUS_AUTO_REPLY_MAX_LENGTH } from '@/misc/user-online-status.js';
+
+export const packedUserCustomStatusSchema = {
+	type: 'object',
+	nullable: true, optional: false,
+	properties: {
+		icon: { type: 'string', nullable: false, optional: false, enum: USER_CUSTOM_STATUS_ICONS },
+		text: { type: 'string', nullable: false, optional: false, minLength: 1, maxLength: USER_CUSTOM_STATUS_MAX_LENGTH },
+	},
+} as const;
+
 export const notificationRecieveConfig = {
 	type: 'object',
 	oneOf: [
@@ -55,6 +66,16 @@ export const packedUserLiteSchema = {
 			type: 'string',
 			nullable: false, optional: false,
 			example: 'ai',
+		},
+		company: {
+			type: 'string',
+			nullable: true, optional: true,
+			maxLength: 128,
+		},
+		jobTitle: {
+			type: 'string',
+			nullable: true, optional: true,
+			maxLength: 128,
 		},
 		host: {
 			type: 'string',
@@ -166,9 +187,10 @@ export const packedUserLiteSchema = {
 		},
 		onlineStatus: {
 			type: 'string',
-			nullable: false, optional: false,
-			enum: ['unknown', 'online', 'active', 'offline'],
+			nullable: true, optional: false,
+			enum: ['unknown', 'online', 'active', 'offline', 'away', 'busy', 'doNotDisturb'],
 		},
+		customStatus: { ...packedUserCustomStatusSchema, optional: true },
 		badgeRoles: {
 			type: 'array',
 			nullable: false, optional: true,
@@ -266,6 +288,16 @@ export const packedUserDetailedNotMeOnlySchema = {
 		location: {
 			type: 'string',
 			nullable: true, optional: false,
+		},
+		company: {
+			type: 'string',
+			nullable: true, optional: false,
+			maxLength: 128,
+		},
+		jobTitle: {
+			type: 'string',
+			nullable: true, optional: false,
+			maxLength: 128,
 		},
 		birthday: {
 			type: 'string',
@@ -519,6 +551,20 @@ export const packedMeDetailedOnlySchema = {
 		hideOnlineStatus: {
 			type: 'boolean',
 			nullable: false, optional: false,
+		},
+		onlineStatusOverride: {
+			type: 'string',
+			nullable: false, optional: false,
+			enum: ['online', 'away', 'busy', 'doNotDisturb', 'invisible'],
+		},
+		onlineStatusAutoReplies: {
+			type: 'object',
+			nullable: false, optional: false,
+			properties: {
+				away: { type: 'string', nullable: true, optional: true, maxLength: USER_ONLINE_STATUS_AUTO_REPLY_MAX_LENGTH },
+				busy: { type: 'string', nullable: true, optional: true, maxLength: USER_ONLINE_STATUS_AUTO_REPLY_MAX_LENGTH },
+				doNotDisturb: { type: 'string', nullable: true, optional: true, maxLength: USER_ONLINE_STATUS_AUTO_REPLY_MAX_LENGTH },
+			},
 		},
 		hasUnreadSpecifiedNotes: {
 			type: 'boolean',

@@ -114,7 +114,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div>{{ serverSettings.emailRequiredForSignup ? i18n.ts.yes : i18n.ts.no }}</div>
 			</div>
 			<div>
-				<div><b>Log IP:</b></div>
+				<div><b>{{ i18n.ts._serverSettings.logIpAddress }}:</b></div>
 				<div>{{ serverSettings.enableIpLogging ? i18n.ts.yes : i18n.ts.no }}</div>
 			</div>
 			<div>
@@ -140,7 +140,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div>
 				<div><b>{{ i18n.ts._serverSettings.entrancePageStyle }}:</b></div>
-				<div>{{ serverSettings.clientOptions?.entrancePageStyle }}</div>
+				<div>{{ serverSettings.clientOptions?.entrancePageStyle === 'classic' ? i18n.ts.classic : i18n.ts._serverSettings.entrancePageStyleSimple }}</div>
 			</div>
 
 			<div>

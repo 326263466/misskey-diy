@@ -11,6 +11,7 @@ import type { MiAbuseUserReport } from '@/models/AbuseUserReport.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
 import type { Packed } from '@/misc/json-schema.js';
+import { serializeAbuseReportSnapshot } from '@/misc/abuse-report.js';
 import { UserEntityService } from './UserEntityService.js';
 
 @Injectable()
@@ -28,30 +29,27 @@ export class AbuseUserReportEntityService {
 	public async pack(
 		src: MiAbuseUserReport['id'] | MiAbuseUserReport,
 		hint?: {
-			packedReporter?: Packed<'UserDetailedNotMe'>,
-			packedTargetUser?: Packed<'UserDetailedNotMe'>,
-			packedAssignee?: Packed<'UserDetailedNotMe'>,
+			packedReporter?: Packed<'UserDetailedNotMe'> | null,
+			packedTargetUser?: Packed<'UserDetailedNotMe'> | null,
+			packedAssignee?: Packed<'UserDetailedNotMe'> | null,
 		},
 	) {
 		const report = typeof src === 'object' ? src : await this.abuseUserReportsRepository.findOneByOrFail({ id: src });
+		const packUser = async (id: string) => (await this.userEntityService.packMany([id], null, { schema: 'UserDetailedNotMe' }))[0] ?? null;
 
 		return await awaitAll({
 			id: report.id,
 			createdAt: this.idService.parse(report.id).date.toISOString(),
 			comment: report.comment,
+			reason: report.reason,
+			snapshot: serializeAbuseReportSnapshot(report.snapshot),
 			resolved: report.resolved,
 			reporterId: report.reporterId,
 			targetUserId: report.targetUserId,
 			assigneeId: report.assigneeId,
-			reporter: hint?.packedReporter ?? this.userEntityService.pack(report.reporter ?? report.reporterId, null, {
-				schema: 'UserDetailedNotMe',
-			}),
-			targetUser: hint?.packedTargetUser ?? this.userEntityService.pack(report.targetUser ?? report.targetUserId, null, {
-				schema: 'UserDetailedNotMe',
-			}),
-			assignee: report.assigneeId ? hint?.packedAssignee ?? this.userEntityService.pack(report.assignee ?? report.assigneeId, null, {
-				schema: 'UserDetailedNotMe',
-			}) : null,
+			reporter: hint?.packedReporter !== undefined ? hint.packedReporter : packUser(report.reporterId),
+			targetUser: hint?.packedTargetUser !== undefined ? hint.packedTargetUser : packUser(report.targetUserId),
+			assignee: report.assigneeId ? hint?.packedAssignee !== undefined ? hint.packedAssignee : packUser(report.assigneeId) : null,
 			forwarded: report.forwarded,
 			resolvedAs: report.resolvedAs,
 			moderationNote: report.moderationNote,
@@ -72,9 +70,9 @@ export class AbuseUserReportEntityService {
 		).then(users => new Map(users.map(u => [u.id, u])));
 		return Promise.all(
 			reports.map(report => {
-				const packedReporter = _userMap.get(report.reporterId);
-				const packedTargetUser = _userMap.get(report.targetUserId);
-				const packedAssignee = report.assigneeId != null ? _userMap.get(report.assigneeId) : undefined;
+				const packedReporter = _userMap.get(report.reporterId) ?? null;
+				const packedTargetUser = _userMap.get(report.targetUserId) ?? null;
+				const packedAssignee = report.assigneeId != null ? _userMap.get(report.assigneeId) ?? null : null;
 				return this.pack(report, { packedReporter, packedTargetUser, packedAssignee });
 			}),
 		);

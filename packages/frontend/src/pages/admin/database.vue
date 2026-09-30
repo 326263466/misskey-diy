@@ -7,9 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
 	<div class="_spacer" style="--MI_SPACER-w: 800px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
 		<MkSuspense v-slot="{ result: database }" :p="databasePromiseFactory">
-			<MkKeyValue v-for="table in database" :key="table[0]" oneline style="margin: 1em 0;">
+			<MkKeyValue v-for="table in database" :key="table[0]" oneline style="margin: 0 0 1em;">
 				<template #key>{{ table[0] }}</template>
-				<template #value>{{ bytes(table[1].size) }} ({{ number(table[1].count) }} recs)</template>
+				<template #value>{{ bytes(table[1].size) }} ({{ i18n.tsx.nRecords({ n: number(table[1].count) }) }})</template>
 			</MkKeyValue>
 		</MkSuspense>
 	</div>

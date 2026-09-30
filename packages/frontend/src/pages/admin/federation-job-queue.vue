@@ -58,10 +58,10 @@ const headerActions = computed(() => []);
 
 const headerTabs = computed(() => [{
 	key: 'deliver',
-	title: 'Deliver',
+	title: i18n.ts._queue.deliver,
 }, {
 	key: 'inbox',
-	title: 'Inbox',
+	title: i18n.ts._queue.inbox,
 }]);
 
 definePage(() => ({

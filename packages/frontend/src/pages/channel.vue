@@ -4,8 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :tabsBelow="true" :swipable="true">
+	<template v-if="activePaginator" #header-actions>
+		<MkPaginationControl :paginator="activePaginator"/>
+	</template>
+	<div class="_spacer" style="--MI_SPACER-w: 1200px;">
 		<div v-if="channel && tab === 'overview'" class="_gaps">
 			<div class="_panel _juejinCard" :class="$style.bannerContainer">
 				<XChannelFollowButton :channel="channel" :full="true" :class="$style.subscribe"/>
@@ -35,13 +38,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="channel && tab === 'timeline'" class="_gaps">
 			<MkInfo v-if="channel.isArchived" warn>{{ i18n.ts.thisChannelArchived }}</MkInfo>
 
-			<!-- スマホ・タブレットの場合、キーボードが表示されると投稿が見づらくなるので、デスクトップ場合のみ自動でフォーカスを当てる -->
-			<MkPostForm v-if="$i && prefer.r.showFixedPostFormInChannel.value" :channel="channel" class="post-form _panel _juejinCard" fixed :autofocus="deviceKind === 'desktop'"/>
+			<MkPostForm v-if="$i && prefer.r.showFixedPostFormInChannel.value" :channel="channel" class="post-form _panel _juejinCard" fixed :initialRows="3" :autofocus="false"/>
 
 			<MkStreamingNotesTimeline :key="channelId" src="channel" :channel="channelId"/>
 		</div>
 		<div v-else-if="tab === 'featured'">
-			<MkNotesTimeline :paginator="featuredPaginator"/>
+			<MkNotesTimeline :paginator="featuredPaginator" :withControl="false"/>
 		</div>
 		<div v-else-if="tab === 'search'">
 			<div v-if="notesSearchAvailable" class="_gaps">
@@ -51,7 +53,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</MkInput>
 					<MkButton primary rounded style="margin-top: 8px;" @click="search()">{{ i18n.ts.search }}</MkButton>
 				</div>
-				<MkNotesTimeline v-if="searchPaginator" :key="searchKey" :paginator="searchPaginator"/>
+				<MkNotesTimeline v-if="searchPaginator" :key="searchKey" :paginator="searchPaginator" :withControl="false"/>
 			</div>
 			<div v-else>
 				<MkInfo warn>{{ i18n.ts.notesSearchNotAvailable }}</MkInfo>
@@ -60,7 +62,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 16px;">
+			<div class="_spacer" style="--MI_SPACER-w: 1200px; --MI_SPACER-min: 16px; --MI_SPACER-max: 16px;">
 				<div class="_buttonsCenter">
 					<MkButton inline rounded primary gradate @click="openPostForm()"><i class="ti ti-pencil"></i> {{ i18n.ts.postToTheChannel }}</MkButton>
 				</div>
@@ -84,8 +86,8 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { $i, iAmModerator } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
-import { deviceKind } from '@/utility/device-kind.js';
 import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import { favoritedChannelsCache } from '@/cache.js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
@@ -93,7 +95,7 @@ import { prefer } from '@/preferences.js';
 import MkNote from '@/components/MkNote.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkFoldableSection from '@/components/MkFoldableSection.vue';
-import { isSupportShare } from '@/utility/navigator.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { notesSearchAvailable } from '@/utility/check-permissions.js';
 import { miLocalStorage } from '@/local-storage.js';
@@ -111,7 +113,7 @@ const tab = ref('overview');
 const channel = ref<Misskey.entities.Channel | null>(null);
 const favorited = ref(false);
 const searchQuery = ref('');
-const searchPaginator = shallowRef();
+const searchPaginator = shallowRef<Paginator<'notes/search'> | null>(null);
 const searchKey = ref('');
 const featuredPaginator = markRaw(new Paginator('notes/featured', {
 	limit: 10,
@@ -119,6 +121,9 @@ const featuredPaginator = markRaw(new Paginator('notes/featured', {
 		channelId: props.channelId,
 	})),
 }));
+const activePaginator = computed(() => tab.value === 'featured'
+	? featuredPaginator
+	: tab.value === 'search' && notesSearchAvailable ? searchPaginator.value : null);
 
 useInterval(() => {
 	if (channel.value == null) return;
@@ -196,7 +201,7 @@ async function mute() {
 	const _channel = channel.value;
 
 	const { canceled, result: period } = await os.select({
-		title: i18n.ts.mutePeriod,
+		title: i18n.ts._channel.mutePeriod,
 		items: [{
 			value: 'indefinitely', label: i18n.ts.indefinitely,
 		}, {
@@ -272,29 +277,23 @@ const headerActions = computed(() => {
 			},
 		});
 
-		if (isSupportShare()) {
-			headerItems.push({
-				icon: 'ti ti-share',
-				text: i18n.ts.share,
-				handler: async (): Promise<void> => {
-					if (!channel.value) {
-						console.warn('failed to share channel. channel.value is null.');
-						return;
-					}
-
-					navigator.share({
-						title: channel.value.name,
-						text: channel.value.description ?? undefined,
-						url: `${url}/channels/${channel.value.id}`,
-					});
-				},
-			});
-		}
+		headerItems.push({
+			icon: 'ti ti-share',
+			text: i18n.ts.share,
+			handler: (): void => {
+				if (!channel.value) return;
+				openShareDialog({
+					title: channel.value.name,
+					text: channel.value.description ?? undefined,
+					url: `${url}/channels/${channel.value.id}`,
+				});
+			},
+		});
 
 		if (!channel.value.isMuting) {
 			headerItems.push({
 				icon: 'ti ti-volume',
-				text: i18n.ts.mute,
+				text: i18n.ts._channel.mute,
 				handler: async (): Promise<void> => {
 					await mute();
 				},
@@ -302,7 +301,7 @@ const headerActions = computed(() => {
 		} else {
 			headerItems.push({
 				icon: 'ti ti-volume-off',
-				text: i18n.ts.unmute,
+				text: i18n.ts._channel.unmute,
 				handler: async (): Promise<void> => {
 					await unmute();
 				},
@@ -348,6 +347,8 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+@use "@/styles/channel-banner.scss" as channelBanner;
+
 .footer {
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
@@ -374,10 +375,9 @@ definePage(() => ({
 }
 
 .banner {
+	@include channelBanner.surface;
 	position: relative;
 	height: 200px;
-	background-position: center;
-	background-size: cover;
 }
 
 .bannerFade {

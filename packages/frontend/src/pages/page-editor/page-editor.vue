@@ -175,7 +175,7 @@ async function del() {
 
 	const { canceled } = await os.confirm({
 		type: 'warning',
-		text: i18n.tsx.removeAreYouSure({ x: title.value.trim() }),
+		text: i18n.tsx.deleteAreYouSure({ x: title.value.trim() }),
 	});
 
 	if (canceled) return;
@@ -188,7 +188,7 @@ async function del() {
 }
 
 async function duplicate() {
-	title.value = title.value + ' - copy';
+	title.value = i18n.tsx._pages.duplicateTitle({ title: title.value });
 	name.value = name.value + '-copy';
 
 	const created = await os.apiWithDialog('pages/create', getSaveOptions(), undefined, {

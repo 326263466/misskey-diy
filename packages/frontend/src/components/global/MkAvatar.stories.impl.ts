@@ -50,6 +50,23 @@ export const ProfilePage = {
 		indicator: true,
 	},
 } satisfies StoryObj<typeof MkAvatar>;
+export const HeaderBusy = {
+	...common,
+	args: {
+		...common.args,
+		user: { ...userDetailed(), onlineStatus: 'busy' },
+		// @ts-expect-error size is for test
+		size: 32,
+		indicator: true,
+	},
+} satisfies StoryObj<typeof MkAvatar>;
+export const ProfilePageCustomStatus = {
+	...ProfilePage,
+	args: {
+		...ProfilePage.args,
+		user: { ...userDetailed(), onlineStatus: 'online', customStatus: { icon: 'coffee', text: 'ひと休み' } },
+	},
+} satisfies StoryObj<typeof MkAvatar>;
 export const ProfilePageCat = {
 	...ProfilePage,
 	args: {

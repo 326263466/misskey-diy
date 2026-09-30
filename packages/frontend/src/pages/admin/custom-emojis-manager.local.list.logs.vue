@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>
 		<i class="ti ti-notes" style="margin-right: 0.5em;"></i> {{ i18n.ts._customEmojisManager._gridCommon.registrationLogs }}
 	</template>
-	<div class="_spacer">
+	<div class="_spacer _spacerCard">
 		<XRegisterLogs :logs="logs"/>
 	</div>
 </MkWindow>

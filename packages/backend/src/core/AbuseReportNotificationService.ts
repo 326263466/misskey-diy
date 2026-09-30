@@ -6,9 +6,10 @@
 import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import { Brackets, In, IsNull, Not } from 'typeorm';
 import * as Redis from 'ioredis';
-import sanitizeHtml from 'sanitize-html';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
+import { formatAbuseReport, serializeAbuseReport } from '@/misc/abuse-report.js';
+import { escapeHtml } from '@/misc/escape-html.js';
 import { GlobalEvents, GlobalEventService } from '@/core/GlobalEventService.js';
 import type {
 	AbuseReportNotificationRecipientRepository,
@@ -75,7 +76,7 @@ export class AbuseReportNotificationService implements OnApplicationShutdown {
 						id: abuseReport.id,
 						targetUserId: abuseReport.targetUserId,
 						reporterId: abuseReport.reporterId,
-						comment: abuseReport.comment,
+						comment: formatAbuseReport(abuseReport),
 					},
 				);
 			}
@@ -113,12 +114,13 @@ export class AbuseReportNotificationService implements OnApplicationShutdown {
 		for (const mailAddress of recipientEMailAddresses) {
 			await Promise.all(
 				abuseReports.map(it => {
+					const text = formatAbuseReport(it);
 					// TODO: 送信処理はJobQueue化したい
 					return this.emailService.sendEmail(
 						mailAddress,
 						'New Abuse Report',
-						sanitizeHtml(it.comment),
-						sanitizeHtml(it.comment),
+						`<pre>${escapeHtml(text)}</pre>`,
+						text,
 					);
 				}),
 			);
@@ -153,7 +155,7 @@ export class AbuseReportNotificationService implements OnApplicationShutdown {
 		).then(it => new Map(it.map(it => [it.id, it])));
 		const convertedReports = abuseReports.map(it => {
 			return {
-				...it,
+				...serializeAbuseReport(it),
 				reporter: usersMap.get(it.reporterId) ?? null,
 				targetUser: usersMap.get(it.targetUserId) ?? null,
 				assignee: it.assigneeId ? (usersMap.get(it.assigneeId) ?? null) : null,

@@ -22,6 +22,7 @@
  * exportCompleted - エクスポートが完了
  * login - ログイン
  * createToken - トークン作成
+ * system - システムからのメッセージ
  * app - アプリ通知
  * test - テスト通知（サーバー側）
  */
@@ -44,6 +45,7 @@ export const notificationTypes = [
 	'exportCompleted',
 	'login',
 	'createToken',
+	'system',
 	'app',
 	'test',
 ] as const;
@@ -84,6 +86,8 @@ export const moderationLogTypes = [
 	'suspend',
 	'unsuspend',
 	'updateUserNote',
+	'grantCheckinCards',
+	'revokeCheckinCards',
 	'addCustomEmoji',
 	'updateCustomEmoji',
 	'deleteCustomEmoji',
@@ -138,6 +142,23 @@ export const moderationLogTypes = [
 ] as const;
 
 export type ModerationLogPayloads = {
+	revokeCheckinCards: {
+		userId: string;
+		userUsername: string;
+		userHost: string | null;
+		batchId: string;
+		amount: number;
+		before: number;
+		after: number;
+	};
+	grantCheckinCards: {
+		userId: string;
+		userUsername: string;
+		userHost: string | null;
+		amount: number;
+		before: number;
+		after: number;
+	};
 	updateServerSettings: {
 		before: any | null;
 		after: any | null;

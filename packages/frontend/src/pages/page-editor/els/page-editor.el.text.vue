@@ -8,8 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <XContainer :draggable="true" :dragStartCallback="dragStartCallback" @remove="() => emit('remove')">
 	<template #header><i class="ti ti-align-left"></i> {{ i18n.ts._pages.blocks.text }}</template>
 
-	<section>
-		<textarea ref="inputEl" v-model="text" :class="$style.textarea"></textarea>
+	<section :class="$style.editor">
+		<textarea ref="inputEl" v-model="text" :class="$style.textarea" :aria-label="i18n.ts._pages.blocks.text"></textarea>
+		<MkEmojiInputOverlay :inputElement="inputEl" :text="text"/>
 	</section>
 </XContainer>
 </template>
@@ -20,6 +21,7 @@ import * as Misskey from 'misskey-js';
 import XContainer from '../page-editor.container.vue';
 import { i18n } from '@/i18n.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
+import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
 
 const props = defineProps<{
 	dragStartCallback?: (ev: DragEvent) => void;
@@ -54,6 +56,10 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" module>
+.editor {
+	position: relative;
+}
+
 .textarea {
 	display: block;
 	-webkit-appearance: none;

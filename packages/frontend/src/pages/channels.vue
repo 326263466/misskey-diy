@@ -4,13 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
+	<template v-if="$i?.policies.canCreateChannel" #header-actions>
+		<MkButton type="routerLink" primary rounded to="/channels/new"><i class="ti ti-plus"></i> {{ i18n.ts.createNew }}</MkButton>
+	</template>
 	<div class="_spacer" style="--MI_SPACER-w: 1200px;">
 		<div v-if="tab === 'search'" :class="$style.searchRoot">
 			<div class="_gaps">
-				<MkInput v-model="searchQuery" :large="true" :autofocus="true" type="search" @enter="search">
-					<template #prefix><i class="ti ti-search"></i></template>
-				</MkInput>
+				<div :class="$style.searchRow">
+					<MkInput v-model="searchQuery" :class="$style.searchInput" :large="true" :autofocus="true" type="search" @enter="search">
+						<template #prefix><i class="ti ti-search"></i></template>
+					</MkInput>
+					<MkButton large primary gradate rounded @click="search">{{ i18n.ts.search }}</MkButton>
+				</div>
 				<MkRadios
 					v-model="searchType"
 					:options="[
@@ -20,7 +26,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					@update:modelValue="search()"
 				>
 				</MkRadios>
-				<MkButton large primary gradate rounded @click="search">{{ i18n.ts.search }}</MkButton>
 			</div>
 
 			<MkFoldableSection v-if="channelPaginator">
@@ -50,8 +55,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkPagination>
 		</div>
 		<div v-else-if="tab === 'owned'" class="_gaps">
-			<MkButton v-if="$i?.policies.canCreateChannel" type="routerLink" primary rounded to="/channels/new"><i class="ti ti-plus"></i> {{ i18n.ts.createNew }}</MkButton>
-			<MkPagination v-slot="{items}" :paginator="ownedPaginator">
+			<MkRadios v-model="ownedFilter" :options="[{ value: 'active', label: i18n.ts._channel.owned }, { value: 'archived', label: i18n.ts.archived }]"/>
+			<MkPagination :key="ownedFilter" v-slot="{items}" :paginator="ownedFilter === 'archived' ? archivedPaginator : ownedPaginator">
 				<div :class="$style.root">
 					<MkChannelPreview v-for="channel in items" :key="channel.id" :channel="channel"/>
 				</div>
@@ -90,6 +95,7 @@ const tab = ref('featured');
 const searchQuery = ref('');
 const searchType = ref<SearchType>('nameAndDescription');
 const channelPaginator = shallowRef();
+const ownedFilter = ref<'active' | 'archived'>('active');
 
 onMounted(() => {
 	searchQuery.value = props.query ?? '';
@@ -109,6 +115,10 @@ const followingPaginator = markRaw(new Paginator('channels/followed', {
 }));
 const ownedPaginator = markRaw(new Paginator('channels/owned', {
 	limit: 10,
+}));
+const archivedPaginator = markRaw(new Paginator('channels/owned', {
+	limit: 10,
+	params: { isArchived: true },
 }));
 
 async function search() {
@@ -133,8 +143,6 @@ async function search() {
 
 	key.value = query + type;
 }
-
-const headerActions = computed(() => []);
 
 const headerTabs = computed(() => [{
 	key: 'search',
@@ -171,9 +179,21 @@ definePage(() => ({
 	margin: 0 auto;
 }
 
+.searchRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.searchInput {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
 .root {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
 	gap: var(--MI-margin);
 }
 </style>

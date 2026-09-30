@@ -4,7 +4,8 @@
  */
 
 export function calcPopupPosition(el: HTMLElement, props: {
-	anchorElement?: HTMLElement | null;
+	anchorElement?: Pick<HTMLElement, 'getBoundingClientRect'> | null;
+	boundaryElement?: Pick<HTMLElement, 'getBoundingClientRect'> | null;
 	innerMargin: number;
 	direction: 'top' | 'bottom' | 'left' | 'right';
 	align: 'top' | 'bottom' | 'left' | 'right' | 'center';
@@ -14,6 +15,7 @@ export function calcPopupPosition(el: HTMLElement, props: {
 }): { top: number; left: number; transformOrigin: string; } {
 	const contentWidth = el.offsetWidth;
 	const contentHeight = el.offsetHeight;
+	let horizontalAlign = props.align;
 
 	let rect: DOMRect;
 
@@ -21,19 +23,31 @@ export function calcPopupPosition(el: HTMLElement, props: {
 		rect = props.anchorElement.getBoundingClientRect();
 	}
 
-	const calcPosWhenTop = () => {
+	const calcVerticalLeft = () => {
 		let left: number;
-		let top: number;
 
 		if (props.anchorElement) {
-			left = rect.left + window.scrollX + (props.anchorElement.offsetWidth / 2);
-			top = (rect.top + window.scrollY - contentHeight) - props.innerMargin;
+			if (props.align === 'left') {
+				left = rect.left + window.scrollX + (props.alignOffset ?? 0);
+				if (props.boundaryElement) {
+					const boundary = props.boundaryElement.getBoundingClientRect();
+					const start = Math.max(0, boundary.left) + window.scrollX;
+					const end = Math.min(window.innerWidth, boundary.right) + window.scrollX;
+					const rightAligned = rect.right + window.scrollX - contentWidth - (props.alignOffset ?? 0);
+					// Prefer the panel only when it can contain the popup; narrow panels use the viewport fallback.
+					if (end - start >= contentWidth && (left < start || left + contentWidth > end) && rightAligned >= start && rightAligned + contentWidth <= end) {
+						left = rightAligned;
+						horizontalAlign = 'right';
+					}
+				}
+			} else if (props.align === 'right') {
+				left = rect.right + window.scrollX - contentWidth - (props.alignOffset ?? 0);
+			} else {
+				left = rect.left + window.scrollX + (rect.width / 2) - (contentWidth / 2);
+			}
 		} else {
-			left = props.x!;
-			top = (props.y! - contentHeight) - props.innerMargin;
+			left = props.x! - (contentWidth / 2);
 		}
-
-		left -= (el.offsetWidth / 2);
 
 		if (left + contentWidth - window.scrollX > window.innerWidth) {
 			left = window.innerWidth - contentWidth + window.scrollX - 1;
@@ -43,32 +57,17 @@ export function calcPopupPosition(el: HTMLElement, props: {
 			left = window.scrollX;
 		}
 
-		return [left, top];
+		return left;
+	};
+
+	const calcPosWhenTop = () => {
+		const top = (props.anchorElement ? rect.top + window.scrollY : props.y!) - contentHeight - props.innerMargin;
+		return [calcVerticalLeft(), top];
 	};
 
 	const calcPosWhenBottom = () => {
-		let left: number;
-		let top: number;
-
-		if (props.anchorElement) {
-			left = rect.left + window.scrollX + (props.anchorElement.offsetWidth / 2);
-			top = (rect.top + window.scrollY + props.anchorElement.offsetHeight) + props.innerMargin;
-		} else {
-			left = props.x!;
-			top = (props.y!) + props.innerMargin;
-		}
-
-		left -= (el.offsetWidth / 2);
-
-		if (left + contentWidth - window.scrollX > window.innerWidth) {
-			left = window.innerWidth - contentWidth + window.scrollX - 1;
-		}
-
-		if (left < window.scrollX) {
-			left = window.scrollX;
-		}
-
-		return [left, top];
+		const top = (props.anchorElement ? rect.bottom + window.scrollY : props.y!) + props.innerMargin;
+		return [calcVerticalLeft(), top];
 	};
 
 	const calcPosWhenLeft = () => {
@@ -77,7 +76,7 @@ export function calcPopupPosition(el: HTMLElement, props: {
 
 		if (props.anchorElement) {
 			left = (rect.left + window.scrollX - contentWidth) - props.innerMargin;
-			top = rect.top + window.scrollY + (props.anchorElement.offsetHeight / 2);
+			top = rect.top + window.scrollY + (rect.height / 2);
 		} else {
 			left = (props.x! - contentWidth) - props.innerMargin;
 			top = props.y!;
@@ -102,17 +101,17 @@ export function calcPopupPosition(el: HTMLElement, props: {
 		let top = 0; // TSを黙らすためとりあえず初期値を0に
 
 		if (props.anchorElement) {
-			left = (rect.left + props.anchorElement.offsetWidth + window.scrollX) + props.innerMargin;
+			left = rect.right + window.scrollX + props.innerMargin;
 
 			if (props.align === 'top') {
 				top = rect.top + window.scrollY;
 				if (props.alignOffset != null) top += props.alignOffset;
 			} else if (props.align === 'bottom') {
 				// 锚点底边对齐，与 align: 'top' 对称
-				top = (rect.top + window.scrollY + props.anchorElement.offsetHeight) - contentHeight;
+				top = rect.bottom + window.scrollY - contentHeight;
 				if (props.alignOffset != null) top -= props.alignOffset;
 			} else { // center
-				top = rect.top + window.scrollY + (props.anchorElement.offsetHeight / 2);
+				top = rect.top + window.scrollY + (rect.height / 2);
 				top -= (el.offsetHeight / 2);
 			}
 		} else {
@@ -192,7 +191,8 @@ export function calcPopupPosition(el: HTMLElement, props: {
 				const [left, top] = clamp(pos, 'vertical');
 				// 实际展开方向决定动画原点：向下展开时从顶部展开
 				const towardsBottom = preferTop ? flipped : !flipped;
-				return { left, top, transformOrigin: towardsBottom ? 'center top' : 'center bottom' };
+				const horizontalOrigin = props.anchorElement && (horizontalAlign === 'left' || horizontalAlign === 'right') ? horizontalAlign : 'center';
+				return { left, top, transformOrigin: `${horizontalOrigin} ${towardsBottom ? 'top' : 'bottom'}` };
 			}
 
 			case 'left':

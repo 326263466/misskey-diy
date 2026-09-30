@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div v-else-if="tab === 'users'" class="_spacer" style="--MI_SPACER-w: 1200px;">
 		<div class="_gaps_s">
-			<div v-if="role">{{ role.description }}</div>
+			<div v-if="role?.description">{{ role.description }}</div>
 			<MkUserList v-if="visible" :paginator="usersPaginator" :extractor="(item) => item.user"/>
 			<MkResult v-else-if="!visible" type="empty" :text="i18n.ts.nothing"/>
 		</div>
@@ -54,7 +54,7 @@ watch(() => props.roleId, () => {
 		visible.value = res.isExplorable && res.isPublic;
 	}).catch((err) => {
 		if (err.code === 'NO_SUCH_ROLE') {
-			error.value = i18n.ts.noRole;
+			error.value = i18n.ts.roleNotFound;
 		} else {
 			error.value = i18n.ts.somethingHappened;
 		}

@@ -82,14 +82,9 @@ export async function common(createVue: () => Promise<App<Element>>) {
 	storeBootloaderErrors({ ...i18n.ts._bootErrors, reload: i18n.ts.reload });
 
 	if (import.meta.hot) {
-		import.meta.hot.on('locale-update', async (updatedLang: string) => {
+		import.meta.hot.on('locale-update', (updatedLang: string) => {
 			console.info(`Locale updated: ${updatedLang}`);
 			if (updatedLang === lang) {
-				await new Promise(resolve => {
-					window.setTimeout(resolve, 500);
-				});
-				// fetch with cache: 'no-store' to ensure the latest locale is fetched
-				await window.fetch(`/assets/locales/${lang}.${version}.json`, { cache: 'no-store' }).then(async res => res.status === 200 && await res.text());
 				window.location.reload();
 			}
 		});

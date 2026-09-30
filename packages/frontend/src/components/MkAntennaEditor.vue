@@ -170,7 +170,7 @@ async function deleteAntenna() {
 
 	const { canceled } = await os.confirm({
 		type: 'warning',
-		text: i18n.tsx.removeAreYouSure({ x: initialAntenna.name }),
+		text: i18n.tsx.deleteAreYouSure({ x: initialAntenna.name }),
 	});
 	if (canceled) return;
 

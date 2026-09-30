@@ -14,6 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		[$style.widthSpecified]: width != null,
 	}"
 	@focusin.passive.stop="() => {}"
+	@keydown.capture="pointerGuarded = false"
 >
 	<div
 		ref="itemsEl"
@@ -23,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:class="$style.menu"
 		:style="{
 			width: (width && !asDrawer) ? `${width}px` : '',
-			maxHeight: maxHeight ? `min(${maxHeight}px, calc(100dvh - 32px))` : 'calc(100dvh - 32px)',
+			maxHeight: maxHeight != null ? `min(${maxHeight}px, calc(100dvh - 32px))` : 'calc(100dvh - 32px)',
 		}"
 		@keydown.stop="() => {}"
 		@contextmenu.self.prevent="() => {}"
@@ -45,6 +46,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<component :is="item.component" v-bind="item.props"/>
 			</div>
 
+			<div v-else-if="item.type === 'grid'" role="group" :aria-label="unref(item.text)" :class="$style.grid" :style="{ '--MI-menuGridColumns': item.columns ?? 2 }" @keydown="onGridKeydown($event, item.columns ?? 2)">
+				<button
+					v-for="(option, index) in item.items"
+					:key="index"
+					type="button"
+					role="menuitemradio"
+					:aria-checked="!!unref(option.active)"
+					class="_button"
+					:class="[$style.gridItem, { [$style.gridActive]: unref(option.active) }]"
+					@click.prevent="unref(option.active) && !option.actionOnActive ? close(false) : clicked(option.action, $event)"
+					@mouseenter.passive="onItemMouseEnter"
+				>
+					<MkStatusIcon v-if="option.status" :class="$style.statusIcon" :status="option.status" :icon="option.customIcon" plain/>
+					<span v-else :class="$style.gridIcon" :style="{ background: option.color }" aria-hidden="true"><i v-if="option.icon" :class="option.icon"></i></span>
+					<span :class="$style.gridText">{{ unref(option.text) }}</span>
+				</button>
+			</div>
+
 			<MkA
 				v-else-if="item.type === 'link'"
 				role="menuitem"
@@ -53,7 +72,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:to="item.to"
 				@click.passive="close(true)"
 				@mouseenter.passive="onItemMouseEnter"
-				@mouseleave.passive="onItemMouseLeave"
 			>
 				<i v-if="item.icon" class="ti-fw" :class="[$style.icon, item.icon]"></i>
 				<MkAvatar v-if="item.avatar" :user="item.avatar" :class="$style.avatar"/>
@@ -77,7 +95,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:download="item.download"
 				@click.passive="close(true)"
 				@mouseenter.passive="onItemMouseEnter"
-				@mouseleave.passive="onItemMouseLeave"
 			>
 				<i v-if="item.icon" class="ti-fw" :class="[$style.icon, item.icon]"></i>
 				<div :class="$style.item_content">
@@ -96,7 +113,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:class="['_button', $style.item, { [$style.active]: item.active }]"
 				@click.prevent="item.active ? close(false) : clicked(item.action, $event)"
 				@mouseenter.passive="onItemMouseEnter"
-				@mouseleave.passive="onItemMouseLeave"
 			>
 				<MkAvatar :user="item.user" :class="$style.avatar"/><MkUserName :user="item.user"/>
 				<div v-if="item.indicate" :class="$style.item_content">
@@ -112,7 +128,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:disabled="unref(item.disabled)"
 				@click.prevent="switchItem(item)"
 				@mouseenter.passive="onItemMouseEnter"
-				@mouseleave.passive="onItemMouseLeave"
 			>
 				<i v-if="item.icon" class="ti-fw" :class="[$style.icon, item.icon]"></i>
 				<MkSwitchButton v-else :class="$style.switchButton" :checked="item.ref" :disabled="item.disabled" @toggle="switchItem(item)"/>
@@ -131,10 +146,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				tabindex="0"
 				:class="['_button', $style.item, $style.parent, { [$style.active]: childShowingItem === item }]"
 				:disabled="unref(item.disabled)"
-				@mouseenter.prevent="preferClick ? null : showRadioOptions(item, $event)"
+				@mouseenter.prevent="onParentMouseEnter(item, $event)"
+				@mouseleave.passive="onMenuMouseLeave"
 				@mousemove="parentMouseMove"
-				@keydown.enter.prevent="preferClick ? null : showRadioOptions(item, $event)"
-				@click.prevent="!preferClick ? null : showRadioOptions(item, $event)"
+				@keydown.enter.prevent="preferClick ? null : openChildImmediately(item, $event)"
+				@click.prevent="!preferClick ? null : openChildImmediately(item, $event)"
 			>
 				<i v-if="item.icon" class="ti-fw" :class="[$style.icon, item.icon]" style="pointer-events: none;"></i>
 				<div :class="$style.item_content">
@@ -153,7 +169,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:class="['_button', $style.item, $style.radio, { [$style.active]: unref(item.active) }]"
 				@click.prevent="unref(item.active) ? null : clicked(item.action, $event, false)"
 				@mouseenter.passive="onItemMouseEnter"
-				@mouseleave.passive="onItemMouseLeave"
 			>
 				<div :class="$style.icon">
 					<span :class="[$style.radioIcon, { [$style.radioChecked]: unref(item.active) }]"></span>
@@ -171,10 +186,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				role="menuitem"
 				tabindex="0"
 				:class="['_button', $style.item, $style.parent, { [$style.active]: childShowingItem === item }]"
-				@mouseenter.prevent="preferClick ? null : showChildren(item, $event)"
+				@mouseenter.prevent="onParentMouseEnter(item, $event)"
+				@mouseleave.passive="onMenuMouseLeave"
 				@mousemove="parentMouseMove"
-				@keydown.enter.prevent="preferClick ? null : showChildren(item, $event)"
-				@click.prevent="!preferClick ? null : showChildren(item, $event)"
+				@keydown.enter.prevent="preferClick ? null : openChildImmediately(item, $event)"
+				@click.prevent="!preferClick ? null : openChildImmediately(item, $event)"
 			>
 				<i v-if="item.icon" class="ti-fw" :class="[$style.icon, item.icon]" style="pointer-events: none;"></i>
 				<div :class="$style.item_content">
@@ -191,9 +207,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				role="menuitem"
 				tabindex="0"
 				:class="['_button', $style.item, { [$style.danger]: item.danger, [$style.active]: unref(item.active) }]"
-				@click.prevent="unref(item.active) ? close(false) : clicked(item.action, $event)"
+				@click.prevent="unref(item.active) && !item.actionOnActive ? close(false) : clicked(item.action, $event)"
 				@mouseenter.passive="onItemMouseEnter"
-				@mouseleave.passive="onItemMouseLeave"
 			>
 				<i v-if="item.icon" class="ti-fw" :class="[$style.icon, item.icon]"></i>
 				<MkAvatar v-if="item.avatar" :user="item.avatar" :class="$style.avatar"/>
@@ -214,9 +229,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div
 			:class="[$style.guard, { [$style.showGuard]: debugShowPredictionCone }]"
 			:style="{ clipPath: guardPolygon, top: guard.top + 'px' }"
-			@mousemove="guardMouseMove"
 		></div>
 	</div>
+
+	<div
+		v-if="pointerGuarded"
+		:class="$style.openingGuard"
+		aria-hidden="true"
+		@pointermove="onOpeningGuardMove"
+		@wheel.stop.prevent="onOpeningGuardWheel"
+		@mousedown.stop.prevent="() => {}"
+		@click.stop.prevent="() => {}"
+		@contextmenu.stop.prevent="() => {}"
+	></div>
 
 	<XChild
 		v-if="childMenu" :key="childMenuKey"
@@ -224,8 +249,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:items="childMenu"
 		:anchorElement="childTarget!"
 		:rootElement="itemsEl!"
+		:focusOnMount="childFocusOnMount"
 		:debugDisablePredictionCone="props.debugDisablePredictionCone"
 		:debugShowPredictionCone="props.debugShowPredictionCone"
+		@mouseenter.passive="cancelHover"
+		@mouseleave.passive="onMenuMouseLeave"
 		@actioned="childActioned"
 		@closed="closeChild"
 	/>
@@ -237,9 +265,10 @@ import { computed, defineAsyncComponent, inject, nextTick, onBeforeUnmount, onMo
 import type { MenuItem, InnerMenuItem, MenuPending, MenuAction, MenuSwitch, MenuRadio, MenuRadioOption, MenuParent } from '@/types/menu.js';
 import type { Keymap } from '@/utility/hotkey.js';
 import MkSwitchButton from '@/components/MkSwitch.button.vue';
+import MkStatusIcon from '@/components/MkStatusIcon.vue';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
-import { isTouchUsing } from '@/utility/touch.js';
+import { isTouchUsing, lastPointerType } from '@/utility/touch.js';
 import { isFocusable } from '@/utility/focus.js';
 import { getNodeOrNull } from '@/utility/get-dom-node-or-null.js';
 
@@ -255,6 +284,8 @@ const props = defineProps<{
 	align?: 'center' | string;
 	width?: number;
 	maxHeight?: number;
+	guardInitialPointer?: boolean;
+	focusOnMount?: boolean;
 	debugDisablePredictionCone?: boolean;
 	debugShowPredictionCone?: boolean;
 }>();
@@ -262,6 +293,7 @@ const props = defineProps<{
 const emit = defineEmits<{
 	(ev: 'close', actioned?: boolean): void;
 	(ev: 'hide'): void;
+	(ev: 'actioned'): void;
 }>();
 
 const big = isTouchUsing;
@@ -269,6 +301,22 @@ const big = isTouchUsing;
 const isNestingMenu = inject<boolean>('isNestingMenu', false);
 
 const itemsEl = useTemplateRef('itemsEl');
+const pointerGuarded = ref(false);
+
+watch(() => props.guardInitialPointer, guarded => {
+	pointerGuarded.value = Boolean(guarded && lastPointerType !== 'touch' && !props.asDrawer);
+}, { immediate: true });
+
+function onOpeningGuardMove(ev: PointerEvent) {
+	if (ev.movementX !== 0 || ev.movementY !== 0) pointerGuarded.value = false;
+}
+
+function onOpeningGuardWheel(ev: WheelEvent) {
+	if (itemsEl.value == null) return;
+	const unit = ev.deltaMode === WheelEvent.DOM_DELTA_LINE ? 20 : ev.deltaMode === WheelEvent.DOM_DELTA_PAGE ? itemsEl.value.clientHeight : 1;
+	itemsEl.value.scrollBy({ left: ev.deltaX * unit, top: ev.deltaY * unit });
+	pointerGuarded.value = false;
+}
 
 const items2 = ref<InnerMenuItem[]>();
 
@@ -299,7 +347,7 @@ watch(() => props.items, () => {
 	for (let i = 0; i < items.length; i++) {
 		const item = items[i];
 
-		if ('then' in item) { // if item is Promise
+		if ('then' in item) {
 			items[i] = { type: 'pending' };
 			item.then(actualItem => {
 				if (items2.value?.[i]) items2.value[i] = actualItem;
@@ -315,10 +363,20 @@ watch(() => props.items, () => {
 const childMenu = ref<MenuItem[] | null>();
 const childMenuKey = ref(0);
 const childTarget = shallowRef<HTMLElement>();
+const childFocusOnMount = ref(false);
+let childRequest = 0;
 
 function closeChild() {
+	cancelHover();
+	childRequest++;
+	const restoreFocus = child.value?.rootElement?.contains(window.document.activeElement);
+	const target = childTarget.value;
 	childMenu.value = null;
 	childShowingItem.value = null;
+	childTarget.value = undefined;
+	// 子菜单关闭后若预测锥残留，会挡住其下方项目的悬停
+	guard.enabled = false;
+	if (restoreFocus) nextTick(() => target?.focus({ preventScroll: true }));
 }
 
 function childActioned() {
@@ -326,19 +384,66 @@ function childActioned() {
 	close(true);
 }
 
-let childCloseTimer: null | number = null;
+// 避免快速划过时展开子菜单。
+const HOVER_DELAY = 80;
+
+let hoverTimer: null | number = null;
+
+function scheduleHover(fn: () => void) {
+	if (hoverTimer != null) window.clearTimeout(hoverTimer);
+	hoverTimer = window.setTimeout(() => {
+		hoverTimer = null;
+		fn();
+	}, HOVER_DELAY);
+}
+
+function cancelHover() {
+	if (hoverTimer != null) window.clearTimeout(hoverTimer);
+	hoverTimer = null;
+}
+
+function openChild(item: MenuParent | MenuRadio, anchorElement: HTMLElement) {
+	if (disposed) return;
+	const request = ++childRequest;
+	if (item.type === 'radio') {
+		showRadioOptions(item, anchorElement);
+	} else {
+		showChildren(item, anchorElement, request);
+	}
+}
+
+function openChildImmediately(item: MenuParent | MenuRadio, ev: Event) {
+	ev.stopPropagation();
+	closeChild();
+	childFocusOnMount.value = ev instanceof KeyboardEvent || (ev instanceof MouseEvent && ev.detail === 0);
+	openChild(item, (ev.currentTarget ?? ev.target) as HTMLElement);
+}
+
+function onParentMouseEnter(item: MenuParent | MenuRadio, ev: MouseEvent) {
+	if (preferClick) return;
+	if (childShowingItem.value === item) return cancelHover();
+	closeChild();
+	childFocusOnMount.value = false;
+
+	// 计时器触发时 currentTarget 已为 null，需提前取出锚点
+	const anchorElement = (ev.currentTarget ?? ev.target) as HTMLElement;
+	scheduleHover(() => openChild(item, anchorElement));
+}
+
+function onMenuMouseLeave(ev: MouseEvent) {
+	if (preferClick) return;
+	const target = getNodeOrNull(ev.relatedTarget);
+	if (childTarget.value?.contains(target) || child.value?.rootElement?.contains(target)) return;
+	closeChild();
+}
 
 function onItemMouseEnter() {
-	childCloseTimer = window.setTimeout(() => {
-		closeChild();
-	}, 300);
+	if (preferClick) return;
+	cancelHover();
+	closeChild();
 }
 
-function onItemMouseLeave() {
-	if (childCloseTimer) window.clearTimeout(childCloseTimer);
-}
-
-async function showRadioOptions(item: MenuRadio, ev: MouseEvent | PointerEvent | KeyboardEvent) {
+async function showRadioOptions(item: MenuRadio, anchorElement: HTMLElement) {
 	const children: MenuItem[] = item.options.map<MenuRadioOption>(def => {
 		return {
 			type: 'radioOption',
@@ -362,21 +467,19 @@ async function showRadioOptions(item: MenuRadio, ev: MouseEvent | PointerEvent |
 	});
 
 	if (props.asDrawer) {
-		os.popupMenu(children, ev.currentTarget ?? ev.target).finally(() => {
+		os.popupMenu(children, anchorElement, { onAction: () => emit('actioned') }).finally(() => {
 			close(false);
 		});
 		emit('hide');
 	} else {
-		childTarget.value = (ev.currentTarget ?? ev.target) as HTMLElement;
+		childTarget.value = anchorElement;
 		childMenu.value = children;
 		childMenuKey.value++;
 		childShowingItem.value = item;
 	}
 }
 
-async function showChildren(item: MenuParent, ev: MouseEvent | PointerEvent | KeyboardEvent) {
-	ev.stopPropagation();
-
+async function showChildren(item: MenuParent, anchorElement: HTMLElement, request: number) {
 	const children: MenuItem[] = await (async () => {
 		if (childrenCache.has(item)) {
 			return childrenCache.get(item)!;
@@ -390,15 +493,15 @@ async function showChildren(item: MenuParent, ev: MouseEvent | PointerEvent | Ke
 	})();
 
 	childrenCache.set(item, children);
+	if (disposed || request !== childRequest) return;
 
 	if (props.asDrawer) {
-		os.popupMenu(children, ev.currentTarget ?? ev.target).finally(() => {
+		os.popupMenu(children, anchorElement, { onAction: () => emit('actioned') }).finally(() => {
 			close(false);
 		});
 		emit('hide');
 	} else {
-		childTarget.value = (ev.currentTarget ?? ev.target) as HTMLElement;
-		// これでもリアクティビティは保たれる
+		childTarget.value = anchorElement;
 		childMenu.value = children;
 		childMenuKey.value++;
 		childShowingItem.value = item;
@@ -414,6 +517,7 @@ function clicked(fn: MenuAction, ev: PointerEvent, doClose = true) {
 
 function close(actioned = false) {
 	disposeHandlers();
+	if (actioned) emit('actioned');
 	nextTick(() => {
 		closeChild();
 		emit('close', actioned);
@@ -430,11 +534,27 @@ function switchItem(item: MenuSwitch) {
 	}
 }
 
+function getFocusableItems() {
+	return Array.from(itemsEl.value?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? []).filter(isFocusable);
+}
+
+function onGridKeydown(ev: KeyboardEvent, columns: number) {
+	const offsets: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns };
+	const offset = offsets[ev.key];
+	if (offset == null) return;
+	const buttons = Array.from((ev.currentTarget as HTMLElement).querySelectorAll('button'));
+	const index = buttons.indexOf(window.document.activeElement as HTMLButtonElement);
+	if (index < 0) return;
+	ev.preventDefault();
+	ev.stopPropagation();
+	buttons[(index + offset + buttons.length) % buttons.length]?.focus();
+}
+
 function focusUp() {
 	if (disposed) return;
 	if (!itemsEl.value?.contains(window.document.activeElement)) return;
 
-	const focusableElements = Array.from(itemsEl.value.children).filter(isFocusable);
+	const focusableElements = getFocusableItems();
 	const activeIndex = focusableElements.findIndex(el => el === window.document.activeElement);
 	const targetIndex = (activeIndex !== -1 && activeIndex !== 0) ? (activeIndex - 1) : (focusableElements.length - 1);
 	const targetElement = focusableElements.at(targetIndex) ?? itemsEl.value;
@@ -446,7 +566,7 @@ function focusDown() {
 	if (disposed) return;
 	if (!itemsEl.value?.contains(window.document.activeElement)) return;
 
-	const focusableElements = Array.from(itemsEl.value.children).filter(isFocusable);
+	const focusableElements = getFocusableItems();
 	const activeIndex = focusableElements.findIndex(el => el === window.document.activeElement);
 	const targetIndex = (activeIndex !== -1 && activeIndex !== (focusableElements.length - 1)) ? (activeIndex + 1) : 0;
 	const targetElement = focusableElements.at(targetIndex) ?? itemsEl.value;
@@ -483,6 +603,8 @@ let disposed = false;
 
 const disposeHandlers = () => {
 	disposed = true;
+	cancelHover();
+	childRequest++;
 	if (!isNestingMenu) {
 		window.document.removeEventListener('focusin', onGlobalFocusin);
 	}
@@ -492,7 +614,12 @@ const disposeHandlers = () => {
 onMounted(() => {
 	setupHandlers();
 
-	if (!isNestingMenu) {
+	if (props.focusOnMount) {
+		nextTick(() => {
+			const items = getFocusableItems();
+			(items.find(item => item.getAttribute('aria-checked') === 'true') ?? items[0] ?? itemsEl.value)?.focus({ preventScroll: true });
+		});
+	} else if (!isNestingMenu) {
 		nextTick(() => itemsEl.value?.focus({ preventScroll: true }));
 	}
 });
@@ -550,21 +677,24 @@ function parentMouseMove(ev: MouseEvent) {
 	guard.direction = isChildRight ? 'toRight' : 'toLeft';
 }
 
-function onMouseLeave() {
+function onMouseLeave(ev: MouseEvent) {
 	guard.enabled = false;
+	onMenuMouseLeave(ev);
 }
 
 function onMouseMove() {
 	guard.enabled = false;
 }
 
-function guardMouseMove(ev: MouseEvent) {
-	ev.stopPropagation();
-}
+defineExpose({
+	getContentHeight: () => itemsEl.value?.scrollHeight,
+});
 </script>
 
 <style lang="scss" module>
 .root {
+	position: relative;
+
 	&.center {
 		> .menu {
 			> .item {
@@ -588,6 +718,13 @@ function guardMouseMove(ev: MouseEvent) {
 				font-size: 0.95em;
 				line-height: 24px;
 			}
+		}
+	}
+
+	&.widthSpecified:not(.asDrawer) {
+		> .menu {
+			min-width: 0;
+			max-width: calc(100vw - 32px);
 		}
 	}
 
@@ -624,6 +761,12 @@ function guardMouseMove(ev: MouseEvent) {
 	}
 }
 
+.openingGuard {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+}
+
 .menu {
 	padding: 8px 0;
 	box-sizing: border-box;
@@ -635,6 +778,82 @@ function guardMouseMove(ev: MouseEvent) {
 	&:focus-visible {
 		outline: none;
 	}
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: repeat(var(--MI-menuGridColumns, 2), minmax(0, 1fr));
+	gap: 4px;
+	padding: 4px 12px;
+	width: calc(var(--MI-menuGridColumns, 2) * 80px + 24px);
+	max-width: 100%;
+	box-sizing: border-box;
+	margin: auto;
+}
+
+.gridItem {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-width: 0;
+	min-height: 76px;
+	padding: 12px 4px;
+	border: 0;
+	border-radius: var(--MI-radius);
+	box-shadow: none;
+	font-size: 0.85em;
+	line-height: 1.4;
+	text-align: center;
+	overflow-wrap: anywhere;
+	color: var(--MI_THEME-fg);
+
+	&:hover {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
+
+	&.gridActive {
+		background: var(--MI_THEME-accentedBg);
+		color: var(--MI_THEME-accent);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -2px;
+	}
+}
+
+.gridIcon {
+	display: grid;
+	place-items: center;
+	width: 26px;
+	height: 26px;
+	font-size: 26px;
+	color: var(--MI_THEME-fg);
+
+	> i {
+		display: grid;
+		place-items: center;
+		width: 1em;
+		height: 1em;
+		line-height: 1;
+
+		&::before {
+			display: block;
+			font-size: inherit;
+			line-height: 1;
+		}
+	}
+}
+
+.gridText {
+	width: 100%;
+	text-align: center;
+}
+
+.statusIcon {
+	--MI-statusIconSize: 22px;
 }
 
 .item {
@@ -754,6 +973,7 @@ function guardMouseMove(ev: MouseEvent) {
 .item_content_text_caption {
 	text-wrap: auto;
 	font-size: 85%;
+	line-height: 1.25;
 	opacity: 0.7;
 }
 
@@ -841,7 +1061,8 @@ function guardMouseMove(ev: MouseEvent) {
 	left: 0;
 	width: 100%;
 	height: 100%;
-	cursor: pointer;
+	// 预测锥仅用于调试，不应拦截其他菜单项的悬停。
+	pointer-events: none;
 
 	&.showGuard {
 		background: #0f04;

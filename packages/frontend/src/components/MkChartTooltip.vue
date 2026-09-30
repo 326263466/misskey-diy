@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="title" :class="$style.title">{{ title }}</div>
 		<template v-if="series">
 			<div v-for="x in series">
-				<span :class="$style.color" :style="{ background: x.backgroundColor, borderColor: x.borderColor }"></span>
+				<span v-if="x.backgroundColor && x.backgroundColor !== 'transparent'" :class="$style.color" :style="{ background: x.backgroundColor, borderColor: x.borderColor }"></span>
 				<span>{{ x.text }}</span>
 			</div>
 		</template>

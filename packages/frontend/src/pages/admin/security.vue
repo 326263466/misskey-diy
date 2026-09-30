@@ -99,9 +99,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<SearchMarker v-slot="slotProps" :keywords="['email', 'validation']">
 					<MkFolder :defaultOpen="slotProps.isParentOfTarget">
-						<template #label><SearchLabel>Active Email Validation</SearchLabel></template>
-						<template v-if="emailValidationForm.savedState.enableActiveEmailValidation" #suffix>Enabled</template>
-						<template v-else #suffix>Disabled</template>
+						<template #label><SearchLabel>{{ i18n.ts._serverSettings.activeEmailValidation }}</SearchLabel></template>
+						<template v-if="emailValidationForm.savedState.enableActiveEmailValidation" #suffix>{{ i18n.ts.enabled }}</template>
+						<template v-else #suffix>{{ i18n.ts.disabled }}</template>
 						<template v-if="emailValidationForm.modified.value" #footer>
 							<MkFormFooter :form="emailValidationForm"/>
 						</template>
@@ -111,40 +111,40 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 							<SearchMarker>
 								<MkSwitch v-model="emailValidationForm.state.enableActiveEmailValidation">
-									<template #label><SearchLabel>Enable</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.ts.enable }}</SearchLabel></template>
 								</MkSwitch>
 							</SearchMarker>
 
 							<SearchMarker>
 								<MkSwitch v-model="emailValidationForm.state.enableVerifymailApi">
-									<template #label><SearchLabel>Use Verifymail.io API</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.tsx._serverSettings.useXApi({ x: 'Verifymail.io' }) }}</SearchLabel></template>
 								</MkSwitch>
 							</SearchMarker>
 
 							<SearchMarker>
 								<MkInput v-model="emailValidationForm.state.verifymailAuthKey">
 									<template #prefix><i class="ti ti-key"></i></template>
-									<template #label><SearchLabel>Verifymail.io API Auth Key</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.tsx._serverSettings.xApiAuthKey({ x: 'Verifymail.io' }) }}</SearchLabel></template>
 								</MkInput>
 							</SearchMarker>
 
 							<SearchMarker>
 								<MkSwitch v-model="emailValidationForm.state.enableTruemailApi">
-									<template #label><SearchLabel>Use TrueMail API</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.tsx._serverSettings.useXApi({ x: 'TrueMail' }) }}</SearchLabel></template>
 								</MkSwitch>
 							</SearchMarker>
 
 							<SearchMarker>
 								<MkInput v-model="emailValidationForm.state.truemailInstance">
 									<template #prefix><i class="ti ti-key"></i></template>
-									<template #label><SearchLabel>TrueMail API Instance</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.tsx._serverSettings.xApiEndpoint({ x: 'TrueMail' }) }}</SearchLabel></template>
 								</MkInput>
 							</SearchMarker>
 
 							<SearchMarker>
 								<MkInput v-model="emailValidationForm.state.truemailAuthKey">
 									<template #prefix><i class="ti ti-key"></i></template>
-									<template #label><SearchLabel>TrueMail API Auth Key</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.tsx._serverSettings.xApiAuthKey({ x: 'TrueMail' }) }}</SearchLabel></template>
 								</MkInput>
 							</SearchMarker>
 						</div>
@@ -153,7 +153,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<SearchMarker v-slot="slotProps" :keywords="['banned', 'email', 'domains', 'blacklist']">
 					<MkFolder :defaultOpen="slotProps.isParentOfTarget">
-						<template #label><SearchLabel>Banned Email Domains</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._serverSettings.bannedEmailDomains }}</SearchLabel></template>
 						<template v-if="bannedEmailDomainsForm.modified.value" #footer>
 							<MkFormFooter :form="bannedEmailDomainsForm"/>
 						</template>
@@ -161,7 +161,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_gaps_m">
 							<SearchMarker>
 								<MkTextarea v-model="bannedEmailDomainsForm.state.bannedEmailDomains">
-									<template #label><SearchLabel>Banned Email Domains List</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.ts._serverSettings.bannedEmailDomainsList }}</SearchLabel></template>
 								</MkTextarea>
 							</SearchMarker>
 						</div>
@@ -170,9 +170,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<SearchMarker v-slot="slotProps" :keywords="['log', 'ipAddress']">
 					<MkFolder :defaultOpen="slotProps.isParentOfTarget">
-						<template #label><SearchLabel>Log IP address</SearchLabel></template>
-						<template v-if="ipLoggingForm.savedState.enableIpLogging" #suffix>Enabled</template>
-						<template v-else #suffix>Disabled</template>
+						<template #label><SearchLabel>{{ i18n.ts._serverSettings.logIpAddress }}</SearchLabel></template>
+						<template v-if="ipLoggingForm.savedState.enableIpLogging" #suffix>{{ i18n.ts.enabled }}</template>
+						<template v-else #suffix>{{ i18n.ts.disabled }}</template>
 						<template v-if="ipLoggingForm.modified.value" #footer>
 							<MkFormFooter :form="ipLoggingForm"/>
 						</template>
@@ -180,7 +180,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_gaps_m">
 							<SearchMarker>
 								<MkSwitch v-model="ipLoggingForm.state.enableIpLogging">
-									<template #label><SearchLabel>Enable</SearchLabel></template>
+									<template #label><SearchLabel>{{ i18n.ts.enable }}</SearchLabel></template>
 								</MkSwitch>
 							</SearchMarker>
 						</div>

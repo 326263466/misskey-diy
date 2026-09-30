@@ -307,6 +307,10 @@ export type GlobalEvents = {
 		name: `noteStream:${MiNote['id']}`;
 		payload: EventTypesToEventPayload<NoteStreamEventTypes>;
 	};
+	userStats: {
+		name: `userStatsStream:${MiUser['id']}`;
+		payload: { id: MiUser['id'] };
+	};
 	userList: {
 		name: `userListStream:${MiUserList['id']}`;
 		payload: EventTypesToEventPayload<UserListEventTypes>;
@@ -409,6 +413,11 @@ export class GlobalEventService {
 			visibleUserIds: note.visibleUserIds,
 			body: value,
 		});
+	}
+
+	@bindThis
+	public publishUserStats(userId: MiUser['id']): void {
+		this.publish(`userStatsStream:${userId}`, null, { id: userId });
 	}
 
 	@bindThis

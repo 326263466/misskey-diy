@@ -17,8 +17,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</FormSlot>
 
-	<MkInput v-model="name" :max="30" manualSave data-testid="user-setup-user-name">
+	<MkInput v-model="name" :placeholder="$i.username" manualSave :mfmAutocomplete="['emoji']" data-testid="user-setup-user-name">
 		<template #label>{{ i18n.ts._profile.name }}</template>
+		<template #caption>{{ i18n.ts._profile.nameDescription }}</template>
 	</MkInput>
 
 	<MkTextarea v-model="description" :max="500" tall manualSave data-testid="user-setup-user-description">
@@ -39,6 +40,7 @@ import FormSlot from '@/components/form/slot.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import * as os from '@/os.js';
 import { ensureSignin } from '@/i.js';
+import { updateCurrentAccountPartial } from '@/accounts.js';
 
 const $i = ensureSignin();
 
@@ -90,8 +92,11 @@ async function setAvatar(ev: PointerEvent) {
 	const i = await os.apiWithDialog('i/update', {
 		avatarId: driveFile.id,
 	});
-	$i.avatarId = i.avatarId;
-	$i.avatarUrl = i.avatarUrl;
+	updateCurrentAccountPartial({
+		avatarId: i.avatarId,
+		avatarUrl: i.avatarUrl,
+		avatarBlurhash: i.avatarBlurhash,
+	});
 }
 </script>
 

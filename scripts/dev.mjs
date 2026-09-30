@@ -6,6 +6,7 @@
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
+import { assertDevPortsAvailable } from './lib/dev-server.mjs';
 
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
@@ -114,7 +115,9 @@ function startChildProcess(command, args, options) {
 		if (!shuttingDown) {
 			persistentChildProcessFailed = true;
 			console.error(error);
-			shutdownIfAllPersistentChildProcessesStopped();
+			// A failed watcher leaves an incomplete server and must not keep the
+			// other watchers alive, holding their ports for the next dev session.
+			void shutdown(1);
 		}
 	});
 }
@@ -165,6 +168,10 @@ process.on('SIGTERM', () => {
 });
 
 try {
+	// Check before cleaning: another dev session may still be serving these
+	// build artifacts even when its backend has stopped responding.
+	await assertDevPortsAvailable([5173, 5174]);
+
 	await runChildProcess('pnpm', ['clean'], {
 		cwd: _dirname + '/../',
 		stdout: process.stdout,

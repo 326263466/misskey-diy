@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { createHash, randomUUID } from 'node:crypto';
 import { entities } from 'misskey-js';
 import {
 	beforeEach,
@@ -15,10 +16,13 @@ import {
 import {
 	api,
 	captureWebhook,
+	post,
 	randomString,
+	relativeFetch,
 	role,
 	signup,
 	startJobQueue,
+	uploadFile,
 	UserToken,
 	WEBHOOK_HOST,
 } from '../../utils.js';
@@ -65,7 +69,10 @@ describe('[シナリオ] ユーザ通報', () => {
 			'users/report-abuse',
 			{
 				userId: alice.id,
+				requestId: randomUUID(),
 				comment: randomString(),
+				reason: 'other',
+				reportType: 'user',
 				...args,
 			},
 			credential ?? admin,
@@ -101,6 +108,107 @@ describe('[シナリオ] ユーザ通報', () => {
 	});
 
 	// -------------------------------------------------------------------------------------------
+
+	describe('snapshot', () => {
+		test('rejects incomplete reports and preserves the winning moderation decision', async () => {
+			const note = await post(alice, { text: 'Moderation evidence' });
+			const request: entities.UsersReportAbuseRequest = {
+				userId: alice.id, comment: '  ', reason: 'other', reportType: 'note', targetId: note.id, requestId: randomUUID(),
+			};
+			expect((await api('users/report-abuse', request, bob)).status).toBe(400);
+			expect((await api('users/report-abuse', { ...request, reason: 'spam', userId: bob.id }, admin)).status).toBe(400);
+			const comment = randomString();
+			expect((await api('users/report-abuse', { ...request, comment }, bob)).status).toBe(204);
+			const reports = await api('admin/abuse-user-reports', {}, admin);
+			const saved = reports.body.find(report => report.comment === comment)!;
+			const decisions = await Promise.all([
+				api('admin/resolve-abuse-user-report', { reportId: saved.id, resolvedAs: 'accept' }, admin),
+				api('admin/resolve-abuse-user-report', { reportId: saved.id, resolvedAs: 'reject' }, admin),
+			]);
+			expect(decisions.map(response => response.status).sort()).toEqual([204, 409]);
+			const winningDecision = decisions[0].status === 204 ? 'accept' : 'reject';
+			expect((await api('admin/resolve-abuse-user-report', { reportId: saved.id, resolvedAs: winningDecision }, admin)).status).toBe(204);
+			const after = await api('admin/abuse-user-reports', {}, admin);
+			expect(after.body.find(report => report.id === saved.id)).toMatchObject({ resolved: true, resolvedAs: winningDecision, snapshot: saved.snapshot });
+		});
+
+		test('keeps private archived attachment bytes after the original file is deleted', async () => {
+			const original = 'Original report evidence bytes';
+			const upload = await uploadFile(alice, { name: 'evidence.txt', blob: new Blob([original], { type: 'text/plain' }) });
+			expect(upload.status).toBe(200);
+			const file = upload.body!;
+			const note = await post(alice, { text: 'Attachment report', fileIds: [file.id] });
+			const comment = randomString();
+			expect((await api('users/report-abuse', {
+				userId: alice.id, comment, reason: 'spam', reportType: 'note', targetId: note.id, requestId: randomUUID(),
+			}, bob)).status).toBe(204);
+			const reports = await api('admin/abuse-user-reports', {}, admin);
+			const saved = reports.body.find(report => report.comment === comment)!;
+			expect(saved.snapshot?.files[0]).toMatchObject({ id: file.id, sha256: createHash('sha256').update(original).digest('hex') });
+			expect(saved.snapshot?.files[0]).not.toHaveProperty('archive');
+			expect(JSON.stringify(saved)).not.toContain('encryptionKey');
+			expect((await api('notes/delete', { noteId: note.id }, alice)).status).toBe(204);
+			expect((await api('drive/files/delete', { fileId: file.id }, alice)).status).toBe(204);
+			const download = (token?: string) => relativeFetch('api/admin/abuse-report-evidence', {
+				method: 'POST', headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ reportId: saved.id, fileId: file.id, i: token }),
+			});
+			const response = await download(admin.token);
+			expect(response.status).toBe(200);
+			expect(response.headers.get('content-type')).toBe('application/octet-stream');
+			expect(response.headers.get('cache-control')).toContain('no-store');
+			expect(response.headers.get('content-disposition')).toBe('attachment');
+			expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+			expect(await response.text()).toBe(original);
+			expect((await download(bob.token)).status).toBe(403);
+			expect((await download()).status).toBe(401);
+		});
+
+		test('retains the reported note after its author edits and deletes it', async () => {
+			const note = await post(alice, { text: 'Original reported text', cw: 'Original warning' });
+			const comment = randomString();
+			const request: entities.UsersReportAbuseRequest = {
+				userId: alice.id, comment, reason: 'other', reportType: 'note', targetId: note.id,
+				requestId: randomUUID(),
+			};
+			const reported = await Promise.all([api('users/report-abuse', request, bob), api('users/report-abuse', request, bob)]);
+			expect(reported.map(response => response.status)).toEqual([204, 204]);
+			const reports = await api('admin/abuse-user-reports', {}, admin);
+			expect(reports.body.filter(report => report.comment === comment)).toHaveLength(1);
+			const saved = reports.body.find(report => report.comment === comment)!;
+			expect(saved.snapshot).toMatchObject({
+				type: 'note', content: 'Original warning\n\nOriginal reported text',
+				user: { id: alice.id, username: alice.username },
+			});
+			expect((await api('notes/update', { noteId: note.id, text: 'Edited text', cw: null }, alice)).status).toBe(200);
+			expect((await api('notes/delete', { noteId: note.id }, alice)).status).toBe(204);
+			expect((await api('users/report-abuse', request, bob)).status).toBe(204);
+			expect((await api('users/report-abuse', { ...request, comment: 'Different report' }, bob)).status).toBe(400);
+			const after = await api('admin/abuse-user-reports', {}, admin);
+			expect(after.body.filter(report => report.comment === comment)).toHaveLength(1);
+			expect(after.body.find(report => report.id === saved.id)?.snapshot).toEqual(saved.snapshot);
+			expect((await api('admin/abuse-user-reports', {}, bob)).status).toBe(403);
+		});
+
+		test('retains a text Boost after it and its post are deleted', async () => {
+			const note = await post(bob, { text: 'Boost target' });
+			const reaction = 'text:Boost ABC 123 🧐';
+			expect((await api('notes/reactions/create', { noteId: note.id, reaction }, alice)).status).toBe(204);
+			const comment = randomString();
+			expect((await api('users/report-abuse', {
+				userId: alice.id, comment, reason: 'other', reportType: 'boost', targetId: note.id, reaction, requestId: randomUUID(),
+			}, bob)).status).toBe(204);
+			const reports = await api('admin/abuse-user-reports', {}, admin);
+			const saved = reports.body.find(report => report.comment === comment)!;
+			expect(saved.snapshot).toMatchObject({
+				type: 'boost', content: 'Boost ABC 123 🧐', user: { id: alice.id },
+			});
+			expect((await api('notes/reactions/delete', { noteId: note.id }, alice)).status).toBe(204);
+			expect((await api('notes/delete', { noteId: note.id }, bob)).status).toBe(204);
+			const after = await api('admin/abuse-user-reports', {}, admin);
+			expect(after.body.find(report => report.id === saved.id)?.snapshot).toEqual(saved.snapshot);
+		});
+	});
 
 	describe('SystemWebhook', () => {
 		beforeEach(async () => {

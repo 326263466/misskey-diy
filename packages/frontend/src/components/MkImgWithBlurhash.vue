@@ -39,13 +39,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			draggable="false"
 			tabindex="-1"
 			style="-webkit-user-drag: none;"
+			@load="onLoad"
+			@error="onError"
 		/>
 	</TransitionGroup>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, useTemplateRef, watch, ref } from 'vue';
+import { computed, useTemplateRef, watch, ref } from 'vue';
 import { prefer } from '@/preferences.js';
 import MkBlurhash from '@/components/MkBlurhash.vue';
 
@@ -81,6 +83,10 @@ const props = withDefaults(defineProps<{
 	onlyAvgColor: false,
 });
 
+const emit = defineEmits<{
+	(event: 'error'): void;
+}>();
+
 const root = useTemplateRef('root');
 const img = useTemplateRef('img');
 const loaded = ref(false);
@@ -88,17 +94,26 @@ const imgWidth = ref(props.width);
 const imgHeight = ref(props.height);
 const hide = computed(() => !loaded.value || props.forceBlurhash);
 
-function waitForDecode() {
-	if (props.src != null && props.src !== '') {
-		nextTick()
-			.then(() => img.value?.decode())
-			.then(() => {
-				loaded.value = true;
-			}, error => {
-				console.log('Error occurred during decoding image', img.value, error);
-			});
-	} else {
+function isCurrentImage(element: HTMLImageElement, source: string | null) {
+	return source != null && source !== '' && source === props.src && element === img.value && element.getAttribute('src') === source;
+}
+
+function revealLoadedImage(element: HTMLImageElement, source: string | null) {
+	if (isCurrentImage(element, source) && element.complete && element.naturalWidth > 0) {
+		loaded.value = true;
+	}
+}
+
+function onLoad(event: Event) {
+	if (event.currentTarget instanceof HTMLImageElement) {
+		revealLoadedImage(event.currentTarget, props.src);
+	}
+}
+
+function onError(event: Event) {
+	if (event.currentTarget instanceof HTMLImageElement && isCurrentImage(event.currentTarget, props.src)) {
 		loaded.value = false;
+		emit('error');
 	}
 }
 
@@ -111,10 +126,25 @@ watch([() => props.width, () => props.height, root], () => {
 	immediate: true,
 });
 
-watch(() => props.src, () => {
-	waitForDecode();
+watch([() => props.src, img], async ([source, element], _previous, onCleanup) => {
+	loaded.value = false;
+	if (element == null || source == null || source === '') return;
+	let active = true;
+	onCleanup(() => { active = false; });
+
+	// Cached images may already be complete when the template ref becomes available.
+	revealLoadedImage(element, source);
+	if (loaded.value) return;
+
+	try {
+		await element.decode();
+	} catch {
+		// decode() can reject independently of a successful load; the load event remains authoritative.
+	}
+	if (active) revealLoadedImage(element, source);
 }, {
 	immediate: true,
+	flush: 'post',
 });
 </script>
 

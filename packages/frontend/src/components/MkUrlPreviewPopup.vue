@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div ref="rootEl" :class="$style.root" :style="{ zIndex, top: top + 'px', left: left + 'px' }">
 	<Transition :name="prefer.s.animation ? '_transition_zoom' : ''" @afterLeave="emit('closed')">
-		<MkUrlPreview v-if="showing" class="_popup _shadow" :url="url" :showActions="false"/>
+		<MkUrlPreview v-if="showing" class="_popup _shadow" :style="{ transformOrigin }" :url="url" :showActions="false"/>
 	</Transition>
 </div>
 </template>
@@ -32,6 +32,7 @@ const zIndex = os.claimZIndex('middle');
 const rootEl = useTemplateRef('rootEl');
 const top = ref(0);
 const left = ref(0);
+const transformOrigin = ref('left top');
 
 function setPosition() {
 	if (rootEl.value == null) return;
@@ -39,12 +40,13 @@ function setPosition() {
 	const result = calcPopupPosition(rootEl.value, {
 		anchorElement: props.anchorElement,
 		direction: 'bottom',
-		align: 'center',
-		innerMargin: 0,
+		align: 'left',
+		innerMargin: 8,
 	});
 
 	top.value = result.top;
 	left.value = result.left;
+	transformOrigin.value = result.transformOrigin;
 }
 
 // 预览内容是异步加载的，高度会变，需要重新判断上下翻转
@@ -55,6 +57,8 @@ const ro = new ResizeObserver(() => {
 onMounted(() => {
 	if (rootEl.value) ro.observe(rootEl.value);
 	setPosition();
+	window.addEventListener('resize', setPosition);
+	window.addEventListener('scroll', setPosition, true);
 	nextTick(() => {
 		setPosition();
 	});
@@ -62,6 +66,8 @@ onMounted(() => {
 
 onUnmounted(() => {
 	ro.disconnect();
+	window.removeEventListener('resize', setPosition);
+	window.removeEventListener('scroll', setPosition, true);
 });
 </script>
 

@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<XPie class="pie" :value="usage"/>
 	<div>
 		<p><i class="ti ti-cpu"></i>CPU</p>
-		<p>{{ meta.cpu.cores }} Logical cores</p>
+		<p>{{ i18n.tsx._serverStats.logicalCores({ n: meta.cpu.cores }) }}</p>
 		<p>{{ meta.cpu.model }}</p>
 	</div>
 </div>
@@ -18,6 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { onMounted, onBeforeUnmount, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import XPie from './pie.vue';
+import { i18n } from '@/i18n.js';
 
 const props = defineProps<{
 	connection: Misskey.IChannelConnection<Misskey.Channels['serverStats']>,
@@ -42,7 +43,7 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .vrvdvrys {
 	display: flex;
-	padding: 16px;
+	padding: var(--MI-cardPadding, 20px);
 
 	> .pie {
 		height: 82px;

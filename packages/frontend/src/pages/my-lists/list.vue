@@ -166,7 +166,7 @@ async function deleteList() {
 	if (!list.value) return;
 	const { canceled } = await os.confirm({
 		type: 'warning',
-		text: i18n.tsx.removeAreYouSure({ x: list.value.name }),
+		text: i18n.tsx.deleteAreYouSure({ x: list.value.name }),
 	});
 	if (canceled) return;
 

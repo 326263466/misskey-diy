@@ -77,7 +77,7 @@ onMounted(() => {
 				canvas: canvasEl.value,
 				image: sampleImage,
 				exif: null,
-				caption: 'Example caption',
+				caption: i18n.ts._imageEffector.exampleCaption,
 				filename: 'example_file_name.jpg',
 				renderAsPreview: true,
 			});

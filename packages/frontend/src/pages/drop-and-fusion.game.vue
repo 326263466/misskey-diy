@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div class="_woodenFrame" :class="[$style.headerTitle]">
 					<div class="_woodenFrameInner">
 						<b>{{ i18n.ts.bubbleGame }}</b>
-						<div>- {{ gameMode.toUpperCase() }} -</div>
+						<div>- {{ gameModeName }} -</div>
 					</div>
 				</div>
 				<div class="_woodenFrame _woodenFrameH">
@@ -66,7 +66,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:leaveToClass="$style.transition_combo_leaveTo"
 					:moveClass="$style.transition_combo_move"
 				>
-					<div v-show="combo > 1" :class="$style.combo" :style="{ fontSize: `${100 + ((comboPrev - 2) * 15)}%` }">{{ comboPrev }} Chain!</div>
+					<div v-show="combo > 1" :class="$style.combo" :style="{ fontSize: `${100 + ((comboPrev - 2) * 15)}%` }">{{ i18n.tsx._bubbleGame.chain({ count: comboPrev }) }}</div>
 				</Transition>
 				<div v-if="!isGameOver && !replaying && readyGo !== 'ready'" :class="$style.dropperContainer" :style="{ left: dropperX + 'px' }">
 					<!--<img v-if="currentPick" src="/client-assets/drop-and-fusion/dropper.png" :class="$style.dropper" :style="{ left: dropperX + 'px' }"/>-->
@@ -128,7 +128,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div class="_buttonsCenter">
 						<MkButton primary rounded @click="backToTitle">{{ i18n.ts.backToTitle }}</MkButton>
 						<MkButton primary rounded @click="replay">{{ i18n.ts.showReplay }}</MkButton>
-						<MkButton primary rounded @click="share">{{ i18n.ts.share }}</MkButton>
+						<MkButton primary rounded @click="share"><i class="ti ti-share" aria-hidden="true"></i> {{ i18n.ts.share }}</MkButton>
 						<MkButton rounded @click="exportLog">{{ i18n.ts.copyReplayData }}</MkButton>
 					</div>
 				</div>
@@ -169,7 +169,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div class="_woodenFrame">
 				<div class="_woodenFrameInner">
-					<div>FUSION RECIPE</div>
+					<div>{{ i18n.ts._bubbleGame.fusionSequence }}</div>
 					<div>
 						<div v-for="(mono, i) in game.monoDefinitions.sort((a, b) => a.level - b.level)" :key="mono.id" style="display: inline-block;">
 							<img :src="getTextureImageUrl(mono)" style="width: 32px; vertical-align: bottom;"/>
@@ -181,7 +181,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div class="_woodenFrame">
 				<div class="_woodenFrameInner">
-					<MkButton v-if="!isGameOver && !replaying" full danger @click="surrender">{{ i18n.ts.surrender }}</MkButton>
+					<MkButton v-if="!isGameOver && !replaying" full danger @click="surrender">{{ i18n.ts._bubbleGame.quit }}</MkButton>
 					<MkButton v-else full @click="restart">{{ i18n.ts.gameRetry }}</MkButton>
 				</div>
 			</div>
@@ -199,6 +199,8 @@ import { useInterval } from '@@/js/use-interval.js';
 import { apiUrl } from '@@/js/config.js';
 import type { Mono } from 'misskey-bubble-game';
 import { definePage } from '@/page.js';
+import { url } from '@@/js/config.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
 import * as os from '@/os.js';
 import MkNumber from '@/components/MkNumber.vue';
@@ -519,6 +521,8 @@ const props = defineProps<{
 const emit = defineEmits<{
 	(ev: 'end'): void;
 }>();
+
+const gameModeName = computed(() => i18n.ts._bubbleGame._modes[props.gameMode]);
 
 const monoDefinitions = computed(() => {
 	return props.gameMode === 'normal' ? NORAML_MONOS :
@@ -894,7 +898,7 @@ function getGameImageDriveFile() {
 			ctx.fillStyle = '#000';
 			ctx.font = '16px bold sans-serif';
 			ctx.textBaseline = 'top';
-			ctx.fillText(`SCORE: ${score.value.toLocaleString()}${getScoreUnit(props.gameMode)}`, 10, 10);
+			ctx.fillText(`${i18n.ts._bubbleGame._score.score}: ${score.value.toLocaleString()}${getScoreUnit(props.gameMode)}`, 10, 10);
 
 			ctx.globalAlpha = 0.7;
 			ctx.drawImage(logo, game.GAME_WIDTH * 0.55, 6, game.GAME_WIDTH * 0.45, game.GAME_WIDTH * 0.45 * (logo.height / logo.width));
@@ -927,14 +931,22 @@ function getGameImageDriveFile() {
 	});
 }
 
-async function share() {
+function share() {
+	openShareDialog({
+		title: gameModeName.value,
+		text: `#BubbleGame (${gameModeName.value})\n${i18n.ts._bubbleGame._score.score}: ${score.value.toLocaleString()}${getScoreUnit(props.gameMode)}`,
+		url: `${url}/bubble-game`,
+	}, { shareWithNote });
+}
+
+async function shareWithNote() {
 	const uploading = getGameImageDriveFile();
 	os.promiseDialog(uploading);
 	const file = await uploading;
 	if (!file) return;
 	os.post({
-		initialText: `#BubbleGame (${props.gameMode})
-SCORE: ${score.value.toLocaleString()}${getScoreUnit(props.gameMode)}`,
+		initialText: `#BubbleGame (${gameModeName.value})
+${i18n.ts._bubbleGame._score.score}: ${score.value.toLocaleString()}${getScoreUnit(props.gameMode)}`,
 		initialFiles: [file],
 		instant: true,
 	});

@@ -46,7 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 
 	<MkInput v-else-if="v.type === 'createdLessThan' || v.type === 'createdMoreThan'" v-model="v.sec" type="number">
-		<template #suffix>sec</template>
+		<template #suffix>{{ i18n.ts._time.second }}</template>
 	</MkInput>
 
 	<MkInput v-else-if="v.type === 'followersLessThanOrEq' || v.type === 'followersMoreThanOrEq' || v.type === 'followingLessThanOrEq' || v.type === 'followingMoreThanOrEq' || v.type === 'notesLessThanOrEq' || v.type === 'notesMoreThanOrEq'" v-model="v.value" type="number">

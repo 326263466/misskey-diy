@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		>
 			<template v-if="page === 0">
 				<div style="height: 100cqh; overflow: auto; text-align: center;">
-					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+					<div class="_spacer _spacerCard">
 						<div class="_gaps">
 							<MkInfo><MkLink url="https://misskey-hub.net/docs/for-users/stepped-guides/how-to-enable-2fa/" target="_blank">{{ i18n.ts._2fa.moreDetailedGuideHere }}</MkLink></MkInfo>
 
@@ -55,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<template v-else-if="page === 1">
 				<div style="height: 100cqh; overflow: auto;">
-					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+					<div class="_spacer _spacerCard">
 						<div class="_gaps">
 							<div>{{ i18n.ts._2fa.step3Title }}</div>
 							<MkInput v-model="token" autocomplete="one-time-code" inputmode="numeric"></MkInput>
@@ -70,7 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<template v-else-if="page === 2">
 				<div style="height: 100cqh; overflow: auto;">
-					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+					<div class="_spacer _spacerCard">
 						<div class="_gaps">
 							<div style="text-align: center;">{{ i18n.ts._2fa.setupCompleted }}🎉</div>
 							<div style="text-align: center;">{{ i18n.ts._2fa.step4 }}</div>

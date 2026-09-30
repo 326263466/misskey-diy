@@ -8,9 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<XPie class="pie" :value="usage"/>
 	<div>
 		<p><i class="ti ti-section"></i>RAM</p>
-		<p>Total: {{ bytes(total, 1) }}</p>
-		<p>Used: {{ bytes(used, 1) }}</p>
-		<p>Free: {{ bytes(free, 1) }}</p>
+		<p>{{ i18n.ts.total }}: {{ bytes(total, 1) }}</p>
+		<p>{{ i18n.ts.used }}: {{ bytes(used, 1) }}</p>
+		<p>{{ i18n.ts._serverStats.free }}: {{ bytes(free, 1) }}</p>
 	</div>
 </div>
 </template>
@@ -20,6 +20,7 @@ import { onMounted, onBeforeUnmount, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import XPie from './pie.vue';
 import bytes from '@/filters/bytes.js';
+import { i18n } from '@/i18n.js';
 
 const props = defineProps<{
 	connection: Misskey.IChannelConnection<Misskey.Channels['serverStats']>,
@@ -50,7 +51,7 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .zlxnikvl {
 	display: flex;
-	padding: 16px;
+	padding: var(--MI-cardPadding, 20px);
 
 	> .pie {
 		height: 82px;

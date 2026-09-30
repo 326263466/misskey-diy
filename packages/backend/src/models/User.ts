@@ -4,6 +4,7 @@
  */
 
 import { Entity, Column, Index, OneToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import type { UserCustomStatus, UserOnlineStatusAutoReplies } from '@/misc/user-online-status.js';
 import { id } from './util/id.js';
 import { MiDriveFile } from './DriveFile.js';
 
@@ -35,6 +36,22 @@ export class MiUser {
 		default: false,
 	})
 	public hideOnlineStatus: boolean;
+
+	@Column('varchar', {
+		length: 16,
+		default: 'online',
+	})
+	public onlineStatusOverride: 'online' | 'away' | 'busy' | 'doNotDisturb' | 'invisible';
+
+	@Column('jsonb', {
+		default: {},
+	})
+	public onlineStatusAutoReplies: UserOnlineStatusAutoReplies;
+
+	@Column('jsonb', {
+		nullable: true,
+	})
+	public customStatus: UserCustomStatus | null;
 
 	@Column('varchar', {
 		length: 128,

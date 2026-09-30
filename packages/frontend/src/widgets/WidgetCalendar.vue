@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span :class="$style.year">{{ i18n.tsx.yearX({ year }) }}</span>
 			<span :class="$style.month">{{ i18n.tsx.monthX({ month }) }}</span>
 		</p>
-		<p v-if="month === 1 && day === 1" class="day">🎉{{ i18n.tsx.dayX({ day }) }}<span style="display: inline-block; transform: scaleX(-1);">🎉</span></p>
+		<p v-if="month === 1 && day === 1" :class="$style.day">🎉{{ i18n.tsx.dayX({ day }) }}<span style="display: inline-block; transform: scaleX(-1);">🎉</span></p>
 		<p v-else :class="$style.day">{{ i18n.tsx.dayX({ day }) }}</p>
 		<p :class="$style.weekDay">{{ weekDay }}</p>
 	</div>
@@ -38,7 +38,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { useWidgetPropsManager } from './widget.js';
 import type { WidgetComponentEmits, WidgetComponentExpose, WidgetComponentProps } from './widget.js';
 import type { FormWithDefault, GetFormResultType } from '@/utility/form.js';
@@ -76,16 +76,18 @@ const monthP = ref(0);
 const dayP = ref(0);
 const isHoliday = ref(false);
 
-const nextDay = new Date();
-nextDay.setHours(24, 0, 0, 0);
-let nextDayMidnightTime = nextDay.getTime();
 let nextDayTimer: number | null = null;
 
 function update(time: number) {
+	if (nextDayTimer != null) {
+		window.clearTimeout(nextDayTimer);
+		nextDayTimer = null;
+	}
 	const now = new Date(time);
 	const nd = now.getDate();
 	const nm = now.getMonth();
 	const ny = now.getFullYear();
+	const nextDayMidnightTime = new Date(ny, nm, nd + 1).getTime();
 
 	year.value = ny;
 	month.value = nm + 1;
@@ -101,7 +103,7 @@ function update(time: number) {
 	][now.getDay()];
 
 	const dayNumer = now.getTime() - new Date(ny, nm, nd).getTime();
-	const dayDenom = 1000/*ms*/ * 60/*s*/ * 60/*m*/ * 24/*h*/;
+	const dayDenom = nextDayMidnightTime - new Date(ny, nm, nd).getTime();
 	const monthNumer = now.getTime() - new Date(ny, nm, 1).getTime();
 	const monthDenom = new Date(ny, nm + 1, 1).getTime() - new Date(ny, nm, 1).getTime();
 	const yearNumer = now.getTime() - new Date(ny, 0, 1).getTime();
@@ -112,28 +114,19 @@ function update(time: number) {
 	yearP.value = yearNumer / yearDenom * 100;
 
 	isHoliday.value = now.getDay() === 0 || now.getDay() === 6;
-}
-
-watch(fNow, (to) => {
-	update(to);
 
 	// 次回更新までに日付が変わる場合、日付が変わった直後に強制的に更新するタイマーをセットする
-	if (nextDayMidnightTime - to <= TIME_UPDATE_INTERVAL) {
-		if (nextDayTimer != null) {
-			window.clearTimeout(nextDayTimer);
-			nextDayTimer = null;
-		}
-
+	if (nextDayMidnightTime - time <= TIME_UPDATE_INTERVAL) {
 		nextDayTimer = window.setTimeout(() => {
-			update(nextDayMidnightTime);
-			nextDayTimer = null;
-		}, nextDayMidnightTime - to);
+			update(Date.now());
+		}, nextDayMidnightTime - time);
 	}
-}, { immediate: true });
+}
 
-watch(day, () => {
-	nextDay.setHours(24, 0, 0, 0);
-	nextDayMidnightTime = nextDay.getTime();
+watch(fNow, update, { immediate: true });
+
+onBeforeUnmount(() => {
+	if (nextDayTimer != null) window.clearTimeout(nextDayTimer);
 });
 
 defineExpose<WidgetComponentExpose>({
@@ -145,23 +138,20 @@ defineExpose<WidgetComponentExpose>({
 
 <style lang="scss" module>
 .root {
-	padding: 16px 0;
-
-	&::after {
-		content: "";
-		display: block;
-		clear: both;
-	}
+	display: grid;
+	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+	align-items: center;
+	column-gap: 12px;
+	padding: var(--MI-cardPadding, 20px);
 }
 
 .calendar {
-	float: left;
-	width: 60%;
-	text-align: center;
+	min-width: 0;
+	text-align: start;
 
 	&.isHoliday {
 		> .day {
-			color: #ef95a0;
+			color: var(--MI_THEME-love);
 		}
 	}
 }
@@ -173,9 +163,15 @@ defineExpose<WidgetComponentExpose>({
 	font-size: 0.9em;
 }
 
+.monthAndYear {
+	display: flex;
+	flex-wrap: wrap;
+	column-gap: 4px;
+}
+
 .year,
 .month {
-	margin: 0 4px;
+	margin: 0;
 }
 
 .day {
@@ -185,10 +181,7 @@ defineExpose<WidgetComponentExpose>({
 }
 
 .info {
-	display: block;
-	float: left;
-	width: 40%;
-	padding: 0 16px 0 0;
+	min-width: 0;
 	box-sizing: border-box;
 }
 
@@ -196,30 +189,14 @@ defineExpose<WidgetComponentExpose>({
 	margin-bottom: 8px;
 
 	&:last-child {
-		margin-bottom: 4px;
-	}
-
-	&:nth-child(1) {
-		> .meter > .meterVal {
-			background: #f7796c;
-		}
-	}
-
-	&:nth-child(2) {
-		> .meter > .meterVal {
-			background: #a1de41;
-		}
-	}
-
-	&:nth-child(3) {
-		> .meter > .meterVal {
-			background: #41ddde;
-		}
+		margin-bottom: 0;
 	}
 }
 
 .infoText {
 	display: flex;
+	flex-wrap: wrap;
+	column-gap: 4px;
 	margin: 0 0 2px 0;
 	font-size: 0.75em;
 	line-height: 18px;
@@ -233,12 +210,13 @@ defineExpose<WidgetComponentExpose>({
 .meter {
 	width: 100%;
 	overflow: hidden;
-	background: light-dark(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3));
-	border-radius: 8px;
+	background: var(--MI_THEME-accentedBg);
+	border-radius: var(--MI-radius);
 }
 
 .meterVal {
 	height: 4px;
+	background: var(--MI_THEME-accent);
 	transition: width .3s cubic-bezier(0.23, 1, 0.32, 1);
 }
 </style>

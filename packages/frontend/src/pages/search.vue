@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
 	<div v-if="tab === 'note'" class="_spacer" style="--MI_SPACER-w: 800px;">
 		<div v-if="notesSearchAvailable || ignoreNotesSearchAvailable">
 			<XNote v-bind="props" :query="query" @search="query = $event"/>
@@ -46,7 +46,7 @@ const props = withDefaults(defineProps<{
 	userId: undefined,
 	username: undefined,
 	host: undefined,
-	type: 'note',
+	type: undefined,
 	origin: 'combined',
 	ignoreNotesSearchAvailable: false,
 });
@@ -54,13 +54,12 @@ const props = withDefaults(defineProps<{
 const XNote = defineAsyncComponent(() => import('./search.note.vue'));
 const XUser = defineAsyncComponent(() => import('./search.user.vue'));
 
-const tab = ref(props.type);
+const defaultTab = (): 'note' | 'user' => notesSearchAvailable || props.ignoreNotesSearchAvailable || !usersSearchAvailable ? 'note' : 'user';
+const tab = ref(props.type ?? defaultTab());
 const query = ref(props.query);
 
 watch(() => props.query, value => { query.value = value; });
-watch(() => props.type, value => { tab.value = value; });
-
-const headerActions = computed(() => []);
+watch(() => props.type, value => { tab.value = value ?? defaultTab(); });
 
 const headerTabs = computed(() => [{
 	key: 'note',

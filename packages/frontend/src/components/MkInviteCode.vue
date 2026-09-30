@@ -31,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkUserName :user="invite.createdBy" :nowrap="false"/>
 					<div v-if="moderator">({{ invite.createdBy.id }})</div>
 				</div>
-				<div v-else>system</div>
+				<div v-else>{{ i18n.ts.system }}</div>
 			</div>
 			<div v-if="invite.used">
 				<div :class="$style.label">{{ i18n.ts.registeredUserUsingInviteCode }}</div>

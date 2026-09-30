@@ -15,11 +15,14 @@ const mocks = vi.hoisted(() => ({
 	edit: vi.fn(),
 	confirm: vi.fn(),
 	post: vi.fn(),
+	share: vi.fn(),
+	copyLink: vi.fn(),
 }));
 vi.mock('@/i.js', () => ({ $i: { id: 'self', policies: {}, pinnedNoteIds: [] } }));
 vi.mock('@/os.js', () => ({ confirm: mocks.confirm, post: mocks.post }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/utility/edit-note.js', () => ({ editNote: mocks.edit }));
+vi.mock('@/utility/share-note.js', () => ({ shareNote: mocks.share, copyNoteLink: mocks.copyLink }));
 vi.mock('@/utility/achievements.js', () => ({ claimAchievement: vi.fn() }));
 vi.mock('@/utility/get-user-menu.js', () => ({ getUserMenu: vi.fn() }));
 vi.mock('@/utility/get-embed-code.js', () => ({ genEmbedCode: vi.fn() }));
@@ -46,6 +49,20 @@ describe('note editing menu', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.api.mockResolvedValue({ isMutedThread: false });
+	});
+
+	test('opens the shared dialog from the note menu', async () => {
+		const note = makeNote();
+		const buttons = await getButtons(note);
+		await buttons.find(item => item.text === i18n.ts.share)!.action(new PointerEvent('click'));
+		expect(mocks.share).toHaveBeenCalledExactlyOnceWith(note);
+	});
+
+	test('uses verified link copying from the note menu', async () => {
+		const note = makeNote();
+		const buttons = await getButtons(note);
+		await buttons.find(item => item.text === i18n.ts.copyLink)!.action(new PointerEvent('click'));
+		expect(mocks.copyLink).toHaveBeenCalledExactlyOnceWith(note);
 	});
 
 	test.each([

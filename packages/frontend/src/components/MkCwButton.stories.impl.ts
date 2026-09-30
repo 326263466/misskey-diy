@@ -40,7 +40,7 @@ export const Default = {
 					};
 				},
 			},
-			template: '<MkCwButton v-model="showContent" v-bind="props" v-on="events" />',
+			template: '<div style="width: 340px; max-width: 100%;"><MkCwButton v-model="showContent" v-bind="props" v-on="events" /></div>',
 		};
 	},
 	args: {
@@ -49,10 +49,12 @@ export const Default = {
 	async play({ canvasElement }) {
 		const canvas = within(canvasElement);
 		const buttonElement = canvas.getByRole<HTMLButtonElement>('button');
-		await expect(buttonElement).toHaveTextContent(i18n.ts._cw.show);
-		await expect(buttonElement).toHaveTextContent(i18n.tsx._cw.chars({ count: 15 }));
+		await expect(buttonElement).toHaveTextContent(i18n.ts._cw.showContent);
+		await expect(buttonElement).toHaveAttribute('aria-expanded', 'false');
+		await expect(canvas.getByText(i18n.tsx._cw.chars({ count: 15 }))).toBeVisible();
 		await userEvent.click(buttonElement);
-		await expect(buttonElement).toHaveTextContent(i18n.ts._cw.hide);
+		await expect(buttonElement).toHaveTextContent(i18n.ts._cw.hideContent);
+		await expect(buttonElement).toHaveAttribute('aria-expanded', 'true');
 		await userEvent.click(buttonElement);
 	},
 	parameters: {
@@ -71,9 +73,30 @@ export const IncludesTextAndDriveFile = {
 	},
 	async play({ canvasElement }) {
 		const canvas = within(canvasElement);
-		const buttonElement = canvas.getByRole<HTMLButtonElement>('button');
-		await expect(buttonElement).toHaveTextContent(i18n.tsx._cw.chars({ count: 15 }));
-		await expect(buttonElement).toHaveTextContent(' / ');
-		await expect(buttonElement).toHaveTextContent(i18n.tsx._cw.files({ count: 1 }));
+		await expect(canvas.getByText(`${i18n.tsx._cw.chars({ count: 15 })} / ${i18n.tsx._cw.files({ count: 1 })}`)).toBeVisible();
+	},
+} satisfies StoryObj<typeof MkCwButton>;
+
+export const PublicSummary = {
+	...Default,
+	render(args) {
+		return {
+			components: { MkCwButton },
+			data: () => ({ showContent: false }),
+			setup: () => ({ args }),
+			template: '<div style="width: 340px; max-width: 100%;"><MkCwButton v-model="showContent" v-bind="args">A public summary that remains visible before opening the hidden content.</MkCwButton></div>',
+		};
+	},
+} satisfies StoryObj<typeof MkCwButton>;
+
+export const Narrow = {
+	...IncludesTextAndDriveFile,
+	render(args) {
+		return {
+			components: { MkCwButton },
+			data: () => ({ showContent: false }),
+			setup: () => ({ args }),
+			template: '<div style="width: 200px; max-width: 100%;"><MkCwButton v-model="showContent" v-bind="args">A_long_public_summary_without_spaces_keeps_the_warning_readable_on_small_screens.</MkCwButton></div>',
+		};
 	},
 } satisfies StoryObj<typeof MkCwButton>;

@@ -1,6 +1,8 @@
 import type {
 	EmptyRequest,
 	EmptyResponse,
+	AdminAbuseReportEvidenceRequest,
+	AdminAbuseReportEvidenceResponse,
 	AdminAbuseReportNotificationRecipientCreateRequest,
 	AdminAbuseReportNotificationRecipientCreateResponse,
 	AdminAbuseReportNotificationRecipientDeleteRequest,
@@ -37,6 +39,24 @@ import type {
 	AdminAvatarDecorationsUpdateRequest,
 	AdminCaptchaCurrentResponse,
 	AdminCaptchaSaveRequest,
+	AdminCheckinCodesClaimsRequest,
+	AdminCheckinCodesClaimsResponse,
+	AdminCheckinCodesCreateRequest,
+	AdminCheckinCodesCreateResponse,
+	AdminCheckinCodesListRequest,
+	AdminCheckinCodesListResponse,
+	AdminCheckinCodesUpdateRequest,
+	AdminCheckinCodesUpdateResponse,
+	AdminCheckinGrantCardsRequest,
+	AdminCheckinGrantCardsResponse,
+	AdminCheckinHistoryRequest,
+	AdminCheckinHistoryResponse,
+	AdminCheckinRevokeCardsRequest,
+	AdminCheckinRevokeCardsResponse,
+	AdminCheckinStatsRequest,
+	AdminCheckinStatsResponse,
+	AdminCheckinUsersRequest,
+	AdminCheckinUsersResponse,
 	AdminDeleteAccountRequest,
 	AdminDeleteAllFilesOfAUserRequest,
 	AdminDriveFilesRequest,
@@ -266,6 +286,8 @@ import type {
 	ChatRoomsShowResponse,
 	ChatRoomsUpdateRequest,
 	ChatRoomsUpdateResponse,
+	CheckinRankingRequest,
+	CheckinRankingResponse,
 	ClipsAddNoteRequest,
 	ClipsCreateRequest,
 	ClipsCreateResponse,
@@ -420,6 +442,17 @@ import type {
 	IAuthorizedAppsRequest,
 	IAuthorizedAppsResponse,
 	IChangePasswordRequest,
+	ICheckinResponse,
+	ICheckinExchangeRequest,
+	ICheckinExchangeResponse,
+	ICheckinHistoryRequest,
+	ICheckinHistoryResponse,
+	ICheckinMakeupRequest,
+	ICheckinMakeupResponse,
+	ICheckinRedeemRequest,
+	ICheckinRedeemResponse,
+	ICheckinStatusRequest,
+	ICheckinStatusResponse,
 	IClaimAchievementRequest,
 	IDeleteAccountRequest,
 	IExportFollowingRequest,
@@ -670,6 +703,8 @@ import type {
 	UsersSearchByUsernameAndHostResponse,
 	UsersShowRequest,
 	UsersShowResponse,
+	UsersShowPartialBulkRequest,
+	UsersShowPartialBulkResponse,
 	UsersUpdateMemoRequest,
 	V2AdminEmojiListRequest,
 	V2AdminEmojiListResponse,
@@ -677,6 +712,7 @@ import type {
 } from './entities.js';
 
 export type Endpoints = {
+	'admin/abuse-report-evidence': { req: AdminAbuseReportEvidenceRequest; res: AdminAbuseReportEvidenceResponse };
 	'admin/abuse-report/notification-recipient/create': { req: AdminAbuseReportNotificationRecipientCreateRequest; res: AdminAbuseReportNotificationRecipientCreateResponse };
 	'admin/abuse-report/notification-recipient/delete': { req: AdminAbuseReportNotificationRecipientDeleteRequest; res: EmptyResponse };
 	'admin/abuse-report/notification-recipient/list': { req: AdminAbuseReportNotificationRecipientListRequest; res: AdminAbuseReportNotificationRecipientListResponse };
@@ -700,6 +736,15 @@ export type Endpoints = {
 	'admin/avatar-decorations/update': { req: AdminAvatarDecorationsUpdateRequest; res: EmptyResponse };
 	'admin/captcha/current': { req: EmptyRequest; res: AdminCaptchaCurrentResponse };
 	'admin/captcha/save': { req: AdminCaptchaSaveRequest; res: EmptyResponse };
+	'admin/checkin/codes/claims': { req: AdminCheckinCodesClaimsRequest; res: AdminCheckinCodesClaimsResponse };
+	'admin/checkin/codes/create': { req: AdminCheckinCodesCreateRequest; res: AdminCheckinCodesCreateResponse };
+	'admin/checkin/codes/list': { req: AdminCheckinCodesListRequest; res: AdminCheckinCodesListResponse };
+	'admin/checkin/codes/update': { req: AdminCheckinCodesUpdateRequest; res: AdminCheckinCodesUpdateResponse };
+	'admin/checkin/grant-cards': { req: AdminCheckinGrantCardsRequest; res: AdminCheckinGrantCardsResponse };
+	'admin/checkin/history': { req: AdminCheckinHistoryRequest; res: AdminCheckinHistoryResponse };
+	'admin/checkin/revoke-cards': { req: AdminCheckinRevokeCardsRequest; res: AdminCheckinRevokeCardsResponse };
+	'admin/checkin/stats': { req: AdminCheckinStatsRequest; res: AdminCheckinStatsResponse };
+	'admin/checkin/users': { req: AdminCheckinUsersRequest; res: AdminCheckinUsersResponse };
 	'admin/delete-account': { req: AdminDeleteAccountRequest; res: EmptyResponse };
 	'admin/delete-all-files-of-a-user': { req: AdminDeleteAllFilesOfAUserRequest; res: EmptyResponse };
 	'admin/drive/clean-remote-files': { req: EmptyRequest; res: EmptyResponse };
@@ -854,6 +899,7 @@ export type Endpoints = {
 	'chat/rooms/owned': { req: ChatRoomsOwnedRequest; res: ChatRoomsOwnedResponse };
 	'chat/rooms/show': { req: ChatRoomsShowRequest; res: ChatRoomsShowResponse };
 	'chat/rooms/update': { req: ChatRoomsUpdateRequest; res: ChatRoomsUpdateResponse };
+	'checkin/ranking': { req: CheckinRankingRequest; res: CheckinRankingResponse };
 	'clips/add-note': { req: ClipsAddNoteRequest; res: EmptyResponse };
 	'clips/create': { req: ClipsCreateRequest; res: ClipsCreateResponse };
 	'clips/delete': { req: ClipsDeleteRequest; res: EmptyResponse };
@@ -949,6 +995,12 @@ export type Endpoints = {
 	'i/apps': { req: IAppsRequest; res: IAppsResponse };
 	'i/authorized-apps': { req: IAuthorizedAppsRequest; res: IAuthorizedAppsResponse };
 	'i/change-password': { req: IChangePasswordRequest; res: EmptyResponse };
+	'i/checkin': { req: EmptyRequest; res: ICheckinResponse };
+	'i/checkin-exchange': { req: ICheckinExchangeRequest; res: ICheckinExchangeResponse };
+	'i/checkin-history': { req: ICheckinHistoryRequest; res: ICheckinHistoryResponse };
+	'i/checkin-makeup': { req: ICheckinMakeupRequest; res: ICheckinMakeupResponse };
+	'i/checkin-redeem': { req: ICheckinRedeemRequest; res: ICheckinRedeemResponse };
+	'i/checkin-status': { req: ICheckinStatusRequest; res: ICheckinStatusResponse };
 	'i/claim-achievement': { req: IClaimAchievementRequest; res: EmptyResponse };
 	'i/delete-account': { req: IDeleteAccountRequest; res: EmptyResponse };
 	'i/export-antennas': { req: EmptyRequest; res: EmptyResponse };
@@ -1117,6 +1169,7 @@ export type Endpoints = {
 	'users/search': { req: UsersSearchRequest; res: UsersSearchResponse };
 	'users/search-by-username-and-host': { req: UsersSearchByUsernameAndHostRequest; res: UsersSearchByUsernameAndHostResponse };
 	'users/show': { req: UsersShowRequest; res: UsersShowResponse };
+	'users/show-partial-bulk': { req: UsersShowPartialBulkRequest; res: UsersShowPartialBulkResponse };
 	'users/update-memo': { req: UsersUpdateMemoRequest; res: EmptyResponse };
 	'v2/admin/emoji/list': { req: V2AdminEmojiListRequest; res: V2AdminEmojiListResponse };
 	'verify-email': { req: VerifyEmailRequest; res: EmptyResponse };

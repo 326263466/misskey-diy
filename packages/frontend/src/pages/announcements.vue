@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
 	<div class="_spacer" style="--MI_SPACER-w: 800px;">
 		<div class="_gaps">
 			<MkInfo v-if="$i && $i.hasUnreadAnnouncement && tab === 'current'" warn>{{ i18n.ts.youHaveUnreadAnnouncements }}</MkInfo>
@@ -88,21 +88,16 @@ async function read(target: Misskey.entities.Announcement) {
 	});
 }
 
-const headerActions = computed(() => []);
-
 const headerTabs = computed(() => [{
 	key: 'current',
 	title: i18n.ts.currentAnnouncements,
-	icon: 'ti ti-flare',
 }, {
 	key: 'past',
 	title: i18n.ts.pastAnnouncements,
-	icon: 'ti ti-point',
 }]);
 
 definePage(() => ({
 	title: i18n.ts.announcements,
-	icon: 'ti ti-speakerphone',
 }));
 </script>
 

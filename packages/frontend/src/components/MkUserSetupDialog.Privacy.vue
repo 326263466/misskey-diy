@@ -45,6 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
+import { updateCurrentAccountPartial } from '@/accounts.js';
 import { i18n } from '@/i18n.js';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkInfo from '@/components/MkInfo.vue';
@@ -62,7 +63,7 @@ watch([isLocked, hideOnlineStatus, noCrawle, preventAiLearning], () => {
 		hideOnlineStatus: !!hideOnlineStatus.value,
 		noCrawle: !!noCrawle.value,
 		preventAiLearning: !!preventAiLearning.value,
-	});
+	}).then(updateCurrentAccountPartial);
 });
 </script>
 

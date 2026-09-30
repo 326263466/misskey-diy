@@ -54,6 +54,7 @@ export function chatMessage(room = false, id = 'somechatmessageid', text = 'Hell
 		fromUserId: fromUser.id,
 		fromUser,
 		text,
+		isAutoReply: false,
 		isRead: false,
 		reactions: [],
 		...room ? {

@@ -186,16 +186,16 @@ function setupGrid(): GridSetting {
 				},
 			},
 			{
-				bindTo: 'name', title: 'name', type: 'text', editable: true, width: 140,
+				bindTo: 'name', title: i18n.ts.name, type: 'text', editable: true, width: 140,
 				validators: [required, regex, unique],
 			},
-			{ bindTo: 'category', title: 'category', type: 'text', editable: true, width: 140 },
-			{ bindTo: 'aliases', title: 'aliases', type: 'text', editable: true, width: 140 },
-			{ bindTo: 'license', title: 'license', type: 'text', editable: true, width: 140 },
-			{ bindTo: 'isSensitive', title: 'sensitive', type: 'boolean', editable: true, width: 90 },
-			{ bindTo: 'localOnly', title: 'localOnly', type: 'boolean', editable: true, width: 90 },
+			{ bindTo: 'category', title: i18n.ts.category, type: 'text', editable: true, width: 140 },
+			{ bindTo: 'aliases', title: i18n.ts._customEmojisManager._gridCommon.aliases, type: 'text', editable: true, width: 140 },
+			{ bindTo: 'license', title: i18n.ts.license, type: 'text', editable: true, width: 140 },
+			{ bindTo: 'isSensitive', title: i18n.ts.sensitive, type: 'boolean', editable: true, width: 90 },
+			{ bindTo: 'localOnly', title: i18n.ts.localOnly, type: 'boolean', editable: true, width: 90 },
 			{
-				bindTo: 'roleIdsThatCanBeUsedThisEmojiAsReaction', title: 'role', type: 'text', editable: true, width: 140,
+				bindTo: 'roleIdsThatCanBeUsedThisEmojiAsReaction', title: i18n.ts.role, type: 'text', editable: true, width: 140,
 				valueTransformer(row) {
 					// バックエンドからからはIDと名前のペア配列で受け取るが、表示にIDがあると煩雑なので名前だけにする
 					return gridItems.value[row.index].roleIdsThatCanBeUsedThisEmojiAsReaction
@@ -611,7 +611,7 @@ const headerActions = computed<PageHeaderItem[]>(() => [{
 
 .main {
 	height: calc(100vh - var(--MI-stickyTop) - var(--MI-stickyBottom));
-	overflow: scroll;
+	overflow: auto;
 }
 
 .grid {

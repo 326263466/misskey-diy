@@ -42,6 +42,10 @@ export const packedChatMessageSchema = {
 			optional: true, nullable: true,
 			ref: 'ChatRoom',
 		},
+		isAutoReply: {
+			type: 'boolean',
+			optional: false, nullable: false,
+		},
 		text: {
 			type: 'string',
 			optional: true, nullable: true,
@@ -84,6 +88,10 @@ export const packedChatMessageSchema = {
 export const packedChatMessageLiteSchema = {
 	type: 'object',
 	properties: {
+		isAutoReply: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
 		id: {
 			type: 'string',
 			optional: false, nullable: false,
@@ -148,6 +156,10 @@ export const packedChatMessageLiteSchema = {
 export const packedChatMessageLiteFor1on1Schema = {
 	type: 'object',
 	properties: {
+		isAutoReply: {
+			type: 'boolean',
+			optional: false, nullable: false,
+		},
 		id: {
 			type: 'string',
 			optional: false, nullable: false,

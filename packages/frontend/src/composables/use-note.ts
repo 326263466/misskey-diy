@@ -9,8 +9,7 @@ import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
 import { shouldCollapsed } from '@@/js/collapsed.js';
-import { host, url } from '@@/js/config.js';
-import { isSupportShare } from '@/utility/navigator.js';
+import { host } from '@@/js/config.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import type { OpenOnRemoteOptions } from '@/utility/please-login.js';
 import { checkWordMute } from '@/utility/check-word-mute.js';
@@ -21,7 +20,6 @@ import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
 import { getNoteClipMenu, getNoteMenu, getRenoteMenu, getAbuseNoteMenu, getCopyNoteLinkMenu } from '@/utility/get-note-menu.js';
 import { getMyRenoteId, noteEvents, unregisterMyRenote, useNoteCapture, useNoteCaptureVisibility } from '@/composables/use-note-capture.js';
 import { deepClone } from '@/utility/clone.js';
-import { useTooltip } from '@/composables/use-tooltip.js';
 import { claimAchievement } from '@/utility/achievements.js';
 import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import { getAppearNote } from '@/utility/get-appear-note.js';
@@ -30,7 +28,6 @@ import { getPluginHandlers } from '@/plugin.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
-import MkUsersTooltip from '@/components/MkUsersTooltip.vue';
 import MkBoostComposer from '@/components/MkBoostComposer.vue';
 import { notePage } from '@/filters/note.js';
 import type { DI as DIType } from '@/di.js';
@@ -38,9 +35,10 @@ import type { ExtractInjectedType } from '@/types/misc.js';
 import type { MenuItem } from '@/types/menu.js';
 import type { WordMuteResult } from '@/utility/check-word-mute.js';
 import { useNoteContent } from '@/composables/use-note-content.js';
+import { isBoostFull } from '@/utility/boost.js';
 import { useLike } from '@/composables/use-like.js';
 import { useNoteViews } from '@/composables/use-note-views.js';
-import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
+import { shareNote } from '@/utility/share-note.js';
 
 export interface UseNoteProps {
 	note: Misskey.entities.Note;
@@ -220,28 +218,6 @@ export function useNote(
 		}
 	});
 
-	// ツールチップのセットアップ (Mockでない場合のみ)
-	if (!props.mock) {
-		if (els.renoteButton != null) {
-			useTooltip(els.renoteButton, async (showing) => {
-				const renotes = await misskeyApi('notes/renotes', {
-					noteId: appearNote.id,
-					limit: 11,
-				});
-				const users = renotes.map(x => x.user);
-				if (users.length < 1 || els.renoteButton!.value == null) return;
-				const { dispose } = os.popup(MkUsersTooltip, {
-					showing,
-					users,
-					count: displayedRenoteCount.value,
-					anchorElement: els.renoteButton!.value,
-				}, {
-					closed: () => dispose(),
-				});
-			});
-		}
-	}
-
 	// 共通アクション関数群
 	async function renote() {
 		if (props.mock) return;
@@ -294,8 +270,7 @@ export function useNote(
 		});
 	}
 
-	// Boostは1ノートにつき1回きり。投稿済みのユーザーには入口自体を出さない
-	const canBoost = computed(() => $i != null && $reactionNote.myReaction == null);
+	const canBoost = computed(() => $i != null && $reactionNote.myReaction == null && !isBoostFull($reactionNote.reactions));
 
 	const boostOpen = ref(false);
 	let boostDispose: (() => void) | null = null;
@@ -316,11 +291,8 @@ export function useNote(
 	async function react(createReactionMock?: (reaction: string) => void, fromHover = false) {
 		cancelHoverReact();
 		if (appearNote.isDeleted) return;
-		// Boostは1ノートにつき1回だけ。投稿済みなら書き直しも取り消しもできない
 		if (canBoost.value === false) return;
-		if (boostOpen.value) {
-			return;
-		}
+		if (boostOpen.value) return;
 		if (openingBoost) return;
 		openingBoost = true;
 		try {
@@ -330,6 +302,7 @@ export function useNote(
 			const { dispose } = os.popup(MkBoostComposer, {
 				note: reactionNote,
 				anchorElement: els.reactButton?.value,
+				boundaryElement: els.rootEl?.value,
 				focusRequested: !fromHover,
 				mock: props.mock,
 			}, {
@@ -414,22 +387,9 @@ export function useNote(
 		}), els.clipButton?.value).then(focus);
 	}
 
-	async function share(): Promise<void> {
+	function share(): void {
 		if (props.mock) return;
-		if (!isSupportShare()) {
-			copyToClipboard(`${url}/notes/${appearNote.id}`);
-			return;
-		}
-		try {
-			await navigator.share({
-				title: i18n.tsx.noteOf({ user: appearNote.user.name ?? appearNote.user.username }),
-				text: appearNote.text ?? '',
-				url: `${url}/notes/${appearNote.id}`,
-			});
-		} catch (err) {
-			if (err instanceof Error && err.name === 'AbortError') return;
-			os.alert({ type: 'error', text: err instanceof Error ? err.message : String(err) });
-		}
+		shareNote(appearNote);
 	}
 
 	async function toggleFavorite(): Promise<void> {

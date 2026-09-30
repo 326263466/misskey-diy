@@ -11,7 +11,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:leaveToClass="prefer.s.animation ? $style.transition_popup_leaveTo : ''"
 	appear @afterLeave="emit('closed')"
 >
-	<div v-if="showing" ref="rootEl" :class="$style.root" class="_popup _shadow" :style="{ zIndex, top: top + 'px', left: left + 'px', transformOrigin: origin }" @mouseover="() => { emit('mouseover'); }" @mouseleave="() => { emit('mouseleave'); }">
+	<div
+		v-if="showing"
+		ref="rootEl"
+		:class="$style.root"
+		class="_popup _shadow"
+		:style="{ zIndex, top: top + 'px', left: left + 'px', transformOrigin: origin }"
+		:role="interactive ? 'dialog' : undefined"
+		:aria-label="interactive ? (user ? userName(user) : i18n.ts.userInfo) : undefined"
+		:tabindex="interactive ? -1 : undefined"
+		@mouseover="!interactive && emit('mouseover')"
+		@mouseleave="!interactive && !menuShown && emit('mouseleave')"
+	>
 		<MkError v-if="error" @retry="fetchUser()"/>
 		<div v-else-if="user != null">
 			<div :class="$style.banner" :style="user.bannerUrl ? { backgroundImage: `url(${prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl})` } : ''">
@@ -28,6 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.title">
 				<MkA :class="$style.name" :to="userPage(user)"><MkUserName :user="user" :nowrap="false"/></MkA>
 				<div :class="$style.username"><MkAcct :user="user"/></div>
+				<MkUserWork :user="user" :class="$style.work"/>
 			</div>
 			<div :class="$style.description">
 				<Mfm v-if="user.description" :class="$style.mfm" :text="user.description" :author="user"/>
@@ -47,8 +59,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div>{{ number(user.followersCount) }}</div>
 				</MkA>
 			</div>
-			<button class="_button" :class="$style.menu" @click="showMenu"><i class="ti ti-dots"></i></button>
-			<MkFollowButton v-if="$i && user.id != $i.id" v-model:user="user" :class="$style.follow" mini/>
+			<MkFollowButton v-if="$i && user.id != $i.id" :user="user" :class="$style.follow" mini @update:user="sourceUser = $event"/>
+			<button v-tooltip="i18n.ts.more" class="_button" :class="[$style.menu, $style.glass]" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots"></i></button>
 		</div>
 		<div v-else>
 			<MkLoading/>
@@ -58,10 +70,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkFollowButton from '@/components/MkFollowButton.vue';
-import { userPage } from '@/filters/user.js';
+import MkUserWork from '@/components/MkUserWork.vue';
+import { userName, userPage } from '@/filters/user.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { calcPopupPosition } from '@/utility/popup-position.js';
@@ -72,14 +85,21 @@ import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/utility/isFfVisibleForMe.js';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
+import { useUserStatistics } from '@/composables/use-user-statistics.js';
+import { useUserStatisticsVisibility } from '@/composables/use-user-statistics-visibility.js';
+import { useUserProfile } from '@/composables/use-user-profile.js';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	showing: boolean;
 	q: string | Misskey.entities.UserDetailed;
 	source: HTMLElement;
-}>();
+	interactive?: boolean;
+}>(), {
+	interactive: false,
+});
 
 const emit = defineEmits<{
+	(ev: 'close'): void;
 	(ev: 'closed'): void;
 	(ev: 'mouseover'): void;
 	(ev: 'mouseleave'): void;
@@ -87,21 +107,41 @@ const emit = defineEmits<{
 
 const zIndex = os.claimZIndex('middle');
 const rootEl = useTemplateRef('rootEl');
-const user = ref<Misskey.entities.UserDetailed | null>(null);
+const sourceUser = ref<Misskey.entities.UserDetailed | null>(null);
+const user = useUserProfile(sourceUser);
+useUserStatistics(sourceUser, { active: useUserStatisticsVisibility(rootEl, computed(() => props.showing)) });
 const top = ref(0);
 const left = ref(0);
 const origin = ref('center top');
 const error = ref(false);
+let menuShown = false;
+let keepOpenAfterMenu = false;
 
 function showMenu(ev: PointerEvent) {
-	if (user.value == null) return;
+	if (user.value == null || menuShown) return;
 	const { menu, cleanup } = getUserMenu(user.value);
-	os.popupMenu(menu, ev.currentTarget ?? ev.target).finally(cleanup);
+	menuShown = true;
+	keepOpenAfterMenu = false;
+	let actioned = false;
+	if (!props.interactive) emit('mouseover');
+	os.popupMenu(menu, ev.currentTarget ?? ev.target, {
+		onAction: () => {
+			if (actioned) return;
+			actioned = true;
+			if (props.showing) emit('close');
+		},
+	}).finally(() => {
+		menuShown = false;
+		cleanup();
+		if (!actioned && !keepOpenAfterMenu && !props.interactive && props.showing && rootEl.value && !rootEl.value.matches(':hover') && !props.source.matches(':hover')) {
+			emit('mouseleave');
+		}
+	});
 }
 
 async function fetchUser() {
 	if (typeof props.q === 'object') {
-		user.value = props.q;
+		sourceUser.value = props.q;
 		error.value = false;
 	} else {
 		const query: Misskey.entities.UsersShowRequest = props.q.startsWith('@') ?
@@ -111,7 +151,7 @@ async function fetchUser() {
 		// @ts-expect-error payloadの引数側の型が正常に解決されない
 		misskeyApi('users/show', query).then(res => {
 			if (!props.showing) return;
-			user.value = res;
+			sourceUser.value = res;
 			error.value = false;
 		}, () => {
 			error.value = true;
@@ -126,12 +166,43 @@ function setPosition() {
 		anchorElement: props.source,
 		direction: 'bottom',
 		align: 'center',
-		innerMargin: 0,
+		innerMargin: 8,
 	});
 
 	top.value = result.top;
 	left.value = result.left;
 	origin.value = result.transformOrigin;
+}
+
+function onOutsidePointer(event: PointerEvent) {
+	if (!props.showing) return;
+	const target = event.target as Node | null;
+	if (rootEl.value?.contains(target) || props.source.contains(target)) {
+		if (menuShown) keepOpenAfterMenu = true;
+		return;
+	}
+	if (menuShown) {
+		if (!(target instanceof Element && target.classList.contains('_modalBg'))) return;
+		// 菜单遮罩覆盖了卡片，用视口坐标判断点击是否仍在卡片或触发元素内。
+		const inside = [rootEl.value, props.source].some(element => {
+			if (element == null) return false;
+			const rect = element.getBoundingClientRect();
+			return event.clientX >= rect.left && event.clientX < rect.right && event.clientY >= rect.top && event.clientY < rect.bottom;
+		});
+		if (inside) {
+			keepOpenAfterMenu = true;
+			return;
+		}
+	}
+	emit('close');
+}
+
+function onKeydown(event: KeyboardEvent) {
+	if (!props.interactive || !props.showing || menuShown || event.key !== 'Escape') return;
+	event.preventDefault();
+	event.stopPropagation();
+	props.source.focus({ preventScroll: true });
+	emit('close');
 }
 
 // 卡片内容是异步填充的，高度会变，需要重新判断上下翻转
@@ -144,13 +215,23 @@ onMounted(() => {
 
 	if (rootEl.value) ro.observe(rootEl.value);
 	setPosition();
+	window.addEventListener('resize', setPosition);
+	window.addEventListener('scroll', setPosition, true);
+	// 两条打开路径都要能被外部点击关掉；Escape 只对可交互（点击打开）的卡片有意义
+	window.document.addEventListener('pointerdown', onOutsidePointer);
+	if (props.interactive) window.document.addEventListener('keydown', onKeydown, true);
 	nextTick(() => {
 		setPosition();
+		if (props.interactive) rootEl.value?.focus({ preventScroll: true });
 	});
 });
 
 onUnmounted(() => {
 	ro.disconnect();
+	window.document.removeEventListener('pointerdown', onOutsidePointer);
+	window.document.removeEventListener('keydown', onKeydown, true);
+	window.removeEventListener('resize', setPosition);
+	window.removeEventListener('scroll', setPosition, true);
 });
 </script>
 
@@ -233,11 +314,18 @@ onUnmounted(() => {
 }
 
 .description {
-	padding: 16px 26px;
+	// 与个人主页信息区一致, 用画布灰做圆角内嵌底
+	margin: 0 16px 12px;
+	padding: 12px 16px;
 	font-size: 0.8em;
 	text-align: center;
-	border-top: solid 1px var(--MI_THEME-divider);
-	border-bottom: solid 1px var(--MI_THEME-divider);
+	background: var(--MI_THEME-bg);
+	border-radius: var(--MI-cardRadius);
+}
+
+.work {
+	justify-content: center;
+	margin-top: 5px;
 }
 
 .mfm {
@@ -248,7 +336,10 @@ onUnmounted(() => {
 }
 
 .status {
-	padding: 16px 26px 16px 26px;
+	margin: 0 16px 16px;
+	padding: 12px;
+	background: var(--MI_THEME-bg);
+	border-radius: var(--MI-cardRadius);
 }
 
 .statusItem {
@@ -265,15 +356,44 @@ onUnmounted(() => {
 .menu {
 	position: absolute;
 	top: 8px;
-	right: 44px;
-	padding: 6px;
-	background: var(--MI_THEME-panel);
+	right: 8px;
+	display: grid;
+	place-items: center;
+	width: 31px;
+	height: 31px;
 	border-radius: 999px;
+
+	&:focus-visible {
+		outline-offset: 2px;
+	}
 }
 
 .follow {
+	--MI-followButton-fg: var(--MI_THEME-accent);
+	--MI-followButton-bg: color(from var(--MI_THEME-modalBg) srgb r g b / 0.55);
+	--MI-followButton-backdropFilter: var(--MI-blur, blur(8px));
 	position: absolute !important;
 	top: 8px;
-	right: 8px;
+	right: 44px;
+}
+
+.root .glass {
+	color: light-dark(var(--MI_THEME-panel), var(--MI_THEME-fg));
+	background: color(from var(--MI_THEME-modalBg) srgb r g b / 0.55);
+	-webkit-backdrop-filter: var(--MI-blur, blur(8px));
+	backdrop-filter: var(--MI-blur, blur(8px));
+	text-shadow: 0 0 8px var(--MI_THEME-shadow);
+}
+
+.menu, .follow {
+	:global(.ti) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.28em;
+		height: 1.28em;
+		line-height: 1;
+		vertical-align: 0;
+	}
 }
 </style>

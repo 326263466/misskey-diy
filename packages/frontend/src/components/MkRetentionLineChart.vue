@@ -19,6 +19,8 @@ import { chartVLine } from '@/utility/chart-vline.js';
 import { alpha } from '@/utility/color.js';
 import { initChart } from '@/utility/init-chart.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { i18n } from '@/i18n.js';
+import { dateOnly } from '@/filters/date.js';
 
 interface RetentionPoint extends ScatterDataPoint {
 	x: number;
@@ -33,13 +35,6 @@ const chartEl = useTemplateRef('chartEl');
 const { handler: externalTooltipHandler } = useChartTooltip();
 
 let chartInstance: Chart | null = null;
-
-const getYYYYMMDD = (date: Date) => {
-	const y = date.getFullYear().toString().padStart(2, '0');
-	const m = (date.getMonth() + 1).toString().padStart(2, '0');
-	const d = date.getDate().toString().padStart(2, '0');
-	return `${y}/${m}/${d}`;
-};
 
 const getDate = (ymd: string) => {
 	const [y, m, d] = ymd.split('-').map(x => parseInt(x, 10));
@@ -62,7 +57,7 @@ onMounted(async () => {
 		data: {
 			labels: [],
 			datasets: raw.map((record, i) => ({
-				label: getYYYYMMDD(new Date(record.createdAt)),
+				label: dateOnly(new Date(record.createdAt)),
 				pointRadius: 0,
 				borderWidth: 2,
 				borderJoinStyle: 'round',
@@ -72,11 +67,11 @@ onMounted(async () => {
 				data: [{
 					x: 0,
 					y: 100,
-					d: getYYYYMMDD(new Date(record.createdAt)),
+					d: dateOnly(new Date(record.createdAt)),
 				}, ...Object.entries(record.data).sort((a, b) => getDate(a[0]) > getDate(b[0]) ? 1 : -1).map(([k, v], i) => ({
 					x: i + 1,
 					y: (v / record.users) * 100,
-					d: getYYYYMMDD(new Date(record.createdAt)),
+					d: dateOnly(new Date(record.createdAt)),
 				}))],
 			})),
 		},
@@ -94,13 +89,13 @@ onMounted(async () => {
 				x: {
 					title: {
 						display: true,
-						text: 'Days later',
+						text: i18n.ts._dashboard.daysLater,
 					},
 				},
 				y: {
 					title: {
 						display: true,
-						text: 'Rate (%)',
+						text: i18n.ts._dashboard.retentionRateAxis,
 					},
 					ticks: {
 						callback: (value, index, values) => value + '%',
@@ -120,7 +115,7 @@ onMounted(async () => {
 					callbacks: {
 						title(context) {
 							const v = context[0].dataset.data[context[0].dataIndex] as RetentionPoint;
-							return `${v.x} days later`;
+							return i18n.tsx._dashboard.nDaysLater({ n: v.x });
 						},
 						label(context) {
 							const v = context.dataset.data[context.dataIndex] as RetentionPoint;

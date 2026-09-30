@@ -6,7 +6,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div
 	ref="rootEl"
-	:class="$style.root"
+	:class="[$style.root, { [$style.mediaPlayer]: isMediaControlledByMisskey, [$style.videoPlayer]: isVideoPlayer, [$style.expanded]: expanded, [$style.controlsHidden]: expanded && !controlsVisible, [$style.animated]: prefer.s.animation }]"
+	:tabindex="active && isMediaControlledByMisskey ? 0 : -1"
+	@pointermove.capture.passive="showControls"
+	@pointerdown.capture.passive="onPlayerPointerdown"
+	@focusin="onPlayerFocus"
+	@focusout="onPlayerFocusout"
+	@keydown.capture="onPlayerKeydown"
 >
 	<div
 		ref="mainEl"
@@ -18,17 +24,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 		@touchstart.passive="onTouchstart"
 		@touchmove="onTouchmove"
 		@touchcancel.passive="cancelPointerGesture"
-		@contextmenu="cancelPointerGesture"
+		@contextmenu="onMediaContextMenu"
 		@wheel="onWheel"
 		@click="onClick"
+		@dblclick="onVideoDoubleClick"
 	>
 		<div
+			ref="transformerEl"
 			:class="[$style.transformer, { [$style.transition]: enableTransition }]"
 			:style="{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }"
 			@transitionend.self="enableTransition = false"
 			@transitioncancel.self="enableTransition = false"
 		>
-			<div :class="[$style.contentWrapper, { [$style.hideForFallback]: hideForFallback }]">
+			<div ref="contentEl" :class="[$style.contentWrapper, { [$style.hideForFallback]: hideForFallback }]">
 				<div
 					v-if="hide"
 					data-gallery-click-action="hidden"
@@ -83,19 +91,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 							v-else-if="content.type === 'video'"
 							ref="videoEl"
 							data-gallery-click-action="media"
-							:class="[$style.video, { [$style.videoSized]: videoAspectRatio != null }]"
+							:class="[$style.video, { [$style.videoSized]: isVideoPlayer || videoAspectRatio != null }]"
 							:src="content.url"
 							:alt="content.file?.comment ?? undefined"
 							draggable="false"
 							:controls="prefer.s.useNativeUiForVideoAudioPlayer"
+							:poster="content.thumbnailUrl ?? undefined"
 							playsinline
 							@loadedmetadata="onVideoLoadedMetadata"
-							@click.stop="onMediaClick"
+							@loadeddata="originalContentLoaded = true"
+							@click.stop="onMediaSurfaceClick"
+							@dblclick.stop="onVideoDoubleClick"
 						></video>
-						<div v-if="content.type === 'video' && !prefer.s.useNativeUiForVideoAudioPlayer && !isMediaPlaying" :class="$style.playIconWrapper">
-							<div :class="$style.playIcon">
-								<i class="ti ti-player-play"></i>
-							</div>
+						<div v-if="content.type === 'video' && !prefer.s.useNativeUiForVideoAudioPlayer && !isMediaPlaying && !isPlaybackPending && !showMediaLoading && !mediaFailed" :class="$style.playIconWrapper">
+							<button
+								type="button"
+								class="_button"
+								:class="$style.playIcon"
+								:aria-label="i18n.ts._mediaControls.play"
+								@pointerdown.stop
+								@touchstart.stop
+								@click.stop="onMediaSurfaceClick"
+							>
+								<MkMediaPlayIcon/>
+							</button>
 						</div>
 						<div v-if="content.type === 'audio' && prefer.s.useNativeUiForVideoAudioPlayer" :class="$style.audioRoot">
 							<audio
@@ -110,36 +129,67 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<XAudioVisualizer
 							v-else-if="content.type === 'audio' && !prefer.s.useNativeUiForVideoAudioPlayer"
 							ref="audioVisualizer"
+							:class="$style.audioVisualizer"
 							:content="content"
+							:active="active"
 							:user="user"
-							:isPlaying="isMediaPlaying"
+							:isPlaying="isMediaPlaying || isPlaybackPending"
+							:playButtonVisible="!mediaFailed"
 							:volume="volume"
 							@click.stop="onMediaClick"
 							@loadedmetadata="originalContentLoaded = true"
+							@loadError="failPlayback"
+							@playbackError="onPlaybackError"
 						/>
 					</template>
 
-					<div v-if="activated && (!originalContentLoaded || (isMediaControlledByMisskey && isMediaPlaying && (!isMediaReady || !isMediaActuallyPlaying)))" :class="$style.loading">
-						<MkLoading/>
+					<div v-if="mediaFailed" :class="$style.loading">
+						<div :class="$style.loadingContent" role="alert">
+							<span>{{ i18n.ts._mediaControls.loadFailed }}</span>
+							<button type="button" class="_button" :class="$style.retryButton" @pointerdown.stop @click.stop="retryPlayback">{{ i18n.ts.retry }}</button>
+						</div>
+					</div>
+					<div v-else-if="(activated && content.type === 'image' && !originalContentLoaded) || showMediaLoading" :class="$style.loading">
+						<div :class="$style.loadingContent" role="status">
+							<MkLoading mini/>
+							<span>{{ i18n.ts.loading }}</span>
+						</div>
 					</div>
 				</template>
+				<div
+					v-if="isMediaControlledByMisskey && !hide"
+					:class="[$style.footer, { [$style.infoShowing]: controlsVisible }]"
+					:inert="!controlsVisible"
+					@pointerenter="onControlsPointerenter"
+					@pointerleave="controlsHovered = false"
+					@pointerdown.stop
+					@pointermove.stop
+					@pointerup.stop
+					@pointercancel.stop
+					@touchstart.stop
+					@touchmove.stop
+					@touchend.stop
+					@touchcancel.stop
+					@wheel.stop
+					@contextmenu.stop="onMediaContextMenu"
+					@click.stop
+					@dblclick.stop
+				>
+					<div :class="$style.mediaControl">
+						<XControl v-if="mediaEl != null" ref="mediaControl" v-model:volume="volume" v-model:webFullscreen="webFullscreen" :playerEl="rootEl" :externalVolumeControl="isVolumeHandledByVisualizer" :controlsVisible="controlsVisible" :playbackPending="isPlaybackPending" managedPlayback @play="onMediaClick" @pause="cancelPendingPlayback"/>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
 
-	<div :class="[$style.header, { [$style.infoShowing]: infoShowing && !isZooming }]">
+	<div :class="[$style.header, { [$style.infoShowing]: controlsVisible }]" :inert="!controlsVisible" @pointerenter="onControlsPointerenter" @pointerleave="controlsHovered = false" @click.self="!expanded && closeThis()">
 		<div :class="$style.title" class="_acrylic">
-			<button class="_button" :class="$style.titleButton" @click="openMenu"><i class="ti ti-dots"></i></button>
+			<button class="_button" :class="$style.titleButton" :aria-label="i18n.ts.menu" @click="openMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
 			<div :class="$style.titleText">
 				<MkCondensedLine :minScale="0.5">{{ content.filename }}</MkCondensedLine>
 			</div>
-			<button class="_button" :class="$style.titleButton" @click="closeThis"><i class="ti ti-x"></i></button>
-		</div>
-	</div>
-
-	<div :class="[$style.footer, { [$style.infoShowing]: infoShowing && !isZooming }]">
-		<div v-if="isMediaControlledByMisskey && !hide" :class="$style.mediaControl">
-			<XControl v-if="mediaEl != null" ref="mediaControl" v-model:volume="volume" :externalVolumeControl="isVolumeHandledByVisualizer"/>
+			<button class="_button" :class="$style.titleButton" :aria-label="i18n.ts.close" @click="closeThis"><i class="ti ti-x" aria-hidden="true"></i></button>
 		</div>
 	</div>
 </div>
@@ -197,10 +247,11 @@ export function calculateSourceTransform({
 </script>
 
 <script lang="ts" setup>
-import { computed, nextTick, ref, useTemplateRef, markRaw, watch, provide, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import MkMediaPlayIcon from '@/components/MkMediaPlayIcon.vue';
+import { computed, nextTick, ref, useTemplateRef, markRaw, watch, provide, onBeforeUnmount } from 'vue';
 import MkBlurhash from '@/components/MkBlurhash.vue';
 import XControl from './MkLightbox.item.controls.vue';
-import type XAudioVisualizer__TypeReferenceOnly from './MkLightbox.item.audio-visualizer.vue';
+import XAudioVisualizer from './MkLightbox.item.audio-visualizer.vue';
 import XFileInfo from './MkLightbox.item.fileinfo.vue';
 import type { MenuItem } from '@/types/menu.js';
 import { DI } from '@/di.js';
@@ -228,9 +279,8 @@ const emit = defineEmits<{
 	(ev: 'next'): void;
 	(ev: 'prev'): void;
 	(ev: 'cancelHorizontalSwipe'): void;
+	(ev: 'expandedChange', expanded: boolean): void;
 }>();
-
-const XAudioVisualizer = defineAsyncComponent(() => import('./MkLightbox.item.audio-visualizer.vue'));
 
 // 一回のビューワー操作内では状態を維持するためにmodelで親に伝えて親で状態を保持する
 // TODO: drivefileのproperties側にピクセルアートかどうかのフラグを立ててそちらを元にデフォルトの挙動を決めるようにする
@@ -238,9 +288,11 @@ const pixelatedZoom = defineModel<boolean>('pixelatedZoom', { required: true });
 
 const rootEl = useTemplateRef('rootEl');
 const mainEl = useTemplateRef('mainEl');
+const transformerEl = useTemplateRef('transformerEl');
+const contentEl = useTemplateRef('contentEl');
 const videoEl = useTemplateRef('videoEl');
 const audioEl = useTemplateRef('audioEl'); // ネイティブUI時
-const audioVisualizer = useTemplateRef<InstanceType<typeof XAudioVisualizer__TypeReferenceOnly>>('audioVisualizer'); // ネイティブUIじゃない場合
+const audioVisualizer = useTemplateRef<InstanceType<typeof XAudioVisualizer>>('audioVisualizer'); // ネイティブUIじゃない場合
 const mediaControl = useTemplateRef<InstanceType<typeof XControl>>('mediaControl');
 
 const mediaEl = computed<HTMLVideoElement | HTMLAudioElement | null>(() => {
@@ -263,15 +315,133 @@ const originalContentLoaded = ref(false);
 const thumbnailContentLoaded = ref(false);
 const enableTransition = ref(false);
 const infoShowing = ref(false);
+const active = ref(props.activated);
+const controlsHovered = ref(false);
+const controlsFocused = ref(false);
+const fileMenuShowing = ref(false);
+const controlsVisible = computed(() => active.value && infoShowing.value && !isZooming.value);
 const hide = ref(true);
 const isMediaControlledByMisskey = computed(() => ['video', 'audio'].includes(props.content.type) && !prefer.s.useNativeUiForVideoAudioPlayer);
+const isVideoPlayer = computed(() => props.content.type === 'video' && isMediaControlledByMisskey.value);
 // ビジュアライザー使用時は音量の適用をGainNode側が担当する (メディア要素は100%固定にして、波形が音量レベルに依存しないようにするため)
 const isVolumeHandledByVisualizer = computed(() => props.content.type === 'audio' && !prefer.s.useNativeUiForVideoAudioPlayer);
 const volume = ref(0.5);
-const isMediaReady = computed(() => mediaControl.value?.isReady ?? false);
 const isMediaPlaying = computed(() => mediaControl.value?.isPlaying ?? false);
+// onActive() より前の初回描画も、自動再生の結果が確定するまでは再生ボタンを出さない。
+const isPlaybackPending = ref(props.activated && ['video', 'audio'].includes(props.content.type));
+const mediaFailed = ref(false);
 const isMediaActuallyPlaying = computed(() => mediaControl.value?.isActuallyPlaying ?? false);
+const mediaLoadingRequested = computed(() => active.value && !hide.value && !mediaFailed.value && isMediaControlledByMisskey.value && (isPlaybackPending.value || (isMediaPlaying.value && !isMediaActuallyPlaying.value)));
+const showMediaLoading = ref(false);
+watch([mediaLoadingRequested, mediaEl], ([loading, media], _oldLoading, onCleanup) => {
+	showMediaLoading.value = false;
+	if (!loading || media == null) return;
+	// 要素の準備時間を再生待ちに含めず、
+	// CORSフォールバックで要素を差し替えた場合も同じ猶予を設ける。
+	// 短い再生開始待ちでは点滅させず、実際に待ち時間が生じた場合のみ知らせる。
+	const timer = window.setTimeout(() => { showMediaLoading.value = true; }, 500);
+	onCleanup(() => window.clearTimeout(timer));
+}, { immediate: true, flush: 'sync' });
+const menuShowing = computed(() => fileMenuShowing.value || (mediaControl.value?.menuShowing ?? false));
+const webFullscreen = ref(false);
+const closingExpanded = ref(false);
+const expanded = computed(() => props.content.type === 'video' && (closingExpanded.value || webFullscreen.value || (mediaControl.value?.fullscreen ?? false)));
+watch(expanded, value => {
+	// 全画面へのサイズ変更時は、ズーム用の強制 reflow と transform アニメーションを避ける。
+	cancelMotion();
+	isZooming.value = false;
+	enableTransition.value = false;
+	transform.value = { x: 0, y: 0, scale: 1 };
+	emit('expandedChange', value);
+});
+// 全画面ボタンから舞台へ即座にフォーカスを戻す。Web 全画面から native 全画面への切替も対象。
+watch([expanded, () => mediaControl.value?.fullscreen ?? false], () => {
+	if (!expanded.value) return;
+	void nextTick(() => {
+		if (active.value && expanded.value) rootEl.value?.focus({ preventScroll: true });
+	});
+});
 let canOpenAnimation = false;
+let openingStarted = false;
+let controlsHideTimer: number | null = null;
+
+function clearControlsHideTimer() {
+	if (controlsHideTimer == null) return;
+	window.clearTimeout(controlsHideTimer);
+	controlsHideTimer = null;
+}
+
+function showControls() {
+	clearControlsHideTimer();
+	if (!active.value) return;
+	infoShowing.value = true;
+	if (!expanded.value || !isMediaActuallyPlaying.value || controlsHovered.value || controlsFocused.value || menuShowing.value || hide.value) return;
+	controlsHideTimer = window.setTimeout(() => {
+		controlsHideTimer = null;
+		// マウスで押したボタンを inert にする前に、Space 操作を受ける舞台へフォーカスを戻す。
+		const focused = window.document.activeElement;
+		// ネイティブ全画面への遷移で body にフォーカスが移るブラウザにも対応する。
+		if (rootEl.value != null && focused !== rootEl.value && (focused == null || focused === window.document.body || focused === window.document.documentElement || rootEl.value.contains(focused))) {
+			rootEl.value.focus({ preventScroll: true });
+			clearControlsHideTimer();
+		}
+		infoShowing.value = false;
+	}, 2500);
+}
+
+function onControlsPointerenter(ev: PointerEvent) {
+	if (ev.pointerType === 'touch') return;
+	controlsHovered.value = true;
+}
+
+function onPlayerPointerdown() {
+	controlsFocused.value = false;
+	showControls();
+}
+
+function onPlayerFocus(ev: FocusEvent) {
+	controlsFocused.value = ev.target instanceof HTMLElement && ev.target !== rootEl.value && ev.target.matches(':focus-visible');
+	showControls();
+}
+
+function onPlayerFocusout() {
+	void nextTick(() => {
+		const focused = window.document.activeElement;
+		controlsFocused.value = focused instanceof HTMLElement && focused !== rootEl.value && !!rootEl.value?.contains(focused) && focused.matches(':focus-visible');
+	});
+}
+
+function onPlayerKeydown(ev: KeyboardEvent) {
+	if (!active.value || !isMediaControlledByMisskey.value || hide.value || menuShowing.value) return;
+	showControls();
+	if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+	if (ev.key === 'Escape' && exitFullscreen()) {
+		ev.preventDefault();
+		ev.stopPropagation();
+		return;
+	}
+	if (ev.target instanceof HTMLElement && ev.target.closest('input, textarea, select, [role="slider"], [role="menu"], [contenteditable]:not([contenteditable="false"])')) return;
+	if (expanded.value && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(ev.key)) {
+		ev.preventDefault();
+		ev.stopPropagation();
+		if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
+			volume.value = Math.max(0, Math.min(1, Math.round((volume.value + (ev.key === 'ArrowUp' ? 0.05 : -0.05)) * 100) / 100));
+		} else {
+			const el = mediaEl.value;
+			if (el != null && Number.isFinite(el.duration)) {
+				el.currentTime = Math.max(0, Math.min(el.duration, el.currentTime + (ev.key === 'ArrowRight' ? 5 : -5)));
+			}
+		}
+		return;
+	}
+	if (ev.code !== 'Space' && ev.key !== ' ') return;
+	if (ev.target instanceof HTMLElement && ev.target.closest('button, input, textarea, select, a, [role="button"], [role="slider"], [contenteditable]:not([contenteditable="false"])')) return;
+	ev.preventDefault();
+	ev.stopPropagation();
+	if (!ev.repeat) onMediaClick();
+}
+
+watch([expanded, isMediaActuallyPlaying, controlsHovered, controlsFocused, menuShowing, active, hide], showControls);
 
 const contentHideFileIcon = computed(() => {
 	switch (props.content.type) {
@@ -303,10 +473,9 @@ const videoAspectRatio = ref<number | null>(
 		? props.content.width / props.content.height
 		: null
 );
+const playerAspectRatio = computed(() => props.content.type === 'audio' ? 16 / 9 : videoAspectRatio.value ?? 16 / 9);
 
 function onVideoLoadedMetadata() {
-	originalContentLoaded.value = true;
-
 	// ドライブ上のメタデータが無い場合に限り、動画自体の初期サイズから縦横比を確定させる
 	if (videoAspectRatio.value != null) return;
 	if (videoEl.value == null || videoEl.value.videoWidth === 0 || videoEl.value.videoHeight === 0) return;
@@ -314,46 +483,143 @@ function onVideoLoadedMetadata() {
 }
 
 const headerSize = 30;
-const footerSize = isMediaControlledByMisskey.value ? 80 : 0;
+const footerSize = 80;
 
 const padding = deviceKind === 'smartphone' ? {
 	top: Math.max(0, headerSize + 10),
 	right: 0,
-	bottom: Math.max(0, footerSize + 10),
+	bottom: 10,
 	left: 0,
 } : {
 	top: Math.max(30, headerSize + 10),
 	right: 30,
-	bottom: Math.max(30, footerSize + 10),
+	bottom: 30,
 	left: 30,
 };
 
+type TransformState = { x: number; y: number; scale: number };
+type FrameState = TransformState & { opacity: number };
+const neutralTransform: TransformState = { x: 0, y: 0, scale: 1 };
+const neutralFrame: FrameState = { ...neutralTransform, opacity: 1 };
+const motionEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+// MkLightbox の leave duration と揃え、親の削除でアニメーションが切れないようにする。
+const motionDuration = 200;
+let frameAnimation: Animation | null = null;
+let frameAnimationFrom = neutralFrame;
+let frameAnimationTo = neutralFrame;
+let sourceAnimation: Animation | null = null;
+let sourceAnimationFrom = neutralTransform;
+let sourceAnimationTo = neutralTransform;
+
+function transformCss(value: TransformState) {
+	return `translate(${value.x}px, ${value.y}px) scale(${value.scale})`;
+}
+
+function interpolateTransform(from: TransformState, to: TransformState, progress: number): TransformState {
+	return {
+		x: from.x + (to.x - from.x) * progress,
+		y: from.y + (to.y - from.y) * progress,
+		scale: from.scale + (to.scale - from.scale) * progress,
+	};
+}
+
+function currentFrameState(): FrameState {
+	if (frameAnimation == null) return neutralFrame;
+	const progress = frameAnimation.effect?.getComputedTiming().progress ?? 0;
+	return {
+		...interpolateTransform(frameAnimationFrom, frameAnimationTo, progress),
+		opacity: frameAnimationFrom.opacity + (frameAnimationTo.opacity - frameAnimationFrom.opacity) * progress,
+	};
+}
+
+function cancelFrameAnimation() {
+	frameAnimation?.cancel();
+	frameAnimation = null;
+}
+
+function animateFrame(from: FrameState, to: FrameState, duration = motionDuration) {
+	cancelFrameAnimation();
+	const frame = contentEl.value;
+	if (!prefer.s.animation || frame == null || typeof frame.animate !== 'function') return;
+	frameAnimationFrom = from;
+	frameAnimationTo = to;
+	const animation = frame.animate([
+		{ transform: transformCss(from), opacity: from.opacity },
+		{ transform: transformCss(to), opacity: to.opacity },
+	], { duration, easing: motionEasing });
+	frameAnimation = animation;
+	animation.addEventListener('finish', () => {
+		if (frameAnimation === animation) frameAnimation = null;
+	}, { once: true });
+}
+
+function currentSourceTransform(): TransformState {
+	if (sourceAnimation == null) return { ...transform.value };
+	const progress = sourceAnimation.effect?.getComputedTiming().progress ?? 0;
+	return interpolateTransform(sourceAnimationFrom, sourceAnimationTo, progress);
+}
+
+function cancelSourceAnimation() {
+	sourceAnimation?.cancel();
+	sourceAnimation = null;
+}
+
+function animateSourceTransform(to: TransformState, from = currentSourceTransform()) {
+	cancelSourceAnimation();
+	enableTransition.value = false;
+	transform.value = { ...to };
+	const element = transformerEl.value;
+	if (!prefer.s.animation || element == null || typeof element.animate !== 'function') return;
+	sourceAnimationFrom = from;
+	sourceAnimationTo = to;
+	const animation = element.animate([
+		{ transform: transformCss(from) },
+		{ transform: transformCss(to) },
+	], { duration: motionDuration, easing: motionEasing });
+	sourceAnimation = animation;
+	animation.addEventListener('finish', () => {
+		if (sourceAnimation === animation) sourceAnimation = null;
+	}, { once: true });
+}
+
+function cancelMotion() {
+	cancelFrameAnimation();
+	cancelSourceAnimation();
+}
+
+// 全画面はブラウザーの表示領域へ即時切り替える。縦横比の異なる舞台間に
+// 拡縮を挟むと映像や操作バーが跳ねるため、メディア自体には追加の効果を掛けない。
+watch(() => mediaControl.value?.fullscreen ?? false, cancelFrameAnimation, { flush: 'sync' });
+watch(() => prefer.s.animation, cancelMotion);
+window.addEventListener('resize', cancelMotion, { passive: true });
+
 // maxからはみ出す場合は縮小、maxに満たない場合は拡大する(contain)
-function calcContentRenderingSize(content: Content) {
-	if (content.width == null || content.height == null || content.width === 0 || content.height === 0) return null;
+function calcContentRenderingSize(content: Content, full = expanded.value) {
+	const ratio = content.type === 'image'
+		? content.width != null && content.height != null && content.width > 0 && content.height > 0 ? content.width / content.height : null
+		: playerAspectRatio.value;
+	if (ratio == null) return null;
 
-	const maxWidth = window.innerWidth - padding.left - padding.right;
-	const maxHeight = window.innerHeight - padding.top - padding.bottom;
-
-	const widthRatio = maxWidth / content.width;
-	const heightRatio = maxHeight / content.height;
-	const ratio = widthRatio < heightRatio ? widthRatio : heightRatio;
-
-	const width = content.width * ratio;
-	const height = content.height * ratio;
+	const maxWidth = window.innerWidth - (full ? 0 : padding.left + padding.right);
+	const maxHeight = window.innerHeight - (full ? 0 : padding.top + padding.bottom);
+	const width = Math.min(maxWidth, maxHeight * ratio);
+	const height = width / ratio;
 
 	return { width, height };
 }
 
-const contentRenderingSize = calcContentRenderingSize(props.content);
-const getContentRenderingRect = () => contentRenderingSize != null ? {
-	left: (window.innerWidth - contentRenderingSize.width + padding.left - padding.right) / 2,
-	top: (window.innerHeight - contentRenderingSize.height + padding.top - padding.bottom) / 2,
-	width: contentRenderingSize.width,
-	height: contentRenderingSize.height,
-} : null;
+function getContentRenderingRect(): Rect | null {
+	const size = calcContentRenderingSize(props.content);
+	if (size == null) return null;
+	return {
+		left: (window.innerWidth - size.width + (expanded.value ? 0 : padding.left - padding.right)) / 2,
+		top: (window.innerHeight - size.height + (expanded.value ? 0 : padding.top - padding.bottom)) / 2,
+		...size,
+	};
+}
 
 const hiddenStyle = computed(() => {
+	const contentRenderingSize = calcContentRenderingSize(props.content, false);
 	if (contentRenderingSize == null) {
 		return {
 			width: '100%',
@@ -401,7 +667,7 @@ function getScaleAndTranslationForSourceElement() {
 	});
 }
 
-if (props.content.sourceElement != null && props.activated) {
+if (prefer.s.animation && props.content.sourceElement != null && props.activated) {
 	const sourceTransform = getScaleAndTranslationForSourceElement();
 	if (sourceTransform != null) {
 		transform.value.scale = sourceTransform.scale;
@@ -411,7 +677,7 @@ if (props.content.sourceElement != null && props.activated) {
 	}
 }
 
-const hideForFallback = ref(!canOpenAnimation);
+const hideForFallback = ref(prefer.s.animation && !canOpenAnimation);
 
 const isZooming = ref(false);
 
@@ -472,35 +738,47 @@ function resetToNeutral() {
 	if (rootEl.value == null) return;
 
 	isZooming.value = false;
-
-	enableTransition.value = true;
-	rootEl.value.offsetHeight; // reflow
-	transform.value.scale = 1;
-	transform.value.x = 0;
-	transform.value.y = 0;
+	animateSourceTransform(neutralTransform);
 }
 
 function closeThis() {
+	if (!active.value) return;
+	const sourceFrom = currentSourceTransform();
+	const frameFrom = currentFrameState();
+	const sourceTransform = getScaleAndTranslationForSourceElement();
+	closingExpanded.value = expanded.value;
+	cancelVideoSurfaceClick();
+	active.value = false;
+	cancelMotion();
+	clearControlsHideTimer();
+	// 閉じるアニメーション中もコンポーネントは残るため、unmount を待たず停止する。
+	cancelPendingPlayback();
+	mediaEl.value?.pause();
+	mediaControl.value?.cancelFullscreen();
 	emit('close');
 
 	infoShowing.value = false;
 
 	if (rootEl.value == null) return;
 
-	const sourceTransform = getScaleAndTranslationForSourceElement();
 	if (sourceTransform != null) {
-		enableTransition.value = true;
-		rootEl.value.offsetHeight; // reflow
-		transform.value.x = sourceTransform.x;
-		transform.value.y = sourceTransform.y;
-		transform.value.scale = sourceTransform.scale;
+		// 全画面への遷移中に閉じた場合も、現在の共通フレームを起点にする。
+		const centerX = window.innerWidth / 2 + (expanded.value ? 0 : (padding.left - padding.right) / 2);
+		const centerY = window.innerHeight / 2 + (expanded.value ? 0 : (padding.top - padding.bottom) / 2);
+		animateSourceTransform(sourceTransform, {
+			x: sourceFrom.x + sourceFrom.scale * (frameFrom.x + centerX * (1 - frameFrom.scale)),
+			y: sourceFrom.y + sourceFrom.scale * (frameFrom.y + centerY * (1 - frameFrom.scale)),
+			scale: sourceFrom.scale * frameFrom.scale,
+		});
 	} else {
 		hideForFallback.value = true;
+		animateFrame(frameFrom, { ...neutralFrame, scale: 0.98, opacity: 0 });
 	}
 }
 
 function onWheel(event: WheelEvent) {
 	event.preventDefault();
+	if (expanded.value) return;
 
 	const delta = event.deltaY;
 
@@ -609,6 +887,7 @@ function resolveClickAction(target: EventTarget | null): 'hidden' | 'media' | nu
 }
 
 function onPointerdown(ev: PointerEvent) {
+	if (expanded.value) return;
 	if (mainEl.value == null) return;
 	pointerEventCache.set(ev.pointerId, ev);
 	mainEl.value.setPointerCapture(ev.pointerId);
@@ -805,6 +1084,7 @@ function cancelPointerGesture() {
 }
 
 function onTouchstart(ev: TouchEvent) {
+	if (expanded.value) return;
 	doubleTapDetector.onTouchstart(ev);
 }
 
@@ -853,42 +1133,29 @@ watch(isZooming, () => {
 //#endregion
 
 function animateFromSourceToNeutral() {
-	if (rootEl.value == null) return;
-
+	if (openingStarted || !active.value || contentEl.value == null) return;
+	openingStarted = true;
+	const wasHidden = hideForFallback.value;
+	hideForFallback.value = false;
 	const sourceElement = props.content.sourceElement;
-	if (sourceElement == null || !props.activated) return;
-
-	enableTransition.value = true;
-	rootEl.value.offsetHeight; // reflow
-	transform.value.x = 0;
-	transform.value.y = 0;
-	transform.value.scale = 1;
-
-	nextTick(() => {
-		sourceElement.style.visibility = 'hidden';
-	});
+	if (canOpenAnimation) {
+		animateSourceTransform(neutralTransform);
+	} else if (wasHidden) {
+		animateFrame({ ...neutralFrame, scale: 0.98, opacity: 0 }, neutralFrame);
+	}
+	if (sourceElement != null) sourceElement.style.visibility = 'hidden';
 }
 
-watch([thumbnailContentLoaded, originalContentLoaded], () => {
-	animateFromSourceToNeutral();
-}, { once: true });
-
-watch([rootEl, hide], ([newRootEl, isHidden]) => {
-	if (newRootEl == null || !isHidden) return;
-	animateFromSourceToNeutral();
-}, { immediate: true });
-
-watch(props.content, (newContent) => {
+watch(() => props.content, (newContent) => {
 	hide.value = shouldHideInGallery(newContent);
 }, { deep: true, immediate: true });
 
-watch(rootEl, (newRootEl) => {
-	if (newRootEl == null) return;
-
+watch(contentEl, (frame) => {
+	if (frame == null) return;
 	infoShowing.value = true;
-	newRootEl.offsetHeight; // reflow
-	hideForFallback.value = false;
-}, { immediate: true });
+	if (active.value) animateFromSourceToNeutral();
+	else hideForFallback.value = false;
+}, { flush: 'post' });
 
 function onClick(ev: MouseEvent) {
 	if (!isClick) return;
@@ -902,7 +1169,12 @@ function onClick(ev: MouseEvent) {
 	}
 
 	if (action === 'media') {
-		onMediaClick();
+		onMediaSurfaceClick(ev);
+		return;
+	}
+
+	if (expanded.value && !hide.value && isMediaControlledByMisskey.value) {
+		onMediaSurfaceClick(ev);
 		return;
 	}
 
@@ -916,51 +1188,173 @@ function onClick(ev: MouseEvent) {
 	}
 }
 
-/**
- * play() は自動再生のブロックや、再生が始まる前の pause() によって reject することがある。
- * いずれも再生ボタンが出たままになるだけで復帰不能ではないので、握りつぶす
- */
+// Keep user intent separate from play() promises and media buffering events.
+let playbackRequest = 0;
+let wantsPlayback = false;
+let playInFlight = false;
+let stopWaitingForMedia: (() => void) | null = null;
+
+function cancelPendingPlayback() {
+	playbackRequest++;
+	wantsPlayback = false;
+	playInFlight = false;
+	stopWaitingForMedia?.();
+	stopWaitingForMedia = null;
+	isPlaybackPending.value = false;
+	audioVisualizer.value?.cancelPlayback();
+}
+
+function failPlayback() {
+	if (!active.value) return;
+	cancelPendingPlayback();
+	mediaFailed.value = true;
+	mediaEl.value?.pause();
+}
+
+function onPlaybackError(err: unknown) {
+	if (!active.value) return;
+	if (err instanceof Error && err.name === 'NotAllowedError') {
+		cancelPendingPlayback();
+	} else if (!(err instanceof Error && err.name === 'AbortError')) {
+		failPlayback();
+	}
+}
+
 function safePlay(el: HTMLMediaElement) {
+	if (!active.value) return;
+	const request = ++playbackRequest;
+	wantsPlayback = true;
+	playInFlight = true;
+	mediaFailed.value = false;
+	isPlaybackPending.value = true;
+	let interrupted = false;
 	el.play().catch(err => {
-		if (_DEV_) console.warn('Failed to play media:', err);
+		interrupted = err instanceof Error && err.name === 'AbortError';
+		if (request === playbackRequest && el === mediaEl.value) onPlaybackError(err);
+	}).finally(() => {
+		if (request !== playbackRequest) return;
+		playInFlight = false;
+		if (!interrupted && el.error == null && el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) isPlaybackPending.value = false;
 	});
 }
 
+function retryPlayback() {
+	const el = mediaEl.value;
+	if (!active.value || el == null) return;
+	cancelPendingPlayback();
+	mediaFailed.value = false;
+	el.load();
+	safePlay(el);
+}
+
+watch(mediaEl, (el, _oldEl, onCleanup) => {
+	if (el == null) return;
+	const controller = new AbortController();
+	const on = (name: string, handler: () => void) => el.addEventListener(name, handler, { signal: controller.signal });
+	on('canplay', () => {
+		if (active.value && !hide.value && wantsPlayback && !playInFlight && el.paused && !mediaFailed.value) safePlay(el);
+	});
+	on('playing', () => { isPlaybackPending.value = false; mediaFailed.value = false; });
+	on('ended', cancelPendingPlayback);
+	on('pause', () => { if (!isPlaybackPending.value && el.error == null) wantsPlayback = false; });
+	// The visualizer handles its first CORS failure before emitting a terminal load error.
+	if (props.content.type !== 'audio' || prefer.s.useNativeUiForVideoAudioPlayer) on('error', () => { if (el.error != null) failPlayback(); });
+	onCleanup(() => controller.abort());
+}, { flush: 'post' });
+
 function playWhenAvailable() {
+	if (!active.value) return;
+	cancelPendingPlayback();
+	if (!['video', 'audio'].includes(props.content.type)) return;
+	isPlaybackPending.value = true;
 	if (mediaEl.value != null) {
 		safePlay(mediaEl.value);
 		return;
 	}
 
-	// オーディオビジュアライザはlazy-loadのため、この時点ではまだ要素が無い可能性がある
-	const watchStop = watch(mediaEl, (newMediaEl) => {
+	// 非表示メディアを公開した直後は、Vue の描画前で要素が無い可能性がある。
+	stopWaitingForMedia = watch(mediaEl, (newMediaEl) => {
 		if (newMediaEl == null) return;
 		safePlay(newMediaEl);
-		watchStop();
+		stopWaitingForMedia?.();
+		stopWaitingForMedia = null;
 	});
 }
 
 async function onHiddenClick() {
-	if (hide.value) {
-		if (props.content.file == null || await canRevealFile(props.content.file)) {
-			hide.value = false;
-			if (['audio', 'video'].includes(props.content.type)) {
-				playWhenAvailable();
-			}
+	if (!active.value || !hide.value) return;
+	const request = playbackRequest;
+	const allowed = props.content.file == null || await canRevealFile(props.content.file);
+	// 確認ダイアログを待つ間に閉じたり別の項目へ移った場合、古い結果で再生を開始しない。
+	if (!allowed || !active.value || request !== playbackRequest || !hide.value) return;
+	hide.value = false;
+	if (['audio', 'video'].includes(props.content.type)) {
+		playWhenAvailable();
+	}
+}
+
+let videoClickTimer: number | null = null;
+
+function cancelVideoSurfaceClick() {
+	if (videoClickTimer == null) return;
+	window.clearTimeout(videoClickTimer);
+	videoClickTimer = null;
+}
+
+function onMediaSurfaceClick(ev: MouseEvent) {
+	if (!active.value) return;
+	const el = mediaEl.value;
+	if (props.content.type === 'video' && el != null && !prefer.s.useNativeUiForVideoAudioPlayer) {
+		cancelVideoSurfaceClick();
+		showControls();
+		if (ev.detail === 0) {
+			// キーボード・支援技術によるクリックは待たずに実行する。
+			onMediaClick();
+		} else if (ev.detail === 1) {
+			// 全画面のダブルクリックで一時停止・再生を繰り返さない。
+			// 中央ボタンも判定が終わるまで残るので、同じ要素で dblclick を受け取れる。
+			videoClickTimer = window.setTimeout(() => {
+				videoClickTimer = null;
+				if (active.value && mediaEl.value === el) onMediaClick();
+			}, 250);
+		}
+	} else {
+		onMediaClick();
+	}
+	if (isMediaControlledByMisskey.value) rootEl.value?.focus({ preventScroll: true });
+}
+
+function onVideoDoubleClick(ev: MouseEvent) {
+	if (!active.value || hide.value || props.content.type !== 'video' || prefer.s.useNativeUiForVideoAudioPlayer) return;
+	ev.preventDefault();
+	ev.stopPropagation();
+	cancelVideoSurfaceClick();
+	showControls();
+	void mediaControl.value?.toggleFullscreen();
+}
+
+function onMediaClick() {
+	cancelVideoSurfaceClick();
+	if (!active.value || hide.value) return;
+	showControls();
+	if (!prefer.s.useNativeUiForVideoAudioPlayer) {
+		if (mediaEl.value == null) return;
+		if (mediaFailed.value) { retryPlayback(); return; }
+
+		if (mediaEl.value.paused && !isPlaybackPending.value) {
+			safePlay(mediaEl.value);
+		} else {
+			cancelPendingPlayback();
+			mediaEl.value.pause();
 		}
 	}
 }
 
-function onMediaClick() {
-	if (!prefer.s.useNativeUiForVideoAudioPlayer) {
-		if (mediaEl.value == null) return;
-
-		if (mediaEl.value.paused) {
-			safePlay(mediaEl.value);
-		} else {
-			mediaEl.value.pause();
-		}
-	}
+function onMediaContextMenu(ev: PointerEvent) {
+	cancelPointerGesture();
+	if (!isMediaControlledByMisskey.value || hide.value || mediaControl.value == null) return;
+	ev.stopPropagation();
+	mediaControl.value.showContextMenu(ev);
 }
 
 function openMenu(ev: PointerEvent) {
@@ -1002,14 +1396,41 @@ function openMenu(ev: PointerEvent) {
 		}
 	}
 
-	os.popupMenu(menu, (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+	fileMenuShowing.value = true;
+	os.popupMenu(menu, (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined, {
+		onClosing: () => { fileMenuShowing.value = false; },
+	});
 }
 
 function onActive() {
+	cancelVideoSurfaceClick();
+	active.value = true;
+	closingExpanded.value = false;
+	showControls();
 	playWhenAvailable();
+	void nextTick(() => {
+		if (active.value && isMediaControlledByMisskey.value) rootEl.value?.focus({ preventScroll: true });
+	});
+}
+
+function exitFullscreen() {
+	if (mediaControl.value?.exitFullscreen()) return true;
+	if (!webFullscreen.value) return false;
+	webFullscreen.value = false;
+	return true;
 }
 
 function onDeactive() {
+	cancelVideoSurfaceClick();
+	active.value = false;
+	cancelMotion();
+	closingExpanded.value = false;
+	controlsHovered.value = false;
+	controlsFocused.value = false;
+	clearControlsHideTimer();
+	cancelPendingPlayback();
+	webFullscreen.value = false;
+	mediaControl.value?.cancelFullscreen();
 	if (isZooming.value) {
 		isZooming.value = false;
 		resetToNeutral();
@@ -1020,15 +1441,25 @@ function onDeactive() {
 }
 
 onBeforeUnmount(() => {
+	cancelVideoSurfaceClick();
+	active.value = false;
+	cancelMotion();
+	window.removeEventListener('resize', cancelMotion);
+	clearControlsHideTimer();
+	cancelPendingPlayback();
+	mediaEl.value?.pause();
+	mediaControl.value?.cancelFullscreen();
 	if (rafHandle) {
 		window.cancelAnimationFrame(rafHandle);
 	}
 });
 
 defineExpose({
+	menuShowing,
 	onActive,
 	onDeactive,
 	closeThis,
+	exitFullscreen,
 });
 </script>
 
@@ -1059,6 +1490,7 @@ defineExpose({
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
+	cursor: pointer;
 }
 
 .pixelatedZoom {
@@ -1075,6 +1507,10 @@ defineExpose({
 	width: 100%;
 	height: 100%;
 	object-fit: contain;
+	transform-origin: center;
+	// 画面全体がクリック（再生/一時停止）・ダブルクリック（全画面）の対象なので手型にする
+	cursor: pointer;
+	border-radius: 2px;
 }
 
 .videoSized {
@@ -1098,6 +1534,10 @@ defineExpose({
 	width: 100%;
 }
 
+.mediaPlayer .audioVisualizer {
+	border-radius: var(--MI-radius);
+}
+
 .loading {
 	position: absolute;
 	top: 0;
@@ -1110,6 +1550,25 @@ defineExpose({
 	pointer-events: none;
 }
 
+.loadingContent {
+	padding: 0 16px 12px;
+	border-radius: var(--MI-radius);
+	background: color-mix(in srgb, var(--MI-mediaStageBg, var(--MI_THEME-panel)) 85%, transparent);
+	color: var(--MI-mediaStageFg, var(--MI_THEME-fg));
+	font-size: 85%;
+	text-align: center;
+}
+
+.retryButton {
+	display: block;
+	margin: 12px auto 0;
+	padding: 8px 16px;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-accent);
+	color: var(--MI_THEME-fgOnAccent);
+	pointer-events: auto;
+}
+
 .transformer {
 	width: 100%;
 	height: 100%;
@@ -1118,8 +1577,8 @@ defineExpose({
 	transform-origin: left top;
 }
 
-.transition {
-	transition: transform 200ms ease;
+.animated .transition {
+	transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .contentWrapper {
@@ -1128,12 +1587,11 @@ defineExpose({
 	height: 100%;
 	// .videoSizedが使う100cqw / 100cqhの基準 (= paddingを除いた実際の表示領域)
 	container-type: size;
-	transition: scale 200ms ease, opacity 200ms ease !important;
 }
 
 .hideForFallback {
-	scale: 0.7 !important;
-	opacity: 0 !important;
+	transform: scale(0.98);
+	opacity: 0;
 }
 
 .playIconWrapper {
@@ -1150,19 +1608,45 @@ defineExpose({
 .playIcon {
 	display: grid;
 	place-items: center;
-	width: 50px;
-	height: 50px;
-	border-radius: 100%;
-	font-size: 120%;
-	background: var(--MI_THEME-accent);
-	color: var(--MI_THEME-fgOnAccent);
+	--MI-mediaPlaySize: 64px;
+	width: var(--MI-mediaPlaySize);
+	height: var(--MI-mediaPlaySize);
+	border-radius: 0;
+	font-size: var(--MI-mediaPlaySize);
+	background: none;
+	color: var(--MI_THEME-accent);
+	pointer-events: auto;
+	cursor: pointer;
 	scale: 1;
-	transition: scale 100ms ease;
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 4px;
+	}
 }
 
-// アイコン自体はクリックを受け取らないので、hoverは下のvideo要素を経由して拾う
-.video:hover ~ .playIconWrapper .playIcon {
-	scale: 1.2;
+.animated .playIcon {
+	> span {
+		transition: scale 160ms ease-out;
+	}
+
+	&:is(:hover, :focus-visible) > span {
+		--MI-mediaPlayHover: 1;
+		scale: 1.12;
+	}
+
+	&:active > span {
+		scale: 0.94;
+	}
+}
+
+.animated .contentWrapper:has(> .video:hover) .playIcon > span {
+	--MI-mediaPlayHover: 1;
+	scale: 1.12;
+}
+
+.animated .contentWrapper:has(> .video:active) .playIcon > span {
+	scale: 0.94;
 }
 
 .hidden {
@@ -1237,15 +1721,7 @@ defineExpose({
 
 .footer {
 	position: absolute;
-	bottom: v-bind("-footerSize + 'px'");
-	left: 0;
-	right: 0;
 	height: v-bind("footerSize + 'px'");
-	opacity: 0;
-	transition: opacity 200ms ease, bottom 200ms ease;
-}
-.footer.infoShowing {
-	bottom: 0px;
 	opacity: 1;
 }
 .header {
@@ -1255,6 +1731,8 @@ defineExpose({
 	right: 0;
 	height: v-bind("headerSize + 'px'");
 	opacity: 0;
+}
+.animated .header {
 	transition: opacity 200ms ease, top 200ms ease;
 }
 .header.infoShowing {
@@ -1291,17 +1769,145 @@ defineExpose({
 .mediaControl {
 	width: 100%;
 	height: 100%;
-	max-width: min(1000px, calc(100% - 16px));
 	box-sizing: border-box;
-	padding: 12px 20px;
 	margin: auto;
-	background: var(--MI_THEME-panel);
-	border-radius: 12px 12px 0 0;
 }
 
-@container (max-width: 500px) {
+.mediaPlayer {
+	// 動画と操作バーにはテーマに依存しない共通のメディア色を使う。
+	--MI-mediaStageBg: #000;
+	--MI-mediaStageFg: #fff;
+	--MI-mediaSliderBg: color-mix(in srgb, var(--MI-mediaStageFg) 25%, transparent);
+	// 映像と同じ contentWrapper 内で配置し、開閉・全画面のアニメーションも共有する。
+	--MI-mediaPlayerWidth: min(100cqw, calc(100cqh * v-bind("playerAspectRatio")));
+	--MI-mediaPlayerHeight: calc(var(--MI-mediaPlayerWidth) / v-bind("playerAspectRatio"));
+
+	.video {
+		border-radius: var(--MI-radius);
+	}
+
+	.footer {
+		left: 50%;
+		right: auto;
+		bottom: calc((100cqh - var(--MI-mediaPlayerHeight)) / 2);
+		translate: -50% 0;
+		width: var(--MI-mediaPlayerWidth);
+		border-radius: 0 0 var(--MI-radius) var(--MI-radius);
+		color: var(--MI-mediaStageFg);
+		text-shadow: 0 1px 3px var(--MI-mediaStageBg);
+	}
+
 	.mediaControl {
-		padding: 8px 12px;
+		container-type: inline-size;
+		max-width: none;
+		padding: 0 12px 8px;
+		background: transparent;
+		color: inherit;
+		border-radius: inherit;
+	}
+}
+
+.videoPlayer {
+	.footer {
+		z-index: 3;
+		background: linear-gradient(to top, color-mix(in srgb, var(--MI-mediaStageBg) 85%, transparent), transparent);
+		opacity: 0;
+
+		&.infoShowing { opacity: 1; }
+	}
+
+	.playIcon {
+		color: var(--MI-mediaStageFg);
+		filter: drop-shadow(0 2px 8px var(--MI-mediaStageBg));
+	}
+
+	&.animated .mediaControl {
+		transition: opacity 180ms ease, transform 180ms ease;
+	}
+
+	&.animated .footer { transition: opacity 180ms ease; }
+
+	.footer:not(.infoShowing) .mediaControl {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+}
+
+.expanded {
+	// 映像の黒帯と操作領域を一体化する。メディア専用色はライトテーマでも固定する。
+	--MI-mediaHeaderHeight: calc(v-bind("headerSize + 10 + 'px'") + env(safe-area-inset-top));
+	--MI-mediaFooterHeight: calc(v-bind("footerSize + 'px'") + env(safe-area-inset-bottom));
+
+	position: fixed;
+	inset: 0;
+	z-index: 1;
+	background: var(--MI-mediaStageBg);
+	color: var(--MI-mediaStageFg);
+
+	.transformer {
+		padding: 0;
+	}
+
+	.header {
+		top: 0;
+		height: var(--MI-mediaHeaderHeight);
+		background: linear-gradient(to bottom, color-mix(in srgb, var(--MI-mediaStageBg) 85%, transparent), transparent);
+	}
+
+	.footer {
+		left: 0;
+		right: 0;
+		bottom: 0;
+		translate: none;
+		width: 100%;
+		height: var(--MI-mediaFooterHeight);
+		border-radius: 0;
+		opacity: 0;
+
+		&.infoShowing {
+			opacity: 1;
+		}
+	}
+
+	.header, .footer {
+		text-shadow: 0 1px 3px var(--MI-mediaStageBg);
+	}
+
+	&.animated .header, &.animated .footer {
+		transition: opacity 200ms ease;
+	}
+
+	&.controlsHidden {
+		cursor: none;
+	}
+
+	.video {
+		width: 100%;
+		height: 100%;
+		aspect-ratio: auto;
+		border-radius: 0;
+	}
+
+	.title {
+		padding-top: env(safe-area-inset-top);
+		background: transparent;
+		color: var(--MI-mediaStageFg);
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+	}
+
+	.mediaControl {
+		max-width: none;
+		padding: 0 max(20px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+		background: transparent;
+		color: var(--MI-mediaStageFg);
+		border-radius: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.expanded.animated .header, .videoPlayer.animated .footer, .expanded.animated .footer, .videoPlayer.animated .mediaControl, .animated .playIcon > span {
+		transition: none;
 	}
 }
 </style>

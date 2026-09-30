@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <SearchMarker path="/settings/profile" :label="i18n.ts.profile" :keywords="['profile']" icon="ti ti-user">
-	<div class="_gaps_m">
+	<div class="_gaps_m" :class="$style.profile">
 		<div class="_panel">
 			<div :class="$style.banner" :style="{ backgroundImage: $i.bannerUrl ? `url(${ $i.bannerUrl })` : '' }">
 				<div :class="$style.bannerEdit">
@@ -26,34 +26,51 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 
 		<SearchMarker :keywords="['name']">
-			<MkInput v-model="profile.name" :max="30" manualSave :mfmAutocomplete="['emoji']">
+			<MkInput v-model="profile.name" :placeholder="$i.username" manualSave :mfmAutocomplete="['emoji']">
 				<template #label><SearchLabel>{{ i18n.ts._profile.name }}</SearchLabel></template>
+				<template #caption>{{ i18n.ts._profile.nameDescription }}</template>
 			</MkInput>
 		</SearchMarker>
 
 		<SearchMarker :keywords="['description', 'bio']">
-			<MkTextarea v-model="profile.description" :max="500" tall manualSave mfmAutocomplete :mfmPreview="true">
+			<MkTextarea v-model="profile.description" :max="500" manualSave mfmAutocomplete :mfmPreview="true" :class="$style.descriptionTextarea">
 				<template #label><SearchLabel>{{ i18n.ts._profile.description }}</SearchLabel></template>
 				<template #caption>{{ i18n.ts._profile.youCanIncludeHashtags }}</template>
 			</MkTextarea>
 		</SearchMarker>
 
-		<SearchMarker :keywords="['location', 'locale']">
-			<MkInput v-model="profile.location" manualSave>
-				<template #label><SearchLabel>{{ i18n.ts.location }}</SearchLabel></template>
-				<template #prefix><i class="ti ti-map-pin"></i></template>
-			</MkInput>
-		</SearchMarker>
+		<div :class="$style.fieldPair">
+			<SearchMarker :keywords="['location', 'locale']">
+				<MkInput v-model="profile.location" manualSave>
+					<template #label><SearchLabel>{{ i18n.ts.location }}</SearchLabel></template>
+					<template #prefix><i class="ti ti-map-pin"></i></template>
+				</MkInput>
+			</SearchMarker>
+			<SearchMarker :keywords="['birthday', 'birthdate', 'age']">
+				<MkInput v-model="profile.birthday" type="date" manualSave>
+					<template #label><SearchLabel>{{ i18n.ts.birthday }}</SearchLabel></template>
+					<template #prefix><i class="ti ti-cake"></i></template>
+				</MkInput>
+			</SearchMarker>
+		</div>
 
-		<SearchMarker :keywords="['birthday', 'birthdate', 'age']">
-			<MkInput v-model="profile.birthday" type="date" manualSave>
-				<template #label><SearchLabel>{{ i18n.ts.birthday }}</SearchLabel></template>
-				<template #prefix><i class="ti ti-cake"></i></template>
-			</MkInput>
-		</SearchMarker>
+		<div :class="$style.fieldPair">
+			<SearchMarker :keywords="['company', 'work', 'organization']">
+				<MkInput v-model="professionalProfile.company" :placeholder="i18n.ts._profile.companyPlaceholder" :maxLength="128" autocomplete="organization" :saveOnLeave="value => saveProfessionalField('company', value)">
+					<template #label><SearchLabel>{{ i18n.ts._profile.company }}</SearchLabel></template>
+					<template #prefix><i class="ti ti-building" aria-hidden="true"></i></template>
+				</MkInput>
+			</SearchMarker>
+			<SearchMarker :keywords="['job', 'title', 'work']">
+				<MkInput v-model="professionalProfile.jobTitle" :placeholder="i18n.ts._profile.jobTitlePlaceholder" :maxLength="128" autocomplete="organization-title" :saveOnLeave="value => saveProfessionalField('jobTitle', value)">
+					<template #label><SearchLabel>{{ i18n.ts._profile.jobTitle }}</SearchLabel></template>
+					<template #prefix><i class="ti ti-briefcase" aria-hidden="true"></i></template>
+				</MkInput>
+			</SearchMarker>
+		</div>
 
 		<SearchMarker :keywords="['language', 'locale']">
-			<MkSelect v-model="profile.lang" :items="Object.entries(langmap).map(([code, def]) => ({ label: def.nativeName, value: code }))">
+			<MkSelect v-model="profile.lang" :items="[{ label: i18n.ts.auto, value: null }, ...Object.entries(langmap).map(([code, def]) => ({ label: def.nativeName, value: code }))]">
 				<template #label><SearchLabel>{{ i18n.ts.language }}</SearchLabel></template>
 			</MkSelect>
 		</SearchMarker>
@@ -87,9 +104,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<button v-if="fieldEditMode" :disabled="fields.length <= 1" class="_button" :class="$style.dragItemRemove" @click="deleteField(item.id)"><i class="ti ti-x"></i></button>
 									<div :class="$style.dragItemForm">
 										<FormSplit :minWidth="200">
-											<MkInput v-model="item.name" small :placeholder="i18n.ts._profile.metadataLabel">
+											<MkInput v-model="item.name" small :mfmAutocomplete="['emoji']" :placeholder="i18n.ts._profile.metadataLabel">
 											</MkInput>
-											<MkInput v-model="item.value" small :placeholder="i18n.ts._profile.metadataContent">
+											<MkInput v-model="item.value" small mfmAutocomplete :placeholder="i18n.ts._profile.metadataContent">
 											</MkInput>
 										</FormSplit>
 									</div>
@@ -103,7 +120,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</SearchMarker>
 
 		<SearchMarker :keywords="['follow', 'message']">
-			<MkInput v-model="profile.followedMessage" :max="200" manualSave :mfmPreview="false">
+			<MkInput v-model="profile.followedMessage" :max="200" manualSave :mfmAutocomplete="['emoji']">
 				<template #label><SearchLabel>{{ i18n.ts._profile.followedMessage }}</SearchLabel></template>
 				<template #caption>
 					<div><SearchText>{{ i18n.ts._profile.followedMessageDescription }}</SearchText></div>
@@ -177,6 +194,7 @@ import { chooseDriveFile } from '@/utility/drive.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { ensureSignin } from '@/i.js';
+import { updateCurrentAccountPartial } from '@/accounts.js';
 import { langmap } from '@/utility/langmap.js';
 import { definePage } from '@/page.js';
 import { claimAchievement } from '@/utility/achievements.js';
@@ -184,6 +202,7 @@ import { store } from '@/store.js';
 import MkInfo from '@/components/MkInfo.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import { genId } from '@/utility/id.js';
+import { enqueueProfileSave } from '@/utility/profile-save.js';
 
 const $i = ensureSignin();
 
@@ -204,11 +223,27 @@ const profile = reactive({
 	isCat: $i.isCat ?? false,
 });
 
-watch(() => profile, () => {
-	save();
-}, {
-	deep: true,
+const professionalProfile = reactive({
+	company: $i.company ?? null,
+	jobTitle: $i.jobTitle ?? null,
 });
+
+function saveProfessionalField(field: 'company' | 'jobTitle', value: string): Promise<void> {
+	const normalizedValue = value.trim() || null;
+	return enqueueProfileSave(async () => {
+		const user = await os.apiWithDialog('i/update', { [field]: normalizedValue });
+		updateCurrentAccountPartial({ [field]: user[field] });
+	});
+}
+
+// Watch scalar fields separately: an untouched form snapshot must never be sent.
+for (const field of Object.keys(profile) as (keyof typeof profile)[]) {
+	watch(() => profile[field], value => {
+		// Empty optional strings are cleared with null.
+		const normalizedValue = value === '' || value == null ? null : value;
+		save({ [field]: normalizedValue });
+	});
+}
 
 const fields = ref($i.fields.map(field => ({ id: genId(), name: field.name, value: field.value })) ?? []);
 const fieldEditMode = ref(false);
@@ -230,34 +265,23 @@ function deleteField(itemId: string) {
 }
 
 function saveFields() {
-	os.apiWithDialog('i/update', {
-		fields: fields.value.filter(field => field.name !== '' && field.value !== '').map(field => ({ name: field.name, value: field.value })),
-	});
+	const update = fields.value.filter(field => field.name !== '' && field.value !== '').map(field => ({ name: field.name, value: field.value }));
+	enqueueProfileSave(async () => {
+		const user = await os.apiWithDialog('i/update', { fields: update });
+		updateCurrentAccountPartial({ fields: user.fields, verifiedLinks: user.verifiedLinks });
+	}).catch(() => {});
 }
 
-function save() {
-	os.apiWithDialog('i/update', {
-		// 空文字列をnullにしたいので??は使うな
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-		name: profile.name || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-		description: profile.description || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-		followedMessage: profile.followedMessage || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-		location: profile.location || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-		birthday: profile.birthday || null,
-		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-		lang: profile.lang || null,
-		isBot: !!profile.isBot,
-		isCat: !!profile.isCat,
-	}, undefined, {
-		'0b3f9f6a-2f4d-4b1f-9fb4-49d3a2fd7191': {
-			title: i18n.ts.yourNameContainsProhibitedWords,
-			text: i18n.ts.yourNameContainsProhibitedWordsDescription,
-		},
-	});
+function save(patch: Misskey.entities.IUpdateRequest) {
+	enqueueProfileSave(async () => {
+		const user = await os.apiWithDialog('i/update', patch, undefined, {
+			'0b3f9f6a-2f4d-4b1f-9fb4-49d3a2fd7191': {
+				title: i18n.ts.yourNameContainsProhibitedWords,
+				text: i18n.ts.yourNameContainsProhibitedWordsDescription,
+			},
+		});
+		updateCurrentAccountPartial(Object.fromEntries(Object.keys(patch).map(field => [field, user[field as keyof typeof user]])));
+	}).catch(() => {});
 	claimAchievement('profileFilled');
 	if (profile.name === 'syuilo' || profile.name === 'しゅいろ') {
 		claimAchievement('setNameToSyuilo');
@@ -269,12 +293,17 @@ function save() {
 
 function changeAvatar(ev: PointerEvent) {
 	async function done(driveFile: Misskey.entities.DriveFile) {
-		const i = await os.apiWithDialog('i/update', {
-			avatarId: driveFile.id,
+		await enqueueProfileSave(async () => {
+			const i = await os.apiWithDialog('i/update', {
+				avatarId: driveFile.id,
+			});
+			updateCurrentAccountPartial({
+				avatarId: i.avatarId,
+				avatarUrl: i.avatarUrl,
+				avatarBlurhash: i.avatarBlurhash,
+			});
+			claimAchievement('profileFilled');
 		});
-		$i.avatarId = i.avatarId;
-		$i.avatarUrl = i.avatarUrl;
-		claimAchievement('profileFilled');
 	}
 
 	os.popupMenu([{
@@ -318,11 +347,16 @@ function changeAvatar(ev: PointerEvent) {
 
 function changeBanner(ev: PointerEvent) {
 	async function done(driveFile: Misskey.entities.DriveFile) {
-		const i = await os.apiWithDialog('i/update', {
-			bannerId: driveFile.id,
+		await enqueueProfileSave(async () => {
+			const i = await os.apiWithDialog('i/update', {
+				bannerId: driveFile.id,
+			});
+			updateCurrentAccountPartial({
+				bannerId: i.bannerId,
+				bannerUrl: i.bannerUrl,
+				bannerBlurhash: i.bannerBlurhash,
+			});
 		});
-		$i.bannerId = i.bannerId;
-		$i.bannerUrl = i.bannerUrl;
 	}
 
 	os.popupMenu([{
@@ -375,6 +409,32 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+// 个人简介编辑区默认 2 行高度 (2 × 行高 1.35em + 上下内边距 24px)
+.descriptionTextarea {
+	:deep(.textarea) {
+		min-height: calc(2 * 1.35em + 24px);
+	}
+}
+
+.profile {
+	container-type: inline-size;
+}
+
+.fieldPair {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+	align-items: start;
+
+	> * {
+		min-width: 0;
+	}
+
+	@container (max-width: 520px) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
 .banner {
 	position: relative;
 	height: 130px;

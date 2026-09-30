@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template v-if="page === 0">
 				<div :class="$style.centerPage">
 					<MkAnimBg style="position: absolute; top: 0;" :scale="1.5"/>
-					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+					<div class="_spacer _spacerCard">
 						<div class="_gaps" style="text-align: center;">
 							<i class="ti ti-confetti" style="display: block; margin: auto; font-size: 3em; color: var(--MI_THEME-accent);"></i>
 							<div style="font-size: 120%;">{{ i18n.ts._initialAccountSetting.accountCreated }}</div>
@@ -47,7 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template v-else-if="page === 1">
 				<div style="height: 100cqh; overflow: auto;">
 					<div :class="$style.pageRoot">
-						<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;" :class="$style.pageMain">
+						<div class="_spacer _spacerCard" :class="$style.pageMain">
 							<XProfile/>
 						</div>
 						<div :class="$style.pageFooter">
@@ -62,7 +62,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template v-else-if="page === 2">
 				<div style="height: 100cqh; overflow: auto;">
 					<div :class="$style.pageRoot">
-						<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;" :class="$style.pageMain">
+						<div class="_spacer _spacerCard" :class="$style.pageMain">
 							<XPrivacy/>
 						</div>
 						<div :class="$style.pageFooter">
@@ -76,7 +76,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<template v-else-if="page === 3">
 				<div style="height: 100cqh; overflow: auto;">
-					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+					<div class="_spacer _spacerCard">
 						<XFollow/>
 					</div>
 					<div :class="$style.pageFooter">
@@ -89,7 +89,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<template v-else-if="page === 4">
 				<div :class="$style.centerPage">
-					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+					<div class="_spacer _spacerCard">
 						<div class="_gaps" style="text-align: center;">
 							<i class="ti ti-bell-ringing-2" style="display: block; margin: auto; font-size: 3em; color: var(--MI_THEME-accent);"></i>
 							<div style="font-size: 120%;">{{ i18n.ts.pushNotification }}</div>
@@ -106,7 +106,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template v-else-if="page === 5">
 				<div :class="$style.centerPage">
 					<MkAnimBg style="position: absolute; top: 0;" :scale="1.5"/>
-					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+					<div class="_spacer _spacerCard">
 						<div class="_gaps" style="text-align: center;">
 							<i class="ti ti-check" style="display: block; margin: auto; font-size: 3em; color: var(--MI_THEME-accent);"></i>
 							<div style="font-size: 120%;">{{ i18n.ts._initialAccountSetting.initialAccountSettingCompleted }}</div>
@@ -250,7 +250,7 @@ async function later(later: boolean) {
 	bottom: 0;
 	left: 0;
 	flex-shrink: 0;
-	padding: 12px;
+	padding: var(--MI-cardPadding, 20px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	-webkit-backdrop-filter: blur(15px);
 	backdrop-filter: blur(15px);

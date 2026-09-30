@@ -4,34 +4,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :tabs="headerTabs" :actions="headerActions" :hideTitle="!narrow">
-	<div class="_spacer" style="--MI_SPACER-w: 1200px; --MI_SPACER-min: 20px; --MI_SPACER-max: 32px; padding-top: var(--MI_SPACER-min);">
-		<div ref="el" class="vvcocwet" :class="{ wide: !narrow }">
-			<div class="body">
-				<div v-if="!narrow || currentPage?.route.name == null" class="nav">
-					<div class="_gaps_s">
-						<MkInfo v-if="emailNotConfigured" warn class="info">{{ i18n.ts.emailNotConfiguredWarning }} <MkA to="/settings/email" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
-						<MkInfo v-if="storagePersistenceSupported && !storagePersisted && store.r.showStoragePersistenceSuggestion.value" class="info">
-							<div>{{ i18n.ts._settings.settingsPersistence_description1 }}</div>
-							<div>{{ i18n.ts._settings.settingsPersistence_description2 }}</div>
-							<div><button class="_textButton" @click="enableStoragePersistence">{{ i18n.ts.enable }}</button> | <button class="_textButton" @click="skipStoragePersistence">{{ i18n.ts.skip }}</button></div>
-						</MkInfo>
-						<MkInfo v-if="!store.r.enablePreferencesAutoCloudBackup.value && store.r.showPreferencesAutoCloudBackupSuggestion.value" class="info">
-							<div>{{ i18n.ts._preferencesBackup.autoPreferencesBackupIsNotEnabledForThisDevice }}</div>
-							<div><button class="_textButton" @click="enableAutoBackup">{{ i18n.ts.enable }}</button> | <button class="_textButton" @click="skipAutoBackup">{{ i18n.ts.skip }}</button></div>
-						</MkInfo>
-						<MkSuperMenu :def="menuDef" :grid="narrow" :searchIndex="searchIndex"></MkSuperMenu>
-					</div>
-				</div>
-				<div v-if="!(narrow && currentPage?.route.name == null)" class="main">
-					<div style="container-type: inline-size;">
-						<NestedRouterView/>
-					</div>
-				</div>
-			</div>
+<div ref="el" class="_pageLayout" :class="{ _pageLayoutWithSidebar: !narrow }">
+	<nav v-if="!narrow || currentPage?.route.name == null" class="_pageNavigation" :aria-label="i18n.ts.settings">
+		<div class="_gaps_s">
+			<MkInfo v-if="emailNotConfigured" warn class="info">{{ i18n.ts.emailNotConfiguredWarning }} <MkA to="/settings/email" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
+			<MkInfo v-if="storagePersistenceSupported && !storagePersisted && store.r.showStoragePersistenceSuggestion.value" class="info">
+				<div>{{ i18n.ts._settings.settingsPersistence_description1 }}</div>
+				<div>{{ i18n.ts._settings.settingsPersistence_description2 }}</div>
+				<div><button class="_textButton" @click="enableStoragePersistence">{{ i18n.ts.enable }}</button> | <button class="_textButton" @click="skipStoragePersistence">{{ i18n.ts.skip }}</button></div>
+			</MkInfo>
+			<MkInfo v-if="!store.r.enablePreferencesAutoCloudBackup.value && store.r.showPreferencesAutoCloudBackupSuggestion.value" class="info">
+				<div>{{ i18n.ts._preferencesBackup.autoPreferencesBackupIsNotEnabledForThisDevice }}</div>
+				<div><button class="_textButton" @click="enableAutoBackup">{{ i18n.ts.enable }}</button> | <button class="_textButton" @click="skipAutoBackup">{{ i18n.ts.skip }}</button></div>
+			</MkInfo>
+			<MkSuperMenu :def="menuDef" :grid="narrow" :searchIndex="searchIndex"></MkSuperMenu>
 		</div>
-	</div>
-</PageWithHeader>
+	</nav>
+	<PageWithHeader v-if="!(narrow && currentPage?.route.name == null)" class="_pageContent" :tabs="headerTabs" :actions="headerActions" :hideTitle="!narrow">
+		<NestedRouterView/>
+	</PageWithHeader>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -51,6 +43,8 @@ import { enableAutoBackup, getPreferencesProfileMenu } from '@/preferences/utili
 import { store } from '@/store.js';
 import { genSearchIndexes } from '@/utility/inapp-search.js';
 import { enableStoragePersistence, getStoragePersistenceStatusRef, storagePersistenceSupported, skipStoragePersistence } from '@/utility/storage.js';
+import { signout } from '@/signout.js';
+import { useScrollPositionKeeper } from '@/composables/use-scroll-position-keeper.js';
 
 const searchIndex = await import('search-index:settings').then(({ searchIndexes }) => genSearchIndexes(searchIndexes));
 
@@ -65,6 +59,7 @@ const indexInfo = {
 };
 const INFO = ref<PageMetadata>(indexInfo);
 const el = useTemplateRef('el');
+useScrollPositionKeeper(el);
 const childInfo = ref<null | PageMetadata>(null);
 
 const router = useRouter();
@@ -148,12 +143,12 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.muteAndBlock,
 		to: '/settings/mute-block',
 		active: currentPage.value?.route.name === 'mute-block',
-	}, {
-		icon: 'ti ti-link',
-		text: i18n.ts._settings.serviceConnection,
-		to: '/settings/connect',
-		active: currentPage.value?.route.name === 'connect',
-	}, {
+		}, {
+			icon: 'ti ti-link',
+			text: i18n.ts._settings.serviceConnection,
+			to: '/settings/connect',
+			active: currentPage.value?.route.name === 'connect',
+		}, {
 		icon: 'ti ti-package',
 		text: i18n.ts._settings.accountData,
 		to: '/settings/account-data',
@@ -179,6 +174,20 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		action: async () => {
 			await clearCache();
 		},
+	}, {
+		type: 'button',
+		icon: 'ti ti-power',
+		text: i18n.ts.logout,
+		action: async () => {
+			const { canceled } = await os.confirm({
+				type: 'warning',
+				title: i18n.ts.logoutConfirm,
+				text: i18n.ts.logoutWillClearClientData,
+			});
+			if (canceled) return;
+			signout();
+		},
+		danger: true,
 	}],
 }]);
 
@@ -208,7 +217,10 @@ onUnmounted(() => {
 	ro.disconnect();
 });
 
-watch(router.currentRef, (to) => {
+watch(router.currentRef, (to, from) => {
+	if (!narrow.value && to.route.name === 'settings' && from.route.name === 'settings') {
+		el.value?.querySelector('._pageContent')?.scrollTo({ top: 0, behavior: 'instant' });
+	}
 	if (to.route.name === 'settings' && to.child?.route.name == null && !narrow.value) {
 		router.replace('/settings/profile');
 	}
@@ -236,35 +248,3 @@ definePage(() => INFO.value);
 // w 890
 // h 700
 </script>
-
-<style lang="scss" scoped>
-.vvcocwet {
-	&.wide {
-		> .body {
-			display: flex;
-			// 掘金の列間隔と揃える (旧実装は nav の padding-right で表現していたが、
-			// nav に背景を敷くと余白がカード内に入ってしまうため gap に移した)
-			gap: 20px;
-			height: 100%;
-
-			> .nav {
-				width: 34%;
-				// admin 側と同じ上限に揃える (2カラムで左右の見た目を一致させる)
-				max-width: 280px;
-				flex-shrink: 0;
-				box-sizing: border-box;
-				padding: 12px;
-				background: var(--MI_THEME-panel);
-				border-radius: var(--MI-radius);
-				// 掘金の dock と同じくカードは内容の高さに収める
-				align-self: flex-start;
-			}
-
-			> .main {
-				flex: 1;
-				min-width: 0;
-			}
-		}
-	}
-}
-</style>

@@ -81,14 +81,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</MkPreferenceContainer>
 							</SearchMarker>
 
-							<SearchMarker :keywords="['follow', 'confirm', 'always']">
-								<MkPreferenceContainer k="alwaysConfirmFollow">
-									<MkSwitch v-model="alwaysConfirmFollow">
-										<template #label><SearchLabel>{{ i18n.ts.alwaysConfirmFollow }}</SearchLabel></template>
-									</MkSwitch>
-								</MkPreferenceContainer>
-							</SearchMarker>
-
 							<SearchMarker :keywords="['highlight', 'sensitive', 'nsfw', 'image', 'photo', 'picture', 'media', 'thumbnail']">
 								<MkPreferenceContainer k="highlightSensitiveMedia">
 									<MkSwitch v-model="highlightSensitiveMedia">
@@ -440,8 +432,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template v-if="$i.policies.chatAvailability !== 'unavailable'">
 				<SearchMarker v-slot="slotProps" :keywords="['chat', 'messaging']">
 					<MkFolder :defaultOpen="slotProps.isParentOfTarget">
-						<template #label><SearchLabel>{{ i18n.ts.directMessage }}</SearchLabel></template>
-						<template #icon><SearchIcon><i class="ti ti-messages"></i></SearchIcon></template>
+						<template #label><SearchLabel>{{ i18n.ts.chat }}</SearchLabel></template>
+						<template #icon><SearchIcon><i class="ti ti-message-dots"></i></SearchIcon></template>
 
 						<div class="_gaps_s">
 							<SearchMarker :keywords="['show', 'sender', 'name']">
@@ -912,7 +904,6 @@ const numberOfPageCache = prefer.model('numberOfPageCache');
 const useReactionPickerForContextMenu = prefer.model('useReactionPickerForContextMenu');
 const showAvailableReactionsFirstInNote = prefer.model('showAvailableReactionsFirstInNote');
 const useGroupedNotifications = prefer.model('useGroupedNotifications');
-const alwaysConfirmFollow = prefer.model('alwaysConfirmFollow');
 const confirmWhenRevealingSensitiveMedia = prefer.model('confirmWhenRevealingSensitiveMedia');
 const confirmOnReact = prefer.model('confirmOnReact');
 const defaultNoteVisibility = prefer.model('defaultNoteVisibility');
@@ -980,7 +971,6 @@ watch([
 	pollingInterval,
 	showNoteActionsOnlyHover,
 	overridedDeviceKind,
-	alwaysConfirmFollow,
 	confirmWhenRevealingSensitiveMedia,
 	mediaListWithOneImageAppearance,
 	reactionsDisplaySize,

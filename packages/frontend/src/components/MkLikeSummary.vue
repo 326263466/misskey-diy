@@ -39,7 +39,7 @@ function showUsers(): void {
 .root {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 4px;
 	width: fit-content;
 	max-width: 100%;
 	// 固定 24px 且不留纵向 margin，点赞出现/消失时所在行不会改变高度

@@ -5,7 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	:class="[$style.root, { [$style.rootMaximized]: maximized }]"
+	:class="[$style.root, { [$style.rootMaximized]: maximized, [$style.withInitialRows]: initialRows != null }]"
+	:style="initialRows != null ? { '--MI-postForm-initialRows': initialRows } : undefined"
 	@dragover.stop="onDragover"
 	@dragenter="onDragenter"
 	@dragleave="onDragleave"
@@ -13,26 +14,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<header :class="$style.header">
 		<div :class="$style.headerLeft">
-			<button v-if="!fixed" :class="$style.cancel" class="_button" :aria-label="i18n.ts.cancel" @click="cancel"><i class="ti ti-x"></i></button>
-			<button ref="accountMenuEl" v-click-anime v-tooltip="i18n.ts.account" class="_button" :disabled="isEditing" @click="openAccountMenu">
-				<img :class="$style.avatar" :src="(postAccount ?? $i).avatarUrl" style="border-radius: 100%;"/>
+			<button v-if="!fixed" v-tooltip="i18n.ts.cancel" :class="$style.cancel" class="_button" :aria-label="i18n.ts.cancel" @click="cancel"><i class="ti ti-x"></i></button>
+			<button ref="accountMenuEl" v-click-anime v-tooltip="userName(postAccount ?? $i)" class="_button" :aria-label="i18n.ts.account" :disabled="isEditing" @click="openAccountMenu">
+				<img :class="$style.avatar" :src="getUserAvatar(postAccount ?? $i).avatarUrl" alt="" style="border-radius: 100%;"/>
 			</button>
 		</div>
 		<div :class="$style.headerRight">
-			<template v-if="!(targetChannel != null && fixed)">
-				<button v-if="targetChannel == null" ref="visibilityButton" v-tooltip="i18n.ts.visibility" :class="['_button', $style.headerRightItem, $style.visibility]" :disabled="isEditing" @click="setVisibility">
-					<span v-if="visibility === 'public'"><i class="ti ti-world"></i></span>
-					<span v-if="visibility === 'home'"><i class="ti ti-home"></i></span>
-					<span v-if="visibility === 'followers'"><i class="ti ti-lock"></i></span>
-					<span v-if="visibility === 'specified'"><i class="ti ti-mail"></i></span>
+			<template v-if="!(props.channel != null && fixed)">
+				<button v-if="targetChannel == null || canChooseChannel" ref="visibilityButton" :class="['_button', $style.headerRightItem, $style.visibility]" :aria-label="visibilityLabel" :disabled="isEditing || targetChannel != null" @click="setVisibility">
+					<span v-tooltip="visibilityLabel" :class="$style.visibilityIcon">
+						<i v-if="visibility === 'public'" class="ti ti-world"></i>
+						<i v-if="visibility === 'home'" class="ti ti-home"></i>
+						<i v-if="visibility === 'followers'" class="ti ti-lock"></i>
+						<i v-if="visibility === 'specified'" class="ti ti-mail"></i>
+					</span>
 					<span :class="$style.headerRightButtonText">{{ i18n.ts._visibility[visibility] }}</span>
 				</button>
-				<button v-else class="_button" :class="[$style.headerRightItem, $style.visibility]" disabled>
-					<span><i class="ti ti-device-tv"></i></span>
+				<button v-else class="_button" :class="[$style.headerRightItem, $style.visibility]" :aria-label="targetChannel.name" disabled>
+					<span v-tooltip="targetChannel.name" :class="$style.visibilityIcon"><i class="ti ti-device-tv"></i></span>
 					<span :class="$style.headerRightButtonText">{{ targetChannel.name }}</span>
 				</button>
 			</template>
-			<button v-if="visibility !== 'specified'" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :disabled="isEditing || targetChannel != null" @click="toggleLocalOnly">
+			<button v-if="visibility !== 'specified'" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :aria-label="i18n.ts._visibility.disableFederation" :aria-pressed="localOnly" :disabled="isEditing || targetChannel != null" @click="toggleLocalOnly">
 				<span v-if="!localOnly"><i class="ti ti-rocket"></i></span>
 				<span v-else><i class="ti ti-rocket-off"></i></span>
 			</button>
@@ -40,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-if="maximized" class="ti ti-arrows-minimize"></i>
 				<i v-else class="ti ti-arrows-maximize"></i>
 			</button>
-			<button ref="otherSettingsButton" v-tooltip="i18n.ts.other" class="_button" :class="$style.headerRightItem" :disabled="posting || posted" @click="showOtherSettings"><i class="ti ti-dots"></i></button>
+			<button ref="otherSettingsButton" v-tooltip="i18n.ts.other" class="_button" :class="$style.headerRightItem" :aria-label="i18n.ts.other" :disabled="posting || posted" @click="showOtherSettings"><i class="ti ti-dots"></i></button>
 			<button ref="submitButtonEl" v-click-anime class="_button" :class="$style.submit" :disabled="!canPost" data-testid="post-form-submit" @click="post">
 				<div :class="$style.submitInner">
 					<template v-if="posted"></template>
@@ -51,21 +54,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</button>
 		</div>
 	</header>
-	<MkNoteSimple v-if="replyTargetNote" :class="$style.targetNote" :note="replyTargetNote"/>
-	<label v-if="replyTargetNote" :class="$style.replyPublishing">
-		<input v-model="publishReply" type="checkbox" :disabled="isEditing || posting || posted" data-testid="post-form-publish-reply">
-		<span>{{ i18n.ts.reply }} + {{ i18n.ts.publish }}</span>
-	</label>
-	<MkNoteSimple v-if="renoteTargetNote && renoteTargetNote.id !== replyTargetNote?.id" :class="$style.targetNote" :note="renoteTargetNote"/>
-	<div v-if="quoteId" :class="$style.withQuote"><i class="ti ti-quote"></i> {{ i18n.ts.quoteAttached }}<button v-if="!isEditing" @click="quoteId = null; renoteTargetNote = null;"><i class="ti ti-x"></i></button></div>
+	<MkNoteSimple v-if="replyTargetNote" :class="$style.targetNote" :note="replyTargetNote" compact/>
+	<div v-if="replyTargetNote" :class="$style.replyPublishing">
+		<input v-model="onlyDiscussUnderPost" type="checkbox" :class="$style.replyPublishingCheckbox" :aria-label="i18n.ts._postForm.onlyDiscussUnderPost" :disabled="isEditing || posting || posted" data-testid="post-form-publish-reply">
+		<span>{{ i18n.ts._postForm.onlyDiscussUnderPost }}</span>
+		<button v-tooltip:dialog="i18n.ts._postForm.onlyDiscussUnderPostDescription" type="button" class="_button" :class="$style.replyPublishingInfo" :aria-label="i18n.ts.info"><i class="ti ti-info-circle"></i></button>
+	</div>
+	<MkNoteSimple v-if="renoteTargetNote && renoteTargetNote.id !== replyTargetNote?.id" :class="$style.targetNote" :note="renoteTargetNote" compact/>
+	<div v-if="quoteId" :class="$style.withQuote"><i class="ti ti-quote"></i> {{ i18n.ts.quoteAttached }}<button v-if="!isEditing" v-tooltip="i18n.ts.remove" :aria-label="i18n.ts.remove" @click="quoteId = null; renoteTargetNote = null;"><i class="ti ti-x"></i></button></div>
 	<div v-if="visibility === 'specified'" :class="$style.toSpecified">
-		<span style="margin-right: 8px;">{{ i18n.ts.recipient }}</span>
+		<span style="margin-right: 8px;">{{ i18n.ts._postForm.visibleUsers }}</span>
 		<div :class="$style.visibleUsers">
 			<span v-for="u in visibleUsers" :key="u.id" :class="$style.visibleUser">
 				<MkAcct :user="u"/>
-				<button v-if="!isEditing" class="_button" style="padding: 4px 8px;" @click="removeVisibleUser(u.id)"><i class="ti ti-x"></i></button>
+				<button v-if="!isEditing" v-tooltip="i18n.ts.remove" class="_button" :aria-label="i18n.ts.remove" style="padding: 4px 8px;" @click="removeVisibleUser(u.id)"><i class="ti ti-x"></i></button>
 			</span>
-			<button v-if="!isEditing" class="_buttonPrimary" style="padding: 4px; border-radius: 8px;" @click="addVisibleUser"><i class="ti ti-plus ti-fw"></i></button>
+			<button v-if="!isEditing" v-tooltip="i18n.ts.add" class="_buttonPrimary" :aria-label="i18n.ts.add" style="padding: 4px; border-radius: 8px;" @click="addVisibleUser"><i class="ti ti-plus ti-fw"></i></button>
 		</div>
 	</div>
 	<MkInfo v-if="!store.r.tips.value.postForm" :class="$style.showHowToUse" closable @close="closeTip('postForm')">
@@ -80,15 +84,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</MkInfo>
 	<MkInfo v-if="hasNotSpecifiedMentions" warn :class="$style.hasNotSpecifiedMentions">{{ i18n.ts.notSpecifiedMentionWarning }}<template v-if="!isEditing"> - <button class="_textButton" @click="addMissingMention()">{{ i18n.ts.add }}</button></template></MkInfo>
 	<div v-show="useCw" :class="$style.cwOuter">
-		<input ref="cwInputEl" v-model="cw" class="_mfm" :class="$style.cw" :disabled="posting || posted" :placeholder="i18n.ts.annotation" :aria-label="i18n.ts.annotation" @keydown="onKeydown" @keyup="onKeyup" @compositionend="onCompositionEnd">
-		<div v-if="maxCwTextLength - cwTextLength < 20" :class="['_acrylic', $style.cwTextCount, { [$style.cwTextOver]: cwTextLength > maxCwTextLength }]">{{ maxCwTextLength - cwTextLength }}</div>
+		<div :class="$style.cwHeader">
+			<label :for="cwInputId" :class="$style.cwLabel"><i class="ti ti-eye-off" aria-hidden="true"></i>{{ i18n.ts._postForm.cwTitle }}</label>
+			<span :id="cwHintId" :class="$style.cwHint">{{ i18n.ts._postForm.cwHint }}</span>
+			<button type="button" class="_button" :class="$style.cwRemove" :disabled="posting || posted" :aria-label="i18n.ts._postForm.cwRemove" :title="i18n.ts._postForm.cwRemove" @click="toggleCw"><i class="ti ti-x" aria-hidden="true"></i></button>
+		</div>
+		<div :class="$style.cwInputWrap">
+			<input :id="cwInputId" ref="cwInputEl" v-model="cw" class="_mfm" :class="$style.cw" :disabled="posting || posted" :placeholder="i18n.ts._postForm.cwSummary" :aria-label="i18n.ts._postForm.cwSummary" :aria-describedby="cwHintId" :aria-required="useCw" @keydown="onKeydown" @keyup="onKeyup" @compositionend="onCompositionEnd">
+			<MkEmojiInputOverlay :inputElement="cwInputEl" :text="cw"/>
+			<div v-if="maxCwTextLength - cwTextLength < 20" :class="['_acrylic', $style.cwTextCount, { [$style.cwTextOver]: cwTextLength > maxCwTextLength }]">{{ maxCwTextLength - cwTextLength }}</div>
+		</div>
 	</div>
 	<div :class="[$style.textOuter, { [$style.withCw]: useCw }]">
-		<div v-if="targetChannel" :class="$style.colorBar" :style="{ background: targetChannel.color }"></div>
-		<textarea ref="textareaEl" v-model="text" class="_mfm" :class="[$style.text]" :disabled="posting || posted" :readonly="textAreaReadOnly" :placeholder="placeholder" :aria-label="i18n.ts.text" data-testid="post-form-text" @keydown="onKeydown" @keyup="onKeyup" @paste="onPaste" @compositionupdate="onCompositionUpdate" @compositionend="onCompositionEnd"></textarea>
+		<div v-if="targetChannel && !canChooseChannel" :class="$style.colorBar" :style="{ '--MI-channelColor': channelColor(targetChannel.color) }"></div>
+		<div v-if="useCw" :class="$style.hiddenBodyLabel"><i class="ti ti-align-left" aria-hidden="true"></i>{{ i18n.ts._postForm.cwBody }}</div>
+		<textarea ref="textareaEl" v-model="text" class="_mfm" :class="[$style.text]" :rows="initialRows" :disabled="posting || posted" :readonly="textAreaReadOnly" :placeholder="placeholder" :aria-label="i18n.ts.text" data-testid="post-form-text" @keydown="onKeydown" @keyup="onKeyup" @paste="onPaste" @compositionupdate="onCompositionUpdate" @compositionend="onCompositionEnd"></textarea>
+		<MkEmojiInputOverlay :inputElement="textareaEl" :text="text"/>
 		<div v-if="maxTextLength - textLength < 100" :class="['_acrylic', $style.textCount, { [$style.textOver]: textLength > maxTextLength }]">{{ maxTextLength - textLength }}</div>
+		<div v-if="canChooseChannel || targetChannel" :class="$style.channelRow">
+			<button v-if="canChooseChannel" ref="channelButtonEl" type="button" class="_button" :class="$style.channelChip" :disabled="posting || posted" :aria-label="targetChannel ? `${i18n.ts.selectChannel}: ${targetChannel.name}` : i18n.ts.selectChannel" aria-haspopup="dialog" :aria-expanded="channelPickerOpen" data-testid="post-form-channel" @click="openChannelPicker">
+				<i class="ti ti-device-tv" aria-hidden="true"></i><span :class="$style.channelName">{{ targetChannel?.name ?? i18n.ts.selectChannel }}</span><i class="ti ti-chevron-right" :class="[$style.channelArrow, { [$style.channelArrowOpen]: channelPickerOpen, [$style.channelArrowAnimated]: prefer.s.animation }]" aria-hidden="true"></i>
+			</button>
+			<span v-else :class="$style.channelChip" :title="i18n.ts._channelPicker.description"><i class="ti ti-device-tv" aria-hidden="true"></i><span :class="$style.channelName">{{ targetChannel?.name }}</span></span>
+		</div>
 	</div>
-	<input v-show="withHashtags" ref="hashtagsInputEl" v-model="hashtags" :class="$style.hashtags" :disabled="posting || posted" :placeholder="i18n.ts.hashtags" :aria-label="i18n.ts.hashtags" list="hashtags">
+	<MkPostFormTopics ref="topicsEl" v-model="hashtags" v-model:enabled="withHashtags" :disabled="posting || posted" @openChange="topicsOpen = $event" @empty="focusTopics"/>
 	<XPostFormAttaches v-model="files" :editing="isEditing" :disabled="posting || posted" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName"/>
 	<div v-if="uploader.items.value.length > 0" style="padding: 12px;">
 		<MkTip k="postFormUploader">
@@ -98,32 +118,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<MkPoll v-if="editingNote?.poll" :class="$style.existingPoll" :noteId="editingNote.id" :multiple="editingNote.poll.multiple" :expiresAt="editingNote.poll.expiresAt" :choices="editingNote.poll.choices" :author="editingNote.user" :emojiUrls="editingNote.emojis" readOnly/>
 	<MkPollEditor v-else-if="poll" v-model="poll" @destroyed="poll = null"/>
-	<MkNotePreview v-if="showPreview" :class="$style.preview" :text="text" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
+	<MkNotePreview v-if="showPreview" :class="$style.preview" :text="getPostText() ?? ''" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
 	<div v-if="showingOptions" style="padding: 8px 16px;">
 	</div>
 	<footer ref="footerEl" :class="$style.footer">
 		<div :class="$style.footerLeft">
-			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" class="_button" :class="$style.footerButton" :disabled="posting || posted" @click="chooseFileFromPc"><i class="ti ti-photo-plus"></i></button>
-			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" class="_button" :class="$style.footerButton" :disabled="posting || posted" @click="chooseFileFromDrive"><i class="ti ti-cloud-download"></i></button>
-			<button v-tooltip="i18n.ts.poll" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: poll }]" :disabled="isEditing" @click="togglePoll"><i class="ti ti-chart-arrows"></i></button>
-			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" :disabled="posting || posted" @click="useCw = !useCw"><i class="ti ti-eye-off"></i></button>
-			<button v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags }]" :disabled="posting || posted" @click="withHashtags = !withHashtags"><i class="ti ti-hash"></i></button>
-			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" :disabled="posting || posted" @click="insertMention"><i class="ti ti-at"></i></button>
-			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" :disabled="posting || posted" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
-			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" :disabled="posting || posted" @click="showActions"><i class="ti ti-plug"></i></button>
+			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" :disabled="posting || posted" @click="chooseFileFromPc"><i class="ti ti-photo-plus"></i></button>
+			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" :disabled="posting || posted" @click="chooseFileFromDrive"><i class="ti ti-cloud-download"></i></button>
+			<button v-tooltip="i18n.ts.poll" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: poll }]" :aria-label="i18n.ts.poll" :aria-pressed="poll != null" :disabled="isEditing" @click="togglePoll"><i class="ti ti-chart-arrows"></i></button>
+			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" :aria-label="i18n.ts.useCw" :aria-pressed="useCw" :disabled="posting || posted" @click="toggleCw"><i class="ti ti-eye-off"></i></button>
+			<button ref="topicsButtonEl" v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags && hashtags.trim() !== '' }]" :aria-label="i18n.ts.hashtags" aria-haspopup="dialog" :aria-expanded="topicsOpen" :disabled="posting || posted" @click="openTopics"><i class="ti ti-hash"></i></button>
+			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.mention" :disabled="posting || posted" @click="insertMention"><i class="ti ti-at"></i></button>
+			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.addMfmFunction" :disabled="posting || posted" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
+			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.plugins" :disabled="posting || posted" @click="showActions"><i class="ti ti-plug"></i></button>
 		</div>
 		<div :class="$style.footerRight">
-			<button v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" :disabled="posting || posted" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.emoji" :disabled="posting || posted" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 		</div>
 	</footer>
-	<datalist id="hashtags">
-		<option v-for="hashtag in recentHashtags" :key="hashtag" :value="hashtag"></option>
-	</datalist>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { watch, nextTick, onMounted, defineAsyncComponent, provide, shallowRef, ref, computed, useTemplateRef, onUnmounted, onBeforeUnmount } from 'vue';
+import { channelColor } from '@/utility/channel-color.js';
+import { watch, nextTick, onMounted, defineAsyncComponent, provide, shallowRef, ref, computed, useId, useTemplateRef, onUnmounted, onBeforeUnmount } from 'vue';
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import insertTextAtCursor from 'insert-text-at-cursor';
@@ -136,6 +154,8 @@ import type { MenuItem } from '@/types/menu.js';
 import type { PollEditorModelValue } from '@/components/MkPollEditor.vue';
 import type { UploaderItem } from '@/composables/use-uploader.js';
 import MkNotePreview from '@/components/MkNotePreview.vue';
+import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
+import MkPostFormTopics from '@/components/MkPostFormTopics.vue';
 import XPostFormAttaches from '@/components/MkPostFormAttaches.vue';
 import XTextCounter from '@/components/MkPostForm.TextCounter.vue';
 import MkPollEditor from '@/components/MkPollEditor.vue';
@@ -170,6 +190,8 @@ import { useUploader } from '@/composables/use-uploader.js';
 import { startTour } from '@/utility/tour.js';
 import { closeTip } from '@/tips.js';
 import { getNoteTopics } from '@/utility/note-topics.js';
+import { MAX_TOPICS, parseTopics, uniqueTopics } from '@/utility/topic-picker.js';
+import { getUserAvatar } from '@/utility/get-user-avatar.js';
 
 const $i = ensureSignin();
 
@@ -181,13 +203,14 @@ const props = withDefaults(defineProps<PostFormProps & {
 	canMaximize?: boolean;
 }>(), {
 	initialVisibleUsers: () => [],
-	autofocus: true,
+	autofocus: false,
 	mock: false,
 	initialLocalOnly: undefined,
 });
 
 // 最大化后要撑满窗口，必须由外层对话框放开宽高限制，所以状态跟父组件共享
 const maximized = defineModel<boolean>('maximized', { default: false });
+const initialRows = computed(() => Number.isInteger(props.initialRows) && props.initialRows! > 0 ? props.initialRows : undefined);
 
 provide(DI.mock, props.mock);
 
@@ -202,7 +225,14 @@ const emit = defineEmits<{
 
 const textareaEl = useTemplateRef('textareaEl');
 const cwInputEl = useTemplateRef('cwInputEl');
-const hashtagsInputEl = useTemplateRef('hashtagsInputEl');
+const topicsEl = useTemplateRef('topicsEl');
+const topicsButtonEl = useTemplateRef('topicsButtonEl');
+const topicsOpen = ref(false);
+const channelButtonEl = useTemplateRef('channelButtonEl');
+const channelPickerOpen = ref(false);
+let disposeChannelPicker: (() => void) | undefined;
+const cwInputId = useId();
+const cwHintId = useId();
 const visibilityButton = useTemplateRef('visibilityButton');
 const otherSettingsButton = useTemplateRef('otherSettingsButton');
 const accountMenuEl = useTemplateRef('accountMenuEl');
@@ -226,13 +256,13 @@ const text = ref(props.initialText ?? '');
 const files = ref(props.initialFiles ?? []);
 const poll = ref<PollEditorModelValue | null>(null);
 const useCw = ref<boolean>(!!props.initialCw);
-const showPreview = ref(store.s.showPreview);
-watch(showPreview, () => store.set('showPreview', showPreview.value));
+const showPreview = ref(false);
 const showAddMfmFunction = ref(prefer.s.enableQuickAddMfmFunction);
 watch(showAddMfmFunction, () => prefer.commit('enableQuickAddMfmFunction', showAddMfmFunction.value));
 const cw = ref<string | null>(props.initialCw ?? null);
 const localOnly = ref(props.initialLocalOnly ?? (prefer.s.rememberNoteVisibility ? store.s.localOnly : prefer.s.defaultNoteLocalOnly));
 const visibility = ref(props.initialVisibility ?? (prefer.s.rememberNoteVisibility ? store.s.visibility : prefer.s.defaultNoteVisibility));
+const visibilityLabel = computed(() => `${i18n.ts.visibility}: ${i18n.ts._visibility[visibility.value]}`);
 const visibleUsers = ref<Misskey.entities.UserDetailed[]>([]);
 if (props.initialVisibleUsers) {
 	props.initialVisibleUsers.forEach(u => pushVisibleUser(u));
@@ -242,15 +272,24 @@ const scheduledAt = ref<number | null>(null);
 const draghover = ref(false);
 const quoteId = ref<string | null>(null);
 const hasNotSpecifiedMentions = ref(false);
-const recentHashtags = ref(JSON.parse(miLocalStorage.getItem('hashtags') ?? '[]'));
 const imeText = ref('');
 const showingOptions = ref(false);
 const textAreaReadOnly = ref(false);
 const justEndedComposition = ref(false);
-const renoteTargetNote: ShallowRef<PostFormProps['renote'] | null> = shallowRef(editingNote?.renote ?? props.renote);
-const replyTargetNote: ShallowRef<PostFormProps['reply'] | null> = shallowRef(editingNote?.reply ?? props.reply);
-const targetChannel = shallowRef(editingNote?.channel ?? props.channel);
+const renoteTargetNote: ShallowRef<PostFormProps['renote'] | null> = shallowRef(editingNote?.renote ?? props.renote ?? props.initialNote?.renote);
+const replyTargetNote: ShallowRef<PostFormProps['reply'] | null> = shallowRef(editingNote?.reply ?? props.reply ?? props.initialNote?.reply);
+const targetChannel = shallowRef(editingNote?.channel ?? props.channel ?? replyTargetNote.value?.channel ?? props.initialNote?.channel);
+const draftHasReply = ref(false);
+const canChooseChannel = computed(() => !isEditing && props.channel == null && props.reply == null && props.renote == null && replyTargetNote.value == null && !draftHasReply.value && props.initialNote?.replyId == null && postRenoteId.value == null);
+type ChannelAudience = { visibility: typeof visibility.value; localOnly: boolean; visibleUsers: Misskey.entities.UserDetailed[] };
+const initialAudience: ChannelAudience = { visibility: $i.isSilenced && visibility.value === 'public' ? 'home' : visibility.value, localOnly: localOnly.value, visibleUsers: [...visibleUsers.value] };
+let audienceBeforeChannel: ChannelAudience | undefined = targetChannel.value ? { ...initialAudience, visibleUsers: [...initialAudience.visibleUsers] } : undefined;
 const publishReply = ref(props.initialNote?.replyId != null && props.initialNote.isPublishedReply === true);
+// UI 的「仅在正文下讨论」与 publishReply 含义相反
+const onlyDiscussUnderPost = computed({
+	get: () => !publishReply.value,
+	set: (v) => { publishReply.value = !v; },
+});
 const postRenoteId = computed(() => renoteTargetNote.value?.id ?? quoteId.value ?? undefined);
 
 const serverDraftId = ref<string | null>(null);
@@ -258,7 +297,6 @@ const postFormActions = getPluginHandlers('post_form_action');
 
 let textAutocomplete: Autocomplete | null = null;
 let cwAutocomplete: Autocomplete | null = null;
-let hashtagAutocomplete: Autocomplete | null = null;
 
 const uploader = useUploader({
 	multiple: true,
@@ -288,23 +326,29 @@ const draftKey = computed((): string => {
 	return key;
 });
 
+function getRandomPlaceholder(): string {
+	const xs = [
+		i18n.ts._postForm._placeholders.a,
+		i18n.ts._postForm._placeholders.b,
+		i18n.ts._postForm._placeholders.c,
+		i18n.ts._postForm._placeholders.d,
+		i18n.ts._postForm._placeholders.e,
+		i18n.ts._postForm._placeholders.f,
+	];
+	return xs[Math.floor(Math.random() * xs.length)];
+}
+
+const randomPlaceholder = getRandomPlaceholder();
+
 const placeholder = computed((): string => {
 	if (replyTargetNote.value) {
 		return i18n.tsx._drafts.replyTo({ user: `@${userName(replyTargetNote.value.user)}` });
 	} else if (renoteTargetNote.value) {
 		return i18n.ts._postForm.quotePlaceholder;
-	} else if (targetChannel.value) {
+	} else if (targetChannel.value && !canChooseChannel.value) {
 		return i18n.ts._postForm.channelPlaceholder;
 	} else {
-		const xs = [
-			i18n.ts._postForm._placeholders.a,
-			i18n.ts._postForm._placeholders.b,
-			i18n.ts._postForm._placeholders.c,
-			i18n.ts._postForm._placeholders.d,
-			i18n.ts._postForm._placeholders.e,
-			i18n.ts._postForm._placeholders.f,
-		];
-		return xs[Math.floor(Math.random() * xs.length)];
+		return randomPlaceholder;
 	}
 });
 
@@ -316,7 +360,7 @@ const submitText = computed((): string => {
 			? i18n.ts.reply
 			: renoteTargetNote.value
 				? i18n.ts.quote
-				: i18n.ts.note;
+				: i18n.ts._postForm.post;
 });
 
 const submitIcon = computed((): string => {
@@ -332,7 +376,7 @@ function toggleMaximize() {
 }
 
 const textLength = computed((): number => {
-	return ((isEditing ? getPostText() ?? '' : text.value) + imeText.value).length;
+	return ((getPostText() ?? '') + imeText.value).length;
 });
 
 const maxTextLength = computed((): number => {
@@ -356,6 +400,7 @@ const canPost = computed((): boolean => {
 			quoteId.value != null
 		) &&
 		(textLength.value <= maxTextLength.value) &&
+		(!withHashtags.value || parseTopics(hashtags.value).length <= MAX_TOPICS) &&
 		(
 			useCw.value ?
 				(
@@ -372,8 +417,77 @@ const canSaveAsServerDraft = computed((): boolean => {
 	return !isEditing && canPost.value && (textLength.value > 0 || files.value.length > 0 || poll.value != null);
 });
 
-const withHashtags = isEditing ? ref(false) : store.model('postFormWithHashtags');
-const hashtags = isEditing ? ref('') : store.model('postFormHashtags');
+const hashtags = ref(uniqueTopics(props.initialHashtags ?? []).map(tag => `#${tag}`).join(' '));
+const withHashtags = ref(hashtags.value !== '');
+
+async function toggleCw() {
+	if (posting.value || posted.value) return;
+	useCw.value = !useCw.value;
+	await nextTick();
+	if (useCw.value) cwInputEl.value?.focus();
+	else textareaEl.value?.focus();
+}
+
+function openTopics(event: MouseEvent) {
+	if (posting.value || posted.value || !(event.currentTarget instanceof HTMLElement)) return;
+	topicsEl.value?.open(event.currentTarget);
+}
+
+async function focusTopics() {
+	await nextTick();
+	topicsButtonEl.value?.focus();
+}
+
+function closeChannelPicker() {
+	disposeChannelPicker?.();
+	disposeChannelPicker = undefined;
+	channelPickerOpen.value = false;
+}
+
+function chooseChannel(channel: Misskey.entities.Channel | null) {
+	if (!canChooseChannel.value || posting.value || posted.value || channel?.isArchived) return;
+	if (channel) {
+		if (!targetChannel.value) audienceBeforeChannel = { visibility: visibility.value, localOnly: localOnly.value, visibleUsers: [...visibleUsers.value] };
+		targetChannel.value = channel;
+		visibility.value = 'public';
+		localOnly.value = true;
+		visibleUsers.value = [];
+	} else {
+		targetChannel.value = null;
+		if (audienceBeforeChannel) {
+			visibility.value = audienceBeforeChannel.visibility;
+			localOnly.value = audienceBeforeChannel.localOnly;
+			visibleUsers.value = [...audienceBeforeChannel.visibleUsers];
+		}
+		audienceBeforeChannel = undefined;
+	}
+	closeChannelPicker();
+	void nextTick(() => textareaEl.value?.focus());
+}
+
+function openChannelPicker(event: MouseEvent) {
+	if (!canChooseChannel.value || posting.value || posted.value || channelPickerOpen.value || !(event.currentTarget instanceof HTMLElement)) return;
+	channelPickerOpen.value = true;
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkChannelPicker.vue')), {
+		anchorElement: event.currentTarget,
+		selectedId: targetChannel.value?.id,
+		disabled: computed(() => posting.value || posted.value),
+	}, {
+		choose: channel => {
+			if (channelPickerOpen.value) chooseChannel(channel);
+		},
+		closed: () => {
+			closeChannelPicker();
+			void nextTick(() => channelButtonEl.value?.focus());
+		},
+	});
+	disposeChannelPicker = dispose;
+}
+
+watch([posting, posted, canChooseChannel], () => {
+	if (posting.value || posted.value || !canChooseChannel.value) closeChannelPicker();
+});
+
 const hasUnsavedEdit = computed(() => editSource != null && !matchesEditSource({
 	text: getPostText(),
 	cw: useCw.value ? cw.value ?? '' : null,
@@ -429,6 +543,7 @@ if (!isEditing && $i.isSilenced && visibility.value === 'public') {
 if (!isEditing && targetChannel.value) {
 	visibility.value = 'public';
 	localOnly.value = true; // TODO: チャンネルが連合するようになった折には消す
+	visibleUsers.value = [];
 }
 
 // 公開以外へのリプライ時は元の公開範囲を引き継ぐ
@@ -473,6 +588,7 @@ if (!isEditing && prefer.s.keepCw && replyTargetNote.value && replyTargetNote.va
 }
 
 function watchForDraft() {
+	if (!isEditing) return;
 	watch(text, () => saveDraft());
 	watch(useCw, () => saveDraft());
 	watch(cw, () => saveDraft());
@@ -484,10 +600,8 @@ function watchForDraft() {
 	watch(quoteId, () => saveDraft());
 	watch(reactionAcceptance, () => saveDraft());
 	watch(scheduledAt, () => saveDraft());
-	if (isEditing) {
-		watch(withHashtags, () => saveDraft());
-		watch(hashtags, () => saveDraft());
-	}
+	watch(withHashtags, () => saveDraft());
+	watch(hashtags, () => saveDraft());
 }
 
 function checkMissingMention() {
@@ -777,9 +891,11 @@ function removeVisibleUser(id: string) {
 }
 
 function clear() {
+	closeChannelPicker();
 	text.value = '';
 	cw.value = null;
 	useCw.value = false;
+	showPreview.value = false;
 	files.value = [];
 	poll.value = null;
 	quoteId.value = null;
@@ -788,6 +904,10 @@ function clear() {
 	reactionAcceptance.value = store.s.reactionAcceptance;
 	publishReply.value = false;
 	postAccount.value = null;
+	if (!isEditing && props.channel == null && replyTargetNote.value == null && renoteTargetNote.value == null) {
+		targetChannel.value = null;
+		audienceBeforeChannel = undefined;
+	}
 	// 可见范围与话题标签辅助输入也还原为新开表单时的默认值；
 	// 回复/频道场景的可见范围受上下文约束（如回复仅关注者可见的帖子），保留不动
 	if (replyTargetNote.value == null && targetChannel.value == null) {
@@ -967,7 +1087,7 @@ type StoredDrafts = {
 };
 
 function saveDraft() {
-	if (props.instant || props.mock || posted.value) return;
+	if (!isEditing || props.instant || props.mock || posted.value) return;
 
 	const draftsData = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}') as StoredDrafts;
 	if (isEditing && !hasUnsavedEdit.value) {
@@ -1020,7 +1140,7 @@ async function saveServerDraft(options: {
 		hashtag: hashtags.value,
 		fileIds: files.value.map(f => f.id),
 		poll: poll.value,
-		visibleUserIds: visibleUsers.value.map(x => x.id),
+		visibleUserIds: visibility.value === 'specified' ? visibleUsers.value.map(x => x.id) : [],
 		renoteId: postRenoteId.value ?? null,
 		replyId: replyTargetNote.value ? replyTargetNote.value.id : null,
 		publishReply: publishReply.value,
@@ -1122,7 +1242,7 @@ async function post(ev?: PointerEvent) {
 
 	if (props.mock) return;
 
-	if (visibility.value === 'public' && (
+	if (visibility.value === 'public' && targetChannel.value == null && (
 		(useCw.value && cw.value != null && cw.value.trim() !== '' && isAnnoying(cw.value)) || // CWが迷惑になる場合
 		((!useCw.value || cw.value == null || cw.value.trim() === '') && text.value != null && text.value.trim() !== '' && isAnnoying(text.value)) // CWが無い かつ 本文が迷惑になる場合
 	)) {
@@ -1195,7 +1315,7 @@ async function post(ev?: PointerEvent) {
 		} else {
 			await os.alert({
 				type: 'error',
-				text: 'cannot find the token of the selected account.',
+				text: i18n.ts._postForm.accountTokenMissing,
 			});
 			return;
 		}
@@ -1316,7 +1436,7 @@ async function insertEmoji(ev: PointerEvent) {
 			const textAfter = text.value.substring(posEnd);
 			text.value = textBefore + emoji + textAfter;
 			pos += emoji.length;
-			posEnd += emoji.length;
+			posEnd = pos;
 		},
 		() => {
 			textAreaReadOnly.value = false;
@@ -1384,6 +1504,12 @@ async function openAccountMenu(ev: PointerEvent) {
 			scheduled,
 		}, {
 			restore: async (draft: Misskey.entities.NoteDraft) => {
+				if (posting.value || posted.value) return;
+				if (props.channel && draft.channelId !== props.channel.id) {
+					await os.alert({ type: 'info', text: i18n.ts._channelPicker.draftChannelMismatch });
+					return;
+				}
+				closeChannelPicker();
 				text.value = draft.text ?? '';
 				useCw.value = draft.cw != null;
 				cw.value = draft.cw ?? null;
@@ -1391,7 +1517,7 @@ async function openAccountMenu(ev: PointerEvent) {
 				localOnly.value = draft.localOnly ?? false;
 				files.value = draft.files ?? [];
 				hashtags.value = draft.hashtag ?? '';
-				if (draft.hashtag) withHashtags.value = true;
+				withHashtags.value = (draft.hashtag ?? '').trim() !== '';
 				if (draft.poll) {
 					// 投票を一時的に空にしないと反映されないため
 					poll.value = null;
@@ -1404,29 +1530,29 @@ async function openAccountMenu(ev: PointerEvent) {
 						};
 					});
 				}
-				if (draft.visibleUserIds) {
-					misskeyApi('users/show', { userIds: draft.visibleUserIds }).then(users => {
-						users.forEach(u => pushVisibleUser(u));
-					});
-				}
 				quoteId.value = draft.renoteId ?? null;
 				renoteTargetNote.value = draft.renote;
 				replyTargetNote.value = draft.reply;
+				draftHasReply.value = draft.replyId != null;
 				publishReply.value = draft.publishReply ?? false;
 				reactionAcceptance.value = draft.reactionAcceptance;
 				scheduledAt.value = draft.scheduledAt ?? null;
-				if (draft.channel) targetChannel.value = draft.channel as unknown as Misskey.entities.Channel;
+				targetChannel.value = props.channel ?? draft.channel ?? draft.reply?.channel ?? null;
+				audienceBeforeChannel = targetChannel.value ? { ...initialAudience, visibleUsers: [...initialAudience.visibleUsers] } : undefined;
+				if (targetChannel.value) {
+					visibility.value = 'public';
+					localOnly.value = true;
+				}
 
 				visibleUsers.value = [];
-				draft.visibleUserIds?.forEach(uid => {
-					if (!visibleUsers.value.some(u => u.id === uid)) {
-						misskeyApi('users/show', { userId: uid }).then(user => {
-							pushVisibleUser(user);
-						});
-					}
-				});
-
 				serverDraftId.value = draft.id;
+				if (draft.visibleUserIds?.length) {
+					const users = await misskeyApi('users/show', { userIds: draft.visibleUserIds });
+					if (serverDraftId.value === draft.id) {
+						if (targetChannel.value && audienceBeforeChannel) audienceBeforeChannel.visibleUsers = [...users];
+						else visibleUsers.value = users;
+					}
+				}
 			},
 			cancel: () => {
 
@@ -1563,7 +1689,6 @@ onMounted(() => {
 
 	if (textareaEl.value) textAutocomplete = new Autocomplete(textareaEl.value, text);
 	if (cwInputEl.value) cwAutocomplete = new Autocomplete(cwInputEl.value, cw);
-	if (hashtagsInputEl.value) hashtagAutocomplete = new Autocomplete(hashtagsInputEl.value, hashtags);
 
 	nextTick(() => {
 		if (editingNote) {
@@ -1588,31 +1713,7 @@ onMounted(() => {
 			return;
 		}
 
-		// 書きかけの投稿を復元
-		if (!props.instant && !props.mention && !props.specified && !props.mock) {
-			const draft = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}')[draftKey.value] as StoredDrafts[string] | undefined;
-			if (draft != null) {
-				text.value = draft.data.text;
-				useCw.value = draft.data.useCw;
-				cw.value = draft.data.cw;
-				visibility.value = draft.data.visibility;
-				localOnly.value = draft.data.localOnly;
-				publishReply.value = draft.data.publishReply ?? false;
-				files.value = (draft.data.files || []).filter(draftFile => draftFile);
-				if (draft.data.poll) {
-					poll.value = draft.data.poll;
-				}
-				if (draft.data.visibleUserIds) {
-					misskeyApi('users/show', { userIds: draft.data.visibleUserIds }).then(users => {
-						users.forEach(u => pushVisibleUser(u));
-					});
-				}
-				quoteId.value = draft.data.quoteId;
-				reactionAcceptance.value = draft.data.reactionAcceptance;
-				scheduledAt.value = draft.data.scheduledAt ?? null;
-			}
-		}
-
+		// New composers start fresh; only explicitly supplied content is restored.
 		if (props.initialNote) {
 			const init = props.initialNote;
 			text.value = init.text ? init.text : '';
@@ -1620,6 +1721,10 @@ onMounted(() => {
 			cw.value = init.cw ?? null;
 			visibility.value = init.visibility;
 			localOnly.value = init.localOnly ?? false;
+			if (targetChannel.value) {
+				visibility.value = 'public';
+				localOnly.value = true;
+			}
 			publishReply.value = init.replyId != null && init.isPublishedReply === true;
 			files.value = init.files ?? [];
 			if (init.poll) {
@@ -1632,10 +1737,11 @@ onMounted(() => {
 			}
 			if (init.visibleUserIds) {
 				misskeyApi('users/show', { userIds: init.visibleUserIds }).then(users => {
-					users.forEach(u => pushVisibleUser(u));
+					if (targetChannel.value && audienceBeforeChannel) audienceBeforeChannel.visibleUsers = [...users];
+					else users.forEach(u => pushVisibleUser(u));
 				});
 			}
-			quoteId.value = renoteTargetNote.value ? renoteTargetNote.value.id : null;
+			quoteId.value = renoteTargetNote.value?.id ?? init.renoteId ?? null;
 			reactionAcceptance.value = init.reactionAcceptance;
 		}
 
@@ -1644,15 +1750,13 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	closeChannelPicker();
 	uploader.abortAll();
 	if (textAutocomplete) {
 		textAutocomplete.detach();
 	}
 	if (cwAutocomplete) {
 		cwAutocomplete.detach();
-	}
-	if (hashtagAutocomplete) {
-		hashtagAutocomplete.detach();
 	}
 });
 
@@ -1697,9 +1801,27 @@ defineExpose({
 </script>
 
 <style lang="scss" module>
+@use "../styles/channel-accent.scss";
 .root {
+	// 左右内边距取帖子卡片（MkNote 的 .article）的值，让操作栏、输入框和下方卡片共用同一条边线
+	--MI-postForm-spacing: 20px;
+	// 上下外边距要和「头部/操作栏 ↔ 输入区」的间距取同一个值，否则按钮 hover 时两侧留白看着不对称
+	--MI-postForm-gap: 4px;
+	// 输入面板自身的内边距，不与卡片内边距共用，否则正文会被推到 40px
+	--MI-postForm-inputPadding: 10px;
+	// Focus outlines share a color without changing the size of either field.
+	--MI-postForm-inputBorder: transparent;
+	box-sizing: border-box;
 	position: relative;
+	display: flex;
+	flex-direction: column;
 	container-type: inline-size;
+	padding: var(--MI-postForm-gap) var(--MI-postForm-spacing);
+	border-radius: var(--MI-cardRadius);
+
+	&:has(.cw:focus, .text:focus) {
+		--MI-postForm-inputBorder: var(--MI_THEME-accent);
+	}
 }
 
 // 最大化时让正文区吃掉剩余高度：操作栏是最后一个子元素，正文撑开后它自然钉在底部，
@@ -1729,10 +1851,12 @@ defineExpose({
 //#region header
 .header {
 	z-index: 1000;
-	min-height: 50px;
+	flex-shrink: 0;
+	min-height: 36px;
 	display: flex;
 	flex-wrap: nowrap;
 	gap: 4px;
+	margin-bottom: var(--MI-postForm-gap);
 }
 
 .headerLeft {
@@ -1740,8 +1864,7 @@ defineExpose({
 	flex: 1;
 	flex-wrap: nowrap;
 	align-items: center;
-	gap: 6px;
-	padding-left: 12px;
+	gap: 4px;
 }
 
 .cancel {
@@ -1750,27 +1873,28 @@ defineExpose({
 
 .avatar {
 	display: block;
-	width: 28px;
-	height: 28px;
+	width: 22px;
+	height: 22px;
 	margin: auto;
 	object-fit: cover;
 }
 
 .headerRight {
 	display: flex;
-	min-height: 48px;
+	min-height: 36px;
 	font-size: 0.9em;
 	flex-wrap: nowrap;
 	align-items: center;
 	margin-left: auto;
 	gap: 4px;
 	overflow: clip;
-	padding-left: 4px;
 }
 
 .submit {
-	margin: 12px 12px 12px 6px;
-	vertical-align: bottom;
+	// 填满操作栏高度，让按钮到提示条的可见留白也等于共用间距。
+	display: flex;
+	align-self: stretch;
+	margin: 0 0 0 4px;
 
 	&:focus-visible {
 		outline: none;
@@ -1803,9 +1927,10 @@ defineExpose({
 }
 
 .colorBar {
+	@include channel-accent.stripes;
 	position: absolute;
 	top: 0px;
-	left: 12px;
+	left: 0;
 	width: 5px;
 	height: 100% ;
 	border-radius: 999px;
@@ -1813,6 +1938,9 @@ defineExpose({
 }
 
 .submitInner {
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	padding: 0 12px;
 	line-height: 34px;
 	font-weight: bold;
@@ -1845,6 +1973,10 @@ defineExpose({
 	padding-left: 6px;
 }
 
+.visibilityIcon {
+	pointer-events: none;
+}
+
 .visibility {
 	overflow: clip;
 	text-overflow: ellipsis;
@@ -1860,7 +1992,7 @@ defineExpose({
 //#endregion
 
 .preview {
-	padding: 16px 20px 0 20px;
+	padding: 12px var(--MI-postForm-spacing) 0;
 	min-height: 75px;
 	max-height: 150px;
 	overflow: auto;
@@ -1876,33 +2008,72 @@ html[data-color-scheme=light] .preview {
 }
 
 .targetNote {
-	padding: 0 20px 16px 20px;
+	padding: 0 0 12px;
 }
 
 .existingPoll {
-	margin: 0 20px 16px;
+	margin: 0 0 12px;
 }
 
 .replyPublishing {
 	display: flex;
 	align-items: center;
-	gap: 8px;
 	min-height: 32px;
-	margin: 0 20px 12px;
+	margin: 0 0 8px;
 	font-size: 0.9em;
-	cursor: pointer;
 
-	> input {
+	.replyPublishingCheckbox {
+		appearance: none;
+		-webkit-appearance: none;
+		box-sizing: border-box;
 		flex-shrink: 0;
-		width: 16px;
-		height: 16px;
-		margin: 0;
-		accent-color: var(--MI_THEME-accent);
+		position: relative;
+		width: 1em;
+		height: 1em;
+		margin: 0 8px 0 0;
+		padding: 0;
+		border: 0.12em solid var(--MI_THEME-divider);
+		border-radius: 0.22em;
+		background: transparent;
+		cursor: pointer;
+
+		&:checked {
+			border-color: var(--MI_THEME-accent);
+			background: var(--MI_THEME-accent);
+
+			&::after {
+				content: "";
+				position: absolute;
+				top: 0.05em;
+				left: 0.28em;
+				width: 0.22em;
+				height: 0.44em;
+				border: solid var(--MI_THEME-fgOnAccent);
+				border-width: 0 0.11em 0.11em 0;
+				transform: rotate(45deg);
+			}
+		}
+
+		&:disabled {
+			opacity: 0.6;
+			cursor: default;
+		}
 	}
 
 	> span {
 		min-width: 0;
 		overflow-wrap: anywhere;
+	}
+
+	.replyPublishingInfo {
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		margin-left: 4px;
+		font-size: 1.05em;
+		color: var(--MI_THEME-fgTransparentWeak);
+		cursor: pointer;
 	}
 }
 
@@ -1912,7 +2083,7 @@ html[data-color-scheme=light] .preview {
 }
 
 .toSpecified {
-	padding: 6px 24px;
+	padding: 6px var(--MI-postForm-spacing);
 	margin-bottom: 8px;
 	overflow: auto;
 	white-space: nowrap;
@@ -1931,33 +2102,41 @@ html[data-color-scheme=light] .preview {
 	background: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1));
 }
 
+// 提示条上方的间距来自 header 的 margin-bottom（也就是 --MI-postForm-gap），
+// 所以下方必须取同一个变量，否则同一条提示的上下留白会不对称
 .hasNotSpecifiedMentions {
-	margin: 0 20px 16px 20px;
+	margin: 0 0 var(--MI-postForm-gap);
 }
 
 .scheduledAt {
-	margin: 0 20px 16px 20px;
+	margin: 0 0 var(--MI-postForm-gap);
 }
 
 .showHowToUse {
-	margin: 0 20px 16px 20px;
+	margin: 0 0 var(--MI-postForm-gap);
 }
 
 .cw,
-.hashtags,
 .text {
 	display: block;
 	box-sizing: border-box;
-	padding: 0 24px;
+	// 纵向比横向收紧：面板高度由 min-height 决定（border-box），省下的空间直接还给可输入区域
+	padding: 6px var(--MI-postForm-inputPadding);
 	margin: 0;
 	width: 100%;
-	font-size: 110%;
+	font-size: 1em;
 	line-height: inherit;
 	border: none;
 	border-radius: 0;
 	background: transparent;
 	color: var(--MI_THEME-fg);
 	font-family: inherit;
+
+	// 提示文案要明显比正文浅，否则空输入框看着像已经填了内容
+	&::placeholder {
+		color: color-mix(in srgb, var(--MI_THEME-fg) 45%, transparent);
+		opacity: 1;
+	}
 
 	&:focus {
 		outline: none;
@@ -1971,18 +2150,102 @@ html[data-color-scheme=light] .preview {
 .cwOuter {
 	width: 100%;
 	position: relative;
+	flex-shrink: 0;
+	margin-bottom: 6px;
+}
+
+.cwOuter,
+.textOuter {
+	isolation: isolate;
+
+	// Keep the surface behind the input and its emoji overlay.
+	&::before {
+		content: "";
+		position: absolute;
+		z-index: -1;
+		inset: 0;
+		// 透明边框常驻，聚焦时只换颜色，避免出现 1px 的位移
+		border: solid 1px var(--MI-postForm-inputBorder);
+		border-radius: var(--MI-cardRadius);
+		background: color-mix(in srgb, var(--MI_THEME-fg) 7%, transparent);
+		pointer-events: none;
+	}
+}
+
+.cwOuter::before {
+	border-color: color-mix(in srgb, var(--MI_THEME-warn) 22%, transparent);
+	background: color-mix(in srgb, var(--MI_THEME-warn) 7%, var(--MI_THEME-panel));
+}
+
+.cwOuter:focus-within::before {
+	border-color: var(--MI_THEME-accent);
+}
+
+.cwHeader {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 2px 8px;
+	padding: 6px var(--MI-postForm-inputPadding) 0;
+}
+
+.cwLabel {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 0.8em;
+	font-weight: 600;
+	color: var(--MI_THEME-fg);
+
+	> i {
+		color: var(--MI_THEME-warn);
+	}
+}
+
+.cwHint {
+	flex: 1;
+	min-width: 120px;
+	font-size: 0.75em;
+	line-height: 1.4;
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.cwRemove {
+	display: grid;
+	place-items: center;
+	flex-shrink: 0;
+	width: 28px;
+	height: 28px;
+	margin-left: auto;
+	border-radius: calc(var(--MI-radius) * 0.6);
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	&:hover:not(:disabled) {
+		background: var(--MI_THEME-buttonHoverBg);
+		color: var(--MI_THEME-fg);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 2px;
+	}
+}
+
+.cwInputWrap {
+	position: relative;
 }
 
 .cw {
 	z-index: 1;
-	padding-bottom: 8px;
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	padding-top: 3px;
+	padding-bottom: 9px;
+	padding-right: calc(var(--MI-postForm-inputPadding) + 32px);
 }
 
 .cwTextCount {
 	position: absolute;
-	top: 0;
-	right: 2px;
+	top: 4px;
+	right: 4px;
 	padding: 2px 6px;
 	font-size: .9em;
 	color: var(--MI_THEME-warn);
@@ -1992,40 +2255,114 @@ html[data-color-scheme=light] .preview {
 	text-align: center;
 
 	&.cwTextOver {
-		color: #ff2a2a;
+		color: var(--MI_THEME-error);
 	}
 }
 
-.hashtags {
-	z-index: 1;
-	padding-top: 8px;
-	padding-bottom: 8px;
-	border-top: solid 0.5px var(--MI_THEME-divider);
+.hiddenBodyLabel {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 8px var(--MI-postForm-inputPadding) 0;
+	font-size: 0.75em;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .textOuter {
 	width: 100%;
 	position: relative;
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 100px;
+	flex-direction: column;
 
 	&.withCw {
-		padding-top: 8px;
+		&::before {
+			background: color-mix(in srgb, var(--MI_THEME-warn) 3%, var(--MI_THEME-panel));
+			border-color: color-mix(in srgb, var(--MI_THEME-warn) 16%, transparent);
+		}
+
+		&:focus-within::before {
+			border-color: var(--MI_THEME-accent);
+		}
 	}
 }
 
 .text {
+	flex: 1 1 auto;
 	max-width: 100%;
 	min-width: 100%;
 	width: 100%;
-	min-height: 90px;
-	max-height: 500px;
+	min-height: 100px;
+	max-height: none;
 	resize: none;
 	field-sizing: content;
 }
 
+.withInitialRows:not(.rootMaximized) > .textOuter {
+	min-height: 0;
+
+	> .text {
+		// lh follows the actual font and line height; include the textarea's vertical padding.
+		min-height: calc(var(--MI-postForm-initialRows) * 1lh + 12px);
+	}
+}
+
+.channelRow {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	gap: 4px;
+	min-width: 0;
+	padding: 4px var(--MI-postForm-inputPadding) 8px;
+}
+
+.channelChip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	max-width: 100%;
+	padding: 4px 8px;
+	line-height: 1;
+	border-radius: 999px 999px 999px 0;
+	font-size: .85em;
+	color: var(--MI_THEME-accent);
+	background: var(--MI_THEME-panel);
+
+	> i { display: flex; align-items: center; flex-shrink: 0; }
+	&:enabled:hover { background: var(--MI_THEME-buttonHoverBg); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
+	&:disabled { opacity: .5; }
+}
+
+.channelName {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.channelArrow {
+	transform: rotate(0);
+}
+
+.channelArrowOpen {
+	transform: rotate(90deg);
+}
+
+.channelArrowAnimated {
+	transition: transform .15s ease;
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
+}
+
 .textCount {
 	position: absolute;
-	top: 0;
-	right: 2px;
+	top: 4px;
+	right: 4px;
 	padding: 4px 6px;
 	font-size: .9em;
 	color: var(--MI_THEME-warn);
@@ -2040,25 +2377,27 @@ html[data-color-scheme=light] .preview {
 
 .footer {
 	display: flex;
-	padding: 0 16px 16px 16px;
+	flex-shrink: 0;
+	padding-top: var(--MI-postForm-gap);
 	font-size: 1em;
 }
 
 .footerLeft {
 	flex: 1;
+	min-width: 0;
 	display: grid;
 	grid-auto-flow: row;
-	grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
-	grid-auto-rows: 40px;
+	grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+	grid-auto-rows: 36px;
 }
 
 .footerRight {
-	flex: 0;
+	flex: 0 0 36px;
 	margin-left: auto;
 	display: grid;
 	grid-auto-flow: row;
-	grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
-	grid-auto-rows: 40px;
+	grid-template-columns: 36px;
+	grid-auto-rows: 36px;
 	direction: rtl;
 }
 
@@ -2095,31 +2434,17 @@ html[data-color-scheme=light] .preview {
 
 	.visibility {
 		overflow: initial;
+		padding: 0;
 	}
 
-	.submit {
-		margin: 8px 8px 8px 4px;
-	}
-
-	.toSpecified {
-		padding: 6px 16px;
-	}
-
-	.preview {
-		padding: 16px 14px 0 14px;
-	}
-	.cw,
-	.hashtags,
-	.text {
-		padding: 0 16px;
+	.visibilityIcon {
+		display: block;
+		padding: 8px;
+		pointer-events: auto;
 	}
 
 	.text {
-		min-height: 80px;
-	}
-
-	.footer {
-		padding: 0 8px 8px 8px;
+		min-height: 90px;
 	}
 }
 
@@ -2128,17 +2453,29 @@ html[data-color-scheme=light] .preview {
 		font-size: 0.9em;
 	}
 
-	.footerLeft {
-		grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+	.cancel,
+	.headerRightItem,
+	.visibilityIcon {
+		padding: 6px;
 	}
 
-	.footerRight {
-		grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+	.visibility {
+		padding: 0;
+	}
+
+	.submitInner {
+		min-width: 72px;
 	}
 
 	.headerRight {
 		gap: 0;
 	}
 
+}
+
+@container (max-width: 260px) {
+	.header {
+		flex-wrap: wrap;
+	}
 }
 </style>

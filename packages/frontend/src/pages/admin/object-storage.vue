@@ -53,14 +53,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<SearchMarker>
 							<MkInput v-model="objectStorageAccessKey">
 								<template #prefix><i class="ti ti-key"></i></template>
-								<template #label><SearchLabel>Access key</SearchLabel></template>
+								<template #label><SearchLabel>{{ i18n.ts.accessKey }}</SearchLabel></template>
 							</MkInput>
 						</SearchMarker>
 
 						<SearchMarker>
 							<MkInput v-model="objectStorageSecretKey" type="password" autocomplete="new-password">
 								<template #prefix><i class="ti ti-key"></i></template>
-								<template #label><SearchLabel>Secret key</SearchLabel></template>
+								<template #label><SearchLabel>{{ i18n.ts.secretKey }}</SearchLabel></template>
 							</MkInput>
 						</SearchMarker>
 					</FormSplit>

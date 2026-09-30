@@ -128,7 +128,51 @@ import { useRouter } from '@/router.js';
 
 const router = useRouter();
 
-const mapCategories = Array.from(new Set(Object.values(Reversi.maps).map(x => x.category)));
+const builtinMaps = (Object.keys(Reversi.maps) as (keyof typeof Reversi.maps)[]).map(id => ({ id, ...Reversi.maps[id] }));
+const mapCategories = Array.from(new Set(builtinMaps.map(x => x.category)));
+const builtinMapNames = computed<Record<keyof typeof Reversi.maps, string>>(() => ({
+	fourfour: '4x4',
+	sixsix: '6x6',
+	roundedSixsix: i18n.tsx._reversi._maps.rounded({ size: '6x6' }),
+	roundedSixsix2: i18n.tsx._reversi._maps.roundedVariant({ size: '6x6', variant: 2 }),
+	eighteight: '8x8',
+	eighteightH28: i18n.tsx._reversi._maps.handicap({ size: '8x8', stones: 28 }),
+	roundedEighteight: i18n.tsx._reversi._maps.rounded({ size: '8x8' }),
+	roundedEighteight2: i18n.tsx._reversi._maps.roundedVariant({ size: '8x8', variant: 2 }),
+	roundedEighteight3: i18n.tsx._reversi._maps.roundedVariant({ size: '8x8', variant: 3 }),
+	eighteightWithNotch: i18n.ts._reversi._maps.withNotch,
+	eighteightWithSomeHoles: i18n.ts._reversi._maps.withHoles,
+	circle: i18n.ts._reversi._maps.circle,
+	smile: i18n.ts._reversi._maps.smile,
+	window: i18n.ts._reversi._maps.window,
+	reserved: i18n.ts._reversi._maps.reserved,
+	x: 'X',
+	parallel: i18n.ts._reversi._maps.parallel,
+	lackOfBlack: i18n.ts._reversi._maps.lackOfBlack,
+	squareParty: i18n.ts._reversi._maps.squareParty,
+	minesweeper: i18n.ts._reversi._maps.minesweeper,
+	tenthtenth: '10x10',
+	hole: i18n.ts._reversi._maps.hole,
+	grid: i18n.ts._reversi._maps.grid,
+	cross: i18n.ts._reversi._maps.cross,
+	charX: i18n.tsx._reversi._maps.letter({ letter: 'X' }),
+	charY: i18n.tsx._reversi._maps.letter({ letter: 'Y' }),
+	walls: i18n.ts._reversi._maps.walls,
+	cpu: 'CPU',
+	checker: i18n.ts._reversi._maps.checker,
+	japaneseCurry: i18n.ts._reversi._maps.japaneseCurry,
+	mosaic: i18n.ts._reversi._maps.mosaic,
+	arena: i18n.ts._reversi._maps.arena,
+	reactor: i18n.ts._reversi._maps.reactor,
+	sixeight: '6x8',
+	spark: i18n.ts._reversi._maps.spark,
+	islands: i18n.ts._reversi._maps.islands,
+	galaxy: i18n.ts._reversi._maps.galaxy,
+	triangle: i18n.ts._reversi._maps.triangle,
+	iphonex: 'iPhone X',
+	dealWithIt: 'Deal with it!',
+	twoBoard: i18n.ts._reversi._maps.twoBoard,
+}));
 
 const props = defineProps<{
 	game: Misskey.entities.ReversiGameDetailed;
@@ -151,9 +195,9 @@ const gameTurnOptionsDef = [
 ] as MkRadiosOption<number>[];
 
 const mapName = computed(() => {
-	if (game.value.map == null) return 'Random';
-	const found = Object.values(Reversi.maps).find(x => x.data.join('') === game.value.map.join(''));
-	return found ? found.name! : '-Custom-';
+	if (game.value.map == null) return i18n.ts.random;
+	const found = builtinMaps.find(x => x.data.join('') === game.value.map.join(''));
+	return found ? builtinMapNames.value[found.id] : i18n.ts.custom;
 });
 const isReady = computed(() => {
 	if (game.value.user1Id === $i?.id && game.value.user1Ready) return true;
@@ -180,17 +224,17 @@ function chooseMap(ev: PointerEvent) {
 	const menu: MenuItem[] = [];
 
 	for (const c of mapCategories) {
-		const maps = Object.values(Reversi.maps).filter(x => x.category === c);
+		const maps = builtinMaps.filter(x => x.category === c);
 		if (maps.length === 0) continue;
 		if (c != null) {
 			menu.push({
 				type: 'label',
-				text: c,
+				text: c === 'Special' ? i18n.ts._reversi.specialMaps : c,
 			});
 		}
 		for (const m of maps) {
 			menu.push({
-				text: m.name!,
+				text: builtinMapNames.value[m.id],
 				action: () => {
 					game.value.map = m.data;
 					updateSettings('map');

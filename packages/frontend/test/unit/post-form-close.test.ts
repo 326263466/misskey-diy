@@ -132,7 +132,7 @@ describe('post form closing', () => {
 
 	test('confirms a content warning edited by the user', async () => {
 		const view = await renderForm({ reply: makeReply({ cw: 'Inherited warning' }) });
-		await fireEvent.update(view.getByPlaceholderText(i18n.ts.annotation), 'Edited warning');
+		await fireEvent.update(view.getByPlaceholderText(i18n.ts._postForm.cwSummary), 'Edited warning');
 		expect(await view.form.canClose()).toBe(true);
 		expect(mocks.confirm).toHaveBeenCalledOnce();
 	});

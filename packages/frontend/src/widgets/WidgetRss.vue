@@ -117,7 +117,7 @@ defineExpose<WidgetComponentExpose>({
 
 .item {
 	display: block;
-	padding: 8px 16px;
+	padding: 8px var(--MI-cardPadding, 20px);
 	color: var(--MI_THEME-fg);
 	white-space: nowrap;
 	text-overflow: ellipsis;

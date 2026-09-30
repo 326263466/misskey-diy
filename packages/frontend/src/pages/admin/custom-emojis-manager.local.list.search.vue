@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<i class="ti ti-search" style="margin-right: 0.5em;"></i> {{ i18n.ts.search }}
 	</template>
 	<div :class="$style.root">
-		<div class="_spacer">
+		<div class="_spacer _spacerCard">
 			<div class="_gaps">
 				<div class="_gaps_s">
 					<MkInput
@@ -23,21 +23,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 						type="search"
 						autocapitalize="off"
 					>
-						<template #label>name</template>
+						<template #label>{{ i18n.ts.name }}</template>
 					</MkInput>
 					<MkInput
 						v-model="model.category"
 						type="search"
 						autocapitalize="off"
 					>
-						<template #label>category</template>
+						<template #label>{{ i18n.ts.category }}</template>
 					</MkInput>
 					<MkInput
 						v-model="model.aliases"
 						type="search"
 						autocapitalize="off"
 					>
-						<template #label>aliases</template>
+						<template #label>{{ i18n.ts._customEmojisManager._gridCommon.aliases }}</template>
 					</MkInput>
 
 					<MkInput
@@ -45,14 +45,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 						type="search"
 						autocapitalize="off"
 					>
-						<template #label>type</template>
+						<template #label>{{ i18n.ts.type }}</template>
 					</MkInput>
 					<MkInput
 						v-model="model.license"
 						type="search"
 						autocapitalize="off"
 					>
-						<template #label>license</template>
+						<template #label>{{ i18n.ts.license }}</template>
 					</MkInput>
 					<MkSelect
 						v-model="model.sensitive"
@@ -62,7 +62,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							{ label: 'false', value: 'false' },
 						]"
 					>
-						<template #label>sensitive</template>
+						<template #label>{{ i18n.ts.sensitive }}</template>
 					</MkSelect>
 
 					<MkSelect
@@ -73,21 +73,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 							{ label: 'false', value: 'false' },
 						]"
 					>
-						<template #label>localOnly</template>
+						<template #label>{{ i18n.ts.localOnly }}</template>
 					</MkSelect>
 					<MkInput
 						v-model="model.updatedAtFrom"
 						type="date"
 						autocapitalize="off"
 					>
-						<template #label>updatedAt(from)</template>
+						<template #label>{{ i18n.ts._customEmojisManager._gridCommon.updatedAtFrom }}</template>
 					</MkInput>
 					<MkInput
 						v-model="model.updatedAtTo"
 						type="date"
 						autocapitalize="off"
 					>
-						<template #label>updatedAt(to)</template>
+						<template #label>{{ i18n.ts._customEmojisManager._gridCommon.updatedAtTo }}</template>
 					</MkInput>
 
 					<MkInput
@@ -97,7 +97,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						autocapitalize="off"
 						@click="onQueryRolesEditClicked"
 					>
-						<template #label>role</template>
+						<template #label>{{ i18n.ts.role }}</template>
 						<template #suffix><i class="ti ti-pencil"></i></template>
 					</MkInput>
 				</div>
@@ -208,7 +208,7 @@ async function onQueryRolesEditClicked() {
 .footerActions {
 	position: sticky;
 	bottom: 0;
-	padding: var(--MI-margin);
+	padding: var(--MI-cardPadding, 20px);
 	background-color: var(--MI_THEME-bg);
 	display: flex;
 	gap: 8px;

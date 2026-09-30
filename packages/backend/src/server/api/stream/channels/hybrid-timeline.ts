@@ -59,7 +59,7 @@ export class HybridTimelineChannel extends Channel {
 
 		if (this.withFiles && (note.fileIds == null || note.fileIds.length === 0)) return;
 
-		if (!note.channelId) {
+		if (!note.channelId || !this.followingChannels.has(note.channelId)) {
 			// 以下の条件に該当するノートのみ後続処理に通す（ので、以下のif文は該当しないノートをすべて弾くようにする）
 			// - 自分自身の投稿
 			// - その投稿のユーザーをフォローしている
@@ -69,12 +69,6 @@ export class HybridTimelineChannel extends Channel {
 				Object.hasOwn(this.following, note.userId) ||
 				(note.user.host == null && note.visibility === 'public')
 			)) {
-				return;
-			}
-		} else {
-			// 以下の条件に該当するノートのみ後続処理に通す（ので、以下のif文は該当しないノートをすべて弾くようにする）
-			// - フォローしているチャンネルの投稿
-			if (!this.followingChannels.has(note.channelId)) {
 				return;
 			}
 		}

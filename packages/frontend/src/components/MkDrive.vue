@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<span v-if="folder != null" :class="[$style.navPathItem, $style.navSeparator]"><i class="ti ti-chevron-right"></i></span>
 				<span v-if="folder != null" :class="[$style.navPathItem, $style.navCurrent]">{{ folder.name }}</span>
 			</div>
-			<button class="_button" :class="$style.navMenu" @click="showMenu"><i class="ti ti-dots"></i></button>
+			<button class="_button" :class="$style.navMenu" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots"></i></button>
 		</nav>
 	</template>
 
@@ -771,6 +771,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" module>
+@use "../styles/page-header.scss";
+
 .transition_files_move,
 .transition_files_enterActive,
 .transition_files_leaveActive {
@@ -785,31 +787,32 @@ onBeforeUnmount(() => {
 }
 
 .nav {
+	@include page-header.surface;
 	display: flex;
-	width: 100%;
-	padding: 0 8px;
-	box-sizing: border-box;
-	overflow: auto;
-	font-size: 0.9em;
-	background: color(from var(--MI_THEME-bg) srgb r g b / 0.75);
-	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
-	backdrop-filter: var(--MI-blur, blur(15px));
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	align-items: center;
+	padding: 0 8px 0 12px;
+	height: var(--height);
 }
 
 .navPath {
-	display: inline-block;
-	vertical-align: bottom;
-	line-height: 42px;
+	flex: 1;
+	min-width: 0;
+	line-height: var(--height);
 	white-space: nowrap;
+	overflow-x: auto;
+	scrollbar-width: none;
 }
 
 .navPathItem {
 	display: inline-block;
 	margin: 0;
 	padding: 0 8px;
-	line-height: 42px;
+	line-height: var(--height);
 	cursor: pointer;
+
+	&:first-child {
+		padding-left: 0;
+	}
 
 	&:hover {
 		text-decoration: underline;
@@ -833,8 +836,8 @@ onBeforeUnmount(() => {
 }
 
 .navMenu {
-	margin-left: auto;
-	padding: 0 12px;
+	@include page-header.action;
+	margin-left: 8px;
 }
 
 .main {

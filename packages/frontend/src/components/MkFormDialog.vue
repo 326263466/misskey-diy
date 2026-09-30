@@ -7,19 +7,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkModalWindow
 	ref="dialog"
 	:width="450"
+	autoHeight
 	:canClose="false"
 	:withOkButton="true"
 	:okButtonDisabled="!canSave"
 	@click="cancel()"
 	@ok="ok()"
 	@close="cancel()"
+	@esc="cancel()"
 	@closed="emit('closed')"
 >
 	<template #header>
 		{{ title }}
 	</template>
 
-	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 32px;">
+	<div class="_spacer _spacerCard">
 		<MkForm v-model="values" :form="form" @canSaveStateChange="onCanSaveStateChanged"/>
 	</div>
 </MkModalWindow>

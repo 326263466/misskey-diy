@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
 	<div class="_spacer" style="--MI_SPACER-w: 500px;">
 		<div v-if="state == 'fetch-session-error'">
-			<p>{{ i18n.ts.somethingHappened }}</p>
+			<p :class="$style.message">{{ i18n.ts.somethingHappened }}</p>
 		</div>
 		<div v-else-if="$i && !session">
 			<MkLoading/>
@@ -21,10 +21,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				@accepted="accepted"
 			/>
 			<div v-if="state == 'denied'">
-				<h1>{{ i18n.ts._auth.denied }}</h1>
+				<h1 :class="$style.message">{{ i18n.ts._auth.denied }}</h1>
 			</div>
 			<div v-if="state == 'accepted' && session">
-				<h1>{{ session.app.isAuthorized ? i18n.ts._auth.alreadyAuthorized : i18n.ts._auth.accepted }}</h1>
+				<h1 :class="$style.message">{{ session.app.isAuthorized ? i18n.ts._auth.alreadyAuthorized : i18n.ts._auth.accepted }}</h1>
 				<p v-if="session.app.callbackUrl">
 					{{ i18n.ts._auth.callback }}
 					<MkEllipsis/>
@@ -105,8 +105,12 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.message {
+	margin-top: 0;
+}
+
 .loginMessage {
 	text-align: center;
-	margin: 8px 0 24px;
+	margin: 0 0 24px;
 }
 </style>

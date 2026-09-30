@@ -20,6 +20,11 @@ import { MiAuthSession } from '@/models/AuthSession.js';
 import { MiAvatarDecoration } from '@/models/AvatarDecoration.js';
 import { MiBlocking } from '@/models/Blocking.js';
 import { MiBubbleGameRecord } from '@/models/BubbleGameRecord.js';
+import { MiUserCheckin } from '@/models/UserCheckin.js';
+import { MiUserCheckinExchange } from '@/models/UserCheckinExchange.js';
+import { MiUserCheckinCardBatch } from '@/models/UserCheckinCardBatch.js';
+import { MiCheckinRedemptionCode } from '@/models/CheckinRedemptionCode.js';
+import { MiCheckinRedemptionClaim } from '@/models/CheckinRedemptionClaim.js';
 import { MiChannel } from '@/models/Channel.js';
 import { MiChannelFavorite } from '@/models/ChannelFavorite.js';
 import { MiChannelFollowing } from '@/models/ChannelFollowing.js';
@@ -174,6 +179,11 @@ export {
 	MiChatRoomInvitation,
 	MiChatApproval,
 	MiBubbleGameRecord,
+	MiUserCheckin,
+	MiUserCheckinExchange,
+	MiUserCheckinCardBatch,
+	MiCheckinRedemptionCode,
+	MiCheckinRedemptionClaim,
 	MiReversiGame,
 };
 
@@ -255,4 +265,5 @@ export type ChatRoomMembershipsRepository = Repository<MiChatRoomMembership> & M
 export type ChatRoomInvitationsRepository = Repository<MiChatRoomInvitation> & MiRepository<MiChatRoomInvitation>;
 export type ChatApprovalsRepository = Repository<MiChatApproval> & MiRepository<MiChatApproval>;
 export type BubbleGameRecordsRepository = Repository<MiBubbleGameRecord> & MiRepository<MiBubbleGameRecord>;
+export type UserCheckinsRepository = Repository<MiUserCheckin> & MiRepository<MiUserCheckin>;
 export type ReversiGamesRepository = Repository<MiReversiGame> & MiRepository<MiReversiGame>;

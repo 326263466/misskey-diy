@@ -459,7 +459,7 @@ export class NoteEntityService implements OnModuleInit {
 			...likes,
 			createdAt: this.idService.parse(note.id).date.toISOString(),
 			userId: note.userId,
-			user: packedUsers?.get(note.userId) ?? this.userEntityService.pack(note.user ?? note.userId, me),
+			user: packedUsers?.get(note.userId) ?? this.userEntityService.pack(note.user ?? note.userId, me, { includeProfessionalProfile: true }),
 			text: text,
 			cw: note.cw,
 			visibility: note.visibility,
@@ -614,7 +614,7 @@ export class NoteEntityService implements OnModuleInit {
 			...notes.map(({ replyUserId }) => replyUserId).filter(x => x != null),
 			...notes.map(({ renoteUserId }) => renoteUserId).filter(x => x != null),
 		];
-		const packedUsers = await this.userEntityService.packMany(users, me)
+		const packedUsers = await this.userEntityService.packMany(users, me, { includeProfessionalProfile: true })
 			.then(users => new Map(users.map(u => [u.id, u])));
 		const likeNoteIds = [...new Set(notes.flatMap(note => [note.id, note.replyId, note.renoteId]).filter(id => id != null))];
 		const noteLikes = await this.noteLikeService.getStates(likeNoteIds, me);

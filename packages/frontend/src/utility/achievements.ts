@@ -6,7 +6,17 @@
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { $i } from '@/i.js';
 
+export const SERVER_AWARDED_ACHIEVEMENT_TYPES = [
+	'checkin1',
+	'checkinStreak7',
+	'checkinStreak30',
+	'checkinTotal30',
+	'checkinTotal100',
+	'checkinTotal365',
+] as const;
+
 export const ACHIEVEMENT_TYPES = [
+	...SERVER_AWARDED_ACHIEVEMENT_TYPES,
 	'notes1',
 	'notes10',
 	'notes100',
@@ -88,6 +98,36 @@ export const ACHIEVEMENT_TYPES = [
 ] as const;
 
 export const ACHIEVEMENT_BADGES = {
+	'checkin1': {
+		img: '/client-assets/achievements/checkin-first.svg',
+		bg: null,
+		frame: 'bronze',
+	},
+	'checkinStreak7': {
+		img: '/client-assets/achievements/checkin-streak-7.svg',
+		bg: null,
+		frame: 'bronze',
+	},
+	'checkinStreak30': {
+		img: '/client-assets/achievements/checkin-streak-30.svg',
+		bg: null,
+		frame: 'gold',
+	},
+	'checkinTotal30': {
+		img: '/client-assets/achievements/checkin-total-30.svg',
+		bg: null,
+		frame: 'silver',
+	},
+	'checkinTotal100': {
+		img: '/client-assets/achievements/checkin-total-100.svg',
+		bg: null,
+		frame: 'gold',
+	},
+	'checkinTotal365': {
+		img: '/client-assets/achievements/checkin-total-365.svg',
+		bg: null,
+		frame: 'platinum',
+	},
 	'notes1': {
 		img: '/fluent-emoji/1f4dd.png',
 		bg: 'linear-gradient(0deg, rgb(59 187 116), rgb(199 211 102))',
@@ -491,7 +531,13 @@ export const claimedAchievements: typeof ACHIEVEMENT_TYPES[number][] = ($i && $i
 
 const claimingQueue = new Set<string>();
 
+function isServerAwardedAchievement(type: typeof ACHIEVEMENT_TYPES[number]): type is typeof SERVER_AWARDED_ACHIEVEMENT_TYPES[number] {
+	return (SERVER_AWARDED_ACHIEVEMENT_TYPES as readonly string[]).includes(type);
+}
+
 export async function claimAchievement(type: typeof ACHIEVEMENT_TYPES[number]) {
+	// Check-in milestones are awarded by the server; developer shortcuts must not claim them either.
+	if (isServerAwardedAchievement(type)) return;
 	if ($i == null) return;
 	if ($i.movedTo) return;
 	if (claimedAchievements.includes(type)) return;

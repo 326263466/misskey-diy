@@ -90,7 +90,7 @@ defineExpose<WidgetComponentExpose>({
 
 <style lang="scss" module>
 .root {
-	padding: 16px 0;
+	padding: var(--MI-cardPadding, 20px) 0;
 	text-align: center;
 }
 

@@ -37,6 +37,7 @@ export const notificationTypes = [
 	'test',
 	'login',
 	'createToken',
+	'system',
 ] as const;
 
 export const noteVisibilities = ['public', 'home', 'followers', 'specified'] as const;
@@ -142,6 +143,8 @@ export const moderationLogTypes = [
 	'suspend',
 	'unsuspend',
 	'updateUserNote',
+	'grantCheckinCards',
+	'revokeCheckinCards',
 	'addCustomEmoji',
 	'updateCustomEmoji',
 	'deleteCustomEmoji',
@@ -277,6 +280,23 @@ type ReceivedAbuseReport = {
 };
 
 export type ModerationLogPayloads = {
+	revokeCheckinCards: {
+		userId: string;
+		userUsername: string;
+		userHost: string | null;
+		batchId: string;
+		amount: number;
+		before: number;
+		after: number;
+	};
+	grantCheckinCards: {
+		userId: string;
+		userUsername: string;
+		userHost: string | null;
+		amount: number;
+		before: number;
+		after: number;
+	};
 	updateServerSettings: {
 		before: MetaDetailed | null;
 		after: MetaDetailed | null;

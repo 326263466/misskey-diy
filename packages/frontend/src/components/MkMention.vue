@@ -32,14 +32,14 @@ const canonical = props.host === localHost ? `@${props.username}` : `@${props.us
 
 const url = `/${canonical}`;
 
-const isMe = $i && (
+const isMe = computed(() => $i != null && (
 	`@${props.username}@${toUnicode(props.host)}`.toLowerCase() === `@${$i.username}@${toUnicode(localHost)}`.toLowerCase()
-);
+));
 
-const avatarUrl = computed(() => prefer.s.disableShowingAnimatedImages || prefer.s.dataSaver.avatar
-	? getStaticImageUrl(`/avatar/@${props.username}@${props.host}`)
-	: `/avatar/@${props.username}@${props.host}`,
-);
+const avatarUrl = computed(() => {
+	const url = isMe.value && $i != null ? $i.avatarUrl : `/avatar/@${props.username}@${props.host}`;
+	return prefer.s.disableShowingAnimatedImages || prefer.s.dataSaver.avatar ? getStaticImageUrl(url) : url;
+});
 </script>
 
 <style lang="scss" module>

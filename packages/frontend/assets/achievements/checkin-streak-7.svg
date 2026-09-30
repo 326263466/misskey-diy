@@ -1,0 +1,27 @@
+<!--
+SPDX-FileCopyrightText: syuilo and misskey-project
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+<defs>
+<linearGradient id="blueDeep" x1="0" y1="0" x2="0.7" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#398bdc"/><stop offset="1" stop-color="#2456a8"/></linearGradient>
+<linearGradient id="blue" x1="0" y1="0" x2="0.7" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#83dbff"/><stop offset="1" stop-color="#347bdc"/></linearGradient>
+</defs>
+
+<g transform="rotate(-28 28 52)">
+<rect x="7" y="23" width="34" height="62" rx="17" fill="url(#blueDeep)"/>
+<rect x="7" y="18" width="34" height="62" rx="17" fill="url(#blue)"/>
+<rect x="16" y="28" width="16" height="42" rx="8" fill="#255ba0"/>
+<path d="M12 40V34Q12 23 23 23" fill="none" stroke="#c4f1ff" stroke-width="3" stroke-linecap="round"/>
+</g>
+<g transform="rotate(-28 69 47)">
+<rect x="54" y="12" width="34" height="62" rx="17" fill="url(#blueDeep)"/>
+<rect x="54" y="7" width="34" height="62" rx="17" fill="url(#blue)"/>
+<rect x="63" y="17" width="16" height="42" rx="8" fill="#255ba0"/>
+<path d="M59 28V23Q59 12 69 12" fill="none" stroke="#c4f1ff" stroke-width="3" stroke-linecap="round"/>
+</g>
+<rect x="25" y="28" width="46" height="54" rx="14" fill="#2c5fa6"/>
+<rect x="25" y="23" width="46" height="54" rx="14" fill="url(#blueDeep)"/>
+<path d="M34 28H59" fill="none" stroke="#81d8ff" stroke-width="3" stroke-linecap="round"/>
+<g transform="translate(37 35) scale(1.1)" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path transform="translate(0 0)" d="M0 0H19L5 24"/></g>
+</svg>

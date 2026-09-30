@@ -10,13 +10,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.header">
 			<MkUserName :user="user" :nowrap="true"/>
 		</div>
+		<MkUserWork :user="user"/>
 		<div>
-			<p v-if="useCw" :class="$style.cw">
-				<Mfm v-if="cw != null && cw != ''" :text="cw" :author="user" :nyaize="'respect'" :i="user" style="margin-right: 8px;"/>
-				<MkCwButton v-model="showContent" :text="text.trim()" :files="files" :poll="poll" style="margin: 4px 0;"/>
-			</p>
+			<MkCwButton v-if="useCw" v-model="showContent" :text="text.trim()" :files="files" :poll="poll">
+				<Mfm v-if="cw != null && cw != ''" :text="cw" :author="user" :nyaize="'respect'" :i="user"/>
+			</MkCwButton>
 			<div v-show="!useCw || showContent">
-				<Mfm :text="text.trim()" :author="user" :nyaize="'respect'" :i="user"/>
+				<Mfm :text="text.trim()" :parsedNodes="topics.nodes" :author="user" :nyaize="'respect'" :i="user"/>
+				<MkNoteTags v-if="topics.tags.length > 0" :tags="topics.tags" :class="$style.tags"/>
 			</div>
 		</div>
 	</div>
@@ -24,10 +25,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { PollEditorModelValue } from '@/components/MkPollEditor.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
+import MkNoteTags from '@/components/MkNoteTags.vue';
+import MkUserWork from '@/components/MkUserWork.vue';
+import { getNoteTopics } from '@/utility/note-topics.js';
 
 const showContent = ref(false);
 
@@ -39,6 +43,8 @@ const props = defineProps<{
 	cw: string | null;
 	user: Misskey.entities.User;
 }>();
+
+const topics = computed(() => getNoteTopics({ text: props.text.trim() }));
 </script>
 
 <style lang="scss" module>
@@ -65,12 +71,8 @@ const props = defineProps<{
 	min-width: 0;
 }
 
-.cw {
-	cursor: default;
-	display: block;
-	margin: 0;
-	padding: 0;
-	overflow-wrap: break-word;
+.tags {
+	margin-top: 8px;
 }
 
 .header {

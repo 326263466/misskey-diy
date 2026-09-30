@@ -5,21 +5,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <Transition
-	:enterActiveClass="prefer.s.animation ? $style.transition_tooltip_enterActive : ''"
-	:leaveActiveClass="prefer.s.animation ? $style.transition_tooltip_leaveActive : ''"
-	:enterFromClass="prefer.s.animation ? $style.transition_tooltip_enterFrom : ''"
-	:leaveToClass="prefer.s.animation ? $style.transition_tooltip_leaveTo : ''"
+	:enterActiveClass="prefer.s.animation ? $style.tooltipEnterActive : ''"
 	appear :css="prefer.s.animation"
 	@afterLeave="emit('closed')"
 >
-	<div v-show="showing" ref="el" :class="$style.root" :style="{ zIndex, maxWidth: maxWidth + 'px' }">
+	<div v-show="showing" ref="el" role="tooltip" :class="$style.root" :style="{ zIndex, maxWidth: maxWidth + 'px' }">
 		<slot>
 			<template v-if="text">
 				<Mfm v-if="asMfm" :text="text"/>
 				<span v-else>{{ text }}</span>
 			</template>
 		</slot>
-		<div :class="[$style.arrow, $style[arrowClass]]"></div>
+		<div ref="arrow" :class="[$style.arrow, $style[arrowClass]]"></div>
 	</div>
 </Transition>
 </template>
@@ -34,7 +31,7 @@ type ArrowClass = 'arrowTop' | 'arrowBottom' | 'arrowLeft' | 'arrowRight';
 
 const props = withDefaults(defineProps<{
 	showing: boolean;
-	anchorElement?: HTMLElement;
+	anchorElement?: Pick<HTMLElement, 'getBoundingClientRect'>;
 	x?: number;
 	y?: number;
 	text?: string;
@@ -43,7 +40,7 @@ const props = withDefaults(defineProps<{
 	direction?: 'top' | 'bottom' | 'right' | 'left';
 	innerMargin?: number;
 }>(), {
-	maxWidth: 250,
+	maxWidth: 300,
 	direction: 'bottom',
 	innerMargin: 12,
 });
@@ -56,6 +53,7 @@ const emit = defineEmits<{
 if (!props.showing) emit('closed');
 
 const el = useTemplateRef('el');
+const arrow = useTemplateRef('arrow');
 const zIndex = os.claimZIndex('high');
 
 // transformOrigin は展開の起点、つまりアンカーに接している辺を表す。
@@ -84,6 +82,24 @@ function setPosition() {
 	el.value.style.top = data.top + 'px';
 
 	arrowClass.value = ARROW_CLASS_BY_ORIGIN[data.transformOrigin] ?? 'arrowTop';
+
+	const vertical = data.transformOrigin.startsWith('center');
+
+	if (arrow.value != null) {
+		const rect = props.anchorElement?.getBoundingClientRect();
+		const center = vertical
+			? rect ? rect.left + rect.width / 2 + window.scrollX : props.x
+			: rect ? rect.top + rect.height / 2 + window.scrollY : props.y;
+		if (center != null) {
+			const size = vertical ? el.value.clientWidth : el.value.clientHeight;
+			const border = vertical ? el.value.clientLeft : el.value.clientTop;
+			const halfArrow = (vertical ? arrow.value.offsetWidth : arrow.value.offsetHeight) / 2;
+			const inset = Math.min(size / 2, halfArrow + 5);
+			const position = center - (vertical ? data.left : data.top) - border;
+			const arrowPosition = `${Math.max(inset, Math.min(size - inset, position))}px`;
+			el.value.style.setProperty('--MI-tooltip-arrow-position', arrowPosition);
+		}
+	}
 }
 
 let loopHandler: number | null = null;
@@ -107,40 +123,46 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" module>
-$arrowSize: 10px;
-$arrowOffset: 5px;
+$arrowSize: 6px;
+$arrowOffset: 3px;
 $arrowRadius: 2px;
 
-.transition_tooltip_enterActive,
-.transition_tooltip_leaveActive {
-	opacity: 1;
-	transition: opacity 200ms linear;
+.tooltipEnterActive {
+	animation: tooltipEnter 150ms ease-out both;
 }
-.transition_tooltip_enterFrom,
-.transition_tooltip_leaveTo {
-	opacity: 0;
+
+@keyframes tooltipEnter {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }
 
 .root {
 	position: absolute;
 	box-sizing: border-box;
 	min-width: $arrowSize;
-	padding: 5px 11px;
-	font-size: 12px;
-	line-height: 20px;
+	min-height: 20px;
+	width: max-content;
+	padding: 4px 8px;
+	font-size: 11px;
+	line-height: 12px;
+	font-weight: 400;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
 	border-radius: 4px;
 	// 前景色と背景色を入れ替えた表示。テーマを問わず本文との対比が最大になる
 	color: var(--MI_THEME-bg);
 	background: var(--MI_THEME-fg);
-	// 背景と同色なので見た目は縁なし。外寸を32pxに揃えるためだけに置く
-	border: solid 1px var(--MI_THEME-fg);
 	overflow-wrap: break-word;
-	word-break: normal;
+	word-break: break-all;
 	pointer-events: none;
 }
 
-// 45度回転させた正方形の、外を向く角を尖端として使う。
-// 中心が本体の辺上に来るため、尖端は辺から半対角線ぶん(約7px)突き出る
 .arrow {
 	position: absolute;
 	z-index: -1;
@@ -155,28 +177,28 @@ $arrowRadius: 2px;
 // 尖端になる角だけ丸めるので、辺ごとに丸める角が変わる
 .arrowTop {
 	top: -$arrowOffset;
-	left: 50%;
+	left: var(--MI-tooltip-arrow-position, 50%);
 	margin-left: -$arrowOffset;
 	border-top-left-radius: $arrowRadius;
 }
 
 .arrowBottom {
 	bottom: -$arrowOffset;
-	left: 50%;
+	left: var(--MI-tooltip-arrow-position, 50%);
 	margin-left: -$arrowOffset;
 	border-bottom-right-radius: $arrowRadius;
 }
 
 .arrowLeft {
 	left: -$arrowOffset;
-	top: 50%;
+	top: var(--MI-tooltip-arrow-position, 50%);
 	margin-top: -$arrowOffset;
 	border-bottom-left-radius: $arrowRadius;
 }
 
 .arrowRight {
 	right: -$arrowOffset;
-	top: 50%;
+	top: var(--MI-tooltip-arrow-position, 50%);
 	margin-top: -$arrowOffset;
 	border-top-right-radius: $arrowRadius;
 }

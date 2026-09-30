@@ -5,12 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
+	<template #header-actions>
+		<MkButton type="routerLink" to="/admin/abuse-report-notification-recipient" primary>{{ i18n.ts.notificationSetting }}</MkButton>
+	</template>
 	<div class="_spacer" style="--MI_SPACER-w: 900px;">
 		<div :class="$style.root" class="_gaps">
-			<div :class="$style.subMenus" class="_gaps">
-				<MkButton type="routerLink" to="/admin/abuse-report-notification-recipient" primary>{{ i18n.ts.notificationSetting }}</MkButton>
-			</div>
-
 			<MkTip k="abuses">
 				{{ i18n.ts._abuseUserReport.resolveTutorial }}
 			</MkTip>
@@ -40,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<MkPagination v-slot="{items}" :paginator="paginator">
 				<div class="_gaps">
-					<XAbuseReport v-for="report in items" :key="report.id" :report="report" @resolved="resolved"/>
+					<XAbuseReport v-for="report in items" :key="report.id" :report="report" @resolved="resolved" @refresh="paginator.reload()"/>
 				</div>
 			</MkPagination>
 		</div>
@@ -127,17 +126,9 @@ definePage(() => ({
 	align-items: stretch;
 }
 
-.subMenus {
-	display: flex;
-	flex-direction: row;
-	justify-content: flex-end;
-	align-items: center;
-}
-
 .inputs {
-	display: flex;
-	flex-direction: row;
-	justify-content: space-between;
-	align-items: center;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+	align-items: start;
 }
 </style>

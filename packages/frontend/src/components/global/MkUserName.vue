@@ -8,8 +8,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
 import * as Misskey from 'misskey-js';
+import { useUserProfile } from '@/composables/use-user-profile.js';
 
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.User;
@@ -17,4 +17,6 @@ const props = withDefaults(defineProps<{
 }>(), {
 	nowrap: true,
 });
+
+const user = useUserProfile(() => props.user);
 </script>

@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ i18n.ts.avatarDecorations }}</template>
 
 	<div>
-		<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+		<div class="_spacer _spacerCard">
 			<div style="text-align: center;">
 				<div :class="$style.name">{{ decoration.name }}</div>
 				<MkAvatar style="width: 64px; height: 64px; margin-bottom: 20px;" :user="$i" :decorations="decorationsForPreview" forceShowDecoration/>
@@ -151,7 +151,7 @@ async function detach() {
 	position: sticky;
 	bottom: 0;
 	left: 0;
-	padding: 12px;
+	padding: var(--MI-cardPadding, 20px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));

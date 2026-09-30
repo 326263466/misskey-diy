@@ -6,21 +6,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_gaps">
 	<div class="_gaps">
-		<MkInput
-			v-model="searchQuery"
-			large
-			autofocus
-			type="search"
-			@enter.prevent="search"
-		>
-			<template #label>{{ i18n.ts.search }}</template>
-			<template #prefix><i class="ti ti-search"></i></template>
-		</MkInput>
+		<div :class="$style.searchRow">
+			<MkInput
+				v-model="searchQuery"
+				:class="$style.query"
+				large
+				autofocus
+				type="search"
+				:placeholder="i18n.ts._search.placeholder"
+				@enter.prevent="search"
+			>
+				<template #label>{{ i18n.ts.search }}</template>
+				<template #prefix><i class="ti ti-search"></i></template>
+			</MkInput>
+			<MkButton large primary gradate rounded :disabled="searchParams == null" :class="$style.searchAction" @click="search">
+				{{ i18n.ts.search }}
+			</MkButton>
+		</div>
 		<MkFoldableSection :expanded="false">
-			<template #header>{{ i18n.ts.options }}</template>
+			<template #header>{{ i18n.ts.filter }}</template>
 
 			<div class="_gaps_m">
-				<div style="display: flex; gap: 8px;">
+				<div :class="$style.dateRange">
 					<MkInput v-model="rangeStartAt" type="datetime-local">
 						<template #label>{{ i18n.ts._search.postFrom }}</template>
 					</MkInput>
@@ -97,19 +104,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 		</MkFoldableSection>
-		<div>
-			<MkButton
-				large
-				primary
-				gradate
-				rounded
-				:disabled="searchParams == null"
-				style="margin: 0 auto;"
-				@click="search"
-			>
-				{{ i18n.ts.search }}
-			</MkButton>
-		</div>
 	</div>
 
 	<MkFoldableSection v-if="paginator">
@@ -128,8 +122,6 @@ import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { apLookup } from '@/utility/lookup.js';
-import { useRouter } from '@/router.js';
 import MkButton from '@/components/MkButton.vue';
 import MkFoldableSection from '@/components/MkFoldableSection.vue';
 import MkInput from '@/components/MkInput.vue';
@@ -151,7 +143,6 @@ const props = withDefaults(defineProps<{
 	host: '',
 });
 
-const router = useRouter();
 const emit = defineEmits<{
 	(ev: 'search', query: string): void;
 }>();
@@ -300,66 +291,9 @@ function removeUser() {
 	user.value = null;
 }
 
-async function search() {
+function search() {
 	const params = searchParams.value;
 	if (params == null) return;
-
-	//#region AP lookup
-	if (params.query.startsWith('https://') && !params.query.includes(' ')) {
-		const confirm = await os.confirm({
-			type: 'info',
-			text: i18n.ts.lookupConfirm,
-		});
-		if (!confirm.canceled) {
-			const res = await apLookup(params.query);
-
-			if (res.type === 'User') {
-				router.push('/@:acct/:page?', {
-					params: {
-						acct: `${res.object.username}@${res.object.host}`,
-					},
-				});
-			// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-			} else if (res.type === 'Note') {
-				router.push('/notes/:noteId/:initialTab?', {
-					params: {
-						noteId: res.object.id,
-					},
-				});
-			}
-
-			return;
-		}
-	}
-	//#endregion
-
-	if (params.query.length > 1 && !params.query.includes(' ')) {
-		if (params.query.startsWith('@')) {
-			const confirm = await os.confirm({
-				type: 'info',
-				text: i18n.ts.lookupConfirm,
-			});
-			if (!confirm.canceled) {
-				router.pushByPath(`/${params.query}`);
-				return;
-			}
-		}
-
-		if (params.query.startsWith('#')) {
-			const confirm = await os.confirm({
-				type: 'info',
-				text: i18n.ts.openTagPageConfirm,
-			});
-			if (!confirm.canceled) {
-				router.push('/tags/:tag', {
-					params: {
-						tag: params.query.substring(1),
-					},
-				});
-				return;
-			}
-		}
-	}
 
 	showResults(params.query);
 }
@@ -397,6 +331,29 @@ watch([searchScope, rangeStartAt, rangeEndAt, hostInput, user], () => {
 });
 </script>
 <style lang="scss" module>
+.searchRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px;
+}
+
+.query {
+	flex: 1 1 240px;
+	min-width: 0;
+}
+
+.searchAction {
+	flex-shrink: 0;
+	margin-left: auto;
+}
+
+.dateRange {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+	gap: 8px;
+}
+
 .subOptionRoot {
 	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-radius);

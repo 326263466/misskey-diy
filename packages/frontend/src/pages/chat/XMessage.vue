@@ -23,6 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkFukidashi>
 		<MkUrlPreview v-for="url in urls" :key="url" :url="url" style="margin: 8px 0;"/>
 		<div :class="$style.footer">
+			<span v-if="'isAutoReply' in message && message.isAutoReply" :class="$style.autoReply">{{ i18n.ts._onlineStatus.autoReply }}</span>
 			<button class="_textButton" style="color: currentColor;" @click="showMenu"><i class="ti ti-dots-circle-horizontal"></i></button>
 			<MkTime :class="$style.time" :time="message.createdAt"/>
 			<MkA v-if="isSearchResult && 'toRoom' in message && message.toRoom != null" :to="`/chat/room/${message.toRoomId}`">{{ message.toRoom.name }}</MkA>
@@ -186,7 +187,8 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 				const localUrl = `${url}/chat/messages/${props.message.id}`;
 				const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
 					user: props.message.fromUser!,
-					initialComment: `${localUrl}\n-----\n`,
+					reportTarget: { reportType: 'chat', targetId: props.message.id },
+					context: { label: i18n.ts._chat.messages, text: props.message.text, url: localUrl },
 				}, {
 					closed: () => dispose(),
 				});
@@ -233,8 +235,8 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 
 .avatar {
 	display: block;
-	width: 50px;
-	height: 50px;
+	width: 40px;
+	height: 40px;
 
 	&.useSticky {
 		position: sticky;
@@ -252,8 +254,8 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 	}
 
 	.avatar {
-		width: 42px;
-		height: 42px;
+		width: 36px;
+		height: 36px;
 	}
 
 	.fukidashi {
@@ -275,6 +277,10 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 }
 
 .fukidashi {
+	// 收到的气泡与卡片同为 panel 色会看不出轮廓，这里压暗一点；
+	// 自己发的气泡由 MkFukidashi 的 .root.accented 以更高优先级保持 accent 色
+	--fukidashi-bg: color-mix(in srgb, var(--MI_THEME-fg) 6%, var(--MI_THEME-panel));
+
 	text-align: left;
 }
 
@@ -287,9 +293,14 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 .footer {
 	display: flex;
 	flex-direction: row;
+	flex-wrap: wrap;
 	gap: 0.5em;
 	margin-top: 4px;
 	font-size: 75%;
+}
+
+.autoReply {
+	color: var(--MI_THEME-accent);
 }
 
 .time {
@@ -311,23 +322,30 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 .reaction {
 	display: flex;
 	align-items: center;
+	box-sizing: border-box;
+	// 与帖子里的回应气泡同高，内容靠 align-items 在高度内垂直居中
+	height: 28px;
+	gap: 3px;
 	border: solid 1px var(--MI_THEME-divider);
 	border-radius: 999px;
-	padding: 8px;
+	padding: 0 7px 0 2px;
+	font-size: 0.85em;
+	line-height: 1;
 
 	&.reactionMy {
-		border-color: var(--MI_THEME-accent);
+		border-color: color-mix(in srgb, var(--MI_THEME-accent) 45%, var(--MI_THEME-divider));
+		background: var(--MI_THEME-accentedBg);
 	}
 }
 
 .reactionAvatar {
+	flex-shrink: 0;
 	width: 24px;
 	height: 24px;
-	margin-right: 8px;
 }
 
 .reactionIcon {
-	width: 24px;
-	height: 24px;
+	width: 1.5em;
+	height: 1.5em;
 }
 </style>

@@ -7,7 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div>
 	<MkLoading v-if="fetching"/>
 	<div v-show="!fetching" :class="$style.root" class="_panel">
-		<canvas ref="chartEl"></canvas>
+		<div :class="$style.chart">
+			<canvas ref="chartEl"></canvas>
+		</div>
 		<MkChartLegend ref="legendEl" style="margin-top: 8px;"/>
 	</div>
 </div>
@@ -26,6 +28,8 @@ import { chartVLine } from '@/utility/chart-vline.js';
 import { initChart } from '@/utility/init-chart.js';
 import { chartLegend } from '@/utility/chart-legend.js';
 import MkChartLegend from '@/components/MkChartLegend.vue';
+import { dateOnly } from '@/filters/date.js';
+import { i18n } from '@/i18n.js';
 
 initChart();
 
@@ -97,14 +101,16 @@ async function renderChart() {
 		type: 'bar',
 		data: {
 			datasets: [
-				makeDataset('File', format(raw.diffs.withFile).slice().reverse(), { backgroundColor: colorFile }),
-				makeDataset('Renote', format(raw.diffs.renote).slice().reverse(), { backgroundColor: colorRenote }),
-				makeDataset('Reply', format(raw.diffs.reply).slice().reverse(), { backgroundColor: colorReply }),
-				makeDataset('Normal', format(raw.diffs.normal).slice().reverse(), { backgroundColor: colorNormal }),
+				makeDataset(i18n.ts._chartSeries.notesWithFile, format(raw.diffs.withFile).slice().reverse(), { backgroundColor: colorFile }),
+				makeDataset(i18n.ts.renotes, format(raw.diffs.renote).slice().reverse(), { backgroundColor: colorRenote }),
+				makeDataset(i18n.ts.replies, format(raw.diffs.reply).slice().reverse(), { backgroundColor: colorReply }),
+				makeDataset(i18n.ts._chartSeries.notesNormal, format(raw.diffs.normal).slice().reverse(), { backgroundColor: colorNormal }),
 			],
 		},
 		options: {
-			aspectRatio: 3,
+			// 高度由 .chart 的 aspect-ratio 预留, 画布首次渲染即到位,
+			// 避免 Chart.js 挂载后二次放大让区块阶梯式「向右下铺开」
+			maintainAspectRatio: false,
 			layout: {
 				padding: {
 					left: 0,
@@ -161,6 +167,12 @@ async function renderChart() {
 					animation: {
 						duration: 0,
 					},
+					callbacks: {
+						// 日期跟随客户端语言 (Chart.js 的 date-fns 适配器默认固定 en-US 格式)
+						title(context) {
+							return dateOnly(context[0].parsed.x as number);
+						},
+					},
 					external: externalTooltipHandler,
 				},
 				...({ // TSを黙らすため
@@ -187,5 +199,10 @@ onUnmounted(() => {
 <style lang="scss" module>
 .root {
 	padding: 20px;
+}
+
+// 图表容器按 3:1 预留最终高度, 首帧即到位
+.chart {
+	aspect-ratio: 3 / 1;
 }
 </style>

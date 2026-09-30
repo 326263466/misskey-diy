@@ -33,9 +33,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<XNotification v-else :class="$style.content" :notification="notification" :withTime="true" :full="true"/>
 			</div>
 		</component>
-		<div v-if="paginator.canFetchOlder.value">
-			<div :key="paginator.items.value.at(-1)?.id" v-appear="paginator.fetchOlder" :class="$style.sentinel" aria-hidden="true"></div>
-			<MkLoading v-if="paginator.fetchingOlder.value"/>
+		<div v-if="canFetchMore">
+			<div :key="paginator.items.value.at(-1)?.id" v-appear="fetchMore" :class="$style.sentinel" aria-hidden="true"></div>
+			<MkLoading v-if="paginator.order.value === 'oldest' ? paginator.fetchingNewer.value : paginator.fetchingOlder.value"/>
 		</div>
 	</div>
 </component>
@@ -56,7 +56,7 @@ import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
 import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
 import { isSeparatorNeeded, getSeparatorInfo } from '@/utility/timeline-date-separate.js';
-import { Paginator } from '@/utility/paginator.js';
+import { NotificationPaginator } from '@/utility/notification-paginator.js';
 
 const props = defineProps<{
 	excludeTypes?: typeof notificationTypes[number][] | null;
@@ -64,17 +64,34 @@ const props = defineProps<{
 
 const rootEl = useTemplateRef('rootEl');
 
-const paginator = prefer.s.useGroupedNotifications ? markRaw(new Paginator('i/notifications-grouped', {
+const paginator = prefer.s.useGroupedNotifications ? markRaw(new NotificationPaginator('i/notifications-grouped', {
 	limit: 20,
+	params: () => ({ markAsRead: canMarkAllAsRead() }),
 	computedParams: computed(() => ({
 		excludeTypes: props.excludeTypes ?? undefined,
 	})),
-})) : markRaw(new Paginator('i/notifications', {
+})) : markRaw(new NotificationPaginator('i/notifications', {
 	limit: 20,
+	params: () => ({ markAsRead: canMarkAllAsRead() }),
 	computedParams: computed(() => ({
 		excludeTypes: props.excludeTypes ?? undefined,
 	})),
 }));
+
+const canFetchMore = computed(() => paginator.order.value === 'oldest' ? paginator.canFetchNewer.value : paginator.canFetchOlder.value);
+
+function fetchMore() {
+	return paginator.order.value === 'oldest' ? paginator.fetchNewer() : paginator.fetchOlder();
+}
+
+function isLive(): boolean {
+	return paginator.order.value === 'newest' && paginator.initialDate == null && paginator.initialId == null;
+}
+
+function canMarkAllAsRead(): boolean {
+	// The API and stream read receipts clear every category, including hidden ones.
+	return isLive() && !props.excludeTypes?.length;
+}
 
 const MIN_POLLING_INTERVAL = 1000 * 10;
 const POLLING_INTERVAL =
@@ -85,6 +102,7 @@ const POLLING_INTERVAL =
 
 if (!store.s.realtimeMode) {
 	useInterval(async () => {
+		if (!isLive()) return;
 		paginator.fetchNewer({
 			toQueue: false,
 		});
@@ -103,6 +121,7 @@ function isTop() {
 }
 
 function releaseQueue() {
+	if (!isLive()) return;
 	paginator.releaseQueue();
 	scrollToTop(rootEl.value!);
 }
@@ -138,14 +157,15 @@ watch(visibility, () => {
 });
 
 function onNotification(notification: Misskey.entities.Notification) {
-	const isMuted = props.excludeTypes ? props.excludeTypes.includes(notification.type as typeof notificationTypes[number]) : false;
-	if (isMuted || window.document.visibilityState === 'visible') {
+	const type = notification.type.replace(/:grouped$/, '') as typeof notificationTypes[number];
+	const isMuted = props.excludeTypes ? props.excludeTypes.includes(type) : false;
+	if (canMarkAllAsRead() && window.document.visibilityState === 'visible') {
 		if (store.s.realtimeMode) {
 			useStream().send('readNotification');
 		}
 	}
 
-	if (!isMuted) {
+	if (!isMuted && isLive()) {
 		if (isTop() && !isPausingUpdate) {
 			paginator.prepend(notification);
 		} else {
@@ -185,6 +205,7 @@ onUnmounted(() => {
 
 defineExpose({
 	reload,
+	paginator,
 });
 </script>
 

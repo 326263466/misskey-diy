@@ -6,7 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="[$style.root, { [$style.contentVisibilityAuto]: contentVisibilityAuto }]">
 	<div :class="$style.head">
-		<MkAvatar v-if="['pollEnded', 'note'].includes(notification.type) && 'note' in notification" :class="$style.icon" :user="notification.note.user" link preview/>
+		<div v-if="notification.type === 'system'" :class="[$style.icon, $style.systemIcon]"><i class="ti ti-shield-check" aria-hidden="true"></i></div>
+		<MkAvatar v-else-if="['pollEnded', 'note'].includes(notification.type) && 'note' in notification" :class="$style.icon" :user="notification.note.user" link preview/>
 		<MkAvatar v-else-if="['roleAssigned', 'achievementEarned', 'exportCompleted', 'login', 'createToken', 'scheduledNotePosted', 'scheduledNotePostFailed'].includes(notification.type)" :class="$style.icon" :user="$i" link preview/>
 		<div v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'" :class="[$style.icon, $style.icon_reactionGroupHeart]"><i class="ti ti-heart" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'reaction:grouped'" :class="[$style.icon, $style.icon_reactionGroup]"><i class="ti ti-plus" style="line-height: 1;"></i></div>
@@ -47,7 +48,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'exportCompleted'" class="ti ti-archive"></i>
 			<i v-else-if="notification.type === 'login'" class="ti ti-login-2"></i>
 			<i v-else-if="notification.type === 'createToken'" class="ti ti-key"></i>
-			<i v-else-if="notification.type === 'chatRoomInvitationReceived'" class="ti ti-messages"></i>
+			<i v-else-if="notification.type === 'chatRoomInvitationReceived'" class="ti ti-message-dots"></i>
 			<template v-else-if="notification.type === 'roleAssigned'">
 				<img v-if="notification.role.iconUrl" style="height: 1.3em; vertical-align: -22%;" :src="notification.role.iconUrl" alt=""/>
 				<i v-else class="ti ti-badges"></i>
@@ -64,7 +65,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div :class="$style.tail">
 		<header :class="$style.header">
-			<span v-if="notification.type === 'pollEnded'">{{ i18n.ts._notification.pollEnded }}</span>
+			<span v-if="notification.type === 'system'" :class="$style.systemLabel">{{ i18n.ts.system }}</span>
+			<span v-else-if="notification.type === 'pollEnded'">{{ i18n.ts._notification.pollEnded }}</span>
 			<span v-else-if="notification.type === 'scheduledNotePosted'">{{ i18n.ts._notification.scheduledNotePosted }}</span>
 			<span v-else-if="notification.type === 'scheduledNotePostFailed'">{{ i18n.ts._notification.scheduledNotePostFailed }}</span>
 			<span v-else-if="notification.type === 'note'">{{ i18n.ts._notification.newNote }}: <MkUserName :user="notification.note.user"/></span>
@@ -83,7 +85,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkTime v-if="withTime" :time="notification.createdAt" :class="$style.headerTime"/>
 		</header>
 		<div>
-			<MkA v-if="notification.type === 'reaction' || notification.type === 'reaction:grouped'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
+			<div v-if="notification.type === 'system' && notification.message === 'welcome'" :class="$style.welcome">
+				<strong>{{ i18n.ts._welcome.title }}</strong>
+				<template v-if="full">
+					<p>{{ i18n.tsx._welcome.greeting({ name: instance.name ?? host }) }}</p>
+					<p>{{ i18n.ts._welcome.introduction }}</p>
+					<div class="_gaps_s" :class="$style.welcomeLinks">
+						<MkA class="_link" to="/about"><i class="ti ti-checkup-list" aria-hidden="true"></i> {{ i18n.ts.serverRules }}</MkA>
+						<a class="_link" href="https://misskey-hub.net/docs/for-users/" target="_blank" rel="noopener noreferrer"><i class="ti ti-book" aria-hidden="true"></i> {{ i18n.ts._welcome.userGuide }}</a>
+						<MkA class="_link" to="/contact"><i class="ti ti-help-circle" aria-hidden="true"></i> {{ i18n.ts.help }}</MkA>
+					</div>
+					<footer :class="$style.systemNote">
+						<div>{{ i18n.ts.system }}</div>
+						<small>{{ i18n.ts._welcome.systemNote }}</small>
+					</footer>
+				</template>
+				<template v-else>
+					<p>{{ i18n.ts._welcome.notificationBody }}</p>
+					<MkA class="_link" to="/my/notifications#system">{{ i18n.ts._welcome.readGuide }} <i class="ti ti-arrow-right" aria-hidden="true"></i></MkA>
+				</template>
+			</div>
+			<MkA v-else-if="notification.type === 'reaction' || notification.type === 'reaction:grouped'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
 				<i class="ti ti-quote" :class="$style.quote"></i>
 				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
 				<i class="ti ti-quote" :class="$style.quote"></i>
@@ -180,6 +202,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
+import { host } from '@@/js/config.js';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
 import MkButton from '@/components/MkButton.vue';
 import { getNoteSummary } from '@/utility/get-note-summary.js';
@@ -188,6 +211,7 @@ import { userPage } from '@/filters/user.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { ensureSignin } from '@/i.js';
+import { instance } from '@/instance.js';
 
 const $i = ensureSignin();
 
@@ -303,6 +327,45 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 
 .icon_app {
 	border-radius: 6px;
+}
+
+.systemIcon {
+	display: grid;
+	place-items: center;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
+	font-size: 24px;
+}
+
+.systemLabel {
+	color: var(--MI_THEME-accent);
+	font-weight: bold;
+}
+
+.welcome {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--MI-marginHalf);
+	margin-top: var(--MI-marginHalf);
+	line-height: 1.6;
+
+	> p {
+		margin: 0;
+	}
+}
+
+.systemNote {
+	width: 100%;
+	padding-top: var(--MI-marginHalf);
+	border-top: 1px solid var(--MI_THEME-divider);
+	color: var(--MI_THEME-fg);
+	opacity: 0.7;
+}
+
+.welcomeLinks {
+	margin-block: var(--MI-marginHalf);
 }
 
 .subIcon {

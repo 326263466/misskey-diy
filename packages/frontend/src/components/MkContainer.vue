@@ -23,13 +23,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:leaveActiveClass="prefer.s.animation ? $style.transition_toggle_leaveActive : ''"
 		:enterFromClass="prefer.s.animation ? $style.transition_toggle_enterFrom : ''"
 		:leaveToClass="prefer.s.animation ? $style.transition_toggle_leaveTo : ''"
-		@enter="enter"
-		@afterEnter="afterEnter"
-		@leave="leave"
-		@afterLeave="afterLeave"
 	>
 		<div v-show="showBody" ref="contentEl" :class="[$style.content, { [$style.omitted]: omitted }]">
-			<slot></slot>
+			<div :class="$style.bodyInner">
+				<slot></slot>
+			</div>
 			<button v-if="omitted" :class="$style.fade" class="_button" @click="showMore">
 				<span :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
 			</button>
@@ -63,32 +61,6 @@ const headerEl = useTemplateRef('headerEl');
 const showBody = ref(props.expanded);
 const ignoreOmit = ref(false);
 const omitted = ref(false);
-
-function enter(el: Element) {
-	if (!(el instanceof HTMLElement)) return;
-	const elementHeight = el.getBoundingClientRect().height;
-	el.style.height = '0';
-	el.offsetHeight; // reflow
-	el.style.height = `${Math.min(elementHeight, props.maxHeight ?? Infinity)}px`;
-}
-
-function afterEnter(el: Element) {
-	if (!(el instanceof HTMLElement)) return;
-	el.style.height = '';
-}
-
-function leave(el: Element) {
-	if (!(el instanceof HTMLElement)) return;
-	const elementHeight = el.getBoundingClientRect().height;
-	el.style.height = `${elementHeight}px`;
-	el.offsetHeight; // reflow
-	el.style.height = '0';
-}
-
-function afterLeave(el: Element) {
-	if (!(el instanceof HTMLElement)) return;
-	el.style.height = '';
-}
 
 const calcOmit = () => {
 	if (omitted.value || ignoreOmit.value || props.maxHeight == null) return;
@@ -135,11 +107,12 @@ onUnmounted(() => {
 <style lang="scss" module>
 .transition_toggle_enterActive,
 .transition_toggle_leaveActive {
-	overflow-y: clip;
-	transition: opacity 0.5s, height 0.5s !important;
+	overflow: clip;
+	transition: opacity 0.5s, grid-template-rows 0.5s !important;
 }
-.transition_toggle_enterFrom,
-.transition_toggle_leaveTo {
+.content.transition_toggle_enterFrom,
+.content.transition_toggle_leaveTo {
+	grid-template-rows: 0fr;
 	opacity: 0;
 }
 
@@ -175,7 +148,8 @@ onUnmounted(() => {
 	&.thin {
 		> .header {
 			> .title {
-				padding: 8px 10px;
+				min-height: 36px;
+				padding: 0 10px;
 				font-size: 0.9em;
 			}
 		}
@@ -199,8 +173,15 @@ onUnmounted(() => {
 }
 
 .title {
+	display: flex;
+	align-items: center;
+	box-sizing: border-box;
+	// 高度写死，标题文字和图标靠 align-items 在表头高度内垂直居中，不依赖上下 padding 对称。
+	// 行高必须保留（继承表头的 1.4em）：压到 1 时行盒正好等于 1em，而中日文字体的
+	// ascent+descent 超过 1em，溢出量会按字体比例偏向一侧，墨迹反而压不到正中
+	min-height: 44px;
 	margin: 0;
-	padding: 12px 16px;
+	padding: 0 var(--MI-cardPadding, 20px);
 
 	&:empty {
 		display: none;
@@ -208,10 +189,21 @@ onUnmounted(() => {
 }
 
 .titleIcon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
 	margin-right: 6px;
+
+	// 没传图标时这里是个空 span，留着 margin 会让标题文字比下方内容多缩进 6px
+	&:empty {
+		display: none;
+	}
 }
 
 .headerSub {
+	display: flex;
+	align-items: center;
 	position: absolute;
 	z-index: 2;
 	top: 0;
@@ -225,6 +217,8 @@ onUnmounted(() => {
 }
 
 .content {
+	display: grid;
+	grid-template-rows: 1fr;
 	--MI-stickyTop: 0px;
 
 	/*
@@ -268,9 +262,15 @@ onUnmounted(() => {
 	}
 }
 
+.bodyInner {
+	min-height: 0;
+	display: flow-root;
+}
+
 @container (max-width: 380px) {
 	.title {
-		padding: 8px 10px;
+		min-height: 36px;
+		padding: 0 var(--MI-cardPadding, 20px);
 		font-size: 0.9em;
 	}
 }

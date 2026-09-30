@@ -9,20 +9,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:width="1000"
 	:height="600"
 	:scroll="false"
-	:withOkButton="true"
-	:okButtonDisabled="!canSave"
 	@close="cancel()"
-	@ok="save()"
 	@closed="emit('closed')"
+	@click="cancel()"
 >
-	<template #header><i class="ti ti-icons"></i> {{ i18n.ts._widgets[widgetName] ?? widgetName }}</template>
+	<template #header><i class="ti ti-icons"></i> {{ widgetName === 'chat' ? i18n.ts.chat : (i18n.ts._widgets[widgetName] ?? widgetName) }}</template>
 
 	<MkPreviewWithControls>
 		<template #preview>
-			<div :class="$style.previewWrapper">
+			<div :class="[$style.previewWrapper, { [$style.previewInteractive]: widgetName === 'pomodoro' }]">
 				<div class="_acrylic" :class="$style.previewTitle">{{ i18n.ts.preview }}</div>
 
-				<div ref="resizerRootEl" :class="$style.previewResizerRoot" inert>
+				<div ref="resizerRootEl" :class="$style.previewResizerRoot" :inert="widgetName !== 'pomodoro'">
 					<div
 						ref="resizerEl"
 						:class="$style.previewResizer"
@@ -38,8 +36,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 
 		<template #controls>
-			<div class="_spacer">
-				<MkForm v-model="settings" :form="form" @canSaveStateChange="onCanSaveStateChanged"/>
+			<div class="_spacer _spacerCard _gaps_m">
+				<MkForm :key="formKey" v-model="settings" :form="form" @canSaveStateChange="onCanSaveStateChanged"/>
+				<div :class="$style.footer">
+					<MkButton v-if="canReset" :class="$style.footerButton" @click="resetToDefault"><i class="ti ti-restore" aria-hidden="true"></i> {{ i18n.ts.resetToDefaultValue }}</MkButton>
+					<MkButton primary :class="$style.footerButton" :disabled="!canSave" @click="save()">{{ i18n.ts.confirm }} <i class="ti ti-check" aria-hidden="true"></i></MkButton>
+				</div>
 			</div>
 		</template>
 	</MkPreviewWithControls>
@@ -49,16 +51,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script setup lang="ts">
 import { useTemplateRef, ref, computed, onBeforeUnmount, onMounted } from 'vue';
 import MkPreviewWithControls from './MkPreviewWithControls.vue';
-import type { Form } from '@/utility/form.js';
+import type { FormWithDefault } from '@/utility/form.js';
+import { getDefaultFormValues } from '@/utility/form.js';
 import type { WidgetName } from '@/widgets/index.js';
 import { deepClone } from '@/utility/clone.js';
 import { i18n } from '@/i18n.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkForm from '@/components/MkForm.vue';
+import MkButton from '@/components/MkButton.vue';
 
 const props = defineProps<{
 	widgetName: WidgetName;
-	form: Form;
+	form: FormWithDefault;
 	currentSettings: Record<string, any>;
 }>();
 
@@ -71,11 +75,26 @@ const emit = defineEmits<{
 const dialog = useTemplateRef('dialog');
 
 const settings = ref<Record<string, any>>(deepClone(props.currentSettings));
+const formKey = ref(0);
+const canReset = computed(() => Object.values(props.form).some(item => item.hidden !== true && item.type !== 'button'));
 
 const canSave = ref(true);
 
 function onCanSaveStateChanged(newCanSave: boolean) {
 	canSave.value = newCanSave;
+}
+
+function resetToDefault() {
+	const defaults: Record<string, any> = getDefaultFormValues(props.form);
+	const resetSettings = deepClone(settings.value);
+	for (const key of Object.keys(defaults)) {
+		// Hidden fields hold user content and running timers, rather than form settings.
+		if (props.form[key].hidden === true || props.form[key].type === 'button') continue;
+		resetSettings[key] = deepClone(defaults[key]);
+	}
+	settings.value = resetSettings;
+	// Discard unsaved input drafts and let the new form validate the defaults.
+	formKey.value++;
 }
 
 function save() {
@@ -159,6 +178,10 @@ onBeforeUnmount(() => {
 	-webkit-user-drag: none;
 }
 
+.previewInteractive {
+	pointer-events: auto;
+}
+
 .previewResizerRoot {
 	position: relative;
 	flex: 1 0;
@@ -170,5 +193,15 @@ onBeforeUnmount(() => {
 	top: 50%;
 	left: 50%;
 	width: 280px;
+}
+
+.footer {
+	display: flex;
+	gap: 8px;
+}
+
+.footerButton {
+	flex: 1;
+	margin: 0;
 }
 </style>

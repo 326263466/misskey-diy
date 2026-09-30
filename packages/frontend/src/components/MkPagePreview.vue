@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</header>
 		<p v-if="page.summary" :title="page.summary">{{ page.summary.length > 85 ? page.summary.slice(0, 85) + '…' : page.summary }}</p>
 		<footer>
-			<img v-if="page.user.avatarUrl" class="icon" :src="page.user.avatarUrl"/>
+			<img v-if="avatarUrl" class="icon" :src="avatarUrl"/>
 			<p>{{ userName(page.user) }}</p>
 		</footer>
 	</article>
@@ -28,14 +28,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
+import { computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import { userName } from '@/filters/user.js';
 import MediaImage from '@/components/MkMediaImage.vue';
+import { getUserAvatar } from '@/utility/get-user-avatar.js';
 
 const props = defineProps<{
 	page: Misskey.entities.Page;
 }>();
+
+const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 </script>
 
 <style module>

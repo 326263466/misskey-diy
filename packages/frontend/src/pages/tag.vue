@@ -5,8 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
+	<template #header-actions>
+		<MkPaginationControl :paginator="paginator"/>
+	</template>
 	<div class="_spacer" style="--MI_SPACER-w: 800px;">
-		<MkNotesTimeline :paginator="paginator"/>
+		<MkNotesTimeline :paginator="paginator" :withControl="false"/>
 	</div>
 	<template v-if="$i" #footer>
 		<div :class="$style.footer">
@@ -22,11 +25,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, markRaw, ref } from 'vue';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import MkButton from '@/components/MkButton.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
-import { store } from '@/store.js';
 import * as os from '@/os.js';
 import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { Paginator } from '@/utility/paginator.js';
@@ -43,11 +46,7 @@ const paginator = markRaw(new Paginator('notes/search-by-tag', {
 }));
 
 async function post() {
-	store.set('postFormHashtags', props.tag);
-	store.set('postFormWithHashtags', true);
-	await os.post();
-	store.set('postFormHashtags', '');
-	store.set('postFormWithHashtags', false);
+	await os.post({ initialHashtags: [props.tag] });
 	paginator.reload();
 }
 

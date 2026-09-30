@@ -97,6 +97,7 @@ type PreferencesDefinitionRecord<Default, T = Default extends (...args: any) => 
 	default: Default;
 	accountDependent?: boolean;
 	serverDependent?: boolean;
+	syncByDefault?: boolean;
 	mergeStrategy?: (a: T, b: T) => T;
 };
 
@@ -194,6 +195,8 @@ function normalizePreferences(preferences: PossiblyNonNormalizedPreferencesProfi
 export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 	private io: StorageProvider;
 	private currentAccount: { id: string } | null;
+	private cloudSavePromise: Promise<void> = Promise.resolve();
+	private cloudSaveErrors = new Map<keyof PREF, unknown>();
 	public profile: PreferencesProfile;
 	public cloudReady: Promise<void>;
 
@@ -237,6 +240,7 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 		}
 
 		this.cloudReady = this.fetchCloudValues();
+		this.cloudReady.catch(err => console.error('Failed to load synced preferences', err));
 
 		// TODO: 定期的にクラウドの値をフェッチ
 	}
@@ -291,11 +295,32 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 		record[1] = v;
 		_save();
 
-		if (record[2].sync) {
-			// awaitの必要なし
-			// TODO: リクエストを間引く
-			this.io.cloudSet({ key, scope: record[0], value: record[1] });
+		if (this.isSyncEnabled(key)) {
+			this.queueCloudSave(key, record);
 		}
+	}
+
+	private queueCloudSave<K extends keyof PREF>(key: K, record: PrefRecord<K>) {
+		const [scope, value] = record;
+		this.cloudSavePromise = this.cloudSavePromise.catch(() => {}).then(() => this.io.cloudSet({ key, scope, value }));
+		this.cloudSavePromise.then(() => this.cloudSaveErrors.delete(key), err => {
+			this.cloudSaveErrors.set(key, err);
+			console.error('Failed to sync preferences', err);
+		});
+	}
+
+	public async flushCloudSync(): Promise<void> {
+		await this.cloudReady;
+		await this.cloudSavePromise.catch(() => {});
+		for (const key of this.cloudSaveErrors.keys()) {
+			if (this.isSyncEnabled(key)) {
+				this.queueCloudSave(key, this.getMatchedRecordOf(key));
+			} else {
+				this.cloudSaveErrors.delete(key);
+			}
+		}
+		await this.cloudSavePromise.catch(() => {});
+		if (this.cloudSaveErrors.size > 0) throw this.cloudSaveErrors.values().next().value;
 	}
 
 	/**
@@ -350,11 +375,15 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 	}
 
 	private async fetchCloudValues() {
+		if (this.currentAccount == null) return;
+
 		const needs = [] as { key: keyof PREF; scope: Scope; }[];
+		const localValues = new Map<keyof PREF, unknown>();
 		for (const _key in PREF_DEF) {
 			const key = _key as keyof PREF;
 			const record = this.getMatchedRecordOf(key);
-			if (record[2].sync) {
+			if (this.isSyncEnabled(key)) {
+				localValues.set(key, record[1]);
 				needs.push({
 					key,
 					scope: record[0],
@@ -367,13 +396,18 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 		for (const _key in PREF_DEF) {
 			const key = _key as keyof PREF;
 			const record = this.getMatchedRecordOf(key);
-			if (record[2].sync && Object.hasOwn(cloudValues, key) && cloudValues[key] !== undefined) {
+			// 読み込み中の編集を古いクラウド値で上書きしない。
+			if (!this.isSyncEnabled(key) || !localValues.has(key) || localValues.get(key) !== record[1]) continue;
+
+			if (Object.hasOwn(cloudValues, key) && cloudValues[key] !== undefined) {
 				const cloudValue = cloudValues[key];
 				if (!deepEqual(cloudValue, record[1])) {
 					this.rewriteRawState(key, cloudValue);
 					record[1] = cloudValue;
 					if (_DEV_) console.log('cloud fetched', key, cloudValue);
 				}
+			} else if ((PREF_DEF as PreferencesDefinition)[key].syncByDefault) {
+				this.queueCloudSave(key, record);
 			}
 		}
 
@@ -454,7 +488,7 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 	}
 
 	public isSyncEnabled<K extends keyof PREF>(key: K): boolean {
-		return this.getMatchedRecordOf(key)[2].sync ?? false;
+		return this.currentAccount != null && (this.getMatchedRecordOf(key)[2].sync ?? (PREF_DEF as PreferencesDefinition)[key].syncByDefault ?? false);
 	}
 
 	public async enableSync<K extends keyof PREF>(key: K): Promise<{ enabled: boolean; } | null> {
@@ -542,7 +576,7 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 		if (!this.isSyncEnabled(key)) return;
 
 		const record = this.getMatchedRecordOf(key);
-		delete record[2].sync;
+		record[2].sync = false;
 		this.save();
 	}
 
@@ -566,8 +600,6 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 			const key = _key as keyof PREF;
 			this.rewriteRawState(key, states[key]);
 		}
-
-		this.fetchCloudValues();
 	}
 
 	public getPerPrefMenu<K extends keyof PREF>(key: K): MenuItem[] {

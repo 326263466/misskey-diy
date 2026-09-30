@@ -5,45 +5,53 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div>
-	<div v-if="achievements" :class="$style.root">
-		<div v-for="achievement in achievements" :key="achievement.name" :class="$style.achievement" class="_panel _juejinCard">
-			<div :class="$style.icon">
-				<div
-					:class="[$style.iconFrame, {
-						[$style.iconFrame_bronze]: ACHIEVEMENT_BADGES[achievement.name].frame === 'bronze',
-						[$style.iconFrame_silver]: ACHIEVEMENT_BADGES[achievement.name].frame === 'silver',
-						[$style.iconFrame_gold]: ACHIEVEMENT_BADGES[achievement.name].frame === 'gold',
-						[$style.iconFrame_platinum]: ACHIEVEMENT_BADGES[achievement.name].frame === 'platinum',
-					}]"
-				>
-					<div :class="[$style.iconInner]" :style="{ background: ACHIEVEMENT_BADGES[achievement.name].bg ?? '' }">
-						<img :class="$style.iconImg" :src="ACHIEVEMENT_BADGES[achievement.name].img">
-					</div>
-				</div>
-			</div>
-			<div :class="$style.body">
-				<div :class="$style.header">
-					<span :class="$style.title">{{ i18n.ts._achievements._types[`_${achievement.name}`].title }}</span>
-					<span :class="$style.time">
-						<time v-tooltip="new Date(achievement.unlockedAt).toLocaleString()">{{ new Date(achievement.unlockedAt).getFullYear() }}/{{ new Date(achievement.unlockedAt).getMonth() + 1 }}/{{ new Date(achievement.unlockedAt).getDate() }}</time>
-					</span>
-				</div>
-				<div :class="$style.description">{{ withDescription ? i18n.ts._achievements._types[`_${achievement.name}`].description : '???' }}</div>
-				<div v-if="'flavor' in i18n.ts._achievements._types[`_${achievement.name}`] && withDescription" :class="$style.flavor">{{ (i18n.ts._achievements._types[`_${achievement.name}`] as { flavor: string; }).flavor }}</div>
+	<div v-if="achievements" class="_gaps_s" :class="{ [$style.card]: card }">
+		<div ref="toolbarEl" :class="[$style.toolbar, { [$style.scrolled]: scrolled }]">
+			<component :is="card ? 'h1' : 'div'" :class="$style.count">
+				<i class="ti ti-medal" aria-hidden="true"></i>
+				<span>{{ i18n.ts.achievements }}</span>
+				<b>{{ unlockedCount }}</b><span :class="$style.countTotal">/ {{ totalCount }}</span>
+			</component>
+			<div :class="$style.sort" role="group" :aria-label="i18n.ts.sort">
+				<button
+					v-for="option in sortOptions"
+					:key="option.key"
+					type="button"
+					class="_button"
+					:class="[$style.sortButton, { [$style.sortSelected]: sortKey === option.key }]"
+					:aria-pressed="sortKey === option.key"
+					@click="sortKey = option.key"
+				>{{ option.label }}</button>
 			</div>
 		</div>
-		<template v-if="withLocked">
-			<div v-for="achievement in lockedAchievements" :key="achievement" :class="[$style.achievement, $style.locked]" class="_panel _juejinCard" @click="achievement === 'clickedClickHere' ? clickHere() : () => {}">
+		<MkResult v-if="items.length === 0" type="empty"/>
+		<div v-else :class="$style.root">
+			<div
+				v-for="item in items"
+				:key="item.name"
+				class="_panel _juejinCard"
+				:class="[$style.achievement, { [$style.locked]: item.unlockedAt == null }]"
+				:role="isClickHere(item) ? 'button' : undefined"
+				:tabindex="isClickHere(item) ? 0 : undefined"
+				@click="isClickHere(item) && clickHere()"
+				@keydown.enter="isClickHere(item) && clickHere()"
+				@keydown.space.prevent="isClickHere(item) && clickHere()"
+			>
 				<div :class="$style.icon">
+					<MkAchievementBadge :name="item.name"/>
 				</div>
 				<div :class="$style.body">
 					<div :class="$style.header">
-						<span :class="$style.title">???</span>
+						<span :class="$style.title">{{ i18n.ts._achievements._types[`_${item.name}`].title }}</span>
+						<span v-if="item.unlockedAt != null" :class="$style.time">
+							<time v-tooltip="new Date(item.unlockedAt).toLocaleString()">{{ new Date(item.unlockedAt).getFullYear() }}/{{ new Date(item.unlockedAt).getMonth() + 1 }}/{{ new Date(item.unlockedAt).getDate() }}</time>
+						</span>
 					</div>
-					<div :class="$style.description">???</div>
+					<div :class="$style.description">{{ withDescription ? i18n.ts._achievements._types[`_${item.name}`].description : '???' }}</div>
+					<div v-if="withDescription && 'flavor' in i18n.ts._achievements._types[`_${item.name}`]" :class="$style.flavor">{{ (i18n.ts._achievements._types[`_${item.name}`] as { flavor: string; }).flavor }}</div>
 				</div>
 			</div>
-		</template>
+		</div>
 	</div>
 	<div v-else>
 		<MkLoading/>
@@ -53,31 +61,73 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import * as Misskey from 'misskey-js';
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch, useTemplateRef } from 'vue';
+import MkAchievementBadge from '@/components/MkAchievementBadge.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { getScrollContainer } from '@@/js/scroll.js';
 import { i18n } from '@/i18n.js';
-import { ACHIEVEMENT_TYPES, ACHIEVEMENT_BADGES, claimAchievement } from '@/utility/achievements.js';
+import { ACHIEVEMENT_TYPES, claimAchievement } from '@/utility/achievements.js';
+
+type AchievementName = typeof ACHIEVEMENT_TYPES[number];
+
+type AchievementItem = {
+	name: AchievementName;
+	unlockedAt: number | null;
+};
+
+type SortKey = 'newest' | 'oldest' | 'default';
 
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.User;
 	withLocked?: boolean;
 	withDescription?: boolean;
+	card?: boolean;
 }>(), {
 	withLocked: true,
 	withDescription: true,
+	card: false,
 });
 
 const achievements = ref<Misskey.entities.UsersAchievementsResponse | null>(null);
-const lockedAchievements = computed(() => ACHIEVEMENT_TYPES.filter(x => !(achievements.value ?? []).some(a => a.name === x)));
+const sortKey = ref<SortKey>('newest');
+
+const sortOptions: { key: SortKey; label: string }[] = [
+	{ key: 'newest', label: i18n.ts.descendingOrder },
+	{ key: 'oldest', label: i18n.ts.ascendingOrder },
+	{ key: 'default', label: i18n.ts.default },
+];
+
+const unlockedAtMap = computed(() => {
+	const map = new Map<AchievementName, number>();
+	for (const achievement of achievements.value ?? []) {
+		map.set(achievement.name as AchievementName, achievement.unlockedAt);
+	}
+	return map;
+});
+
+const totalCount = computed(() => ACHIEVEMENT_TYPES.length);
+const unlockedCount = computed(() => ACHIEVEMENT_TYPES.filter(x => unlockedAtMap.value.has(x)).length);
+
+const items = computed<AchievementItem[]>(() => {
+	if (achievements.value == null) return [];
+	const source = props.withLocked ? ACHIEVEMENT_TYPES : ACHIEVEMENT_TYPES.filter(x => unlockedAtMap.value.has(x));
+	const list: AchievementItem[] = source.map(name => ({ name, unlockedAt: unlockedAtMap.value.get(name) ?? null }));
+	if (sortKey.value === 'default') return list;
+
+	// 未獲得の実績は日時を持たないので、昇順/降順いずれでも末尾に置く
+	return list.sort((a, b) => {
+		if (a.unlockedAt == null || b.unlockedAt == null) return (a.unlockedAt == null ? 1 : 0) - (b.unlockedAt == null ? 1 : 0);
+		return sortKey.value === 'newest' ? b.unlockedAt - a.unlockedAt : a.unlockedAt - b.unlockedAt;
+	});
+});
+
+function isClickHere(item: AchievementItem): boolean {
+	return item.name === 'clickedClickHere' && item.unlockedAt == null;
+}
 
 function _fetch_() {
 	misskeyApi('users/achievements', { userId: props.user.id }).then(res => {
-		achievements.value = [];
-		for (const t of ACHIEVEMENT_TYPES) {
-			const a = res.find(x => x.name === t);
-			if (a) achievements.value.push(a);
-		}
-		//achievements = res.sort((a, b) => b.unlockedAt - a.unlockedAt);
+		achievements.value = res;
 	});
 }
 
@@ -86,12 +136,100 @@ function clickHere() {
 	_fetch_();
 }
 
+const toolbarEl = useTemplateRef('toolbarEl');
+
+const scrolled = ref(false);
+let scrollContainer: HTMLElement | null = null;
+
+function onToolbarScroll() {
+	scrolled.value = (scrollContainer?.scrollTop ?? window.scrollY) > 4;
+}
+
+watch(toolbarEl, el => {
+	if (el == null) return;
+	scrollContainer = getScrollContainer(el);
+	const target: EventTarget = scrollContainer ?? window;
+	target.addEventListener('scroll', onToolbarScroll, { passive: true });
+	onToolbarScroll();
+}, { flush: 'post' });
+
 onMounted(() => {
 	_fetch_();
 });
 </script>
 
 <style lang="scss" module>
+@use "../styles/page-header.scss";
+
+.toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+}
+
+.card {
+	.toolbar {
+		@include page-header.surface;
+		background: var(--MI_THEME-panel);
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+		position: sticky;
+		top: var(--MI-stickyTop, 0px);
+		z-index: 1;
+		min-height: var(--height);
+		padding: 0 16px;
+
+		&.scrolled {
+			background: color(from var(--MI_THEME-panel) srgb r g b / 0.75);
+			-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+			backdrop-filter: var(--MI-blur, blur(15px));
+		}
+	}
+
+	.count {
+		margin: 0;
+		font-weight: bold;
+	}
+}
+
+.count {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	font-size: 1em;
+
+	> b {
+		color: var(--MI_THEME-accent);
+	}
+}
+
+.countTotal {
+	opacity: 0.7;
+}
+
+.sort {
+	display: flex;
+	margin-left: auto;
+	border: solid 1px var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
+	overflow: clip;
+}
+
+.sortButton {
+	padding: 4px 10px;
+	line-height: 1.6;
+
+	&:not(:first-child) {
+		border-left: solid 1px var(--MI_THEME-divider);
+	}
+
+	&.sortSelected {
+		background: var(--MI_THEME-accentedBg);
+		color: var(--MI_THEME-accent);
+	}
+}
+
 .root {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, min(380px, 100%));
@@ -104,106 +242,22 @@ onMounted(() => {
 	padding: 16px;
 
 	&.locked {
-		opacity: 0.5;
+		.icon {
+			filter: grayscale(1);
+			opacity: 0.5;
+		}
+
+		.title,
+		.description,
+		.flavor {
+			opacity: 0.6;
+		}
 	}
 }
 
 .icon {
 	flex-shrink: 0;
 	margin-right: 12px;
-}
-
-@keyframes shine {
-	0% { translate: -30px; }
-	100% { translate: -130px; }
-}
-
-.iconFrame {
-	position: relative;
-	width: 58px;
-	height: 58px;
-	padding: 6px;
-	border-radius: 100%;
-	box-sizing: border-box;
-	pointer-events: none;
-	user-select: none;
-	filter: drop-shadow(0px 2px 2px #00000044);
-	box-shadow: 0 1px 0px #ffffff88 inset;
-	overflow: clip;
-}
-.iconFrame_bronze {
-	background: linear-gradient(0deg, #703827, #d37566);
-
-	> .iconInner {
-		background: linear-gradient(0deg, #d37566, #703827);
-	}
-}
-.iconFrame_silver {
-	background: linear-gradient(0deg, #7c7c7c, #e1e1e1);
-
-	> .iconInner {
-		background: linear-gradient(0deg, #e1e1e1, #7c7c7c);
-	}
-}
-.iconFrame_gold {
-	background: linear-gradient(0deg, rgba(255,182,85,1) 0%, rgba(233,133,0,1) 49%, rgba(255,243,93,1) 51%, rgba(255,187,25,1) 100%);
-
-	> .iconInner {
-		background: linear-gradient(0deg, #ffee20, #eb7018);
-	}
-
-	&::before {
-		content: "";
-		display: block;
-		position: absolute;
-    top: 30px;
-    width: 200px;
-    height: 8px;
-    rotate: -45deg;
-    translate: -30px;
-		background: #ffffff88;
-		animation: shine 2s infinite;
-	}
-}
-.iconFrame_platinum {
-	background: linear-gradient(0deg, rgba(154,154,154,1) 0%, rgba(226,226,226,1) 49%, rgba(255,255,255,1) 51%, rgba(195,195,195,1) 100%);
-
-	> .iconInner {
-		background: linear-gradient(0deg, #e1e1e1, #7c7c7c);
-	}
-
-	&::before {
-		content: "";
-		display: block;
-		position: absolute;
-    top: 30px;
-    width: 200px;
-    height: 8px;
-    rotate: -45deg;
-    translate: -30px;
-		background: #ffffffee;
-		animation: shine 2s infinite;
-	}
-}
-
-.iconInner {
-	position: relative;
-	width: 100%;
-	height: 100%;
-	border-radius: 100%;
-	box-shadow: 0 1px 0px #ffffff88 inset;
-}
-
-.iconImg {
-	width: calc(100% - 12px);
-	height: calc(100% - 12px);
-	position: absolute;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	margin: auto;
-	filter: drop-shadow(0px 1px 2px #000000aa);
 }
 
 .body {
@@ -222,18 +276,12 @@ onMounted(() => {
 
 .time {
 	margin-left: auto;
-	font-size: 85%;
 	opacity: 0.7;
-}
-
-.description {
-	font-size: 85%;
 }
 
 .flavor {
 	opacity: 0.7;
 	transform: skewX(-15deg);
-	font-size: 85%;
 	margin-top: 8px;
 }
 </style>

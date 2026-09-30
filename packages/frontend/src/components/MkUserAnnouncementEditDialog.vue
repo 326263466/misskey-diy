@@ -11,10 +11,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@closed="emit('closed')"
 >
 	<template v-if="announcement" #header>:{{ announcement.title }}:</template>
-	<template v-else #header>New announcement</template>
+	<template v-else #header>{{ i18n.ts._announcement.newTitle }}</template>
 
 	<div>
-		<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+		<div class="_spacer _spacerCard">
 			<div class="_gaps_m">
 				<MkInput v-model="title">
 					<template #label>{{ i18n.ts.title }}</template>
@@ -36,7 +36,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkRadios
 					v-model="display"
 					:options="[
-						{ value: 'normal', label: i18n.ts.normal },
+						{ value: 'normal', label: i18n.ts._announcement.normalDisplay },
 						{ value: 'banner', label: i18n.ts.banner },
 						{ value: 'dialog', label: i18n.ts.dialog },
 					]"
@@ -128,7 +128,7 @@ async function done() {
 async function del() {
 	const { canceled } = await os.confirm({
 		type: 'warning',
-		text: i18n.tsx.removeAreYouSure({ x: title.value }),
+		text: i18n.tsx.deleteAreYouSure({ x: title.value }),
 	});
 	if (canceled) return;
 
@@ -150,7 +150,7 @@ async function del() {
 	position: sticky;
 	bottom: 0;
 	left: 0;
-	padding: 12px;
+	padding: var(--MI-cardPadding, 20px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));

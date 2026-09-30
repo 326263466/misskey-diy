@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <component :is="prefer.s.enablePullToRefresh && pullToRefresh ? MkPullToRefresh : 'div'" :refresher="() => paginator.reload()" @contextmenu.prevent.stop="onContextmenu">
 	<div>
-		<MkPaginationControl v-if="props.withControl" :paginator="paginator" style="margin-bottom: 10px"/>
+		<MkPaginationControl v-if="props.withControl" :paginator="paginator" :card="controlCard" style="margin-bottom: 10px"/>
 
 		<!-- :css="prefer.s.animation" にしたいけどバグる(おそらくvueのバグ) https://github.com/misskey-dev/misskey/issues/16078 -->
 		<Transition
@@ -54,6 +54,7 @@ export type MkPaginationOptions = {
 	direction?: 'up' | 'down' | 'both';
 	pullToRefresh?: boolean;
 	withControl?: boolean;
+	controlCard?: boolean;
 };
 </script>
 
@@ -75,6 +76,7 @@ const props = withDefaults(defineProps<MkPaginationOptions & {
 	direction: 'down',
 	pullToRefresh: true,
 	withControl: false,
+	controlCard: false,
 });
 
 function onContextmenu(ev: PointerEvent) {

@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.root">
 		<div :class="[$style.overallProgress, canRetry ? $style.overallProgressError : null]" :style="{ '--op': `${overallProgress}%` }"></div>
 
-		<div class="_gaps_s _spacer">
+		<div class="_gaps_s _spacer _spacerCard">
 			<MkTip k="uploader">
 				{{ i18n.ts._uploader.tip }}
 			</MkTip>

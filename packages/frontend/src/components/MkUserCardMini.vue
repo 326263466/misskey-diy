@@ -5,10 +5,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div v-adaptive-bg :class="[$style.root]">
-	<MkAvatar :class="$style.avatar" :user="user" indicator/>
+	<MkAvatar :class="$style.avatar" :user="user" indicator title=""/>
 	<div :class="$style.body">
 		<span :class="$style.name"><MkUserName :user="user"/></span>
-		<span :class="$style.sub"><slot name="sub"><span class="_monospace">@{{ acct(user) }}</span></slot></span>
+		<span v-tooltip="subTooltip" :class="$style.sub"><slot name="sub"><span class="_monospace">@{{ acct(user) }}</span></slot></span>
 	</div>
 	<MkMiniChart v-if="chartValues" :class="$style.chart" :src="chartValues"/>
 </div>
@@ -24,6 +24,7 @@ import { acct } from '@/filters/user.js';
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.User;
 	withChart?: boolean;
+	subTooltip?: string;
 }>(), {
 	withChart: true,
 });

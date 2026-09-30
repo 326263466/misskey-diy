@@ -148,6 +148,72 @@ describe('NoteCreateService', () => {
 	});
 });
 
+describe('user note count completion', () => {
+	test('waits for the stored user count before returning and increments it only once', async () => {
+		const app = await Test.createTestingModule({ providers: [NoteCreateService] }).useMocker(() => ({})).compile();
+		const service = app.get(NoteCreateService);
+		const user = { id: 'author', username: 'author', host: null, isBot: false, isCat: false };
+		let finishWrite!: () => void;
+		let markWriteStarted!: () => void;
+		let markPostCompleted!: () => void;
+		let notesCount = 0;
+		const publishUserStats = vi.fn();
+		const writeGate = new Promise<void>(resolve => { finishWrite = resolve; });
+		const writeStarted = new Promise<void>(resolve => { markWriteStarted = resolve; });
+		const postCompleted = new Promise<void>(resolve => { markPostCompleted = resolve; });
+		const execute = vi.fn(() => {
+			markWriteStarted();
+			return writeGate.then(() => { notesCount++; });
+		});
+		const query = {
+			update: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(), execute,
+		};
+		Object.assign(service, {
+			meta: {},
+			usersRepository: { createQueryBuilder: () => query },
+			globalEventService: { publishUserStats },
+			utilityService: {
+				concatNoteContentsForKeyWordCheck: () => '',
+				isKeyWordIncluded: () => false,
+				isSilencedHost: () => false,
+				isMediaSilencedHost: () => false,
+			},
+			notesRepository: { insert: vi.fn().mockResolvedValue({}) },
+			idService: { gen: () => 'note' },
+			notesChart: { update: vi.fn() },
+			perUserNotesChart: { update: vi.fn() },
+			hashtagService: { updateHashtags: vi.fn() },
+			antennaService: { addNoteToAntennas: vi.fn() },
+			followingsRepository: { findBy: vi.fn().mockResolvedValue([]) },
+			searchService: { indexNote: markPostCompleted },
+		});
+		let completed = false;
+		const pending = service.create(user, {
+			text: 'test', visibility: 'home', apHashtags: [], apEmojis: [], apMentions: [],
+		}, true).then(result => {
+			completed = true;
+			return result;
+		});
+		await writeStarted;
+		await new Promise<void>(resolve => setImmediate(resolve));
+		try {
+			expect(completed).toBe(false);
+			expect(notesCount).toBe(0);
+			expect(publishUserStats).not.toHaveBeenCalled();
+		} finally {
+			finishWrite();
+			await pending;
+			await postCompleted;
+			await app.close();
+		}
+		expect(await pending).toMatchObject({ id: 'note', userId: user.id, text: 'test' });
+		expect(notesCount).toBe(1);
+		expect(execute).toHaveBeenCalledOnce();
+		expect(publishUserStats).toHaveBeenCalledExactlyOnceWith(user.id);
+	});
+});
+
 describe('renote count publication', () => {
 	test.each([false, true])('publishes only after the count is stored (write fails: %s)', async fails => {
 		let finish!: () => void;

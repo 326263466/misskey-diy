@@ -37,10 +37,12 @@ const props = withDefaults(defineProps<{
 	anchorElement?: HTMLElement | null;
 	anchor?: { x: string; y: string; };
 	excludedItems?: readonly string[];
+	includeMenuItems?: boolean;
 }>(), {
 	anchorElement: null,
 	anchor: () => ({ x: 'right', y: 'center' }),
 	excludedItems: () => [],
+	includeMenuItems: false,
 });
 
 const emit = defineEmits<{
@@ -55,7 +57,7 @@ const modal = useTemplateRef('modal');
 
 const menu = prefer.s.menu;
 
-const items = Object.keys(navbarItemDef).filter(k => !menu.includes(k) && !props.excludedItems.includes(k)).map(k => navbarItemDef[k]).filter(def => def.show == null ? true : def.show).map(def => ({
+const items = Object.keys(navbarItemDef).filter(k => (props.includeMenuItems || !menu.includes(k)) && !props.excludedItems.includes(k)).map(k => navbarItemDef[k]).filter(def => def.show == null ? true : def.show).map(def => ({
 	type: def.to ? 'link' : 'button',
 	text: def.title,
 	icon: def.icon,

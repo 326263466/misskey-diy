@@ -9,14 +9,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ i18n.ts._widgets.memo }}</template>
 
 	<div :class="$style.root">
-		<textarea v-model="text" :style="`height: ${widgetProps.height}px;`" :class="$style.textarea" :placeholder="i18n.ts.memo" @input="onChange"></textarea>
+		<textarea v-model="text" :style="`height: ${widgetProps.height}px;`" :class="$style.textarea" :placeholder="i18n.ts.memo" :aria-label="i18n.ts.memo" @input="onChange"></textarea>
 		<button :class="$style.save" :disabled="!changed" class="_buttonPrimary" @click="saveMemo">{{ i18n.ts.save }}</button>
 	</div>
 </MkContainer>
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { useWidgetPropsManager } from './widget.js';
 import type { WidgetComponentEmits, WidgetComponentExpose, WidgetComponentProps } from './widget.js';
 import type { FormWithDefault, GetFormResultType } from '@/utility/form.js';
@@ -55,6 +55,11 @@ const changed = ref(false);
 let timeoutId: number | null = null;
 
 const saveMemo = () => {
+	if (timeoutId != null) {
+		window.clearTimeout(timeoutId);
+		timeoutId = null;
+	}
+	if (!changed.value) return;
 	store.set('memo', text.value);
 	changed.value = false;
 };
@@ -65,9 +70,11 @@ const onChange = () => {
 	timeoutId = window.setTimeout(saveMemo, 1000);
 };
 
-watch(() => store.r.memo, newText => {
-	text.value = newText.value;
+watch(store.r.memo, newText => {
+	if (!changed.value) text.value = newText;
 });
+
+onBeforeUnmount(saveMemo);
 
 defineExpose<WidgetComponentExpose>({
 	name,
@@ -78,7 +85,8 @@ defineExpose<WidgetComponentExpose>({
 
 <style lang="scss" module>
 .root {
-	padding-bottom: 28px + 16px;
+	position: relative;
+	padding-bottom: calc(28px + var(--MI-cardPadding, 20px) * 2);
 }
 
 .textarea {
@@ -86,7 +94,7 @@ defineExpose<WidgetComponentExpose>({
 	width: 100%;
 	max-width: 100%;
 	min-width: 100%;
-	padding: 16px;
+	padding: var(--MI-cardPadding, 20px);
 	color: var(--MI_THEME-fg);
 	background: transparent;
 	border: none;
@@ -97,15 +105,16 @@ defineExpose<WidgetComponentExpose>({
 	font-size: 0.9em;
 
 	&:focus-visible {
-		outline: none;
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -2px;
 	}
 }
 
 .save {
 	display: block;
 	position: absolute;
-	bottom: 8px;
-	right: 8px;
+	bottom: var(--MI-cardPadding, 20px);
+	right: var(--MI-cardPadding, 20px);
 	margin: 0;
 	padding: 0 10px;
 	height: 28px;

@@ -12,6 +12,7 @@ import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import ActiveUsersChart from '@/core/chart/charts/active-users.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
+import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -60,6 +61,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queryService: QueryService,
 		private roleService: RoleService,
 		private activeUsersChart: ActiveUsersChart,
+		private channelMutingService: ChannelMutingService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const policies = await this.roleService.getUserPolicies(me ? me.id : null);
@@ -71,7 +73,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'),
 				ps.sinceId, ps.untilId, ps.sinceDate, ps.untilDate)
 				.andWhere('note.visibility = \'public\'')
-				.andWhere('note.channelId IS NULL')
 				.andWhere('(note.replyId IS NULL OR note.renoteId IS NOT NULL OR (note.threadId IS NOT NULL AND note.threadId NOT LIKE \'reply-hidden:%\'))')
 				.innerJoinAndSelect('note.user', 'user')
 				.leftJoinAndSelect('note.reply', 'reply')
@@ -81,6 +82,19 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			this.queryService.generateBaseNoteFilteringQuery(query, me);
 			if (me) this.queryService.generateMutedUserRenotesQueryForNotes(query, me);
+			if (me) {
+				const mutedChannelIds = await this.channelMutingService
+					.list({ requestUserId: me.id }, { idOnly: true })
+					.then(channels => channels.map(channel => channel.id));
+				if (mutedChannelIds.length > 0) {
+					for (const column of ['channelId', 'renoteChannelId']) {
+						query.andWhere(new Brackets(qb => {
+							qb.where(`note.${column} IS NULL`)
+								.orWhere(`note.${column} NOT IN (:...mutedChannelIds)`, { mutedChannelIds });
+						}));
+					}
+				}
+			}
 
 			if (ps.withFiles) {
 				query.andWhere('note.fileIds != \'{}\'');

@@ -2,6 +2,15 @@
 /* eslint @typescript-eslint/no-explicit-any: 0 */
 
 export type paths = {
+    '/admin/abuse-report-evidence': {
+        /**
+         * admin/abuse-report-evidence
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:abuse-user-reports*
+         */
+        post: operations['admin___abuse-report-evidence'];
+    };
     '/admin/abuse-report/notification-recipient/create': {
         /**
          * admin/abuse-report/notification-recipient/create
@@ -213,6 +222,87 @@ export type paths = {
          *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
          */
         post: operations['admin___captcha___save'];
+    };
+    '/admin/checkin/codes/claims': {
+        /**
+         * admin/checkin/codes/claims
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:show-user*
+         */
+        post: operations['admin___checkin___codes___claims'];
+    };
+    '/admin/checkin/codes/create': {
+        /**
+         * admin/checkin/codes/create
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:account*
+         */
+        post: operations['admin___checkin___codes___create'];
+    };
+    '/admin/checkin/codes/list': {
+        /**
+         * admin/checkin/codes/list
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:show-user*
+         */
+        post: operations['admin___checkin___codes___list'];
+    };
+    '/admin/checkin/codes/update': {
+        /**
+         * admin/checkin/codes/update
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:account*
+         */
+        post: operations['admin___checkin___codes___update'];
+    };
+    '/admin/checkin/grant-cards': {
+        /**
+         * admin/checkin/grant-cards
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:account*
+         */
+        post: operations['admin___checkin___grant-cards'];
+    };
+    '/admin/checkin/history': {
+        /**
+         * admin/checkin/history
+         * @description Lists retained administrator grants, makeup uses, or point exchanges. For makeup uses, createdAt is the operation time and date is the missed day.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:show-user*
+         */
+        post: operations['admin___checkin___history'];
+    };
+    '/admin/checkin/revoke-cards': {
+        /**
+         * admin/checkin/revoke-cards
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:account*
+         */
+        post: operations['admin___checkin___revoke-cards'];
+    };
+    '/admin/checkin/stats': {
+        /**
+         * admin/checkin/stats
+         * @description Returns retained check-in card records and current local-user balances. Used cards include all card sources.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:show-user*
+         */
+        post: operations['admin___checkin___stats'];
+    };
+    '/admin/checkin/users': {
+        /**
+         * admin/checkin/users
+         * @description Lists local users with check-in activity or balances, ordered by available cards. A specific userId also includes an inactive user.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:show-user*
+         */
+        post: operations['admin___checkin___users'];
     };
     '/admin/delete-account': {
         /**
@@ -1608,6 +1698,15 @@ export type paths = {
          */
         post: operations['chat___rooms___update'];
     };
+    '/checkin/ranking': {
+        /**
+         * checkin/ranking
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['checkin___ranking'];
+    };
     '/clips/add-note': {
         /**
          * clips/add-note
@@ -1992,7 +2091,7 @@ export type paths = {
          * federation/update-remote-user
          * @description No description provided.
          *
-         *     **Credential required**: *No*
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
         post: operations['federation___update-remote-user'];
     };
@@ -2475,6 +2574,60 @@ export type paths = {
          *     **Credential required**: *Yes*
          */
         post: operations['i___change-password'];
+    };
+    '/i/checkin': {
+        /**
+         * i/checkin
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['i___checkin'];
+    };
+    '/i/checkin-exchange': {
+        /**
+         * i/checkin-exchange
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['i___checkin-exchange'];
+    };
+    '/i/checkin-history': {
+        /**
+         * i/checkin-history
+         * @description Lists only the authenticated account’s makeup-card acquisitions, exchanges, or uses. Legacy acquisitions are opening balances, not reconstructed historical rewards.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['i___checkin-history'];
+    };
+    '/i/checkin-makeup': {
+        /**
+         * i/checkin-makeup
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['i___checkin-makeup'];
+    };
+    '/i/checkin-redeem': {
+        /**
+         * i/checkin-redeem
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['i___checkin-redeem'];
+    };
+    '/i/checkin-status': {
+        /**
+         * i/checkin-status
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['i___checkin-status'];
     };
     '/i/claim-achievement': {
         /**
@@ -4013,6 +4166,15 @@ export type paths = {
          */
         post: operations['users___show'];
     };
+    '/users/show-partial-bulk': {
+        /**
+         * users/show-partial-bulk
+         * @description Show current user counts, online status and follow relationships in a bounded batch.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['users___show-partial-bulk'];
+    };
     '/users/update-memo': {
         /**
          * users/update-memo
@@ -4068,6 +4230,8 @@ export type components = {
             name: string | null;
             /** @example ai */
             username: string;
+            company?: string | null;
+            jobTitle?: string | null;
             /**
              * @description The local host is represented with `null`.
              * @example misskey.example.com
@@ -4102,8 +4266,13 @@ export type components = {
             emojis: {
                 [key: string]: string;
             };
-            /** @enum {string} */
-            onlineStatus: 'unknown' | 'online' | 'active' | 'offline';
+            /** @enum {string|null} */
+            onlineStatus: 'unknown' | 'online' | 'active' | 'offline' | 'away' | 'busy' | 'doNotDisturb' | null;
+            customStatus?: {
+                /** @enum {string} */
+                icon: 'coffee' | 'music' | 'gamepad' | 'briefcase' | 'book' | 'moon' | 'heart' | 'plane' | 'food' | 'home' | 'pet' | 'code' | 'focus' | 'film' | 'car' | 'vacation' | 'exercise' | 'sun' | 'cloud' | 'battery' | 'chat' | 'celebrate' | 'gift' | 'handshake';
+                text: string;
+            } | null;
             badgeRoles?: {
                 name: string;
                 iconUrl: string | null;
@@ -4134,6 +4303,8 @@ export type components = {
             /** @example Hi masters, I am Ai! */
             description: string | null;
             location: string | null;
+            company: string | null;
+            jobTitle: string | null;
             /** @example 2018-03-12 */
             birthday: string | null;
             /** @example ja-JP */
@@ -4198,6 +4369,13 @@ export type components = {
             /** @enum {string} */
             twoFactorBackupCodesStock: 'full' | 'partial' | 'none';
             hideOnlineStatus: boolean;
+            /** @enum {string} */
+            onlineStatusOverride: 'online' | 'away' | 'busy' | 'doNotDisturb' | 'invisible';
+            onlineStatusAutoReplies: {
+                away?: string | null;
+                busy?: string | null;
+                doNotDisturb?: string | null;
+            };
             hasUnreadSpecifiedNotes: boolean;
             hasUnreadMentions: boolean;
             hasUnreadAnnouncement: boolean;
@@ -4437,7 +4615,7 @@ export type components = {
             unlockedAt: number;
         };
         /** @enum {string} */
-        AchievementName: 'notes1' | 'notes10' | 'notes100' | 'notes500' | 'notes1000' | 'notes5000' | 'notes10000' | 'notes20000' | 'notes30000' | 'notes40000' | 'notes50000' | 'notes60000' | 'notes70000' | 'notes80000' | 'notes90000' | 'notes100000' | 'login3' | 'login7' | 'login15' | 'login30' | 'login60' | 'login100' | 'login200' | 'login300' | 'login400' | 'login500' | 'login600' | 'login700' | 'login800' | 'login900' | 'login1000' | 'passedSinceAccountCreated1' | 'passedSinceAccountCreated2' | 'passedSinceAccountCreated3' | 'loggedInOnBirthday' | 'loggedInOnNewYearsDay' | 'noteClipped1' | 'noteFavorited1' | 'myNoteFavorited1' | 'profileFilled' | 'markedAsCat' | 'following1' | 'following10' | 'following50' | 'following100' | 'following300' | 'followers1' | 'followers10' | 'followers50' | 'followers100' | 'followers300' | 'followers500' | 'followers1000' | 'collectAchievements30' | 'viewAchievements3min' | 'iLoveMisskey' | 'foundTreasure' | 'client30min' | 'client60min' | 'noteDeletedWithin1min' | 'postedAtLateNight' | 'postedAt0min0sec' | 'selfQuote' | 'htl20npm' | 'viewInstanceChart' | 'outputHelloWorldOnScratchpad' | 'open3windows' | 'driveFolderCircularReference' | 'reactWithoutRead' | 'clickedClickHere' | 'justPlainLucky' | 'setNameToSyuilo' | 'cookieClicked' | 'brainDiver' | 'smashTestNotificationButton' | 'tutorialCompleted' | 'bubbleGameExplodingHead' | 'bubbleGameDoubleExplodingHead';
+        AchievementName: 'checkin1' | 'checkinStreak7' | 'checkinStreak30' | 'checkinTotal30' | 'checkinTotal100' | 'checkinTotal365' | 'notes1' | 'notes10' | 'notes100' | 'notes500' | 'notes1000' | 'notes5000' | 'notes10000' | 'notes20000' | 'notes30000' | 'notes40000' | 'notes50000' | 'notes60000' | 'notes70000' | 'notes80000' | 'notes90000' | 'notes100000' | 'login3' | 'login7' | 'login15' | 'login30' | 'login60' | 'login100' | 'login200' | 'login300' | 'login400' | 'login500' | 'login600' | 'login700' | 'login800' | 'login900' | 'login1000' | 'passedSinceAccountCreated1' | 'passedSinceAccountCreated2' | 'passedSinceAccountCreated3' | 'loggedInOnBirthday' | 'loggedInOnNewYearsDay' | 'noteClipped1' | 'noteFavorited1' | 'myNoteFavorited1' | 'profileFilled' | 'markedAsCat' | 'following1' | 'following10' | 'following50' | 'following100' | 'following300' | 'followers1' | 'followers10' | 'followers50' | 'followers100' | 'followers300' | 'followers500' | 'followers1000' | 'collectAchievements30' | 'viewAchievements3min' | 'iLoveMisskey' | 'foundTreasure' | 'client30min' | 'client60min' | 'noteDeletedWithin1min' | 'postedAtLateNight' | 'postedAt0min0sec' | 'selfQuote' | 'htl20npm' | 'viewInstanceChart' | 'outputHelloWorldOnScratchpad' | 'open3windows' | 'driveFolderCircularReference' | 'reactWithoutRead' | 'clickedClickHere' | 'justPlainLucky' | 'setNameToSyuilo' | 'cookieClicked' | 'brainDiver' | 'smashTestNotificationButton' | 'tutorialCompleted' | 'bubbleGameExplodingHead' | 'bubbleGameDoubleExplodingHead';
         Ad: {
             /**
              * Format: id
@@ -4667,6 +4845,15 @@ export type components = {
             noteId: string;
         };
         Notification: {
+            /** Format: id */
+            id: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            type: 'system';
+            /** @enum {string} */
+            message: 'welcome';
+        } | {
             /** Format: id */
             id: string;
             /** Format: date-time */
@@ -5708,6 +5895,7 @@ export type components = {
             toUser?: components['schemas']['UserLite'] | null;
             toRoomId?: string | null;
             toRoom?: components['schemas']['ChatRoom'] | null;
+            isAutoReply: boolean;
             text?: string | null;
             fileId?: string | null;
             file?: components['schemas']['DriveFile'] | null;
@@ -5718,6 +5906,7 @@ export type components = {
             }[];
         };
         ChatMessageLite: {
+            isAutoReply?: boolean;
             id: string;
             /** Format: date-time */
             createdAt: string;
@@ -5734,6 +5923,7 @@ export type components = {
             }[];
         };
         ChatMessageLiteFor1on1: {
+            isAutoReply: boolean;
             id: string;
             /** Format: date-time */
             createdAt: string;
@@ -5799,6 +5989,83 @@ export type components = {
 };
 export type $defs = Record<string, never>;
 export interface operations {
+    'admin___abuse-report-evidence': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    reportId: string;
+                    /** Format: misskey:id */
+                    fileId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/octet-stream': Blob;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     'admin___abuse-report___notification-recipient___create': {
         requestBody: {
             content: {
@@ -5824,7 +6091,7 @@ export interface operations {
                     'application/json': components['schemas']['AbuseReportNotificationRecipient'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6045,6 +6312,15 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description I'm Ai */
             418: {
                 headers: {
@@ -6092,7 +6368,7 @@ export interface operations {
                     'application/json': components['schemas']['AbuseReportNotificationRecipient'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6182,6 +6458,34 @@ export interface operations {
                         /** Format: date-time */
                         createdAt: string;
                         comment: string;
+                        snapshot: {
+                            version: number;
+                            /** Format: date-time */
+                            capturedAt: string;
+                            /** @enum {string} */
+                            type: 'user' | 'note' | 'boost' | 'chat' | 'page' | 'gallery' | 'play';
+                            sourceUrl: string;
+                            user: {
+                                /** Format: id */
+                                id: string;
+                                username: string;
+                                host: string | null;
+                                name: string | null;
+                            };
+                            content: string;
+                            files: {
+                                /** Format: id */
+                                id: string;
+                                name: string;
+                                type: string;
+                                size: number;
+                                url: string;
+                                comment: string | null;
+                                sha256: string;
+                            }[];
+                        } | null;
+                        /** @enum {string|null} */
+                        reason: 'spam' | 'scam' | 'sexualContent' | 'violence' | 'harassment' | 'hateSpeech' | 'privacyViolation' | 'impersonation' | 'misinformation' | 'copyrightViolation' | 'inciting' | 'other' | null;
                         /** @example false */
                         resolved: boolean;
                         /** Format: id */
@@ -6190,8 +6494,8 @@ export interface operations {
                         targetUserId: string;
                         /** Format: id */
                         assigneeId: string | null;
-                        reporter: components['schemas']['UserDetailedNotMe'];
-                        targetUser: components['schemas']['UserDetailedNotMe'];
+                        reporter: components['schemas']['UserDetailedNotMe'] | null;
+                        targetUser: components['schemas']['UserDetailedNotMe'] | null;
                         assignee: components['schemas']['UserDetailedNotMe'] | null;
                         forwarded: boolean;
                         /** @enum {string|null} */
@@ -6269,7 +6573,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6397,7 +6701,7 @@ export interface operations {
                     'application/json': components['schemas']['UserDetailedNotMe'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6534,7 +6838,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6681,7 +6985,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -6845,7 +7149,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7021,7 +7325,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7467,6 +7771,86 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    admin___checkin___codes___claims: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    codeId: string;
+                    /** @default 0 */
+                    offset?: number;
+                    /** @default 20 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        total: number;
+                        items: {
+                            id: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            userId: string;
+                            user: components['schemas']['UserLite'] | null;
+                            amount: number;
+                        }[];
+                    };
+                };
+            };
             /** @description Client error */
             400: {
                 headers: {
@@ -7496,6 +7880,719 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    admin___checkin___codes___create: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    name: string;
+                    amount: number;
+                    maxRedemptions: number;
+                    expiresAt?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        name: string;
+                        code: string;
+                        amount: number;
+                        maxRedemptions: number;
+                        redemptions: number;
+                        /** Format: date-time */
+                        expiresAt: string | null;
+                        enabled: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    admin___checkin___codes___list: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @default 0 */
+                    offset?: number;
+                    /** @default 20 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        total: number;
+                        items: {
+                            id: string;
+                            name: string;
+                            code: string;
+                            amount: number;
+                            maxRedemptions: number;
+                            redemptions: number;
+                            /** Format: date-time */
+                            expiresAt: string | null;
+                            enabled: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    admin___checkin___codes___update: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    id: string;
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        name: string;
+                        code: string;
+                        amount: number;
+                        maxRedemptions: number;
+                        redemptions: number;
+                        /** Format: date-time */
+                        expiresAt: string | null;
+                        enabled: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'admin___checkin___grant-cards': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    userId: string;
+                    amount: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        makeupCards: number;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    admin___checkin___history: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    userId?: string;
+                    /**
+                     * @default grant
+                     * @enum {string}
+                     */
+                    type?: 'grant' | 'use' | 'exchange';
+                    /** @default 0 */
+                    offset?: number;
+                    /** @default 20 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        total: number;
+                        items: {
+                            id: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            userId: string;
+                            user: components['schemas']['UserLite'] | null;
+                            operator: components['schemas']['UserLite'] | null;
+                            recipientUsername: string | null;
+                            batchId: string | null;
+                            /** @enum {string} */
+                            usageStatus: 'legacy' | 'unused' | 'partial' | 'used' | 'revoked';
+                            used: number | null;
+                            remaining: number | null;
+                            revoked: number | null;
+                            amount: number;
+                            before: number | null;
+                            after: number | null;
+                            date: string | null;
+                            pointsSpent: number | null;
+                        }[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'admin___checkin___revoke-cards': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    batchId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        batchId: string;
+                        revokedCards: number;
+                        makeupCards: number;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    admin___checkin___stats: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    userId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        grantedCards: number;
+                        grantCount: number;
+                        grantedUsers: number;
+                        usedCards: number;
+                        usedUsers: number;
+                        exchangedCards: number;
+                        availableCards: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    admin___checkin___users: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    userId?: string;
+                    /** @default 0 */
+                    offset?: number;
+                    /** @default 20 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        total: number;
+                        items: {
+                            user: components['schemas']['UserLite'];
+                            grantedCards: number;
+                            usedCards: number;
+                            exchangedCards: number;
+                            availableCards: number;
+                            points: number;
+                        }[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7914,7 +9011,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7988,7 +9085,7 @@ export interface operations {
                     'application/json': components['schemas']['EmojiDetailed'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -8120,7 +9217,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -8183,7 +9280,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -8790,7 +9887,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -9103,7 +10200,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -9130,6 +10227,15 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description I'm Ai */
             418: {
                 headers: {
@@ -9141,6 +10247,15 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9364,7 +10479,7 @@ export interface operations {
                     'application/json': components['schemas']['InviteCode'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -9708,7 +10823,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -10719,7 +11834,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -10917,7 +12032,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11009,6 +12124,24 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description I'm Ai */
             418: {
                 headers: {
@@ -11048,7 +12181,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11192,7 +12325,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11316,7 +12449,7 @@ export interface operations {
                     'application/json': components['schemas']['Role'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11381,7 +12514,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11460,7 +12593,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11604,7 +12737,7 @@ export interface operations {
                     }[];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -11900,6 +13033,8 @@ export interface operations {
                 };
                 content: {
                     'application/json': {
+                        checkinPoints: number;
+                        checkinMakeupCards: number;
                         email: string | null;
                         emailVerified: boolean;
                         followedMessage: string | null;
@@ -12527,6 +13662,15 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description I'm Ai */
             418: {
                 headers: {
@@ -12569,7 +13713,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -12713,7 +13857,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -12986,6 +14130,15 @@ export interface operations {
             };
             /** @description Forbidden error */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13440,7 +14593,7 @@ export interface operations {
                     'application/json': components['schemas']['Announcement'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13518,7 +14671,7 @@ export interface operations {
                     'application/json': components['schemas']['Antenna'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13581,7 +14734,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13713,7 +14866,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13778,7 +14931,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13844,7 +14997,7 @@ export interface operations {
                     'application/json': components['schemas']['Antenna'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -13924,7 +15077,7 @@ export interface operations {
                     'application/json': components['schemas']['Antenna'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14071,7 +15224,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14214,7 +15367,7 @@ export interface operations {
                     'application/json': components['schemas']['App'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14276,7 +15429,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14345,7 +15498,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14415,7 +15568,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14484,7 +15637,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14550,7 +15703,7 @@ export interface operations {
                     'application/json': components['schemas']['UserDetailedNotMe'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14625,7 +15778,7 @@ export interface operations {
                     'application/json': components['schemas']['UserDetailedNotMe'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14842,7 +15995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14922,7 +16075,7 @@ export interface operations {
                     'application/json': components['schemas']['Channel'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -14994,7 +16147,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15115,7 +16268,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15252,7 +16405,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15315,7 +16468,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15490,6 +16643,8 @@ export interface operations {
                     untilDate?: number;
                     /** @default 5 */
                     limit?: number;
+                    /** @default false */
+                    isArchived?: boolean;
                 };
             };
         };
@@ -15647,7 +16802,7 @@ export interface operations {
                     'application/json': components['schemas']['Channel'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15723,7 +16878,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15786,7 +16941,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15849,7 +17004,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15924,7 +17079,7 @@ export interface operations {
                     'application/json': components['schemas']['Channel'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17079,7 +18234,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatMessageLiteForRoom'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17157,7 +18312,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatMessageLiteFor1on1'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17229,7 +18384,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17293,7 +18448,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17367,7 +18522,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatMessageLiteForRoom'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17438,7 +18593,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatMessage'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17504,7 +18659,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatMessage'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17568,7 +18723,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17642,7 +18797,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatMessageLiteFor1on1'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17835,7 +18990,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17903,7 +19058,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatRoomInvitation'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17975,7 +19130,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18121,7 +19276,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatRoomInvitation'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18184,7 +19339,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18319,7 +19474,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18393,7 +19548,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatRoomMembership'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18457,7 +19612,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18595,7 +19750,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatRoom'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18663,7 +19818,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatRoom'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18710,6 +19865,103 @@ export interface operations {
             };
         };
     };
+    checkin___ranking: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /**
+                     * @default consecutive
+                     * @enum {string}
+                     */
+                    type?: 'consecutive' | 'total' | 'monthly';
+                    /** @default 0 */
+                    offset?: number;
+                    /** @default 20 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        timeZone: string;
+                        today: string;
+                        month: string;
+                        /** @enum {string} */
+                        type: 'consecutive' | 'total' | 'monthly';
+                        items: {
+                            rank: number;
+                            days: number;
+                            user: components['schemas']['UserDetailedNotMe'];
+                        }[];
+                        myRank: {
+                            rank: number;
+                            days: number;
+                        } | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     'clips___add-note': {
         requestBody: {
             content: {
@@ -18728,7 +19980,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18805,7 +20057,7 @@ export interface operations {
                     'application/json': components['schemas']['Clip'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18868,7 +20120,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18931,7 +20183,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19136,7 +20388,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19201,7 +20453,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19267,7 +20519,7 @@ export interface operations {
                     'application/json': components['schemas']['Clip'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19330,7 +20582,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19399,7 +20651,7 @@ export interface operations {
                     'application/json': components['schemas']['Clip'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19614,7 +20866,7 @@ export interface operations {
                     'application/json': components['schemas']['ChatMessage'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19688,7 +20940,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19835,7 +21087,7 @@ export interface operations {
                     'application/json': components['schemas']['DriveFile'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -19855,6 +21107,15 @@ export interface operations {
             };
             /** @description Forbidden error */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -19907,7 +21168,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20174,7 +21435,7 @@ export interface operations {
                     'application/json': components['schemas']['DriveFile'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20245,7 +21506,7 @@ export interface operations {
                     'application/json': components['schemas']['DriveFile'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20474,7 +21735,7 @@ export interface operations {
                     'application/json': components['schemas']['DriveFolder'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20546,7 +21807,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20682,7 +21943,7 @@ export interface operations {
                     'application/json': components['schemas']['DriveFolder'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -20751,7 +22012,7 @@ export interface operations {
                     'application/json': components['schemas']['DriveFolder'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -21681,6 +22942,15 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
@@ -21787,7 +23057,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -21909,7 +23179,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -21945,6 +23215,15 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description Too many requests */
             429: {
                 headers: {
@@ -21956,6 +23235,15 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22063,7 +23351,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22194,7 +23482,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22482,7 +23770,7 @@ export interface operations {
                     'application/json': components['schemas']['Flash'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22545,7 +23833,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22614,7 +23902,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22690,7 +23978,7 @@ export interface operations {
                     'application/json': components['schemas']['UserLite'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22765,7 +24053,7 @@ export interface operations {
                     'application/json': components['schemas']['UserLite'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22840,7 +24128,7 @@ export interface operations {
                     'application/json': components['schemas']['UserLite'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22986,7 +24274,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -23052,7 +24340,7 @@ export interface operations {
                     'application/json': components['schemas']['UserLite'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -23192,7 +24480,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -23338,7 +24626,7 @@ export interface operations {
                     'application/json': components['schemas']['UserLite'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -23759,7 +25047,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -23822,7 +25110,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -23888,7 +25176,7 @@ export interface operations {
                     'application/json': components['schemas']['GalleryPost'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -23951,7 +25239,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24368,7 +25656,7 @@ export interface operations {
                     'application/json': components['schemas']['Hashtag'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24587,7 +25875,7 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
-            /** @description Forbidden error */
+            /** @description Forbidden */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -24707,7 +25995,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24769,7 +26057,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24841,7 +26129,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24907,7 +26195,7 @@ export interface operations {
                     'application/json': Record<string, never>;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24971,7 +26259,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -25034,7 +26322,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -25097,7 +26385,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -25316,6 +26604,540 @@ export interface operations {
             204: {
                 headers: {
                     [name: string]: unknown;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    i___checkin: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        timeZone: string;
+                        today: string;
+                        month: string;
+                        checkedInToday: boolean;
+                        totalDays: number;
+                        consecutiveDays: number;
+                        monthlyDays: number;
+                        lastCheckinDate: string | null;
+                        checkedInDates: string[];
+                        makeupDates: string[];
+                        registeredDate: string;
+                        points: number;
+                        makeupCards: number;
+                        makeupCardProgress: number;
+                        makeupCardTarget: number;
+                        makeupCardExchangeCost: number;
+                        achievements: {
+                            /** @enum {string} */
+                            name: 'checkin1' | 'checkinStreak7' | 'checkinStreak30' | 'checkinTotal30' | 'checkinTotal100' | 'checkinTotal365';
+                            unlockedAt: number;
+                        }[];
+                        newlyCheckedIn: boolean;
+                        earnedAchievements: ('checkin1' | 'checkinStreak7' | 'checkinStreak30' | 'checkinTotal30' | 'checkinTotal100' | 'checkinTotal365')[];
+                        earnedPoints: number;
+                        earnedMakeupCards: number;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'i___checkin-exchange': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    requestId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        points: number;
+                        makeupCards: number;
+                        exchanged: boolean;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'i___checkin-history': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /**
+                     * @default earned
+                     * @enum {string}
+                     */
+                    type?: 'earned' | 'exchange' | 'use';
+                    /** @default 0 */
+                    offset?: number;
+                    /** @default 20 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        total: number;
+                        items: {
+                            id: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** @enum {string|null} */
+                            source: 'admin' | 'exchange' | 'reward' | 'redemption' | 'legacy' | null;
+                            amount: number;
+                            used: number | null;
+                            remaining: number | null;
+                            revoked: number | null;
+                            date: string | null;
+                            pointsSpent: number | null;
+                        }[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'i___checkin-makeup': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    date: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        timeZone: string;
+                        today: string;
+                        month: string;
+                        checkedInToday: boolean;
+                        totalDays: number;
+                        consecutiveDays: number;
+                        monthlyDays: number;
+                        lastCheckinDate: string | null;
+                        checkedInDates: string[];
+                        makeupDates: string[];
+                        registeredDate: string;
+                        points: number;
+                        makeupCards: number;
+                        makeupCardProgress: number;
+                        makeupCardTarget: number;
+                        makeupCardExchangeCost: number;
+                        achievements: {
+                            /** @enum {string} */
+                            name: 'checkin1' | 'checkinStreak7' | 'checkinStreak30' | 'checkinTotal30' | 'checkinTotal100' | 'checkinTotal365';
+                            unlockedAt: number;
+                        }[];
+                        newlyCheckedIn: boolean;
+                        earnedAchievements: ('checkin1' | 'checkinStreak7' | 'checkinStreak30' | 'checkinTotal30' | 'checkinTotal100' | 'checkinTotal365')[];
+                        earnedPoints: number;
+                        earnedMakeupCards: number;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'i___checkin-redeem': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        newlyRedeemed: boolean;
+                        amount: number;
+                        makeupCards: number;
+                        points: number;
+                    };
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'i___checkin-status': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    month?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        timeZone: string;
+                        today: string;
+                        month: string;
+                        checkedInToday: boolean;
+                        totalDays: number;
+                        consecutiveDays: number;
+                        monthlyDays: number;
+                        lastCheckinDate: string | null;
+                        checkedInDates: string[];
+                        makeupDates: string[];
+                        registeredDate: string;
+                        points: number;
+                        makeupCards: number;
+                        makeupCardProgress: number;
+                        makeupCardTarget: number;
+                        makeupCardExchangeCost: number;
+                        achievements: {
+                            /** @enum {string} */
+                            name: 'checkin1' | 'checkinStreak7' | 'checkinStreak30' | 'checkinTotal30' | 'checkinTotal100' | 'checkinTotal365';
+                            unlockedAt: number;
+                        }[];
+                    };
                 };
             };
             /** @description Client error */
@@ -26249,7 +28071,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -26321,7 +28143,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -26394,7 +28216,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -26466,7 +28288,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -26538,7 +28360,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -26612,7 +28434,7 @@ export interface operations {
                     'application/json': Record<string, never>;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -26682,8 +28504,8 @@ export interface operations {
                     untilDate?: number;
                     /** @default true */
                     markAsRead?: boolean;
-                    includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
-                    excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+                    includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'system' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+                    excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'system' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
                 };
             };
         };
@@ -26767,8 +28589,8 @@ export interface operations {
                     untilDate?: number;
                     /** @default true */
                     markAsRead?: boolean;
-                    includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
-                    excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+                    includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'system' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
+                    excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'system' | 'app' | 'test' | 'pollVote' | 'groupInvited')[];
                 };
             };
         };
@@ -27005,7 +28827,7 @@ export interface operations {
                     'application/json': components['schemas']['MeDetailed'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -27198,7 +29020,7 @@ export interface operations {
                     'application/json': Record<string, never>;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -27336,7 +29158,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -27537,7 +29359,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -27738,7 +29560,7 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
-            /** @description Authentication error */
+            /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -27747,7 +29569,7 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
-            /** @description Forbidden error */
+            /** @description Forbidden */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -27867,7 +29689,7 @@ export interface operations {
                     'application/json': components['schemas']['MeDetailed'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -27922,6 +29744,8 @@ export interface operations {
                     description?: string | null;
                     followedMessage?: string | null;
                     location?: string | null;
+                    company?: string | null;
+                    jobTitle?: string | null;
                     birthday?: string | null;
                     /** @enum {string|null} */
                     lang?: null | 'ach' | 'ady' | 'af' | 'af-NA' | 'af-ZA' | 'ak' | 'ar' | 'ar-AR' | 'ar-MA' | 'ar-SA' | 'ay-BO' | 'az' | 'az-AZ' | 'be-BY' | 'bg' | 'bg-BG' | 'bn' | 'bn-IN' | 'bn-BD' | 'br' | 'bs-BA' | 'ca' | 'ca-ES' | 'cak' | 'ck-US' | 'cs' | 'cs-CZ' | 'cy' | 'cy-GB' | 'da' | 'da-DK' | 'de' | 'de-AT' | 'de-DE' | 'de-CH' | 'dsb' | 'el' | 'el-GR' | 'en' | 'en-GB' | 'en-AU' | 'en-CA' | 'en-IE' | 'en-IN' | 'en-PI' | 'en-SG' | 'en-UD' | 'en-US' | 'en-ZA' | 'en@pirate' | 'eo' | 'eo-EO' | 'es' | 'es-AR' | 'es-419' | 'es-CL' | 'es-CO' | 'es-EC' | 'es-ES' | 'es-LA' | 'es-NI' | 'es-MX' | 'es-US' | 'es-VE' | 'et' | 'et-EE' | 'eu' | 'eu-ES' | 'fa' | 'fa-IR' | 'fb-LT' | 'ff' | 'fi' | 'fi-FI' | 'fo' | 'fo-FO' | 'fr' | 'fr-CA' | 'fr-FR' | 'fr-BE' | 'fr-CH' | 'fy-NL' | 'ga' | 'ga-IE' | 'gd' | 'gl' | 'gl-ES' | 'gn-PY' | 'gu-IN' | 'gv' | 'gx-GR' | 'he' | 'he-IL' | 'hi' | 'hi-IN' | 'hr' | 'hr-HR' | 'hsb' | 'ht' | 'hu' | 'hu-HU' | 'hy' | 'hy-AM' | 'id' | 'id-ID' | 'is' | 'is-IS' | 'it' | 'it-IT' | 'ja' | 'ja-JP' | 'jv-ID' | 'ka-GE' | 'kk-KZ' | 'km' | 'kl' | 'km-KH' | 'kab' | 'kn' | 'kn-IN' | 'ko' | 'ko-KR' | 'ku-TR' | 'kw' | 'la' | 'la-VA' | 'lb' | 'li-NL' | 'lt' | 'lt-LT' | 'lv' | 'lv-LV' | 'mai' | 'mg-MG' | 'mk' | 'mk-MK' | 'ml' | 'ml-IN' | 'mn-MN' | 'mr' | 'mr-IN' | 'ms' | 'ms-MY' | 'mt' | 'mt-MT' | 'my' | 'no' | 'nb' | 'nb-NO' | 'ne' | 'ne-NP' | 'nl' | 'nl-BE' | 'nl-NL' | 'nn-NO' | 'oc' | 'or-IN' | 'pa' | 'pa-IN' | 'pl' | 'pl-PL' | 'ps-AF' | 'pt' | 'pt-BR' | 'pt-PT' | 'qu-PE' | 'rm-CH' | 'ro' | 'ro-RO' | 'ru' | 'ru-RU' | 'sa-IN' | 'se-NO' | 'sh' | 'si-LK' | 'sk' | 'sk-SK' | 'sl' | 'sl-SI' | 'so-SO' | 'sq' | 'sq-AL' | 'sr' | 'sr-RS' | 'su' | 'sv' | 'sv-SE' | 'sw' | 'sw-KE' | 'ta' | 'ta-IN' | 'te' | 'te-IN' | 'tg' | 'tg-TJ' | 'th' | 'th-TH' | 'fil' | 'tlh' | 'tr' | 'tr-TR' | 'tt-RU' | 'uk' | 'uk-UA' | 'ur' | 'ur-PK' | 'uz' | 'uz-UZ' | 'vi' | 'vi-VN' | 'xh-ZA' | 'yi' | 'yi-DE' | 'zh' | 'zh-Hans' | 'zh-Hant' | 'zh-CN' | 'zh-HK' | 'zh-SG' | 'zh-TW' | 'zu-ZA';
@@ -27944,6 +29768,18 @@ export interface operations {
                     isLocked?: boolean;
                     isExplorable?: boolean;
                     hideOnlineStatus?: boolean;
+                    /** @enum {string} */
+                    onlineStatusOverride?: 'online' | 'away' | 'busy' | 'doNotDisturb' | 'invisible';
+                    onlineStatusAutoReplies?: {
+                        away?: string | null;
+                        busy?: string | null;
+                        doNotDisturb?: string | null;
+                    };
+                    customStatus?: {
+                        /** @enum {string} */
+                        icon: 'coffee' | 'music' | 'gamepad' | 'briefcase' | 'book' | 'moon' | 'heart' | 'plane' | 'food' | 'home' | 'pet' | 'code' | 'focus' | 'film' | 'car' | 'vacation' | 'exercise' | 'sun' | 'cloud' | 'battery' | 'chat' | 'celebrate' | 'gift' | 'handshake';
+                        text: string;
+                    } | null;
                     publicReactions?: boolean;
                     carefulBot?: boolean;
                     autoAcceptFollowed?: boolean;
@@ -28139,7 +29975,7 @@ export interface operations {
                     'application/json': components['schemas']['MeDetailed'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28168,6 +30004,15 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -28215,7 +30060,7 @@ export interface operations {
                     'application/json': components['schemas']['MeDetailed'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28306,7 +30151,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28369,7 +30214,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28493,7 +30338,7 @@ export interface operations {
                     'application/json': components['schemas']['UserWebhook'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28562,7 +30407,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28639,7 +30484,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28697,7 +30542,7 @@ export interface operations {
                     'application/json': components['schemas']['InviteCode'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28760,7 +30605,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -29094,7 +30939,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -29166,7 +31011,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -29524,7 +31369,7 @@ export interface operations {
                     'application/json': components['schemas']['Clip'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -29594,7 +31439,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -29697,7 +31542,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -29769,7 +31614,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -29936,7 +31781,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30008,7 +31853,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30174,7 +32019,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30246,7 +32091,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30318,7 +32163,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30464,7 +32309,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30550,7 +32395,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30622,7 +32467,7 @@ export interface operations {
                     'application/json': components['schemas']['Like'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30688,7 +32533,7 @@ export interface operations {
                     'application/json': components['schemas']['LikeState'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30763,7 +32608,7 @@ export interface operations {
                     'application/json': components['schemas']['LikeState'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30852,7 +32697,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31061,7 +32906,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31136,7 +32981,7 @@ export interface operations {
                     'application/json': components['schemas']['NoteReaction'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31201,7 +33046,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31264,7 +33109,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31347,7 +33192,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31510,7 +33355,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31664,7 +33509,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31880,7 +33725,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31952,7 +33797,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -32112,7 +33957,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -32175,7 +34020,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -32262,7 +34107,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -32360,7 +34205,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -32743,7 +34588,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -32828,7 +34673,7 @@ export interface operations {
                     'application/json': components['schemas']['Page'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -32900,7 +34745,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -33021,7 +34866,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -33090,7 +34935,7 @@ export interface operations {
                     'application/json': components['schemas']['Page'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -33153,7 +34998,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -33232,7 +35077,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -33422,7 +35267,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -33485,7 +35330,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -33557,7 +35402,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -34155,7 +36000,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -34221,7 +36066,7 @@ export interface operations {
                     'application/json': components['schemas']['ReversiGameDetailed'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -34284,7 +36129,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -34354,7 +36199,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -34486,7 +36331,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -34552,7 +36397,7 @@ export interface operations {
                     'application/json': components['schemas']['Role'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -34630,7 +36475,7 @@ export interface operations {
                     }[];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -35051,7 +36896,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -35646,7 +37491,7 @@ export interface operations {
                     'application/json': components['schemas']['Following'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -35727,7 +37572,7 @@ export interface operations {
                     'application/json': components['schemas']['Following'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -35958,7 +37803,7 @@ export interface operations {
                     }[];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36023,7 +37868,7 @@ export interface operations {
                     'application/json': components['schemas']['UserList'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36090,7 +37935,7 @@ export interface operations {
                     'application/json': components['schemas']['UserList'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36153,7 +37998,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36216,7 +38061,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36301,7 +38146,7 @@ export interface operations {
                     }[];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36367,7 +38212,7 @@ export interface operations {
                     'application/json': components['schemas']['UserList'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36432,7 +38277,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36497,7 +38342,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36577,7 +38422,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36640,7 +38485,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36708,7 +38553,7 @@ export interface operations {
                     'application/json': components['schemas']['UserList'];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36774,7 +38619,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -36858,7 +38703,7 @@ export interface operations {
                     'application/json': components['schemas']['Note'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -37006,7 +38851,7 @@ export interface operations {
                     'application/json': components['schemas']['NoteReactionWithNote'][];
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -37212,9 +39057,17 @@ export interface operations {
         requestBody: {
             content: {
                 'application/json': {
+                    requestId: string;
                     /** Format: misskey:id */
                     userId: string;
                     comment: string;
+                    /** @enum {string} */
+                    reason: 'spam' | 'scam' | 'sexualContent' | 'violence' | 'harassment' | 'hateSpeech' | 'privacyViolation' | 'impersonation' | 'misinformation' | 'copyrightViolation' | 'inciting' | 'other';
+                    /** @enum {string} */
+                    reportType: 'user' | 'note' | 'boost' | 'chat' | 'page' | 'gallery' | 'play';
+                    /** Format: misskey:id */
+                    targetId?: string;
+                    reaction?: string;
                 };
             };
         };
@@ -37225,7 +39078,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -37254,6 +39107,15 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -37473,6 +39335,100 @@ export interface operations {
                     'application/json': components['schemas']['Error'];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'users___show-partial-bulk': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    userIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: id */
+                        id: string;
+                        /** @enum {string|null} */
+                        onlineStatus: 'unknown' | 'online' | 'active' | 'offline' | 'away' | 'busy' | 'doNotDisturb' | null;
+                        customStatus: {
+                            /** @enum {string} */
+                            icon: 'coffee' | 'music' | 'gamepad' | 'briefcase' | 'book' | 'moon' | 'heart' | 'plane' | 'food' | 'home' | 'pet' | 'code' | 'focus' | 'film' | 'car' | 'vacation' | 'exercise' | 'sun' | 'cloud' | 'battery' | 'chat' | 'celebrate' | 'gift' | 'handshake';
+                            text: string;
+                        } | null;
+                        notesCount: number;
+                        followingCount: number;
+                        followersCount: number;
+                        /** @enum {string} */
+                        followingVisibility: 'public' | 'followers' | 'private';
+                        /** @enum {string} */
+                        followersVisibility: 'public' | 'followers' | 'private';
+                        isFollowing: boolean;
+                        isFollowed: boolean;
+                        hasPendingFollowRequestFromYou: boolean;
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
             /** @description I'm Ai */
             418: {
                 headers: {
@@ -37511,7 +39467,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -37678,7 +39634,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
             };
-            /** @description Client error */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;

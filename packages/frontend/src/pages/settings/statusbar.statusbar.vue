@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</MkInput>
 
 	<MkSwitch v-model="statusbar.black">
-		<template #label>Black</template>
+		<template #label>{{ i18n.ts._statusbar.blackBackground }}</template>
 	</MkSwitch>
 
 	<MkRadios
@@ -113,7 +113,7 @@ const statusbarTypeDef = computed(() => {
 		{ label: 'RSS', value: 'rss' },
 	] satisfies MkSelectItem[];
 	if (instance.federation !== 'none') {
-		items.push({ label: 'Federation', value: 'federation' });
+		items.push({ label: i18n.ts.federation, value: 'federation' });
 	}
 	if (props.userLists != null) {
 		items.push({ label: i18n.ts.userList, value: 'userList' });
@@ -127,7 +127,7 @@ const userListsDef = computed(() => {
 
 watch(() => statusbar.type, () => {
 	if (statusbar.type === 'rss') {
-		statusbar.name = 'NEWS';
+		statusbar.name = i18n.ts._statusbar.news;
 		statusbar.props.url = 'http://feeds.afpbb.com/rss/afpbb/afpbbnews';
 		statusbar.props.shuffle = true;
 		statusbar.props.refreshIntervalSec = 120;
@@ -135,14 +135,14 @@ watch(() => statusbar.type, () => {
 		statusbar.props.marqueeDuration = 100;
 		statusbar.props.marqueeReverse = false;
 	} else if (statusbar.type === 'federation') {
-		statusbar.name = 'FEDERATION';
+		statusbar.name = i18n.ts.federation;
 		statusbar.props.refreshIntervalSec = 120;
 		statusbar.props.display = 'marquee';
 		statusbar.props.marqueeDuration = 100;
 		statusbar.props.marqueeReverse = false;
 		statusbar.props.colored = false;
 	} else if (statusbar.type === 'userList') {
-		statusbar.name = 'LIST TL';
+		statusbar.name = i18n.ts._statusbar.listTimeline;
 		statusbar.props.refreshIntervalSec = 120;
 		statusbar.props.display = 'marquee';
 		statusbar.props.marqueeDuration = 100;

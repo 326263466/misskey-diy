@@ -18,6 +18,12 @@ export const meta = {
 	kind: 'write:admin:resolve-abuse-user-report',
 
 	errors: {
+		reportAlreadyResolved: {
+			message: 'Another moderator has already resolved this report. Refresh to see the saved decision.',
+			code: 'REPORT_ALREADY_RESOLVED',
+			id: '9011e455-451c-45a8-820f-2c18c67c244a',
+			httpStatusCode: 409,
+		},
 		noSuchAbuseReport: {
 			message: 'No such abuse report.',
 			code: 'NO_SUCH_ABUSE_REPORT',
@@ -50,7 +56,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.noSuchAbuseReport);
 			}
 
-			await this.abuseReportService.resolve([{ reportId: report.id, resolvedAs: ps.resolvedAs ?? null }], me);
+			await this.abuseReportService.resolve([{ reportId: report.id, resolvedAs: ps.resolvedAs ?? null }], me).catch(err => {
+				if (err instanceof Error && err.message === 'REPORT_ALREADY_RESOLVED') throw new ApiError(meta.errors.reportAlreadyResolved);
+				throw err;
+			});
 		});
 	}
 }

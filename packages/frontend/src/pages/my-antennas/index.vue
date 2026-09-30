@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader :actions="headerActions">
 	<div class="_spacer" style="--MI_SPACER-w: 700px;">
 		<div>
 			<MkResult v-if="antennas.length === 0" type="empty"/>
@@ -45,8 +45,6 @@ const headerActions = computed(() => [{
 		_fetch_();
 	},
 }]);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.manageAntennas,

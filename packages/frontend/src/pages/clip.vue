@@ -5,6 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions">
+	<template v-if="clip" #header-actions>
+		<MkPaginationControl :paginator="paginator"/>
+	</template>
 	<div class="_spacer" style="--MI_SPACER-w: 800px;">
 		<div v-if="clip" class="_gaps">
 			<div class="_panel">
@@ -23,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 
-			<MkNotesTimeline :paginator="paginator" :detail="true"/>
+			<MkNotesTimeline :paginator="paginator" :detail="true" :withControl="false"/>
 		</div>
 	</div>
 </PageWithHeader>
@@ -33,9 +36,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, watch, provide, ref, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
-import type { MenuItem } from '@/types/menu.js';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
+import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
@@ -43,8 +46,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import MkButton from '@/components/MkButton.vue';
 import { clipsCache } from '@/cache.js';
-import { isSupportShare } from '@/utility/navigator.js';
-import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { assertServerContext, serverContext } from '@/server-context.js';
 import { Paginator } from '@/utility/paginator.js';
@@ -145,38 +147,14 @@ const headerActions = computed<PageHeaderItem[] | null>(() => clip.value && isOw
 }, ...(clip.value.isPublic ? [{
 	icon: 'ti ti-share',
 	text: i18n.ts.share,
-	handler: (ev): void => {
-		const menuItems: MenuItem[] = [];
-
-		menuItems.push({
-			icon: 'ti ti-link',
-			text: i18n.ts.copyUrl,
-			action: () => {
-				copyToClipboard(`${url}/clips/${clip.value!.id}`);
-			},
-		}, {
-			icon: 'ti ti-code',
-			text: i18n.ts.embed,
-			action: () => {
-				genEmbedCode('clips', clip.value!.id);
-			},
-		});
-
-		if (isSupportShare()) {
-			menuItems.push({
-				icon: 'ti ti-share',
-				text: i18n.ts.share,
-				action: async () => {
-					navigator.share({
-						title: clip.value!.name,
-						text: clip.value!.description ?? '',
-						url: `${url}/clips/${clip.value!.id}`,
-					});
-				},
-			});
-		}
-
-		os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
+	handler: (): void => {
+		if (!clip.value) return;
+		const target = clip.value;
+		openShareDialog({
+			title: target.name,
+			text: target.description ?? undefined,
+			url: `${url}/clips/${target.id}`,
+		}, { embed: () => genEmbedCode('clips', target.id) });
 	},
 }] satisfies PageHeaderItem[] : []), {
 	icon: 'ti ti-trash',

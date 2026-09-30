@@ -16,14 +16,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<template #header>{{ i18n.ts.notificationSetting }}</template>
 
-	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
+	<div class="_spacer _spacerCard">
 		<div class="_gaps_m">
 			<MkInfo>{{ i18n.ts.notificationSettingDesc }}</MkInfo>
 			<div class="_buttons">
 				<MkButton inline @click="disableAll">{{ i18n.ts.disableAll }}</MkButton>
 				<MkButton inline @click="enableAll">{{ i18n.ts.enableAll }}</MkButton>
 			</div>
-			<MkSwitch v-for="ntype in notificationTypes" :key="ntype" v-model="typesMap[ntype].value">{{ i18n.ts._notification._types[ntype] }}</MkSwitch>
+			<MkSwitch v-for="ntype in notificationTypes" :key="ntype" v-model="typesMap[ntype].value">{{ getNotificationTypeLabel(ntype) }}</MkSwitch>
 		</div>
 	</div>
 </MkModalWindow>
@@ -38,6 +38,7 @@ import MkButton from './MkButton.vue';
 import type { Ref } from 'vue';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import { i18n } from '@/i18n.js';
+import { getNotificationTypeLabel } from '@/utility/notification-types.js';
 
 type TypesMap = Record<typeof notificationTypes[number], Ref<boolean>>;
 

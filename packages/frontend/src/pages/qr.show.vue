@@ -6,21 +6,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.root">
 	<div :class="[$style.content]">
-		<div
-			ref="qrCodeEl" v-flip :style="{
-				'cursor': canShare ? 'pointer' : 'default',
-			}"
+		<button
+			ref="qrCodeEl" v-flip type="button" class="_button" :aria-label="i18n.ts.share"
 			:class="$style.qr" @click="share"
-		></div>
+		></button>
 		<div v-flip :class="$style.user">
-			<MkAvatar :class="$style.avatar" :user="$i" :indicator="false"/>
+			<MkAvatar :class="$style.avatar" :user="user" :indicator="false"/>
 			<div>
-				<div :class="$style.name"><MkCondensedLine :minScale="2 / 3"><MkUserName :user="$i" :nowrap="true"/></MkCondensedLine></div>
+				<div :class="$style.name"><MkCondensedLine :minScale="2 / 3"><MkUserName :user="user" :nowrap="true"/></MkCondensedLine></div>
 				<div><MkCondensedLine :minScale="2 / 3">{{ acct }}</MkCondensedLine></div>
 			</div>
 		</div>
-		<img v-if="deviceMotionPermissionNeeded" v-flip :class="$style.logo" :src="misskeysvg" alt="Misskey Logo" @click="requestDeviceMotion"/>
-		<img v-else v-flip :class="$style.logo" :src="misskeysvg" alt="Misskey Logo"/>
+		<img v-if="deviceMotionPermissionNeeded" v-flip :class="$style.logo" :src="misskeysvg" alt="Misskey" @click="requestDeviceMotion"/>
+		<img v-else v-flip :class="$style.logo" :src="misskeysvg" alt="Misskey"/>
 	</div>
 </div>
 </template>
@@ -28,26 +26,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import tinycolor from 'tinycolor2';
 import QRCodeStyling from 'qr-code-styling';
-import { computed, ref, shallowRef, watch, onMounted, onUnmounted, useTemplateRef } from 'vue';
-import { url, host } from '@@/js/config.js';
+import { computed, ref, watch, onMounted, onUnmounted, useTemplateRef } from 'vue';
+import { host } from '@@/js/config.js';
 import type { Directive } from 'vue';
+import type * as Misskey from 'misskey-js';
 import { instance } from '@/instance.js';
 import { ensureSignin } from '@/i.js';
 import { userPage, userName } from '@/filters/user.js';
 import misskeysvg from '/client-assets/misskey.svg';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
 import { i18n } from '@/i18n.js';
+import { openShareDialog } from '@/utility/share-dialog.js';
 
-const $i = ensureSignin();
+const props = defineProps<{
+	user?: Misskey.entities.UserDetailed;
+}>();
 
-const acct = computed(() => `@${$i.username}@${host}`);
-const userProfileUrl = computed(() => userPage($i, undefined, true));
+const user = computed(() => props.user ?? ensureSignin());
+const acct = computed(() => `@${user.value.username}@${user.value.host ?? host}`);
+const userProfileUrl = computed(() => userPage(user.value, undefined, true));
 const shareData = computed(() => ({
-	title: i18n.tsx._qr.shareTitle({ name: userName($i), acct: acct.value }),
-	text: i18n.ts._qr.shareText,
+	title: i18n.tsx._qr.shareTitle({ name: userName(user.value), acct: acct.value }),
+	text: props.user ? i18n.ts._qr.userShareText : i18n.ts._qr.shareText,
 	url: userProfileUrl.value,
 }));
-const canShare = computed(() => navigator.canShare && navigator.canShare(shareData.value));
 
 const qrCodeEl = useTemplateRef('qrCodeEl');
 
@@ -55,8 +57,7 @@ const qrColor = computed(() => tinycolor(instance.themeColor ?? '#86b300'));
 const qrHsl = computed(() => qrColor.value.toHsl());
 
 function share() {
-	if (!canShare.value) return;
-	return navigator.share(shareData.value);
+	openShareDialog(shareData.value);
 }
 
 const qrCodeInstance = new QRCodeStyling({
@@ -64,7 +65,7 @@ const qrCodeInstance = new QRCodeStyling({
 	height: 600,
 	margin: 42,
 	type: 'canvas',
-	data: `${url}/users/${$i.id}`,
+	data: userProfileUrl.value,
 	image: instance.iconUrl ? getStaticImageUrl(instance.iconUrl) : '/favicon.ico',
 	qrOptions: {
 		typeNumber: 0,
@@ -91,6 +92,8 @@ const qrCodeInstance = new QRCodeStyling({
 		color: tinycolor(`hsl(${qrHsl.value.h}, 100, 97)`).toRgbString(),
 	},
 });
+
+watch(userProfileUrl, data => qrCodeInstance.update({ data }));
 
 onMounted(() => {
 	if (qrCodeEl.value != null) {

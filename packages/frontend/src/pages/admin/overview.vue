@@ -7,57 +7,57 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div class="_spacer" style="--MI_SPACER-w: 1000px;">
 	<div ref="rootEl" :class="$style.root">
 		<MkFoldableSection class="item">
-			<template #header>Stats</template>
+			<template #header>{{ i18n.ts.statistics }}</template>
 			<XStats/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Active users</template>
+			<template #header>{{ i18n.ts._charts.activeUsers }}</template>
 			<XActiveUsers/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Heatmap</template>
+			<template #header>{{ i18n.ts._dashboard.heatmap }}</template>
 			<XHeatmap/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Retention rate</template>
+			<template #header>{{ i18n.ts._dashboard.retentionRate }}</template>
 			<XRetention/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Moderators</template>
+			<template #header>{{ i18n.ts._dashboard.moderators }}</template>
 			<XModerators/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Federation</template>
+			<template #header>{{ i18n.ts.federation }}</template>
 			<XFederation/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Instances</template>
+			<template #header>{{ i18n.ts.instances }}</template>
 			<XInstances/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Ap requests</template>
+			<template #header>{{ i18n.ts._dashboard.apRequests }}</template>
 			<XApRequests/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>New users</template>
+			<template #header>{{ i18n.ts._dashboard.newUsers }}</template>
 			<XUsers/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Deliver queue</template>
+			<template #header>{{ i18n.ts._dashboard.deliverQueue }}</template>
 			<XQueue domain="deliver"/>
 		</MkFoldableSection>
 
 		<MkFoldableSection class="item">
-			<template #header>Inbox queue</template>
+			<template #header>{{ i18n.ts._dashboard.inboxQueue }}</template>
 			<XQueue domain="inbox"/>
 		</MkFoldableSection>
 	</div>
@@ -136,7 +136,7 @@ onMounted(async () => {
 					os.pageWindow(`/instance-info/${x.host}`);
 				},
 			})),
-			{ name: '(other)', color: '#80808080', value: res.otherFollowersCount },
+			{ name: i18n.ts.other, color: '#80808080', value: res.otherFollowersCount },
 		];
 		topPubInstancesForPie.value = [
 			...res.topPubInstances.map(x => ({
@@ -147,7 +147,7 @@ onMounted(async () => {
 					os.pageWindow(`/instance-info/${x.host}`);
 				},
 			})),
-			{ name: '(other)', color: '#80808080', value: res.otherFollowingCount },
+			{ name: i18n.ts.other, color: '#80808080', value: res.otherFollowingCount },
 		];
 	});
 
