@@ -189,7 +189,8 @@ function runSpdx(base, repoRoot) {
 }
 
 /**
- * ja-JP.yml 以外の locale YAML 変更がないかを検査する。
+ * ja-JP.yml / zh-CN.yml 以外の locale YAML 変更がないかを検査する。
+ * 本リポジトリでは ja-JP.yml に加えて zh-CN.yml の手動編集を AGENTS.md が許可している。
  *
  * @param {string[]} changedFiles
  * @returns {0 | 1}
@@ -198,7 +199,8 @@ function runLocaleSafety(changedFiles) {
 	const badLocales = changedFiles.filter((file) => (
 		file.startsWith('locales/') &&
 		file.endsWith('.yml') &&
-		file !== 'locales/ja-JP.yml'
+		file !== 'locales/ja-JP.yml' &&
+		file !== 'locales/zh-CN.yml'
 	));
 	if (badLocales.length === 0) {
 		console.log('Locale safety: PASS');

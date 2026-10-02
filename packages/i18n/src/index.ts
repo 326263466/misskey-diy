@@ -4156,7 +4156,7 @@ const translationOverrides: Partial<Record<Language, ILocale>> = {
 			invalidRegexp: '第 {line} 行的 RegExp 有误：',
 			muteWordsDescription2: 'RegExp 用斜线包裹',
 		},
-		headlineMisskey: '在这里，兴趣有回声',
+		headlineMisskey: '因兴趣相聚，为热爱停留',
 		gotIt: '确定',
 		noThankYou: '暂不',
 		noAccountDescription: '暂无个人简介',

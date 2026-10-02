@@ -376,7 +376,7 @@ export interface Locale extends ILocale {
         "pendingLocked": string;
     };
     /**
-     * 在这里，兴趣有回声
+     * 因兴趣相聚，为热爱停留
      */
     "headlineMisskey": string;
     /**

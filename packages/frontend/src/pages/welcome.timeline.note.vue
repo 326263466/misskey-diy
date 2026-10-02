@@ -100,8 +100,10 @@ onUpdated(() => {
 
 .reactions {
 	box-sizing: border-box;
-	margin: 8px -16px -8px;
-	padding: 8px 16px 0;
+	// 上方间距来自 _gaps_s 的行间距(10px)，内边距用同样的 10px 让分割线上下等距；
+	// 底部不收紧，保持与无回应卡片相同的 16px 底边距
+	margin: 0 -16px 0;
+	padding: 10px 16px 0;
 	width: calc(100% + 32px);
 	border-top: 1px solid var(--MI_THEME-divider);
 }
