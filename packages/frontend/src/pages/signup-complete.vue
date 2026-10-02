@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.banner">
 				<i class="ti ti-user-check"></i>
 			</div>
-			<div class="_gaps_m" style="padding: 32px;">
+			<div class="_gaps_m" style="padding: var(--MI-cardPadding);">
 				<div>{{ i18n.tsx.clickToFinishEmailVerification({ ok: i18n.ts.gotIt }) }}</div>
 				<div>
 					<MkButton gradate large rounded type="submit" :disabled="submitting" data-testid="admin-ok" style="margin: 0 auto;">

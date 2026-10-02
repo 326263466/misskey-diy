@@ -4,12 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
-		<div v-if="initializing || message == null">
+<PageWithHeader contentCard>
+	<div class="_pageBody">
+		<div v-if="initializing">
 			<MkLoading/>
 		</div>
-		<div v-else>
+		<MkError v-else-if="error" @retry="initialize"/>
+		<div v-else-if="message">
 			<XMessage :message="message" :isSearchResult="true"/>
 		</div>
 	</div>
@@ -30,15 +31,21 @@ const props = defineProps<{
 
 const initializing = ref(true);
 const message = ref<Misskey.entities.ChatMessage | null>();
+const error = ref(false);
 
 async function initialize() {
 	initializing.value = true;
+	error.value = false;
 
-	message.value = await misskeyApi('chat/messages/show', {
-		messageId: props.messageId,
-	});
-
-	initializing.value = false;
+	try {
+		message.value = await misskeyApi('chat/messages/show', {
+			messageId: props.messageId,
+		});
+	} catch {
+		error.value = true;
+	} finally {
+		initializing.value = false;
+	}
 }
 
 onMounted(() => {

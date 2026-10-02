@@ -142,7 +142,7 @@ defineExpose<WidgetComponentExpose>({
 	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
 	align-items: center;
 	column-gap: 12px;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 }
 
 .calendar {
@@ -200,7 +200,7 @@ defineExpose<WidgetComponentExpose>({
 	margin: 0 0 2px 0;
 	font-size: 0.75em;
 	line-height: 18px;
-	opacity: 0.8;
+	color: var(--MI_THEME-fgTransparent);
 }
 
 .percentage {

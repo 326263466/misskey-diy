@@ -86,6 +86,7 @@ onMounted(() => {
 }
 
 .passkeyDescription {
+	color: var(--MI_THEME-fgTransparentWeak);
 	text-align: center;
 	font-size: 1.1em;
 }

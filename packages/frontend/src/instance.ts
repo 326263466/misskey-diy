@@ -38,9 +38,10 @@ export async function fetchInstance(force = false): Promise<Misskey.entities.Met
 		}
 	}
 
+	// Public bootstrap data must remain available when the cached login token is invalid.
 	const meta = await misskeyApi('meta', {
 		detail: true,
-	});
+	}, null);
 
 	for (const [k, v] of Object.entries(meta)) {
 		(instance[k as keyof typeof meta] as any) = v;

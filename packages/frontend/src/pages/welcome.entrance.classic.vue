@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.shape2"></div>
 	<div :class="$style.logoWrapper">
 		<div :class="$style.poweredBy">Powered by</div>
-		<img :src="misskeysvg" :class="$style.misskey"/>
+		<span role="img" aria-label="Misskey" :class="$style.misskey" :style="{ maskImage: `url(${misskeysvg})` }"></span>
 	</div>
 	<div :class="$style.contents">
 		<MkVisitorDashboard/>
@@ -19,7 +19,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div v-if="instances && instances.length > 0" :class="$style.federation">
 		<MkMarqueeText :duration="40">
 			<MkA v-for="instance in instances" :key="instance.id" :class="$style.federationInstance" :to="`/instance-info/${instance.host}`" behavior="window">
-				<!--<MkInstanceCardMini :instance="instance"/>-->
 				<img v-if="instance.iconUrl" :class="$style.federationInstanceIcon" :src="getInstanceIcon(instance)" alt=""/>
 				<span class="_monospace">{{ instance.host }}</span>
 			</MkA>
@@ -120,8 +119,7 @@ misskeyApiGet('federation/instances', {
 	position: fixed;
 	top: 36px;
 	left: 36px;
-	flex: auto;
-	color: #fff;
+	color: var(--MI_THEME-fgOnAccent);
 	user-select: none;
 	pointer-events: none;
 }
@@ -131,7 +129,12 @@ misskeyApiGet('federation/instances', {
 }
 
 .misskey {
+	display: block;
 	width: 120px;
+	aspect-ratio: 515 / 136;
+	background: currentColor;
+	mask-size: contain;
+	mask-repeat: no-repeat;
 
 	@media (max-width: 450px) {
 		width: 100px;

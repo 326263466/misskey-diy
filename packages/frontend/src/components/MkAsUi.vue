@@ -173,6 +173,9 @@ function openPostForm() {
 }
 
 .container {
+	// Script-defined containers own their padding and borders.
+	--MI-formGroupInset: 0px;
+	--MI-formGroupRadius: initial;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;

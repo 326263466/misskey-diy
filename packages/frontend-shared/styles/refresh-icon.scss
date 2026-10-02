@@ -1,0 +1,16 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+// Share the offline page's SVG, including icons supplied by menu items.
+.ti.ti-refresh::before,
+.ti.ti-reload::before {
+	content: '';
+	display: inline-block;
+	width: 1em;
+	height: 1em;
+	vertical-align: -.125em;
+	background-color: currentColor;
+	mask: url('../icons/refresh.svg') center / contain no-repeat;
+}

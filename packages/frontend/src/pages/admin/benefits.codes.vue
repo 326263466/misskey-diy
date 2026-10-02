@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<p v-else-if="codes.length === 0" :class="$style.description">{{ i18n.ts._benefits.codeListEmpty }}</p>
 		<div v-else :class="$style.tableScroll" tabindex="0" :aria-label="i18n.ts._benefits.codeList">
 			<table :class="$style.table">
-				<thead><tr><th scope="col">{{ i18n.ts._benefits.codeName }}</th><th scope="col">{{ i18n.ts._benefits.code }}</th><th scope="col">{{ i18n.ts._benefits.cardsPerClaim }}</th><th scope="col">{{ i18n.ts._benefits.codeClaims }}</th><th scope="col">{{ i18n.ts.status }}</th><th scope="col">{{ i18n.ts.expirationDate }}</th><th scope="col">{{ i18n.ts.operations }}</th></tr></thead>
+				<thead><tr><th scope="col">{{ i18n.ts._benefits.codeName }}</th><th scope="col">{{ i18n.ts._benefits.code }}</th><th scope="col">{{ i18n.ts._benefits.cardsPerClaim }}</th><th scope="col">{{ i18n.ts._benefits.codeClaims }}</th><th scope="col">{{ i18n.ts.state }}</th><th scope="col">{{ i18n.ts.expirationDate }}</th><th scope="col">{{ i18n.ts.operations }}</th></tr></thead>
 				<tbody>
 					<tr v-for="entry in codes" :key="entry.id" :data-testid="`benefit-code-${entry.id}`">
 						<td :class="$style.name">{{ entry.name }}</td>
@@ -310,7 +310,7 @@ onUnmounted(() => { active = false; codesRequest++; claimsRequest++; window.clea
 </script>
 
 <style lang="scss" module>
-.section { min-width: 0; padding: calc(var(--MI-margin) * 1.5); }
+.section { min-width: 0; padding: var(--MI-cardPadding); }
 .section h2 { margin: 0; font-size: 1.05em; overflow-wrap: anywhere; }
 .heading, .toolbar, .pagination { display: flex; align-items: center; flex-wrap: wrap; gap: var(--MI-marginHalf); }
 .heading { justify-content: space-between; }
@@ -339,8 +339,5 @@ onUnmounted(() => { active = false; codesRequest++; claimsRequest++; window.clea
 @media (max-width: 700px) {
 	.formFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	.formFields > :first-child { grid-column: 1 / -1; }
-}
-@media (max-width: 500px) {
-	.section { padding: var(--MI-margin); }
 }
 </style>

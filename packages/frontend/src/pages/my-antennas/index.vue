@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions">
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+<PageWithHeader contentCard :actions="headerActions">
+	<div class="_pageBody">
 		<div>
 			<MkResult v-if="antennas.length === 0" type="empty"/>
 
@@ -63,7 +63,7 @@ onActivated(() => {
 
 .antenna {
 	display: block;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	border: solid 1px var(--MI_THEME-divider);
 	border-radius: 6px;
 

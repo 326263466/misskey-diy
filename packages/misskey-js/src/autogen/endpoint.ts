@@ -160,6 +160,11 @@ import type {
 	AdminUpdateProxyAccountRequest,
 	AdminUpdateProxyAccountResponse,
 	AdminUpdateUserNoteRequest,
+	AdminWalletAdjustRequest,
+	AdminWalletAdjustResponse,
+	AdminWalletShowSettingsResponse,
+	AdminWalletUpdateSettingsRequest,
+	AdminWalletUpdateSettingsResponse,
 	AnnouncementsRequest,
 	AnnouncementsResponse,
 	AnnouncementsShowRequest,
@@ -360,6 +365,15 @@ import type {
 	FederationUpdateRemoteUserRequest,
 	FederationUsersRequest,
 	FederationUsersResponse,
+	FeedbackCreateRequest,
+	FeedbackCreateResponse,
+	FeedbackDeleteRequest,
+	FeedbackListRequest,
+	FeedbackListResponse,
+	FeedbackShowRequest,
+	FeedbackShowResponse,
+	FeedbackUpdateRequest,
+	FeedbackUpdateResponse,
 	FetchExternalResourcesRequest,
 	FetchExternalResourcesResponse,
 	FetchRssRequest,
@@ -503,6 +517,11 @@ import type {
 	IUpdateResponse,
 	IUpdateEmailRequest,
 	IUpdateEmailResponse,
+	IWalletResponse,
+	IWalletExchangeRequest,
+	IWalletExchangeResponse,
+	IWalletTransactionsRequest,
+	IWalletTransactionsResponse,
 	IWebhooksCreateRequest,
 	IWebhooksCreateResponse,
 	IWebhooksDeleteRequest,
@@ -610,6 +629,14 @@ import type {
 	PingResponse,
 	PinnedUsersResponse,
 	PromoReadRequest,
+	RedPacketsClaimRequest,
+	RedPacketsClaimResponse,
+	RedPacketsCreateRequest,
+	RedPacketsCreateResponse,
+	RedPacketsListRequest,
+	RedPacketsListResponse,
+	RedPacketsShowRequest,
+	RedPacketsShowResponse,
 	RenoteMuteCreateRequest,
 	RenoteMuteDeleteRequest,
 	RenoteMuteListRequest,
@@ -824,6 +851,9 @@ export type Endpoints = {
 	'admin/update-meta': { req: AdminUpdateMetaRequest; res: EmptyResponse };
 	'admin/update-proxy-account': { req: AdminUpdateProxyAccountRequest; res: AdminUpdateProxyAccountResponse };
 	'admin/update-user-note': { req: AdminUpdateUserNoteRequest; res: EmptyResponse };
+	'admin/wallet/adjust': { req: AdminWalletAdjustRequest; res: AdminWalletAdjustResponse };
+	'admin/wallet/show-settings': { req: EmptyRequest; res: AdminWalletShowSettingsResponse };
+	'admin/wallet/update-settings': { req: AdminWalletUpdateSettingsRequest; res: AdminWalletUpdateSettingsResponse };
 	'announcements': { req: AnnouncementsRequest; res: AnnouncementsResponse };
 	'announcements/show': { req: AnnouncementsShowRequest; res: AnnouncementsShowResponse };
 	'antennas/create': { req: AntennasCreateRequest; res: AntennasCreateResponse };
@@ -944,6 +974,11 @@ export type Endpoints = {
 	'federation/stats': { req: FederationStatsRequest; res: FederationStatsResponse };
 	'federation/update-remote-user': { req: FederationUpdateRemoteUserRequest; res: EmptyResponse };
 	'federation/users': { req: FederationUsersRequest; res: FederationUsersResponse };
+	'feedback/create': { req: FeedbackCreateRequest; res: FeedbackCreateResponse };
+	'feedback/delete': { req: FeedbackDeleteRequest; res: EmptyResponse };
+	'feedback/list': { req: FeedbackListRequest; res: FeedbackListResponse };
+	'feedback/show': { req: FeedbackShowRequest; res: FeedbackShowResponse };
+	'feedback/update': { req: FeedbackUpdateRequest; res: FeedbackUpdateResponse };
 	'fetch-external-resources': { req: FetchExternalResourcesRequest; res: FetchExternalResourcesResponse };
 	'fetch-rss': { req: FetchRssRequest; res: FetchRssResponse };
 	'flash/create': { req: FlashCreateRequest; res: FlashCreateResponse };
@@ -1040,6 +1075,9 @@ export type Endpoints = {
 	'i/unpin': { req: IUnpinRequest; res: IUnpinResponse };
 	'i/update': { req: IUpdateRequest; res: IUpdateResponse };
 	'i/update-email': { req: IUpdateEmailRequest; res: IUpdateEmailResponse };
+	'i/wallet': { req: EmptyRequest; res: IWalletResponse };
+	'i/wallet/exchange': { req: IWalletExchangeRequest; res: IWalletExchangeResponse };
+	'i/wallet/transactions': { req: IWalletTransactionsRequest; res: IWalletTransactionsResponse };
 	'i/webhooks/create': { req: IWebhooksCreateRequest; res: IWebhooksCreateResponse };
 	'i/webhooks/delete': { req: IWebhooksDeleteRequest; res: EmptyResponse };
 	'i/webhooks/list': { req: EmptyRequest; res: IWebhooksListResponse };
@@ -1112,6 +1150,10 @@ export type Endpoints = {
 	'ping': { req: EmptyRequest; res: PingResponse };
 	'pinned-users': { req: EmptyRequest; res: PinnedUsersResponse };
 	'promo/read': { req: PromoReadRequest; res: EmptyResponse };
+	'red-packets/claim': { req: RedPacketsClaimRequest; res: RedPacketsClaimResponse };
+	'red-packets/create': { req: RedPacketsCreateRequest; res: RedPacketsCreateResponse };
+	'red-packets/list': { req: RedPacketsListRequest; res: RedPacketsListResponse };
+	'red-packets/show': { req: RedPacketsShowRequest; res: RedPacketsShowResponse };
 	'renote-mute/create': { req: RenoteMuteCreateRequest; res: EmptyResponse };
 	'renote-mute/delete': { req: RenoteMuteDeleteRequest; res: EmptyResponse };
 	'renote-mute/list': { req: RenoteMuteListRequest; res: RenoteMuteListResponse };

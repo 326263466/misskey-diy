@@ -50,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #caption>{{ lightThemeName }}</template>
 
 						<div class="_gaps_m">
-							<FormSection v-if="instanceLightTheme != null" first>
+							<FormSection v-if="instanceLightTheme != null">
 								<template #label>{{ i18n.ts._theme.instanceTheme }}</template>
 								<div :class="$style.themeSelect">
 									<div :class="$style.themeItemOuter">
@@ -70,7 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</div>
 							</FormSection>
 
-							<FormSection v-if="installedLightThemes.length > 0" :first="instanceLightTheme == null">
+							<FormSection v-if="installedLightThemes.length > 0">
 								<template #label>{{ i18n.ts._theme.installedThemes }}</template>
 								<div :class="$style.themeSelect">
 									<div v-for="theme in installedLightThemes" :class="$style.themeItemOuter">
@@ -90,7 +90,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</div>
 							</FormSection>
 
-							<FormSection :first="installedLightThemes.length === 0 && instanceLightTheme == null">
+							<FormSection>
 								<template #label>{{ i18n.ts._theme.builtinThemes }}</template>
 								<div :class="$style.themeSelect">
 									<div v-for="theme in builtinLightThemes" :class="$style.themeItemOuter">
@@ -121,7 +121,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #caption>{{ darkThemeName }}</template>
 
 						<div class="_gaps_m">
-							<FormSection v-if="instanceDarkTheme != null" first>
+							<FormSection v-if="instanceDarkTheme != null">
 								<template #label>{{ i18n.ts._theme.instanceTheme }}</template>
 								<div :class="$style.themeSelect">
 									<div :class="$style.themeItemOuter">
@@ -141,7 +141,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</div>
 							</FormSection>
 
-							<FormSection v-if="installedDarkThemes.length > 0" :first="instanceDarkTheme == null">
+							<FormSection v-if="installedDarkThemes.length > 0">
 								<template #label>{{ i18n.ts._theme.installedThemes }}</template>
 								<div :class="$style.themeSelect">
 									<div v-for="theme in installedDarkThemes" :class="$style.themeItemOuter">
@@ -161,7 +161,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</div>
 							</FormSection>
 
-							<FormSection :first="installedDarkThemes.length === 0 && instanceDarkTheme == null">
+							<FormSection>
 								<template #label>{{ i18n.ts._theme.builtinThemes }}</template>
 								<div :class="$style.themeSelect">
 									<div v-for="theme in builtinDarkThemes" :class="$style.themeItemOuter">
@@ -208,7 +208,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, ref, watch } from 'vue';
 import JSON5 from 'json5';
 import defaultLightTheme from '@@/themes/l-light.json5';
-import defaultDarkTheme from '@@/themes/d-green-lime.json5';
+import defaultDarkTheme from '@@/themes/d-dark.json5';
 import { isSafeMode } from '@@/js/config.js';
 import type { Theme } from '@@/js/theme.js';
 import * as os from '@/os.js';
@@ -375,7 +375,7 @@ definePage(() => ({
 <style module>
 .themeSelect {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
 	gap: var(--MI-margin);
 }
 

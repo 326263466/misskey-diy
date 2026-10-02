@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<img v-if="instance.serverErrorImageUrl" :src="instance.serverErrorImageUrl" draggable="false" :class="$style.img"/>
 		<div class="_gaps">
 			<div><b><i class="ti ti-alert-triangle"></i> {{ i18n.ts.pageLoadError }}</b></div>
-			<div v-if="meta && (version === meta.version)">{{ i18n.ts.pageLoadErrorDescription }}</div>
+			<div v-if="meta && (version === meta.version)" style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.pageLoadErrorDescription }}</div>
 			<div v-else-if="serverIsDead">{{ i18n.ts.serverIsDead }}</div>
 			<template v-else>
 				<div>{{ i18n.ts.newVersionOfClientAvailable }}</div>
@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkButton style="margin: 8px auto;" @click="reload">{{ i18n.ts.reload }}</MkButton>
 			</template>
 			<div><MkLink url="https://misskey-hub.net/docs/for-users/resources/troubleshooting/" target="_blank">{{ i18n.ts.troubleshooting }}</MkLink></div>
-			<div v-if="error" style="opacity: 0.7;">{{ i18n.ts.error }}: {{ error }}</div>
+			<div v-if="error" style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.error }}: {{ error }}</div>
 		</div>
 	</div>
 </Transition>

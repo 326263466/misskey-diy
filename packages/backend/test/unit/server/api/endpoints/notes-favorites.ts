@@ -21,22 +21,33 @@ function createEndpoints() {
 	const getter = { getNote: vi.fn().mockResolvedValue(note) };
 	const events = { publishNoteStream: vi.fn() };
 	const achievements = { create: vi.fn() };
+	const visibility = { isVisibleForMe: vi.fn().mockResolvedValue(true) };
 	const create = new CreateFavoriteEndpoint(
 		repository as never,
 		{ gen: () => 'favorite' } as never,
 		getter as never,
 		achievements as never,
 		events as never,
+		visibility as never,
 	);
 	const remove = new DeleteFavoriteEndpoint(repository as never, getter as never, events as never);
 	return {
-		note, repository, events,
+		note, repository, events, visibility,
 		create: () => create.exec({ noteId: note.id }, me, null),
 		remove: () => remove.exec({ noteId: note.id }, me, null),
 	};
 }
 
 describe('favorite statistic notifications', () => {
+	test('rejects inaccessible notes before querying favorites or publishing statistics', async () => {
+		const endpoints = createEndpoints();
+		endpoints.visibility.isVisibleForMe.mockResolvedValueOnce(false);
+		await expect(endpoints.create()).rejects.toMatchObject({ code: 'NO_SUCH_NOTE' });
+		expect(endpoints.repository.exists).not.toHaveBeenCalled();
+		expect(endpoints.repository.insert).not.toHaveBeenCalled();
+		expect(endpoints.events.publishNoteStream).not.toHaveBeenCalled();
+	});
+
 	test.each(['create', 'remove'] as const)('broadcasts %s only after persistence succeeds', async action => {
 		const endpoints = createEndpoints();
 		const write = action === 'create' ? endpoints.repository.insert : endpoints.repository.delete;

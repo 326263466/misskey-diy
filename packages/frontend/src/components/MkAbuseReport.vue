@@ -13,8 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 	<template #label>
 		<span :class="$style.reportLabel">
-			<MkAcct v-if="report.targetUser" :user="report.targetUser"/>
-			<span v-else>{{ targetAccount }}</span>
+			<span>{{ targetAccount }}</span>
 			<span :class="[$style.status, resolved ? $style.resolved : $style.unresolved]">{{ statusLabel }}</span>
 		</span>
 	</template>
@@ -36,70 +35,46 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 
 	<div :class="$style.details">
-		<MkFolder v-if="report.targetUser && targetRouter" :withSpacer="false" :canPage="false">
-			<template #icon><MkAvatar :user="report.targetUser" style="width: 18px; height: 18px;"/></template>
-			<template #label>{{ i18n.ts._abuseUserReport.reportedUser }}: <MkAcct :user="report.targetUser"/></template>
-
-			<div style="height: 300px; --MI-stickyTop: 0; --MI-stickyBottom: 0;">
-				<RouterView :router="targetRouter"/>
-			</div>
-		</MkFolder>
-
-		<MkFolder :defaultOpen="true" :canPage="false">
-			<template #icon><i class="ti ti-message-2"></i></template>
-			<template #label>{{ i18n.ts.details }}</template>
-			<div :class="$style.reportSections">
-				<section v-if="snapshot">
-					<h3 :class="$style.heading">{{ i18n.ts._abuseUserReport.snapshot }}</h3>
-					<div :class="$style.content" class="_gaps_s">
-						<div :class="$style.snapshotUser" class="_selectable">
-							<strong v-if="snapshot.user.name">{{ snapshot.user.name }}</strong>
-							<span>@{{ snapshot.user.username }}<template v-if="snapshot.user.host">@{{ snapshot.user.host }}</template></span>
-						</div>
-						<div :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotCapturedAt }}: <MkTime :time="snapshot.capturedAt" mode="absolute"/></div>
-						<div v-if="snapshot.content" :class="$style.text" class="_selectable">{{ snapshot.content }}</div>
-						<a v-if="snapshotSourceUrl" :href="snapshotSourceUrl" :class="$style.contentLink" class="_link" target="_blank" rel="noopener noreferrer">{{ snapshot.sourceUrl }}</a>
-						<div v-if="snapshotFiles.length > 0" class="_gaps_s">
-							<h4 :class="$style.heading">{{ i18n.ts._abuseUserReport.snapshotFiles }}</h4>
-							<ul :class="$style.snapshotFiles">
-								<li v-for="file in snapshotFiles" :key="file.id" class="_gaps_s">
-									<button class="_button _textButton" :class="$style.evidenceDownload" :disabled="!$i || downloadingFiles.has(file.id)" :aria-label="`${i18n.ts.download}: ${file.name}`" @click="downloadEvidence(file)">
-										<i class="ti ti-download" aria-hidden="true"></i> {{ file.name }}
-									</button>
-									<span :class="$style.hint">{{ file.type }} · {{ bytes(file.size) }}</span>
-									<span :class="$style.hint">{{ i18n.ts._abuseUserReport.fileHash }}: <code>{{ file.sha256 }}</code></span>
-									<span v-if="file.comment" :class="$style.text" class="_selectable">{{ file.comment }}</span>
-								</li>
-							</ul>
-							<div :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotFilesDescription }}</div>
-						</div>
+		<div :class="$style.reportSections">
+			<section v-if="snapshot">
+				<h3 :class="$style.heading">{{ snapshot.type === 'user' ? i18n.ts._abuseUserReport.profileSnapshot : i18n.ts._abuseUserReport.snapshot }}</h3>
+				<div :class="$style.content" class="_gaps_s">
+					<div :class="$style.snapshotUser" class="_selectable">
+						<strong v-if="snapshot.user.name">{{ snapshot.user.name }}</strong>
+						<span>@{{ snapshot.user.username }}<template v-if="snapshot.user.host">@{{ snapshot.user.host }}</template></span>
 					</div>
-				</section>
-				<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotUnavailable }}</div>
-				<section>
-					<h3 :class="$style.heading">{{ i18n.ts._abuseReport.selectReason }}</h3>
-					<span v-if="report.reason" :class="$style.reason">{{ i18n.ts._abuseReport._reasons[report.reason] }}</span>
-					<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.reasonNotProvided }}</div>
-				</section>
-				<section>
-					<h3 :class="$style.heading">{{ i18n.ts._abuseReport.description }}</h3>
-					<div v-if="report.comment" :class="[$style.content, $style.text]" class="_selectable">
-						<Mfm :text="report.comment" :linkNavigationBehavior="'window'"/>
+					<div :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotCapturedAt }}: <MkTime :time="snapshot.capturedAt" mode="absolute"/></div>
+					<div v-if="snapshot.content" :class="$style.text" class="_selectable">{{ snapshot.content }}</div>
+					<div v-else-if="snapshotFiles.length === 0" :class="$style.hint">{{ snapshot.type === 'user' ? i18n.ts._abuseUserReport.profileSnapshotEmpty : i18n.ts._abuseUserReport.snapshotEmpty }}</div>
+					<div v-if="snapshotFiles.length > 0" class="_gaps_s">
+						<h4 :class="$style.heading">{{ i18n.ts._abuseUserReport.snapshotFiles }}</h4>
+						<ul :class="$style.snapshotFiles">
+							<li v-for="file in snapshotFiles" :key="file.id" class="_gaps_s">
+								<button class="_button _textButton" :class="$style.evidenceDownload" :disabled="!$i || downloadingFiles.has(file.id)" :aria-label="`${i18n.ts.download}: ${file.name}`" @click="downloadEvidence(file)">
+									<i class="ti ti-download" aria-hidden="true"></i> {{ file.name }}
+								</button>
+								<span :class="$style.hint">{{ file.type }} · {{ bytes(file.size) }}</span>
+								<span :class="$style.hint">{{ i18n.ts._abuseUserReport.fileHash }}: <code>{{ file.sha256 }}</code></span>
+								<span v-if="file.comment" :class="$style.text" class="_selectable">{{ file.comment }}</span>
+							</li>
+						</ul>
+						<div :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotFilesDescription }}</div>
 					</div>
-					<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.noDescription }}</div>
-				</section>
-			</div>
-		</MkFolder>
-
-		<MkFolder v-if="report.reporter && reporterRouter" :withSpacer="false" :canPage="false">
-			<template #icon><MkAvatar :user="report.reporter" style="width: 18px; height: 18px;"/></template>
-			<template #label>{{ i18n.ts.reporter }}: <MkAcct :user="report.reporter"/></template>
-
-			<div style="height: 300px; --MI-stickyTop: 0; --MI-stickyBottom: 0;">
-				<RouterView :router="reporterRouter"/>
-			</div>
-		</MkFolder>
-		<div v-else>{{ i18n.ts.reporter }}: #{{ report.reporterId }}</div>
+				</div>
+			</section>
+			<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotUnavailable }}</div>
+			<section>
+				<h3 :class="$style.heading">{{ i18n.ts._abuseReport.selectReason }}</h3>
+				<span v-if="report.reason" :class="$style.reason">{{ i18n.ts._abuseReport._reasons[report.reason] }}</span>
+				<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.reasonNotProvided }}</div>
+			</section>
+			<section>
+				<h3 :class="$style.heading">{{ i18n.ts._abuseReport.description }}</h3>
+				<div v-if="report.comment" :class="[$style.content, $style.text]" class="_selectable">{{ report.comment }}</div>
+				<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.noDescription }}</div>
+			</section>
+		</div>
+		<div>{{ i18n.ts.reporter }}: <MkAcct v-if="report.reporter" :user="report.reporter"/><template v-else>#{{ report.reporterId }}</template></div>
 
 		<MkModerationNote v-model="moderationNote" :save="saveModerationNote"/>
 
@@ -119,10 +94,8 @@ import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import MkFolder from '@/components/MkFolder.vue';
-import RouterView from '@/components/global/RouterView.vue';
 import MkModerationNote from '@/components/MkModerationNote.vue';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
-import { createRouter } from '@/router.js';
 import bytes from '@/filters/bytes.js';
 import { $i } from '@/i.js';
 
@@ -136,8 +109,10 @@ const emit = defineEmits<{
 }>();
 
 const snapshot = computed(() => props.report.snapshot);
-const targetAccount = computed(() => snapshot.value ? `@${snapshot.value.user.username}${snapshot.value.user.host ? `@${snapshot.value.user.host}` : ''}` : `#${props.report.targetUserId}`);
-const snapshotSourceUrl = computed(() => safeUrl(snapshot.value?.sourceUrl));
+const targetAccount = computed(() => {
+	const user = snapshot.value?.user ?? props.report.targetUser;
+	return user ? `@${user.username}${user.host ? `@${user.host}` : ''}` : `#${props.report.targetUserId}`;
+});
 const snapshotFiles = computed(() => snapshot.value?.files ?? []);
 const downloadingFiles = ref(new Set<string>());
 const localResolution = ref<{ resolvedAs: 'accept' | 'reject' | null } | null>(null);
@@ -148,16 +123,6 @@ const forwarding = ref(false);
 const forwardedLocally = ref(false);
 const forwarded = computed(() => props.report.forwarded || forwardedLocally.value);
 const moderating = computed(() => resolving.value || forwarding.value);
-
-function safeUrl(value: string | undefined): string | null {
-	if (value == null) return null;
-	try {
-		const parsed = new URL(value);
-		return (parsed.protocol === 'https:' || parsed.protocol === 'http:') && parsed.username === '' && parsed.password === '' ? parsed.href : null;
-	} catch {
-		return null;
-	}
-}
 
 async function downloadEvidence(file: NonNullable<typeof snapshot.value>['files'][number]) {
 	if ($i == null || downloadingFiles.value.has(file.id)) return;
@@ -201,11 +166,6 @@ const summary = computed(() => {
 	const text = [props.report.reason ? i18n.ts._abuseReport._reasons[props.report.reason] : null, props.report.comment || snapshot.value?.content].filter(Boolean).join(' · ');
 	return text.replace(/\s+/g, ' ').slice(0, 160);
 });
-
-const targetRouter = props.report.targetUser ? createRouter(`/admin/user/${props.report.targetUserId}`) : null;
-targetRouter?.init();
-const reporterRouter = props.report.reporter ? createRouter(`/admin/user/${props.report.reporterId}`) : null;
-reporterRouter?.init();
 
 const moderationNote = ref(props.report.moderationNote ?? '');
 
@@ -351,11 +311,6 @@ function showMenu(ev: PointerEvent) {
 .hint {
 	font-size: 0.85em;
 	color: var(--MI_THEME-fgTransparentWeak);
-}
-
-.contentLink {
-	font-size: 0.85em;
-	overflow-wrap: anywhere;
 }
 
 .reason {

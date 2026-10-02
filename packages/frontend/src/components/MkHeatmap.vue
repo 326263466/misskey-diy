@@ -138,7 +138,7 @@ function drawChart(values: number[], layout: HeatmapLayout) {
 	// Chart.defaults 只在模块加载时取过一次, 重绘要按当前主题重读
 	applyChartThemeDefaults();
 
-	const color = store.s.darkMode ? '#b4e900' : '#86b300';
+	const color = themeManager.currentCompiledTheme?.chartAccent ?? (store.s.darkMode ? '#b4e900' : '#86b300');
 
 	// 視覚上の分かりやすさのため上から最も大きい3つの値の平均を最大値とする
 	const max = values.slice().sort((a, b) => b - a).slice(0, 3).reduce((a, b) => a + b, 0) / 3;
@@ -158,7 +158,10 @@ function drawChart(values: number[], layout: HeatmapLayout) {
 				borderWidth: 0,
 				borderRadius: 3,
 				backgroundColor(c: any) {
-					const value = c.dataset.data[c.dataIndex].v as number;
+					if (c.type !== 'data') return 'transparent';
+					const point = c.dataset.data[c.dataIndex];
+					if (point == null) return 'transparent';
+					const value = point.v as number;
 					// GitHub 热力图风格: 无数据的日子也用中性浅色画出格子, 而不是留白
 					if (value === 0) {
 						return store.s.darkMode ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.08)';

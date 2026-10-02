@@ -144,7 +144,7 @@ defineExpose({
 	margin: 0 auto 0 auto;
 	width: 64px;
 	height: 64px;
-	background: #ddd;
+	background: var(--MI_THEME-bg);
 	background-position: center;
 	background-size: cover;
 	border-radius: 100%;
@@ -158,7 +158,7 @@ defineExpose({
 .instanceManualSelectButton {
 	display: block;
 	text-align: center;
-	opacity: .7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: .8em;
 
 	&:hover {

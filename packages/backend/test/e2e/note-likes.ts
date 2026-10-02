@@ -88,8 +88,8 @@ describe('note likes', () => {
 		expect((await api('notes/likes/create', { noteId: note.id }, bob)).status).toBe(200);
 		for (const viewer of [undefined, others[0]]) {
 			expect((await api('notes/likes', { noteId: note.id }, viewer)).status).toBe(400);
-			const state = (await api('notes/show-partial-bulk', { noteIds: [note.id] }, viewer)).body[0];
-			expect(state).toMatchObject({ likeCount: 0, isLiked: false, likeUsers: [] });
+			const state = (await api('notes/show-partial-bulk', { noteIds: [note.id] }, viewer)).body;
+			expect(state).toEqual([]);
 		}
 		expect((await api('notes/likes/create', { noteId: note.id }, others[0])).status).toBe(400);
 	});

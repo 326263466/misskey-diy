@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<MkFeaturedPhotos :class="$style.bg"/>
 	<div :class="$style.logoWrapper">
 		<div :class="$style.poweredBy">Powered by</div>
-		<img :src="misskeysvg" :class="$style.misskey"/>
+		<span role="img" aria-label="Misskey" :class="$style.misskey" :style="{ maskImage: `url(${misskeysvg})` }"></span>
 	</div>
 	<div :class="$style.contents">
 		<MkVisitorDashboard/>
@@ -44,8 +44,7 @@ import { instance as meta } from '@/instance.js';
 	position: fixed;
 	top: 36px;
 	left: 36px;
-	flex: auto;
-	color: #fff;
+	color: var(--MI_THEME-accent);
 	user-select: none;
 	pointer-events: none;
 }
@@ -55,7 +54,12 @@ import { instance as meta } from '@/instance.js';
 }
 
 .misskey {
+	display: block;
 	width: 120px;
+	aspect-ratio: 515 / 136;
+	background: currentColor;
+	mask-size: contain;
+	mask-repeat: no-repeat;
 
 	@media (max-width: 450px) {
 		width: 100px;

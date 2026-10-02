@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div class="_pageBody">
 		<div class="_gaps">
 			<MkInfo v-if="$i && $i.hasUnreadAnnouncement && tab === 'current'" warn>{{ i18n.ts.youHaveUnreadAnnouncements }}</MkInfo>
 			<MkPagination v-slot="{items}" :paginator="paginator" class="_gaps">
@@ -25,10 +25,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<Mfm :text="announcement.text" class="_selectable"/>
 						<img v-if="announcement.imageUrl" :src="announcement.imageUrl"/>
 						<MkA :to="`/announcements/${announcement.id}`">
-							<div style="margin-top: 8px; opacity: 0.7; font-size: 85%;">
+							<div style="margin-top: 8px; color: var(--MI_THEME-fgTransparentWeak); font-size: 85%;">
 								{{ i18n.ts.createdAt }}: <MkTime :time="announcement.createdAt" mode="detail"/>
 							</div>
-							<div v-if="announcement.updatedAt" style="opacity: 0.7; font-size: 85%;">
+							<div v-if="announcement.updatedAt" style="color: var(--MI_THEME-fgTransparentWeak); font-size: 85%;">
 								{{ i18n.ts.updatedAt }}: <MkTime :time="announcement.updatedAt" mode="detail"/>
 							</div>
 						</MkA>
@@ -103,7 +103,7 @@ definePage(() => ({
 
 <style lang="scss" module>
 .announcement {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 }
 
 .forYou {

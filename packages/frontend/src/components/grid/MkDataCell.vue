@@ -76,15 +76,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				@mousedown.stop
 				@contextmenu.stop
 			/>
-			<input
-				v-if="cellType === 'date'"
-				type="date"
-				:class="$style.editingInput"
-				:value="editingValue"
-				@input="onInputText"
-				@mousedown.stop
-				@contextmenu.stop
-			/>
+
 		</div>
 	</div>
 </div>
@@ -98,6 +90,8 @@ import type { GridRowSetting } from '@/components/grid/row.js';
 import { GridEventEmitter } from '@/components/grid/grid.js';
 import { useTooltip } from '@/composables/use-tooltip.js';
 import * as os from '@/os.js';
+import MkDialog from '@/components/MkDialog.vue';
+import { i18n } from '@/i18n.js';
 import { equalCellAddress, getCellAddress } from '@/components/grid/grid-utils.js';
 
 const emit = defineEmits<{
@@ -228,7 +222,6 @@ async function beginEditing(target: HTMLElement) {
 	} else {
 		switch (cellType.value) {
 			case 'number':
-			case 'date':
 			case 'text': {
 				editingValue.value = cell.value.value;
 				editing.value = true;
@@ -240,6 +233,21 @@ async function beginEditing(target: HTMLElement) {
 					if (inputAreaEl.value) {
 						(inputAreaEl.value.querySelector('*') as HTMLElement).focus();
 					}
+				});
+				break;
+			}
+			case 'date': {
+				editing.value = true;
+				emit('operation:beginEdit', cell.value);
+				const { dispose } = os.popup(MkDialog, {
+					title: cell.value.column.setting.title ?? i18n.ts._datePicker.title,
+					input: { type: 'date', default: String(cell.value.value ?? '') },
+				}, {
+					done: result => {
+						editingValue.value = result.canceled ? cell.value.value : result.result;
+						endEditing(!result.canceled, true);
+					},
+					closed: () => dispose(),
 				});
 				break;
 			}

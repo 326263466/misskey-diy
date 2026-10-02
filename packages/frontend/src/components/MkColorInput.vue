@@ -71,7 +71,7 @@ function onColorInput(event: Event) {
 .caption {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:empty {
 		display: none;
@@ -110,8 +110,8 @@ function onColorInput(event: Event) {
 	font-weight: normal;
 	font-size: 1em;
 	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-panel);
-	border: solid 1px var(--MI_THEME-panel);
+	background: var(--MI_THEME-bg);
+	border: solid 1px transparent;
 	border-radius: 6px;
 	outline: none;
 	box-shadow: none;

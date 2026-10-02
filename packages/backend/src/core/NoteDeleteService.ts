@@ -160,6 +160,7 @@ export class NoteDeleteService {
 			const result = await transaction.update(MiNote, { id: current.id }, {
 				threadId: `${DELETED_REPLY_THREAD_PREFIX}${getNoteThreadId(current)}`,
 				text: null, cw: null, name: null, fileIds: [], attachedFileTypes: [], tags: [], emojis: [],
+				redPacketId: null, hasRedPacket: false,
 				deletedBy,
 			});
 			deleted = result.affected === 1;

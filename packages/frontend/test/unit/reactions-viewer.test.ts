@@ -136,19 +136,19 @@ describe('Boost reaction bubbles', () => {
 		expect(avatars(view.container)).toEqual(['me']);
 	});
 
-	test.each(['😀', 'text:测试英文 ABC 和数字 123 和 🧐'])('restores my avatar and own action for %s when a nested note omits myReaction', async reaction => {
-		mocks.api.mockResolvedValue([participant('alice', reaction), participant('me', reaction)]);
-		const view = renderViewer({ [reaction]: 2 });
-		await reveal();
-		await waitFor(() => expect(avatars(view.container)).toEqual(['me']));
-		if (reaction.startsWith('text:')) {
-			await fireEvent.click(view.getByRole('button', { name: reaction }));
-			expect(view.getByRole('button', { name: i18n.ts.delete })).toBeTruthy();
-			expect(view.queryByRole('button', { name: i18n.ts.reportAbuse })).toBeNull();
-		} else {
-			expect(view.getByRole('button', { name: `${reaction} ×2` }).getAttribute('aria-pressed')).toBe('true');
-		}
-		expect(mocks.api).toHaveBeenCalledTimes(1);
+	test('shows inline Boost only after another user sends a Boost', async () => {
+		const view = render(MkReactionsViewer, {
+			props: { noteId: 'post', reactions: {}, reactionEmojis: {}, myReaction: null },
+			slots: { boost: '<button>Compose Boost</button>' },
+			global: { directives: { ripple: {}, tooltip: {} } },
+		});
+		expect(view.queryByRole('button', { name: 'Compose Boost' })).toBeNull();
+		await view.rerender({ reactions: { '😀': 1 }, myReaction: null });
+		expect(view.getByRole('button', { name: 'Compose Boost' })).toBeTruthy();
+		await view.rerender({ reactions: { '😀': 2 }, myReaction: '😀' });
+		expect(view.queryByRole('button', { name: 'Compose Boost' })).toBeNull();
+		await view.rerender({ reactions: {}, myReaction: null });
+		expect(view.queryByRole('button', { name: 'Compose Boost' })).toBeNull();
 	});
 
 	test('keeps an explicit removal authoritative over loaded participants', async () => {
@@ -313,21 +313,26 @@ describe('Boost reaction bubbles', () => {
 		expect(noteEvents.listenerCount('reacted:other-post')).toBe(0);
 	});
 
-	test.each([1, 2])('keeps a %i-person emoji reaction clickable for adding a response', async count => {
+	test.each([1, 2])('opens report action for a %i-person emoji without adding a reaction', async count => {
+		mocks.api.mockResolvedValue([participant('alice', '😀')]);
 		const view = renderViewer({ '😀': count });
+		await reveal();
+		await waitFor(() => expect(avatars(view.container)).toEqual(['alice']));
 		await fireEvent.click(view.getByRole('button', { name: count === 1 ? '😀' : '😀 ×2' }));
-		expect(mocks.api).toHaveBeenCalledWith('notes/reactions/create', { noteId: 'post', reaction: '😀' });
+		expect(view.getByRole('button', { name: i18n.ts.reportAbuse })).toBeTruthy();
+		expect(mocks.api).not.toHaveBeenCalledWith('notes/reactions/create', expect.anything());
 	});
-
 	test('removes my local custom emoji when the API used a different local alias', async () => {
 		const view = renderViewer({ ':cat@.:': 1 }, ':cat:');
 		await fireEvent.click(view.getByRole('button', { name: ':cat@.:' }));
+		expect(mocks.api).not.toHaveBeenCalled();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.delete }));
 		await waitFor(() => expect(mocks.api).toHaveBeenCalledWith('notes/reactions/delete', { noteId: 'post' }));
 		expect(mocks.api).not.toHaveBeenCalledWith('notes/reactions/create', expect.anything());
-		expect(mocks.confirm).not.toHaveBeenCalled();
+		expect(mocks.confirm).toHaveBeenCalledExactlyOnceWith({ type: 'warning', text: i18n.ts.cancelReactionConfirm });
 	});
 
-	test.each(['😀', 'text:hello'])('removes %s immediately and prevents duplicate requests while pending', async reaction => {
+	test.each(['😀', 'text:hello'])('confirms before removing %s and prevents duplicate requests while pending', async reaction => {
 		preferState.confirmOnReact = true;
 		let finish!: () => void;
 		mocks.api.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
@@ -335,16 +340,59 @@ describe('Boost reaction bubbles', () => {
 		noteEvents.on('unreacted:post', unreacted);
 		const view = renderViewer({ [reaction]: 1 }, reaction);
 		let button = view.getByRole('button', { name: reaction });
-		if (reaction.startsWith('text:')) {
-			await fireEvent.click(button);
-			button = view.getByRole('button', { name: i18n.ts.delete });
-		}
+		await fireEvent.click(button);
+		button = view.getByRole('button', { name: i18n.ts.delete });
 		await fireEvent.click(button);
 		await fireEvent.click(button);
-		expect(mocks.confirm).not.toHaveBeenCalled();
+		expect(mocks.confirm).toHaveBeenCalledExactlyOnceWith({ type: 'warning', text: i18n.ts.cancelReactionConfirm });
 		expect(mocks.api).toHaveBeenCalledExactlyOnceWith('notes/reactions/delete', { noteId: 'post' });
 		expect(unreacted).not.toHaveBeenCalled();
 		finish();
 		await waitFor(() => expect(unreacted).toHaveBeenCalledExactlyOnceWith({ userId: 'me', reaction }));
+	});
+
+	test.each(['😀', 'text:hello'])('cancelling removal keeps %s and permits another attempt', async reaction => {
+		preferState.confirmOnReact = false;
+		mocks.confirm.mockResolvedValueOnce({ canceled: true });
+		const unreacted = vi.fn();
+		noteEvents.on('unreacted:post', unreacted);
+		const view = renderViewer({ [reaction]: 1 }, reaction);
+		await fireEvent.click(view.getByRole('button', { name: reaction }));
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.delete }));
+		expect(mocks.confirm).toHaveBeenCalledExactlyOnceWith({ type: 'warning', text: i18n.ts.cancelReactionConfirm });
+		expect(mocks.api).not.toHaveBeenCalled();
+		expect(unreacted).not.toHaveBeenCalled();
+		await fireEvent.click(view.getByRole('button', { name: reaction }));
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.delete }));
+		await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith('notes/reactions/delete', { noteId: 'post' }));
+	});
+
+	test('waits for one confirmation and ignores an obsolete reaction', async () => {
+		let confirm!: (value: { canceled: boolean }) => void;
+		mocks.confirm.mockReturnValueOnce(new Promise(resolve => { confirm = resolve; }));
+		const view = renderViewer({ '😀': 1 }, '😀');
+		await fireEvent.click(view.getByRole('button', { name: '😀' }));
+		const remove = view.getByRole('button', { name: i18n.ts.delete });
+		await fireEvent.click(remove);
+		await fireEvent.click(remove);
+		expect(mocks.confirm).toHaveBeenCalledOnce();
+		expect(mocks.api).not.toHaveBeenCalled();
+		await view.rerender({ myReaction: null });
+		confirm({ canceled: false });
+		await nextTick();
+		expect(mocks.api).not.toHaveBeenCalled();
+	});
+
+	test.each(['unmount', 'replace'])('does not remove another reaction after the old bubble is disposed by %s', async action => {
+		let confirm!: (value: { canceled: boolean }) => void;
+		mocks.confirm.mockReturnValueOnce(new Promise(resolve => { confirm = resolve; }));
+		const view = renderViewer({ '😀': 1 }, '😀');
+		await fireEvent.click(view.getByRole('button', { name: '😀' }));
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.delete }));
+		if (action === 'unmount') view.unmount();
+		else await view.rerender({ reactions: { '🎉': 1 }, myReaction: '🎉' });
+		confirm({ canceled: false });
+		await nextTick();
+		expect(mocks.api).not.toHaveBeenCalled();
 	});
 });

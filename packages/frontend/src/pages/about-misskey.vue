@@ -4,11 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div data-page-body style="overflow: clip;">
-		<div class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 20px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody" data-page-body style="overflow: clip;">
+		<div>
 			<div class="_gaps_m znqjceqz">
-				<div v-panel class="about">
+				<div class="about">
 					<div ref="containerEl" class="container" :class="{ playing: easterEggEngine != null }">
 						<img src="/client-assets/about-icon.png" alt="" class="icon" draggable="false" @load="iconLoaded" @click="gravity"/>
 						<div class="misskey">Misskey</div>
@@ -95,7 +95,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</FormSection>
 				<FormSection>
 					<template #label>{{ i18n.ts._aboutMisskey.specialThanks }}</template>
-					<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));grid-gap:24px;align-items:center;">
+					<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(min(130px, 100%), 1fr));grid-gap:24px;align-items:center;">
 						<div>
 							<a style="display: inline-block;" class="masknetwork" title="Mask Network" href="https://mask.io/" target="_blank"><img style="width: 100%;" src="https://assets.misskey-hub.net/sponsors/masknetwork.png" alt="Mask Network"></a>
 						</div>
@@ -124,7 +124,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<span :class="$style.patronName">{{ patron.name }}</span>
 						</div>
 					</div>
-					<div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); grid-gap: 12px;">
+					<div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); grid-gap: 12px;">
 						<div v-for="patron in patrons" :key="patron">{{ patron }}</div>
 					</div>
 					<p>{{ i18n.ts._aboutMisskey.morePatrons }}</p>
@@ -494,6 +494,7 @@ definePage(() => ({
 .znqjceqz {
 	> .about {
 		position: relative;
+		background: var(--MI_THEME-panel);
 		border-radius: var(--MI-radius);
 
 		> .treasure {
@@ -513,7 +514,7 @@ definePage(() => ({
 		> .container {
 			position: relative;
 			text-align: center;
-			padding: 16px;
+			padding: var(--MI-cardPadding);
 
 			&.playing {
 				&, * {
@@ -548,7 +549,7 @@ definePage(() => ({
 			> .version {
 				margin: 0 auto;
 				width: max-content;
-				opacity: 0.5;
+				color: var(--MI_THEME-fgTransparentWeak);
 				position: relative;
 				z-index: 1;
 			}
@@ -578,7 +579,7 @@ definePage(() => ({
 <style lang="scss" module>
 .contributors {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
 	grid-gap: 12px;
 }
 
@@ -611,7 +612,7 @@ definePage(() => ({
 
 .patronsWithIcon {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
 	grid-gap: 12px;
 }
 

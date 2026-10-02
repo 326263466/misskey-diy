@@ -28,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="user.description" :class="$style.mfm">
 			<Mfm :text="user.description" :author="user"/>
 		</div>
-		<span v-else style="opacity: 0.7;">{{ i18n.ts.noAccountDescription }}</span>
+		<span v-else style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.noAccountDescription }}</span>
 	</div>
 	<div :class="$style.status">
 		<MkA :class="$style.statusItem" :to="userPage(user, 'notes')">
@@ -114,8 +114,7 @@ watch(() => props.user, value => {
 	margin: 0;
 	line-height: 16px;
 	font-size: 0.8em;
-	color: var(--MI_THEME-fg);
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .followed {
@@ -130,7 +129,8 @@ watch(() => props.user, value => {
 }
 
 .description {
-	padding: 16px;
+	color: var(--MI_THEME-fgTransparent);
+	padding: var(--MI-cardPadding);
 	font-size: 0.8em;
 	border-top: solid 0.5px var(--MI_THEME-divider);
 }
@@ -156,10 +156,11 @@ watch(() => props.user, value => {
 
 	dt {
 		flex-shrink: 0;
-		opacity: 0.7;
+		color: var(--MI_THEME-fgTransparentWeak);
 	}
 
 	dd {
+		color: var(--MI_THEME-fgTransparentWeak);
 		margin: 0;
 		min-width: 0;
 		overflow-wrap: anywhere;
@@ -167,11 +168,12 @@ watch(() => props.user, value => {
 }
 
 .status {
-	padding: 10px 16px;
+	padding: var(--MI-cardPadding);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 }
 
 .statusItem {
+	color: var(--MI_THEME-fgTransparent);
 	display: inline-block;
 	width: 33%;
 }
@@ -179,12 +181,12 @@ watch(() => props.user, value => {
 .statusItemLabel {
 	margin: 0;
 	font-size: 0.7em;
-	color: var(--MI_THEME-fg);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .statusItemValue {
 	font-size: 1em;
-	color: var(--MI_THEME-accent);
+	color: inherit;
 }
 
 .follow {

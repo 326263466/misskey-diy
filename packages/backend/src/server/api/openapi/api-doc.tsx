@@ -7,7 +7,7 @@ export function ApiDocPage() {
 	return (
 		<>
 			{'<!DOCTYPE html>'}
-			<html>
+			<html lang="zh-CN">
 				<head>
 					<meta charset="UTF-8" />
 					<title>Misskey API</title>

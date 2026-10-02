@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 1100px;">
+<div class="_pageBody">
 	<div>
 		<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard>
 			<div :class="$style.stream">
@@ -38,13 +38,13 @@ const paginator = markRaw(new Paginator('users/notes', {
 <style lang="scss" module>
 .stream {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
 	gap: var(--MI-marginHalf);
 }
 
 @media screen and (min-width: 600px) {
 	.stream {
-		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
 	}
 
 }

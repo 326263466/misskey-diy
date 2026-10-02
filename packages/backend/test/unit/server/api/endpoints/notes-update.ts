@@ -273,6 +273,13 @@ describe('notes/update endpoint', () => {
 		expect(query.set.mock.calls[0][0]).not.toHaveProperty('hasPoll');
 	});
 
+	test('allows a packet-only edit without altering the attached packet or charging again', async () => {
+		const { exec, query } = createEndpoint({ text: 'before', hasRedPacket: true });
+		const result = await exec({ text: null, cw: null, fileIds: [] });
+		expect(result).toMatchObject({ text: null, hasRedPacket: true, fileIds: [] });
+		expect(query.set.mock.calls[0][0]).not.toHaveProperty('hasRedPacket');
+	});
+
 	test.each([false, true])('updates media timeline membership only when attachment presence changes: %s', async hadFiles => {
 		const { exec, contentValidator, filesRepository } = createEndpoint({ fileIds: hadFiles ? ['attachment'] : [] });
 		filesRepository.findBy.mockResolvedValue([{ id: 'attachment', userId: me.id, type: 'image/png' }]);

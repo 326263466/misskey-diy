@@ -4,11 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader>
-	<div v-if="!instance.disableRegistration || !($i && ($i.isAdmin || $i.policies.canInvite))" class="_spacer" style="--MI_SPACER-w: 1200px;">
+<PageWithHeader contentCard>
+	<div v-if="!instance.disableRegistration || !($i && ($i.isAdmin || $i.policies.canInvite))" class="_pageBody">
 		<MkResult type="empty"/>
 	</div>
-	<div v-else class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div v-else class="_pageBody">
 		<div class="_gaps_m" style="text-align: center;">
 			<div v-if="resetCycle && inviteLimit">{{ i18n.tsx.inviteLimitResetCycle({ time: resetCycle, limit: inviteLimit }) }}</div>
 			<MkButton inline primary rounded :disabled="currentInviteLimit !== null && currentInviteLimit <= 0" @click="create"><i class="ti ti-user-plus"></i> {{ i18n.ts.createInviteCode }}</MkButton>

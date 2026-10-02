@@ -6,9 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="[$style.root, { [$style.collapsed]: collapsed }]">
 	<div>
-		<span v-if="note.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
-		<span v-if="note.isDeleted" style="opacity: 0.5">({{ getDeletedText(note.deletedBy) }})</span>
-		<span v-else-if="note.deletedAt" style="opacity: 0.5">({{ i18n.ts.deletedNote }})</span>
+		<span v-if="note.isHidden" style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.private }})</span>
+		<span v-if="note.isDeleted" style="color: var(--MI_THEME-fgTransparentWeak);">({{ getDeletedText(note.deletedBy) }})</span>
+		<span v-else-if="note.deletedAt" style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.deletedNote }})</span>
 		<Mfm v-if="note.text" :text="note.text" :parsedNodes="displayNodes" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
 		<MkA v-if="note.renoteId && note.renoteId !== note.replyId" :class="$style.rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
 	</div>

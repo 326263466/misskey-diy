@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkStickyContainer>
-	<div class="_spacer" style="--MI_SPACER-w: 600px;">
+	<div class="_pageBody">
 		<div style="text-align: center;"><b><MkUserName :user="game.user1"/></b> vs <b><MkUserName :user="game.user2"/></b></div>
 
 		<div :class="{ [$style.disallow]: isReady }">
@@ -86,7 +86,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 16px;">
+			<div class="_pageFooter">
 				<div style="text-align: center;" class="_gaps_s">
 					<div v-if="opponentHasSettingsChanged" style="color: var(--MI_THEME-warn);">{{ i18n.ts._reversi.opponentHasSettingsChanged }}</div>
 					<div>

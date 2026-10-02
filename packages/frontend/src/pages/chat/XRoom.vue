@@ -25,7 +25,7 @@ const props = defineProps<{
 
 <style lang="scss" module>
 .root {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 }
 
 .header {

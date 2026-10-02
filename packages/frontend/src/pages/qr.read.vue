@@ -32,10 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</template>
 		<div
-			:class="['_spacer', $style.contents]"
-			:style="{
-				'--MI_SPACER-w': '800px'
-			}"
+			:class="['_pageBody', $style.contents]"
 		>
 			<MkStickyContainer>
 				<template #header>
@@ -410,7 +407,7 @@ html[data-color-scheme=light] .view {
 
 .users {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 	grid-gap: var(--MI-margin);
 }
 

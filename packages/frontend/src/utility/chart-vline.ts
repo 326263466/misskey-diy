@@ -4,8 +4,9 @@
  */
 
 import type { Plugin } from 'chart.js';
+import { store } from '@/store.js';
 
-export const chartVLine = (vLineColor: string) => ({
+export const chartVLine = () => ({
 	id: 'vLine',
 	beforeDraw(chart, args, options) {
 		const tooltip = chart.tooltip as any;
@@ -21,7 +22,7 @@ export const chartVLine = (vLineColor: string) => ({
 			ctx.moveTo(x, bottomY);
 			ctx.lineTo(x, topY);
 			ctx.lineWidth = 1;
-			ctx.strokeStyle = vLineColor;
+			ctx.strokeStyle = store.s.darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)';
 			ctx.stroke();
 			ctx.restore();
 		}

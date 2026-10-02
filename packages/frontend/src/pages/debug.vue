@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 600px;">
+	<div class="_pageBody">
 		<div class="_gaps_m">
 			<MkFolder>
 				<template #label>Icons</template>

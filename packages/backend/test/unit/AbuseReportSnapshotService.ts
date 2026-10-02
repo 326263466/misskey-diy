@@ -100,6 +100,32 @@ describe('AbuseReportSnapshotService', () => {
 		await expect(capture(user, reporter, { type: 'user', id: 'another-user' })).rejects.toThrow('INVALID_REPORT_TARGET');
 	});
 
+	test('retains account identity when an account report has no optional profile content', async () => {
+		const { capture, user, reporter, profile, notes, messages } = setup();
+		user.name = null;
+		profile.description = '';
+		profile.fields = [];
+		const snapshot = await capture(user, reporter, { type: 'user' });
+		user.username = 'changed';
+		profile.description = 'Added later';
+		expect(snapshot.user).toEqual({ id: 'author', username: 'author', host: null, name: null });
+		expect(snapshot.content).toBe('');
+		expect(snapshot.files).toEqual([]);
+		expect(notes.findOneBy).not.toHaveBeenCalled();
+		expect(messages.findOneBy).not.toHaveBeenCalled();
+	});
+
+	test('retains reported chat text and attachment metadata when the message is edited or deleted', async () => {
+		const { capture, user, reporter, message, file, messages } = setup();
+		const snapshot = await capture(user, reporter, { type: 'chat', id: message.id });
+		message.text = 'Edited message';
+		file.name = 'Changed attachment';
+		messages.findOneBy.mockResolvedValue(null);
+		expect(snapshot.content).toBe('Private message');
+		expect(snapshot.files[0].name).toBe('Original image');
+		await expect(capture(user, reporter, { type: 'chat', id: message.id })).rejects.toThrow('INVALID_REPORT_TARGET');
+	});
+
 	test('captures the stored Boost text belonging to the reported user on the visible note', async () => {
 		const { capture, user, reporter, note, reactions } = setup();
 		note.userId = 'someone-else';

@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import * as fs from 'node:fs';
 import rename from 'rename';
 import type { Config } from '@/config.js';
 import type { IImageStreamable } from '@/core/ImageProcessingService.js';

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div class="_pageBody">
 		<div v-if="list" class="_gaps">
 			<MkFolder>
 				<template #label>{{ i18n.ts.settings }}</template>

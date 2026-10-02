@@ -141,7 +141,7 @@ defineExpose<WidgetComponentExpose>({
 
 <style lang="scss" module>
 .root {
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 
 	&.small {
 		--MI-clock-size: 120px;

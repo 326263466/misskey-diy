@@ -93,7 +93,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_gaps" style="text-align: center;">
 							<i class="ti ti-bell-ringing-2" style="display: block; margin: auto; font-size: 3em; color: var(--MI_THEME-accent);"></i>
 							<div style="font-size: 120%;">{{ i18n.ts.pushNotification }}</div>
-							<div style="padding: 0 16px;">{{ i18n.tsx._initialAccountSetting.pushNotificationDescription({ name: instance.name ?? host }) }}</div>
+							<div style="padding: 0 16px; color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.tsx._initialAccountSetting.pushNotificationDescription({ name: instance.name ?? host }) }}</div>
 							<MkPushNotificationAllowButton primary showOnlyToRegister style="margin: 0 auto;"/>
 							<div class="_buttonsCenter" style="margin-top: 16px;">
 								<MkButton rounded data-testid="user-setup-back" @click="page--"><i class="ti ti-arrow-left"></i> {{ i18n.ts.goBack }}</MkButton>
@@ -250,7 +250,7 @@ async function later(later: boolean) {
 	bottom: 0;
 	left: 0;
 	flex-shrink: 0;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	-webkit-backdrop-filter: blur(15px);
 	backdrop-filter: blur(15px);

@@ -9,15 +9,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
 
-	<MkInput
-		v-model="searchQuery"
-		:placeholder="i18n.ts._chat.searchMessages"
-		type="search"
-	>
-		<template #prefix><i class="ti ti-search"></i></template>
-	</MkInput>
+	<div class="_gaps _panel _panelPadding">
+		<MkInput
+			v-model="searchQuery"
+			:placeholder="i18n.ts._chat.searchMessages"
+			type="search"
+		>
+			<template #prefix><i class="ti ti-search"></i></template>
+		</MkInput>
 
-	<MkButton v-if="searchQuery.length > 0" primary rounded @click="search">{{ i18n.ts.search }}</MkButton>
+		<MkButton v-if="searchQuery.length > 0" primary rounded @click="search">{{ i18n.ts.search }}</MkButton>
+	</div>
 
 	<MkFoldableSection v-if="searched">
 		<template #header>{{ i18n.ts.searchResult }}</template>

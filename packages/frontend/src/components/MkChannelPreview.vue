@@ -175,7 +175,8 @@ const bannerStyle = computed(() => {
 	}
 
 	> article {
-		padding: 16px;
+		padding: var(--MI-cardPadding);
+		color: var(--MI_THEME-fgTransparent);
 
 		> p {
 			margin: 0;
@@ -184,11 +185,11 @@ const bannerStyle = computed(() => {
 	}
 
 	> footer {
-		padding: 12px 16px;
+		padding: var(--MI-cardPadding);
 		border-top: solid 0.5px var(--MI_THEME-divider);
 
 		> span {
-			opacity: 0.7;
+			color: var(--MI_THEME-fgTransparentWeak);
 			font-size: 0.9em;
 		}
 	}

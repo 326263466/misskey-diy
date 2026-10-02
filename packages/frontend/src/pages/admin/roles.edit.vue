@@ -4,13 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader contentCard :tabs="headerTabs">
+	<div class="_pageBody">
 		<XEditor v-if="data" v-model="data"/>
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 16px;">
+			<div class="_pageFooter">
 				<MkButton primary rounded @click="save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 			</div>
 		</div>

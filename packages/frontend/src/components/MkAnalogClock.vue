@@ -248,12 +248,12 @@ calcColors();
 
 onMounted(() => {
 	defaultIdlingRenderScheduler.add(tick);
-	themeManager.on('themeChanged', calcColors);
+	themeManager.on('themeChanging', calcColors);
 });
 
 onBeforeUnmount(() => {
 	defaultIdlingRenderScheduler.delete(tick);
-	themeManager.off('themeChanged', calcColors);
+	themeManager.off('themeChanging', calcColors);
 });
 </script>
 

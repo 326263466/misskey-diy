@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 900px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<MkSelect v-model="filterType" :items="filterTypeDef" :class="$style.input">
 			<template #label>{{ i18n.ts.state }}</template>
 		</MkSelect>
@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkLoading v-if="loading"/>
 		<MkError v-else-if="error" @retry="refresh"/>
 		<div v-else>
-			<div v-for="ad in ads" class="_panel _gaps_m" :class="$style.ad">
+			<div v-for="ad in ads" class="_gaps_m" :class="$style.ad">
 				<MkAd v-if="ad.url" :key="ad.id" :specify="ad"/>
 
 				<MkInput v-model="ad.url" type="url">
@@ -285,7 +285,8 @@ definePage(() => ({
 }
 
 .ad {
-	padding: 32px;
+	padding-block: var(--MI-cardPadding);
+	border-top: 1px solid var(--MI_THEME-divider);
 
 	&:not(:last-child) {
 		margin-bottom: var(--MI-margin);

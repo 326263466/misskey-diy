@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.root">
 	<div :class="$style.inner">
-		<button class="_button" :class="$style.logo" :aria-label="instance.name ?? i18n.ts.instance" @click="goHome" @contextmenu.stop="openInstanceContextMenu">
+		<button class="_button" :class="$style.logo" :aria-label="instance.name ?? i18n.ts.instance" @click="goHome" @contextmenu.prevent.stop>
 			<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.logoIcon"/>
 			<span :class="$style.logoText">{{ instance.name ?? i18n.ts.instance }}</span>
 		</button>
@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkA>
 			<template v-for="item in navItems" :key="item">
 				<MkA
-					v-if="navbarItemDef[item] != null && navbarItemDef[item].to != null && (navbarItemDef[item].show == null || navbarItemDef[item].show.value !== false)"
+					v-if="navbarItemDef[item] != null && navbarItemDef[item].to != null && unref(navbarItemDef[item].show) !== false"
 					class="_tabUnderline"
 					:class="[$style.navItem, { _tabUnderlineAnimated: prefer.s.animation }]"
 					:activeClass="$style.navItemActive"
@@ -73,6 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</button>
 
 			<button
+				v-if="$i"
 				v-tooltip="i18n.ts.realtimeMode"
 				class="_button"
 				:class="[$style.iconButton, { [$style.iconButtonActive]: store.r.realtimeMode.value }]"
@@ -88,7 +89,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i class="ti ti-dashboard"></i>
 			</MkA>
 
-			<button :class="$style.post" class="_button _buttonGradate" data-testid="open-post-form" :aria-label="i18n.ts._postForm.post" @click="() => os.post()">
+			<button v-if="$i" :class="$style.post" class="_button _buttonGradate" data-testid="open-post-form" :aria-label="i18n.ts._postForm.post" @click="() => os.post()">
 				<i v-tooltip="i18n.ts._postForm.post" class="ti ti-plus" :class="$style.postIcon"></i>
 				<span :class="$style.postText">{{ i18n.ts._postForm.post }}</span>
 			</button>
@@ -96,6 +97,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="$i != null" v-tooltip="accountTooltip" class="_button" :class="$style.account" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu" @contextmenu.stop="openAccountLinkMenu">
 				<MkAvatar :user="$i" :class="$style.avatar" :indicator="true" :indicatorTooltip="false" title=""/>
 			</button>
+			<div v-else :class="$style.guestActions">
+				<button type="button" class="_button" :class="$style.guestButton" @click="signin">{{ i18n.ts.login }}</button>
+				<button type="button" class="_button" :class="[$style.guestButton, $style.signup]" :title="instance.disableRegistration ? i18n.ts.invitationRequiredToRegister : i18n.ts.signup" @click="signup">{{ i18n.ts.signup }}</button>
+			</div>
 		</div>
 	</div>
 </div>
@@ -103,7 +108,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, unref, useId, useTemplateRef } from 'vue';
-import { openInstanceMenu, toggleRealtimeMode } from './common.js';
+import { toggleRealtimeMode } from './common.js';
 import { navbarItemDef } from '@/navbar.js';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
@@ -117,6 +122,7 @@ import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import { useRouter } from '@/router.js';
+import { pleaseLogin } from '@/utility/please-login.js';
 
 const props = defineProps<{
 	dockHidden?: boolean;
@@ -130,6 +136,18 @@ const searchInput = useTemplateRef<HTMLInputElement>('searchInput');
 const searchQuery = ref('');
 const searchExpanded = ref(false);
 const searchId = useId();
+
+function signin() {
+	void pleaseLogin({ message: '' });
+}
+
+async function signup() {
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkSignupDialog.vue').then(x => x.default), {
+		autoSet: true,
+	}, {
+		closed: () => dispose(),
+	});
+}
 
 async function openSearch() {
 	searchExpanded.value = true;
@@ -182,11 +200,6 @@ onBeforeUnmount(() => {
 
 function goHome() {
 	router.pushByPath('/');
-}
-
-// 不阻止默认行为：设置为原生菜单时 os.contextMenu 不做任何处理，交给浏览器标准菜单
-function openInstanceContextMenu(ev: PointerEvent) {
-	openInstanceMenu(ev, { contextmenu: true });
 }
 
 function search() {
@@ -428,7 +441,7 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 	align-items: center;
 	justify-content: center;
 	border-radius: 6px;
-	color: var(--MI_THEME-fg);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	@media (max-width: $search-collapse-threshold) {
 		display: flex;
@@ -475,11 +488,11 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 	}
 }
 
-.searchIcon {
+.search > .searchIcon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .searchText {
@@ -492,11 +505,14 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 	font-family: inherit;
 	font-size: inherit;
 	line-height: inherit;
-	opacity: 0.7;
+
+	&::placeholder {
+		color: var(--MI_THEME-fgTransparentWeak);
+		opacity: 1;
+	}
 
 	&:focus {
 		outline: none;
-		opacity: 1;
 	}
 
 	// 去掉 type=search 在 WebKit 下自带的清除按钮和放大镜
@@ -517,7 +533,7 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 	color: var(--MI_THEME-fgTransparentWeak);
 }
 
-.iconButton {
+.right > .iconButton {
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -525,7 +541,7 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 	width: var(--juejinHeaderControlHeight);
 	height: var(--juejinHeaderControlHeight);
 	border-radius: 50%;
-	color: var(--MI_THEME-navFg);
+	color: var(--MI_THEME-fgTransparentWeak);
 	line-height: 1;
 
 	&:hover {
@@ -617,6 +633,29 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 
 	@media (max-width: $post-text-hide-threshold) {
 		display: none;
+	}
+}
+
+.guestActions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.guestActions > .guestButton {
+	height: var(--juejinHeaderControlHeight);
+	padding: 0 10px;
+	border-radius: 6px;
+	white-space: nowrap;
+	color: var(--MI_THEME-accent);
+	background: var(--MI_THEME-accentedBg);
+
+	&:hover { background: var(--MI_THEME-buttonHoverBg); }
+
+	&.signup {
+		color: var(--MI_THEME-fgOnAccent);
+		background: var(--MI_THEME-accent);
 	}
 }
 

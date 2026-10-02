@@ -197,7 +197,7 @@ const items = computed<TlItem<T>[]>(() => {
 }
 
 .dateLabel {
-	opacity: 0.7;
+	color: var(--MI_THEME-dateLabelFg);
 	font-size: 90%;
 	padding: 4px;
 	margin: 8px 0;

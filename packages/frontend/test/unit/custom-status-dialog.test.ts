@@ -89,14 +89,26 @@ describe('custom status dialog', () => {
 		expect(save).toHaveBeenCalledExactlyOnceWith({ icon: 'book', text: '保留草稿' });
 	});
 
-	test('loads the saved icon and text and offers the twelve supported icons', async () => {
+	test('loads the saved icon and text and offers the thirteen supported icons', async () => {
 		const view = await renderDialog(savedStatus);
 		expect(view.input.value).toBe('Reading');
 		expect(view.getAllByRole('radio').map(radio => (radio as HTMLInputElement).value)).toEqual(customStatusIcons);
+		expect(view.getAllByRole('radio')).toHaveLength(13);
 		expect(view.queryAllByRole('heading')).toHaveLength(0);
 		expect((view.getByRole('radio', { name: i18n.ts._onlineStatus._icons.book }) as HTMLInputElement).checked).toBe(true);
 		expect(view.getByLabelText(i18n.ts.preview).contains(view.input)).toBe(true);
 		expect(view.saveButton.disabled).toBe(false);
+	});
+
+	test('previews and saves the charging status using the supported battery icon', async () => {
+		updateI18n(locales['zh-CN']);
+		const view = await renderDialog();
+		await fireEvent.click(view.getByRole('radio', { name: '充电中' }));
+		expect(view.input.value).toBe('充电中');
+		expect(view.getByLabelText(i18n.ts.preview).querySelector('[data-custom-status-icon="battery"]')).not.toBeNull();
+		await fireEvent.click(view.saveButton);
+		await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
+		expect(view.save).toHaveBeenCalledExactlyOnceWith({ icon: 'battery', text: '充电中' });
 	});
 
 	test('uses the icon meaning as the default text in the current language', async () => {
@@ -114,6 +126,7 @@ describe('custom status dialog', () => {
 	});
 
 	test('replaces saved or edited text when the icon changes and preserves edits for the same icon', async () => {
+		updateI18n(locales['zh-CN']);
 		const view = await renderDialog({ icon: 'music', text: '听音乐' });
 		expect(view.input.value).toBe('听音乐');
 		await fireEvent.click(view.getByRole('radio', { name: i18n.ts._onlineStatus._icons.car }));

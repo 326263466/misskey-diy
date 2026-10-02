@@ -6,17 +6,26 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+@use '../../frontend-shared/styles/refresh-icon.scss';
+@use '../../frontend-shared/styles/scrollbar.scss';
+
 :root {
 	--MI-radius: 8px;
 	--MI-cardRadius: 4px;
-	--MI-cardPadding: 20px;
+	--MI-cardPadding: 18px;
 	--MI-marginFull: 16px;
 	--MI-marginHalf: 10px;
 
 	--MI-margin: var(--MI-marginFull);
-	--MI-pageGap: 20px;
+	--MI-pageGap: 18px;
 	--MI-pageWidth: 1200px;
+	--MI-navigationPageWidth: 1040px;
 	--MI-pageNavigationWidth: 220px;
+
+	// Classic red packets keep their red and gold identity in every theme.
+	--MI-redPacketStart: #c93632;
+	--MI-redPacketEnd: #b52a29;
+	--MI-redPacketGold: #ffe2ad;
 
 	// Presence colors stay recognizable independently of the selected accent color.
 	--MI-statusOnline: #22e58a;
@@ -101,6 +110,11 @@ html {
 
 html._themeChanging_ {
 	view-transition-name: theme-changing;
+
+	// 换色交给页面过渡，避免组件自身的 transition 再延迟一次。
+	*, *::before, *::after {
+		transition: none !important;
+	}
 }
 
 html::view-transition-new(theme-changing) {
@@ -126,11 +140,6 @@ html::selection {
 	100% {
 		opacity: 0;
 	}
-}
-
-html, body, main, div {
-	scrollbar-color: var(--MI_THEME-scrollbarHandle) transparent;
-	scrollbar-width: thin;
 }
 
 html,
@@ -296,8 +305,28 @@ progress {
 
 // カードやダイアログの本文は画面幅によらず共通の内余白を使う。
 ._spacer._spacerCard {
-	max-width: min(var(--MI_SPACER-w, 100%), calc(100% - (var(--MI-cardPadding, 20px) * 2)));
-	padding: var(--MI-cardPadding, 20px) 0;
+	--MI-formGroupInset: var(--MI-cardPadding);
+	--MI-formGroupRadius: 0px;
+	max-width: min(var(--MI_SPACER-w, 100%), calc(100% - (var(--MI-cardPadding, 18px) * 2)));
+	padding: var(--MI-cardPadding, 18px) 0;
+}
+
+// Page shells own the column width. Route content never adds a second inset.
+._pageBody {
+	width: 100%;
+	min-width: 0;
+	padding: 0 0 var(--MI-pageGap);
+	box-sizing: border-box;
+	container-type: inline-size;
+}
+
+._pageFooter {
+	width: 100%;
+	min-width: 0;
+	padding: var(--MI-cardPadding);
+	box-sizing: border-box;
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-cardRadius);
 }
 
 ._pageContainer {
@@ -308,6 +337,7 @@ progress {
 }
 
 ._pageLayout {
+	--MI-pageWidth: var(--MI-navigationPageWidth);
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	grid-template-rows: minmax(0, 1fr);
@@ -366,18 +396,6 @@ progress {
 			display: none;
 		}
 	}
-}
-
-[data-page-body] > ._spacer {
-	padding-top: 0;
-}
-
-// 只处理路由级别的 spacer；卡片内部和 sticky 底部操作栏保留各自的内边距
-._pageContent > ._spacer,
-._pageContent [data-page-body] > ._spacer,
-._pageContent [data-profile-content] ._spacer:not(._spacer *) {
-	max-width: 100%;
-	padding: 0;
 }
 
 ._standalonePage {
@@ -498,11 +516,11 @@ progress {
 	background: var(--MI_THEME-accent);
 
 	&:not(:disabled):hover {
-		background: hsl(from var(--MI_THEME-accent) h s calc(l + 5));
+		background: var(--MI_THEME-accentHover, hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
 	}
 
 	&:not(:disabled):active {
-		background: hsl(from var(--MI_THEME-accent) h s calc(l - 5));
+		background: var(--MI_THEME-accentActive, hsl(from var(--MI_THEME-accent) h s calc(l - 5)));
 	}
 }
 
@@ -512,11 +530,11 @@ progress {
 	background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
 
 	&:not(:disabled):hover {
-		background: linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
+		background: var(--MI_THEME-accentHover, linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5))));
 	}
 
 	&:not(:disabled):active {
-		background: linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
+		background: var(--MI_THEME-accentActive, linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5))));
 	}
 }
 
@@ -538,10 +556,23 @@ progress {
 	}
 }
 
+._panelPadding {
+	--MI-formGroupInset: var(--MI-cardPadding);
+	--MI-formGroupRadius: 0px;
+	box-sizing: border-box;
+	min-width: 0;
+	padding: var(--MI-cardPadding);
+}
+
 ._panel {
 	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-cardRadius);
 	overflow: clip;
+
+	&:not(._panelPadding) {
+		--MI-formGroupInset: 0px;
+		--MI-formGroupRadius: initial;
+	}
 }
 
 // 掘金风格的可见卡片；只对明确添加此类的外层容器生效
@@ -605,14 +636,14 @@ progress {
 }
 
 ._acrylic {
-	background: color(from var(--MI_THEME-panel) srgb r g b / 0.5);
+	background: color(from var(--MI_THEME-panel) srgb r g b / 0.7);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 }
 
 ._formLinksGrid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
 	grid-gap: 12px;
 }
 
@@ -653,7 +684,7 @@ progress {
 
 			> ._label {
 				font-size: 80%;
-				opacity: 0.7;
+				color: var(--MI_THEME-fgTransparentWeak);
 
 				> ._icon {
 					margin-right: 4px;
@@ -674,7 +705,7 @@ progress {
 
 ._caption {
 	font-size: 0.8em;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 ._monospace {
@@ -944,4 +975,18 @@ html[data-color-scheme=dark] ._woodenFrame {
 @keyframes mfm-rainbow {
 	0% { filter: hue-rotate(0deg) contrast(150%) saturate(150%); }
 	100% { filter: hue-rotate(360deg) contrast(150%) saturate(150%); }
+}
+
+
+// Text entry uses its existing border for focus, without a second outer ring.
+input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='button'], [type='submit'], [type='reset']):focus,
+textarea:focus {
+	outline: none !important;
+	box-shadow: none !important;
+	border-color: var(--MI_THEME-accent);
+}
+
+:has(> input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']):focus, > textarea:focus) {
+	outline: none !important;
+	box-shadow: none !important;
 }

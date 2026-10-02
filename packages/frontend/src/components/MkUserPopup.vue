@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<div :class="$style.description">
 				<Mfm v-if="user.description" :class="$style.mfm" :text="user.description" :author="user"/>
-				<div v-else style="opacity: 0.7;">{{ i18n.ts.noAccountDescription }}</div>
+				<div v-else style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.noAccountDescription }}</div>
 			</div>
 			<div :class="$style.status">
 				<MkA :class="$style.statusItem" :to="userPage(user, 'notes')">
@@ -310,10 +310,11 @@ onUnmounted(() => {
 .username {
 	display: block;
 	font-size: 0.8em;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .description {
+	color: var(--MI_THEME-fgTransparent);
 	// 与个人主页信息区一致, 用画布灰做圆角内嵌底
 	margin: 0 16px 12px;
 	padding: 12px 16px;
@@ -343,6 +344,7 @@ onUnmounted(() => {
 }
 
 .statusItem {
+	color: var(--MI_THEME-fgTransparent);
 	display: inline-block;
 	width: 33%;
 	text-align: center;
@@ -350,7 +352,7 @@ onUnmounted(() => {
 
 .statusItemLabel {
 	font-size: 0.7em;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .menu {
@@ -369,7 +371,8 @@ onUnmounted(() => {
 }
 
 .follow {
-	--MI-followButton-fg: var(--MI_THEME-accent);
+	// 图标色与右侧"…"玻璃按钮一致（含已关注状态），不用主题色
+	--MI-followButton-fg: light-dark(var(--MI_THEME-panel), var(--MI_THEME-fg));
 	--MI-followButton-bg: color(from var(--MI_THEME-modalBg) srgb r g b / 0.55);
 	--MI-followButton-backdropFilter: var(--MI-blur, blur(8px));
 	position: absolute !important;

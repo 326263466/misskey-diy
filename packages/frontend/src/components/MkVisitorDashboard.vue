@@ -7,7 +7,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div v-if="instance" :class="$style.root">
 	<div :class="[$style.main, $style.panel]">
 		<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.mainIcon"/>
-		<button class="_button _acrylic" :class="$style.mainMenu" @click="showMenu"><i class="ti ti-dots"></i></button>
 		<div :class="$style.mainFg">
 			<h1 :class="$style.mainTitle">
 				<!-- 背景色によってはロゴが見えなくなるのでとりあえず無効に -->
@@ -16,16 +15,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</h1>
 			<div :class="$style.mainAbout">
 				<!-- eslint-disable-next-line vue/no-v-html -->
-				<div v-html="instance.description || i18n.ts.headlineMisskey"></div>
+				<div style="color: var(--MI_THEME-fgTransparentWeak);" v-html="instance.description || i18n.ts.headlineMisskey"></div>
 			</div>
-			<div v-if="instance.disableRegistration || instance.federation !== 'all'" :class="$style.mainWarn" class="_gaps_s">
+			<div v-if="instance.disableRegistration" :class="$style.mainWarn" class="_gaps_s">
 				<MkInfo v-if="instance.disableRegistration" warn>{{ i18n.ts.invitationRequiredToRegister }}</MkInfo>
-				<MkInfo v-if="instance.federation === 'specified'" warn>{{ i18n.ts.federationSpecified }}</MkInfo>
-				<MkInfo v-else-if="instance.federation === 'none'" warn>{{ i18n.ts.federationDisabled }}</MkInfo>
 			</div>
 			<div class="_gaps_s" :class="$style.mainActions">
 				<MkButton :class="$style.mainAction" full rounded gradate data-testid="signup" style="margin-right: 12px;" @click="signup()">{{ i18n.ts.joinThisServer }}</MkButton>
-				<MkButton :class="$style.mainAction" full rounded type="a" target="_blank" rel="noopener" href="https://misskey-hub.net/servers/">{{ i18n.ts.exploreOtherServers }}</MkButton>
 				<MkButton :class="$style.mainAction" full rounded data-testid="signin" @click="signin()">{{ i18n.ts.login }}</MkButton>
 			</div>
 		</div>
@@ -56,7 +52,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { instanceName } from '@@/js/config.js';
-import type { MenuItem } from '@/types/menu.js';
+
 import XSigninDialog from '@/components/MkSigninDialog.vue';
 import XSignupDialog from '@/components/MkSignupDialog.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -68,7 +64,6 @@ import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
 import MkNumber from '@/components/MkNumber.vue';
 import XActiveUsersChart from '@/components/MkVisitorDashboard.ActiveUsersChart.vue';
-import { openInstanceMenu } from '@/ui/_common_/common.js';
 
 const stats = ref<Misskey.entities.StatsResponse | null>(null);
 
@@ -94,9 +89,6 @@ function signup() {
 	});
 }
 
-function showMenu(ev: PointerEvent) {
-	openInstanceMenu(ev);
-}
 </script>
 
 <style lang="scss" module>
@@ -112,7 +104,6 @@ function showMenu(ev: PointerEvent) {
 	position: relative;
 	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-radius);
-	box-shadow: 0 12px 32px rgb(0 0 0 / 25%);
 }
 
 .main {
@@ -123,18 +114,6 @@ function showMenu(ev: PointerEvent) {
 	width: 85px;
 	margin-top: -47px;
 	vertical-align: bottom;
-	filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5));
-}
-
-.mainMenu {
-	position: absolute;
-	top: 16px;
-	right: 16px;
-	width: 32px;
-	height: 32px;
-	border-radius: 8px;
-	font-size: 18px;
-	z-index: 50;
 }
 
 .mainFg {
@@ -179,11 +158,11 @@ function showMenu(ev: PointerEvent) {
 
 .statsItem {
 	overflow: clip;
-	padding: 16px 20px;
+	padding: var(--MI-cardPadding);
 }
 
 .statsItemLabel {
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 0.9em;
 }
 
@@ -205,5 +184,10 @@ function showMenu(ev: PointerEvent) {
 .tlBody {
 	height: 350px;
 	overflow: auto;
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
 }
 </style>

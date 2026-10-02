@@ -113,7 +113,7 @@ function onClosed() {
 	box-sizing: border-box;
 	padding-bottom: env(safe-area-inset-bottom, 0px);
 	margin: auto;
-	background: var(--MI_THEME-bg);
+	background: var(--MI_THEME-panel);
 	container-type: size;
 	overflow: auto;
 	overscroll-behavior: contain;
@@ -146,6 +146,7 @@ function onClosed() {
 }
 
 .title {
+	color: var(--MI_THEME-fg);
 	margin: 0 auto;
 	white-space: nowrap;
 	text-overflow: ellipsis;

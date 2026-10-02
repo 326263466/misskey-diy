@@ -179,6 +179,7 @@ export interface AdminEventTypes {
 }
 
 export interface ChatEventTypes {
+	membersChanged: null;
 	message: Packed<'ChatMessageLite'>;
 	deleted: Packed<'ChatMessageLite'>['id'];
 	react: {

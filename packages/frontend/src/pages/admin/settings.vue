@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader contentCard :tabs="headerTabs">
+	<div class="_pageBody">
 		<SearchMarker path="/admin/settings" :label="i18n.ts.general" :keywords="['general', 'settings']" icon="ti ti-settings">
 			<div class="_gaps_m">
 				<SearchMarker v-slot="slotProps" :keywords="['information', 'meta']">
@@ -544,7 +544,7 @@ definePage(() => ({
 <style lang="scss" module>
 .subCaption {
 	font-size: 0.85em;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .metadataRoot {
@@ -568,7 +568,7 @@ definePage(() => ({
 	width: 32px;
 	height: 32px;
 	margin: 0 8px 0 0;
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 	flex-shrink: 0;
 
 	&:active {
@@ -579,7 +579,7 @@ definePage(() => ({
 .dragItemRemove {
 	@extend .dragItemHandle;
 
-	color: #ff2a2a;
+	color: var(--MI_THEME-error);
 	opacity: 1;
 	cursor: pointer;
 
@@ -594,5 +594,6 @@ definePage(() => ({
 
 .dragItemForm {
 	flex-grow: 1;
+	min-width: 0;
 }
 </style>

@@ -40,8 +40,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 						/>
 					</section>
 					<div v-if="layout.length === 0" class="_panel _gaps" :class="$style.onboarding">
-						<div>{{ i18n.ts._deck.introduction }}</div>
-						<div>{{ i18n.ts._deck.introduction2 }}</div>
+						<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._deck.introduction }}</div>
+						<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._deck.introduction2 }}</div>
 						<MkInfo v-if="!store.r.tips.value.deck" closable @close="closeTip('deck')">
 							<button class="_textButton" @click="showTour">{{ i18n.ts._deck.showHowToUse }}</button>
 						</MkInfo>

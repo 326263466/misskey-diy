@@ -103,6 +103,7 @@ export interface MenuComponent<T extends Component = any> extends MenuBase {
 
 export interface MenuParent extends TextMenuBase {
 	type: 'parent';
+	truncateCaption?: boolean;
 	children: MenuItem[] | (() => Promise<MenuItem[]> | MenuItem[]);
 }
 

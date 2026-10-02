@@ -27,6 +27,12 @@ export class MiUserCheckin {
 	@Column('boolean', { default: false })
 	public isMakeup: boolean;
 
+	@Column('boolean', { default: false })
+	public rewardConsumed: boolean;
+
+	@Column('integer', { default: 0 })
+	public earnedMakeupCards: number;
+
 	@Column({ ...id(), nullable: true })
 	public cardBatchId: string | null;
 

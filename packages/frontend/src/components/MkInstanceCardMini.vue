@@ -45,7 +45,7 @@ function getInstanceIcon(instance: Misskey.entities.FederationInstance): string 
 
 	display: flex;
 	align-items: center;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	background: var(--MI_THEME-panel);
 	border-radius: 8px;
 
@@ -78,7 +78,7 @@ function getInstanceIcon(instance: Misskey.entities.FederationInstance): string 
 			display: block;
 			width: 100%;
 			font-size: 80%;
-			opacity: 0.7;
+			color: var(--MI_THEME-fgTransparentWeak);
 			line-height: $bodyInfoHieght;
 			white-space: nowrap;
 			overflow: hidden;

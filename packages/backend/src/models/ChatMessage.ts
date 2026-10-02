@@ -83,6 +83,10 @@ export class MiChatMessage {
 	@JoinColumn()
 	public file: MiDriveFile | null;
 
+	@Index('IDX_chat_message_red_packet')
+	@Column({ ...id(), nullable: true })
+	public redPacketId: string | null;
+
 	@Column('varchar', {
 		length: 1024, array: true, default: '{}',
 	})

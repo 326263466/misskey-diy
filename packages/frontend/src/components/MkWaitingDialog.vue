@@ -44,7 +44,7 @@ watch(() => props.showing, () => {
 .root {
 	margin: auto;
 	position: relative;
-	padding: 32px;
+	padding: var(--MI-cardPadding);
 	box-sizing: border-box;
 	text-align: center;
 	background: var(--MI_THEME-panel);

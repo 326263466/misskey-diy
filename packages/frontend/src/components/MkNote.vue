@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-else-if="note.visibility === 'followers'" class="ti ti-lock"></i>
 				<i v-else-if="note.visibility === 'specified'" ref="specified" class="ti ti-mail"></i>
 			</span>
-			<span v-if="note.localOnly" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
+			<span v-if="note.localOnly && !note.redPacket" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
 			<span v-if="note.channel" style="margin-left: 0.5em;" :title="note.channel.name"><i class="ti ti-device-tv"></i></span>
 		</div>
 	</div>
@@ -81,7 +81,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkCwButton>
 				<div v-show="appearNote.cw == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
 					<div :class="$style.text">
-						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
+						<span v-if="appearNote.isHidden" style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.private }})</span>
 						<MkA v-if="appearNote.replyId && !showReplyTo" :class="$style.replyIcon" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-message-circle"></i></MkA>
 						<Mfm
 							v-if="appearNote.text"
@@ -105,6 +105,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="appearNote.files && appearNote.files.length > 0" style="margin-top: 12px;" data-note-interactive>
 						<MkMediaList ref="galleryEl" :mediaList="appearNote.files" :user="appearNote.user"/>
 					</div>
+					<MkRedPacket v-if="appearNote.redPacket" :redPacketId="appearNote.redPacket.id" :authorId="appearNote.userId" :redPacket="appearNote.redPacket"/>
 					<MkPoll
 						v-if="appearNote.poll"
 						:noteId="appearNote.id"
@@ -141,6 +142,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			>
 				<template #more>
 					<MkA :to="`/notes/${reactionNote.id}/reactions`" :class="[$style.reactionOmitted]">{{ i18n.ts.more }}</MkA>
+				</template>
+				<template v-if="hasBoosts" #boost>
+					<button ref="reactButton" v-tooltip="i18n.ts._boost.title" :class="$style.boostButton" class="_button" :aria-label="i18n.ts._boost.title" aria-haspopup="dialog" :aria-expanded="boostOpen" :disabled="!canBoost || appearNote.reactionAcceptance === 'likeOnly'" @click.stop="handleToggleReact()">
+						<i class="ti ti-rocket"></i>
+					</button>
 				</template>
 			</MkReactionsViewer>
 			<div :class="$style.tagsAndLikeRow">
@@ -185,11 +191,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</span>
 				</div>
 				<div :class="$style.footerIconActions">
-					<button ref="reactButton" v-tooltip="i18n.ts._boost.title" :class="$style.footerButton" class="_button" :aria-label="i18n.ts._boost.title" aria-haspopup="dialog" :aria-expanded="boostOpen" :disabled="!canBoost || appearNote.reactionAcceptance === 'likeOnly'" @click.stop="handleToggleReact()">
-						<i class="ti ti-rocket"></i>
-					</button>
 					<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" v-tooltip="i18n.ts.clip" :class="$style.footerButton" class="_button" :aria-label="i18n.ts.clip" @click.stop="clip()">
 						<i class="ti ti-paperclip"></i>
+					</button>
+					<button v-if="!hasBoosts && $reactionNote.myReaction == null" ref="reactButton" v-tooltip="i18n.ts._boost.title" class="_button" :class="$style.footerButton" :aria-label="i18n.ts._boost.title" aria-haspopup="dialog" :aria-expanded="boostOpen" :disabled="!canBoost || appearNote.reactionAcceptance === 'likeOnly'" @click.stop="handleToggleReact()">
+						<i class="ti ti-rocket"></i>
 					</button>
 					<button v-tooltip="i18n.ts.share" :class="$style.footerButton" class="_button" :aria-label="i18n.ts.share" @click.stop="share()">
 						<i class="ti ti-share"></i>
@@ -261,6 +267,7 @@ import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkMediaList from '@/components/MkMediaList.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
 import MkPoll from '@/components/MkPoll.vue';
+import MkRedPacket from '@/components/MkRedPacket.vue';
 import MkUrlPreview from '@/components/MkUrlPreview.vue';
 import MkInstanceTicker from '@/components/MkInstanceTicker.vue';
 import MkRollingNumber from '@/components/MkRollingNumber.vue';
@@ -369,6 +376,8 @@ const {
 	currentAntenna,
 });
 
+const hasBoosts = computed(() => Object.values($reactionNote.reactions).some(count => count > 0));
+
 // provide
 provide(DI.mfmEmojiReactCallback, reactViaMfmEmoji);
 
@@ -457,6 +466,20 @@ const keymap = {
 
 <style lang="scss" module>
 @use "../styles/channel-accent.scss";
+
+.boostButton {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	&:hover:not(:disabled) {
+		color: var(--MI_THEME-accent);
+	}
+}
+
 .footerButton.liked { color: var(--MI_THEME-love); }
 .root {
 	position: relative;
@@ -464,12 +487,6 @@ const keymap = {
 	font-size: 1.05em;
 	overflow: clip;
 	contain: content;
-
-	@media (hover: hover) {
-		&:hover:not(:has([data-note-card]:hover)) {
-			background-color: color-mix(in srgb, var(--MI_THEME-fg) 4%, var(--MI_THEME-panel));
-		}
-	}
 
 	&:focus-visible {
 		outline: none;
@@ -547,7 +564,7 @@ const keymap = {
 .tip {
 	display: flex;
 	align-items: center;
-	padding: var(--MI-note-padding-top, 20px) 20px 8px;
+	padding: var(--MI-note-padding-top, var(--MI-cardPadding)) var(--MI-cardPadding) 8px;
 	line-height: 24px;
 	font-size: 90%;
 	white-space: pre;
@@ -566,7 +583,7 @@ const keymap = {
 		position: absolute;
 		z-index: 1;
 		top: 100%;
-		left: 40px;
+		left: calc(var(--MI-cardPadding) + 20px);
 		width: 1px;
 		height: 4px;
 		border-radius: 999px;
@@ -595,21 +612,20 @@ const keymap = {
 .deletedReply {
 	position: relative;
 	z-index: 2;
-	padding: 20px 20px 10px;
+	padding: var(--MI-cardPadding) var(--MI-cardPadding) 10px;
 	text-align: center;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .renote {
 	position: relative;
 	display: flex;
 	align-items: center;
-	padding: var(--MI-note-padding-top, 20px) 20px 0;
+	padding: var(--MI-note-padding-top, var(--MI-cardPadding)) var(--MI-cardPadding) 0;
 	line-height: 20px;
 	font-size: 0.9em;
 	white-space: pre;
-	color: var(--MI_THEME-fg);
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	& + .article {
 		padding-top: 4px;
@@ -650,7 +666,7 @@ const keymap = {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: 90%;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	cursor: pointer;
 
 	&:hover {
@@ -658,13 +674,12 @@ const keymap = {
 	}
 }
 
-// 内边距对齐掘金沸点卡片 (juejin.cn/pins 的 .pin 实测 20px)
 .article {
 	position: relative;
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr);
 	column-gap: 8px;
-	padding: var(--MI-note-padding-top, 20px) 20px var(--MI-note-padding-bottom, 20px);
+	padding: var(--MI-note-padding-top, var(--MI-cardPadding)) var(--MI-cardPadding) var(--MI-note-padding-bottom, var(--MI-cardPadding));
 }
 
 .colorBar {
@@ -684,7 +699,7 @@ const keymap = {
 
 	&.useSticky {
 		position: sticky !important;
-		top: calc(30px + var(--MI-stickyTop, 0px));
+		top: calc(var(--MI-note-padding-top, var(--MI-cardPadding)) + var(--MI-stickyTop, 0px));
 		left: 0;
 	}
 }
@@ -723,7 +738,7 @@ const keymap = {
 	justify-content: center;
 	margin: 0 0 0 8px;
 	padding: 0 4px;
-	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%); // opacityなど不透明度で表現するとレンダリングパフォーマンスに影響するので通常の色の混合で代用
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:hover {
 		color: var(--MI_THEME-fgHighlighted);
@@ -777,6 +792,7 @@ const keymap = {
 }
 
 .text {
+	cursor: default;
 	overflow-wrap: break-word;
 }
 
@@ -860,7 +876,7 @@ const keymap = {
 	min-height: 20px;
 	margin: 0;
 	padding: 0;
-	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&,
 	&:disabled {
@@ -950,14 +966,6 @@ const keymap = {
 
 }
 
-@container (max-width: 450px) {
-	.avatar {
-		&.useSticky {
-			top: calc(22px + var(--MI-stickyTop, 0px));
-		}
-	}
-}
-
 @container (max-width: 250px) {
 	.quoteNote {
 		padding: 12px;
@@ -967,13 +975,13 @@ const keymap = {
 .muted {
 	padding: 8px;
 	text-align: center;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .reactionOmitted {
 	display: inline-block;
 	margin-left: 8px;
-	opacity: .8;
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 95%;
 }
 

@@ -16,6 +16,7 @@ import { AbuseReportNotificationService } from '@/core/AbuseReportNotificationSe
 import { SystemWebhookService } from '@/core/SystemWebhookService.js';
 import { UserSearchService } from '@/core/UserSearchService.js';
 import { WebhookTestService } from '@/core/WebhookTestService.js';
+import { FeedbackService } from '@/core/FeedbackService.js';
 import { FlashService } from '@/core/FlashService.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 import { AccountMoveService } from './AccountMoveService.js';
@@ -57,6 +58,8 @@ import { QueryService } from './QueryService.js';
 import { ReactionService } from './ReactionService.js';
 import { NoteLikeService } from './NoteLikeService.js';
 import { ReactionsBufferingService } from './ReactionsBufferingService.js';
+import { RedPacketService } from './RedPacketService.js';
+import { WalletService } from './WalletService.js';
 import { RelayService } from './RelayService.js';
 import { RoleService } from './RoleService.js';
 import { S3Service } from './S3Service.js';
@@ -207,6 +210,7 @@ const $QueryService: Provider = { provide: 'QueryService', useExisting: QuerySer
 const $ReactionService: Provider = { provide: 'ReactionService', useExisting: ReactionService };
 const $NoteLikeService: Provider = { provide: 'NoteLikeService', useExisting: NoteLikeService };
 const $ReactionsBufferingService: Provider = { provide: 'ReactionsBufferingService', useExisting: ReactionsBufferingService };
+const $RedPacketService: Provider = { provide: 'RedPacketService', useExisting: RedPacketService };
 const $RelayService: Provider = { provide: 'RelayService', useExisting: RelayService };
 const $RoleService: Provider = { provide: 'RoleService', useExisting: RoleService };
 const $S3Service: Provider = { provide: 'S3Service', useExisting: S3Service };
@@ -366,6 +370,8 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		ReactionService,
 		NoteLikeService,
 		ReactionsBufferingService,
+		RedPacketService,
+		WalletService,
 		RelayService,
 		RoleService,
 		S3Service,
@@ -388,6 +394,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		WebhookTestService,
 		UtilityService,
 		FileInfoService,
+		FeedbackService,
 		FlashService,
 		SearchService,
 		ClipService,
@@ -521,6 +528,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$ReactionService,
 		$NoteLikeService,
 		$ReactionsBufferingService,
+		$RedPacketService,
 		$RelayService,
 		$RoleService,
 		$S3Service,
@@ -678,6 +686,8 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		ReactionService,
 		NoteLikeService,
 		ReactionsBufferingService,
+		RedPacketService,
+		WalletService,
 		RelayService,
 		RoleService,
 		S3Service,
@@ -700,6 +710,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		WebhookTestService,
 		UtilityService,
 		FileInfoService,
+		FeedbackService,
 		FlashService,
 		SearchService,
 		ClipService,
@@ -832,6 +843,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$ReactionService,
 		$NoteLikeService,
 		$ReactionsBufferingService,
+		$RedPacketService,
 		$RelayService,
 		$RoleService,
 		$S3Service,

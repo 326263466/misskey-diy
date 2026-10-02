@@ -167,20 +167,23 @@ function afterLeave(el: Element) {
 		--MI-tabUnderlineOpacity: 1;
 	}
 
-	&:hover > .tabInner,
+	&:hover > .tabInner {
+		color: var(--MI_THEME-fgHighlighted);
+	}
+
 	&.active > .tabInner {
-		opacity: 1;
+		color: var(--MI_THEME-accent);
 	}
 
 	&.animate > .tabInner {
-		transition: opacity 0.2s ease;
+		transition: color 0.2s ease;
 	}
 }
 
 .tabInner {
 	display: flex;
 	align-items: center;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparent);
 }
 
 .tabIcon + .tabTitle {

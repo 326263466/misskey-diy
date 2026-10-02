@@ -51,7 +51,7 @@ function cancel(): void {
 <style lang="scss" module>
 .root {
 	margin: auto;
-	padding: 28px;
+	padding: var(--MI-cardPadding);
 	width: 480px;
 	max-width: 100%;
 	box-sizing: border-box;
@@ -59,10 +59,6 @@ function cancel(): void {
 	background: var(--MI_THEME-panel);
 	color: var(--MI_THEME-fg);
 	border-radius: var(--MI-radius);
-
-	@media (max-width: 400px) {
-		padding: 20px;
-	}
 }
 
 .icon {
@@ -76,6 +72,7 @@ function cancel(): void {
 }
 
 .description {
+	color: var(--MI_THEME-fgTransparentWeak);
 	margin: 0;
 	line-height: 1.6;
 }

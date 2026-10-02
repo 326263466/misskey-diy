@@ -40,6 +40,8 @@ const base: MiNote = {
 	emojis: [],
 	tags: [],
 	hasPoll: false,
+	hasRedPacket: false,
+	redPacketId: null,
 	channelId: null,
 	channel: null,
 	userHost: null,
@@ -89,5 +91,10 @@ describe('misc:is-renote', () => {
 		const note: MiNote = { ...base, renoteId: 'some-renote-id', fileIds: ['some-file-id'] };
 		expect(isRenote(note)).toBe(true);
 		expect(isQuote(note as any)).toBe(true);
+	});
+
+	test('a red packet attachment makes a renote a quote', () => {
+		const note = { ...base, renoteId: 'some-renote-id', hasRedPacket: true };
+		expect(isQuote(note)).toBe(true);
 	});
 });

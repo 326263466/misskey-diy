@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 900px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<div :class="$style.root" class="_gaps_m">
 			<div :class="$style.addButton">
 				<MkButton primary @click="onAddButtonClicked">

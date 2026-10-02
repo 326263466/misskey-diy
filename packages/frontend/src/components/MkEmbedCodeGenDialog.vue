@@ -351,7 +351,7 @@ onUnmounted(() => {
 
 .embedCodeGenResultRoot {
 	box-sizing: border-box;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	height: 100%;
 	max-width: 700px;
 	margin: 0 auto;
@@ -377,6 +377,7 @@ onUnmounted(() => {
 }
 
 .embedCodeGenResultDescription {
+	color: var(--MI_THEME-fgTransparentWeak);
 	text-align: center;
 	white-space: pre-wrap;
 }

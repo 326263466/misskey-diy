@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_panel" :class="$style.root">
+<div class="_panel">
 	<MkSelect v-model="src" :items="srcDef" style="margin: 0 0 12px 0;" small>
 	</MkSelect>
 	<MkHeatmap :src="src"/>
@@ -31,9 +31,3 @@ const {
 	initialValue: 'active-users',
 });
 </script>
-
-<style lang="scss" module>
-.root {
-	padding: 20px;
-}
-</style>

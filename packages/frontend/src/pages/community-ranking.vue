@@ -125,7 +125,7 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy', needW
 	font-size: var(--MI-communityBodyFontSize, 14px);
 	background: radial-gradient(ellipse at top right, color-mix(in srgb, var(--MI_THEME-accent) 13%, transparent), transparent 65%), var(--MI_THEME-panel);
 }
-.hero { padding: 32px 32px 0; }
+.hero { padding: var(--MI-cardPadding) var(--MI-cardPadding) 0; }
 .heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .heading h1 { margin: 0; font-size: 30px; font-weight: 750; line-height: 1.4; }
 .hero p { color: var(--MI_THEME-fgTransparentWeak); line-height: 1.7; margin: 12px 0 24px; }
@@ -136,7 +136,7 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy', needW
 .tab:hover { background: var(--MI_THEME-buttonHoverBg); }
 .tab.selected { color: var(--MI_THEME-accent); border-color: color-mix(in srgb, var(--MI_THEME-accent) 30%, transparent); background: var(--MI_THEME-accentedBg); font-weight: bold; }
 .tab:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
-.body { padding: 28px 32px 24px; }
+.body { padding: var(--MI-cardPadding); }
 .summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
 .summary h2 { margin: 0; font-size: 24px; font-weight: 750; line-height: 1.4; }
 .myRank { padding: 6px 10px; border-radius: 999px; background: var(--MI_THEME-panel); }
@@ -172,8 +172,6 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy', needW
 .footnote { font-size: 12px; margin-top: 20px; }
 .footnote p { margin: 4px 0; }
 @container (max-width: 600px) {
-	.hero { padding: 24px 16px 0; }
-	.body { padding: 16px; }
 	.heading { flex-wrap: wrap; }
 	.heading h1 { font-size: 26px; }
 	.summary h2 { font-size: 20px; }

@@ -159,7 +159,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 <style lang="scss" module>
 .root {
 	container-type: inline-size;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 }
 
 .title {
@@ -204,7 +204,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 
 .unit {
 	font-size: 0.75em;
-	color: color-mix(in srgb, var(--MI_THEME-fg) 70%, transparent);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .footer {
@@ -222,7 +222,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 	gap: 6px;
 	min-width: 0;
 	line-height: 1.2;
-	color: color-mix(in srgb, var(--MI_THEME-fg) 70%, transparent);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	> i {
 		flex-shrink: 0;
@@ -243,7 +243,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 	width: 28px;
 	height: 28px;
 	border-radius: var(--MI-radius);
-	color: color-mix(in srgb, var(--MI_THEME-fg) 70%, transparent);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:hover {
 		color: var(--MI_THEME-accent);
@@ -260,7 +260,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 
 	> p {
 		margin: 14px 0 18px;
-		color: color-mix(in srgb, var(--MI_THEME-fg) 70%, transparent);
+		color: var(--MI_THEME-fgTransparentWeak);
 	}
 }
 

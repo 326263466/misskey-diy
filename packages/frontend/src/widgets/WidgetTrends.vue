@@ -6,18 +6,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkContainer :showHeader="widgetProps.showHeader" data-testid="mkw-trends" class="mkw-trends">
 	<template #icon><i class="ti ti-hash"></i></template>
-	<template #header>{{ i18n.ts._widgets.trends }}</template>
+	<template #header><span class="heading">{{ i18n.ts._widgets.trends }}</span></template>
 
 	<div class="wbrkwala">
 		<MkLoading v-if="fetching"/>
 		<TransitionGroup v-else tag="div" :name="prefer.s.animation ? 'chart' : ''" class="tags">
-			<div v-for="stat in stats" :key="stat.tag">
+			<MkA v-for="stat in stats" :key="stat.tag" class="row" :to="`/tags/${ encodeURIComponent(stat.tag) }`" :title="stat.tag">
 				<div class="tag">
-					<MkA class="a" :to="`/tags/${ encodeURIComponent(stat.tag) }`" :title="stat.tag">#{{ stat.tag }}</MkA>
+					<span class="tagName">#{{ stat.tag }}</span>
 					<p>{{ i18n.tsx.nUsersMentioned({ n: stat.usersCount }) }}</p>
 				</div>
 				<MkMiniChart class="chart" :src="stat.chart"/>
-			</div>
+			</MkA>
 		</TransitionGroup>
 	</div>
 </MkContainer>
@@ -34,7 +34,6 @@ import MkMiniChart from '@/components/MkMiniChart.vue';
 import { misskeyApiGet } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
-import { useLowresTime } from '@/composables/use-lowres-time.js';
 import { getVisibleTrends, mergeTrendsWithCache, readTrendsCache, saveTrendsCache } from '@/utility/trends-cache.js';
 
 const name = 'trends';
@@ -59,10 +58,7 @@ const { widgetProps, configure } = useWidgetPropsManager(name,
 );
 
 const snapshot = shallowRef(readTrendsCache());
-const now = useLowresTime();
-// 后端只返回当前排行窗口内的话题，窗口一过就是空数组。
-// 没有新趋势补入时保留旧话题，避免刷新后面板变空。
-const stats = computed(() => getVisibleTrends(snapshot.value, now.value));
+const stats = computed(() => getVisibleTrends(snapshot.value));
 const fetching = ref(snapshot.value == null);
 
 const load = () => {
@@ -89,6 +85,16 @@ defineExpose<WidgetComponentExpose>({
 </script>
 
 <style lang="scss" scoped>
+// 标题栏与卡片主体同为 panel 白，保持视觉一致
+.mkw-trends {
+	--MI-containerHeaderBg: var(--MI_THEME-panel);
+}
+
+.heading {
+	font-size: 1.15em;
+	font-weight: 600;
+}
+
 .wbrkwala {
 	height: (62px + 1px) + (62px + 1px) + (62px + 1px) + (62px + 1px) + 62px;
 	overflow: hidden;
@@ -98,11 +104,21 @@ defineExpose<WidgetComponentExpose>({
 			transition: transform 1s ease;
 		}
 
-		> div {
+		> .row {
 			display: flex;
 			align-items: center;
-			padding: 14px var(--MI-cardPadding, 20px);
+			padding: 14px var(--MI-cardPadding, 18px);
 			border-bottom: solid 0.5px var(--MI_THEME-divider);
+
+			&:hover {
+				text-decoration: none;
+				background: var(--MI_THEME-panelHighlight);
+			}
+
+			&:focus-visible {
+				outline: 2px solid var(--MI_THEME-focus);
+				outline-offset: -2px;
+			}
 
 			> .tag {
 				flex: 1;
@@ -110,7 +126,7 @@ defineExpose<WidgetComponentExpose>({
 				font-size: 0.9em;
 				color: var(--MI_THEME-fg);
 
-				> .a {
+				> .tagName {
 					display: block;
 					width: 100%;
 					white-space: nowrap;
@@ -122,7 +138,7 @@ defineExpose<WidgetComponentExpose>({
 				> p {
 					margin: 0;
 					font-size: 75%;
-					opacity: 0.7;
+					color: var(--MI_THEME-fgTransparentWeak);
 					line-height: 16px;
 				}
 			}

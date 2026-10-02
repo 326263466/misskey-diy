@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkFeatureBanner>
 
 		<SearchMarker :keywords="['capacity', 'usage']">
-			<FormSection first>
+			<FormSection>
 				<template #label><SearchLabel>{{ i18n.ts.usageAmount }}</SearchLabel></template>
 
 				<div v-if="!fetching" class="_gaps_m">
@@ -409,7 +409,7 @@ definePage(() => ({
 <style lang="scss" module>
 .meter {
 	height: 10px;
-	background: rgba(0, 0, 0, 0.1);
+	background: var(--MI_THEME-bg);
 	border-radius: 999px;
 	overflow: clip;
 }

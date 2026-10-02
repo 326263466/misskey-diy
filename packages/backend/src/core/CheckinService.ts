@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { DataSource, LessThanOrEqual, MoreThan, type EntityManager } from 'typeorm';
+import { And, Between, DataSource, In, LessThan, LessThanOrEqual, MoreThan, MoreThanOrEqual, type EntityManager } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { MiUser } from '@/models/User.js';
 import { MiUserCheckin } from '@/models/UserCheckin.js';
@@ -19,8 +19,11 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
 
 export const CHECKIN_TIME_ZONE = 'Asia/Shanghai';
-export const CHECKIN_MAKEUP_CARD_TARGET = 7;
-export const CHECKIN_MAKEUP_CARD_EXCHANGE_COST = 7;
+export const CHECKIN_MAKEUP_CARD_TARGET = 30;
+export const CHECKIN_FIRST_MAKEUP_CARD_TARGET = 7;
+export const CHECKIN_MAKEUP_CARD_EXCHANGE_COST = 60;
+export const CHECKIN_MAKEUP_CARD_LIMIT = 3;
+export const CHECKIN_MAKEUP_WINDOW_DAYS = 7;
 const dateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: CHECKIN_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
 
 export function checkinDate(now: Date): string {
@@ -30,7 +33,11 @@ export function checkinDate(now: Date): string {
 }
 
 export function previousCheckinDate(date: string): string {
-	return new Date(new Date(`${date}T00:00:00.000Z`).getTime() - 86400000).toISOString().slice(0, 10);
+	return shiftCheckinDate(date, -1);
+}
+
+function shiftCheckinDate(date: string, days: number): string {
+	return new Date(new Date(`${date}T00:00:00.000Z`).getTime() + days * 86400000).toISOString().slice(0, 10);
 }
 
 export function isValidCheckinDate(date: string): boolean {
@@ -72,7 +79,12 @@ export type CheckinStatus = {
 	makeupCards: number;
 	makeupCardProgress: number;
 	makeupCardTarget: number;
+	makeupCardFirstRewardClaimed: boolean;
+	rewardDates: string[];
 	makeupCardExchangeCost: number;
+	makeupEarliestDate: string;
+	makeupCardLimit: number;
+	makeupCardExchangeAvailable: boolean;
 	achievements: { name: typeof CHECKIN_ACHIEVEMENT_TYPES[number]; unlockedAt: number }[];
 };
 
@@ -91,6 +103,7 @@ export class CheckinService {
 	public static NoSuchUserError = class extends Error {};
 	public static CardLimitError = class extends Error {};
 	public static InsufficientPointsError = class extends Error {};
+	public static MonthlyExchangeLimitError = class extends Error {};
 	public static NoSuchCardBatchError = class extends Error {};
 	public static CardBatchNotRevokableError = class extends Error {};
 
@@ -107,34 +120,49 @@ export class CheckinService {
 
 	@bindThis
 	public async getStatus(userId: string, month?: string, now = new Date()): Promise<CheckinStatus> {
+		// Calendar, balances and progress must describe the same committed state.
+		return this.db.transaction('REPEATABLE READ', manager => this.getStatusSnapshot(manager, userId, month, now));
+	}
+
+	private async getStatusSnapshot(manager: EntityManager, userId: string, month: string | undefined, now: Date): Promise<CheckinStatus> {
+		const checkins = manager.getRepository(MiUserCheckin);
 		const today = checkinDate(now);
 		const requestedMonth = month ?? today.slice(0, 7);
-		const [latest, dates, profile, actualDays] = await Promise.all([
-			this.userCheckinsRepository.findOne({ where: { userId, date: LessThanOrEqual(today) }, order: { date: 'DESC' } }),
-			this.userCheckinsRepository.createQueryBuilder('checkin').select(['checkin.date', 'checkin.isMakeup'])
+		const latest = await checkins.findOne({ where: { userId, date: LessThanOrEqual(today) }, order: { date: 'DESC' } });
+		const dates = await checkins.createQueryBuilder('checkin').select(['checkin.date', 'checkin.isMakeup', 'checkin.earnedMakeupCards'])
 				.where('checkin.userId = :userId', { userId })
 				.andWhere('checkin.date >= :start AND checkin.date < :end', { start: `${requestedMonth}-01`, end: nextMonth(requestedMonth) })
-				.orderBy('checkin.date', 'ASC').getMany(),
-			this.userProfilesRepository.findOneByOrFail({ userId }),
-			this.userCheckinsRepository.countBy({ userId, isMakeup: false }),
-		]);
+				.orderBy('checkin.date', 'ASC').getMany();
+		const profile = await manager.withRepository(this.userProfilesRepository).findOneByOrFail({ userId });
+		const exchangedThisMonth = await this.hasExchangedThisMonth(manager, userId, today);
+		const consecutiveDays = latest && latest.date >= previousCheckinDate(today) ? latest.consecutiveDays : 0;
+		const pendingDays = latest && consecutiveDays > 0 ? await checkins.countBy({
+			userId, date: Between(shiftCheckinDate(latest.date, 1 - consecutiveDays), latest.date), rewardConsumed: false, isMakeup: false,
+		}) : 0;
+		const registeredDate = checkinDate(this.idService.parse(userId).date);
+		const target = profile.checkinFirstRewardClaimed ? CHECKIN_MAKEUP_CARD_TARGET : CHECKIN_FIRST_MAKEUP_CARD_TARGET;
 		return {
 			timeZone: CHECKIN_TIME_ZONE,
 			today,
 			month: requestedMonth,
 			checkedInToday: latest?.date === today,
 			totalDays: latest?.totalDays ?? 0,
-			consecutiveDays: latest && latest.date >= previousCheckinDate(today) ? latest.consecutiveDays : 0,
+			consecutiveDays,
 			monthlyDays: dates.length,
 			lastCheckinDate: latest?.date ?? null,
 			checkedInDates: dates.map(record => record.date),
 			makeupDates: dates.filter(record => record.isMakeup).map(record => record.date),
-			registeredDate: checkinDate(this.idService.parse(userId).date),
+			registeredDate,
 			points: profile.checkinPoints,
 			makeupCards: profile.checkinMakeupCards,
-			makeupCardProgress: actualDays % CHECKIN_MAKEUP_CARD_TARGET,
-			makeupCardTarget: CHECKIN_MAKEUP_CARD_TARGET,
+			makeupCardProgress: Math.min(pendingDays, target),
+			makeupCardTarget: target,
+			makeupCardFirstRewardClaimed: profile.checkinFirstRewardClaimed,
+			rewardDates: dates.filter(record => record.earnedMakeupCards > 0).map(record => record.date),
 			makeupCardExchangeCost: CHECKIN_MAKEUP_CARD_EXCHANGE_COST,
+			makeupEarliestDate: this.makeupEarliestDate(registeredDate, today),
+			makeupCardLimit: CHECKIN_MAKEUP_CARD_LIMIT,
+			makeupCardExchangeAvailable: !exchangedThisMonth,
 			achievements: profile.achievements.filter((achievement): achievement is CheckinStatus['achievements'][number] => (CHECKIN_ACHIEVEMENT_TYPES as readonly string[]).includes(achievement.name)),
 		};
 	}
@@ -147,7 +175,7 @@ export class CheckinService {
 			const now = new Date();
 			const today = checkinDate(now);
 			const latest = await manager.findOne(MiUserCheckin, { where: { userId }, order: { date: 'DESC' } });
-			if (latest?.date === today) return { newlyCheckedIn: false, earnedMakeupCards: 0, now };
+			if (latest?.date === today) return { newlyCheckedIn: false, earnedMakeupCards: await this.settleStreakReward(manager, userId, now), now };
 			const record = manager.create(MiUserCheckin, {
 				userId, date: today, createdAt: now, isMakeup: false,
 				totalDays: (latest?.totalDays ?? 0) + 1,
@@ -155,15 +183,7 @@ export class CheckinService {
 			});
 			await manager.insert(MiUserCheckin, record);
 			await manager.increment(MiUserProfile, { userId }, 'checkinPoints', 1);
-			const actualDays = await manager.countBy(MiUserCheckin, { userId, isMakeup: false });
-			const earnedMakeupCards = actualDays % CHECKIN_MAKEUP_CARD_TARGET === 0 ? 1 : 0;
-			if (earnedMakeupCards) {
-				const profile = await manager.findOneByOrFail(MiUserProfile, { userId });
-				if (profile.checkinMakeupCards >= 2147483647) throw new CheckinService.CardLimitError();
-				await this.ensureOpeningBatch(manager, userId, profile.checkinMakeupCards);
-				await manager.increment(MiUserProfile, { userId }, 'checkinMakeupCards', earnedMakeupCards);
-				await this.createCardBatch(manager, userId, 'reward', earnedMakeupCards, now);
-			}
+			const earnedMakeupCards = await this.settleStreakReward(manager, userId, now);
 			return { newlyCheckedIn: true, earnedMakeupCards, now };
 		});
 		return this.completeCheckin(userId, result.newlyCheckedIn, result.now, undefined, result.earnedMakeupCards);
@@ -175,8 +195,9 @@ export class CheckinService {
 		const result = await this.db.transaction(async manager => {
 			await this.lockEligibleUser(manager, userId);
 			const now = new Date();
-			if (date < checkinDate(this.idService.parse(userId).date) || date >= checkinDate(now)) throw new CheckinService.InvalidDateError();
-			if (await manager.findOneBy(MiUserCheckin, { userId, date })) return { newlyCheckedIn: false, now };
+			const today = checkinDate(now);
+			if (date < this.makeupEarliestDate(checkinDate(this.idService.parse(userId).date), today) || date >= today) throw new CheckinService.InvalidDateError();
+			if (await manager.findOneBy(MiUserCheckin, { userId, date })) return { newlyCheckedIn: false, earnedMakeupCards: await this.settleStreakReward(manager, userId, now), now };
 			const profile = await manager.findOneByOrFail(MiUserProfile, { userId });
 			if (profile.checkinMakeupCards < 1) throw new CheckinService.NoMakeupCardsError();
 			await this.ensureOpeningBatch(manager, userId, profile.checkinMakeupCards);
@@ -185,7 +206,6 @@ export class CheckinService {
 			await manager.update(MiUserCheckinCardBatch, { id: batch.id }, { remaining: batch.remaining - 1, used: batch.used + 1 });
 			await manager.insert(MiUserCheckin, { userId, date, createdAt: now, isMakeup: true, totalDays: 0, consecutiveDays: 0, cardBatchId: batch.id });
 			await manager.decrement(MiUserProfile, { userId }, 'checkinMakeupCards', 1);
-			await manager.increment(MiUserProfile, { userId }, 'checkinPoints', 1);
 			// Inserting an older day changes cumulative totals and can join two streaks.
 			// Recompute every stored snapshot together while the user's write lock is held.
 			await manager.query(`
@@ -200,9 +220,10 @@ export class CheckinService {
 				UPDATE "user_checkin" c SET "totalDays" = corrected.total, "consecutiveDays" = corrected.streak
 				FROM corrected WHERE c."userId" = $1 AND c.date = corrected.date
 			`, [userId]);
-			return { newlyCheckedIn: true, now };
+			const earnedMakeupCards = await this.settleStreakReward(manager, userId, now);
+			return { newlyCheckedIn: true, earnedMakeupCards, now };
 		});
-		return this.completeCheckin(userId, result.newlyCheckedIn, result.now, date.slice(0, 7));
+		return this.completeCheckin(userId, result.newlyCheckedIn, result.now, date.slice(0, 7), result.earnedMakeupCards, 0);
 	}
 
 	@bindThis
@@ -213,15 +234,57 @@ export class CheckinService {
 			if (await manager.findOneBy(MiUserCheckinExchange, { userId, requestId })) {
 				return { points: profile.checkinPoints, makeupCards: profile.checkinMakeupCards, exchanged: false };
 			}
+			const now = new Date();
+			if (await this.hasExchangedThisMonth(manager, userId, checkinDate(now))) throw new CheckinService.MonthlyExchangeLimitError();
 			if (profile.checkinPoints < CHECKIN_MAKEUP_CARD_EXCHANGE_COST) throw new CheckinService.InsufficientPointsError();
-			if (profile.checkinMakeupCards >= 2147483647) throw new CheckinService.CardLimitError();
+			if (profile.checkinMakeupCards >= CHECKIN_MAKEUP_CARD_LIMIT) throw new CheckinService.CardLimitError();
 			await this.ensureOpeningBatch(manager, userId, profile.checkinMakeupCards);
 			await manager.decrement(MiUserProfile, { userId }, 'checkinPoints', CHECKIN_MAKEUP_CARD_EXCHANGE_COST);
 			await manager.increment(MiUserProfile, { userId }, 'checkinMakeupCards', 1);
-			await manager.insert(MiUserCheckinExchange, { userId, requestId, createdAt: new Date(), pointsSpent: CHECKIN_MAKEUP_CARD_EXCHANGE_COST, cardsGranted: 1 });
-			await this.createCardBatch(manager, userId, 'exchange', 1);
+			await manager.insert(MiUserCheckinExchange, { userId, requestId, createdAt: now, pointsSpent: CHECKIN_MAKEUP_CARD_EXCHANGE_COST, cardsGranted: 1 });
+			await this.createCardBatch(manager, userId, 'exchange', 1, now);
 			return { points: profile.checkinPoints - CHECKIN_MAKEUP_CARD_EXCHANGE_COST, makeupCards: profile.checkinMakeupCards + 1, exchanged: true };
 		});
+	}
+
+	private makeupEarliestDate(registeredDate: string, today: string): string {
+		const earliest = shiftCheckinDate(today, -CHECKIN_MAKEUP_WINDOW_DAYS);
+		return registeredDate > earliest ? registeredDate : earliest;
+	}
+
+	private async hasExchangedThisMonth(manager: EntityManager, userId: string, today: string): Promise<boolean> {
+		const month = today.slice(0, 7);
+		return manager.existsBy(MiUserCheckinExchange, {
+			userId,
+			createdAt: And(MoreThanOrEqual(new Date(`${month}-01T00:00:00+08:00`)), LessThan(new Date(`${nextMonth(month)}T00:00:00+08:00`))),
+		});
+	}
+
+	private async settleStreakReward(manager: EntityManager, userId: string, now: Date): Promise<number> {
+		const today = checkinDate(now);
+		const latest = await manager.findOneBy(MiUserCheckin, { userId, date: today, isMakeup: false });
+		if (!latest) return 0;
+		// Consumed dates stay consumed when makeup joins streaks. Full inventory also settles
+		// these dates, so spending a card later can never reclaim a skipped reward.
+		const where = { userId, date: Between(shiftCheckinDate(today, 1 - latest.consecutiveDays), today), rewardConsumed: false, isMakeup: false };
+		const profile = await manager.findOneByOrFail(MiUserProfile, { userId });
+		const pendingDays = await manager.countBy(MiUserCheckin, where);
+		const firstReward = !profile.checkinFirstRewardClaimed && pendingDays >= CHECKIN_FIRST_MAKEUP_CARD_TARGET;
+		const firstDays = firstReward ? CHECKIN_FIRST_MAKEUP_CARD_TARGET : 0;
+		const regularRounds = profile.checkinFirstRewardClaimed || firstReward ? Math.floor((pendingDays - firstDays) / CHECKIN_MAKEUP_CARD_TARGET) : 0;
+		const rounds = Number(firstReward) + regularRounds;
+		if (rounds === 0) return 0;
+		const dates = await manager.find(MiUserCheckin, { where, select: { date: true }, order: { date: 'ASC' }, take: firstDays + regularRounds * CHECKIN_MAKEUP_CARD_TARGET });
+		await manager.update(MiUserCheckin, { userId, date: In(dates.map(record => record.date)) }, { rewardConsumed: true });
+		if (firstReward) await manager.update(MiUserProfile, { userId }, { checkinFirstRewardClaimed: true });
+		const earnedCards = Math.min(rounds, Math.max(0, CHECKIN_MAKEUP_CARD_LIMIT - profile.checkinMakeupCards));
+		if (earnedCards > 0) {
+			await this.ensureOpeningBatch(manager, userId, profile.checkinMakeupCards);
+			await manager.increment(MiUserProfile, { userId }, 'checkinMakeupCards', earnedCards);
+			await this.createCardBatch(manager, userId, 'reward', earnedCards, now);
+			await manager.increment(MiUserCheckin, { userId, date: today }, 'earnedMakeupCards', earnedCards);
+		}
+		return earnedCards;
 	}
 
 	@bindThis
@@ -304,7 +367,7 @@ export class CheckinService {
 		if (!user || user.host !== null || user.isSuspended || user.isDeleted || user.movedToUri || user.username.includes('.')) throw new CheckinService.NotAllowedError();
 	}
 
-	private async completeCheckin(userId: string, newlyCheckedIn: boolean, now: Date, month?: string, earnedMakeupCards = 0): Promise<CheckinResult> {
+	private async completeCheckin(userId: string, newlyCheckedIn: boolean, now: Date, month?: string, earnedMakeupCards = 0, earnedPoints = newlyCheckedIn ? 1 : 0): Promise<CheckinResult> {
 		// Repeat requests can repair a missed award after an interrupted response without adding another day.
 		const historical = await this.userCheckinsRepository.createQueryBuilder('checkin')
 			.select('MAX(checkin.consecutiveDays)', 'streak').addSelect('MAX(checkin.totalDays)', 'total')
@@ -313,7 +376,7 @@ export class CheckinService {
 		for (const achievement of checkinAchievements(historical?.total ?? 0, historical?.streak ?? 0)) {
 			if (await this.achievementService.create(userId, achievement)) earnedAchievements.push(achievement);
 		}
-		return { ...await this.getStatus(userId, month, now), newlyCheckedIn, earnedAchievements, earnedPoints: newlyCheckedIn ? 1 : 0, earnedMakeupCards };
+		return { ...await this.getStatus(userId, month, now), newlyCheckedIn, earnedAchievements, earnedPoints, earnedMakeupCards };
 	}
 
 	@bindThis

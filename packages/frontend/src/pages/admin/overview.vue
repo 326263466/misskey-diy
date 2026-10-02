@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 1000px;">
+<div class="_pageBody">
 	<div ref="rootEl" :class="$style.root">
 		<MkFoldableSection class="item">
 			<template #header>{{ i18n.ts.statistics }}</template>
@@ -194,7 +194,7 @@ definePage(() => ({
 <style lang="scss" module>
 .root {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr));
 	grid-gap: 16px;
 }
 </style>

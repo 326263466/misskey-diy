@@ -51,6 +51,7 @@ export const navbarItemDef = reactive<{
 	followRequests: {
 		title: i18n.ts.followRequests,
 		icon: 'ti ti-user-plus',
+		show: computed(() => $i != null),
 		indicated: computed(() => $i != null && $i.hasPendingReceivedFollowRequest),
 		to: '/my/follow-requests',
 	},
@@ -134,6 +135,12 @@ export const navbarItemDef = reactive<{
 		show: computed(() => $i != null && $i.policies.chatAvailability !== 'unavailable'),
 		indicated: computed(() => $i != null && $i.hasUnreadChatMessages),
 	},
+	wallet: {
+		title: i18n.ts._wallet.title,
+		icon: 'ti ti-wallet',
+		show: computed(() => $i != null),
+		to: '/settings/wallet',
+	},
 	checkin: {
 		title: i18n.ts._checkin.dailyCheckin,
 		icon: 'ti ti-calendar-check',
@@ -158,7 +165,7 @@ export const navbarItemDef = reactive<{
 		to: '/my/achievements',
 	},
 	games: {
-		title: 'Misskey Games',
+		title: i18n.ts.games,
 		icon: 'ti ti-device-gamepad',
 		to: '/games',
 	},

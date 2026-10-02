@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader contentCard :tabs="headerTabs">
+	<div class="_pageBody">
 		<SearchMarker path="/admin/branding" :label="i18n.ts.branding" :keywords="['branding']" icon="ti ti-paint">
 			<div class="_gaps_m">
 				<SearchMarker :keywords="['entrance', 'welcome', 'landing', 'front', 'home', 'page', 'style']">
@@ -32,22 +32,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</MkSwitch>
 				</SearchMarker>
 
-				<SearchMarker :keywords="['icon', 'image']">
+				<SearchMarker :keywords="['logo', 'icon', 'image']">
 					<MkInput v-model="iconUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
-						<template #label><SearchLabel>{{ i18n.ts._serverSettings.iconUrl }}</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._brandingImages.icon }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts._brandingImages.iconDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
 				<SearchMarker :keywords="['icon', 'image']">
 					<MkInput v-model="app192IconUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
-						<template #label><SearchLabel>{{ i18n.ts._serverSettings.iconUrl }} (App/192px)</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._brandingImages.appIconSmall }}</SearchLabel></template>
 						<template #caption>
 							<div>{{ i18n.tsx._serverSettings.appIconDescription({ host: instance.name ?? host }) }}</div>
 							<div>({{ i18n.ts._serverSettings.appIconUsageExample }})</div>
 							<div>{{ i18n.ts._serverSettings.appIconStyleRecommendation }}</div>
-							<div><strong>{{ i18n.tsx._serverSettings.appIconResolutionMustBe({ resolution: '192x192px' }) }}</strong></div>
+							<div><strong>{{ i18n.tsx._serverSettings.appIconResolutionMustBe({ resolution: '192 × 192 px' }) }}</strong></div>
 						</template>
 					</MkInput>
 				</SearchMarker>
@@ -55,12 +56,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<SearchMarker :keywords="['icon', 'image']">
 					<MkInput v-model="app512IconUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
-						<template #label><SearchLabel>{{ i18n.ts._serverSettings.iconUrl }} (App/512px)</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._brandingImages.appIconLarge }}</SearchLabel></template>
 						<template #caption>
 							<div>{{ i18n.tsx._serverSettings.appIconDescription({ host: instance.name ?? host }) }}</div>
 							<div>({{ i18n.ts._serverSettings.appIconUsageExample }})</div>
 							<div>{{ i18n.ts._serverSettings.appIconStyleRecommendation }}</div>
-							<div><strong>{{ i18n.tsx._serverSettings.appIconResolutionMustBe({ resolution: '512x512px' }) }}</strong></div>
+							<div><strong>{{ i18n.tsx._serverSettings.appIconResolutionMustBe({ resolution: '512 × 512 px' }) }}</strong></div>
 						</template>
 					</MkInput>
 				</SearchMarker>
@@ -68,35 +69,40 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<SearchMarker :keywords="['banner', 'image']">
 					<MkInput v-model="bannerUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
-						<template #label><SearchLabel>{{ i18n.ts.bannerUrl }}</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._brandingImages.banner }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts._brandingImages.bannerDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
 				<SearchMarker :keywords="['background', 'image']">
 					<MkInput v-model="backgroundImageUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
-						<template #label><SearchLabel>{{ i18n.ts.backgroundImageUrl }}</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._brandingImages.background }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts._brandingImages.backgroundDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
 				<SearchMarker :keywords="['image']">
 					<MkInput v-model="notFoundImageUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
-						<template #label><SearchLabel>{{ i18n.ts.notFoundDescription }}</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._brandingImages.notFound }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts._brandingImages.notFoundDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
 				<SearchMarker :keywords="['image']">
 					<MkInput v-model="infoImageUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
-						<template #label><SearchLabel>{{ i18n.ts.nothing }}</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._brandingImages.empty }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts._brandingImages.emptyDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
 				<SearchMarker :keywords="['image']">
 					<MkInput v-model="serverErrorImageUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
-						<template #label><SearchLabel>{{ i18n.ts.somethingHappened }}</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._brandingImages.error }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts._brandingImages.errorDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
@@ -124,6 +130,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="repositoryUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts.repositoryUrl }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts._brandingImages.repositoryDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
@@ -144,8 +151,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 16px;">
-				<MkButton primary rounded @click="save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
+			<div class="_pageFooter">
+				<MkButton primary rounded :wait="saving" :aria-busy="saving" @click="save">
+					<i class="ti ti-check" aria-hidden="true"></i>
+					<span aria-live="polite">{{ saving ? i18n.ts._brandingImages.saving : saved ? i18n.ts.saved : i18n.ts.save }}</span>
+				</MkButton>
 			</div>
 		</div>
 	</template>
@@ -153,7 +163,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import JSON5 from 'json5';
 import * as Misskey from 'misskey-js';
 import { host } from '@@/js/config.js';
@@ -189,34 +199,79 @@ const defaultDarkTheme = ref(meta.defaultDarkTheme);
 const serverErrorImageUrl = ref(meta.serverErrorImageUrl);
 const infoImageUrl = ref(meta.infoImageUrl);
 const notFoundImageUrl = ref(meta.notFoundImageUrl);
-const repositoryUrl = ref(meta.repositoryUrl);
-const feedbackUrl = ref(meta.feedbackUrl);
+// Treat the inherited upstream links as empty defaults; keep custom addresses.
+const repositoryUrl = ref(meta.repositoryUrl === 'https://github.com/misskey-dev/misskey' ? null : meta.repositoryUrl);
+const feedbackUrl = ref(meta.feedbackUrl === 'https://github.com/misskey-dev/misskey/issues/new' ? null : meta.feedbackUrl);
 const manifestJsonOverride = ref(meta.manifestJsonOverride === '' ? '{}' : JSON.stringify(JSON.parse(meta.manifestJsonOverride), null, '\t'));
 
-function save() {
-	os.apiWithDialog('admin/update-meta', {
-		clientOptions: {
-			entrancePageStyle: entrancePageStyle.value,
-			showTimelineForVisitor: showTimelineForVisitor.value,
-			showActivitiesForVisitor: showActivitiesForVisitor.value,
-		},
-		iconUrl: iconUrl.value,
-		app192IconUrl: app192IconUrl.value,
-		app512IconUrl: app512IconUrl.value,
-		bannerUrl: bannerUrl.value,
-		backgroundImageUrl: backgroundImageUrl.value,
-		themeColor: themeColor.value === '' ? null : themeColor.value,
-		defaultLightTheme: defaultLightTheme.value === '' ? null : defaultLightTheme.value,
-		defaultDarkTheme: defaultDarkTheme.value === '' ? null : defaultDarkTheme.value,
-		infoImageUrl: infoImageUrl.value === '' ? null : infoImageUrl.value,
-		notFoundImageUrl: notFoundImageUrl.value === '' ? null : notFoundImageUrl.value,
-		serverErrorImageUrl: serverErrorImageUrl.value === '' ? null : serverErrorImageUrl.value,
-		repositoryUrl: repositoryUrl.value === '' ? null : repositoryUrl.value,
-		feedbackUrl: feedbackUrl.value === '' ? null : feedbackUrl.value,
-		manifestJsonOverride: manifestJsonOverride.value === '' ? '{}' : JSON.stringify(JSON5.parse(manifestJsonOverride.value)),
-	}).then(() => {
-		fetchInstance(true);
-	});
+const saving = ref(false);
+const saved = ref(false);
+let savedTimer: number | undefined;
+let formRevision = 0;
+let disposed = false;
+
+watch([
+	entrancePageStyle, showTimelineForVisitor, showActivitiesForVisitor,
+	iconUrl, app192IconUrl, app512IconUrl, bannerUrl, backgroundImageUrl, themeColor,
+	defaultLightTheme, defaultDarkTheme, serverErrorImageUrl, infoImageUrl, notFoundImageUrl,
+	repositoryUrl, feedbackUrl, manifestJsonOverride,
+], () => {
+	formRevision++;
+	saved.value = false;
+	window.clearTimeout(savedTimer);
+}, { flush: 'sync' });
+
+onBeforeUnmount(() => {
+	disposed = true;
+	window.clearTimeout(savedTimer);
+});
+
+async function save() {
+	if (saving.value) return;
+	saved.value = false;
+	window.clearTimeout(savedTimer);
+	let manifest: string;
+	try {
+		manifest = manifestJsonOverride.value === '' ? '{}' : JSON.stringify(JSON5.parse(manifestJsonOverride.value));
+	} catch {
+		await os.alert({ type: 'error', title: i18n.ts.invalidParamError, text: i18n.ts._brandingImages.invalidManifest });
+		return;
+	}
+
+	const revision = formRevision;
+	saving.value = true;
+	try {
+		await os.apiWithDialog('admin/update-meta', {
+			clientOptions: {
+				entrancePageStyle: entrancePageStyle.value,
+				showTimelineForVisitor: showTimelineForVisitor.value,
+				showActivitiesForVisitor: showActivitiesForVisitor.value,
+			},
+			iconUrl: iconUrl.value,
+			app192IconUrl: app192IconUrl.value,
+			app512IconUrl: app512IconUrl.value,
+			bannerUrl: bannerUrl.value,
+			backgroundImageUrl: backgroundImageUrl.value,
+			themeColor: themeColor.value === '' ? null : themeColor.value,
+			defaultLightTheme: defaultLightTheme.value === '' ? null : defaultLightTheme.value,
+			defaultDarkTheme: defaultDarkTheme.value === '' ? null : defaultDarkTheme.value,
+			infoImageUrl: infoImageUrl.value === '' ? null : infoImageUrl.value,
+			notFoundImageUrl: notFoundImageUrl.value === '' ? null : notFoundImageUrl.value,
+			serverErrorImageUrl: serverErrorImageUrl.value === '' ? null : serverErrorImageUrl.value,
+			repositoryUrl: repositoryUrl.value === '' ? null : repositoryUrl.value,
+			feedbackUrl: feedbackUrl.value === '' ? null : feedbackUrl.value,
+			manifestJsonOverride: manifest,
+		});
+		if (!disposed && revision === formRevision) {
+			saved.value = true;
+			savedTimer = window.setTimeout(() => { saved.value = false; }, 3000);
+		}
+		void fetchInstance(true).catch(err => console.error('Failed to refresh instance metadata after saving branding', err));
+	} catch {
+		// apiWithDialog already displays the save error. Keep the form available for retry.
+	} finally {
+		saving.value = false;
+	}
 }
 
 const headerTabs = computed(() => []);

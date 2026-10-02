@@ -44,7 +44,7 @@ onMounted(() => {
 			labels: props.data.map(x => x.name),
 			datasets: [{
 				backgroundColor: props.data.map(x => x.color ?? '#000'),
-				borderColor: themeManager.currentCompiledTheme!.panel,
+				borderColor: () => themeManager.currentCompiledTheme!.panel,
 				borderWidth: 2,
 				hoverOffset: 0,
 				data: props.data.map(x => x.value),

@@ -10,6 +10,7 @@ import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '@/server/api/error.js';
 import { ChatService } from '@/core/ChatService.js';
+import { redPacketApiErrors, throwRedPacketApiError } from '@/server/api/red-packet-errors.js';
 import type { DriveFilesRepository, MiUser } from '@/models/_.js';
 
 export const meta = {
@@ -33,6 +34,7 @@ export const meta = {
 	},
 
 	errors: {
+		...redPacketApiErrors,
 		noSuchRoom: {
 			message: 'No such room.',
 			code: 'NO_SUCH_ROOM',
@@ -46,7 +48,7 @@ export const meta = {
 		},
 
 		contentRequired: {
-			message: 'Content required. You need to set text or fileId.',
+			message: 'Content required. You need to set text, fileId or redPacketId.',
 			code: 'CONTENT_REQUIRED',
 			id: '340517b7-6d04-42c0-bac1-37ee804e3594',
 		},
@@ -58,6 +60,7 @@ export const paramDef = {
 	properties: {
 		text: { type: 'string', nullable: true, maxLength: 2000 },
 		fileId: { type: 'string', format: 'misskey:id' },
+		redPacketId: { type: 'string', format: 'misskey:id' },
 		toRoomId: { type: 'string', format: 'misskey:id' },
 	},
 	required: ['toRoomId'],
@@ -72,7 +75,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private getterService: GetterService,
 		private chatService: ChatService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps, me, token) => {
+			if (ps.redPacketId && token) throw new ApiError(meta.errors.accessDenied);
 			await this.chatService.checkChatAvailability(me.id, 'write');
 
 			const room = await this.chatService.findRoomById(ps.toRoomId);
@@ -93,14 +97,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// テキストが無いかつ添付ファイルも無かったらエラー
-			if (ps.text == null && file == null) {
+			if (ps.text == null && file == null && ps.redPacketId == null) {
 				throw new ApiError(meta.errors.contentRequired);
 			}
 
 			return await this.chatService.createMessageToRoom(me, room, {
 				text: ps.text,
 				file: file,
-			});
+				redPacketId: ps.redPacketId,
+			}).catch(throwRedPacketApiError);
 		});
 	}
 }

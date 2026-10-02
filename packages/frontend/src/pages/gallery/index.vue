@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div class="_spacer" style="--MI_SPACER-w: 1400px;">
+	<div class="_pageBody">
 		<div v-if="tab === 'explore'" class="_gaps">
 			<MkFoldableSection>
 				<template #header><i class="ti ti-clock"></i>{{ i18n.ts.recentPosts }}</template>
@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkPagination>
 		</div>
 		<div v-else-if="tab === 'my'">
-			<MkA to="/gallery/new" class="_link" style="margin: 16px;"><i class="ti ti-plus"></i> {{ i18n.ts.postToGallery }}</MkA>
+			<MkA to="/gallery/new" class="_link _panel _panelPadding" style="display: block; margin-bottom: var(--MI-pageGap);"><i class="ti ti-plus"></i> {{ i18n.ts.postToGallery }}</MkA>
 			<MkPagination v-slot="{items}" :paginator="myPostsPaginator">
 				<div :class="$style.items">
 					<MkGalleryPostPreview v-for="post in items" :key="post.id" :post="post" class="post"/>
@@ -110,8 +110,7 @@ definePage(() => ({
 <style lang="scss" module>
 .items {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 	grid-gap: 12px;
-	margin: 0 var(--MI-margin);
 }
 </style>

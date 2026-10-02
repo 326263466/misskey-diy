@@ -301,7 +301,7 @@ defineExpose({
 	position: relative;
 	box-sizing: border-box;
 	width: 100%;
-	padding: 48px 24px;
+	padding: var(--MI-cardPadding);
 }
 
 .header {
@@ -346,9 +346,8 @@ defineExpose({
 }
 
 .permissionRoot {
-	padding: 16px;
-	border-radius: var(--MI-radius);
-	background-color: var(--MI_THEME-bg);
+	padding-block: var(--MI-cardPadding);
+	border-block: 1px solid var(--MI_THEME-divider);
 }
 
 .permissionListWrapper {
@@ -356,7 +355,7 @@ defineExpose({
 	overflow-y: auto;
 	padding: 12px;
 	border-radius: var(--MI-radius);
-	background-color: var(--MI_THEME-panel);
+	background-color: var(--MI_THEME-bg);
 }
 
 .permissionList {
@@ -367,7 +366,7 @@ defineExpose({
 
 .accountSelectorLabel {
 	font-size: 0.85em;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	margin-bottom: 8px;
 }
 
@@ -395,6 +394,10 @@ defineExpose({
 	&:checked + .accountSelectorItem {
 		background: var(--MI_THEME-accent);
 		color: var(--MI_THEME-fgOnAccent);
+
+		.accountSelectorAcct {
+			color: inherit;
+		}
 	}
 }
 
@@ -448,6 +451,6 @@ defineExpose({
 }
 
 .accountSelectorAcct {
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

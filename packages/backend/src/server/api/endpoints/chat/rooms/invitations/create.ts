@@ -7,8 +7,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import ms from 'ms';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
+import { EntityNotFoundError } from 'typeorm';
 import { ApiError } from '@/server/api/error.js';
-import { ChatService } from '@/core/ChatService.js';
+import { ChatService, ChatRoomFullError, ChatRoomInvitationError } from '@/core/ChatService.js';
 import { ChatEntityService } from '@/core/entities/ChatEntityService.js';
 
 export const meta = {
@@ -32,6 +33,12 @@ export const meta = {
 	},
 
 	errors: {
+		invalidInvitee: { message: 'This user cannot be invited to the room.', code: 'INVALID_INVITEE', id: 'f7baf19c-e34c-4b4c-b7b8-031c3be41074' },
+		roomFull: {
+			message: 'The room has reached its 50-member limit, including the owner.',
+			code: 'CHAT_ROOM_FULL',
+			id: '945d2e56-62e9-4b1c-ad4e-8532c55dcdb9',
+		},
 		noSuchRoom: {
 			message: 'No such room.',
 			code: 'NO_SUCH_ROOM',
@@ -62,7 +69,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (room == null) {
 				throw new ApiError(meta.errors.noSuchRoom);
 			}
-			const invitation = await this.chatService.createRoomInvitation(me.id, room.id, ps.userId);
+			const invitation = await this.chatService.createRoomInvitation(me.id, room.id, ps.userId).catch(error => {
+				if (error instanceof ChatRoomInvitationError) throw new ApiError(meta.errors.invalidInvitee);
+				if (error instanceof EntityNotFoundError) throw new ApiError(meta.errors.noSuchRoom);
+				if (error instanceof ChatRoomFullError) throw new ApiError(meta.errors.roomFull);
+				throw error;
+			});
 			return await this.chatEntityService.packRoomInvitation(invitation, me);
 		});
 	}

@@ -57,6 +57,8 @@ describe('NoteCreateService', () => {
 			emojis: [],
 			tags: [],
 			hasPoll: false,
+			hasRedPacket: false,
+			redPacketId: null,
 			channelId: null,
 			channel: null,
 			userHost: null,

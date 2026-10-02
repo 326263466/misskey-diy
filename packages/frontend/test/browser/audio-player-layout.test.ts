@@ -19,7 +19,7 @@ const preferences = vi.hoisted(() => ({ animation: false, useNativeUiForVideoAud
 vi.mock('misskey-js', () => ({}));
 vi.mock('@/os.js', () => ({ claimZIndex: () => 1000, popupMenu: vi.fn(), contextMenu: vi.fn() }));
 vi.mock('@/i.js', () => ({ $i: null }));
-vi.mock('@/theme.js', () => ({ themeManager: { currentCompiledTheme: { accent: '#86b300' } } }));
+vi.mock('@/theme.js', () => ({ themeManager: { on: vi.fn(), off: vi.fn(), currentCompiledTheme: { accent: '#86b300' } } }));
 vi.mock('@/preferences.js', () => ({ prefer: { s: preferences } }));
 vi.mock('@/utility/device-kind.js', () => ({ deviceKind: 'desktop' }));
 vi.mock('@/utility/touch.js', () => ({ isTouchUsing: false, lastPointerType: 'mouse' }));

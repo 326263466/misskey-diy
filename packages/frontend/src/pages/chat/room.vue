@@ -4,16 +4,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :reversed="tab === 'chat'" :tabs="headerTabs" :actions="headerActions">
-	<div v-if="tab === 'chat'" class="_spacer" :class="$style.spacer" style="--MI_SPACER-w: 700px;">
-		<div :class="$style.card">
-			<div :class="$style.conversation">
+<PageWithHeader v-model:tab="tab" :contentCard="tab === 'chat'" :class="[$style.chatPage, { [$style.room]: tab === 'chat' }]" :reversed="tab === 'chat'" :tabs="headerTabs" :actions="headerActions">
+	<div v-if="tab === 'chat'" :class="$style.conversation">
+		<div>
+			<div>
 				<div v-if="initializing">
 					<MkLoading/>
 				</div>
 
 				<div v-else-if="messages.length === 0">
-					<div class="_gaps" style="text-align: center;">
+					<div :class="$style.emptyState">
 						<div>{{ i18n.ts._chat.noMessagesYet }}</div>
 						<template v-if="user">
 							<div v-if="user.chatScope === 'followers'">{{ i18n.ts._chat.thisUserAllowsChatOnlyFromFollowers }}</div>
@@ -61,21 +61,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</div>
 
-	<div v-else-if="tab === 'search'" class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div v-else-if="tab === 'search'" class="_pageBody">
 		<XSearch :userId="userId" :roomId="roomId"/>
 	</div>
 
-	<div v-else-if="tab === 'members'" class="_spacer" style="--MI_SPACER-w: 700px;">
-		<XMembers v-if="room != null" :room="room" @inviteUser="inviteUser"/>
+	<div v-else-if="tab === 'members'" class="_pageBody">
+		<XMembers v-if="room != null" :key="`${membersVersion}:${invitationsRevision}`" :room="room" @inviteUser="inviteUser"/>
 	</div>
 
-	<div v-else-if="tab === 'info'" class="_spacer" style="--MI_SPACER-w: 700px;">
-		<XInfo v-if="room != null" :room="room"/>
+	<div v-else-if="tab === 'info'" class="_pageBody">
+		<XInfo v-if="room != null" :room="room" @updated="room = $event"/>
 	</div>
 
 	<template #footer>
 		<div v-if="tab === 'chat'" :class="$style.footer">
-			<div class="_spacer _gaps" :class="$style.footerInner" style="--MI_SPACER-w: 700px;">
+			<div class="_gaps">
 				<Transition name="fade">
 					<div v-show="showIndicator" :class="$style.new">
 						<button class="_buttonPrimary" :class="$style.newButton" @click="onIndicatorClick">
@@ -91,14 +91,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef, computed, onMounted, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
+import { ref, useTemplateRef, computed, defineAsyncComponent, nextTick, onMounted, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { getScrollContainer } from '@@/js/scroll.js';
-import XMessage from './XMessage.vue';
-import XForm from './room.form.vue';
-import XSearch from './room.search.vue';
-import XMembers from './room.members.vue';
-import XInfo from './room.info.vue';
 import type { MenuItem } from '@/types/menu.js';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import * as os from '@/os.js';
@@ -110,13 +105,18 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { prefer } from '@/preferences.js';
 import { useRouter } from '@/router.js';
-import { useMutationObserver } from '@/composables/use-mutation-observer.js';
 import { useUserStatistics } from '@/composables/use-user-statistics.js';
 import { useUserStatisticsVisibility } from '@/composables/use-user-statistics-visibility.js';
 import MkInfo from '@/components/MkInfo.vue';
 import { makeDateSeparatedTimelineComputedRef } from '@/utility/timeline-date-separate.js';
 
 const $i = ensureSignin();
+// 聊天外框先显示，消息附件和非当前标签按需加载。
+const XMessage = defineAsyncComponent({ loader: () => import('./XMessage.vue').then(module => module.default), suspensible: false });
+const XForm = defineAsyncComponent({ loader: () => import('./room.form.vue').then(module => module.default), suspensible: false });
+const XSearch = defineAsyncComponent({ loader: () => import('./room.search.vue').then(module => module.default), suspensible: false });
+const XMembers = defineAsyncComponent({ loader: () => import('./room.members.vue').then(module => module.default), suspensible: false });
+const XInfo = defineAsyncComponent({ loader: () => import('./room.info.vue').then(module => module.default), suspensible: false });
 const router = useRouter();
 
 const props = defineProps<{
@@ -139,29 +139,12 @@ const canFetchMore = ref(false);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
 useUserStatistics(user, { active: useUserStatisticsVisibility() });
 const room = ref<Misskey.entities.ChatRoom | null>(null);
+const invitationsRevision = ref(0);
+let disposed = false;
 const connection = ref<Misskey.IChannelConnection<Misskey.Channels['chatUser']> | Misskey.IChannelConnection<Misskey.Channels['chatRoom']> | null>(null);
 const showIndicator = ref(false);
 const timelineEl = useTemplateRef('timelineEl');
 const timeline = makeDateSeparatedTimelineComputedRef(messages);
-
-const SCROLL_HEAD_THRESHOLD = 200;
-
-// column-reverseなので本来はスクロール位置の最下部への追従は不要なはずだが、おそらくブラウザのバグにより、最下部にスクロールした状態でも追従されない場合がある(スクロール位置が少数になることがあるのが関わっていそう)
-// そのため補助としてMutationObserverを使って追従を行う
-useMutationObserver(timelineEl, {
-	subtree: true,
-	childList: true,
-	attributes: false,
-}, () => {
-	const scrollContainer = getScrollContainer(timelineEl.value)!;
-	// column-reverseなのでscrollTopは負になる
-	if (-scrollContainer.scrollTop < SCROLL_HEAD_THRESHOLD) {
-		scrollContainer.scrollTo({
-			top: 0,
-			behavior: 'instant',
-		});
-	}
-});
 
 function normalizeMessage(message: Misskey.entities.ChatMessageLite | Misskey.entities.ChatMessage): NormalizedChatMessage {
 	return {
@@ -231,9 +214,13 @@ async function initialize() {
 				router.push('/chat');
 				return;
 			} else {
-				await os.apiWithDialog('chat/rooms/join', { roomId: r.id });
-				initializing.value = false;
-				initialize();
+				try {
+					await os.apiWithDialog('chat/rooms/join', { roomId: r.id });
+				} catch {
+					router.push('/chat');
+					return;
+				} finally { initializing.value = false; }
+				void initialize();
 				return;
 			}
 		}
@@ -250,6 +237,7 @@ async function initialize() {
 		connection.value = useStream().useChannel('chatRoom', {
 			roomId: room.value.id,
 		});
+		connection.value.on('membersChanged', refreshRoom);
 		connection.value.on('message', onMessage);
 		connection.value.on('deleted', onDeleted);
 		connection.value.on('react', onReact);
@@ -300,9 +288,16 @@ async function fetchMore() {
 }
 
 function onMessage(message: Misskey.entities.ChatMessageLite) {
+	if (messages.value.some(existing => existing.id === message.id)) return;
+	const scroller = getScrollContainer(timelineEl.value);
+	const followNewMessage = isActivated && (message.fromUserId === $i.id || !scroller || Math.abs(scroller.scrollTop) < 2);
 	if ($i.onlineStatusOverride !== 'doNotDisturb') sound.playMisskeySfx('chatMessage');
 
 	messages.value.unshift(normalizeMessage(message));
+	// 只跟随新消息，回应、菜单与媒体渲染不能把正在阅读的位置拉到底部。
+	if (followNewMessage) void nextTick(() => {
+		if (isActivated && timelineEl.value) getScrollContainer(timelineEl.value)?.scrollTo({ top: 0, behavior: 'instant' });
+	});
 
 	// TODO: DOM的にバックグラウンドになっていないかどうかも考慮する
 	if (message.fromUserId !== $i.id && !window.document.hidden && isActivated) {
@@ -325,29 +320,19 @@ function onDeleted(id: string) {
 
 function onReact(ctx: Parameters<Misskey.Channels['chatUser']['events']['react']>[0] | Parameters<Misskey.Channels['chatRoom']['events']['react']>[0]) {
 	const message = messages.value.find(m => m.id === ctx.messageId);
-	if (message) {
-		if (room.value == null) { // 1on1の時はuserは省略される
-			message.reactions.push({
-				reaction: ctx.reaction,
-				user: message.fromUserId === $i.id ? user.value! : $i,
-			});
-		} else {
-			message.reactions.push({
-				reaction: ctx.reaction,
-				user: ctx.user!,
-			});
-		}
-	}
+	if (!message) return;
+	const actor = room.value ? ctx.user : (message.fromUserId === $i.id ? user.value : $i);
+	if (!actor || message.reactions.some(record => record.reaction === ctx.reaction && record.user.id === actor.id)) return;
+	message.reactions.push({ reaction: ctx.reaction, user: actor });
 }
 
 function onUnreact(ctx: Parameters<Misskey.Channels['chatUser']['events']['unreact']>[0] | Parameters<Misskey.Channels['chatRoom']['events']['unreact']>[0]) {
 	const message = messages.value.find(m => m.id === ctx.messageId);
-	if (message) {
-		const index = message.reactions.findIndex(r => r.reaction === ctx.reaction && r.user.id === ctx.user!.id);
-		if (index !== -1) {
-			message.reactions.splice(index, 1);
-		}
-	}
+	if (!message) return;
+	const actor = room.value ? ctx.user : (message.fromUserId === $i.id ? user.value : $i);
+	if (!actor) return;
+	const index = message.reactions.findIndex(record => record.reaction === ctx.reaction && record.user.id === actor.id);
+	if (index !== -1) message.reactions.splice(index, 1);
 }
 
 function onIndicatorClick() {
@@ -374,6 +359,8 @@ onActivated(() => {
 });
 
 onBeforeUnmount(() => {
+	disposed = true;
+	roomRefreshPending = false;
 	connection.value?.dispose();
 	window.document.removeEventListener('visibilitychange', onVisibilitychange);
 });
@@ -382,10 +369,16 @@ async function inviteUser() {
 	if (room.value == null) return;
 
 	const invitee = await os.selectUser({ includeSelf: false, localOnly: true });
-	os.apiWithDialog('chat/rooms/invitations/create', {
-		roomId: room.value.id,
-		userId: invitee.id,
-	});
+	try {
+		await os.apiWithDialog('chat/rooms/invitations/create', {
+			roomId: room.value.id,
+			userId: invitee.id,
+		});
+		invitationsRevision.value++;
+		os.success();
+	} catch {
+		// 请求弹窗已显示错误。
+	}
 }
 
 async function leaveRoom() {
@@ -397,7 +390,7 @@ async function leaveRoom() {
 	});
 	if (canceled) return;
 
-	misskeyApi('chat/rooms/leave', {
+	await os.apiWithDialog('chat/rooms/leave', {
 		roomId: room.value.id,
 	});
 	router.push('/chat');
@@ -430,6 +423,31 @@ function showMenu(ev: PointerEvent) {
 }
 
 const tab = ref('chat');
+const membersVersion = ref(0);
+let roomRefreshId = 0;
+let roomRefreshPending = false;
+let roomRefreshRunning = false;
+
+async function refreshRoom() {
+	if (disposed || !room.value) return;
+	if (roomRefreshRunning) {
+		roomRefreshPending = true;
+		return;
+	}
+	roomRefreshRunning = true;
+	const requestId = ++roomRefreshId;
+	const roomId = room.value.id;
+	const updated = await misskeyApi('chat/rooms/show', { roomId }).catch(() => null);
+	if (!disposed && updated && !roomRefreshPending && requestId === roomRefreshId && room.value?.id === roomId) {
+		room.value.memberCount = updated.memberCount;
+		membersVersion.value++;
+	}
+	roomRefreshRunning = false;
+	if (roomRefreshPending) {
+		roomRefreshPending = false;
+		void refreshRoom();
+	}
+}
 
 const headerTabs = computed(() => room.value ? [{
 	key: 'chat',
@@ -437,7 +455,7 @@ const headerTabs = computed(() => room.value ? [{
 	icon: 'ti ti-message-dots',
 }, {
 	key: 'members',
-	title: i18n.ts._chat.members,
+	title: `${i18n.ts._chat.members} (${room.value.memberCount})`,
 	icon: 'ti ti-users',
 }, {
 	key: 'search',
@@ -489,6 +507,15 @@ definePage(computed(() => {
 </script>
 
 <style lang="scss" module>
+.emptyState {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	text-align: center;
+	color: var(--MI_THEME-fgTransparentWeak);
+	line-height: 1.5;
+}
+
 .transition_x_move,
 .transition_x_enterActive,
 .transition_x_leaveActive {
@@ -503,12 +530,24 @@ definePage(computed(() => {
 	position: absolute;
 }
 
-.root {
+.chatPage {
+	--MI-tabUnderlineHeight: 0px;
 }
 
-// 和其他页面一致，消息列表也收进卡片里
-.card {
-	padding: var(--MI-cardPadding, 20px);
+.room {
+	--MI-pageContentPadding: 0px;
+	--MI-pageCardBg: var(--MI_THEME-panelHighlight);
+	--MI-pageFooterBg: transparent;
+}
+
+.conversation {
+	flex: 1 0 auto;
+	min-width: 0;
+	padding: var(--MI-cardPadding);
+	box-sizing: border-box;
+	background-color: var(--MI_THEME-panelHighlight);
+	background-image: radial-gradient(circle, color-mix(in srgb, var(--MI_THEME-accent) 12%, transparent) 1px, transparent 1px);
+	background-size: 24px 24px;
 }
 
 .sentinel {
@@ -517,7 +556,6 @@ definePage(computed(() => {
 
 .footer {
 	width: 100%;
-	padding-top: 8px;
 }
 
 .new {
@@ -540,15 +578,9 @@ definePage(computed(() => {
 	margin-right: 8px;
 }
 
-.footer {
-
-}
-
-// 输入框的左右边缘对齐消息卡片（与 _spacer 同一套计算）
+// The composer is the footer of the same conversation surface.
 .form {
-	margin: 0 auto;
 	width: 100%;
-	max-width: min(700px, calc(100% - (var(--MI-cardPadding, 20px) * 2)));
 }
 
 .fade-enter-active, .fade-leave-active {
@@ -566,7 +598,7 @@ definePage(computed(() => {
 	align-items: center;
 	justify-content: center;
 	gap: 0.5em;
-	opacity: 0.75;
+	color: var(--MI_THEME-fgTransparentWeak);
 	border: solid 0.5px var(--MI_THEME-divider);
 	border-radius: 999px;
 	width: fit-content;

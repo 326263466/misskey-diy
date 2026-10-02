@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { defineAsyncComponent } from 'vue';
 import { host } from '@@/js/config.js';
 import type { MenuItem } from '@/types/menu.js';
 import * as os from '@/os.js';
@@ -65,7 +64,7 @@ function toolsMenuItems(): MenuItem[] {
 	return items;
 }
 
-export function openInstanceMenu(ev: PointerEvent, opts?: { contextmenu?: boolean }) {
+export function openInstanceMenu(ev: PointerEvent) {
 	const menuItems: MenuItem[] = [];
 
 	menuItems.push({
@@ -184,11 +183,6 @@ export function openInstanceMenu(ev: PointerEvent, opts?: { contextmenu?: boolea
 		text: i18n.ts.aboutMisskey,
 		to: '/about-misskey',
 	});
-
-	if (opts?.contextmenu) {
-		os.contextMenu(menuItems, ev);
-		return;
-	}
 
 	os.popupMenu(menuItems, ev.currentTarget ?? ev.target, {
 		align: 'left',

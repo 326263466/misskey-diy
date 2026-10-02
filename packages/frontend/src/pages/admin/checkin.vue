@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <component :is="embedded ? 'div' : 'PageWithHeader'">
-	<div :class="{ _spacer: !embedded }" style="--MI_SPACER-w: 1200px;">
+	<div :class="{ _pageBody: !embedded }">
 		<div class="_gaps_m">
 			<div :class="$style.dashboard">
 				<section class="_panel _gaps" :class="$style.section" :aria-label="i18n.ts._checkin.grantCards">
@@ -306,7 +306,7 @@ if (!props.embedded) definePage(() => ({ title: i18n.ts._checkin.grantCards, ico
 }
 .section {
 	min-width: 0;
-	padding: calc(var(--MI-margin) * 1.5);
+	padding: var(--MI-cardPadding);
 	h2 { margin: 0; font-size: 1.05em; }
 }
 .heading, .controls, .pagination {
@@ -319,10 +319,10 @@ if (!props.embedded) definePage(() => ({ title: i18n.ts._checkin.grantCards, ico
 .description, .scope { margin: 0; font-size: .85em; line-height: 1.7; color: var(--MI_THEME-fgTransparentWeak); }
 .metrics {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
 	gap: var(--MI-marginHalf);
 	margin: 0;
-	> div { min-width: 0; padding: var(--MI-margin); background: var(--MI_THEME-bg); border-radius: var(--MI-radius); }
+	> div { min-width: 0; padding: var(--MI-cardPadding); background: var(--MI_THEME-panel); border: 1px solid var(--MI_THEME-divider); border-radius: var(--MI-radius); }
 	dt { font-size: .8em; color: var(--MI_THEME-fgTransparentWeak); }
 	dd { margin: var(--MI-marginHalf) 0 0; font-size: 1.7em; font-weight: bold; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 }
@@ -353,7 +353,6 @@ if (!props.embedded) definePage(() => ({ title: i18n.ts._checkin.grantCards, ico
 	.dashboard { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 500px) {
-	.section { padding: var(--MI-margin); }
 	.metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span :class="$style.fg">
 				<template v-if="choice.isVoted"><i class="ti ti-check" style="margin-right: 4px; color: var(--MI_THEME-accent);"></i></template>
 				<Mfm :text="choice.text" :plain="true" :author="author" :emojiUrls="emojiUrls"/>
-				<span v-if="showResult" style="margin-left: 4px; opacity: 0.7;">({{ i18n.tsx._poll.votesCount({ n: choice.votes }) }})</span>
+				<span v-if="showResult" style="margin-left: 4px; color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.tsx._poll.votesCount({ n: choice.votes }) }})</span>
 			</span>
 		</li>
 	</ul>
@@ -146,7 +146,7 @@ const vote = async (id: number) => {
 }
 
 .info {
-	color: var(--MI_THEME-fg);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .done {

@@ -90,12 +90,12 @@ defineExpose<WidgetComponentExpose>({
 
 <style lang="scss" module>
 .root {
-	padding: var(--MI-cardPadding, 20px) 0;
+	padding: var(--MI-cardPadding, 18px);
 	text-align: center;
 }
 
 .label {
 	font-size: 65%;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

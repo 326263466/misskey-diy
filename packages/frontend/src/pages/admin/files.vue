@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 900px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<div class="_gaps">
 			<div class="inputs" style="display: flex; gap: var(--MI-margin); flex-wrap: wrap;">
 				<MkSelect v-model="origin" :items="originDef" style="margin: 0; flex: 1;">

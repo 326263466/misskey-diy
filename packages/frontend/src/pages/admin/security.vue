@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<SearchMarker path="/admin/security" :label="i18n.ts.security" :keywords="['security']" icon="ti ti-lock" :inlining="['botProtection']">
 			<div class="_gaps_m">
 				<XBotProtection/>
@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</template>
 
 						<div class="_gaps_m">
-							<div><SearchText>{{ i18n.ts._sensitiveMediaDetection.description }}</SearchText></div>
+							<div style="color: var(--MI_THEME-fgTransparentWeak);"><SearchText>{{ i18n.ts._sensitiveMediaDetection.description }}</SearchText></div>
 
 							<MkInfo warn><SearchText>{{ i18n.ts._sensitiveMediaDetection.externalServiceInfo }}</SearchText></MkInfo>
 
@@ -107,7 +107,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</template>
 
 						<div class="_gaps_m">
-							<div><SearchText>{{ i18n.ts.activeEmailValidationDescription }}</SearchText></div>
+							<div style="color: var(--MI_THEME-fgTransparentWeak);"><SearchText>{{ i18n.ts.activeEmailValidationDescription }}</SearchText></div>
 
 							<SearchMarker>
 								<MkSwitch v-model="emailValidationForm.state.enableActiveEmailValidation">

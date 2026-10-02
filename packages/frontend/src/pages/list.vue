@@ -4,11 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div v-if="error != null" class="_spacer" style="--MI_SPACER-w: 1200px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div v-if="error != null" class="_pageBody">
 		<MkResult type="error"/>
 	</div>
-	<div v-else-if="list" class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div v-else-if="list" class="_pageBody">
 		<div v-if="list" :class="$style.members">
 			<div :class="$style.member_text">{{ i18n.ts.members }}</div>
 			<div class="_gaps_s">
@@ -117,14 +117,13 @@ definePage(() => ({
 .userItemBody {
 	flex: 1;
 	min-width: 0;
-	margin-right: 8px;
 
 	&:hover {
 		text-decoration: none;
 	}
 }
 .member_text {
-	margin: 0 5px 5px;
+	margin: 0 0 5px;
 }
 
 .root {

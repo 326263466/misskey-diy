@@ -4,17 +4,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<span ref="bubbleEl" :class="[$style.bubble, { [$style.reacted]: isMine }]">
+<span ref="bubbleEl" :class="$style.bubble">
 	<button v-if="author != null && !mock" ref="avatarButton" type="button" class="_button" :class="$style.bubbleAvatar" :aria-label="acct(author)" aria-haspopup="dialog" :aria-expanded="authorShown" @click.stop="toggleAuthor">
 		<MkAvatar :class="$style.bubbleAvatar" :user="author" :link="false" :preview="false" title=""/>
 	</button>
 	<MkAvatar v-else-if="author != null" :class="$style.bubbleAvatar" :user="author" :link="false" :preview="false"/>
 	<span v-else :class="[$style.bubbleAvatar, $style.bubbleAvatarFallback]"><i class="ti ti-rocket" aria-hidden="true"></i></span>
 	<template v-if="isTextBoost(reaction)">
-		<button v-if="bubbleAction != null" class="_button" :class="$style.bubbleText" :aria-expanded="actionShown" @click="actionShown = !actionShown"><MkReactionIcon :reaction="reaction" :allowTextBoost="true" :nowrap="true"/></button>
+		<button v-if="bubbleAction != null" class="_button" :class="$style.bubbleText" :aria-expanded="actionShown" @click.stop="actionShown = !actionShown"><MkReactionIcon :reaction="reaction" :allowTextBoost="true" :nowrap="true"/></button>
 		<span v-else :class="$style.bubbleText"><MkReactionIcon :reaction="reaction" :allowTextBoost="true" :nowrap="true"/></span>
-		<button v-if="actionShown && bubbleAction === 'remove'" v-tooltip="i18n.ts.delete" class="_button" :class="$style.bubbleAction" :disabled="busy" :aria-label="i18n.ts.delete" @click="removeBoost()"><i class="ti ti-trash" aria-hidden="true"></i></button>
-		<button v-else-if="actionShown && bubbleAction === 'report'" v-tooltip="i18n.ts.reportAbuse" class="_button" :class="$style.bubbleAction" :aria-label="i18n.ts.reportAbuse" @click="reportBoost()"><i class="ti ti-flag" aria-hidden="true"></i></button>
 	</template>
 	<button
 		v-else
@@ -23,13 +21,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 		class="_button"
 		:class="$style.emojiContent"
 		:aria-pressed="isMine"
+		:aria-expanded="actionShown"
 		:disabled="busy"
-		@click="onClick"
+		@click.stop="onClick"
 		@contextmenu.prevent.stop="menu"
 	>
 		<MkReactionIcon style="pointer-events: none;" :class="prefer.s.limitWidthOfReaction ? $style.limitWidth : ''" :reaction="reaction" :emojiUrl="reactionEmojis[emojiName]"/>
 		<span v-if="count > 1" :class="$style.count">×{{ count }}</span>
 	</button>
+	<button v-if="actionShown && bubbleAction === 'remove'" v-tooltip="i18n.ts.delete" class="_button" :class="[$style.bubbleAction, $style.removeAction]" :disabled="busy" :aria-label="i18n.ts.delete" @click.stop="removeBoost()"><i class="ti ti-trash" aria-hidden="true"></i></button>
+	<button v-else-if="actionShown && bubbleAction === 'report'" v-tooltip="i18n.ts.reportAbuse" class="_button" :class="$style.bubbleAction" :aria-label="i18n.ts.reportAbuse" @click.stop="reportBoost()"><i class="ti ti-flag" aria-hidden="true"></i></button>
 </span>
 </template>
 
@@ -49,7 +50,7 @@ import { useTooltip } from '@/composables/use-tooltip.js';
 import { $i } from '@/i.js';
 import MkReactionEffect from '@/components/MkReactionEffect.vue';
 import { i18n } from '@/i18n.js';
-import * as sound from '@/utility/sound.js';
+
 // import { checkReactionPermissions } from '@/utility/check-reaction-permissions.js';
 import { customEmojisMap } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
@@ -57,7 +58,7 @@ import { DI } from '@/di.js';
 import { noteEvents } from '@/composables/use-note-capture.js';
 import { mute as muteEmoji, unmute as unmuteEmoji, checkMuted as isEmojiMuted } from '@/utility/emoji-mute.js';
 import { addToEmojiPalette } from '@/utility/emoji-palette.js';
-import { haptic } from '@/utility/haptic.js';
+
 import { getBoostText, isTextBoost } from '@/utility/boost.js';
 import MkAvatar from '@/components/global/MkAvatar.vue';
 import { claimUserPopup } from '@/utility/user-popup.js';
@@ -91,6 +92,7 @@ let releaseAuthorPopup: (() => void) | null = null;
 const busy = ref(false);
 const actionShown = ref(false);
 let dialogOpen = false;
+let disposed = false;
 
 watch(actionShown, shown => {
 	if (!shown) {
@@ -109,6 +111,7 @@ function onOutsidePointer(ev: PointerEvent) {
 }
 
 onBeforeUnmount(() => {
+	disposed = true;
 	window.document.removeEventListener('pointerdown', onOutsidePointer, { capture: true });
 	closeAuthor();
 });
@@ -170,8 +173,8 @@ const canToggle = computed(() => {
 });
 
 function onClick() {
-	if (canToggle.value) {
-		void toggleReaction();
+	if (bubbleAction.value != null) {
+		actionShown.value = !actionShown.value;
 	} else {
 		showDetails();
 	}
@@ -180,14 +183,22 @@ function onClick() {
 async function removeBoost() {
 	if (!isMine.value || $i == null || busy.value) return;
 	const userId = $i.id;
+	const noteId = props.noteId;
+	const reaction = props.reaction;
 	actionShown.value = false;
 	busy.value = true;
 	try {
+		const { canceled } = await os.confirm({
+			type: 'warning',
+			text: i18n.ts.cancelReactionConfirm,
+		});
+		if (canceled || disposed || !isMine.value || props.noteId !== noteId || props.reaction !== reaction) return;
+
 		if (!mock) {
-			await misskeyApi('notes/reactions/delete', { noteId: props.noteId });
-			noteEvents.emit(`unreacted:${props.noteId}`, { userId, reaction: props.reaction });
+			await misskeyApi('notes/reactions/delete', { noteId });
+			noteEvents.emit(`unreacted:${noteId}`, { userId, reaction });
 		} else {
-			emit('reactionToggled', props.reaction, props.count - 1);
+			emit('reactionToggled', reaction, props.count - 1);
 		}
 	} catch {
 		await os.alert({ type: 'error', text: i18n.ts.somethingHappened });
@@ -223,47 +234,6 @@ function showDetails() {
 	}, {
 		closed: () => dispose(),
 	});
-}
-
-async function toggleReaction() {
-	if (!canToggle.value || $i == null || busy.value) return;
-	const userId = $i.id;
-	const oldReaction = props.myReaction;
-	const removing = isMine.value;
-	busy.value = true;
-	try {
-		if (oldReaction && !removing) {
-			const { canceled } = await os.confirm({
-				type: 'warning',
-				text: i18n.ts.changeReactionConfirm,
-			});
-			if (canceled) return;
-		} else if (!removing && prefer.s.confirmOnReact) {
-			const { canceled } = await os.confirm({ type: 'question', text: i18n.tsx.reactAreYouSure({ emoji: props.reaction.replace('@.', '') }) });
-			if (canceled) return;
-		}
-
-		if (mock) {
-			emit('reactionToggled', props.reaction, props.count + (removing ? -1 : 1));
-			return;
-		}
-
-		if (removing) {
-			await misskeyApi('notes/reactions/delete', { noteId: props.noteId });
-		} else {
-			await misskeyApi('notes/reactions/create', { noteId: props.noteId, reaction: props.reaction });
-		}
-		if (oldReaction) noteEvents.emit(`unreacted:${props.noteId}`, { userId, reaction: oldReaction });
-		if (!removing) {
-			noteEvents.emit(`reacted:${props.noteId}`, { userId, reaction: props.reaction, emoji: customEmojisMap.get(emojiName.value) });
-			sound.playMisskeySfx('reaction');
-			haptic();
-		}
-	} catch {
-		await os.alert({ type: 'error', text: i18n.ts.somethingHappened });
-	} finally {
-		busy.value = false;
-	}
 }
 
 async function menu(ev: PointerEvent) {
@@ -366,7 +336,7 @@ if (!mock) {
 
 <style lang="scss" module>
 .bubble {
-	--boost-bubble-bg: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 6%);
+	--boost-bubble-bg: var(--MI_THEME-buttonBg);
 }
 
 .bubble .emojiContent {
@@ -402,10 +372,6 @@ if (!mock) {
 	line-height: 1;
 	background: var(--boost-bubble-bg);
 
-	&.reacted {
-		// 自己的 boost 不填充底色，仅保留 accent 边框环（沿用默认气泡底色）
-		box-shadow: 0 0 0 1px color-mix(in srgb, var(--MI_THEME-accent) 45%, var(--MI_THEME-divider)) inset;
-	}
 }
 
 .bubble .bubbleAvatar {
@@ -440,11 +406,19 @@ if (!mock) {
 	padding: 2px;
 	margin: 0 -3px 0 0;
 	line-height: 1;
-	color: var(--MI_THEME-fgTransparentWeak);
+	color: var(--MI_THEME-fg);
 
 	> :global(.ti) {
 		font-size: inherit;
 	}
+
+	&:hover {
+		color: var(--MI_THEME-fgHighlighted);
+	}
+}
+
+.removeAction {
+	color: var(--MI_THEME-error);
 
 	&:hover {
 		color: var(--MI_THEME-error);

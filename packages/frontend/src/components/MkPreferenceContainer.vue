@@ -9,10 +9,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<slot></slot>
 	</div>
 	<div :class="$style.menu">
-		<i v-if="isSyncEnabled" class="ti ti-cloud-cog" style="color: var(--MI_THEME-accent); opacity: 0.7;"></i>
-		<i v-if="isAccountOverrided" class="ti ti-user-cog" style="color: var(--MI_THEME-accent); opacity: 0.7;"></i>
+		<i v-if="isSyncEnabled" class="ti ti-cloud-cog" style="color: var(--MI_THEME-accent);"></i>
+		<i v-if="isAccountOverrided" class="ti ti-user-cog" style="color: var(--MI_THEME-accent);"></i>
 		<div :class="$style.buttons">
-			<button class="_button" style="color: var(--MI_THEME-fg)" @click="showMenu($event)"><i class="ti ti-dots"></i></button>
+			<button class="_button" @click="showMenu($event)"><i class="ti ti-dots"></i></button>
 		</div>
 	</div>
 </div>
@@ -71,7 +71,7 @@ function showMenu(ev: PointerEvent, contextmenu?: boolean) {
 
 		.menu {
 			.buttons {
-				opacity: 0.7;
+				color: var(--MI_THEME-fgTransparent);
 			}
 		}
 	}
@@ -91,12 +91,12 @@ function showMenu(ev: PointerEvent, contextmenu?: boolean) {
 
 		&:hover {
 			.buttons {
-				opacity: 1;
+				color: var(--MI_THEME-fgHighlighted);
 			}
 		}
 
 		.buttons {
-			opacity: 0.3;
+			color: var(--MI_THEME-fgTransparentWeak);
 		}
 	}
 }

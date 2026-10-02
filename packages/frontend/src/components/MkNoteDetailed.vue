@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<i v-else-if="note.visibility === 'followers'" class="ti ti-lock"></i>
 					<i v-else-if="note.visibility === 'specified'" ref="specified" class="ti ti-mail"></i>
 				</span>
-				<span v-if="note.localOnly" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
+				<span v-if="note.localOnly && !note.redPacket" style="margin-left: 0.5em;" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
 			</div>
 		</div>
 		<div v-if="isRenoteTargetDeleted" :class="$style.deleted">
@@ -67,7 +67,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						/>
 					</MkCwButton>
 					<div v-show="appearNote.cw == null || showContent">
-						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
+						<span v-if="appearNote.isHidden" style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.private }})</span>
 						<Mfm
 							v-if="appearNote.text"
 							:parsedNodes="displayNodes"
@@ -90,6 +90,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div v-if="appearNote.files && appearNote.files.length > 0" style="margin-top: 12px;">
 							<MkMediaList ref="galleryEl" :mediaList="appearNote.files" :user="appearNote.user"/>
 						</div>
+						<MkRedPacket v-if="appearNote.redPacket" :redPacketId="appearNote.redPacket.id" :authorId="appearNote.userId" :redPacket="appearNote.redPacket"/>
 						<MkPoll
 							v-if="appearNote.poll"
 							:noteId="appearNote.id"
@@ -127,7 +128,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 						:reactionEmojis="$reactionNote.reactionEmojis"
 						:myReaction="$reactionNote.myReaction"
 						:noteId="reactionNote.id"
-					/>
+					>
+						<template v-if="hasBoosts" #boost>
+							<button ref="reactButton" v-tooltip="i18n.ts._boost.title" class="_button" :class="$style.boostButton" :aria-label="i18n.ts._boost.title" aria-haspopup="dialog" :aria-expanded="boostOpen" :disabled="!canBoost || appearNote.reactionAcceptance === 'likeOnly'" @click.stop="toggleReact()">
+								<i class="ti ti-rocket"></i>
+							</button>
+						</template>
+					</MkReactionsViewer>
 					<div :class="$style.tagsAndLikeRow">
 						<MkNoteTags v-if="appearNote.cw == null || showContent" :tags="topics.tags" :channel="appearNote.channel"/>
 						<MkLikeSummary :noteId="appearNote.id" :count="$appearNote.likeCount" :users="$appearNote.likeUsers"/>
@@ -170,11 +177,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</span>
 						</div>
 						<div :class="$style.footerIconActions">
-							<button ref="reactButton" v-tooltip="i18n.ts._boost.title" class="_button" :class="$style.noteFooterButton" :aria-label="i18n.ts._boost.title" aria-haspopup="dialog" :aria-expanded="boostOpen" :disabled="!canBoost || appearNote.reactionAcceptance === 'likeOnly'" @click.stop="toggleReact()">
-								<i class="ti ti-rocket"></i>
-							</button>
 							<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" v-tooltip="i18n.ts.clip" class="_button" :class="$style.noteFooterButton" :aria-label="i18n.ts.clip" @click.stop="clip()">
 								<i class="ti ti-paperclip"></i>
+							</button>
+							<button v-if="!hasBoosts && $reactionNote.myReaction == null" ref="reactButton" v-tooltip="i18n.ts._boost.title" class="_button" :class="$style.noteFooterButton" :aria-label="i18n.ts._boost.title" aria-haspopup="dialog" :aria-expanded="boostOpen" :disabled="!canBoost || appearNote.reactionAcceptance === 'likeOnly'" @click.stop="toggleReact()">
+								<i class="ti ti-rocket"></i>
 							</button>
 							<button v-tooltip="i18n.ts.share" class="_button" :class="$style.noteFooterButton" :aria-label="i18n.ts.share" @click.stop="share()">
 								<i class="ti ti-share"></i>
@@ -203,7 +210,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</template>
 					<template #default="{ items }">
 						<div :class="$style.tab_renotes">
-							<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); grid-gap: 12px;">
+							<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr)); grid-gap: 12px;">
 								<MkA v-for="item in items" :key="item.id" :to="userPage(item.user)">
 									<MkUserCardMini :user="item.user" :withChart="false"/>
 								</MkA>
@@ -223,7 +230,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 					<MkPagination v-if="reactionTabType" :key="reactionTabType" :paginator="reactionsPaginator">
 						<template #default="{ items }">
-							<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); grid-gap: 12px;">
+							<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr)); grid-gap: 12px;">
 								<MkA v-for="item in items" :key="item.id" :to="userPage(item.user)">
 									<MkUserCardMini :user="item.user" :withChart="false"/>
 								</MkA>
@@ -286,6 +293,7 @@ import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkMediaList from '@/components/MkMediaList.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
 import MkPoll from '@/components/MkPoll.vue';
+import MkRedPacket from '@/components/MkRedPacket.vue';
 import MkUrlPreview from '@/components/MkUrlPreview.vue';
 import MkInstanceTicker from '@/components/MkInstanceTicker.vue';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
@@ -365,6 +373,8 @@ const {
 }, {
 	inChannel,
 });
+
+const hasBoosts = computed(() => Object.values($reactionNote.reactions).some(count => count > 0));
 
 // provide
 provide(DI.mfmEmojiReactCallback, reactViaMfmEmoji);
@@ -484,6 +494,19 @@ const keymap = {
 </script>
 
 <style lang="scss" module>
+.boostButton {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	&:hover:not(:disabled) {
+		color: var(--MI_THEME-accent);
+	}
+}
+
 .noteFooterButton.liked { color: var(--MI_THEME-love); }
 .root {
 	position: relative;
@@ -550,9 +573,9 @@ const keymap = {
 		position: absolute;
 		z-index: 1;
 		top: 100%;
-		// 上文渲染的是 MkNote，40px = 它的卡片内边距 20px + 头像半径 20px。
+		// Align the connector with the preceding MkNote avatar center.
 		// MkNote 的任何断点都不改这两个值，所以这里可以写死
-		left: 40px;
+		left: calc(var(--MI-cardPadding) + 20px);
 		width: 1px;
 		height: 4px;
 		border-radius: 999px;
@@ -574,20 +597,19 @@ const keymap = {
 }
 
 .deletedReply {
-	padding: 20px 20px 10px;
+	padding: var(--MI-cardPadding) var(--MI-cardPadding) 10px;
 	text-align: center;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .renote {
 	display: flex;
 	align-items: center;
-	padding: 20px 20px 0;
+	padding: var(--MI-cardPadding) var(--MI-cardPadding) 0;
 	line-height: 20px;
 	font-size: 0.9em;
 	white-space: pre;
-	color: var(--MI_THEME-fg);
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .renoteText {
@@ -623,7 +645,7 @@ const keymap = {
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr);
 	column-gap: 8px;
-	padding: 20px;
+	padding: var(--MI-cardPadding);
 
 	&:hover > .main > .footer > .button {
 		opacity: 1;
@@ -656,7 +678,7 @@ const keymap = {
 	justify-content: center;
 	height: 20px;
 	margin-left: 8px;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:hover {
 		color: var(--MI_THEME-fgHighlighted);
@@ -719,7 +741,7 @@ const keymap = {
 
 .noteFooterInfo {
 	margin: 16px 0;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 0.9em;
 }
 
@@ -759,7 +781,7 @@ const keymap = {
 	min-height: 20px;
 	margin: 0;
 	padding: 0;
-	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&,
 	&:disabled {
@@ -857,15 +879,15 @@ const keymap = {
 }
 
 .tab_renotes {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 }
 
 .tab_reactions {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 }
 
 .tabEmpty {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 }
 
 .reactionTabs {
@@ -902,7 +924,7 @@ const keymap = {
 .muted {
 	padding: 8px;
 	text-align: center;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .deleted {

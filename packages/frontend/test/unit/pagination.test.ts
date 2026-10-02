@@ -143,6 +143,32 @@ describe('分页边界', () => {
 });
 
 describe('自动加载', () => {
+	test.each([true, false])('loading indicators can be disabled without showing an empty result prematurely: %s', async showLoading => {
+		let finish!: (value: ReturnType<typeof rows>) => void;
+		mocks.api.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+		const view = renderPagination(new Paginator('notes/timeline', {}), { showLoading });
+		expect(view.queryByRole('status') != null).toBe(showLoading);
+		expect(view.container.querySelector('mk-result-stub')).toBeNull();
+		finish([]);
+		await waitFor(() => expect(view.container.querySelector('mk-result-stub')).not.toBeNull());
+		expect(view.queryByRole('status')).toBeNull();
+	});
+
+	test('silent pagination keeps existing rows and still appends the next page', async () => {
+		let finish!: (value: ReturnType<typeof rows>) => void;
+		mocks.api.mockResolvedValueOnce(rows(15)).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+		const paginator = new Paginator('notes/timeline', { canFetchDetection: 'limit' });
+		const view = renderPagination(paginator, { showLoading: false });
+		await waitFor(() => expect(observers.size).toBe(1));
+		intersect();
+		await waitFor(() => expect(paginator.fetchingOlder.value).toBe(true));
+		expect(view.queryByRole('status')).toBeNull();
+		expect(view.container.querySelectorAll('article')).toHaveLength(15);
+		finish(rows(1, 85));
+		await waitFor(() => expect(view.container.querySelectorAll('article')).toHaveLength(16));
+		expect(paginator.canFetchOlder.value).toBe(false);
+	});
+
 	test('短列表不显示加载更多或创建观察点', async () => {
 		mocks.api.mockResolvedValueOnce(rows(2));
 		const view = renderPagination(new Paginator('notes/timeline', {}));

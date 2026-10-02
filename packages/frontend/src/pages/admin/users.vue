@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 900px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<div class="_gaps">
 			<div :class="$style.inputs">
 				<MkSelect v-model="sort" :items="sortDef" :class="$style.input">
@@ -211,7 +211,7 @@ definePage(() => ({
 
 .users {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
 	grid-gap: 12px;
 
 	> .user:hover {

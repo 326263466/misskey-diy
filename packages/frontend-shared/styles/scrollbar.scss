@@ -1,0 +1,46 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+:root {
+	--MI-scrollbarSize: 6px;
+	--MI-scrollbarRadius: 999px;
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--MI_THEME-scrollbarHandle) transparent;
+
+	@supports selector(::-webkit-scrollbar) {
+		// Standard scrollbar properties override the custom track in Chromium.
+		scrollbar-width: auto;
+		scrollbar-color: auto;
+
+		&::-webkit-scrollbar {
+			width: var(--MI-scrollbarSize);
+			height: var(--MI-scrollbarSize);
+		}
+
+		&::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		&::-webkit-scrollbar-thumb {
+			border-radius: var(--MI-scrollbarRadius);
+			background: var(--MI_THEME-scrollbarHandle);
+
+			&:hover {
+				background: var(--MI_THEME-scrollbarHandleHover);
+			}
+		}
+
+		&::-webkit-scrollbar-button {
+			display: none;
+		}
+
+		&::-webkit-scrollbar-corner {
+			background: transparent;
+		}
+	}
+}

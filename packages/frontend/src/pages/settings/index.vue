@@ -20,8 +20,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkSuperMenu :def="menuDef" :grid="narrow" :searchIndex="searchIndex"></MkSuperMenu>
 		</div>
 	</nav>
-	<PageWithHeader v-if="!(narrow && currentPage?.route.name == null)" class="_pageContent" :tabs="headerTabs" :actions="headerActions" :hideTitle="!narrow">
-		<NestedRouterView/>
+	<PageWithHeader v-if="!(narrow && currentPage?.route.name == null)" contentCard class="_pageContent" :tabs="headerTabs" :actions="headerActions">
+		<NestedRouterView :initialRoute="initialRoute"/>
 	</PageWithHeader>
 </div>
 </template>
@@ -46,6 +46,10 @@ import { enableStoragePersistence, getStoragePersistenceStatusRef, storagePersis
 import { signout } from '@/signout.js';
 import { useScrollPositionKeeper } from '@/composables/use-scroll-position-keeper.js';
 
+const router = useRouter();
+// Keep this layout's route while asynchronous setup finishes after navigation.
+const initialRoute = router.current.route.path === '/settings' ? router.current : router.resolve('/settings')!;
+
 const searchIndex = await import('search-index:settings').then(({ searchIndexes }) => genSearchIndexes(searchIndexes));
 
 const storagePersisted = await getStoragePersistenceStatusRef();
@@ -61,8 +65,6 @@ const INFO = ref<PageMetadata>(indexInfo);
 const el = useTemplateRef('el');
 useScrollPositionKeeper(el);
 const childInfo = ref<null | PageMetadata>(null);
-
-const router = useRouter();
 
 const NARROW_THRESHOLD = 600;
 const narrow = ref(window.innerWidth < NARROW_THRESHOLD);
@@ -104,6 +106,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.security,
 		to: '/settings/security',
 		active: currentPage.value?.route.name === 'security',
+	}, {
+		icon: 'ti ti-wallet',
+		text: i18n.ts._wallet.title,
+		to: '/settings/wallet',
+		active: currentPage.value?.route.name === 'wallet',
 	}],
 }, {
 	items: [{

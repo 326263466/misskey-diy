@@ -45,7 +45,7 @@ useInterval(fetch, 1000 * 60, {
 <style lang="scss" module>
 .instances {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
 	grid-gap: 12px;
 }
 

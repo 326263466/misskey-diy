@@ -20,6 +20,8 @@ export class ChatRoomChannel extends Channel {
 	public static requireCredential = true as const;
 	public static kind = 'read:chat';
 	private roomId: string;
+	private stopped = false;
+	private eventQueue: Promise<void> = Promise.resolve();
 
 	constructor(
 		@Inject(REQUEST)
@@ -40,28 +42,47 @@ export class ChatRoomChannel extends Channel {
 
 		this.roomId = params.roomId;
 
-		const room = await this.chatRoomsRepository.findOneBy({
-			id: this.roomId,
-		});
-
-		if (room == null) return false;
-		if (!(await this.chatService.hasPermissionToViewRoomTimeline(this.user.id, room))) return false;
-
+		// 先订阅并暂停事件，避免初次查权限期间漏掉退群通知。
+		let release!: () => void;
+		this.eventQueue = new Promise<void>(resolve => { release = resolve; });
 		this.subscriber.on(`chatRoomStream:${this.roomId}`, this.onEvent);
-
-		return true;
+		try {
+			const room = await this.chatRoomsRepository.findOneBy({ id: this.roomId });
+			if (!room || !await this.chatService.hasPermissionToViewRoomTimeline(this.user.id, room)) {
+				this.dispose();
+				return false;
+			}
+			return !this.stopped;
+		} catch {
+			this.dispose();
+			return false;
+		} finally {
+			release();
+		}
 	}
 
 	@bindThis
 	private async onEvent(data: GlobalEvents['chatRoom']['payload']) {
-		this.send(data.type, data.body);
+		// 权限检查与后续事件串行，退群校验期间不能先发出新消息。
+		this.eventQueue = this.eventQueue.then(async () => {
+			if (this.stopped) return;
+			if (data.type === 'membersChanged') {
+				const room = await this.chatRoomsRepository.findOneBy({ id: this.roomId });
+				if (!room || !this.user || !await this.chatService.hasPermissionToViewRoomTimeline(this.user.id, room)) {
+					this.dispose();
+					return;
+				}
+			}
+			if (!this.stopped) this.send(data.type, data.body);
+		}).catch(() => { this.dispose(); });
+		await this.eventQueue;
 	}
 
 	@bindThis
 	public onMessage(type: string, body: any) {
 		switch (type) {
 			case 'read':
-				if (this.roomId) {
+				if (this.roomId && !this.stopped) {
 					this.chatService.readRoomChatMessage(this.user!.id, this.roomId);
 				}
 				break;
@@ -70,6 +91,7 @@ export class ChatRoomChannel extends Channel {
 
 	@bindThis
 	public dispose() {
+		this.stopped = true;
 		this.subscriber.off(`chatRoomStream:${this.roomId}`, this.onEvent);
 	}
 }

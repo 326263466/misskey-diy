@@ -67,6 +67,8 @@
 		error: '#ec4137',
 		warn: '#ecb637',
 		codeString: '#b98710',
+		codeBlockBg: '#282c34',
+		codeBlockFg: '#abb2bf',
 		codeNumber: '#0fbbbb',
 		codeBoolean: '#62b70c',
 		deckBg: ':darken<3<@bg',

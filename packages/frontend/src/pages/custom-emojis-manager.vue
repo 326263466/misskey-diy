@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 900px;">
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<div class="ogwlenmc">
 			<div v-if="tab === 'local'" class="local">
 				<MkInput v-model="query" :debounce="true" type="search" autocapitalize="off">
@@ -359,7 +359,7 @@ definePage(() => ({
 
 		.ldhfsamy {
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
 			grid-gap: 12px;
 			margin: var(--MI-margin) 0;
 
@@ -395,7 +395,7 @@ definePage(() => ({
 					}
 
 					> .info {
-						opacity: 0.5;
+						color: var(--MI_THEME-fgTransparentWeak);
 						text-overflow: ellipsis;
 						overflow: hidden;
 					}
@@ -411,7 +411,7 @@ definePage(() => ({
 
 		.ldhfsamy {
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
 			grid-gap: 12px;
 			margin: var(--MI-margin) 0;
 
@@ -423,6 +423,10 @@ definePage(() => ({
 
 				&:hover {
 					color: var(--MI_THEME-accent);
+
+					> .body > .info {
+						color: inherit;
+					}
 				}
 
 				> .img {
@@ -442,7 +446,7 @@ definePage(() => ({
 					}
 
 					> .info {
-						opacity: 0.5;
+						color: var(--MI_THEME-fgTransparentWeak);
 						font-size: 90%;
 						text-overflow: ellipsis;
 						overflow: hidden;

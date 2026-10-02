@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-adaptive-bg :class="[$style.root]">
+<div :class="[$style.root]">
 	<MkAvatar :class="$style.avatar" :user="user" indicator title=""/>
 	<div :class="$style.body">
 		<span :class="$style.name"><MkUserName :user="user"/></span>
@@ -49,7 +49,7 @@ $bodyInfoHieght: 16px;
 .root {
 	display: flex;
 	align-items: center;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	background: var(--MI_THEME-panel);
 	border-radius: 8px;
 }
@@ -82,7 +82,7 @@ $bodyInfoHieght: 16px;
 	display: block;
 	width: 100%;
 	font-size: 95%;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	line-height: $bodyInfoHieght;
 	white-space: nowrap;
 	overflow: hidden;

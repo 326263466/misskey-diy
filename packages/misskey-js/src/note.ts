@@ -7,6 +7,8 @@ export function isPureRenote(note: Note): note is PureRenote {
 		note.text == null &&
 		note.cw == null &&
 		(note.fileIds == null || note.fileIds.length === 0) &&
-		note.poll == null
+		note.poll == null &&
+		note.redPacket == null &&
+		!note.hasRedPacket
 	);
 }

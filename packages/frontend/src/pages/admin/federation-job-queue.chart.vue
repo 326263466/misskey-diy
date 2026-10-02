@@ -38,10 +38,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-if="jobs.length > 0">
 				<div v-for="job in jobs" :key="job[0]">
 					<MkA :to="`/instance-info/${job[0]}`" behavior="window">{{ job[0] }}</MkA>
-					<span style="margin-left: 8px; opacity: 0.7;">{{ i18n.tsx._queue.nJobs({ n: number(job[1]) }) }}</span>
+					<span style="margin-left: 8px; color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.tsx._queue.nJobs({ n: number(job[1]) }) }}</span>
 				</div>
 			</div>
-			<span v-else style="opacity: 0.5;">{{ i18n.ts.noJobs }}</span>
+			<span v-else style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.noJobs }}</span>
 		</div>
 	</MkFolder>
 </div>
@@ -135,7 +135,7 @@ onUnmounted(() => {
 
 .chart {
 	min-width: 0;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-radius);
 }
@@ -146,16 +146,16 @@ onUnmounted(() => {
 
 .status {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
 	grid-gap: 10px;
 }
 
 .statusItem {
-	padding: 12px 16px;
+	padding: var(--MI-cardPadding);
 }
 
 .statusLabel {
 	font-size: 80%;
-	opacity: 0.6;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

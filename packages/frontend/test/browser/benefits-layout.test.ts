@@ -20,6 +20,11 @@ import { DI } from '@/di.js';
 import { i18n } from '@/i18n.js';
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), publish: vi.fn(), user: { id: 'member', username: 'community_member', name: '每天记录一点美好的社区成员', host: null } }));
+vi.hoisted(() => {
+	vi.stubGlobal('_LANGS_', []);
+	vi.stubGlobal('_VERSION_', 'test');
+	vi.stubGlobal('_DEV_', false);
+});
 vi.mock('misskey-js', () => ({}));
 vi.mock('@/i.js', () => ({ $i: mocks.user, ensureSignin: () => mocks.user }));
 vi.mock('@/preferences.js', () => ({ prefer: { s: { animation: false } } }));
@@ -31,6 +36,7 @@ vi.mock('@/accounts.js', () => ({ getAccountMenu: vi.fn() }));
 vi.mock('@/router.js', () => ({ useRouter: () => ({ useListener: vi.fn() }) }));
 vi.mock('@/composables/use-scroll-position-keeper.js', () => ({ useScrollPositionKeeper: vi.fn() }));
 vi.mock('@/components/global/MkA.vue', () => ({ default: { render: () => null } }));
+vi.mock('@@/js/config.js', () => ({ lang: 'zh-CN', langs: [], url: 'https://example.invalid', host: 'example.invalid', version: 'test' }));
 vi.mock('@/components/MkMiniChart.vue', () => ({ default: { render: () => null } }));
 vi.mock('@/components/MkEmojiInputOverlay.vue', () => ({ default: { render: () => null } }));
 vi.mock('@/utility/autocomplete.js', () => ({ Autocomplete: class {} }));
@@ -92,7 +98,7 @@ async function mount(component: Component, width: number, dark: boolean, scrollL
 		fgTransparentWeak: dark ? '#c7d1d8b3' : '#676767b3', divider: dark ? '#ffffff24' : '#e8e8e8',
 	})) document.documentElement.style.setProperty(`--MI_THEME-${key}`, value);
 	host = document.createElement('div');
-	host.style.cssText = 'background:var(--MI_THEME-bg);min-height:100vh;';
+	host.style.cssText = 'background:var(--MI_THEME-bg);height:100vh;';
 	document.body.append(host);
 	if (scrollLayout) host.style.cssText += 'height:720px;min-height:0;display:flex;flex-direction:column;overflow:clip;';
 	app = scrollLayout ? createApp({ render: () => [
@@ -105,7 +111,7 @@ async function mount(component: Component, width: number, dark: boolean, scrollL
 			: h(component)),
 	] }) : createApp(component);
 	// PageWithHeader normally supplies the query container through its scroll surface.
-	app.component('PageWithHeader', scrollLayout ? PageWithHeader : defineComponent({ setup: (_, { slots }) => () => h('div', { style: 'container-type:inline-size;' }, slots.default?.()) }));
+	app.component('PageWithHeader', scrollLayout ? PageWithHeader : defineComponent({ setup: (_, { slots }) => () => h('div', { style: 'height:100%;overflow:auto;container-type:inline-size;' }, slots.default?.()) }));
 	app.component('MkPageHeader', MkPageHeader);
 	app.component('MkStickyContainer', MkStickyContainer);
 	app.provide(DI.pageMetadata, ref({ title: i18n.ts._benefits.adminTitle, icon: 'ti ti-gift' }));
@@ -149,10 +155,15 @@ test.each(layouts)('personal benefits fit $width px (dark: $dark)', async ({ wid
 	await mount(Benefits, width, dark);
 	await expect.element(page.getByTestId('benefits-balance')).toHaveTextContent('12,345');
 	await expect.element(page.getByTestId('benefits-history')).toBeVisible();
-	await expect.element(page.getByRole('link', { name: i18n.ts._benefits.title, exact: true })).toHaveAttribute('aria-current', 'page');
-	await expect.element(page.getByRole('link', { name: i18n.ts._benefits.useCards, exact: true })).toHaveAttribute('href', '/checkin');
+	expect(host!.querySelector('nav a.active')?.getAttribute('href')).toBe('/my/benefits');
+	expect(host!.querySelector('nav a.active')?.textContent).toContain(i18n.ts._benefits.title);
+	await expect.element(page.getByRole('link', { name: new RegExp(i18n.ts._benefits.useCards) })).toHaveAttribute('href', '/checkin');
 	await expect.element(page.getByTestId('benefits-points')).toHaveTextContent('28');
 	expectPageFit(width);
+	const wallet = host!.querySelector('[data-testid="benefits-balance"]')!.closest('section')!;
+	expect(getComputedStyle(wallet).padding).toBe('18px');
+	expect(getComputedStyle(wallet).backgroundColor).toBe(dark ? 'rgb(45, 45, 45)' : 'rgb(255, 255, 255)');
+	expect(getComputedStyle(host!.querySelector('header')!).padding).toBe('18px');
 	await page.getByRole('textbox', { name: i18n.ts._checkin._codes.code, exact: true }).fill('invalid-code');
 	await page.getByRole('button', { name: i18n.ts._benefits.redeem, exact: true }).click();
 	await expect.element(page.getByRole('alert')).toHaveTextContent(i18n.ts._benefits.invalidCodeFormat);
@@ -187,7 +198,7 @@ test.each(layouts)('administrator redemption codes fit $width px (dark: $dark)',
 	await page.getByRole('textbox', { name: i18n.ts._benefits.codeName, exact: true }).fill(redemptionCode.name);
 	await page.getByRole('checkbox', { name: i18n.ts.noExpirationDate, exact: true }).click();
 	await expect.element(page.getByLabelText(i18n.ts.expirationDate, { exact: true })).toBeVisible();
-	await page.getByLabelText(i18n.ts.expirationDate, { exact: true }).fill('2000-01-01T12:00');
+	await expect.element(page.getByLabelText(i18n.ts.expirationDate, { exact: true })).toHaveAttribute('readonly');
 	await expect.element(page.getByRole('button', { name: i18n.ts._benefits.createCode, exact: true })).toBeDisabled();
 	expectPageFit(width);
 	await screenshot('benefits-admin-create', width, dark);
@@ -224,7 +235,7 @@ test.each([12, 28])('keeps administrative benefits content below its stationary 
 	host!.style.setProperty('--MI-pageGap', `${gap}px`);
 	await page.getByRole('button', { name: i18n.ts._benefits.redemptionCodes, exact: true }).click();
 	await page.getByRole('button', { name: i18n.ts._benefits.createCode, exact: true }).click();
-	const scroller = host!.querySelector<HTMLElement>('._pageLayoutWithSidebar')!;
+	const scroller = host!.querySelector<HTMLElement>('._pageScrollable')!;
 	const header = host!.querySelector<HTMLElement>('[data-page-header]')!;
 	for (const top of [150, 300]) {
 		scroller.scrollTop = top;
@@ -246,15 +257,15 @@ test('clips personal benefits at its real scrollport and keeps the community nav
 	await mount(Benefits, 1280, false, 'personal');
 	await expect.element(page.getByTestId('benefits-history')).toBeVisible();
 	const scroller = host!.querySelector<HTMLElement>('._pageScrollable')!;
-	const navigation = host!.querySelector<HTMLElement>('aside')!;
+	const navigation = host!.querySelector<HTMLElement>('._pageNavigation')!;
 	const siteHeader = host!.querySelector<HTMLElement>('[data-testid="site-header"]')!;
 	for (const top of [150, 300]) {
 		scroller.scrollTop = top;
 		await nextTick();
 		await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 		expect(scroller.scrollTop).toBeGreaterThan(0);
-		expect(scroller.getBoundingClientRect().top).toBeCloseTo(siteHeader.getBoundingClientRect().bottom, 1);
-		expect(navigation.getBoundingClientRect().top).toBeCloseTo(scroller.getBoundingClientRect().top + parseFloat(getComputedStyle(host!).getPropertyValue('--MI-pageGap')), 1);
+		expect(scroller.getBoundingClientRect().top).toBeCloseTo(siteHeader.getBoundingClientRect().bottom + 18, 1);
+		expect(navigation.getBoundingClientRect().top).toBeCloseTo(scroller.getBoundingClientRect().top, 1);
 		const hit = document.elementFromPoint(scroller.getBoundingClientRect().left + scroller.clientWidth / 2, siteHeader.getBoundingClientRect().bottom - 2);
 		expect(scroller.contains(hit)).toBe(false);
 	}

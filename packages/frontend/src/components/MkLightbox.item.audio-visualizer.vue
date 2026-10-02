@@ -323,7 +323,14 @@ function updateRange(range: AnalysisRange, frameMin: number, framePeak: number, 
 }
 //#endregion
 
-const accentColorHue = tinycolor(themeManager.currentCompiledTheme!.accent).toHsl().h;
+let accentColorHue = tinycolor(themeManager.currentCompiledTheme!.accent).toHsl().h;
+
+function updateThemeColor() {
+	accentColorHue = tinycolor(themeManager.currentCompiledTheme!.accent).toHsl().h;
+	draw(0);
+}
+
+themeManager.on('themeChanging', updateThemeColor);
 
 // 読み込みが終わるまでは描画しない (読み込み完了時の描き直しは下のwatchで行う)
 const avatarImage = shallowRef<HTMLImageElement | null>(null);
@@ -740,6 +747,7 @@ watch(() => props.active, active => {
 }, { flush: 'sync' });
 
 onBeforeUnmount(() => {
+	themeManager.off('themeChanging', updateThemeColor);
 	cancelPlayback();
 	teardown();
 });

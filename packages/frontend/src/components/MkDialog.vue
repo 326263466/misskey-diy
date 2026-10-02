@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkModal ref="modal" :preferType="'dialog'" :zPriority="'high'" @click="done(true)" @closed="emit('closed')" @esc="cancel()">
-	<div :class="$style.root">
+	<div :class="[$style.root, { [$style.dateDialog]: dateType }]">
 		<div v-if="icon" :class="$style.icon">
 			<i :class="icon"></i>
 		</div>
@@ -22,7 +22,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<header v-if="title" :class="$style.title" class="_selectable"><Mfm :text="title"/></header>
 		<div v-if="text" :class="$style.text" class="_selectable"><Mfm :text="text"/></div>
-		<MkInput v-if="input" v-model="inputValue" autofocus :type="input.type || 'text'" :placeholder="input.placeholder || undefined" :autocomplete="input.autocomplete" @keydown="onInputKeydown">
+		<div v-if="progress" :class="$style.progressBlock">
+			<progress :class="$style.progress" :value="progress.value" :max="progress.max" :aria-label="progress.label ?? undefined"></progress>
+			<span v-if="progress.label" :class="$style.progressLabel">{{ progress.label }}</span>
+		</div>
+		<MkDatePicker v-if="dateType" :modelValue="String(inputValue ?? '')" :type="dateType" embedded @update:modelValue="inputValue = $event" @validity="dateValid = $event" @close="cancel"/>
+		<MkInput v-else-if="input" v-model="inputValue" autofocus :type="input.type || 'text'" :placeholder="input.placeholder || undefined" :autocomplete="input.autocomplete" @keydown="onInputKeydown">
 			<template v-if="input.type === 'password'" #prefix><i class="ti ti-lock"></i></template>
 			<template #caption>
 				<span v-if="okButtonDisabledReason === 'charactersExceeded'" v-text="i18n.tsx._dialog.charactersExceeded({ current: (inputValue as string)?.length ?? 0, max: input.maxLength ?? 'NaN' })"></span>
@@ -44,6 +49,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts">
 export type Result = string | number | true | null;
 export type MkDialogReturnType<T = Result> = { canceled: true, result: undefined } | { canceled: false, result: T };
+export type MkDialogProgress = {
+	value: number;
+	max: number;
+	label?: string;
+};
 </script>
 
 <script lang="ts" setup>
@@ -51,6 +61,7 @@ import { ref, useTemplateRef, computed } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
+import MkDatePicker from '@/components/MkDatePicker.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import type { MkSelectItem } from '@/components/MkSelect.vue';
 import type { OptionValue } from '@/types/option-value.js';
@@ -75,6 +86,7 @@ const props = withDefaults(defineProps<{
 	type?: 'success' | 'error' | 'warning' | 'info' | 'question' | 'waiting';
 	title?: string;
 	text?: string;
+	progress?: MkDialogProgress;
 	input?: Input;
 	select?: Select;
 	icon?: string;
@@ -104,8 +116,11 @@ const emit = defineEmits<{
 const modal = useTemplateRef('modal');
 
 const inputValue = ref<string | number | null>(props.input?.default ?? null);
+const dateType = computed(() => props.input?.type === 'date' || props.input?.type === 'time' || props.input?.type === 'datetime-local' ? props.input.type : null);
+const dateValid = ref(true);
 
-const okButtonDisabledReason = computed<null | 'charactersExceeded' | 'charactersBelow'>(() => {
+const okButtonDisabledReason = computed<null | 'charactersExceeded' | 'charactersBelow' | 'invalidDate'>(() => {
+	if (dateType.value && !dateValid.value) return 'invalidDate';
 	if (props.input) {
 		if (props.input.minLength) {
 			if (inputValue.value == null || (inputValue.value as string).length < props.input.minLength) {
@@ -171,13 +186,13 @@ function onInputKeydown(evt: KeyboardEvent) {
 .root {
 	position: relative;
 	margin: auto;
-	padding: 32px;
-	min-width: 320px;
-	max-width: 480px;
+	padding: var(--MI-cardPadding);
+	min-width: min(320px, 100%);
+	max-width: min(480px, 100%);
 	box-sizing: border-box;
 	text-align: center;
 	background: var(--MI_THEME-panel);
-	border-radius: 16px;
+	border-radius: var(--MI-radius);
 }
 
 .icon {
@@ -186,6 +201,12 @@ function onInputKeydown(evt: KeyboardEvent) {
 	& + .title {
 		margin-top: 8px;
 	}
+}
+
+.dateDialog {
+	width: 336px;
+	min-width: 0;
+	max-width: calc(100vw - 32px);
 }
 
 .iconInner {
@@ -204,7 +225,26 @@ function onInputKeydown(evt: KeyboardEvent) {
 }
 
 .text {
+	color: var(--MI_THEME-fgTransparentWeak);
 	margin: 16px 0 0 0;
+}
+
+.progressBlock {
+	margin: 16px 0 0 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: center;
+}
+
+.progress {
+	width: 100%;
+	height: 6px;
+}
+
+.progressLabel {
+	font-size: .85em;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .buttons {

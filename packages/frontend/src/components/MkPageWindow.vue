@@ -208,7 +208,7 @@ defineExpose({
 <style lang="scss" module>
 .root {
 	height: 100%;
-	padding: var(--MI-marginHalf);
+	padding: var(--MI-cardPadding);
 	box-sizing: border-box;
 	background: var(--MI_THEME-bg);
 

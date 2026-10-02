@@ -21,12 +21,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #icon><i class="ti ti-plug"></i></template>
 					<template #suffix>
 						<i v-if="plugin.active" class="ti ti-player-play" style="color: var(--MI_THEME-success);"></i>
-						<i v-else class="ti ti-player-pause" style="opacity: 0.7;"></i>
+						<i v-else class="ti ti-player-pause" style="color: var(--MI_THEME-fgTransparentWeak);"></i>
 					</template>
 					<template #label>
-						<div :style="plugin.active ? '' : 'opacity: 0.7;'">
+						<div :style="plugin.active ? '' : 'color: var(--MI_THEME-fgTransparentWeak);'">
 							{{ plugin.name }}
-							<span style="margin-left: 1em; opacity: 0.7;">v{{ plugin.version }}</span>
+							<span style="margin-left: 1em; color: var(--MI_THEME-fgTransparentWeak);">v{{ plugin.version }}</span>
 						</div>
 					</template>
 					<template #caption>
@@ -158,6 +158,6 @@ definePage(() => ({
 }
 
 .isSystemLog {
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

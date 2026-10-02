@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideHeader="note != null" displayBackButton>
-	<div class="_spacer" style="--MI_SPACER-w: 800px;" :style="note ? { paddingTop: 0 } : undefined">
+	<div class="_pageBody">
 		<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
 			<div v-if="note" class="_gaps">
 				<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" separateActivity>

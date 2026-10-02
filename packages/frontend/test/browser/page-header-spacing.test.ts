@@ -48,13 +48,13 @@ async function mountPage({
 	document.body.append(host);
 	const headerHidden = ref(hideHeader);
 	const spacer = () => h('div', {
-		class: '_spacer', style: '--MI_SPACER-w:700px;--MI_SPACER-min:16px;--MI_SPACER-max:32px;',
+		class: body === 'card' ? '_spacer _spacerCard' : '_pageBody',
 	}, h('div', { 'data-testid': 'first-control', style: 'height:32px;' }, '开放注册'));
 	const content = () => body === 'spacer' ? spacer() : h('div', body === 'wrapped'
 		? { 'data-page-body': '' }
 		: { class: '_panel', 'data-testid': 'nested-card' }, spacer());
 	const footerContent = () => footer ? h('div', {
-		class: '_spacer', style: '--MI_SPACER-min:16px;--MI_SPACER-max:32px;', 'data-testid': 'footer-spacer',
+		class: '_pageFooter', 'data-testid': 'footer-spacer',
 	}, h('button', { type: 'button' }, '保存')) : null;
 	const app = createApp({
 		render: () => direct ? h(MkStickyContainer, {}, {
@@ -182,26 +182,30 @@ describe('page header to content spacing', () => {
 		{ width: 320, layout: 'root' as const, swipe: false },
 		{ width: 1000, layout: 'ancestor' as const, swipe: true },
 		{ width: 320, layout: 'ancestor' as const, swipe: true },
-	])('keeps one 20px gap at $width px with $layout layout and swipe=$swipe', async options => {
+	])('keeps one 18px gap at $width px with $layout layout and swipe=$swipe', async options => {
 		await page.viewport(options.width, 900);
 		const { host, header, stickyBody, control } = await mountPage(options);
 		expect(header).not.toBeNull();
 		const headerBox = header!.getBoundingClientRect();
 		expect(headerBox.height).toBe(options.swipe && options.width < 500 ? 100 : 50);
-		expect(control.getBoundingClientRect().top - headerBox.bottom).toBe(20);
-		expect(Number(stickyBody.dataset.stickyContainerHeaderHeight)).toBe(headerBox.height + 20);
+		expect(control.getBoundingClientRect().top - headerBox.bottom).toBe(18);
+		expect(Number(stickyBody.dataset.stickyContainerHeaderHeight)).toBe(headerBox.height + 18);
 		expect(getComputedStyle(control.parentElement!).paddingTop).toBe('0px');
+		expect(control.getBoundingClientRect().left).toBe(headerBox.left);
+		expect(control.getBoundingClientRect().right).toBe(headerBox.right);
 		expect(host.querySelectorAll('[data-page-body]').length).toBe(options.swipe ? 2 : 1);
 	});
 
-	test.each([320, 1000])('uses the shared 20px gap while preserving ordinary spacer bottom padding at %i px', async width => {
+	test.each([320, 1000])('uses the shared 18px gap and full column width at %i px', async width => {
 		await page.viewport(width, 900);
 		const { header, stickyBody, control } = await mountPage({ layout: 'standalone' });
 		const headerBox = header!.getBoundingClientRect();
 		expect(getComputedStyle(control.parentElement!).paddingTop).toBe('0px');
-		expect(getComputedStyle(control.parentElement!).paddingBottom).toBe(width < 500 ? '16px' : '32px');
-		expect(control.getBoundingClientRect().top - headerBox.bottom).toBe(20);
-		expect(Number(stickyBody.dataset.stickyContainerHeaderHeight)).toBe(headerBox.height + 20);
+		expect(getComputedStyle(control.parentElement!).paddingBottom).toBe('18px');
+		expect(control.getBoundingClientRect().left).toBe(headerBox.left);
+		expect(control.getBoundingClientRect().right).toBe(headerBox.right);
+		expect(control.getBoundingClientRect().top - headerBox.bottom).toBe(18);
+		expect(Number(stickyBody.dataset.stickyContainerHeaderHeight)).toBe(headerBox.height + 18);
 	});
 
 	test.each([
@@ -218,7 +222,7 @@ describe('page header to content spacing', () => {
 	test('retains the gap when omitted titles still have custom header actions', async () => {
 		const { header, control } = await mountPage({ omitTitle: true, actions: true });
 		expect(header!.getBoundingClientRect().height).toBe(50);
-		expect(control.getBoundingClientRect().top - header!.getBoundingClientRect().bottom).toBe(20);
+		expect(control.getBoundingClientRect().top - header!.getBoundingClientRect().bottom).toBe(18);
 	});
 
 	test('counts the visible nested header gap once when its parent page title is hidden', async () => {
@@ -249,27 +253,27 @@ describe('page header to content spacing', () => {
 		expect(stickyBodies).toHaveLength(2);
 		expect(host.querySelectorAll('[data-page-header]')).toHaveLength(1);
 		expect(Number(stickyBodies[0].dataset.stickyContainerHeaderHeight)).toBe(0);
-		expect(Number(stickyBodies[1].dataset.stickyContainerHeaderHeight)).toBe(70);
+		expect(Number(stickyBodies[1].dataset.stickyContainerHeaderHeight)).toBe(68);
 		expect(getComputedStyle(stickyBodies[1].previousElementSibling!).top).toBe('0px');
 
 		const header = host.querySelector<HTMLElement>('[data-page-header]')!;
 		const control = host.querySelector<HTMLElement>('[data-testid="nested-control"]')!;
 		expect(header.getBoundingClientRect().top).toBe(host.getBoundingClientRect().top);
-		expect(control.getBoundingClientRect().top - header.getBoundingClientRect().bottom).toBe(20);
-		expect(getComputedStyle(control).getPropertyValue('--MI-stickyTop').trim()).toBe('70px');
+		expect(control.getBoundingClientRect().top - header.getBoundingClientRect().bottom).toBe(18);
+		expect(getComputedStyle(control).getPropertyValue('--MI-stickyTop').trim()).toBe('68px');
 	});
 
 	test('updates both the content gap and sticky height when toggling the header', async () => {
 		const { host, stickyHeader, stickyBody, control, setHeaderHidden } = await mountPage();
-		expect(control.getBoundingClientRect().top - host.getBoundingClientRect().top).toBe(70);
+		expect(control.getBoundingClientRect().top - host.getBoundingClientRect().top).toBe(68);
 		await setHeaderHidden(true);
 		expect(stickyHeader.getBoundingClientRect().height).toBe(0);
 		expect(Number(stickyBody.dataset.stickyContainerHeaderHeight)).toBe(0);
 		expect(control.getBoundingClientRect().top).toBe(host.getBoundingClientRect().top);
 		await setHeaderHidden(false);
-		expect(stickyHeader.getBoundingClientRect().height).toBe(70);
-		expect(Number(stickyBody.dataset.stickyContainerHeaderHeight)).toBe(70);
-		expect(control.getBoundingClientRect().top - host.getBoundingClientRect().top).toBe(70);
+		expect(stickyHeader.getBoundingClientRect().height).toBe(68);
+		expect(Number(stickyBody.dataset.stickyContainerHeaderHeight)).toBe(68);
+		expect(control.getBoundingClientRect().top - host.getBoundingClientRect().top).toBe(68);
 	});
 
 	test('leaves no top gap when tabs move to the footer and the title is omitted', async () => {
@@ -292,7 +296,7 @@ describe('page header to content spacing', () => {
 		await page.viewport(options.width, 900);
 		const { header, stickyBody, control } = await mountPage({ ...options, direct: true, layout: 'standalone' });
 		const headerBox = header!.getBoundingClientRect();
-		const gap = options.embedded ? 0 : 20;
+		const gap = options.embedded ? 0 : 18;
 		expect(headerBox.height).toBe(options.swipe && options.width < 500 ? 100 : 50);
 		expect(control.getBoundingClientRect().top - headerBox.bottom).toBe(gap);
 		expect(Number(stickyBody.dataset.stickyContainerHeaderHeight)).toBe(headerBox.height + gap);
@@ -308,7 +312,7 @@ describe('page header to content spacing', () => {
 
 	test.each([false, true])('removes duplicate spacer padding through explicit content boundaries with swipe=%s', async swipe => {
 		const { header, control } = await mountPage({ layout: 'standalone', body: 'wrapped', swipe });
-		expect(control.getBoundingClientRect().top - header!.getBoundingClientRect().bottom).toBe(20);
+		expect(control.getBoundingClientRect().top - header!.getBoundingClientRect().bottom).toBe(18);
 		expect(getComputedStyle(control.parentElement!).paddingTop).toBe('0px');
 	});
 
@@ -316,8 +320,8 @@ describe('page header to content spacing', () => {
 		await page.viewport(width, 900);
 		const { host, header, control } = await mountPage({ body: 'card' });
 		const card = host.querySelector<HTMLElement>('[data-testid="nested-card"]')!;
-		const expectedPadding = width < 500 ? 16 : 32;
-		expect(card.getBoundingClientRect().top - header!.getBoundingClientRect().bottom).toBe(20);
+		const expectedPadding = 18;
+		expect(card.getBoundingClientRect().top - header!.getBoundingClientRect().bottom).toBe(18);
 		expect(control.getBoundingClientRect().top - card.getBoundingClientRect().top).toBe(expectedPadding);
 		expect(getComputedStyle(control.parentElement!).paddingBottom).toBe(`${expectedPadding}px`);
 	});
@@ -326,7 +330,7 @@ describe('page header to content spacing', () => {
 		await page.viewport(width, 900);
 		const { host } = await mountPage({ footer: true });
 		const footer = host.querySelector<HTMLElement>('[data-testid="footer-spacer"]')!;
-		const expectedPadding = width < 500 ? '16px' : '32px';
+		const expectedPadding = '18px';
 		expect(getComputedStyle(footer).paddingTop).toBe(expectedPadding);
 		expect(getComputedStyle(footer).paddingBottom).toBe(expectedPadding);
 	});

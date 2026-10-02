@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div ref="bodyEl" :class="$style.body" class="_panel _shadow">
 		<div class="_gaps_s">
 			<div><b>{{ title }}</b></div>
-			<div>{{ description }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ description }}</div>
 			<div class="_buttons">
 				<MkButton v-if="hasPrev" small @click="prev"><i class="ti ti-arrow-left"></i> {{ i18n.ts.goBack }}</MkButton>
 				<MkButton v-if="hasNext" small primary @click="next">{{ i18n.ts.next }} <i class="ti ti-arrow-right"></i></MkButton>

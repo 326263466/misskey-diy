@@ -205,7 +205,7 @@ onMounted(() => {
 }
 
 .countTotal {
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .sort {
@@ -239,7 +239,7 @@ onMounted(() => {
 
 .achievement {
 	display: flex;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 
 	&.locked {
 		.icon {
@@ -276,12 +276,16 @@ onMounted(() => {
 
 .time {
 	margin-left: auto;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .flavor {
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	transform: skewX(-15deg);
 	margin-top: 8px;
+}
+
+.description {
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

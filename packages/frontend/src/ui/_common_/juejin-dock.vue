@@ -34,7 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, unref } from 'vue';
 import { navbarItemDef } from '@/navbar.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
@@ -50,7 +50,7 @@ const menu = computed(() => [...new Set([...prefer.r.menu.value, ...fixedDockIte
 	if (item === '-' || duplicatedWithHeader.includes(item) || rankingCardItems.includes(item)) return false;
 	if (!Object.hasOwn(navbarItemDef, item)) return false;
 	const def = navbarItemDef[item];
-	return def.show == null || def.show.value !== false;
+	return unref(def.show) !== false;
 }));
 
 </script>
@@ -116,7 +116,6 @@ const menu = computed(() => [...new Set([...prefer.r.menu.value, ...fixedDockIte
 .itemIcon {
 	flex-shrink: 0;
 	margin-right: 10px;
-	opacity: 0.8;
 }
 
 .itemText {

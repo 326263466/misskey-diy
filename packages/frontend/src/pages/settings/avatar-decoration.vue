@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<MkAvatar :class="$style.avatar" :user="$i" forceShowDecoration/>
 
-			<div v-if="$i.avatarDecorations.length > 0" v-panel :class="$style.current" class="_gaps_s">
+			<div v-if="$i.avatarDecorations.length > 0" :class="$style.current" class="_gaps_s">
 				<div>{{ i18n.ts.inUse }}</div>
 
 				<div :class="$style.decorations">
@@ -184,13 +184,14 @@ definePage(() => ({
 }
 
 .current {
-	padding: 16px;
+	background: var(--MI_THEME-panel);
+	padding: var(--MI-cardPadding);
 	border-radius: var(--MI-radius);
 }
 
 .decorations {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
 	grid-gap: 12px;
 }
 </style>

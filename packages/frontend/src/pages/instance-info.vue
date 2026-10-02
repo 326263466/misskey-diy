@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div v-if="instance" class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true">
+	<div v-if="instance" class="_pageBody">
 		<div v-if="tab === 'overview'" class="_gaps_m">
 			<div :class="$style.faviconAndName">
 				<img v-if="faviconUrl" :src="faviconUrl" alt="" :class="$style.icon"/>
@@ -339,7 +339,7 @@ definePage(() => ({
 }
 .users {
 	display: grid;
-	grid-template-columns: repeat(auto-fill,minmax(270px,1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
 	grid-gap: 12px;
 }
 </style>

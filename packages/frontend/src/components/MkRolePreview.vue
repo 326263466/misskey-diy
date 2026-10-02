@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<i v-else class="ti ti-lock" :class="$style.icon" style="color: var(--MI_THEME-warn)"></i>
 	</template>
 
-	<div v-adaptive-bg class="_panel" :class="$style.body">
+	<div class="_panel" :class="$style.body">
 		<div :class="$style.bodyTitle">
 			<span :class="$style.bodyIcon">
 				<template v-if="role.iconUrl">
@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template v-else>
 					<i v-if="role.isAdministrator" class="ti ti-crown" style="color: var(--MI_THEME-accent);"></i>
 					<i v-else-if="role.isModerator" class="ti ti-shield" style="color: var(--MI_THEME-accent);"></i>
-					<i v-else class="ti ti-user" style="opacity: 0.7;"></i>
+					<i v-else class="ti ti-user" style="color: var(--MI_THEME-fgTransparentWeak);"></i>
 				</template>
 			</span>
 			<span :class="$style.bodyName">{{ role.name }}</span>
@@ -59,7 +59,7 @@ const props = withDefaults(defineProps<{
 
 .body {
 	display: block;
-	padding: 16px 20px;
+	padding: var(--MI-cardPadding);
 	flex: 1;
 	border-left: solid 6px var(--color);
 }
@@ -83,11 +83,11 @@ const props = withDefaults(defineProps<{
 
 .bodyUsers {
 	margin-left: auto;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .bodyDescription {
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparent);
 	font-size: 85%;
 }
 </style>

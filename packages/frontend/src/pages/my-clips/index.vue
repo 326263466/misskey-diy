@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-if="tab === 'my' || tab === 'favorites'" #header-actions>
 		<MkPaginationControl :key="tab" :paginator="tab === 'my' ? paginator : favoritesPaginator" compact/>
 	</template>
-	<div class="_spacer _gaps" style="--MI_SPACER-w: 700px;">
+	<div class="_pageBody _gaps">
 		<MkTip k="clips">
 			{{ i18n.ts._clip.tip }}
 		</MkTip>

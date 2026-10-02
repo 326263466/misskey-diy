@@ -13,9 +13,11 @@ import { i18n } from '@/i18n.js';
 import type { PostFormProps } from '@/types/post-form.js';
 
 const mocks = vi.hoisted(() => ({
-	confirm: vi.fn(), apiWithDialog: vi.fn(), closeModal: vi.fn(), finishClose: null as null | (() => void),
+	confirm: vi.fn(), actions: vi.fn(), alert: vi.fn(), apiWithDialog: vi.fn(), misskeyApi: vi.fn(), pageWindow: vi.fn(), closeModal: vi.fn(), finishClose: null as null | (() => void),
 }));
 vi.mock('@/os.js', () => mocks);
+vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.misskeyApi }));
+vi.mock('@/components/MkRedPacket.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/i.js', () => ({
 	ensureSignin: () => ({ id: 'self', username: 'self', host: null, isSilenced: false }),
 	$i: { id: 'self' }, notesCount: 0, incNotesCount: vi.fn(),
@@ -75,10 +77,10 @@ function makeReply(overrides: Partial<Misskey.entities.Note> = {}): Misskey.enti
 	} as Misskey.entities.Note;
 }
 
-async function renderForm(props: PostFormProps = {}) {
+async function renderForm(props: PostFormProps = {}, mock = true) {
 	const form = ref<InstanceType<typeof MkPostForm>>();
 	const view = render(defineComponent({
-		setup: () => () => h(MkPostForm, { ...props, ref: form, mock: true, autofocus: false }),
+		setup: () => () => h(MkPostForm, { ...props, ref: form, mock, autofocus: false }),
 	}), {
 		global: {
 			stubs: { MkTip: true, MkEllipsis: true },
@@ -86,7 +88,7 @@ async function renderForm(props: PostFormProps = {}) {
 		},
 	});
 	await nextTick();
-	return { ...view, form: form.value!, textarea: view.getByTestId('post-form-text') as HTMLTextAreaElement };
+	return { ...view, form: form.value!, textarea: view.container.querySelector('[data-testid="post-form-text"]') as HTMLTextAreaElement };
 }
 
 describe('post form closing', () => {
@@ -94,8 +96,50 @@ describe('post form closing', () => {
 		vi.clearAllMocks();
 		localStorage.clear();
 		mocks.confirm.mockResolvedValue({ canceled: false });
+		mocks.actions.mockResolvedValue({ canceled: false, result: 'discard' });
 	});
 	afterEach(cleanup);
+
+	test.each([
+		{ fixed: true },
+		{},
+		{ instant: true },
+		{ reply: makeReply() },
+	])('does not automatically save while typing, leaving or unmounting: %j', async props => {
+		const view = await renderForm(props, false);
+		await fireEvent.update(view.textarea, 'Unsaved post');
+		expect(localStorage.getItem('drafts')).toBeNull();
+		expect(view.queryByText(i18n.ts._postForm.draftSaved)).toBeNull();
+		const event = new Event('beforeunload', { cancelable: true });
+		window.dispatchEvent(event);
+		expect(event.defaultPrevented).toBe(true);
+		window.dispatchEvent(new Event('pagehide'));
+		expect(localStorage.getItem('drafts')).toBeNull();
+		view.unmount();
+		expect(localStorage.getItem('drafts')).toBeNull();
+		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
+		const reopened = await renderForm(props, false);
+		expect(reopened.textarea.value).toBe('');
+	});
+
+	test('leaves existing local drafts untouched when composing and discarding a new post', async () => {
+		const saved = JSON.stringify({
+			'compose:self:previous': { context: 'note:self', updatedAt: new Date().toISOString(), data: { text: 'Existing draft' } },
+			'note:self': { data: { text: 'Legacy draft' } },
+		});
+		localStorage.setItem('drafts', saved);
+		const view = await renderForm({}, false);
+		expect(view.textarea.value).toBe('');
+		expect(view.queryByRole('button', { name: i18n.ts._postForm.restoreDraft })).toBeNull();
+		await fireEvent.update(view.textarea, 'Discard this post');
+		expect(await view.form.canClose()).toBe(true);
+		expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ text: i18n.ts.leaveConfirm }));
+		expect(mocks.actions).not.toHaveBeenCalled();
+		view.form.clear();
+		await nextTick();
+		view.unmount();
+		expect(localStorage.getItem('drafts')).toBe(saved);
+	});
 
 	test('opens an empty reply with its recipient in the placeholder instead of inserting mentions', async () => {
 		const view = await renderForm({ reply: makeReply() });

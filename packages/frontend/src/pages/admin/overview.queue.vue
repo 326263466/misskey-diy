@@ -120,7 +120,7 @@ onUnmounted(() => {
 
 			> .chart {
 				min-width: 0;
-				padding: 16px;
+				padding: var(--MI-cardPadding);
 				background: var(--MI_THEME-panel);
 				border-radius: var(--MI-radius);
 

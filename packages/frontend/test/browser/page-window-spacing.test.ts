@@ -60,14 +60,14 @@ afterEach(async () => {
 
 afterAll(() => vi.unstubAllGlobals());
 
-test.each(['note', '_pageLayout', '_standalonePage'])('keeps one 20px window inset for a %s route and no gap inside its note card', async routeShape => {
+test.each(['note', '_pageLayout', '_standalonePage'])('keeps one 18px window inset for a %s route and no gap inside its note card', async routeShape => {
 	const route = defineComponent({
 		setup() {
 			definePage({ title: '帖子详情', icon: 'ti ti-note' });
 			return () => h(PageWithHeader, { hideHeader: true }, {
-				default: () => h('div', { class: '_spacer', style: '--MI_SPACER-w:800px;' }, [
+				default: () => h('div', { class: '_pageBody' }, [
 					h('article', { class: '_panel', 'data-note-card': '' }, [
-						h(MkPageHeader, { embedded: true, displayBackButton: true, overridePageMetadata: { title: '帖子' } }),
+						h(MkPageHeader, { embedded: true, displayBackButton: true, overridePageMetadata: { title: '帖子' } }, { actions: () => h('button', { type: 'button' }, '分享') }),
 						h('div', { 'data-note-content': '', style: 'padding:24px;min-height:160px;' }, [
 							h('strong', '示例用户'),
 							h('p', '这是一条在独立窗口中打开的帖子。'),
@@ -106,9 +106,9 @@ test.each(['note', '_pageLayout', '_standalonePage'])('keeps one 20px window ins
 	const header = card.querySelector<HTMLElement>('[data-page-header]')!.getBoundingClientRect();
 	const content = card.querySelector<HTMLElement>('[data-note-content]')!.getBoundingClientRect();
 	expect(cardBox.width).toBeGreaterThan(0);
-	expect(cardBox.top - title.bottom).toBe(20);
-	expect(cardBox.left - windowContent.left).toBe(20);
-	expect(windowContent.right - cardBox.right).toBe(20);
+	expect(cardBox.top - title.bottom).toBe(18);
+	expect(cardBox.left - windowContent.left).toBe(18);
+	expect(windowContent.right - cardBox.right).toBe(18);
 	expect(content.top - header.bottom).toBe(0);
 	for (const container of host.querySelectorAll<HTMLElement>('._pageContainer, ._pageScrollable, ._pageScrollableReversed')) {
 		expect(getComputedStyle(container).scrollbarWidth).toBe('none');

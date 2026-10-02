@@ -11,14 +11,16 @@ import Dock from '@/ui/_common_/juejin-dock.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 
-const mocks = vi.hoisted(() => ({ popupAsyncWithDialog: vi.fn(), signedIn: true, announcement: { indicated: false } }));
+const mocks = vi.hoisted(() => ({ popupAsyncWithDialog: vi.fn(), login: vi.fn(), session: { signedIn: true }, announcement: { indicated: false }, instance: { name: 'Test instance', iconUrl: null, disableRegistration: false } }));
 
 vi.mock('@/router.js', () => ({ useRouter: () => ({ pushByPath: vi.fn() }) }));
 vi.mock('@/os.js', () => ({ popupAsyncWithDialog: mocks.popupAsyncWithDialog, popupMenu: vi.fn(), post: vi.fn() }));
 vi.mock('@/ui/_common_/common.js', () => ({ openInstanceMenu: vi.fn(), toggleRealtimeMode: vi.fn() }));
 vi.mock('@/accounts.js', () => ({ getAccountMenu: vi.fn() }));
-vi.mock('@/instance.js', () => ({ instance: { name: 'Test instance', iconUrl: null } }));
-vi.mock('@/i.js', () => ({ get $i() { return mocks.signedIn ? { id: 'user', username: 'user' } : null; } }));
+vi.mock('@/instance.js', () => ({ instance: mocks.instance }));
+vi.mock('@/i.js', () => ({ get $i() { return mocks.session.signedIn ? { id: 'user', username: 'user' } : null; } }));
+vi.mock('@/utility/please-login.js', () => ({ pleaseLogin: mocks.login }));
+vi.mock('@/components/MkSignupDialog.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/store.js', () => ({ store: { r: { realtimeMode: { value: false } } } }));
 vi.mock('@/utility/device-kind.js', () => ({ deviceKind: 'desktop' }));
 vi.mock('@/components/MkModal.vue', () => ({
@@ -32,16 +34,17 @@ vi.mock('@/preferences.js', async () => {
 vi.mock('@/navbar.js', async () => {
 	const { computed, reactive } = await import('vue');
 	mocks.announcement = reactive(mocks.announcement);
+	mocks.session = reactive(mocks.session);
 	return { navbarItemDef: reactive({
 		explore: { title: 'Explore', icon: 'ti ti-hash', to: '/explore' },
 		channels: { title: 'Channels', icon: 'ti ti-device-tv', to: '/channels' },
 		announcements: { title: 'Announcements', icon: 'ti ti-speakerphone', to: '/announcements', indicated: computed(() => mocks.announcement.indicated) },
-		drive: { title: 'Drive', icon: 'ti ti-cloud', to: '/my/drive' },
+		drive: { title: 'Drive', icon: 'ti ti-cloud', to: '/my/drive', show: computed(() => mocks.session.signedIn) },
 		games: { title: 'Games', icon: 'ti ti-device-gamepad', to: '/games' },
 		about: { title: 'About', icon: 'ti ti-info-circle', to: '/about' },
 		notifications: { title: 'Notifications', icon: 'ti ti-bell', to: '/my/notifications' },
 		search: { title: 'Search', icon: 'ti ti-search', to: '/search' },
-		checkin: { title: 'Daily check-in', icon: 'ti ti-calendar-check', to: '/checkin', show: computed(() => mocks.signedIn) },
+		checkin: { title: 'Daily check-in', icon: 'ti ti-calendar-check', to: '/checkin', show: computed(() => mocks.session.signedIn) },
 		communityRanking: { title: 'Community ranking', icon: 'ti ti-trophy', to: '/community-ranking' },
 	}) };
 });
@@ -95,7 +98,8 @@ describe('responsive header navigation', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.popupAsyncWithDialog.mockResolvedValue({ dispose: vi.fn() });
-		mocks.signedIn = true;
+		mocks.session.signedIn = true;
+		mocks.instance.disableRegistration = false;
 		prefer.s.menu = [];
 		mocks.announcement.indicated = false;
 		media = Object.assign(new EventTarget(), { matches: false });
@@ -167,11 +171,33 @@ describe('responsive header navigation', () => {
 	});
 
 	test('keeps the public ranking available and hides check-in from signed-out dock visitors', () => {
-		mocks.signedIn = false;
+		mocks.session.signedIn = false;
 		prefer.s.menu = ['checkin', 'communityRanking'];
 		const view = render(Dock, { global: { components: { MkA: linkStub } } });
 		expect(view.queryByRole('link', { name: i18n.ts._checkin.dailyCheckin })).toBeNull();
 		expect(view.getByRole('link', { name: i18n.ts.communityRanking }).getAttribute('href')).toBe('/community-ranking');
+	});
+
+	test('hides private dock entries whose reactive visibility is false', () => {
+		mocks.session.signedIn = false;
+		prefer.s.menu = ['drive', 'checkin', 'about'];
+		const view = render(Dock, { global: { components: { MkA: linkStub } } });
+		expect(view.queryByRole('link', { name: 'Drive' })).toBeNull();
+		expect(view.getByRole('link', { name: 'About' })).toBeTruthy();
+	});
+
+	test.each([false, true])('provides guest login and the existing registration flow (invitation required=%s)', async invitationRequired => {
+		mocks.session.signedIn = false;
+		mocks.instance.disableRegistration = invitationRequired;
+		const view = renderHeader();
+		expect(view.queryByTestId('open-post-form')).toBeNull();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.login }));
+		expect(mocks.login).toHaveBeenCalledWith({ message: '' });
+		const signup = view.getByRole('button', { name: i18n.ts.signup });
+		expect(signup.getAttribute('title')).toBe(invitationRequired ? i18n.ts.invitationRequiredToRegister : i18n.ts.signup);
+		await fireEvent.click(signup);
+		expect(mocks.popupAsyncWithDialog).toHaveBeenCalledWith(expect.any(Promise), { autoSet: true }, expect.any(Object));
+		expect(mocks.instance.disableRegistration).toBe(invitationRequired);
 	});
 
 	test('moves an unread announcement indicator to More while its header link is collapsed', async () => {

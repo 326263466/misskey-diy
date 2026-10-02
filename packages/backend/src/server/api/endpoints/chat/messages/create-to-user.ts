@@ -10,6 +10,7 @@ import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '@/server/api/error.js';
 import { ChatService } from '@/core/ChatService.js';
+import { redPacketApiErrors, throwRedPacketApiError } from '@/server/api/red-packet-errors.js';
 import type { DriveFilesRepository, MiUser } from '@/models/_.js';
 
 export const meta = {
@@ -33,6 +34,7 @@ export const meta = {
 	},
 
 	errors: {
+		...redPacketApiErrors,
 		recipientIsYourself: {
 			message: 'You can not send a message to yourself.',
 			code: 'RECIPIENT_IS_YOURSELF',
@@ -52,7 +54,7 @@ export const meta = {
 		},
 
 		contentRequired: {
-			message: 'Content required. You need to set text or fileId.',
+			message: 'Content required. You need to set text, fileId or redPacketId.',
 			code: 'CONTENT_REQUIRED',
 			id: '25587321-b0e6-449c-9239-f8925092942c',
 		},
@@ -70,6 +72,7 @@ export const paramDef = {
 	properties: {
 		text: { type: 'string', nullable: true, maxLength: 2000 },
 		fileId: { type: 'string', format: 'misskey:id' },
+		redPacketId: { type: 'string', format: 'misskey:id' },
 		toUserId: { type: 'string', format: 'misskey:id' },
 	},
 	required: ['toUserId'],
@@ -84,7 +87,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private getterService: GetterService,
 		private chatService: ChatService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps, me, token) => {
+			if (ps.redPacketId && token) throw new ApiError(meta.errors.accessDenied);
 			await this.chatService.checkChatAvailability(me.id, 'write');
 
 			let file = null;
@@ -100,7 +104,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// テキストが無いかつ添付ファイルも無かったらエラー
-			if (ps.text == null && file == null) {
+			if (ps.text == null && file == null && ps.redPacketId == null) {
 				throw new ApiError(meta.errors.contentRequired);
 			}
 
@@ -117,7 +121,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			return await this.chatService.createMessageToUser(me, toUser, {
 				text: ps.text,
 				file: file,
-			});
+				redPacketId: ps.redPacketId,
+			}).catch(throwRedPacketApiError);
 		});
 	}
 }

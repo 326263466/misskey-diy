@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs">
-	<div v-if="file" class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs">
+	<div v-if="file" class="_pageBody">
 		<div v-if="tab === 'overview'" class="cxqhhsmd _gaps_m">
 			<a class="thumbnail" :href="file.url" target="_blank">
 				<MkDriveFileThumbnail class="thumbnail" :file="file" fit="contain"/>

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getVisitorContentVisibility } from '@/misc/visitor-content.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { EntityNotFoundError, In } from 'typeorm';
 import { ModuleRef } from '@nestjs/core';
@@ -26,6 +27,7 @@ import type { ReactionService } from '../ReactionService.js';
 import type { UserEntityService } from './UserEntityService.js';
 import type { DriveFileEntityService } from './DriveFileEntityService.js';
 import type { NoteLikeService } from '../NoteLikeService.js';
+import type { RedPacketService } from '../RedPacketService.js';
 
 type NoteVisibilityData = Pick<Packed<'Note'>, 'id' | 'createdAt' | 'user' | 'userId' | 'visibility' | 'visibleUserIds' | 'mentions'> & { reply?: { userId: string } | null };
 type NoteFavoriteState = { favoritesCount: number; isFavorited: boolean };
@@ -38,7 +40,8 @@ function isPureRenote(note: MiNote): note is MiNote & { renoteId: MiNote['id']; 
 		note.text == null &&
 		note.cw == null &&
 		(note.fileIds == null || note.fileIds.length === 0) &&
-		!note.hasPoll
+		!note.hasPoll &&
+		!note.hasRedPacket
 	);
 }
 
@@ -76,6 +79,7 @@ export class NoteEntityService implements OnModuleInit {
 	private idService: IdService;
 	private cacheService: CacheService;
 	private noteLikeService: NoteLikeService;
+	private redPacketService: RedPacketService;
 	private noteLoader = new DebounceLoader(this.findNoteOrFail);
 
 	constructor(
@@ -127,6 +131,7 @@ export class NoteEntityService implements OnModuleInit {
 		this.idService = this.moduleRef.get('IdService');
 		this.cacheService = this.moduleRef.get('CacheService');
 		this.noteLikeService = this.moduleRef.get('NoteLikeService');
+		this.redPacketService = this.moduleRef.get('RedPacketService');
 	}
 
 	@bindThis
@@ -144,6 +149,9 @@ export class NoteEntityService implements OnModuleInit {
 	public async shouldHideNote(packedNote: NoteVisibilityData, meId: MiUser['id'] | null): Promise<boolean> {
 		if (meId === packedNote.userId) return false;
 		// TODO: isVisibleForMe を使うようにしても良さそう(型違うけど)
+
+		// TODO: ugcVisibilityForVisitor が local の場合も、付随するリモートのノートをリンクだけ残して内容を隠せるようにする
+		if (meId == null && getVisitorContentVisibility(this.meta) === 'none') return true;
 
 		if (packedNote.user.requireSigninToViewContents && meId == null) {
 			return true;
@@ -197,6 +205,8 @@ export class NoteEntityService implements OnModuleInit {
 		packedNote.files = [];
 		packedNote.text = null;
 		packedNote.poll = undefined;
+		packedNote.redPacket = undefined;
+		packedNote.hasRedPacket = undefined;
 		packedNote.cw = null;
 		packedNote.isHidden = true;
 		packedNote.likeCount = 0;
@@ -405,6 +415,7 @@ export class NoteEntityService implements OnModuleInit {
 				packedFiles: Map<MiNote['fileIds'][number], Packed<'DriveFile'> | null>;
 				packedUsers: Map<MiUser['id'], Packed<'UserLite'>>
 				noteLikes?: Map<MiNote['id'], Packed<'LikeState'>>;
+				redPackets?: Map<MiNote['id'], NonNullable<Packed<'Note'>['redPacket']>>;
 			};
 		},
 	): Promise<Packed<'Note'>> {
@@ -492,6 +503,12 @@ export class NoteEntityService implements OnModuleInit {
 			} : undefined,
 			mentions: note.mentions.length > 0 ? note.mentions : undefined,
 			hasPoll: !deleted && note.hasPoll || undefined,
+			hasRedPacket: !deleted && note.hasRedPacket || undefined,
+			redPacket: !deleted && note.hasRedPacket
+				? opts._hint_?.redPackets?.has(note.id)
+					? opts._hint_.redPackets.get(note.id)
+					: note.redPacketId ? this.redPacketService.packById(note.redPacketId, me) : undefined
+				: undefined,
 			uri: note.uri ?? undefined,
 			url: note.url ?? undefined,
 
@@ -618,6 +635,15 @@ export class NoteEntityService implements OnModuleInit {
 			.then(users => new Map(users.map(u => [u.id, u])));
 		const likeNoteIds = [...new Set(notes.flatMap(note => [note.id, note.replyId, note.renoteId]).filter(id => id != null))];
 		const noteLikes = await this.noteLikeService.getStates(likeNoteIds, me);
+		const packetNotes = notes.flatMap(note => [note, note.reply, note.renote])
+			.filter((note): note is MiNote => note != null && note.redPacketId != null && !isDeletedReply(note));
+		const packetSummaries = packetNotes.length > 0
+			? await this.redPacketService.packByIds([...new Set(packetNotes.map(note => note.redPacketId!))], me)
+			: new Map();
+		const redPackets = new Map(packetNotes.flatMap(note => {
+			const packet = packetSummaries.get(note.redPacketId!);
+			return packet ? [[note.id, packet] as const] : [];
+		}));
 
 		return await Promise.all(notes.map(n => this.pack(n, me, {
 			...options,
@@ -628,6 +654,7 @@ export class NoteEntityService implements OnModuleInit {
 				packedFiles,
 				packedUsers,
 				noteLikes,
+				redPackets,
 			},
 		})));
 	}
@@ -670,9 +697,12 @@ export class NoteEntityService implements OnModuleInit {
 
 	@bindThis
 	public async fetchDiffs(noteIds: MiNote['id'][], me?: { id: MiUser['id'] } | null) {
+		const meId = me?.id ?? null;
 		if (noteIds.length === 0) return [];
+		// TODO: ugcVisibilityForVisitor が local の場合の扱いを shouldHideNote と揃える
+		if (meId == null && getVisitorContentVisibility(this.meta) === 'none') return [];
 
-		const notes = await this.notesRepository.find({
+		const fetched = await this.notesRepository.find({
 			where: {
 				id: In(noteIds),
 			},
@@ -680,11 +710,11 @@ export class NoteEntityService implements OnModuleInit {
 				id: true,
 				threadId: true,
 				userId: true,
+				userHost: true,
 				visibility: true,
 				visibleUserIds: true,
 				mentions: true,
 				replyUserId: true,
-				userHost: true,
 				reactions: true,
 				reactionAndUserPairCache: true,
 				repliesCount: true,
@@ -693,6 +723,13 @@ export class NoteEntityService implements OnModuleInit {
 				deletedBy: true,
 			},
 		});
+
+		const notes: MiNote[] = [];
+		for (const note of fetched) {
+			if (await this.isVisibleForMe(note, meId)) {
+				notes.push(note);
+			}
+		}
 
 		const bufferedReactionsMap = this.meta.enableReactionsBuffering ? await this.reactionsBufferingService.getMany(noteIds) : null;
 		const authors = await this.userEntityService.packMany([...new Set(notes.map(note => note.userId))], me);

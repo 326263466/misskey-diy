@@ -108,18 +108,18 @@ onMounted(async () => {
 	&:global {
 		> .pies {
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
 			grid-gap: 12px;
 			margin-bottom: 12px;
 
 			> .pie {
 				position: relative;
-				padding: 12px;
+				padding: var(--MI-cardPadding);
 
 				> .title {
 					position: absolute;
-					top: 20px;
-					left: 20px;
+					top: var(--MI-cardPadding);
+					left: var(--MI-cardPadding);
 					font-size: 90%;
 				}
 
@@ -129,8 +129,8 @@ onMounted(async () => {
 
 				> .subTitle {
 					position: absolute;
-					bottom: 20px;
-					right: 20px;
+					bottom: var(--MI-cardPadding);
+					right: var(--MI-cardPadding);
 					font-size: 85%;
 				}
 			}
@@ -138,13 +138,13 @@ onMounted(async () => {
 
 		> .items {
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
 			grid-gap: 12px;
 
 			> .item {
 				display: flex;
 				box-sizing: border-box;
-				padding: 12px;
+				padding: var(--MI-cardPadding);
 
 				> .icon {
 					display: grid;
@@ -186,7 +186,7 @@ onMounted(async () => {
 
 					> .label {
 						font-size: 0.8em;
-						opacity: 0.5;
+						color: var(--MI_THEME-fgTransparentWeak);
 					}
 				}
 			}

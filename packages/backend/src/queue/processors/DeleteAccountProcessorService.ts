@@ -15,6 +15,10 @@ import { EmailService } from '@/core/EmailService.js';
 import { bindThis } from '@/decorators.js';
 import { SearchService } from '@/core/SearchService.js';
 import { PageService } from '@/core/PageService.js';
+import { RedPacketService } from '@/core/RedPacketService.js';
+import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { MiChatRoom } from '@/models/ChatRoom.js';
+import { MiChatRoomMembership } from '@/models/ChatRoomMembership.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
 import type { DbUserDeleteJobData } from '../types.js';
@@ -44,6 +48,8 @@ export class DeleteAccountProcessorService {
 		private emailService: EmailService,
 		private queueLoggerService: QueueLoggerService,
 		private searchService: SearchService,
+		private redPacketService: RedPacketService,
+		private globalEventService: GlobalEventService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('delete-account');
 	}
@@ -77,7 +83,6 @@ export class DeleteAccountProcessorService {
 				}
 
 				cursor = notes.at(-1)?.id ?? null;
-
 				await this.notesRepository.delete(notes.map(note => note.id));
 
 				for (const note of notes) {
@@ -148,11 +153,21 @@ export class DeleteAccountProcessorService {
 			}
 		}
 
+		// Close this sender's outstanding packets before removing their wallet.
+		await this.redPacketService.refundForAccountDeletion(user.id);
+
 		// soft指定されている場合は物理削除しない
 		if (job.data.soft) {
 		// nop
 		} else {
+			const [memberships, ownedRooms] = await Promise.all([
+				this.usersRepository.manager.findBy(MiChatRoomMembership, { userId: user.id }),
+				this.usersRepository.manager.findBy(MiChatRoom, { ownerId: user.id }),
+			]);
 			await this.usersRepository.delete(job.data.user.id);
+			for (const roomId of new Set([...memberships.map(member => member.roomId), ...ownedRooms.map(room => room.id)])) {
+				this.globalEventService.publishChatRoomStream(roomId, 'membersChanged');
+			}
 		}
 
 		return 'Account deleted';

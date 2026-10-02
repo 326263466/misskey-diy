@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<div class="_pageBody">
 	<div class="_panel" :class="$style.card">
 		<div class="_gaps_m">
 			<div :class="$style.userMInfoRoot">
@@ -61,14 +61,14 @@ const suspended = computed(() => props.user.isSuspended ?? false);
 </script>
 
 <style lang="scss" module>
-// 整页一张白卡, 数据块用画布灰做圆角内嵌底, 与个人主页信息区同一套语言
 .card {
-	padding: 24px;
+	padding: var(--MI-cardPadding);
 }
 
 .inset {
-	padding: 14px 18px;
-	background: var(--MI_THEME-bg);
+	padding: var(--MI-cardPadding);
+	background: var(--MI_THEME-panel);
+	border: 1px solid var(--MI_THEME-divider);
 	border-radius: var(--MI-cardRadius);
 }
 
@@ -107,7 +107,7 @@ const suspended = computed(() => props.user.isSuspended ?? false);
 	display: block;
 	width: 100%;
 	font-size: 85%;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;

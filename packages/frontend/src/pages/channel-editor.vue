@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<div v-if="channelId == null || channel != null" class="_gaps_m">
 			<MkInfo v-if="channel?.isArchived">{{ i18n.ts.thisChannelArchived }}</MkInfo>
 			<section v-if="showPreview" :aria-label="i18n.ts.preview" class="_gaps_s">
@@ -85,7 +85,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkButton primary :disabled="saving" @click="save()"><i :class="pendingAction === 'save' ? 'ti ti-loader-2 ti-spin' : 'ti ti-device-floppy'"></i> {{ pendingAction === 'save' ? i18n.ts.processing : channelId ? i18n.ts.save : i18n.ts.create }}</MkButton>
 				<MkButton v-if="channelId" :danger="!channel?.isArchived" :disabled="saving" @click="archive()"><i :class="pendingAction === 'archive' ? 'ti ti-loader-2 ti-spin' : channel?.isArchived ? 'ti ti-archive-off' : 'ti ti-archive'"></i> {{ pendingAction === 'archive' ? i18n.ts.processing : channel?.isArchived ? i18n.ts.unarchive : i18n.ts.archive }}</MkButton>
 			</div>
-			<div v-if="actionStatus" role="status" :class="[$style.actionStatus, { [$style.actionError]: actionStatus === 'error' }]"><i :class="actionStatus === 'error' ? 'ti ti-alert-circle' : 'ti ti-check'"></i> {{ i18n.ts[actionStatus] }}</div>
+			<div v-if="actionStatus" role="status" :class="[$style.actionStatus, { [$style.actionError]: actionStatus === 'error' }]"><i :class="actionStatus === 'error' ? 'ti ti-alert-circle' : 'ti ti-check'"></i> {{ actionStatus === 'error' ? i18n.ts.error : actionStatus === 'archived' ? i18n.ts.archived : i18n.ts.saved }}</div>
 		</div>
 	</div>
 </PageWithHeader>
@@ -502,6 +502,6 @@ definePage(() => ({
 	width: 32px;
 	height: 32px;
 	margin: 0 8px;
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

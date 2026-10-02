@@ -8,9 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-if="$i?.policies.canCreateChannel" #header-actions>
 		<MkButton type="routerLink" primary rounded to="/channels/new"><i class="ti ti-plus"></i> {{ i18n.ts.createNew }}</MkButton>
 	</template>
-	<div class="_spacer" style="--MI_SPACER-w: 1200px;">
+	<div class="_pageBody">
 		<div v-if="tab === 'search'" :class="$style.searchRoot">
-			<div class="_gaps">
+			<div class="_gaps _panel _panelPadding">
 				<div :class="$style.searchRow">
 					<MkInput v-model="searchQuery" :class="$style.searchInput" :large="true" :autofocus="true" type="search" @enter="search">
 						<template #prefix><i class="ti ti-search"></i></template>
@@ -55,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkPagination>
 		</div>
 		<div v-else-if="tab === 'owned'" class="_gaps">
-			<MkRadios v-model="ownedFilter" :options="[{ value: 'active', label: i18n.ts._channel.owned }, { value: 'archived', label: i18n.ts.archived }]"/>
+			<MkRadios v-model="ownedFilter" class="_panel _panelPadding" :options="[{ value: 'active', label: i18n.ts._channel.owned }, { value: 'archived', label: i18n.ts.archived }]"/>
 			<MkPagination :key="ownedFilter" v-slot="{items}" :paginator="ownedFilter === 'archived' ? archivedPaginator : ownedPaginator">
 				<div :class="$style.root">
 					<MkChannelPreview v-for="channel in items" :key="channel.id" :channel="channel"/>
@@ -174,9 +174,10 @@ definePage(() => ({
 
 <style lang="scss" module>
 .searchRoot {
+	display: flex;
+	flex-direction: column;
+	gap: var(--MI-margin);
 	width: 100%;
-	max-width: 700px;
-	margin: 0 auto;
 }
 
 .searchRow {

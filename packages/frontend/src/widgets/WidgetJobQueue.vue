@@ -178,7 +178,7 @@ defineExpose<WidgetComponentExpose>({
 	font-size: 0.9em;
 
 	> div {
-		padding: var(--MI-cardPadding, 20px);
+		padding: var(--MI-cardPadding, 18px);
 
 		&:not(:first-child) {
 			border-top: solid 0.5px var(--MI_THEME-divider);
@@ -201,7 +201,7 @@ defineExpose<WidgetComponentExpose>({
 				flex: 1;
 
 				> div:first-child {
-					opacity: 0.7;
+					color: var(--MI_THEME-fgTransparentWeak);
 				}
 
 				> div:last-child {

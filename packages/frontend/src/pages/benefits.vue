@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkCommunityHub active="benefits">
 	<div class="_gaps_m">
-		<header :class="$style.heading">
+		<header class="_panel" :class="$style.heading">
 			<div><h1>{{ i18n.ts._benefits.title }}</h1><p>{{ i18n.ts._benefits.myDescription }}</p></div>
 			<MkButton small :disabled="loading || redeeming || historyLoading" @click="refresh">{{ i18n.ts.reload }}</MkButton>
 		</header>
@@ -246,10 +246,10 @@ definePage(() => ({ title: i18n.ts._benefits.title, icon: 'ti ti-gift', needWide
 </script>
 
 <style lang="scss" module>
-.heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--MI-margin); padding: var(--MI-marginHalf) 0; h1 { margin: 0; font-size: 1.4em; } p { margin: 8px 0 0; line-height: 1.7; color: var(--MI_THEME-fgTransparentWeak); font-size: .9em; } }
+.heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--MI-margin); padding: var(--MI-cardPadding); h1 { margin: 0; font-size: 1.4em; } p { margin: 8px 0 0; line-height: 1.7; color: var(--MI_THEME-fgTransparentWeak); font-size: .9em; } }
 .overview { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; gap: var(--MI-margin); }
-.section, .wallet { min-width: 0; padding: 24px; h2 { margin: 0; font-size: 1.05em; } }
-.wallet { background: linear-gradient(135deg, var(--MI_THEME-accentedBg), var(--MI_THEME-panel) 80%); }
+.section, .wallet { min-width: 0; padding: var(--MI-cardPadding); h2 { margin: 0; font-size: 1.05em; } }
+.wallet { background: linear-gradient(135deg, var(--MI_THEME-accentedBg), var(--MI_THEME-panel) 80%), var(--MI_THEME-panel); }
 .cardHeading { display: flex; align-items: center; gap: 14px; p { margin: 0 0 6px; font-size: .8em; color: var(--MI_THEME-fgTransparentWeak); } }
 .cardIcon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--MI-radius); background: var(--MI_THEME-accentedBg); color: var(--MI_THEME-accent); font-size: 1.7em; }
 .balance { display: flex; align-items: baseline; gap: 12px; strong { font-size: 3em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; } span { font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); } }
@@ -271,6 +271,6 @@ definePage(() => ({ title: i18n.ts._benefits.title, icon: 'ti ti-gift', needWide
 .error, .notice { margin: 0; font-size: .85em; line-height: 1.7; }
 .error { color: var(--MI_THEME-error); }
 .notice { color: var(--MI_THEME-accent); }
-@container (max-width: 620px) { .overview { grid-template-columns: minmax(0, 1fr); } .section, .wallet { padding: 20px; } }
-@media (max-width: 480px) { .overview { grid-template-columns: minmax(0, 1fr); } .section, .wallet { padding: var(--MI-margin); } }
+@container (max-width: 620px) { .overview { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) { .overview { grid-template-columns: minmax(0, 1fr); } }
 </style>

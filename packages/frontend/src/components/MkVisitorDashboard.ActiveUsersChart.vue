@@ -60,11 +60,6 @@ async function renderChart() {
 
 	await nextTick();
 
-	const vLineColor = store.s.darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)';
-
-	const accent = tinycolor(themeManager.currentCompiledTheme!.accent).toHexString();
-
-	const colorRead = accent;
 	const colorWrite = '#2ecc71';
 
 	const max = Math.max(...raw.read);
@@ -82,7 +77,7 @@ async function renderChart() {
 				borderWidth: 0,
 				borderJoinStyle: 'round',
 				borderRadius: 4,
-				backgroundColor: colorRead,
+				backgroundColor: () => tinycolor(themeManager.currentCompiledTheme!.accent).toHexString(),
 				barPercentage: 0.5,
 				categoryPercentage: 1,
 				fill: true,
@@ -149,7 +144,7 @@ async function renderChart() {
 				},
 			},
 		},
-		plugins: [chartVLine(vLineColor)],
+		plugins: [chartVLine()],
 	});
 }
 

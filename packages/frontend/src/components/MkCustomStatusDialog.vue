@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModalWindow ref="dialogEl" :class="$style.root" :width="420" :height="440" autoHeight @close="close" @click="close" @esc="close" @closed="emit('closed')">
+<MkModalWindow ref="dialogEl" :class="$style.root" :width="420" :height="520" autoHeight @close="close" @click="close" @esc="close" @closed="emit('closed')">
 	<template #header>{{ i18n.ts._onlineStatus.customStatus }}</template>
 	<form :class="$style.content" @submit.prevent>
 		<div :class="$style.preview" :aria-label="i18n.ts.preview">

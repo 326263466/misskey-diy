@@ -5,30 +5,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps">
-	<div style="text-align: center; padding: 0 16px;">{{ i18n.ts._initialTutorial._postNote.description1 }}</div>
+	<div style="text-align: center; padding: 0 16px; color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._initialTutorial._postNote.description1 }}</div>
 	<MkPostForm :class="$style.exampleRoot" :mock="true" :autofocus="false"/>
 	<MkFormSection>
 		<template #label>{{ i18n.ts.visibility }}</template>
 		<div class="_gaps">
-			<div>{{ i18n.ts._initialTutorial._postNote._visibility.description }}</div>
-			<div><i class="ti ti-world"></i> <b>{{ i18n.ts._visibility.public }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.public }}</div>
-			<div><i class="ti ti-home"></i> <b>{{ i18n.ts._visibility.home }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.home }}</div>
-			<div><i class="ti ti-lock"></i> <b>{{ i18n.ts._visibility.followers }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.followers }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._initialTutorial._postNote._visibility.description }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-world"></i> <b>{{ i18n.ts._visibility.public }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.public }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-home"></i> <b>{{ i18n.ts._visibility.home }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.home }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-lock"></i> <b>{{ i18n.ts._visibility.followers }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.followers }}</div>
 			<div class="_gaps_s">
-				<div><i class="ti ti-mail"></i> <b>{{ i18n.ts._visibility.specified }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.direct }}</div>
+				<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-mail"></i> <b>{{ i18n.ts._visibility.specified }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.direct }}</div>
 				<MkInfo :warn="true">
 					<b>{{ i18n.ts._initialTutorial._postNote._visibility.doNotSendConfidencialOnDirect1 }}</b> {{ i18n.ts._initialTutorial._postNote._visibility.doNotSendConfidencialOnDirect2 }}
 				</MkInfo>
 			</div>
-			<div><i class="ti ti-rocket-off"></i> <b>{{ i18n.ts._visibility.disableFederation }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.localOnly }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-rocket-off"></i> <b>{{ i18n.ts._visibility.disableFederation }}</b> … {{ i18n.ts._initialTutorial._postNote._visibility.localOnly }}</div>
 		</div>
 	</MkFormSection>
 	<MkFormSection>
 		<template #label>{{ i18n.ts._initialTutorial._postNote._cw.title }}</template>
 		<div class="_gaps">
-			<div>{{ i18n.ts._initialTutorial._postNote._cw.description }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._initialTutorial._postNote._cw.description }}</div>
 			<MkNote :class="$style.exampleRoot" :note="exampleCWNote" :mock="true"/>
-			<div>{{ i18n.ts._initialTutorial._postNote._cw.useCases }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._initialTutorial._postNote._cw.useCases }}</div>
 		</div>
 	</MkFormSection>
 </div>

@@ -108,12 +108,11 @@ onUnmounted(() => {
 .transition_toggle_enterActive,
 .transition_toggle_leaveActive {
 	overflow: clip;
-	transition: opacity 0.5s, grid-template-rows 0.5s !important;
+	transition: grid-template-rows 0.25s !important;
 }
 .content.transition_toggle_enterFrom,
 .content.transition_toggle_leaveTo {
 	grid-template-rows: 0fr;
-	opacity: 0;
 }
 
 .root {
@@ -149,7 +148,6 @@ onUnmounted(() => {
 		> .header {
 			> .title {
 				min-height: 36px;
-				padding: 0 10px;
 				font-size: 0.9em;
 			}
 		}
@@ -160,16 +158,12 @@ onUnmounted(() => {
 	position: sticky;
 	top: var(--MI-stickyTop, 0px);
 	left: 0;
-	color: var(--MI_THEME-panelHeaderFg);
-	background: var(--MI_THEME-panelHeaderBg);
+	color: var(--MI_THEME-fg);
+	// 各容器可经 --MI-containerHeaderBg 单独覆盖（如趋势组件要求与卡片同色）
+	background: var(--MI-containerHeaderBg, var(--MI_THEME-panelHighlight));
+	box-shadow: inset 0 -1px var(--MI_THEME-divider);
 	z-index: 2;
 	line-height: 1.4em;
-}
-
-@container style(--MI_THEME-panelHeaderBg: var(--MI_THEME-panel)) {
-	.header {
-		box-shadow: 0 0.5px 0 0 light-dark(#0002, #fff2);
-	}
 }
 
 .title {
@@ -181,7 +175,7 @@ onUnmounted(() => {
 	// ascent+descent 超过 1em，溢出量会按字体比例偏向一侧，墨迹反而压不到正中
 	min-height: 44px;
 	margin: 0;
-	padding: 0 var(--MI-cardPadding, 20px);
+	padding: 0 var(--MI-cardPadding, 18px);
 
 	&:empty {
 		display: none;
@@ -270,7 +264,7 @@ onUnmounted(() => {
 @container (max-width: 380px) {
 	.title {
 		min-height: 36px;
-		padding: 0 var(--MI-cardPadding, 20px);
+		padding: 0 var(--MI-cardPadding, 18px);
 		font-size: 0.9em;
 	}
 }

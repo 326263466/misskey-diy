@@ -16,6 +16,7 @@ import { updateI18n } from '@/i18n.js';
 
 const mocks = vi.hoisted(() => ({
 	api: vi.fn(),
+	theme: { currentCompiledTheme: { chartAccent: 'rgb(51, 102, 153)' }, on: vi.fn(), off: vi.fn() },
 	// Chart is invoked with new, so this mock must be constructible.
 	// eslint-disable-next-line prefer-arrow-callback
 	chart: vi.fn(function (_canvas: HTMLCanvasElement, _config: ChartConfiguration) {
@@ -24,7 +25,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('chart.js', () => ({ Chart: mocks.chart }));
-vi.mock('@/utility/init-chart.js', () => ({ initChart: vi.fn() }));
+vi.mock('@/theme.js', () => ({ themeManager: mocks.theme }));
+vi.mock('@/utility/init-chart.js', () => ({ initChart: vi.fn(), applyChartThemeDefaults: vi.fn() }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api, misskeyApiGet: mocks.api }));
 vi.mock('@/composables/use-chart-tooltip.js', () => ({ useChartTooltip: () => ({ handler: vi.fn() }) }));
 vi.mock('@/store.js', () => ({ store: { s: { darkMode: false } } }));
@@ -62,6 +64,16 @@ afterEach(() => {
 });
 
 describe('chart localization', () => {
+	test.each([false, true])('resolves heatmap colors for dataset contexts and empty data (retention=%s)', async retention => {
+		mocks.api.mockResolvedValue(retention ? [] : { readWrite: [] });
+		if (retention) render(MkRetentionHeatmap, { global });
+		else render(MkHeatmap, { props: { src: 'active-users' }, global });
+		await waitFor(() => expect(mocks.chart).toHaveBeenCalledOnce());
+		const dataset = mocks.chart.mock.lastCall![1].data.datasets[0];
+		const background = dataset.backgroundColor as (context: unknown) => string;
+		expect(background({ type: 'dataset', dataset })).toBe('transparent');
+		expect(background({ type: 'data', dataset, dataIndex: 0 })).toBe('transparent');
+	});
 	test('localizes the dashboard active user dates', async () => {
 		mocks.api.mockResolvedValue({ read: [2], write: [1] });
 		render(OverviewActiveUsers, { global });
@@ -95,7 +107,10 @@ describe('chart localization', () => {
 		render(MkHeatmap, { props: { src: 'active-users' }, global });
 		await waitFor(() => expect(mocks.chart).toHaveBeenCalledOnce());
 		const config = mocks.chart.mock.lastCall![1];
-		expect([1, 3, 5].map(day => tickLabel(config, 'y', day))).toEqual(['周一', '周三', '周五']);
+		expect([1, 3, 5].map(day => tickLabel(config, 'y', day))).toEqual(['一', '三', '五']);
+		const dataset = config.data.datasets[0];
+		const background = dataset.backgroundColor as (context: unknown) => string;
+		expect(background({ type: 'data', dataset, dataIndex: 0 })).toBe('rgb(51, 102, 153)');
 		const point = config.data.datasets[0].data[0] as unknown as { t: number };
 		expect(tooltipTitle(config)).toBe(new Intl.DateTimeFormat('zh-CN').format(point.t));
 		expect(config.data.datasets[0].label).toBe('活跃用户数');
@@ -112,5 +127,8 @@ describe('chart localization', () => {
 		const config = mocks.chart.mock.lastCall![1];
 		expect(tickLabel(config, 'y', timestamp)).toBe('12/31');
 		expect(config.data.datasets[0].label).toBe('留存用户');
+		const dataset = config.data.datasets[0];
+		const background = dataset.backgroundColor as (context: unknown) => string;
+		expect(background({ type: 'data', dataset, dataIndex: 0 })).toBe('rgb(51, 102, 153)');
 	});
 });

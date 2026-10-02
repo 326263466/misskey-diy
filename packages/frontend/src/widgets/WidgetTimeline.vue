@@ -170,6 +170,7 @@ defineExpose<WidgetComponentExpose>({
 }
 
 .disabledDescription {
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 90%;
 }
 </style>

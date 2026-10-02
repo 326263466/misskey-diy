@@ -7,7 +7,9 @@ process.env.NODE_ENV = 'test';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import type { DataSource } from 'typeorm';
+import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+import type { DataSource, ObjectLiteral } from 'typeorm';
 import { initTestDb } from '../utils.js';
 import { AchievementService } from '@/core/AchievementService.js';
 import { CheckinService } from '@/core/CheckinService.js';
@@ -43,6 +45,15 @@ describe('check-in database persistence', () => {
 		return db.getRepository(MiUser).findOneByOrFail({ id });
 	}
 
+	async function seedStreak(userId: string, start: string, days: number, rewardConsumed = false): Promise<void> {
+		await db.getRepository(MiUserProfile).update({ userId }, { checkinFirstRewardClaimed: true });
+		const previousDays = await db.getRepository(MiUserCheckin).countBy({ userId });
+		await db.getRepository(MiUserCheckin).insert(Array.from({ length: days }, (_, index) => ({
+			userId, date: new Date(new Date(`${start}T00:00:00Z`).getTime() + index * 86400000).toISOString().slice(0, 10),
+			createdAt: new Date(), isMakeup: false, rewardConsumed, totalDays: previousDays + index + 1, consecutiveDays: index + 1,
+		})));
+	}
+
 	beforeAll(async () => {
 		// initTestDb refuses non-test environments and uses .config/test.yml, never the live database.
 		db = await initTestDb();
@@ -75,7 +86,7 @@ describe('check-in database persistence', () => {
 		expect(await db.getRepository(MiUserCheckinCardBatch).findBy({ userId: me.id })).toEqual([expect.objectContaining({ source: 'redemption', amount: 2, remaining: 2 })]);
 		await service.makeup(me.id, '2026-09-27');
 		await redemptions.update(code.id, false);
-		expect(await redemptions.redeem(me.id, code.code)).toEqual({ newlyRedeemed: false, amount: 0, makeupCards: 1, points: 1 });
+		expect(await redemptions.redeem(me.id, code.code)).toEqual({ newlyRedeemed: false, amount: 0, makeupCards: 1, points: 0 });
 		expect((await redemptions.list(0, 20)).items[0]).toMatchObject({ redemptions: 1, enabled: false });
 	});
 
@@ -204,7 +215,7 @@ describe('check-in database persistence', () => {
 
 	test('legacy and exchange cards cannot be reclaimed, and historical balances are consumed before new grants', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 1, checkinPoints: 7 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 1, checkinPoints: 60 });
 		await service.grantCards(me.id, 1, me);
 		await service.exchange(me.id, randomUUID());
 		const batches = await db.getRepository(MiUserCheckinCardBatch).find({ where: { userId: me.id }, order: { createdAt: 'ASC', id: 'ASC' } });
@@ -216,6 +227,44 @@ describe('check-in database persistence', () => {
 		expect(await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ id: batches[0].id })).toMatchObject({ used: 1, remaining: 0 });
 		expect(await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ id: batches[1].id })).toMatchObject({ used: 0, remaining: 1 });
 		await expect(service.revokeCards('missing', me)).rejects.toBeInstanceOf(CheckinService.NoSuchCardBatchError);
+	});
+
+	test('calendar reads keep one snapshot while another connection completes check-in', async () => {
+		const me = await user();
+		await seedStreak(me.id, '2026-09-22', 6);
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinFirstRewardClaimed: false });
+		const started = Promise.withResolvers<void>();
+		const resume = Promise.withResolvers<void>();
+		const createRunner = db.createQueryRunner.bind(db);
+		const runnerSpy = vi.spyOn(db, 'createQueryRunner').mockImplementationOnce(mode => {
+			const runner = createRunner(mode);
+			const query = runner.query.bind(runner);
+			let paused = false;
+			vi.spyOn(runner, 'query').mockImplementation(async (sql: string, parameters?: unknown[] | ObjectLiteral, structured?: boolean) => {
+				const result = structured ? await query(sql, parameters, true) : await query(sql, parameters);
+				if (!paused && sql.startsWith('SELECT') && sql.includes('user_checkin')) {
+					paused = true;
+					started.resolve();
+					await resume.promise;
+				}
+				return result;
+			});
+			return runner;
+		});
+		const reading = service.getStatus(me.id);
+		try {
+			await started.promise;
+			expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 1 });
+			resume.resolve();
+			const before = await reading;
+			expect(before).toMatchObject({ checkedInToday: false, points: 0, makeupCards: 0, makeupCardProgress: 6, makeupCardTarget: 7, rewardDates: [] });
+			expect(before.checkedInDates).not.toContain('2026-09-28');
+			expect(await service.getStatus(me.id)).toMatchObject({ checkedInToday: true, points: 1, makeupCards: 1, makeupCardProgress: 0, makeupCardTarget: 30, rewardDates: ['2026-09-28'] });
+		} finally {
+			resume.resolve();
+			await reading;
+			runnerSpy.mockRestore();
+		}
 	});
 
 	test('concurrent first check-ins persist one day and notify each earned achievement once', async () => {
@@ -232,31 +281,67 @@ describe('check-in database persistence', () => {
 		await expect(db.getRepository(MiUserCheckin).insert(saved)).rejects.toMatchObject({ code: '23505' });
 	});
 
-	test('gifts one card at every seventh actual check-in, even when those days are not consecutive', async () => {
+	test('gifts once at seven then every thirty normal days within a continuous streak', async () => {
 		const me = await user();
-		for (let day = 1; day <= 14; day++) {
-			vi.setSystemTime(new Date(Date.UTC(2026, 7, day * 2, 4)));
+		for (let day = 1; day <= 60; day++) {
+			vi.setSystemTime(new Date(Date.UTC(2026, 6, day, 4)));
 			const response = await service.checkin(me.id);
-			expect(response).toMatchObject({ earnedMakeupCards: day % 7 === 0 ? 1 : 0, makeupCards: Math.floor(day / 7), makeupCardProgress: day % 7, makeupCardTarget: 7, makeupCardExchangeCost: 7 });
-			expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCards: Math.floor(day / 7) });
+			const cards = day < 7 ? 0 : 1 + Math.floor((day - 7) / 30);
+			expect(response).toMatchObject({ earnedMakeupCards: day >= 7 && (day - 7) % 30 === 0 ? 1 : 0, makeupCards: cards, makeupCardProgress: day < 7 ? day : (day - 7) % 30, makeupCardTarget: day < 7 ? 7 : 30, makeupCardFirstRewardClaimed: day >= 7, makeupCardExchangeCost: 60, makeupCardLimit: 3 });
+			expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCards: cards });
 		}
+		vi.setSystemTime(new Date('2026-09-01T04:00:00Z'));
+		expect(await service.getStatus(me.id)).toMatchObject({ consecutiveDays: 0, makeupCardProgress: 0 });
+		expect(await service.checkin(me.id)).toMatchObject({ consecutiveDays: 1, earnedMakeupCards: 0, makeupCardProgress: 1 });
 	});
 
-	test('makeup does not progress the actual-check-in gift and the seventh concurrent real check-in gifts once', async () => {
+	test('first reward survives a break, needs seven normal days, and records the actual award month', async () => {
 		const me = await user();
-		for (let day = 21; day <= 26; day++) {
+		for (const date of ['2026-09-20', '2026-09-21', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28']) {
+			vi.setSystemTime(new Date(`${date}T04:00:00Z`));
+			await service.checkin(me.id);
+		}
+		expect(await service.getStatus(me.id)).toMatchObject({ makeupCardProgress: 6, makeupCardTarget: 7, rewardDates: [] });
+		await service.grantCards(me.id, 1, me);
+		expect(await service.makeup(me.id, '2026-09-22')).toMatchObject({ earnedMakeupCards: 1, makeupCardProgress: 1, makeupCardTarget: 30, rewardDates: ['2026-09-28'] });
+		vi.setSystemTime(new Date('2026-10-01T04:00:00Z'));
+		expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCardProgress: 1, makeupCardTarget: 30, rewardDates: [] });
+		expect(await service.getStatus(me.id, '2026-09')).toMatchObject({ rewardDates: ['2026-09-28'] });
+	});
+
+	test('a full inventory settles the first reward once without showing a credited calendar reward', async () => {
+		const me = await user();
+		await service.grantCards(me.id, 3, me);
+		for (let day = 21; day <= 27; day++) {
 			vi.setSystemTime(new Date(`2026-09-${day}T04:00:00Z`));
 			await service.checkin(me.id);
 		}
-		vi.setSystemTime(new Date('2026-09-28T04:00:00Z'));
-		await service.grantCards(me.id, 1, me);
-		expect(await service.makeup(me.id, '2026-09-27')).toMatchObject({ totalDays: 7, earnedMakeupCards: 0, makeupCards: 0, makeupCardProgress: 6 });
-		const results = await Promise.all(Array.from({ length: 12 }, () => service.checkin(me.id)));
-		expect(results.reduce((sum, response) => sum + response.earnedMakeupCards, 0)).toBe(1);
-		expect(await service.getStatus(me.id)).toMatchObject({ makeupCards: 1, makeupCardProgress: 0, totalDays: 8 });
+		expect(await service.getStatus(me.id)).toMatchObject({ makeupCardFirstRewardClaimed: true, makeupCardTarget: 30, makeupCardProgress: 0, makeupCards: 3, rewardDates: [] });
+		vi.setSystemTime(new Date('2026-09-29T04:00:00Z'));
+		await service.checkin(me.id);
+		expect(await service.makeup(me.id, '2026-09-28')).toMatchObject({ earnedMakeupCards: 0, makeupCards: 2, makeupCardProgress: 1, rewardDates: [] });
 	});
 
-	test('does not retroactively gift cards for an already passed historical milestone', async () => {
+	test('makeup repairs continuity but only normal days progress the next reward', async () => {
+		const me = await user();
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinFirstRewardClaimed: true });
+		for (let day = 1; day <= 28; day++) {
+			vi.setSystemTime(new Date(Date.UTC(2026, 8, day, 4)));
+			await service.checkin(me.id);
+		}
+		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
+		await service.grantCards(me.id, 1, me);
+		expect(await service.makeup(me.id, '2026-09-29')).toMatchObject({ totalDays: 29, earnedPoints: 0, points: 28, earnedMakeupCards: 0, makeupCards: 0, makeupCardProgress: 28 });
+		const results = await Promise.all(Array.from({ length: 12 }, () => service.checkin(me.id)));
+		expect(results.reduce((sum, response) => sum + response.earnedMakeupCards, 0)).toBe(0);
+		expect(await service.getStatus(me.id)).toMatchObject({ makeupCards: 0, makeupCardProgress: 29, totalDays: 30, points: 29 });
+		vi.setSystemTime(new Date('2026-10-01T04:00:00Z'));
+		const rewards = await Promise.all(Array.from({ length: 12 }, () => service.checkin(me.id)));
+		expect(rewards.reduce((sum, response) => sum + response.earnedMakeupCards, 0)).toBe(1);
+		expect(await service.getStatus(me.id)).toMatchObject({ rewardDates: ['2026-10-01'], makeupCardProgress: 0 });
+	});
+
+	test('does not revive the reward progress of an expired historical streak', async () => {
 		const me = await user();
 		await db.getRepository(MiUserCheckin).insert(Array.from({ length: 7 }, (_, index) => ({ userId: me.id, date: `2026-09-${index + 10}`, createdAt: new Date(), isMakeup: false, totalDays: index + 1, consecutiveDays: index + 1 })));
 		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 7 });
@@ -264,46 +349,224 @@ describe('check-in database persistence', () => {
 		expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCards: 0, makeupCardProgress: 1 });
 	});
 
+	test('makeup joins a 29-day streak to today and crossing the milestone rewards once under retries', async () => {
+		const me = await user();
+		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
+		await seedStreak(me.id, '2026-08-31', 29);
+		await service.checkin(me.id);
+		await expect(service.makeup(me.id, '2026-09-29')).rejects.toBeInstanceOf(CheckinService.NoMakeupCardsError);
+		await service.grantCards(me.id, 1, me);
+		const results = await Promise.all([
+			...Array.from({ length: 8 }, () => service.makeup(me.id, '2026-09-29')),
+			...Array.from({ length: 8 }, () => service.checkin(me.id)),
+		]);
+		expect(results.reduce((sum, result) => sum + result.earnedMakeupCards, 0)).toBe(1);
+		expect(await service.getStatus(me.id)).toMatchObject({ consecutiveDays: 31, makeupCardProgress: 0, makeupCards: 1, points: 1 });
+		expect(await db.getRepository(MiUserCheckin).countBy({ userId: me.id, rewardConsumed: true })).toBe(30);
+		expect(await db.getRepository(MiUserCheckinCardBatch).findBy({ userId: me.id, source: 'reward' })).toEqual([expect.objectContaining({ amount: 1 })]);
+	});
+
+	test('waits for today’s active check-in after makeup completes 30 days', async () => {
+		const me = await user();
+		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
+		await seedStreak(me.id, '2026-08-31', 29);
+		await service.grantCards(me.id, 1, me);
+		expect(await service.makeup(me.id, '2026-09-29')).toMatchObject({ checkedInToday: false, consecutiveDays: 30, makeupCardProgress: 29, makeupCards: 0, earnedMakeupCards: 0 });
+		expect(await db.getRepository(MiUserCheckin).countBy({ userId: me.id, rewardConsumed: true })).toBe(0);
+		expect(await service.checkin(me.id)).toMatchObject({ consecutiveDays: 31, makeupCardProgress: 0, makeupCards: 1, earnedMakeupCards: 1 });
+	});
+
+	test('settles full-inventory rewards permanently without reclaiming them after spending a card', async () => {
+		const me = await user();
+		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
+		await seedStreak(me.id, '2026-09-01', 29);
+		await service.grantCards(me.id, 3, me);
+		expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCards: 3, makeupCardProgress: 0, points: 1 });
+		expect(await db.getRepository(MiUserCheckin).countBy({ userId: me.id, rewardConsumed: true })).toBe(30);
+		vi.setSystemTime(new Date('2026-10-02T04:00:00Z'));
+		await service.checkin(me.id);
+		expect(await service.makeup(me.id, '2026-10-01')).toMatchObject({ consecutiveDays: 32, earnedMakeupCards: 0, makeupCards: 2, makeupCardProgress: 1 });
+		expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCards: 2 });
+	});
+
+	test('joining an already settled streak preserves its accounting while retaining unconsumed days', async () => {
+		const me = await user();
+		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
+		await seedStreak(me.id, '2026-08-27', 30, true);
+		await seedStreak(me.id, '2026-09-27', 3);
+		await service.grantCards(me.id, 1, me);
+		await service.checkin(me.id);
+		expect(await service.makeup(me.id, '2026-09-26')).toMatchObject({ consecutiveDays: 35, makeupCardProgress: 4, earnedMakeupCards: 0, makeupCards: 0 });
+		expect(await db.getRepository(MiUserCheckin).countBy({ userId: me.id, rewardConsumed: true })).toBe(30);
+	});
+
+	test('rolls back a reward together with its consumed dates when batch insertion fails', async () => {
+		const me = await user();
+		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
+		await seedStreak(me.id, '2026-09-01', 29);
+		await db.query(`CREATE FUNCTION checkin_reward_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.source = 'reward' THEN RAISE EXCEPTION 'test reward failure'; END IF; RETURN NEW; END $$`);
+		await db.query(`CREATE TRIGGER checkin_reward_fail BEFORE INSERT ON user_checkin_card_batch FOR EACH ROW EXECUTE FUNCTION checkin_reward_fail()`);
+		try {
+			await expect(service.checkin(me.id)).rejects.toThrow('test reward failure');
+			expect(await service.getStatus(me.id)).toMatchObject({ totalDays: 29, makeupCardProgress: 29, makeupCards: 0, points: 0 });
+			expect(await db.getRepository(MiUserCheckin).countBy({ userId: me.id, rewardConsumed: true })).toBe(0);
+		} finally {
+			await db.query('DROP TRIGGER checkin_reward_fail ON user_checkin_card_batch');
+			await db.query('DROP FUNCTION checkin_reward_fail()');
+		}
+		expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 1, makeupCards: 1, points: 1 });
+	});
+
+	test('migration settles existing milestones per streak, preserves tails and balances, and supports rollback', async () => {
+		const me = await user();
+		const continuing = await user();
+		await seedStreak(continuing.id, '2026-08-02', 59);
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 777, checkinMakeupCards: 9 });
+		const lengths = [29, 30, 31, 59, 60];
+		let start = new Date('2025-01-01T00:00:00Z');
+		for (const days of lengths) {
+			await seedStreak(me.id, start.toISOString().slice(0, 10), days);
+			start = new Date(start.getTime() + (days + 2) * 86400000);
+		}
+		const original = await db.getRepository(MiUserCheckin).find({ where: { userId: me.id }, order: { date: 'ASC' } });
+		const migrationUrl = pathToFileURL(resolve('migration/1790786122156-checkin-streak-rewards.js')).href;
+		const { CheckinStreakRewards1790786122156 } = await import(migrationUrl);
+		const migration = new CheckinStreakRewards1790786122156();
+		const runner = db.createQueryRunner();
+		await runner.connect();
+		await runner.startTransaction();
+		try {
+			await migration.down(runner);
+			await migration.up(runner);
+			const migrated = await runner.manager.find(MiUserCheckin, { where: { userId: me.id }, order: { date: 'ASC' } });
+			let offset = 0;
+			for (const days of lengths) {
+				const segment = migrated.slice(offset, offset + days);
+				expect(segment.filter(record => record.rewardConsumed)).toHaveLength(Math.floor(days / 30) * 30);
+				expect(segment.slice(Math.floor(days / 30) * 30).every(record => !record.rewardConsumed)).toBe(true);
+				offset += days;
+			}
+			expect(migrated.map(({ rewardConsumed: _consumed, ...record }) => record)).toEqual(original.map(({ rewardConsumed: _consumed, ...record }) => record));
+			expect(await runner.manager.findOneByOrFail(MiUserProfile, { userId: me.id })).toMatchObject({ checkinPoints: 777, checkinMakeupCards: 9 });
+			await migration.down(runner);
+			expect(await runner.hasColumn('user_checkin', 'rewardConsumed')).toBe(false);
+			expect(await runner.query('SELECT COUNT(*)::integer AS count FROM user_checkin WHERE "userId" = $1', [me.id])).toEqual([{ count: lengths.reduce((sum, length) => sum + length, 0) }]);
+			await migration.up(runner);
+			await runner.commitTransaction();
+		} finally {
+			if (runner.isTransactionActive) await runner.rollbackTransaction();
+			await runner.release();
+		}
+		const lastDate = original.at(-1)!.date;
+		vi.setSystemTime(new Date(`${lastDate}T04:00:00Z`));
+		expect(await service.checkin(me.id)).toMatchObject({ newlyCheckedIn: false, earnedMakeupCards: 0, makeupCards: 9, points: 777, makeupCardProgress: 0 });
+		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
+		expect(await service.getStatus(continuing.id)).toMatchObject({ consecutiveDays: 59, makeupCardProgress: 29, makeupCards: 0 });
+		expect(await service.checkin(continuing.id)).toMatchObject({ consecutiveDays: 60, makeupCardProgress: 0, earnedMakeupCards: 1, makeupCards: 1, points: 1 });
+	});
+
+	test('first-reward migration preserves legacy reward batches, skips and calendar dates through rollback', async () => {
+		const rewarded = await user();
+		const skipped = await user();
+		const newcomer = await user();
+		for (let day = 21; day <= 27; day++) {
+			vi.setSystemTime(new Date(`2026-09-${day}T04:00:00Z`));
+			await service.checkin(rewarded.id);
+		}
+		await db.getRepository(MiUserCheckin).update({ userId: rewarded.id }, { rewardConsumed: false });
+		await seedStreak(skipped.id, '2026-08-29', 30, true);
+		const migrationUrl = pathToFileURL(resolve('migration/1790827883430-checkin-first-reward.js')).href;
+		const { CheckinFirstReward1790827883430 } = await import(migrationUrl);
+		const migration = new CheckinFirstReward1790827883430();
+		const runner = db.createQueryRunner();
+		await runner.connect();
+		await runner.startTransaction();
+		try {
+			await migration.down(runner);
+			expect(await runner.hasColumn('user_profile', 'checkinFirstRewardClaimed')).toBe(false);
+			expect(await runner.hasColumn('user_checkin', 'earnedMakeupCards')).toBe(false);
+			await migration.up(runner);
+			for (const me of [rewarded, skipped]) {
+				expect(await runner.manager.findOneByOrFail(MiUserProfile, { userId: me.id })).toMatchObject({ checkinFirstRewardClaimed: true });
+			}
+			expect(await runner.manager.findOneByOrFail(MiUserProfile, { userId: newcomer.id })).toMatchObject({ checkinFirstRewardClaimed: false });
+			expect(await runner.manager.findOneByOrFail(MiUserCheckin, { userId: rewarded.id, date: '2026-09-27' })).toMatchObject({ earnedMakeupCards: 1 });
+			expect(await runner.manager.countBy(MiUserCheckin, { userId: skipped.id, earnedMakeupCards: 0 })).toBe(30);
+			await runner.commitTransaction();
+		} finally {
+			if (runner.isTransactionActive) await runner.rollbackTransaction();
+			await runner.release();
+		}
+		expect(await service.getStatus(rewarded.id)).toMatchObject({ rewardDates: ['2026-09-27'], makeupCardTarget: 30, makeupCards: 1 });
+	});
+
+	test('monthly exchange quota changes at Shanghai midnight and old retries do not consume the new month', async () => {
+		const me = await user();
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 180 });
+		vi.setSystemTime(new Date('2026-09-30T15:59:59.999Z'));
+		const requestId = randomUUID();
+		await service.exchange(me.id, requestId);
+		expect(await service.getStatus(me.id)).toMatchObject({ makeupCardExchangeAvailable: false });
+		vi.setSystemTime(new Date('2026-09-30T16:00:00Z'));
+		expect(await service.exchange(me.id, requestId)).toMatchObject({ exchanged: false, points: 120 });
+		expect(await service.getStatus(me.id)).toMatchObject({ today: '2026-10-01', makeupCardExchangeAvailable: true });
+		expect(await service.exchange(me.id, randomUUID())).toMatchObject({ exchanged: true, points: 60, makeupCards: 2 });
+		await expect(service.exchange(me.id, randomUUID())).rejects.toBeInstanceOf(CheckinService.MonthlyExchangeLimitError);
+	});
+
+	test('limits makeup to seven civil days across months and advances the boundary at Shanghai midnight', async () => {
+		const me = await user();
+		await service.grantCards(me.id, 3, me);
+		vi.setSystemTime(new Date('2026-09-30T16:00:00Z'));
+		expect(await service.getStatus(me.id)).toMatchObject({ today: '2026-10-01', makeupEarliestDate: '2026-09-24' });
+		await expect(service.makeup(me.id, '2026-09-23')).rejects.toBeInstanceOf(CheckinService.InvalidDateError);
+		expect(await service.makeup(me.id, '2026-09-24')).toMatchObject({ earnedPoints: 0, makeupCards: 2 });
+		vi.setSystemTime(new Date('2026-10-01T16:00:00Z'));
+		expect(await service.getStatus(me.id)).toMatchObject({ today: '2026-10-02', makeupEarliestDate: '2026-09-25' });
+		await expect(service.makeup(me.id, '2026-09-24')).rejects.toBeInstanceOf(CheckinService.InvalidDateError);
+		expect(await service.makeup(me.id, '2026-09-25')).toMatchObject({ earnedPoints: 0, makeupCards: 1 });
+	});
+
 	test('exchanges points once for concurrent retries and returns current balances for a later retry', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 14 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 120 });
 		const requestId = randomUUID();
 		const results = await Promise.all(Array.from({ length: 16 }, () => service.exchange(me.id, requestId)));
 		expect(results.filter(result => result.exchanged)).toHaveLength(1);
-		expect(results.every(result => result.points === 7 && result.makeupCards === 1)).toBe(true);
-		expect(await db.getRepository(MiUserCheckinExchange).findBy({ userId: me.id })).toEqual([expect.objectContaining({ requestId, pointsSpent: 7, cardsGranted: 1 })]);
+		expect(results.every(result => result.points === 60 && result.makeupCards === 1)).toBe(true);
+		expect(await db.getRepository(MiUserCheckinExchange).findBy({ userId: me.id })).toEqual([expect.objectContaining({ requestId, pointsSpent: 60, cardsGranted: 1 })]);
 		await service.makeup(me.id, '2026-09-27');
-		expect(await service.exchange(me.id, requestId.toUpperCase())).toEqual({ points: 8, makeupCards: 0, exchanged: false });
+		expect(await service.exchange(me.id, requestId.toUpperCase())).toEqual({ points: 60, makeupCards: 0, exchanged: false });
 		await db.getRepository(MiUser).delete(me.id);
 		expect(await db.getRepository(MiUserCheckinExchange).countBy({ userId: me.id })).toBe(0);
 	});
 
-	test('different concurrent exchanges cannot overdraw the final seven points', async () => {
+	test('different concurrent exchanges cannot exceed the monthly quota', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 7 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 120 });
 		const results = await Promise.allSettled([service.exchange(me.id, randomUUID()), service.exchange(me.id, randomUUID())]);
 		expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
-		expect(results.find(result => result.status === 'rejected')).toMatchObject({ reason: expect.any(CheckinService.InsufficientPointsError) });
-		expect(await service.getStatus(me.id)).toMatchObject({ points: 0, makeupCards: 1 });
+		expect(results.find(result => result.status === 'rejected')).toMatchObject({ reason: expect.any(CheckinService.MonthlyExchangeLimitError) });
+		expect(await service.getStatus(me.id)).toMatchObject({ points: 60, makeupCards: 1, makeupCardExchangeAvailable: false });
 		expect(await db.getRepository(MiUserCheckinExchange).countBy({ userId: me.id })).toBe(1);
 	});
 
 	test('exchange, actual check-in, makeup and administrator grants preserve all balance changes', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 7, checkinMakeupCards: 1 });
-		await Promise.all([service.exchange(me.id, randomUUID()), service.checkin(me.id), service.makeup(me.id, '2026-09-27'), service.grantCards(me.id, 2, me)]);
-		expect(await service.getStatus(me.id)).toMatchObject({ points: 2, makeupCards: 3, totalDays: 2, makeupCardProgress: 1 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 60, checkinMakeupCards: 1 });
+		await Promise.all([service.exchange(me.id, randomUUID()), service.checkin(me.id), service.makeup(me.id, '2026-09-27'), service.grantCards(me.id, 1, me)]);
+		expect(await service.getStatus(me.id)).toMatchObject({ points: 1, makeupCards: 2, totalDays: 2, makeupCardProgress: 1 });
 	});
 
 	test('a failed ledger insertion rolls back both exchanged balances and lets the same request retry', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 7 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 60 });
 		await db.query(`CREATE FUNCTION checkin_exchange_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test exchange failure'; END $$`);
 		await db.query(`CREATE TRIGGER checkin_exchange_fail BEFORE INSERT ON user_checkin_exchange FOR EACH ROW EXECUTE FUNCTION checkin_exchange_fail()`);
 		const requestId = randomUUID();
 		try {
 			await expect(service.exchange(me.id, requestId)).rejects.toThrow('test exchange failure');
-			expect(await service.getStatus(me.id)).toMatchObject({ points: 7, makeupCards: 0 });
+			expect(await service.getStatus(me.id)).toMatchObject({ points: 60, makeupCards: 0 });
 			expect(await db.getRepository(MiUserCheckinExchange).countBy({ userId: me.id })).toBe(0);
 		} finally {
 			await db.query('DROP TRIGGER checkin_exchange_fail ON user_checkin_exchange');
@@ -318,21 +581,25 @@ describe('check-in database persistence', () => {
 			await expect(service.exchange(invalid.id, randomUUID())).rejects.toBeInstanceOf(CheckinService.NotAllowedError);
 		}
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 7, checkinMakeupCards: 2147483647 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 59 });
+		await expect(service.exchange(me.id, randomUUID())).rejects.toBeInstanceOf(CheckinService.InsufficientPointsError);
+		expect(await service.getStatus(me.id)).toMatchObject({ points: 59, makeupCards: 0, makeupCardExchangeAvailable: true });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 60, checkinMakeupCards: 3 });
 		await expect(service.exchange(me.id, randomUUID())).rejects.toBeInstanceOf(CheckinService.CardLimitError);
-		expect(await service.getStatus(me.id)).toMatchObject({ points: 7, makeupCards: 2147483647 });
+		expect(await service.getStatus(me.id)).toMatchObject({ points: 60, makeupCards: 3 });
 	});
 
-	test('concurrent duplicate makeups consume one card, award one point and persist the calendar marker', async () => {
+	test('concurrent duplicate makeups consume one card without awarding points and persist the calendar marker', async () => {
 		const me = await user();
+		vi.setSystemTime(new Date('2026-09-02T04:00:00Z'));
 		await service.grantCards(me.id, 1, me);
 		const results = await Promise.all(Array.from({ length: 16 }, () => service.makeup(me.id, '2026-08-31')));
 		expect(results.filter(result => result.newlyCheckedIn)).toHaveLength(1);
-		expect(results.reduce((points, result) => points + result.earnedPoints, 0)).toBe(1);
+		expect(results.reduce((points, result) => points + result.earnedPoints, 0)).toBe(0);
 		expect(results.flatMap(result => result.earnedAchievements)).toEqual(['checkin1']);
-		expect(await service.getStatus(me.id, '2026-08')).toMatchObject({ month: '2026-08', checkedInToday: false, totalDays: 1, points: 1, makeupCards: 0, makeupDates: ['2026-08-31'] });
+		expect(await service.getStatus(me.id, '2026-08')).toMatchObject({ month: '2026-08', checkedInToday: false, totalDays: 1, points: 0, makeupCards: 0, makeupDates: ['2026-08-31'] });
 		expect(results.every(result => result.month === '2026-08')).toBe(true);
-		expect(await service.makeup(me.id, '2026-08-31')).toMatchObject({ newlyCheckedIn: false, earnedPoints: 0, points: 1, makeupCards: 0 });
+		expect(await service.makeup(me.id, '2026-08-31')).toMatchObject({ newlyCheckedIn: false, earnedPoints: 0, points: 0, makeupCards: 0 });
 	});
 
 	test('concurrent different makeups cannot overdraw the last card', async () => {
@@ -341,7 +608,7 @@ describe('check-in database persistence', () => {
 		const results = await Promise.allSettled([service.makeup(me.id, '2026-09-26'), service.makeup(me.id, '2026-09-27')]);
 		expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
 		expect(results.find(result => result.status === 'rejected')).toMatchObject({ reason: expect.any(CheckinService.NoMakeupCardsError) });
-		expect(await service.getStatus(me.id)).toMatchObject({ totalDays: 1, points: 1, makeupCards: 0 });
+		expect(await service.getStatus(me.id)).toMatchObject({ totalDays: 1, points: 0, makeupCards: 0 });
 	});
 
 	test('makeups repair later totals and join streaks before ranking and achievements are evaluated', async () => {
@@ -352,13 +619,13 @@ describe('check-in database persistence', () => {
 		}
 		vi.setSystemTime(new Date('2026-09-28T04:00:00Z'));
 		await service.grantCards(me.id, 1, me);
-		expect(await service.makeup(me.id, '2026-09-24')).toMatchObject({ totalDays: 7, consecutiveDays: 7, points: 7, makeupCards: 0, earnedAchievements: ['checkinStreak7'] });
+		expect(await service.makeup(me.id, '2026-09-24')).toMatchObject({ totalDays: 7, consecutiveDays: 7, points: 6, makeupCards: 0, earnedAchievements: ['checkinStreak7'] });
 		const records = await db.getRepository(MiUserCheckin).find({ where: { userId: me.id }, order: { date: 'ASC' } });
 		expect(records.map(record => record.totalDays)).toEqual([1, 2, 3, 4, 5, 6, 7]);
 		expect(records.map(record => record.consecutiveDays)).toEqual([1, 2, 3, 4, 5, 6, 7]);
 		expect((await service.ranking('consecutive', 0, 20, me)).myRank).toEqual({ rank: 1, days: 7 });
 		expect((await service.ranking('total', 0, 20, me)).myRank).toEqual({ rank: 1, days: 7 });
-		expect(await service.checkin(me.id)).toMatchObject({ totalDays: 8, consecutiveDays: 8, points: 8 });
+		expect(await service.checkin(me.id)).toMatchObject({ totalDays: 8, consecutiveDays: 8, points: 7 });
 	});
 
 	test('validates registration, leap dates, and site midnight without consuming cards', async () => {
@@ -367,18 +634,20 @@ describe('check-in database persistence', () => {
 		for (const date of ['2024-02-28', '2026-02-29', '2026-09-28', '2026-09-29', '2026-04-31']) {
 			await expect(service.makeup(me.id, date)).rejects.toBeInstanceOf(CheckinService.InvalidDateError);
 		}
-		expect(await service.makeup(me.id, '2024-02-29')).toMatchObject({ registeredDate: '2024-02-29', points: 1, makeupCards: 2, makeupDates: ['2024-02-29'] });
+		vi.setSystemTime(new Date('2024-03-01T04:00:00Z'));
+		await expect(service.makeup(me.id, '2024-02-28')).rejects.toBeInstanceOf(CheckinService.InvalidDateError);
+		expect(await service.makeup(me.id, '2024-02-29')).toMatchObject({ registeredDate: '2024-02-29', makeupEarliestDate: '2024-02-29', points: 0, makeupCards: 2, makeupDates: ['2024-02-29'] });
 		vi.setSystemTime(new Date('2026-09-28T15:59:59.999Z'));
 		await expect(service.makeup(me.id, '2026-09-28')).rejects.toBeInstanceOf(CheckinService.InvalidDateError);
 		vi.setSystemTime(new Date('2026-09-28T16:00:00Z'));
-		expect(await service.makeup(me.id, '2026-09-28')).toMatchObject({ today: '2026-09-29', points: 2, makeupCards: 1 });
+		expect(await service.makeup(me.id, '2026-09-28')).toMatchObject({ today: '2026-09-29', points: 0, makeupCards: 1 });
 	});
 
 	test('daily check-in, card grant and makeup serialize without losing balances', async () => {
 		const me = await user();
 		await service.grantCards(me.id, 1, me);
 		await Promise.all([service.checkin(me.id), service.makeup(me.id, '2026-09-27'), service.grantCards(me.id, 2, me)]);
-		expect(await service.getStatus(me.id)).toMatchObject({ totalDays: 2, consecutiveDays: 2, points: 2, makeupCards: 2, checkedInDates: ['2026-09-27', '2026-09-28'] });
+		expect(await service.getStatus(me.id)).toMatchObject({ totalDays: 2, consecutiveDays: 2, points: 1, makeupCards: 2, checkedInDates: ['2026-09-27', '2026-09-28'] });
 		const logs = await db.getRepository(MiModerationLog).findBy({ userId: me.id, type: 'grantCheckinCards' });
 		expect(logs).toHaveLength(2);
 		expect(logs.map(log => log.info.amount).sort()).toEqual([1, 2]);

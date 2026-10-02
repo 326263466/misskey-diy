@@ -13,10 +13,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 			v-model="v"
 			v-adaptive-border
 			:class="$style.inputCore"
-			:type="type"
+			:type="pickerType ? 'text' : type"
 			:disabled="disabled"
 			:required="required"
-			:readonly="readonly"
+			:readonly="readonly || pickerType != null"
+			:aria-label="pickerType && !$slots.label ? i18n.ts._datePicker.title : undefined"
+			:aria-expanded="pickerType ? pickerOpen : undefined"
 			:placeholder="placeholder"
 			:aria-labelledby="$slots.label ? `${id}-label` : undefined"
 			:maxlength="maxLength"
@@ -29,6 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:list="id"
 			:min="min"
 			:max="max"
+			@click="openPicker"
 			@focus="focused = true"
 			@blur="onBlur"
 			@compositionstart="composing = true"
@@ -40,8 +43,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<datalist v-if="datalist" :id="id">
 			<option v-for="data in datalist" :key="data" :value="data"></option>
 		</datalist>
-		<div ref="suffixEl" :class="$style.suffix"><slot name="suffix"></slot></div>
+		<div ref="suffixEl" :class="$style.suffix"><slot name="suffix"></slot><button v-if="pickerType" type="button" class="_button" :disabled="disabled || readonly" :aria-label="i18n.ts._datePicker.title" :aria-expanded="pickerOpen" @click="pickerOpen ? closePicker() : openPicker()"><i class="ti ti-calendar" aria-hidden="true"></i></button></div>
 	</div>
+	<MkDatePicker v-if="pickerType && pickerOpen && !disabled && !readonly" :modelValue="String(v ?? '')" :type="pickerType" :min="min" :max="max" :step="step" @update:modelValue="selectDate" @close="closePicker"/>
 	<div :class="$style.caption"><slot name="caption"></slot></div>
 
 	<MkButton v-if="manualSave && !saveOnLeave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
@@ -63,6 +67,7 @@ import type { InputHTMLAttributes } from 'vue';
 import type { SuggestionType } from '@/utility/autocomplete.js';
 import MkButton from '@/components/MkButton.vue';
 import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
+import MkDatePicker from '@/components/MkDatePicker.vue';
 import { i18n } from '@/i18n.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
 import { genId } from '@/utility/id.js';
@@ -107,6 +112,23 @@ const { modelValue } = toRefs(props);
 const v = ref<ModelValueType<T> | null>(modelValue.value);
 const id = genId();
 const focused = ref(false);
+const pickerOpen = ref(false);
+const pickerType = computed(() => props.type === 'date' ? 'date' : props.type === 'datetime-local' ? 'datetime-local' : props.type === 'time' ? 'time' : null);
+
+function openPicker() {
+	if (pickerType.value && !props.disabled && !props.readonly) pickerOpen.value = true;
+}
+
+function closePicker() {
+	pickerOpen.value = false;
+	focus();
+}
+
+function selectDate(value: string) {
+	v.value = value as ModelValueType<T>;
+	onInput(new InputEvent('input'));
+}
+
 const changed = ref(false);
 const composing = ref(false);
 let saveAfterComposition = false;
@@ -133,6 +155,18 @@ const onInput = (event: InputEvent) => {
 };
 const onKeydown = (ev: KeyboardEvent) => {
 	if (composing.value || ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
+	if (pickerOpen.value && ev.key === 'Escape') {
+		ev.preventDefault();
+		ev.stopPropagation();
+		closePicker();
+		return;
+	}
+	if (pickerType.value && ['Enter', ' ', 'ArrowDown'].includes(ev.key)) {
+		ev.preventDefault();
+		ev.stopPropagation();
+		openPicker();
+		return;
+	}
 
 	emit('keydown', ev);
 
@@ -291,7 +325,7 @@ defineExpose({
 .caption {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:empty {
 		display: none;
@@ -334,8 +368,8 @@ defineExpose({
 	font-weight: normal;
 	font-size: 1em;
 	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-panel);
-	border: solid 1px var(--MI_THEME-panel);
+	background: var(--MI_THEME-bg);
+	border: solid 1px transparent;
 	border-radius: 6px;
 	outline: none;
 	box-shadow: none;
@@ -383,6 +417,11 @@ defineExpose({
 .suffix {
 	right: 0;
 	padding-left: 6px;
+
+	button {
+		pointer-events: auto;
+		padding: 4px;
+	}
 }
 .save {
 	margin: 8px 0 0 0;

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_gaps">
+<div class="_gaps _panel _panelPadding">
 	<MkInput v-model="name_" :disabled="!isOwner">
 		<template #label>{{ i18n.ts.name }}</template>
 	</MkInput>
@@ -13,20 +13,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template #label>{{ i18n.ts.description }}</template>
 	</MkTextarea>
 
-	<MkButton v-if="isOwner" primary @click="save">{{ i18n.ts.save }}</MkButton>
+	<MkButton v-if="isOwner" primary :disabled="saving" @click="save">{{ i18n.ts.save }}</MkButton>
 
 	<hr>
 
 	<MkButton v-if="isOwner || ($i.isAdmin || $i.isModerator)" danger @click="del">{{ i18n.ts._chat.deleteRoom }}</MkButton>
 
-	<MkSwitch v-if="!isOwner" v-model="isMuted">
+	<MkSwitch v-if="!isOwner" :modelValue="isMuted" :disabled="muting" @update:modelValue="mute">
 		<template #label>{{ i18n.ts._chat.muteThisRoom }}</template>
 	</MkSwitch>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
@@ -50,13 +50,27 @@ const isOwner = computed(() => {
 
 const name_ = ref(props.room.name);
 const description_ = ref(props.room.description);
+const saving = ref(false);
+const emit = defineEmits<{
+	(ev: 'updated', room: Misskey.entities.ChatRoom): void;
+}>();
 
-function save() {
-	os.apiWithDialog('chat/rooms/update', {
-		roomId: props.room.id,
-		name: name_.value,
-		description: description_.value,
-	});
+async function save() {
+	if (saving.value) return;
+	saving.value = true;
+	try {
+		const updated = await os.apiWithDialog('chat/rooms/update', {
+			roomId: props.room.id,
+			name: name_.value,
+			description: description_.value,
+		});
+		emit('updated', updated);
+		os.success(i18n.ts.saved);
+	} catch {
+		// 错误由请求弹窗显示，保留输入以便重试。
+	} finally {
+		saving.value = false;
+	}
 }
 
 async function del() {
@@ -74,12 +88,22 @@ async function del() {
 
 const isMuted = ref(props.room.isMuted ?? false);
 
-watch(isMuted, async () => {
-	await os.apiWithDialog('chat/rooms/mute', {
-		roomId: props.room.id,
-		mute: isMuted.value,
-	});
-});
+const muting = ref(false);
+
+async function mute(value: boolean) {
+	if (muting.value) return;
+	muting.value = true;
+	try {
+		await os.apiWithDialog('chat/rooms/mute', { roomId: props.room.id, mute: value });
+		isMuted.value = value;
+		emit('updated', { ...props.room, isMuted: value });
+		os.success();
+	} catch {
+		// 请求失败时保持原状态。
+	} finally {
+		muting.value = false;
+	}
+}
 </script>
 
 <style lang="scss" module>

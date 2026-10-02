@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<div v-if="tab === 'overview'" class="_gaps_m">
 			<div class="aeakzknw">
 				<MkAvatar class="avatar" :user="user" indicator link preview/>
@@ -158,7 +158,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkPagination :paginator="announcementsPaginator">
 				<template #default="{ items }">
 					<div class="_gaps_s">
-						<div v-for="announcement in items" :key="announcement.id" v-panel :class="$style.announcementItem" @click="editAnnouncement(announcement)">
+						<div v-for="announcement in items" :key="announcement.id" :class="$style.announcementItem" @click="editAnnouncement(announcement)">
 							<span v-if="'icon' in announcement" style="margin-right: 0.5em;">
 								<i v-if="announcement.icon === 'info'" class="ti ti-info-circle"></i>
 								<i v-else-if="announcement.icon === 'warning'" class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);"></i>
@@ -166,7 +166,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<i v-else-if="announcement.icon === 'success'" class="ti ti-check" style="color: var(--MI_THEME-success);"></i>
 							</span>
 							<span>{{ announcement.title }}</span>
-							<span v-if="announcement.reads > 0" style="margin-left: auto; opacity: 0.7;">{{ i18n.ts.messageRead }}</span>
+							<span v-if="announcement.reads > 0" style="margin-left: auto; color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.messageRead }}</span>
 						</div>
 					</div>
 				</template>
@@ -602,7 +602,7 @@ definePage(() => ({
 			display: block;
 			width: 100%;
 			font-size: 85%;
-			opacity: 0.7;
+			color: var(--MI_THEME-fgTransparentWeak);
 			white-space: nowrap;
 			overflow: hidden;
 			text-overflow: ellipsis;
@@ -665,7 +665,7 @@ definePage(() => ({
 	word-break: break-all;
 
 	> :global(.date) {
-		opacity: 0.7;
+		color: var(--MI_THEME-fgTransparentWeak);
 	}
 
 	> :global(.ip) {
@@ -686,7 +686,7 @@ definePage(() => ({
 .roleItemSub {
 	padding: 6px 12px;
 	font-size: 85%;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .roleUnassign {
@@ -698,7 +698,9 @@ definePage(() => ({
 
 .announcementItem {
 	display: flex;
-	padding: 8px 12px;
+	background: var(--MI_THEME-panel);
+	border: 1px solid var(--MI_THEME-divider);
+	padding: var(--MI-cardPadding);
 	border-radius: 6px;
 	cursor: pointer;
 }

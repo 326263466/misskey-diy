@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div class="_pageBody">
 		<MkClickerGame/>
 	</div>
 </PageWithHeader>

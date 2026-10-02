@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div class="_pageBody">
 		<div v-if="tab === 'featured'">
 			<MkPagination v-slot="{items}" :paginator="featuredPagesPaginator">
 				<div class="_gaps">

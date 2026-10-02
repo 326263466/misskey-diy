@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/vue';
-import { h, nextTick, Suspense } from 'vue';
+import { h, nextTick, reactive, Suspense } from 'vue';
 import type { Component } from 'vue';
 import Search from '@/pages/search.vue';
 import NoteSearch from '@/pages/search.note.vue';
@@ -14,13 +14,13 @@ import { i18n } from '@/i18n.js';
 import type { IPaginator } from '@/utility/paginator.js';
 
 const mocks = vi.hoisted(() => ({
-	api: vi.fn(), confirm: vi.fn(), lookup: vi.fn(), selectUser: vi.fn(),
+	api: vi.fn(), popupMenu: vi.fn(), confirm: vi.fn(), lookup: vi.fn(), selectUser: vi.fn(),
 	push: vi.fn(), pushByPath: vi.fn(),
 	permissions: { notesSearchAvailable: true, usersSearchAvailable: true },
 }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/utility/lookup.js', () => ({ apLookup: mocks.lookup }));
-vi.mock('@/os.js', () => ({ confirm: mocks.confirm, selectUser: mocks.selectUser, promiseDialog: vi.fn() }));
+vi.mock('@/os.js', () => ({ popupMenu: mocks.popupMenu, confirm: mocks.confirm, selectUser: mocks.selectUser, promiseDialog: vi.fn() }));
 vi.mock('@/router.js', () => ({ useRouter: () => ({ push: mocks.push, pushByPath: mocks.pushByPath }) }));
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
 vi.mock('@/instance.js', () => ({ instance: { federation: 'all', noteSearchableScope: 'global' } }));
@@ -44,11 +44,12 @@ vi.mock('@/components/MkFoldableSection.vue', () => ({ default: {
 vi.mock('@/components/MkUserCardMini.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/components/MkInfo.vue', () => ({ default: { template: '<div><slot/></div>' } }));
 vi.mock('@/components/MkNotesTimeline.vue', () => ({ default: {
-	props: ['paginator'],
+	props: ['paginator', 'withControl'],
 	setup(props: { paginator: IPaginator }) {
 		void props.paginator.init();
+		return { items: props.paginator.items, canFetchOlder: props.paginator.canFetchOlder };
 	},
-	template: '<div data-testid="note-results"/>',
+	template: '<div data-testid="note-results" :data-with-control="withControl"><span v-for="item in items" :key="item.id" data-testid="note-result">{{ item.id }}</span><button data-testid="load-more" :disabled="!canFetchOlder" @click="paginator.fetchOlder()">Load more</button></div>',
 } }));
 vi.mock('@/components/MkUserList.vue', () => ({ default: {
 	props: ['paginator'],
@@ -59,8 +60,9 @@ vi.mock('@/components/MkUserList.vue', () => ({ default: {
 } }));
 
 async function renderSearch(component: Component, props: Record<string, unknown> = {}, searchAvailable = true) {
+	const currentProps = reactive({ ...props });
 	const view = render({
-		render: () => h('div', [h(Suspense, null, { default: () => h(component, props) })]),
+		render: () => h('div', [h(Suspense, null, { default: () => h(component, currentProps) })]),
 	}, {
 		global: {
 			stubs: {
@@ -73,9 +75,17 @@ async function renderSearch(component: Component, props: Record<string, unknown>
 		},
 	});
 	if (searchAvailable) {
-		await waitFor(() => expect(view.getByRole('searchbox')).toBeTruthy());
+		await waitFor(() => expect(typeof props.query === 'string' && props.query.trim()
+			? view.getByRole('heading', { level: 2, name: i18n.tsx._search.resultsFor({ query: props.query.trim() }) })
+			: view.getByRole('searchbox')).toBeTruthy());
 	}
-	return view;
+	return {
+		...view,
+		async setProps(updated: Record<string, unknown>) {
+			Object.assign(currentProps, updated);
+			await nextTick();
+		},
+	};
 }
 
 beforeEach(() => {
@@ -95,9 +105,13 @@ const cases = [
 ];
 
 describe.each(cases)('$type 搜索提交', ({ type, component, endpoint }) => {
-	test('带关键词进入搜索页立即加载结果，只请求一次', async () => {
-		await renderSearch(Search, { query: '  搜索词  ', type });
+	test('带关键词进入结果页立即加载一次，展示关键词而非二次搜索入口', async () => {
+		const view = await renderSearch(Search, { query: '  搜索词  ', type });
 		await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith(endpoint, expect.objectContaining({ query: '搜索词' })));
+		expect(view.getByRole('heading', { level: 2, name: i18n.tsx._search.resultsFor({ query: '搜索词' }) })).toBeTruthy();
+		expect(view.queryByRole('searchbox')).toBeNull();
+		expect(view.queryByRole('button', { name: i18n.ts.search })).toBeNull();
+		if (type === 'note') expect(view.getByTestId('note-results').getAttribute('data-with-control')).toBe('false');
 		expect(mocks.confirm).not.toHaveBeenCalled();
 	});
 
@@ -108,6 +122,9 @@ describe.each(cases)('$type 搜索提交', ({ type, component, endpoint }) => {
 		expect(mocks.api).not.toHaveBeenCalled();
 		await fireEvent.keyDown(view.getByRole('searchbox'), { key: 'Enter' });
 		await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith(endpoint, expect.objectContaining({ query: 'new keyword' })));
+		expect(view.getByRole('heading', { level: 2, name: i18n.tsx._search.resultsFor({ query: 'new keyword' }) })).toBeTruthy();
+		expect(view.queryByRole('searchbox')).toBeNull();
+		expect(view.queryByRole('button', { name: i18n.ts.search })).toBeNull();
 	});
 
 	test.each(['', '   '])('空关键词 %j 禁用按钮，回车也不搜索或跳转', async query => {
@@ -179,37 +196,36 @@ test('Storybook 的帖子搜索覆盖参数仍默认展示帖子', async () => {
 	await waitFor(() => expect(mocks.api).toHaveBeenCalledExactlyOnceWith('notes/search', expect.objectContaining({ query: 'keyword' })));
 });
 
-test('结果页提交新词后切换分类，始终使用最近已提交的关键词', async () => {
-	const view = await renderSearch(Search, { query: 'initial', type: 'user' });
-	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(1));
+test('提交关键词后切换分类，始终使用同一关键词并保留结果模式', async () => {
+	const view = await renderSearch(Search, { type: 'user' });
 	await fireEvent.update(view.getByRole('searchbox'), '  latest  ');
 	await fireEvent.click(view.getByRole('button', { name: i18n.ts.search }));
-	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(2));
-	await fireEvent.update(view.getByRole('searchbox'), 'unsubmitted');
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(1));
 	await fireEvent.click(view.getByRole('button', { name: i18n.ts.notes }));
-	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(3));
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(2));
 	expect(mocks.api).toHaveBeenLastCalledWith('notes/search', expect.objectContaining({ query: 'latest' }));
-	expect(view.getByRole('searchbox')).toHaveProperty('value', 'latest');
+	expect(view.getByRole('heading', { level: 2, name: i18n.tsx._search.resultsFor({ query: 'latest' }) })).toBeTruthy();
+	expect(view.queryByRole('searchbox')).toBeNull();
 	await fireEvent.click(view.getByRole('button', { name: i18n.ts.users }));
-	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(4));
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(3));
 	expect(mocks.api).toHaveBeenLastCalledWith('users/search', expect.objectContaining({ query: 'latest' }));
+	expect(view.queryByRole('searchbox')).toBeNull();
 });
 
-test('用户来源筛选即时刷新，使用已提交词并保留输入中的草稿', async () => {
+test('用户来源筛选即时刷新，始终使用已提交词', async () => {
 	const view = await renderSearch(UserSearch, { query: 'submitted' });
 	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(1));
-	await fireEvent.update(view.getByRole('searchbox'), 'draft');
 	await fireEvent.update(view.getByRole('combobox'), 'local');
 	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(2));
 	expect(mocks.api).toHaveBeenLastCalledWith('users/search', expect.objectContaining({ query: 'submitted', origin: 'local' }));
-	expect(view.getByRole('searchbox')).toHaveProperty('value', 'draft');
+	expect(view.getByRole('heading', { level: 2, name: i18n.tsx._search.resultsFor({ query: 'submitted' }) })).toBeTruthy();
+	expect(view.queryByRole('searchbox')).toBeNull();
 });
 
-test('帖子范围与日期筛选即时刷新，不把输入中的草稿当作已提交词', async () => {
+test('帖子范围与日期筛选即时刷新，始终使用已提交词', async () => {
 	const view = await renderSearch(NoteSearch, { query: 'submitted' });
 	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(1));
-	await fireEvent.update(view.getByRole('searchbox'), 'draft');
-	await fireEvent.update(view.getByRole('combobox'), 'local');
+	await fireEvent.update(view.getByRole('combobox', { name: '' }), 'local');
 	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(2));
 	expect(mocks.api).toHaveBeenLastCalledWith('notes/search', expect.objectContaining({ query: 'submitted', host: '.' }));
 	const dateInputs = view.container.querySelectorAll('input[type="datetime-local"]');
@@ -219,14 +235,15 @@ test('帖子范围与日期筛选即时刷新，不把输入中的草稿当作�
 	await fireEvent.update(dateInputs[1], '2026-09-20T12:00');
 	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(4));
 	expect(mocks.api).toHaveBeenLastCalledWith('notes/search', expect.objectContaining({ query: 'submitted', rangeEndAt: new Date('2026-09-20T12:00').getTime() }));
-	expect(view.getByRole('searchbox')).toHaveProperty('value', 'draft');
+	expect(view.getByRole('heading', { level: 2, name: i18n.tsx._search.resultsFor({ query: 'submitted' }) })).toBeTruthy();
+	expect(view.queryByRole('searchbox')).toBeNull();
 });
 
 test('服务器筛选等待有效主机名，输入后自动刷新', async () => {
 	const view = await renderSearch(NoteSearch, { query: 'submitted' });
 	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(1));
 	expect(view.getByTestId('note-results')).toBeTruthy();
-	await fireEvent.update(view.getByRole('combobox'), 'server');
+	await fireEvent.update(view.getByRole('combobox', { name: '' }), 'server');
 	await nextTick();
 	expect(mocks.api).toHaveBeenCalledTimes(1);
 	expect(view.queryByTestId('note-results')).toBeNull();
@@ -248,7 +265,7 @@ test('用户范围等待选择用户，选择后自动刷新', async () => {
 	const view = await renderSearch(NoteSearch, { query: 'submitted' });
 	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(1));
 	expect(view.getByTestId('note-results')).toBeTruthy();
-	await fireEvent.update(view.getByRole('combobox'), 'user');
+	await fireEvent.update(view.getByRole('combobox', { name: '' }), 'user');
 	await nextTick();
 	expect(mocks.api).toHaveBeenCalledTimes(1);
 	expect(view.queryByTestId('note-results')).toBeNull();
@@ -257,3 +274,89 @@ test('用户范围等待选择用户，选择后自动刷新', async () => {
 	expect(mocks.api).toHaveBeenLastCalledWith('notes/search', expect.objectContaining({ query: 'submitted', userId: 'selected-user', host: '.' }));
 	expect(view.getByTestId('note-results')).toBeTruthy();
 });
+
+test.each(cases)('$type 路由关键词变化时刷新结果，清空后回到初始搜索', async ({ type, endpoint }) => {
+	const view = await renderSearch(Search, { query: 'initial', type });
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(1));
+	await view.setProps({ query: '  updated  ' });
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(2));
+	expect(mocks.api).toHaveBeenLastCalledWith(endpoint, expect.objectContaining({ query: 'updated' }));
+	expect(view.getByRole('heading', { level: 2, name: i18n.tsx._search.resultsFor({ query: 'updated' }) })).toBeTruthy();
+	expect(view.queryByRole('searchbox')).toBeNull();
+	await view.setProps({ query: '   ' });
+	await waitFor(() => expect(view.getByRole('searchbox')).toBeTruthy());
+	expect(view.queryByTestId(`${type}-results`)).toBeNull();
+	expect(mocks.api).toHaveBeenCalledTimes(2);
+});
+
+test('时间范围无效时保留关键词并提示，修正后自动刷新', async () => {
+	const view = await renderSearch(NoteSearch, { query: 'submitted' });
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(1));
+	const dateInputs = view.container.querySelectorAll('input[type="datetime-local"]');
+	await fireEvent.update(dateInputs[0], '2026-09-20T12:00');
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(2));
+	await fireEvent.update(dateInputs[1], '2026-09-01T12:00');
+	await nextTick();
+	expect(mocks.api).toHaveBeenCalledTimes(2);
+	expect(view.queryByTestId('note-results')).toBeNull();
+	expect(view.getByText(i18n.ts._search.invalidDateRange)).toBeTruthy();
+	expect(view.queryByRole('searchbox')).toBeNull();
+	await fireEvent.update(dateInputs[1], '2026-09-30T12:00');
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(3));
+	expect(mocks.api).toHaveBeenLastCalledWith('notes/search', expect.objectContaining({ query: 'submitted' }));
+	expect(view.getByTestId('note-results')).toBeTruthy();
+});
+
+const noteIds = ['z', 'b', 'y', 'a', 'x', 'c', 'w', 'd', 'v', 'e', 'u', 'f', 't'];
+
+test.each([
+	{ sort: 'time', order: 'desc' },
+	{ sort: 'time', order: 'asc' },
+	{ sort: 'popularity', order: 'desc' },
+	{ sort: 'popularity', order: 'asc' },
+])('帖子 $sort/$order 排序保留服务端顺序，并按 offset 加载下一页', async ({ sort, order }) => {
+	mocks.api.mockImplementation(async (_endpoint, params: { offset?: number; limit: number }) => noteIds
+		.slice(params.offset ?? 0, (params.offset ?? 0) + params.limit)
+		.map(id => ({ id, createdAt: '2026-09-01T00:00:00Z' })));
+	const view = await renderSearch(NoteSearch, { query: 'submitted' });
+	await chooseSort(view, i18n.ts.sort, sort);
+	await chooseSort(view, i18n.ts._search.sortOrder, order);
+	await waitFor(() => expect(view.getAllByTestId('note-result').map(item => item.textContent)).toEqual(noteIds.slice(0, 10)));
+	expect(mocks.api).toHaveBeenLastCalledWith('notes/search', expect.objectContaining({ query: 'submitted', sort, order, limit: 10 }));
+	expect(mocks.api.mock.lastCall?.[1].offset).toBeUndefined();
+	const initialCalls = mocks.api.mock.calls.length;
+	await fireEvent.click(view.getByTestId('load-more'));
+	await waitFor(() => expect(view.getAllByTestId('note-result').map(item => item.textContent)).toEqual(noteIds));
+	expect(mocks.api).toHaveBeenLastCalledWith('notes/search', expect.objectContaining({ query: 'submitted', sort, order, offset: 10 }));
+	expect(mocks.api.mock.lastCall?.[1].untilId).toBeUndefined();
+	expect(mocks.api).toHaveBeenCalledTimes(initialCalls + 1);
+	expect(view.getByTestId('load-more')).toHaveProperty('disabled', true);
+});
+
+test('更改排序字段或方向时替换旧结果并重置分页', async () => {
+	mocks.api.mockImplementation(async (_endpoint, params: { offset?: number; limit: number; sort: string; order: string }) => noteIds
+		.slice(params.offset ?? 0, (params.offset ?? 0) + params.limit)
+		.map(id => ({ id: `${params.sort}-${params.order}-${id}`, createdAt: '2026-09-01T00:00:00Z' })));
+	const view = await renderSearch(NoteSearch, { query: 'submitted' });
+	await waitFor(() => expect(view.getAllByTestId('note-result')).toHaveLength(10));
+	await fireEvent.click(view.getByTestId('load-more'));
+	await waitFor(() => expect(view.getAllByTestId('note-result')).toHaveLength(13));
+	await chooseSort(view, i18n.ts.sort, 'popularity');
+	await waitFor(() => expect(view.getAllByTestId('note-result').map(item => item.textContent)).toEqual(noteIds.slice(0, 10).map(id => `popularity-desc-${id}`)));
+	expect(mocks.api.mock.lastCall?.[1].offset).toBeUndefined();
+	await fireEvent.click(view.getByTestId('load-more'));
+	await waitFor(() => expect(view.getAllByTestId('note-result')).toHaveLength(13));
+	expect(mocks.api.mock.lastCall?.[1].offset).toBe(10);
+	await chooseSort(view, i18n.ts._search.sortOrder, 'asc');
+	await waitFor(() => expect(view.getAllByTestId('note-result').map(item => item.textContent)).toEqual(noteIds.slice(0, 10).map(id => `popularity-asc-${id}`)));
+	expect(mocks.api).toHaveBeenCalledTimes(5);
+	expect(mocks.api.mock.lastCall?.[1].offset).toBeUndefined();
+});
+
+async function chooseSort(view: ReturnType<typeof render>, label: string, value: string) {
+	await fireEvent.click(view.getByRole('button', { name: label, exact: true }));
+	const text = ({ time: i18n.ts._search.sortByTime, popularity: i18n.ts._search.sortByPopularity, desc: i18n.ts.descendingOrder, asc: i18n.ts.ascendingOrder } as Record<string, string>)[value];
+	mocks.popupMenu.mock.lastCall![0].find((item: { text: string }) => item.text === text).action();
+	mocks.popupMenu.mock.lastCall![2].onClosing();
+	await nextTick();
+}

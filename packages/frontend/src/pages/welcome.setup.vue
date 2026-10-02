@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="z-index:1;position:relative" viewBox="0 0 854 300">
 				<defs>
 					<linearGradient id="linear" x1="0%" y1="0%" x2="100%" y2="0%">
-						<stop offset="0%" stop-color="#86b300"/><stop offset="100%" stop-color="#4ab300"/>
+						<stop offset="0%" stop-color="var(--MI_THEME-chartAccent, #86b300)"/><stop offset="100%" stop-color="var(--MI_THEME-chartAccent, #4ab300)"/>
 					</linearGradient>
 				</defs>
 
@@ -47,7 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div>{{ i18n.ts._serverSetupWizard.welcome }}</div>
 				<div :class="$style.version">v{{ version }}</div>
 			</div>
-			<div style="padding: 16px 32px 32px 32px;">
+			<div style="padding: var(--MI-cardPadding);">
 				<form v-if="!accountCreated" class="_gaps_m" @submit.prevent="createAccount()">
 					<div style="text-align: center;" class="_gaps_s">
 						<div><b>{{ i18n.ts._serverSetupWizard.installCompleted }}</b></div>
@@ -103,8 +103,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-else-if="step === 2" class="_gaps_m">
 					<div style="text-align: center;" class="_gaps_s">
 						<div><b>{{ i18n.ts._serverSetupWizard.settingsCompleted }}</b></div>
-						<div>{{ i18n.ts._serverSetupWizard.settingsCompleted_description }}</div>
-						<div>{{ i18n.ts._serverSetupWizard.settingsCompleted_description2 }}</div>
+						<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._serverSetupWizard.settingsCompleted_description }}</div>
+						<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._serverSetupWizard.settingsCompleted_description2 }}</div>
 					</div>
 					<div class="_gaps_s" :class="$style.donation">
 						<div><b>{{ i18n.ts._serverSetupWizard.donationRequest }}</b></div>
@@ -207,7 +207,6 @@ function finish() {
 	position: relative;
 	z-index: 10;
 	border-radius: var(--MI-radius);
-	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 	overflow: clip;
 	max-width: 550px;
 	margin: 0 auto;
@@ -236,7 +235,7 @@ function finish() {
 .donation {
 	background: var(--MI_THEME-accentedBg);
 	border-radius: 12px;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	text-align: center;
 }
 </style>

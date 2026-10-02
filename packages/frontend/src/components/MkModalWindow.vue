@@ -11,8 +11,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span :class="$style.title">
 				<slot name="header"></slot>
 			</span>
-			<div v-if="withOkButton" :class="$style.headerActions">
-				<MkButton primary gradate small rounded :disabled="okButtonDisabled" @click="emit('ok')">{{ i18n.ts.done }} <i class="ti ti-check"></i></MkButton>
+			<div v-if="withOkButton || $slots.headerActions" :class="[$style.headerActions, { [$style.customHeaderActions]: $slots.headerActions != null }]">
+				<slot name="headerActions"></slot>
+				<MkButton v-if="withOkButton" primary gradate small rounded :disabled="okButtonDisabled" @click="emit('ok')">{{ i18n.ts.done }} <i class="ti ti-check"></i></MkButton>
 			</div>
 		</div>
 		<div :class="$style.body">
@@ -106,7 +107,7 @@ defineExpose({
 		}
 
 		.footer {
-			padding-bottom: max(var(--MI-cardPadding, 20px), env(safe-area-inset-bottom, 0px));
+			padding-bottom: max(var(--MI-cardPadding, 18px), env(safe-area-inset-bottom, 0px));
 		}
 	}
 }
@@ -116,7 +117,9 @@ defineExpose({
 	align-items: center;
 	flex-shrink: 0;
 	min-height: var(--MI_THEME-headerHeight);
-	background: var(--MI_THEME-windowHeader);
+	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-fg);
+	box-shadow: inset 0 -1px var(--MI_THEME-divider);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 
@@ -134,7 +137,8 @@ defineExpose({
 	width: var(--MI_THEME-headerHeight);
 
 	> i {
-		line-height: 1.3;
+		display: block;
+		line-height: 1;
 	}
 
 	@media (max-width: 500px) {
@@ -147,7 +151,7 @@ defineExpose({
 	flex: 1;
 	min-width: 0;
 	line-height: 1.3;
-	padding-left: 32px;
+	padding-left: var(--MI-cardPadding);
 	font-weight: bold;
 	white-space: nowrap;
 	overflow: hidden;
@@ -157,15 +161,24 @@ defineExpose({
 	> i {
 		vertical-align: middle;
 	}
-
-	@media (max-width: 500px) {
-		padding-left: 16px;
-	}
 }
 
 .headerActions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	flex-shrink: 0;
 	padding: 0 16px;
+}
+
+.customHeaderActions {
+	@media (max-width: 500px) {
+		padding: 0 8px;
+	}
+
+	@media (max-width: 360px) {
+		padding: 0 4px;
+	}
 }
 
 .headerButton + .title {
@@ -178,14 +191,14 @@ defineExpose({
 	}
 
 	.title {
-		padding-left: 20px;
+		padding-left: var(--MI-cardPadding);
 	}
 }
 
 .body {
 	flex: 1;
 	overflow: auto;
-	background: var(--MI_THEME-bg);
+	background: var(--MI_THEME-panel);
 	container-type: size;
 }
 
@@ -198,9 +211,9 @@ defineExpose({
 
 .footer {
 	flex-shrink: 0;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	overflow: clip;
-	background: var(--MI_THEME-bg);
+	background: var(--MI_THEME-panel);
 	border-top: 1px solid var(--MI_THEME-divider);
 }
 </style>

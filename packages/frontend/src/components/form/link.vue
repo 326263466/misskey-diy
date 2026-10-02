@@ -47,22 +47,28 @@ defineProps<{
 <style lang="scss" module>
 .root {
 	display: block;
-	width: 100%;
+
+	&:not(.inline) {
+		width: calc(100% + var(--MI-formGroupInset, 0px) * 2);
+		max-width: none;
+		margin-inline: calc(0px - var(--MI-formGroupInset, 0px));
+	}
 
 	&.inline {
 		display: inline-block;
 		width: auto;
+		margin-inline: 0;
 	}
 }
 
-.main {
+.root > .main {
 	display: flex;
 	align-items: center;
 	width: 100%;
 	box-sizing: border-box;
-	padding: 10px 14px;
-	background: var(--MI_THEME-folderHeaderBg);
-	border-radius: 6px;
+	padding: 12px var(--MI-cardPadding);
+	background: var(--MI_THEME-panelHighlight);
+	border-radius: var(--MI-formGroupRadius, 6px);
 	font-size: 0.9em;
 
 	&:hover {
@@ -73,6 +79,11 @@ defineProps<{
 	&.active {
 		color: var(--MI_THEME-accent);
 		background: var(--MI_THEME-folderHeaderHoverBg);
+
+		.icon,
+		.suffix {
+			color: inherit;
+		}
 	}
 }
 
@@ -80,14 +91,10 @@ defineProps<{
 	margin-right: 0.75em;
 	flex-shrink: 0;
 	text-align: center;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:empty {
 		display: none;
-
-		& + .headerText {
-			padding-left: 4px;
-		}
 	}
 }
 
@@ -101,7 +108,7 @@ defineProps<{
 
 .suffix {
 	margin-left: auto;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	white-space: nowrap;
 
 	> .suffixText:not(:empty) {

@@ -56,8 +56,9 @@ vi.mock('@/utility/emoji-mute.js', () => ({ checkMuted: () => ({ value: false })
 vi.mock('@/utility/mfm-function-picker.js', () => ({ mfmFunctionPicker: vi.fn() }));
 vi.mock('@/utility/tour.js', () => ({ startTour: vi.fn() }));
 vi.mock('@/tips.js', () => ({ closeTip: vi.fn() }));
+vi.mock('@/components/global/MkA.vue', () => ({ default: { template: '<a><slot/></a>' } }));
 vi.mock('@/components/MkNoteSimple.vue', () => ({ default: { template: '<div/>' } }));
-vi.mock('@/components/MkNotePreview.vue', () => ({ default: { template: '<div data-testid="post-preview"/>' } }));
+vi.mock('@/components/MkNotePreview.vue', () => ({ default: { props: ['text'], template: '<div data-testid="post-preview">{{ text }}</div>' } }));
 // Exercise the composer's stored topic model independently from picker search.
 vi.mock('@/components/MkPostFormTopics.vue', async () => {
 	const { i18n } = await import('@/i18n.js');
@@ -528,6 +529,18 @@ describe('post composer editing', () => {
 		expect(view.textarea.hasAttribute('rows')).toBe(false);
 	});
 
+	test('saves a new post to server drafts only when the menu action is selected', async () => {
+		const view = await renderNew();
+		await fireEvent.update(view.textarea, 'Save this manually');
+		await fireEvent.update(view.getByRole('combobox', { name: i18n.ts.hashtags }), '#Topic');
+		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
+		expect(localStorage.getItem('drafts')).toBeNull();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.other }));
+		await mocks.popupMenu.mock.calls.at(-1)![0].find((item: { text?: string }) => item.text === i18n.ts._drafts.saveToDraft).action();
+		expect(mocks.apiWithDialog).toHaveBeenCalledWith('notes/drafts/create', expect.objectContaining({ text: 'Save this manually', hashtag: '#Topic' }));
+		expect(localStorage.getItem('drafts')).toBeNull();
+	});
+
 	test('starts new composers with defaults despite old global topics, preview and automatic local drafts', async () => {
 		mocks.globalPreview = true;
 		const storedDrafts = JSON.stringify({
@@ -553,11 +566,14 @@ describe('post composer editing', () => {
 		await fireEvent.update(view.textarea, 'New text');
 		await fireEvent.update(topics, '#new');
 		await nextTick();
-		expect(localStorage.getItem('drafts')).toBe(storedDrafts);
+		const saved = JSON.parse(localStorage.getItem('drafts')!);
+		expect(saved['note:self']).toEqual(JSON.parse(storedDrafts)['note:self']);
+		expect(saved).toEqual(JSON.parse(storedDrafts));
 		view.unmount();
 		const reopened = await renderNew();
 		expect(reopened.textarea.value).toBe('');
 		expect((reopened.getByRole('combobox', { name: i18n.ts.hashtags }) as HTMLInputElement).value).toBe('');
+		expect(reopened.queryByRole('button', { name: i18n.ts._postForm.restoreDraft })).toBeNull();
 		expect(localStorage.getItem('drafts')).toBe(storedDrafts);
 	});
 
@@ -636,6 +652,25 @@ describe('post composer editing', () => {
 		expect(submit.disabled).toBe(true);
 		await fireEvent.update(topics, '');
 		expect(submit.disabled).toBe(false);
+	});
+
+	test.each([
+		'```\ndasdasdasdsad\n```',
+		'```js\r\nconst value = "#literal";\r\n```',
+		'```\ndasdasdasdsad\n```\n',
+	])('preserves fenced code when adding a topic in both preview and submission: %j', async text => {
+		mocks.misskeyApi.mockResolvedValue({ createdNote: makeNote() });
+		const view = await renderNew({ initialText: text });
+		await fireEvent.update(view.getByRole('combobox', { name: i18n.ts.hashtags }), '#Topic');
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.other }));
+		const menu = mocks.popupMenu.mock.calls.at(-1)![0];
+		menu.find((item: { text?: string }) => item.text === i18n.ts.preview).ref.value = true;
+		await nextTick();
+		const previewText = view.getByTestId('post-preview').textContent!;
+		expect(mfm.parse(previewText)).toEqual([...mfm.parse(text), { type: 'hashtag', props: { hashtag: 'Topic' } }]);
+		expect(previewText).toBe(`${text}${text.endsWith('\n') ? '' : '\n'}#Topic`);
+		await fireEvent.click(view.getByTestId('post-form-submit'));
+		await waitFor(() => expect(mocks.misskeyApi).toHaveBeenCalledWith('notes/create', expect.objectContaining({ text: previewText }), undefined));
 	});
 
 	test('explicit server drafts restore their topics and warning, and an empty topic draft disables the control', async () => {
@@ -809,5 +844,59 @@ describe('post composer editing', () => {
 		expect(view.getByRole('button', { name: `${i18n.ts.visibility}: ${i18n.ts._visibility.followers}` })).toBeTruthy();
 		expect(view.getByRole('button', { name: i18n.ts._visibility.disableFederation }).getAttribute('aria-pressed')).toBe('false');
 		expect(view.textarea.value).toBe(note.text);
+	});
+
+	test('retries a created packet in the open composer without automatically saving a draft', async () => {
+		const packet = { id: 'packet', senderId: 'sender', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 10, remainingCount: 2, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', claimedCoins: null };
+		const sent: unknown[] = [];
+		mocks.misskeyApi.mockImplementation(async (endpoint: string, data: unknown) => {
+			if (endpoint === 'red-packets/show') return packet;
+			if (endpoint === 'notes/create') {
+				sent.push(data);
+				if (sent.length === 1) throw new Error('response lost');
+				return { createdNote: makeNote() };
+			}
+			return [];
+		});
+		const first = await renderNew();
+		await fireEvent.click(first.getByRole('button', { name: i18n.ts._redPacket.title }));
+		const handlers = mocks.popup.mock.calls.at(-1)![2];
+		handlers.created(packet);
+		await nextTick();
+		await fireEvent.click(first.getByTestId('post-form-submit'));
+		await waitFor(() => expect(mocks.alert).toHaveBeenCalled());
+		expect(sent[0]).toEqual(expect.objectContaining({ text: null, localOnly: true, redPacketId: 'packet' }));
+		expect(sent[0]).not.toHaveProperty('redPacket');
+		expect(mocks.misskeyApi.mock.calls.some(([endpoint]) => endpoint === 'red-packets/create' || endpoint === 'i/wallet')).toBe(false);
+		expect(localStorage.getItem('drafts')).toBeNull();
+		expect(first.getByText(i18n.ts._redPacket.createdDescription)).toBeTruthy();
+		await waitFor(() => expect(first.getByTestId('post-form-submit').hasAttribute('disabled')).toBe(false));
+		await fireEvent.click(first.getByTestId('post-form-submit'));
+		await waitFor(() => expect(sent).toHaveLength(2));
+		expect(sent[1]).toEqual(sent[0]);
+		await waitFor(() => expect(first.queryByText(i18n.ts._redPacket.createdDescription)).toBeNull());
+		expect(localStorage.getItem('drafts')).toBeNull();
+	});
+
+	test('removes only the attachment without refunding the issued packet', async () => {
+		const view = await renderNew();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts._redPacket.title }));
+		mocks.popup.mock.calls.at(-1)![2].created({ id: 'packet', senderId: 'sender', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 10, remainingCount: 2, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', claimedCoins: null });
+		await nextTick();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.remove }));
+		await waitFor(() => expect(view.queryByText(i18n.ts._redPacket.createdDescription)).toBeNull());
+		expect(mocks.misskeyApi).not.toHaveBeenCalledWith('red-packets/cancel', expect.anything());
+		expect(view.queryByText(i18n.ts._redPacket.createdDescription)).toBeNull();
+	});
+
+	test('editing a packet-only note never sends a new red packet or debits the wallet', async () => {
+		const note = makeNote({ text: null, cw: null, files: [], fileIds: [], redPacket: { id: 'packet', senderId: 'sender', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 5, remainingCount: 1, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', claimedCoins: null } });
+		const view = await renderEdit(note);
+		expect((view.getByRole('button', { name: i18n.ts._redPacket.title }) as HTMLButtonElement).disabled).toBe(true);
+		await fireEvent.click(view.getByTestId('post-form-submit'));
+		await waitFor(() => expect(mocks.apiWithDialog).toHaveBeenCalledOnce());
+		expect(mocks.apiWithDialog.mock.calls[0][0]).toBe('notes/update');
+		expect(mocks.apiWithDialog.mock.calls[0][1]).not.toHaveProperty('redPacket');
+		expect(mocks.misskeyApi).not.toHaveBeenCalled();
 	});
 });

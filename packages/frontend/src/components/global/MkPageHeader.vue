@@ -193,6 +193,7 @@ onUnmounted(() => {
 .embedded {
 	position: relative;
 	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-fg);
 	backdrop-filter: none;
 	border-bottom: none;
 	border-bottom-left-radius: 0;
@@ -352,7 +353,7 @@ onUnmounted(() => {
 	font-size: 1.1em;
 
 	&:hover {
-		background: rgba(0, 0, 0, 0.05);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 }
 
@@ -402,7 +403,7 @@ onUnmounted(() => {
 }
 
 .subtitle {
-	opacity: 0.6;
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 0.8em;
 	font-weight: normal;
 	white-space: nowrap;
@@ -410,6 +411,7 @@ onUnmounted(() => {
 	text-overflow: ellipsis;
 
 	&.activeTab {
+		color: var(--MI_THEME-fgTransparent);
 		text-align: center;
 
 		> .chevron {

@@ -4,12 +4,12 @@
  */
 
 import ms from 'ms';
-import { In } from 'typeorm';
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { MAX_NOTE_TEXT_LENGTH } from '@/const.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
+import { redPacketApiErrors, throwRedPacketApiError } from '@/server/api/red-packet-errors.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { ApiError } from '../../error.js';
 
@@ -40,6 +40,8 @@ export const meta = {
 	},
 
 	errors: {
+		...redPacketApiErrors,
+		redPacketNotAllowed: { message: 'This account or access token cannot send red packets.', code: 'RED_PACKET_NOT_ALLOWED', id: '9dd9076d-d86c-46bc-b446-ae86743a0ba1' },
 		noSuchRenoteTarget: {
 			message: 'No such renote target.',
 			code: 'NO_SUCH_RENOTE_TARGET',
@@ -183,6 +185,7 @@ export const paramDef = {
 			},
 			required: ['choices'],
 		},
+		redPacketId: { type: 'string', format: 'misskey:id', nullable: true },
 	},
 	// (re)note with text, files and poll are optional
 	if: {
@@ -197,6 +200,9 @@ export const paramDef = {
 				type: 'null',
 			},
 			poll: {
+				type: 'null',
+			},
+			redPacketId: {
 				type: 'null',
 			},
 		},
@@ -220,8 +226,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteEntityService: NoteEntityService,
 		private noteCreateService: NoteCreateService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps, me, token) => {
 			try {
+				if (ps.redPacketId && token != null) throw new ApiError(meta.errors.redPacketNotAllowed);
 				const note = await this.noteCreateService.fetchAndCreate(me, {
 					createdAt: new Date(),
 					fileIds: ps.fileIds ?? ps.mediaIds ?? [],
@@ -230,6 +237,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						multiple: ps.poll.multiple ?? false,
 						expiresAt: ps.poll.expiredAfter ? new Date(Date.now() + ps.poll.expiredAfter) : ps.poll.expiresAt ? new Date(ps.poll.expiresAt) : null,
 					} : null,
+					redPacketId: ps.redPacketId ?? null,
 					text: ps.text ?? null,
 					replyId: ps.replyId ?? null,
 					renoteId: ps.renoteId ?? null,
@@ -287,7 +295,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						throw new ApiError(meta.errors.noSuchChannel);
 					}
 				}
-				throw err;
+				throwRedPacketApiError(err);
 			}
 		});
 	}

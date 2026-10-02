@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" :class="[$style.root, { [$style.compact]: compact, [$style.card]: card, [$style.scrolled]: card && scrolled }]">
+<div ref="rootEl" :class="[$style.root, { [$style.compact]: compact, [$style.card]: card, [$style.scrolled]: card && scrolled, [$style.inHeader]: inHeader }]">
 	<div :class="$style.toolbar">
 		<div v-if="$slots.header" :class="$style.header"><slot name="header"></slot></div>
 		<div :class="$style.control">
@@ -40,11 +40,13 @@ const props = withDefaults(defineProps<{
 	filterOpened?: boolean;
 	compact?: boolean;
 	card?: boolean;
+	inHeader?: boolean;
 }>(), {
 	canFilter: false,
 	filterOpened: false,
 	compact: true,
 	card: false,
+	inHeader: false,
 });
 
 const filterOpened = ref(props.filterOpened);
@@ -167,7 +169,7 @@ function selectSearch() {
 	}
 
 	&.scrolled {
-		background: color(from var(--MI_THEME-panel) srgb r g b / 0.75);
+		background: color(from var(--MI_THEME-panel) srgb r g b / 0.85);
 		-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 		backdrop-filter: var(--MI-blur, blur(15px));
 	}
@@ -207,6 +209,34 @@ function selectSearch() {
 		flex: none;
 		width: 130px;
 		margin-right: 0;
+	}
+}
+
+.inHeader {
+	margin-bottom: 0;
+
+	.toolbar,
+	.control {
+		flex-wrap: nowrap;
+	}
+
+	.order {
+		width: clamp(8.5em, 18vw, 130px);
+	}
+
+	.control > button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		line-height: 1;
+	}
+
+	.control i {
+		display: block;
+		line-height: 1;
 	}
 }
 </style>

@@ -84,7 +84,7 @@ function getRgb(hex: string | number): ImageEffectorRGB | null {
 
 <style module>
 .nothingToConfigure {
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	text-align: center;
 	font-size: 14px;
 	padding: 0 10px;

@@ -16,6 +16,10 @@ export type Keys = (
 	'lastUsed' |
 	'lang' |
 	'drafts' |
+	`wallet-exchange:${string}` |
+	`red-packet-create:${string}` |
+	`red-packet-cover-cleanup:${string}` |
+	`wallet-adjust:${string}` |
 	'hashtags' |
 	'trendsCache' |
 	'colorScheme' |

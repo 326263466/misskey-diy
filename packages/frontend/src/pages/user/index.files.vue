@@ -54,12 +54,12 @@ onMounted(() => {
 
 <style lang="scss" module>
 .root {
-	padding: 8px;
+	padding: var(--MI-cardPadding);
 }
 
 .stream {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
 	grid-gap: 6px;
 
 	>:nth-child(n+9) {

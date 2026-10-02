@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { apiWithDialog, popups, promiseDialog } from '@/os.js';
 import { i18n } from '@/i18n.js';
+import { markAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
 const mocks = vi.hoisted(() => ({ api: vi.fn() }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
@@ -56,6 +57,35 @@ describe('API dialog feedback', () => {
 		await nextTick();
 		expect(popups.value).toHaveLength(1);
 		expect(popups.value[0].props).toMatchObject({ type: 'error', text: 'Failed to fetch' });
+	});
+
+	test('does not duplicate an authentication error already handled by session recovery', async () => {
+		const error = { code: 'AUTHENTICATION_FAILED', id: 'revoked', message: 'Invalid token' };
+		markAccountSessionErrorHandled(error);
+		mocks.api.mockRejectedValue(error);
+		await expect(apiWithDialog('notes/show', { noteId: 'note' })).rejects.toBe(error);
+		await nextTick();
+		expect(popups.value).toEqual([]);
+	});
+
+	test('still displays authentication errors for other tokens not handled by session recovery', async () => {
+		const error = { code: 'AUTHENTICATION_FAILED', id: 'revoked', message: 'Invalid token' };
+		mocks.api.mockRejectedValue(error);
+		await expect(apiWithDialog('notes/show', { noteId: 'note' }, 'other-token')).rejects.toBe(error);
+		await nextTick();
+		expect(popups.value).toHaveLength(1);
+		expect(popups.value[0].props.text).toContain('Invalid token');
+	});
+
+	test('closes an explicit progress dialog without duplicating the session alert', async () => {
+		const error = { code: 'AUTHENTICATION_FAILED', id: 'revoked', message: 'Invalid token' };
+		markAccountSessionErrorHandled(error);
+		const request = Promise.reject(error);
+		promiseDialog(request, null, null, 'Saving');
+		await expect(request).rejects.toBe(error);
+		await nextTick();
+		expect(popups.value).toHaveLength(1);
+		expect(popups.value[0].props.showing).toBe(false);
 	});
 
 	test('retains custom error explanations', async () => {

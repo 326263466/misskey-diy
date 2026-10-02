@@ -13,10 +13,10 @@ export const customStatusIconKeys = [
 
 export type CustomStatusIcon = typeof customStatusIconKeys[number];
 
-export const customStatusIcons = ['coffee', 'food', 'moon', 'briefcase', 'book', 'focus', 'music', 'gamepad', 'exercise', 'car', 'plane', 'vacation'] as const;
+export const customStatusIcons = ['coffee', 'food', 'moon', 'battery', 'briefcase', 'book', 'focus', 'music', 'gamepad', 'exercise', 'car', 'plane', 'vacation'] as const;
 
 export const customStatusGroups = [
-	{ id: 'daily', icons: ['coffee', 'food', 'moon'] },
+	{ id: 'daily', icons: ['coffee', 'food', 'moon', 'battery'] },
 	{ id: 'focus', icons: ['briefcase', 'book', 'focus'] },
 	{ id: 'relax', icons: ['music', 'gamepad', 'exercise'] },
 	{ id: 'travel', icons: ['car', 'plane', 'vacation'] },

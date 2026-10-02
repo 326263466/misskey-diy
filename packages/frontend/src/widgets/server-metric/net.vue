@@ -140,7 +140,7 @@ function onStatsLog(statsLog: Misskey.entities.ServerStatsLog) {
 			fill: currentColor;
 
 			> tspan {
-				opacity: 0.5;
+				fill: var(--MI_THEME-fgTransparentWeak);
 			}
 		}
 	}

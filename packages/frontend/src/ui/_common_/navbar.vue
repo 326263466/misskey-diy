@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-if="item === '-'" :class="$style.divider"></div>
 				<component
 					:is="navbarItemDef[item].to ? 'MkA' : 'button'"
-					v-else-if="navbarItemDef[item] && (navbarItemDef[item].show == null || navbarItemDef[item].show.value !== false)"
+					v-else-if="navbarItemDef[item] && unref(navbarItemDef[item].show) !== false"
 					v-tooltip.right="iconOnly ? navbarItemDef[item].title : null"
 					class="_button"
 					:class="[$style.item]"
@@ -72,6 +72,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="$i != null" v-tooltip.right="iconOnly ? userName($i) : null" class="_button" :class="[$style.account]" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu">
 				<MkAvatar :user="$i" :class="$style.avatar" title="" style="view-transition-name: navbar-avatar;"/><MkAcct class="_nowrap" :class="$style.acct" :user="$i"/>
 			</button>
+			<template v-else>
+				<button type="button" class="_button" :class="$style.item" :aria-label="i18n.ts.login" @click="pleaseLogin({ message: '' })">
+					<i :class="$style.itemIcon" class="ti ti-login-2 ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.login }}</span>
+				</button>
+				<button type="button" class="_button" :class="$style.item" :aria-label="i18n.ts.signup" @click="signup">
+					<i :class="$style.itemIcon" class="ti ti-user-plus ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.signup }}</span>
+				</button>
+			</template>
 		</div>
 	</div>
 
@@ -109,7 +117,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, unref, watch } from 'vue';
 import { openInstanceMenu, toggleRealtimeMode } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
@@ -122,6 +130,7 @@ import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
 import { userName } from '@/filters/user.js';
+import { pleaseLogin } from '@/utility/please-login.js';
 
 const router = useRouter();
 
@@ -187,6 +196,14 @@ async function more(ev: PointerEvent) {
 
 function menuEdit() {
 	router.push('/settings/navbar');
+}
+
+async function signup() {
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkSignupDialog.vue').then(x => x.default), {
+		autoSet: true,
+	}, {
+		closed: () => dispose(),
+	});
 }
 
 </script>
@@ -359,19 +376,16 @@ function menuEdit() {
 	left: -4px;
 	margin: auto;
 	font-size: 10px;
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:hover {
 		color: var(--MI_THEME-fgHighlighted);
 
-		.subButtonIcon {
-			opacity: 1;
-		}
 	}
 }
 
 .subButtonIcon {
 	margin-left: -4px;
-	opacity: 0.7;
 }
 
 .subButtonGapFill {
@@ -800,7 +814,6 @@ function menuEdit() {
 	.itemIcon {
 		display: block;
 		margin: 0 auto;
-		opacity: 0.7;
 	}
 
 	.itemText {

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-adaptive-bg class="_panel" style="position: relative;">
+<div class="_panel" style="position: relative;">
 	<div :class="$style.banner" :style="user.bannerUrl ? { backgroundImage: `url(${user.bannerUrl})` } : ''"></div>
 	<MkAvatar :class="$style.avatar" :user="user" indicator/>
 	<div :class="$style.title">
@@ -15,11 +15,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="user.description" :class="$style.mfm">
 			<Mfm :text="user.description" :author="user"/>
 		</div>
-		<span v-else style="opacity: 0.7;">{{ i18n.ts.noAccountDescription }}</span>
+		<span v-else style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.noAccountDescription }}</span>
 	</div>
 	<div :class="$style.footer">
 		<MkButton v-if="!isFollowing" primary gradate rounded full @click="follow"><i class="ti ti-plus"></i> {{ i18n.ts.follow }}</MkButton>
-		<div v-else style="opacity: 0.7; text-align: center;">{{ i18n.ts.youFollowing }} <i class="ti ti-check"></i></div>
+		<div v-else style="color: var(--MI_THEME-fgTransparentWeak); text-align: center;">{{ i18n.ts.youFollowing }} <i class="ti ti-check"></i></div>
 	</div>
 </div>
 </template>
@@ -82,11 +82,11 @@ async function follow() {
 	margin: 0;
 	line-height: 16px;
 	font-size: 0.8em;
-	color: var(--MI_THEME-fg);
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .description {
+	color: var(--MI_THEME-fgTransparent);
 	padding: 0 16px 16px 88px;
 	font-size: 0.9em;
 }

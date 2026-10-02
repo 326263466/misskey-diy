@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getVisitorContentVisibility } from '@/misc/visitor-content.js';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { Inject, Injectable } from '@nestjs/common';
@@ -213,43 +214,32 @@ export class ClientServerService {
 		});
 
 		//#region vite assets
-		if (this.config.frontendEmbedManifestExists) {
-			this.clientLoggerService.logger.info(`[ClientServerService] Using built frontend vite assets. ${this.frontendViteOut}`);
-			fastify.register((fastify, options, done) => {
-				fastify.register(fastifyStatic, {
-					root: this.frontendViteOut,
-					prefix: '/vite/',
-					maxAge: ms('30 days'),
-					immutable: true,
-					decorateReply: false,
+		const urlOriginWithoutPort = configUrl.origin.replace(/:\d+$/, '');
+		for (const asset of [
+			{ built: this.config.frontendManifestExists, root: this.frontendViteOut, prefix: '/vite', port: process.env.VITE_PORT ?? '5173' },
+			{ built: this.config.frontendEmbedManifestExists, root: this.frontendEmbedViteOut, prefix: '/embed_vite', port: process.env.EMBED_VITE_PORT ?? '5174' },
+		]) {
+			if (asset.built) {
+				this.clientLoggerService.logger.info(`[ClientServerService] Using built frontend vite assets. ${asset.root}`);
+				fastify.register((fastify, options, done) => {
+					fastify.register(fastifyStatic, {
+						root: asset.root,
+						prefix: `${asset.prefix}/`,
+						maxAge: ms('30 days'),
+						immutable: true,
+						decorateReply: false,
+					});
+					fastify.addHook('onRequest', handleRequestRedirectToOmitSearch);
+					done();
 				});
-				fastify.register(fastifyStatic, {
-					root: this.frontendEmbedViteOut,
-					prefix: '/embed_vite/',
-					maxAge: ms('30 days'),
-					immutable: true,
-					decorateReply: false,
+			} else {
+				this.clientLoggerService.logger.info(`[ClientServerService] Proxying ${asset.prefix} to Vite dev server.`);
+				fastify.register(fastifyProxy, {
+					upstream: `${urlOriginWithoutPort}:${asset.port}`,
+					prefix: asset.prefix,
+					rewritePrefix: asset.prefix,
 				});
-				fastify.addHook('onRequest', handleRequestRedirectToOmitSearch);
-				done();
-			});
-		} else {
-			console.log('[ClientServerService] Proxying to Vite dev server.');
-			const urlOriginWithoutPort = configUrl.origin.replace(/:\d+$/, '');
-
-			const port = (process.env.VITE_PORT ?? '5173');
-			fastify.register(fastifyProxy, {
-				upstream: urlOriginWithoutPort + ':' + port,
-				prefix: '/vite',
-				rewritePrefix: '/vite',
-			});
-
-			const embedPort = (process.env.EMBED_VITE_PORT ?? '5174');
-			fastify.register(fastifyProxy, {
-				upstream: urlOriginWithoutPort + ':' + embedPort,
-				prefix: '/embed_vite',
-				rewritePrefix: '/embed_vite',
-			});
+			}
 		}
 		//#endregion
 
@@ -401,7 +391,7 @@ export class ClientServerService {
 				'/url',
 			];
 
-			if (this.meta.ugcVisibilityForVisitor === 'none') {
+			if (getVisitorContentVisibility(this.meta) === 'none') {
 				disallowedPaths.push(
 					'/@',
 					'/notes',
@@ -458,7 +448,13 @@ export class ClientServerService {
 				requireSigninToViewContents: false,
 			});
 
-			return user && (await this.feedService.packFeed(user));
+			if (user == null) return null;
+
+			if (getVisitorContentVisibility(this.meta) === 'none' || (getVisitorContentVisibility(this.meta) === 'local' && user.host != null)) {
+				return null;
+			}
+
+			return await this.feedService.packFeed(user);
 		};
 
 		// Atom
@@ -520,8 +516,8 @@ export class ClientServerService {
 
 			if (
 				user != null && (
-					this.meta.ugcVisibilityForVisitor === 'all' ||
-						(this.meta.ugcVisibilityForVisitor === 'local' && user.host == null)
+					getVisitorContentVisibility(this.meta) === 'all' ||
+						(getVisitorContentVisibility(this.meta) === 'local' && user.host == null)
 				)
 			) {
 				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: user.id });
@@ -589,8 +585,8 @@ export class ClientServerService {
 			if (
 				note &&
 				!note.user!.requireSigninToViewContents &&
-				(this.meta.ugcVisibilityForVisitor === 'all' ||
-					(this.meta.ugcVisibilityForVisitor === 'local' && note.userHost == null)
+				(getVisitorContentVisibility(this.meta) === 'all' ||
+					(getVisitorContentVisibility(this.meta) === 'local' && note.userHost == null)
 				)
 			) {
 				const _note = await this.noteEntityService.pack(note);

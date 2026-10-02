@@ -4,28 +4,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 600px; --MI_SPACER-min: 20px;">
+<PageWithHeader contentCard>
+	<div class="_pageBody">
 		<div class="_gaps_m">
 			<MkKeyValue :copy="instance.maintainerName">
 				<template #key>{{ i18n.ts.administrator }}</template>
 				<template #value>
 					<template v-if="instance.maintainerName">{{ instance.maintainerName }}</template>
-					<span v-else style="opacity: 0.7;">({{ i18n.ts.none }})</span>
+					<span v-else style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.none }})</span>
 				</template>
 			</MkKeyValue>
 			<MkKeyValue :copy="instance.maintainerEmail">
 				<template #key>{{ i18n.ts.contact }}</template>
 				<template #value>
 					<template v-if="instance.maintainerEmail">{{ instance.maintainerEmail }}</template>
-					<span v-else style="opacity: 0.7;">({{ i18n.ts.none }})</span>
+					<span v-else style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.none }})</span>
 				</template>
 			</MkKeyValue>
 			<MkKeyValue :copy="instance.inquiryUrl">
 				<template #key>{{ i18n.ts.inquiry }}</template>
 				<template #value>
 					<MkLink v-if="instance.inquiryUrl" :url="instance.inquiryUrl" target="_blank">{{ instance.inquiryUrl }}</MkLink>
-					<span v-else style="opacity: 0.7;">({{ i18n.ts.none }})</span>
+					<span v-else style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.none }})</span>
 				</template>
 			</MkKeyValue>
 			<MkFolder @opened="onOpened">

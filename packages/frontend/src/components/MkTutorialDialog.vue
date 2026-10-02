@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_gaps" style="text-align: center;">
 							<i class="ti ti-confetti" style="display: block; margin: auto; font-size: 3em; color: var(--MI_THEME-accent);"></i>
 							<div style="font-size: 120%;">{{ i18n.ts._initialTutorial._landing.title }}</div>
-							<div>{{ i18n.ts._initialTutorial._landing.description }}</div>
+							<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._initialTutorial._landing.description }}</div>
 							<MkButton primary rounded gradate style="margin: 16px auto 0 auto;" @click="page++">{{ i18n.ts._initialTutorial.launchTutorial }} <i class="ti ti-arrow-right"></i></MkButton>
 							<MkButton style="margin: 0 auto;" transparent rounded @click="close(true)">{{ i18n.ts.close }}</MkButton>
 						</div>
@@ -128,7 +128,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_gaps" style="text-align: center;">
 							<i class="ti ti-check" style="display: block; margin: auto; font-size: 3em; color: var(--MI_THEME-accent);"></i>
 							<div style="font-size: 120%;">{{ i18n.ts._initialTutorial._done.title }}</div>
-							<I18n :src="i18n.ts._initialTutorial._done.description" tag="div" style="padding: 0 16px;">
+							<I18n :src="i18n.ts._initialTutorial._done.description" tag="div" style="padding: 0 16px; color: var(--MI_THEME-fgTransparentWeak);">
 								<template #link>
 									<a href="https://misskey-hub.net/docs/for-users/" target="_blank" class="_link">{{ i18n.ts.help }}</a>
 								</template>
@@ -253,7 +253,7 @@ async function close(skip: boolean) {
 	bottom: 0;
 	left: 0;
 	flex-shrink: 0;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	-webkit-backdrop-filter: blur(15px);
 	backdrop-filter: blur(15px);

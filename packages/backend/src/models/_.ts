@@ -40,6 +40,13 @@ import { MiClipNote } from '@/models/ClipNote.js';
 import { MiDriveFile } from '@/models/DriveFile.js';
 import { MiDriveFolder } from '@/models/DriveFolder.js';
 import { MiEmoji } from '@/models/Emoji.js';
+import { MiFeedback } from '@/models/Feedback.js';
+import { MiWallet } from '@/models/Wallet.js';
+import { MiWalletTransaction } from '@/models/WalletTransaction.js';
+import { MiWalletSettings } from '@/models/WalletSettings.js';
+import { MiRedPacket } from '@/models/RedPacket.js';
+import { MiRedPacketClaim } from '@/models/RedPacketClaim.js';
+import { MiRedPacketRecipient } from '@/models/RedPacketRecipient.js';
 import { MiFlash } from '@/models/Flash.js';
 import { MiFlashLike } from '@/models/FlashLike.js';
 import { MiFollowing } from '@/models/Following.js';
@@ -170,6 +177,13 @@ export {
 	MiRetentionAggregation,
 	MiRole,
 	MiRoleAssignment,
+	MiFeedback,
+	MiWallet,
+	MiWalletTransaction,
+	MiWalletSettings,
+	MiRedPacket,
+	MiRedPacketClaim,
+	MiRedPacketRecipient,
 	MiFlash,
 	MiFlashLike,
 	MiUserMemo,
@@ -256,6 +270,7 @@ export type ChannelsRepository = Repository<MiChannel> & MiRepository<MiChannel>
 export type RetentionAggregationsRepository = Repository<MiRetentionAggregation> & MiRepository<MiRetentionAggregation>;
 export type RolesRepository = Repository<MiRole> & MiRepository<MiRole>;
 export type RoleAssignmentsRepository = Repository<MiRoleAssignment> & MiRepository<MiRoleAssignment>;
+export type FeedbacksRepository = Repository<MiFeedback> & MiRepository<MiFeedback>;
 export type FlashsRepository = Repository<MiFlash> & MiRepository<MiFlash>;
 export type FlashLikesRepository = Repository<MiFlashLike> & MiRepository<MiFlashLike>;
 export type UserMemoRepository = Repository<MiUserMemo> & MiRepository<MiUserMemo>;

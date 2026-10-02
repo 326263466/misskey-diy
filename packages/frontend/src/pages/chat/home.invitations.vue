@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div style="flex: 1;" class="_gaps_s">
 					<MkUserName :user="invitation.room.owner"/>
 					<hr>
-					<div>{{ invitation.room.description === '' ? i18n.ts.noDescription : invitation.room.description }}</div>
+					<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ invitation.room.description === '' ? i18n.ts.noDescription : invitation.room.description }}</div>
 				</div>
 			</div>
 		</MkFolder>

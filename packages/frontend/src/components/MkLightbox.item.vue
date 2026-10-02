@@ -61,7 +61,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						/>
 						<div v-else :class="$style.hiddenPlaceholder"></div>
 						<div :class="[$style.hiddenText, { [$style.withBlur]: content.type === 'video' && content.thumbnailUrl != null }]">
-							<div :class="$style.hiddenTextWrapper">
+							<div>
 								<b v-if="content.file?.isSensitive" style="display: block;"><i class="ti ti-eye-exclamation"></i> {{ i18n.ts.sensitive }}</b>
 								<b v-else style="display: block;"><i class="ti" :class="contentHideFileIcon"></i> {{ contentHideFileText }}</b>
 								<span style="display: block;">{{ i18n.ts.clickToShow }}</span>
@@ -72,7 +72,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template v-else>
 					<img
 						v-if="(!originalContentLoaded || !thumbnailContentLoaded) && (content.thumbnailUrl != null)"
-						:class="[$style.content, $style.thumbnail]"
+						:class="$style.content"
 						:src="content.thumbnailUrl"
 						draggable="false"
 						@load="thumbnailContentLoaded = true"
@@ -473,7 +473,7 @@ const videoAspectRatio = ref<number | null>(
 		? props.content.width / props.content.height
 		: null
 );
-const playerAspectRatio = computed(() => props.content.type === 'audio' ? 16 / 9 : videoAspectRatio.value ?? 16 / 9);
+const playerAspectRatio = computed(() => isMediaControlledByMisskey.value ? 16 / 9 : videoAspectRatio.value ?? 16 / 9);
 
 function onVideoLoadedMetadata() {
 	// ドライブ上のメタデータが無い場合に限り、動画自体の初期サイズから縦横比を確定させる
@@ -1783,6 +1783,10 @@ defineExpose({
 	--MI-mediaPlayerHeight: calc(var(--MI-mediaPlayerWidth) / v-bind("playerAspectRatio"));
 
 	.video {
+		width: var(--MI-mediaPlayerWidth);
+		height: var(--MI-mediaPlayerHeight);
+		aspect-ratio: 16 / 9;
+		background: var(--MI-mediaStageBg);
 		border-radius: var(--MI-radius);
 	}
 

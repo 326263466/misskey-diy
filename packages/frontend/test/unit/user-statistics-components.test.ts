@@ -13,6 +13,10 @@ import MkUserPopup from '@/components/MkUserPopup.vue';
 import MkUserOnlineIndicator from '@/components/MkUserOnlineIndicator.vue';
 import UserHome from '@/pages/user/home.vue';
 import UserIndex from '@/pages/user/index.vue';
+import UserContent from '@/pages/user/content.vue';
+import NestedRouterView from '@/components/global/NestedRouterView.vue';
+import { Nirax } from '@/lib/nirax.js';
+import { DI } from '@/di.js';
 import { initializeUserStatisticsSync, publishUserStatistics } from '@/composables/use-user-statistics.js';
 import { i18n } from '@/i18n.js';
 import { useStream } from '@/stream.js';
@@ -48,7 +52,11 @@ vi.mock('@/utility/please-login.js', () => ({ pleaseLogin: mocks.pleaseLogin }))
 vi.mock('@/utility/achievements.js', () => ({ claimAchievement: mocks.claimAchievement }));
 vi.mock('@/utility/haptic.js', () => ({ haptic: vi.fn() }));
 vi.mock('@/utility/confetti.js', () => ({ confetti: vi.fn() }));
-vi.mock('@/router.js', () => ({ useRouter: () => ({}) }));
+vi.mock('@/router.js', async () => {
+	const { inject } = await import('vue');
+	const { DI } = await import('@/di.js');
+	return { useRouter: () => inject(DI.router, null) ?? {} };
+});
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
 vi.mock('@/server-context.js', () => ({ serverContext: null, assertServerContext: () => false }));
 vi.mock('@/composables/use-scroll-position-keeper.js', () => ({ useScrollPositionKeeper: vi.fn() }));
@@ -355,10 +363,18 @@ describe('user statistics consumers', () => {
 	test('keeps the profile snapshot current while its overview tab is unmounted', async () => {
 		const user = makeUser();
 		mocks.api.mockImplementation(async (endpoint: string) => endpoint === 'users/show' ? user : []);
+		const router = new Nirax([{
+			path: '/@:acct',
+			component: UserIndex,
+			children: [{ path: '/:page?', component: UserContent }],
+		}], `/@${user.username}`, true, UserIndex);
+		vi.stubGlobal('innerWidth', 390);
 		const view = render(UserIndex, {
 			props: { acct: user.username },
 			global: {
 				...global,
+				components: { NestedRouterView },
+				provide: { [DI.router as symbol]: router, [DI.routerCurrentDepth as symbol]: 1 },
 				stubs: {
 					...global.stubs,
 					PageWithHeader: {
@@ -374,12 +390,14 @@ describe('user statistics consumers', () => {
 		await flush();
 		expect(view.getByTestId('overview-counts').textContent).toBe('12 / 3 / 4');
 		await fireEvent.click(within(view.container).getByRole('button', { name: i18n.ts.notes }));
+		await flush();
 		expect(view.queryByTestId('overview-counts')).toBeNull();
 		expect(view.getByTestId('profile-notes')).toBeTruthy();
 
 		publishUserStatistics({ id: user.id, notesCount: 21, followingCount: 9, followersCount: 8 });
 		await nextTick();
 		await fireEvent.click(within(view.container).getByRole('button', { name: i18n.ts.overview }));
+		await flush();
 
 		expect(view.getByTestId('overview-counts').textContent).toBe('21 / 9 / 8');
 		expect(mocks.api).toHaveBeenCalledExactlyOnceWith('users/show', { username: user.username, host: null });

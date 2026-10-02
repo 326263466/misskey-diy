@@ -196,6 +196,7 @@ function onOutsidePointer(event: PointerEvent) {
 
 function setPosition() {
 	if (!rootEl.value) return;
+	if (props.anchorElement && !props.anchorElement.isConnected) return;
 	const position = calcPopupPosition(rootEl.value, {
 		anchorElement: props.anchorElement,
 		boundaryElement: props.boundaryElement,
@@ -267,6 +268,14 @@ watch(() => props.focusRequested, async requested => {
 	await nextTick();
 	inputEl.value?.focus();
 }, { immediate: true });
+
+watch(() => props.anchorElement, (anchor, previous) => {
+	previous?.removeEventListener('pointerenter', cancelClose);
+	previous?.removeEventListener('pointerleave', scheduleClose);
+	anchor?.addEventListener('pointerenter', cancelClose);
+	anchor?.addEventListener('pointerleave', scheduleClose);
+	void nextTick(setPosition);
+}, { flush: 'post' });
 
 onMounted(() => {
 	setPosition();
@@ -353,37 +362,34 @@ onUnmounted(() => {
 }
 
 // 和全局 ._button 一样是单类选择器，谁生效取决于加载顺序；
-// 一旦退回 inline-block，align-items 就失效了，所以叠上 .form 保证胜出
+// 一旦退回 inline-block，对齐就失效，所以叠上 .form 保证胜出。
+// grid 居中让圆底与图标几何居中，不受图标字体度量影响
 .form .button {
-	display: inline-flex;
+	display: grid;
+	place-items: center;
 	flex: 0 0 24px;
-	align-items: center;
-	justify-content: center;
 	box-sizing: border-box;
 	width: 24px;
 	height: 24px;
+	padding: 0;
 	border-radius: 50%;
-	font-size: 16px;
+	font-size: 15px;
 	line-height: 1;
+	// 副色圆底：跟随图标自身颜色（灰/绿/红）的浅色调
+	background: color-mix(in srgb, currentColor 12%, transparent);
 
-	// .ti 的 vertical-align 和 width 是给行内排版做的补正，在 flex 子元素里反而会让图标偏心，
-	// 这里抵消掉，只靠 flex 居中
 	> :global(.ti) {
-		vertical-align: baseline;
-		width: auto;
+		display: block;
+		font-size: 15px;
 		line-height: 1;
 	}
 
-	&:hover:not(:disabled) { background: color-mix(in srgb, var(--MI_THEME-popup), var(--MI_THEME-fg) 10%); }
+	&:hover:not(:disabled) { background: color-mix(in srgb, currentColor 22%, transparent); }
 
 	&:focus-visible {
 		outline: none;
-		background: color-mix(in srgb, var(--MI_THEME-popup), var(--MI_THEME-fg) 10%);
+		background: color-mix(in srgb, currentColor 22%, transparent);
 	}
-}
-
-.form .submit, .form .remove {
-	border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
 }
 
 .submit { color: var(--MI_THEME-success); }

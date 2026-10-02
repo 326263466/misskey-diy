@@ -457,7 +457,7 @@ export const PREF_DEF = definePreferences({
 		default: 2 as 0 | 1 | 2 | 3,
 	},
 	defaultVideoCompressionLevel: {
-		default: 2 as 0 | 1 | 2 | 3,
+		default: 0 as 0 | 1 | 2 | 3,
 	},
 
 	'sound.masterVolume': {
@@ -511,10 +511,10 @@ export const PREF_DEF = definePreferences({
 	},
 
 	'chat.showSenderName': {
-		default: false,
+		default: true,
 	},
 	'chat.sendOnEnter': {
-		default: false,
+		default: true,
 	},
 
 	'game.dropAndFusion': {

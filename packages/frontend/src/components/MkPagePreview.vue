@@ -84,7 +84,7 @@ const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 
 	> article {
 		background-color: var(--MI_THEME-panel);
-		padding: 16px;
+		padding: var(--MI-cardPadding);
 		border-radius: var(--MI-radius);
 
 		> header {
@@ -146,7 +146,6 @@ const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 		}
 
 		> article {
-			padding: 12px;
 		}
 	}
 
@@ -158,7 +157,6 @@ const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 		}
 
 		> article {
-			padding: 8px;
 
 			> header {
 				margin-bottom: 4px;

@@ -191,7 +191,7 @@ function createDoughnut(chartEl: HTMLCanvasElement, tooltip: ReturnType<typeof u
 			labels: data.map(x => x.name),
 			datasets: [{
 				backgroundColor: data.map(x => x.color),
-				borderColor: themeManager.currentCompiledTheme!.panel,
+				borderColor: () => themeManager.currentCompiledTheme!.panel,
 				borderWidth: 2,
 				hoverOffset: 0,
 				data: data.map(x => x.value),
@@ -297,24 +297,18 @@ onUnmounted(() => {
 			margin-bottom: 12px;
 		}
 
-		> .chart {
-			padding: 16px;
-		}
 	}
 }
 
 .heatmap {
-	padding: 16px;
 	margin-bottom: 16px;
 }
 
 .retentionHeatmap {
-	padding: 16px;
 	margin-bottom: 16px;
 }
 
 .retentionLine {
-	padding: 16px;
 	margin-bottom: 16px;
 }
 
@@ -330,13 +324,13 @@ onUnmounted(() => {
 				position: relative;
 				background: var(--MI_THEME-panel);
 				border-radius: var(--MI-radius);
-				padding: 24px;
+				padding: var(--MI-cardPadding);
 				max-height: 300px;
 
 				> .title {
 					position: absolute;
-					top: 24px;
-					left: 24px;
+					top: var(--MI-cardPadding);
+					left: var(--MI-cardPadding);
 				}
 			}
 

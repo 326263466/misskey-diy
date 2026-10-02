@@ -107,6 +107,60 @@ describe('URL preview fetching', () => {
 		expect(summaly).toHaveBeenCalledTimes(2);
 	});
 
+	test('fills an empty page description from the homepage without replacing the page title or URL', async () => {
+		summaly.mockResolvedValueOnce({ ...summary(), description: '  ', sitename: 'example.com' });
+		summaly.mockResolvedValueOnce({ ...summary(), url: 'https://example.com/', title: 'Example homepage', sitename: 'Example community', description: 'About this community' });
+
+		const response = await preview();
+		expect(response.json()).toMatchObject({ url: summary().url, title: summary().title, sitename: 'Example community', description: 'About this community' });
+		expect(summaly).toHaveBeenNthCalledWith(2, 'https://example.com/', expect.objectContaining({ lang: 'en-US' }));
+	});
+
+	test('retains the original preview if the homepage lookup fails', async () => {
+		summaly.mockResolvedValueOnce({ ...summary(), description: null });
+		summaly.mockRejectedValueOnce(new Error('homepage unavailable'));
+
+		const response = await preview();
+		expect(response.statusCode).toBe(200);
+		expect(response.json()).toMatchObject({ title: summary().title, description: null });
+	});
+
+	test('uses the configured proxy for homepage fallback too', async () => {
+		meta.urlPreviewSummaryProxyUrl = 'https://summary.example';
+		send.mockResolvedValueOnce({ json: async () => ({ ...summary(), description: null }) });
+		send.mockResolvedValueOnce({ json: async () => ({ ...summary(), url: 'https://example.com/', description: 'Website information' }) });
+
+		expect((await preview()).json().description).toBe('Website information');
+		expect(new URL(send.mock.calls[1][0]).searchParams.get('url')).toBe('https://example.com/');
+		expect(summaly).not.toHaveBeenCalled();
+	});
+
+	test('does not copy information from a homepage redirected to a different site', async () => {
+		summaly.mockResolvedValueOnce({ ...summary(), description: null });
+		summaly.mockResolvedValueOnce({ ...summary(), url: 'https://other.example/', description: 'Another site' });
+
+		expect((await preview()).json().description).toBeNull();
+	});
+
+	test('does not fetch the homepage again when the link already points to it', async () => {
+		summaly.mockResolvedValueOnce({ ...summary(), url: 'https://example.com/', description: null });
+		await server.inject({ method: 'GET', url: '/url', query: { url: 'https://example.com/' } });
+		expect(summaly).toHaveBeenCalledTimes(1);
+	});
+
+	test('uses the final destination homepage for a redirected link', async () => {
+		summaly.mockResolvedValueOnce({ ...summary(), url: 'https://destination.example/post', description: null });
+		summaly.mockResolvedValueOnce({ ...summary(), url: 'https://destination.example/', description: 'Destination website' });
+
+		expect((await preview()).json().description).toBe('Destination website');
+		expect(summaly).toHaveBeenNthCalledWith(2, 'https://destination.example/', expect.anything());
+	});
+
+	test('defaults preview requests without a language to Simplified Chinese', async () => {
+		await server.inject({ method: 'GET', url: '/url', query: { url: 'https://example.com/article' } });
+		expect(summaly).toHaveBeenCalledWith('https://example.com/article', expect.objectContaining({ lang: 'zh-CN' }));
+	});
+
 	test('still caches successful previews without wrapping media URLs more than once', async () => {
 		const first = await preview();
 		const second = await preview();

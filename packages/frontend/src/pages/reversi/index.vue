@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="!matchingAny && !matchingUser" class="_spacer" style="--MI_SPACER-w: 600px;">
+<div v-if="!matchingAny && !matchingUser" class="_pageBody">
 	<div class="_gaps">
 		<div>
 			<img src="/client-assets/reversi/logo.png" style="display: block; max-width: 100%; max-height: 200px; margin: auto;"/>
@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkButton primary gradate rounded @click="matchAny">{{ i18n.ts._reversi.freeMatch }}</MkButton>
 				<MkButton primary gradate rounded @click="matchUser">{{ i18n.ts.invite }}</MkButton>
 			</div>
-			<div style="font-size: 90%; opacity: 0.7; text-align: center;"><i class="ti ti-music"></i> {{ i18n.ts.soundWillBePlayed }}</div>
+			<div style="font-size: 90%; color: var(--MI_THEME-fgTransparentWeak); text-align: center;"><i class="ti ti-music"></i> {{ i18n.ts.soundWillBePlayed }}</div>
 		</div>
 
 		<MkFolder v-if="invitations.length > 0" :defaultOpen="true">
@@ -48,7 +48,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span v-if="g.isStarted && !g.isEnded" :class="$style.gamePreviewStatusActive">{{ i18n.ts._reversi.playing }}</span>
 								<span v-else-if="!g.isEnded" :class="$style.gamePreviewStatusWaiting"><MkEllipsis/></span>
 								<span v-else>{{ i18n.ts._reversi.ended }}</span>
-								<MkTime style="margin-left: auto; opacity: 0.7;" :time="g.createdAt"/>
+								<MkTime style="margin-left: auto; color: var(--MI_THEME-fgTransparentWeak);" :time="g.createdAt"/>
 							</div>
 						</MkA>
 					</div>
@@ -75,7 +75,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span v-if="g.isStarted && !g.isEnded" :class="$style.gamePreviewStatusActive">{{ i18n.ts._reversi.playing }}</span>
 								<span v-else-if="!g.isEnded" :class="$style.gamePreviewStatusWaiting"><MkEllipsis/></span>
 								<span v-else>{{ i18n.ts._reversi.ended }}</span>
-								<MkTime style="margin-left: auto; opacity: 0.7;" :time="g.createdAt"/>
+								<MkTime style="margin-left: auto; color: var(--MI_THEME-fgTransparentWeak);" :time="g.createdAt"/>
 							</div>
 						</MkA>
 					</div>
@@ -84,7 +84,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkFolder>
 	</div>
 </div>
-<div v-else class="_spacer" style="--MI_SPACER-w: 600px;">
+<div v-else class="_pageBody">
 	<div :class="$style.waitingScreen">
 		<div v-if="matchingUser" :class="$style.waitingScreenTitle">
 			<I18n :src="i18n.ts.waitingFor" tag="span">
@@ -293,7 +293,7 @@ definePage(() => ({
 
 .gamePreviews {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 	grid-gap: var(--MI-margin);
 }
 

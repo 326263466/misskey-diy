@@ -29,6 +29,9 @@ export class MiUserProfile {
 	@Column('integer', { default: 0 })
 	public checkinMakeupCards: number;
 
+	@Column('boolean', { default: false })
+	public checkinFirstRewardClaimed: boolean;
+
 	@Column('varchar', {
 		length: 128, nullable: true,
 		comment: 'The location of the User.',

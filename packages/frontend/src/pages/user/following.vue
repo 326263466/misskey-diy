@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-if="followList" #header-actions>
 		<MkPaginationControl :paginator="followList.paginator" compact/>
 	</template>
-	<div class="_spacer" style="--MI_SPACER-w: 1000px;">
+	<div class="_pageBody">
 		<Transition name="fade" mode="out-in">
 			<div v-if="user">
 				<XFollowList ref="followList" :user="user" type="following"/>

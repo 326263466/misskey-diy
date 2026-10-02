@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header-actions>
 		<MkPaginationControl v-if="currentPaginator" :key="tab" :paginator="currentPaginator" compact/>
 	</template>
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div class="_pageBody">
 		<div v-if="tab === 'all' || tab === 'system'">
 			<MkStreamingNotificationsTimeline :key="tab" ref="notificationsTimeline" :class="$style.notifications" :excludeTypes="excludeTypes"/>
 		</div>

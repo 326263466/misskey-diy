@@ -32,6 +32,6 @@ const isZero = computed(() => props.value === 0);
 }
 
 .isZero {
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

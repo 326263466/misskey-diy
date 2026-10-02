@@ -44,7 +44,7 @@ const textCountPercentage = computed(() => {
 
 .textCountLabel {
 	font-size: 11px;
-	opacity: 0.8;
+	color: var(--MI_THEME-fgTransparentWeak);
 	margin-bottom: 4px;
 }
 

@@ -14,7 +14,7 @@ export const meta = {
 	limit: { duration: 60000, max: 30 },
 	errors: {
 		notAllowed: { message: 'This account cannot check in.', code: 'CHECKIN_NOT_ALLOWED', id: '1a13b5d8-339a-4c6f-b366-b3f36ce9b772' },
-		invalidDate: { message: 'Choose a past date on or after your registration date.', code: 'INVALID_CHECKIN_DATE', id: '2900ef1b-ad98-4ddb-a665-55400a1a2309' },
+		invalidDate: { message: 'Choose one of the previous seven calendar days, on or after your registration date.', code: 'INVALID_CHECKIN_DATE', id: '2900ef1b-ad98-4ddb-a665-55400a1a2309' },
 		noCards: { message: 'No makeup cards are available.', code: 'NO_MAKEUP_CARDS', id: '0be3fae4-1633-44f9-9750-15f977e4f2ce' },
 	},
 	res: checkinResultSchema,

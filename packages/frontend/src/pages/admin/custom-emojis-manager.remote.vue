@@ -415,7 +415,7 @@ onMounted(async () => {
 }
 
 .root {
-	padding: 0 16px 16px;
+	padding-bottom: var(--MI-pageGap);
 }
 
 .changedRow {

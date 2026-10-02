@@ -10,6 +10,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 
 export const meta = {
 	tags: ['account'], requireCredential: true, kind: 'read:account',
+	limit: { duration: 60000, max: 120 },
 	res: checkinStatusSchema,
 } as const;
 

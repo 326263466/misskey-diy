@@ -14,7 +14,7 @@ export const port = address.port;
 export const apiUrl = window.location.origin + '/api';
 export const wsOrigin = window.location.origin;
 const savedLang = localStorage.getItem('lang');
-export const lang = savedLang != null && _LANGS_.some(([code]) => code === savedLang) ? savedLang : 'en-US';
+export const lang = savedLang != null && _LANGS_.some(([code]) => code === savedLang) ? savedLang : 'zh-CN';
 export const langs = _LANGS_;
 export const version = _VERSION_;
 export const instanceName = (siteName === 'Misskey' || siteName == null) ? host : siteName;

@@ -179,10 +179,8 @@ describe('Note', () => {
 		await Notes.update(note.id, { viewsCount: 9 });
 		assert.strictEqual((await api('notes/favorites/create', { noteId: note.id }, bob)).status, 204);
 		for (const viewer of [root, undefined]) {
-			const partial = (await api('notes/show-partial-bulk', { noteIds: [note.id] }, viewer)).body[0];
-			assert.strictEqual(partial.viewsCount, 0);
-			assert.strictEqual(partial.favoritesCount, 0);
-			assert.strictEqual(partial.isFavorited, false);
+			const partial = (await api('notes/show-partial-bulk', { noteIds: [note.id] }, viewer)).body;
+			assert.deepStrictEqual(partial, []);
 		}
 		const comment = await post(bob, { text: 'deleted stats', replyId: note.id, visibility: 'specified', visibleUserIds: [alice.id] });
 		assert.strictEqual((await api('notes/favorites/create', { noteId: comment.id }, alice)).status, 204);

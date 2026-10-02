@@ -49,7 +49,7 @@ async function settle() {
 	await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 }
 
-async function mount(render: () => VNode, cardPadding = 20, theme: 'dark' | 'light' = 'dark') {
+async function mount(render: () => VNode, cardPadding = 18, theme: 'dark' | 'light' = 'dark') {
 	host = document.createElement('div');
 	host.style.cssText = `--MI-cardPadding:${cardPadding}px;--MI_THEME-accent:#86b300;--MI_THEME-fgOnAccent:#152000;--MI_THEME-accentedBg:#86b30020;--MI_THEME-modalBg:#0008;--MI_THEME-focus:#86b300;color:var(--MI_THEME-fg);`;
 	host.style.cssText += theme === 'dark'
@@ -82,17 +82,17 @@ afterEach(async () => {
 });
 
 test.each([
-	{ width: 900, padding: 20, device: 'desktop' as const },
-	{ width: 390, padding: 20, device: 'smartphone' as const },
+	{ width: 900, padding: 18, device: 'desktop' as const },
+	{ width: 390, padding: 18, device: 'smartphone' as const },
 	{ width: 390, padding: 28, device: 'smartphone' as const },
-	{ width: 320, padding: 20, device: 'smartphone' as const },
+	{ width: 320, padding: 18, device: 'smartphone' as const },
 ])('share dialog keeps compact symmetric insets at $width px with a $padding px host token', async ({ width, padding, device }) => {
 	await page.viewport(width, 700);
 	updateDeviceKind(device);
 	await mount(() => h(MkShareDialog, {
 		title: 'admin 的帖子', text: '测试隐藏内容', url: 'http://127.0.0.1:3000/notes/example',
 	}), padding);
-	if (padding === 20) {
+	if (padding === 18) {
 		await page.screenshot({ element: modalParts().root, path: `../e2e/artifacts/component-browser/share-dialog-compact-${width}.png` });
 	}
 	await page.getByRole('button', { name: '复制链接' }).click();
@@ -126,7 +126,7 @@ test.each([
 		'rgb(7, 193, 96)', 'rgb(18, 183, 245)', 'rgb(246, 185, 0)', 'rgb(230, 22, 45)',
 		'rgb(0, 0, 0)', 'rgb(38, 165, 228)', 'rgb(24, 119, 242)', 'rgb(37, 211, 102)',
 	]);
-	if (padding === 20) await page.screenshot({ element: root, path: `../e2e/artifacts/component-browser/share-dialog-card-spacing-${width}.png` });
+	if (padding === 18) await page.screenshot({ element: root, path: `../e2e/artifacts/component-browser/share-dialog-card-spacing-${width}.png` });
 });
 
 test('copy feedback blocks rapid clicks and restores the button after three seconds', async () => {
@@ -216,11 +216,11 @@ test.each([
 	{ theme: 'light' as const, width: 390 },
 	{ theme: 'light' as const, width: 320 },
 ])('QR card keeps a compact padded body in the $theme theme at $width px', async ({ theme, width }) => {
-	await page.viewport(width, 800);
+	await page.viewport(width, 900);
 	updateDeviceKind(width === 900 ? 'desktop' : 'smartphone');
 	await mount(() => h(MkShareDialog, {
 		title: 'admin 的帖子', text: '分享此刻的发现', url: 'https://example.com/notes/qr-share',
-	}), 20, theme);
+	}), 18, theme);
 	await page.getByRole('button', { name: '二维码', exact: true }).click();
 	await expect.poll(() => host!.querySelector('[role="img"] svg')).toBeTruthy();
 	await settle();
@@ -256,7 +256,7 @@ test.each([false, true])('QR reveal and icon interactions respect animation=%s',
 		if (event.target === reveal) startedTransitions.push(event.propertyName);
 	});
 	await page.getByRole('button', { name: '二维码', exact: true }).click();
-	if (animation) await expect.poll(() => startedTransitions).toContain('opacity');
+	if (animation) await expect.poll(() => startedTransitions).toContain('grid-template-rows');
 	else expect(startedTransitions).toEqual([]);
 	await Promise.all(reveal.getAnimations().map(transition => transition.finished));
 	await expect.poll(() => host!.querySelector('[role="img"] svg')).toBeTruthy();
@@ -292,8 +292,8 @@ test.each([900, 390].flatMap(width => [
 	const titleBox = title.getBoundingClientRect();
 	expect(titleBox.top - headerBox.top).toBeCloseTo(headerBox.bottom - titleBox.bottom, 1);
 	expect(titleBox.height).toBeLessThan(24);
-	expect(contentBox.top - bodyBox.top).toBe(20);
-	expect(bodyBox.bottom - contentBox.bottom).toBe(20);
+	expect(contentBox.top - bodyBox.top).toBe(18);
+	expect(bodyBox.bottom - contentBox.bottom).toBe(18);
 	expect(headerBox.height).toBe(40);
 	const close = header.querySelector('[data-testid="modal-window-close"]');
 	if (close) {
@@ -320,8 +320,8 @@ test.each([900, 390])('card spacer stays consistent at %i px while ordinary spac
 	const topPadding = (element: HTMLElement) => element.firstElementChild!.getBoundingClientRect().top - element.getBoundingClientRect().top;
 	expect(inset(ordinary)).toBe(width === 900 ? 24 : 12);
 	expect(topPadding(ordinary)).toBe(width === 900 ? 24 : 12);
-	expect(inset(card)).toBe(20);
-	expect(topPadding(card)).toBe(20);
+	expect(inset(card)).toBe(18);
+	expect(topPadding(card)).toBe(18);
 
 	container.classList.add('_forceShrinkSpacer');
 	host!.style.setProperty('--MI-cardPadding', '28px');
@@ -338,7 +338,7 @@ test.each([900, 390])('card spacer stays consistent at %i px while ordinary spac
 });
 
 test.each([
-	{ width: 900, padding: 20, device: 'desktop' as const },
+	{ width: 900, padding: 18, device: 'desktop' as const },
 	{ width: 390, padding: 28, device: 'smartphone' as const },
 ])('modal keeps full-width children flush, one card inset, and a stationary footer at $width px', async ({ width, padding, device }) => {
 	await page.viewport(width, 700);

@@ -194,7 +194,7 @@ defineExpose<MediaComponentExposes>({
 .hiddenTextWrapper {
 	display: table-cell;
 	text-align: center;
-	font-size: 0.8em;
+	font-size: 1em;
 	color: #fff;
 }
 

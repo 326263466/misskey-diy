@@ -302,7 +302,7 @@ export function useNote(
 			boostOpen.value = true;
 			const { dispose } = os.popup(MkBoostComposer, {
 				note: reactionNote,
-				anchorElement: els.reactButton?.value,
+				get anchorElement() { return els.reactButton?.value; },
 				boundaryElement: els.rootEl?.value,
 				focusRequested: !fromHover,
 				mock: props.mock,

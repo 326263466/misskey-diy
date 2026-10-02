@@ -8,12 +8,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header-actions>
 		<MkPaginationControl :paginator="paginator"/>
 	</template>
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div class="_pageBody">
 		<MkNotesTimeline :paginator="paginator" :withControl="false"/>
 	</div>
 	<template v-if="$i" #footer>
 		<div :class="$style.footer">
-			<div class="_spacer" style="--MI_SPACER-w: 800px; --MI_SPACER-min: 16px; --MI_SPACER-max: 16px;">
+			<div class="_pageFooter">
 				<MkButton rounded primary :class="$style.button" @click="post()"><i class="ti ti-plus"></i>{{ i18n.ts.postToHashtag }}</MkButton>
 			</div>
 		</div>

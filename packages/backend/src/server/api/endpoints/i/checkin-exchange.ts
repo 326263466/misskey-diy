@@ -14,6 +14,7 @@ export const meta = {
 	errors: {
 		notAllowed: { message: 'This account cannot exchange check-in points.', code: 'CHECKIN_NOT_ALLOWED', id: '30919c72-e97e-4f30-af0e-36e549a563e2' },
 		insufficientPoints: { message: 'Not enough check-in points.', code: 'INSUFFICIENT_CHECKIN_POINTS', id: '67374cd3-448c-4521-bce7-b9602c4be5fa' },
+		monthlyExchangeLimit: { message: 'You have already exchanged a makeup card this month.', code: 'MONTHLY_EXCHANGE_LIMIT', id: '1c3b48e5-36a3-4b70-a9ba-1ecb1377318e' },
 		cardLimit: { message: 'The makeup card balance has reached the limit.', code: 'CARD_LIMIT_EXCEEDED', id: 'acc570b1-a28f-4cc9-a448-395710f75ec5' },
 	},
 	res: {
@@ -41,6 +42,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			} catch (error) {
 				if (error instanceof CheckinService.NotAllowedError) throw new ApiError(meta.errors.notAllowed);
 				if (error instanceof CheckinService.InsufficientPointsError) throw new ApiError(meta.errors.insufficientPoints);
+				if (error instanceof CheckinService.MonthlyExchangeLimitError) throw new ApiError(meta.errors.monthlyExchangeLimit);
 				if (error instanceof CheckinService.CardLimitError) throw new ApiError(meta.errors.cardLimit);
 				throw error;
 			}

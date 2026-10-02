@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	})"
 	:duration="transitionDuration" appear @afterLeave="onClosed" @enter="emit('opening')" @afterEnter="onOpened"
 >
-	<div v-show="manualShowing != null ? manualShowing : showing" ref="modalRootEl" v-hotkey.global="keymap" v-bind="$attrs" :class="[$style.root, { [$style.drawer]: type === 'drawer', [$style.dialog]: type === 'dialog', [$style.popup]: type === 'popup', [$style.menu]: menu }]" :style="{ zIndex, pointerEvents: (manualShowing != null ? manualShowing : showing) ? 'auto' : 'none', '--transformOrigin': transformOrigin }">
+	<div v-show="manualShowing != null ? manualShowing : showing" ref="modalRootEl" v-hotkey.global="keymap" v-bind="$attrs" :class="[$style.root, { [$style.drawer]: type === 'drawer', [$style.dialog]: type === 'dialog', [$style.popup]: type === 'popup', [$style.menu]: menu, [$style.fullScreen]: fullScreen }]" :style="{ zIndex, pointerEvents: (manualShowing != null ? manualShowing : showing) ? 'auto' : 'none', '--transformOrigin': transformOrigin }">
 		<div data-testid="bg" :data-test-is-transparent="isEnableBgTransparent" class="_modalBg" :class="[$style.bg, { [$style.bgTransparent]: isEnableBgTransparent }]" :style="{ zIndex }" @click="onBgClick" @mousedown="onBgClick" @contextmenu.prevent.stop="() => {}"></div>
 		<div ref="content" :class="[$style.content, { [$style.fixed]: fixed }]" :style="{ zIndex }" @click.self="onBgClick">
 			<slot :max-height="maxHeight" :type="type" :guardInitialPointer="menuOverlapsAnchor" :anchorWidth="anchorWidth"></slot>
@@ -84,6 +84,7 @@ const props = withDefaults(defineProps<{
 	menuMatchAnchorWidth?: boolean;
 	getContentHeight?: () => number | undefined;
 	transparentBg?: boolean;
+	fullScreen?: boolean;
 	hasInteractionWithOtherFocusTrappedEls?: boolean;
 	returnFocusTo?: HTMLElement | null;
 }>(), {
@@ -97,6 +98,7 @@ const props = withDefaults(defineProps<{
 	menu: false,
 	menuMatchAnchorWidth: false,
 	transparentBg: false,
+	fullScreen: false,
 	hasInteractionWithOtherFocusTrappedEls: false,
 	returnFocusTo: null,
 });
@@ -503,6 +505,14 @@ defineExpose({
 			@media (max-width: 500px) {
 				padding: 16px;
 			}
+		}
+
+		&.fullScreen > .content {
+			bottom: auto;
+			height: 100%;
+			height: 100dvh;
+			padding: 0;
+			overflow: clip;
 		}
 	}
 

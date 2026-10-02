@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-if="activePaginator" #header-actions>
 		<MkPaginationControl :paginator="activePaginator"/>
 	</template>
-	<div class="_spacer" style="--MI_SPACER-w: 1200px;">
+	<div class="_pageBody">
 		<div v-if="channel && tab === 'overview'" class="_gaps">
 			<div class="_panel _juejinCard" :class="$style.bannerContainer">
 				<XChannelFollowButton :channel="channel" :full="true" :class="$style.subscribe"/>
@@ -47,7 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div v-else-if="tab === 'search'">
 			<div v-if="notesSearchAvailable" class="_gaps">
-				<div>
+				<div class="_panel _panelPadding">
 					<MkInput v-model="searchQuery" @enter="search()">
 						<template #prefix><i class="ti ti-search"></i></template>
 					</MkInput>
@@ -62,7 +62,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_spacer" style="--MI_SPACER-w: 1200px; --MI_SPACER-min: 16px; --MI_SPACER-max: 16px;">
+			<div class="_pageFooter">
 				<div class="_buttonsCenter">
 					<MkButton inline rounded primary gradate @click="openPostForm()"><i class="ti ti-pencil"></i> {{ i18n.ts.postToTheChannel }}</MkButton>
 				</div>
@@ -402,7 +402,8 @@ definePage(() => ({
 }
 
 .description {
-	padding: 16px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	padding: var(--MI-cardPadding);
 }
 
 .sensitiveIndicator {

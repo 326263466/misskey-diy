@@ -751,6 +751,7 @@ export class MiMeta {
 		default: { },
 	})
 	public clientOptions: {
+		openGuestAccess?: boolean;
 		entrancePageStyle: 'classic' | 'simple';
 		showTimelineForVisitor: boolean;
 		showActivitiesForVisitor: boolean;

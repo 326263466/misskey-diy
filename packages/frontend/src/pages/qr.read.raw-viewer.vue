@@ -24,11 +24,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		/>
 	</template>
 
-	<div v-show="tab === 'mfm'" class="_spacer _gaps">
+	<div v-show="tab === 'mfm'" class="_spacer _spacerCard _gaps">
 		<Mfm :text="data" :nyaize="false"/>
 		<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="false"/>
 	</div>
-	<div v-show="tab === 'raw'" class="_spacer" style="--MI_SPACER-min: 10px; --MI_SPACER-max: 16px;">
+	<div v-show="tab === 'raw'" class="_spacer _spacerCard">
 		<MkCode :code="data" lang="text"/>
 	</div>
 </MkFolder>

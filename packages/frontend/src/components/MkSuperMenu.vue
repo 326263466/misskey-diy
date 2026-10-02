@@ -52,7 +52,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						{{ item.label }}
 					</template>
 					<template v-else>
-						<span style="opacity: 0.7; font-size: 90%; word-break: break-word;">{{ item.parentLabels.join(' > ') }}</span>
+						<span style="color: var(--MI_THEME-fgTransparentWeak); font-size: 90%; word-break: break-word;">{{ item.parentLabels.join(' > ') }}</span>
 						<br>
 						<span style="word-break: break-word;">{{ item.label }}</span>
 					</template>
@@ -229,6 +229,7 @@ function searchOnInput(ev: InputEvent) {
 
 function searchOnKeyDown(ev: KeyboardEvent) {
 	if (ev.isComposing) return;
+	if (searchResult.value.length === 0) return;
 
 	if (ev.key === 'Enter' && searchSelectedIndex.value != null) {
 		ev.preventDefault();
@@ -268,7 +269,7 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 		}
 
 		> .title {
-			opacity: 0.7;
+			color: var(--MI_THEME-fgTransparentWeak);
 			margin: 0 0 8px 0;
 			font-size: 0.9em;
 		}
@@ -279,6 +280,7 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 			gap: 2px;
 
 			> .item {
+				color: var(--MI_THEME-fgTransparent);
 				display: flex;
 				align-items: center;
 				width: 100%;
@@ -310,7 +312,6 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 					margin-right: 2px;
 					flex-shrink: 0;
 					text-align: center;
-					opacity: 0.8;
 				}
 
 				> .text {
@@ -335,13 +336,13 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 
 			> .title {
 				font-size: 1em;
-				opacity: 0.7;
+				color: var(--MI_THEME-fgTransparentWeak);
 				margin: 0 0 8px 16px;
 			}
 
 			> .items {
 				display: grid;
-				grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+				grid-template-columns: repeat(auto-fill, minmax(min(70px, 100%), 1fr));
 				grid-gap: 16px;
 				padding: 0 16px;
 
@@ -384,6 +385,7 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 	}
 
 	.searchResultItem {
+		color: var(--MI_THEME-fgTransparent);
 		display: flex;
 		align-items: center;
 		width: 100%;
@@ -421,7 +423,6 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 			margin-right: 2px;
 			flex-shrink: 0;
 			text-align: center;
-			opacity: 0.8;
 		}
 
 		> .text {

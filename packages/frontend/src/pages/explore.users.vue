@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer _gaps" style="--MI_SPACER-w: 1200px;">
+<div class="_pageBody _gaps">
 	<div v-if="instance.federation !== 'none'" :class="$style.tabBar">
 		<MkTab
 			v-model="origin"

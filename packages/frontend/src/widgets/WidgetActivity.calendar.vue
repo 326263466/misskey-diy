@@ -93,7 +93,7 @@ activity.slice().forEach((d, i) => {
 <style lang="scss" scoped>
 svg {
 	display: block;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	width: 100%;
 	box-sizing: border-box;
 

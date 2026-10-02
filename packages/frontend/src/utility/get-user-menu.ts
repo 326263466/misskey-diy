@@ -409,6 +409,12 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			},
 		});
 
+		if (user.host == null && user.id !== meId) {
+			menuItems.push({ icon: 'ti ti-gift', text: i18n.ts._redPacket.tip, action: () => {
+				const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkRedPacketDialog.vue')), { kind: 'tip', recipientIds: [user.id] }, { created: () => os.success(), closed: () => dispose() });
+			} });
+		}
+
 		if ($i.policies.chatAvailability === 'available' && user.canChat && user.host == null) {
 			menuItems.push({
 				type: 'link',

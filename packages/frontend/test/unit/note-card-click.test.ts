@@ -27,11 +27,10 @@ function click(target: Element, options: MouseEventInit = {}): void {
 }
 
 describe('note card navigation', () => {
-	test('opens the card from blank space or inert text', () => {
+	test('opens the card from blank space', () => {
 		const { root, navigate } = card('<p>Text <strong>with formatting</strong></p>');
 		click(root);
-		click(root.querySelector('strong')!);
-		expect(navigate).toHaveBeenCalledTimes(2);
+		expect(navigate).toHaveBeenCalledOnce();
 	});
 
 	test.each([
@@ -49,10 +48,23 @@ describe('note card navigation', () => {
 		'<div data-note-interactive><ul><li>Poll</li></ul></div>',
 		'<div data-note-card><p>Nested note</p></div>',
 		'<details><summary>Expand</summary></details>',
+		'<span class="_mfm">Text <strong>with formatting</strong></span>',
+		'<pre><code>const value = 1;</code></pre>',
+		'<code>inline code</code>',
 	])('preserves existing interactive content: %s', html => {
 		const { root, navigate } = card(html);
 		const target = root.querySelectorAll('*');
 		click(target[target.length - 1]);
+		expect(navigate).not.toHaveBeenCalled();
+	});
+
+	test('keeps a link inside formatted text clickable without opening the note', () => {
+		const { root, navigate } = card('<span class="_mfm"><a href="/tags/example">Topic</a></span>');
+		const followLink = vi.fn();
+		const link = root.querySelector('a')!;
+		link.addEventListener('click', event => { event.preventDefault(); followLink(); });
+		click(link);
+		expect(followLink).toHaveBeenCalledOnce();
 		expect(navigate).not.toHaveBeenCalled();
 	});
 

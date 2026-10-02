@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 1000px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+	<div class="_pageBody">
 		<div class="_root">
 			<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
 				<div v-if="post" class="rkxwuolj">
@@ -251,7 +251,7 @@ definePage(() => ({
 	}
 
 	> .body {
-		padding: 32px;
+		padding: var(--MI-cardPadding);
 
 		> .title {
 			font-weight: bold;
@@ -262,7 +262,7 @@ definePage(() => ({
 		> .info {
 			margin-top: 16px;
 			font-size: 90%;
-			opacity: 0.7;
+			color: var(--MI_THEME-fgTransparentWeak);
 		}
 
 		> .actions {
@@ -327,9 +327,10 @@ definePage(() => ({
 
 .sdrarzaf {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 	grid-gap: 12px;
-	margin: var(--MI-margin);
+	margin: 0;
+	padding: var(--MI-cardPadding);
 
 	> .post {
 

@@ -10,6 +10,7 @@ import type * as Misskey from 'misskey-js';
 import MkAvatar from '@/components/global/MkAvatar.vue';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
 import { prefer } from '@/preferences.js';
+import { i18n } from '@/i18n.js';
 
 const mocks = vi.hoisted(() => ({
 	account: null as (Omit<Misskey.entities.UserLite, 'avatarUrl'> & { avatarUrl: string | null }) | null,
@@ -26,7 +27,6 @@ vi.mock('@/preferences.js', async () => {
 	}) } };
 });
 vi.mock('@/components/global/MkA.vue', () => ({ default: { props: ['to'], template: '<a :href="to"><slot/></a>' } }));
-vi.mock('@/components/MkUserOnlineIndicator.vue', () => ({ default: { template: '<span/>' } }));
 vi.mock('@/components/MkImgWithBlurhash.vue', () => ({
 	default: { props: ['src', 'hash'], template: '<img :src="src" :data-hash="hash" alt=""/>' },
 }));
@@ -40,10 +40,10 @@ function makeUser(overrides: Partial<Misskey.entities.UserLite> = {}): Misskey.e
 	} as Misskey.entities.UserLite;
 }
 
-function renderAvatar(user: Misskey.entities.UserLite, props: { decorations?: { url: string }[] } = {}) {
+function renderAvatar(user: Misskey.entities.UserLite, props: { decorations?: { url: string }[]; link?: boolean; indicator?: boolean } = {}) {
 	const view = render(MkAvatar, {
 		props: { user, ...props },
-		global: { directives: { 'user-preview': () => {} } },
+		global: { directives: { 'user-preview': () => {}, tooltip: () => {} } },
 	});
 	return { ...view, image: view.container.querySelector('img')! };
 }
@@ -58,6 +58,29 @@ describe('current account avatars', () => {
 	});
 
 	afterEach(cleanup);
+
+	test.each([
+		{ type: 'click', button: 0 },
+		{ type: 'auxclick', button: 1 },
+	])('cancels native avatar-link navigation from indicator $type without changing avatar interactions', ({ type, button }) => {
+		const view = renderAvatar(makeUser({ id: 'other', onlineStatus: 'active' }), { link: true, indicator: true });
+		const avatar = view.getByRole('link');
+		const indicator = view.getByRole('img', { name: i18n.ts._onlineStatus._display.active });
+		const parentClick = vi.fn();
+		const parentHover = vi.fn();
+		avatar.addEventListener(type, parentClick);
+		avatar.addEventListener('pointerover', parentHover);
+		const statusClick = new MouseEvent(type, { bubbles: true, cancelable: true, button });
+		indicator.querySelector('i')!.dispatchEvent(statusClick);
+		expect(statusClick.defaultPrevented).toBe(true);
+		expect(parentClick).not.toHaveBeenCalled();
+		indicator.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+		expect(parentHover).toHaveBeenCalledOnce();
+		const avatarClick = new MouseEvent(type, { bubbles: true, cancelable: true, button });
+		avatar.dispatchEvent(avatarClick);
+		expect(parentClick).toHaveBeenCalledOnce();
+		expect(avatarClick.defaultPrevented).toBe(false);
+	});
 
 	test.each([false, true])('updates a mounted avatar from an old user snapshot with placeholders=%s', async placeholders => {
 		prefer.s.enableHighQualityImagePlaceholders = placeholders;

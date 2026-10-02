@@ -45,11 +45,6 @@ const getDate = (ymd: string) => {
 onMounted(async () => {
 	let raw = await misskeyApi('retention', { });
 
-	const vLineColor = store.s.darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)';
-
-	const accent = tinycolor(themeManager.currentCompiledTheme!.accent);
-	const color = accent.toHex();
-
 	if (chartEl.value == null) return;
 
 	chartInstance = new Chart(chartEl.value, {
@@ -61,7 +56,7 @@ onMounted(async () => {
 				pointRadius: 0,
 				borderWidth: 2,
 				borderJoinStyle: 'round',
-				borderColor: alpha(color, Math.min(1, (raw.length - (i - 1)) / raw.length)),
+				borderColor: () => alpha(tinycolor(themeManager.currentCompiledTheme!.accent).toHexString(), Math.min(1, (raw.length - (i - 1)) / raw.length)),
 				fill: false,
 				tension: 0.4,
 				data: [{
@@ -131,7 +126,7 @@ onMounted(async () => {
 				},
 			},
 		},
-		plugins: [chartVLine(vLineColor)],
+		plugins: [chartVLine()],
 	});
 });
 

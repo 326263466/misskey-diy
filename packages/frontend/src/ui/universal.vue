@@ -10,12 +10,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<!-- 移动端沿用原有布局 -->
 	<div v-if="isMobile" :class="$style.nonTitlebarArea">
 		<div :class="$style.contents" @contextmenu.stop="onContextmenu">
+			<XJuejinHeader v-if="!$i" :class="$style.header" :dockHidden="true"/>
 			<div>
 				<XReloadSuggestion v-if="shouldSuggestReload"/>
 				<XPreferenceRestore v-if="shouldSuggestRestoreBackup"/>
 				<XThemePreviewing v-if="isThemePreviewMode"/>
 				<XAnnouncements v-if="$i"/>
-				<XStatusBars :class="$style.statusbars"/>
+				<XStatusBars v-if="$i" :class="$style.statusbars"/>
 			</div>
 			<StackingRouterView v-if="prefer.s['experimental.stackingRouterView']" :class="$style.content"/>
 			<RouterView v-else :class="$style.content"/>
@@ -32,11 +33,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<XPreferenceRestore v-if="shouldSuggestRestoreBackup"/>
 			<XThemePreviewing v-if="isThemePreviewMode"/>
 			<XAnnouncements v-if="$i"/>
-			<XStatusBars/>
+			<XStatusBars v-if="$i"/>
 		</div>
 
 		<div :class="$style.body" @contextmenu.stop="onContextmenu">
-			<div :class="[$style.columns, { [$style.wide]: wide, [$style.singleColumn]: singleColumn }]">
+			<div :class="[$style.columns, { [$style.wide]: wide, [$style.singleColumn]: singleColumn, [$style.navigationLayout]: navigationLayout }]">
 				<XJuejinDock v-if="!singleColumn" :class="$style.dock"/>
 
 				<div ref="mainContent" :class="$style.stream">
@@ -62,6 +63,7 @@ import { defineAsyncComponent, provide, computed, ref, onMounted, onUnmounted, u
 import { instanceName } from '@@/js/config.js';
 import { isLink } from '@@/js/is-link.js';
 import XCommon from './_common_/common.vue';
+import XWidgets from './_common_/widgets.vue';
 import type { PageMetadata } from '@/page.js';
 import XMobileFooterMenu from '@/ui/_common_/mobile-footer-menu.vue';
 import XPreferenceRestore from '@/ui/_common_/PreferenceRestore.vue';
@@ -85,14 +87,19 @@ import { shouldSuggestRestoreBackup } from '@/preferences/utility.js';
 import { DI } from '@/di.js';
 import { shouldSuggestReload } from '@/utility/reload-suggest.js';
 
-const XWidgets = defineAsyncComponent(() => import('./_common_/widgets.vue'));
 const XStatusBars = defineAsyncComponent(() => import('@/ui/_common_/statusbars.vue'));
 const XAnnouncements = defineAsyncComponent(() => import('@/ui/_common_/announcements.vue'));
 
 const isRoot = computed(() => mainRouter.currentRoute.value.name === 'index');
 // 返回时堆叠的页面仍保持挂载，所以布局要跟随当前激活的路由
-const singleColumn = computed(() => [
-	'/@:acct/:page?', '/@:acct/following', '/@:acct/followers',
+const singleColumn = computed(() => mainRouter.currentRoute.value.name === 'community' || [
+	'/@:acct', '/@:acct/following', '/@:acct/followers',
+	'/checkin', '/community-ranking', '/my/achievements', '/my/benefits',
+].includes(mainRouter.currentRoute.value.path));
+
+// 刷新时按路由确定最终宽度，不等待异步页面和用户资料。
+const navigationLayout = computed(() => mainRouter.currentRoute.value.name === 'community' || [
+	'/settings', '/admin', '/@:acct',
 	'/checkin', '/community-ranking', '/my/achievements', '/my/benefits',
 ].includes(mainRouter.currentRoute.value.path));
 
@@ -115,7 +122,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
 const pageMetadata = ref<null | PageMetadata>(null);
 // 在异步页面元数据到达之前，先确定导航页的布局外壳
 const wide = computed(() => !singleColumn.value && (
-	['/settings', '/admin'].includes(mainRouter.currentRoute.value.path) || pageMetadata.value?.needWideArea === true
+	['/settings', '/admin', '/feedback'].includes(mainRouter.currentRoute.value.path) || pageMetadata.value?.needWideArea === true
 ));
 const dockHidden = computed(() => singleColumn.value || wide.value || dockCollapsed.value);
 const widgetsShowing = ref(false);
@@ -175,7 +182,6 @@ $content-width: 1200px;
 $column-gap: 20px;
 $dock-width: 180px;
 $sidebar-width: 260px;
-$content-top-gap: 20px;
 // メディアクエリでは CSS 変数が使えないため、--MI-margin と同じ値をここに置く
 $body-side-margin: 16px;
 
@@ -227,9 +233,9 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 	height: 100%;
 	margin: 0 auto;
 	box-sizing: border-box;
-	// 掘金的 main 用 margin-top: 20px 与 header 拉开间距。
+	// 页面距 header 的间距统一使用全局值。
 	// 左右余白は常時付ける (幅は内容 1200px を保つため max-width に padding 分を足す)
-	padding: $content-top-gap $body-side-margin 0;
+	padding: var(--MI-pageGap) $body-side-margin 0;
 
 	// 右カラムを畳んだ後は残る 2 カラムの自然幅で中央寄せし直す。
 	// ここを 1200px のままにすると中カラムだけが 1000px 近くまで伸びて間延びする。
@@ -246,10 +252,21 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 		gap: 0;
 	}
 
+	// 反馈等普通宽版页面没有双列外壳，需要在此保留宽度和间距。
+	&.wide:not(.navigationLayout) {
+		max-width: calc(var(--MI-pageWidth) + var(--MI-margin) * 2);
+		padding: var(--MI-pageGap) var(--MI-margin) 0;
+	}
+
 	&.singleColumn {
 		--MI-pageSideInset: 0px;
 		max-width: calc(var(--MI-pageWidth) + #{$body-side-margin * 2});
 		padding-top: 0;
+	}
+
+	&.navigationLayout {
+		--MI-pageWidth: var(--MI-navigationPageWidth);
+		max-width: calc(var(--MI-pageWidth) + #{$body-side-margin * 2});
 	}
 }
 
@@ -289,16 +306,8 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 	--MI-pageHeaderOverflow: clip;
 }
 
-// 3 カラムの「見た目の間隔」を gap の 20px に揃える。
-// dock / sidebar のカードは自分の列幅いっぱいに描かれるが、中カラムだけは
-//   - ページ側 ._spacer の左右インセット (既定 24px)
-//   - ._pageScrollable が確保するスクロールバーの溝 (10px)
-// が内側を食うため、実測ではカード間が左 44px / 右 54px になっていた。
-// 中カラムも列幅いっぱいまで描かせて 20px / 20px に揃える。
-//
-// wide ページ (settings / admin) は左右カラムが無く、_spacer 自身が 1200px 中央寄せと
-// 左右余白を担っている (§6) ので対象外にする。
-.columns:not(.wide) > .stream {
+// Keep scrolling available without reserving a scrollbar gutter in the content column.
+.columns > .stream {
 	// dock / sidebar と同じ方針: スクロール自体は残してバーだけ隠す。
 	// reversed 版 (chat など) も対になっているので必ず両方指定する
 	:global(._pageContainer),
@@ -311,23 +320,6 @@ $dock-collapse-threshold: $body-side-margin * 2 + $dock-width + $column-gap + $s
 		}
 	}
 
-	// 本文スロット直下の _spacer だけ左右インセットを打ち消す (上下 padding は縦余白として残す)。
-	// ページが指定した --MI_SPACER-w の上限は尊重する。
-	//
-	// 起点を MkStickyContainer の本文 div (data-sticky-container-header-height を持つ) に
-	// 限定しているのは、sticky footer スロット内の _spacer を巻き込まないため。
-	// footer は本文 div の兄弟で、かつ他の _spacer の子孫でもないので、
-	// 単に ._spacer:not(._spacer *) と書くと footer のボタン列がカード端に貼り付く。
-	//
-	// 入れ子の _spacer (MkFolder 等) は内側の余白として意味があるので :not() で除外する
-	:global([data-sticky-container-header-height]) :global(._spacer:not(._spacer *, ._pageLayout *)) {
-		max-width: min(var(--MI_SPACER-w, 100%), 100%);
-	}
-
-	// 提示与操作栏、下面卡片保持 16px 间距；提示本身保持原有样式
-	:global([data-sticky-container-header-height]) :global(._spacer:not(._spacer *, ._pageLayout *) > ._juejinTip:first-child) {
-		margin-bottom: var(--MI-margin) !important;
-	}
 }
 
 // 右栏: 掘金的 .sidebar

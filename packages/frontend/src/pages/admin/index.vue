@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</nav>
 	<div v-if="!(narrow && currentPage?.route.name == null)" class="_pageContent _pageContainer">
-		<NestedRouterView/>
+		<NestedRouterView :initialRoute="initialRoute"/>
 	</div>
 </div>
 </template>
@@ -46,11 +46,13 @@ import { useRouter } from '@/router.js';
 import { genSearchIndexes } from '@/utility/inapp-search.js';
 import { useScrollPositionKeeper } from '@/composables/use-scroll-position-keeper.js';
 
+const router = useRouter();
+// Keep this layout's route while asynchronous setup finishes after navigation.
+const initialRoute = router.current.route.path === '/admin' ? router.current : router.resolve('/admin')!;
+
 const searchIndex = await import('search-index:admin').then(({ searchIndexes }) => genSearchIndexes(searchIndexes));
 
 const isEmpty = (x: string | null) => x == null || x === '';
-
-const router = useRouter();
 
 const indexInfo = {
 	title: i18n.ts.controlPanel,
@@ -119,6 +121,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts._benefits.adminTitle,
 		to: '/admin/benefits',
 		active: currentPage.value?.route.name === 'benefits',
+	}, {
+		icon: 'ti ti-wallet',
+		text: i18n.ts._wallet.adminTitle,
+		to: '/admin/wallet',
+		active: currentPage.value?.route.name === 'wallet',
 	}] : []), {
 		icon: 'ti ti-user-plus',
 		text: i18n.ts.invite,

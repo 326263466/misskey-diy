@@ -24,6 +24,21 @@ vi.mock('@/utility/focus-trap.js', () => ({ focusTrap: () => ({ release: () => {
 vi.mock('@/i18n.js', () => ({ i18n: { ts: { none: 'None' } } }));
 
 type MenuKind = 'context' | 'popup';
+
+test('truncates a long custom status without widening the account menu', async () => {
+	const caption = '正在处理事情，稍后回复。'.repeat(12);
+	const fixture = mountMenu('popup', 300, 100, { items: [{
+		type: 'parent', text: '在线状态', caption, truncateCaption: true,
+		children: [{ text: '在线', action: vi.fn() }],
+	}] });
+	await fixture.open();
+	const item = fixture.root().querySelector<HTMLElement>('[title]')!;
+	const text = item.querySelector<HTMLElement>('[class*="truncatedCaption"]')!;
+	expect(item.title).toBe(caption);
+	expect(getComputedStyle(text).textOverflow).toBe('ellipsis');
+	expect(text.scrollWidth).toBeGreaterThan(text.clientWidth);
+	expect(fixture.items().getBoundingClientRect().width).toBeLessThanOrEqual(220);
+});
 const fixtures: { app: App; host: HTMLElement }[] = [];
 
 async function nextFrame() {

@@ -11,9 +11,9 @@ import { apiUrl, url as instanceUrl } from '@@/js/config.js';
 import MkAbuseReport from '@/components/MkAbuseReport.vue';
 import { i18n } from '@/i18n.js';
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), apiWithDialog: vi.fn(), routerInit: vi.fn(), fetch: vi.fn(), alert: vi.fn(), me: { token: 'admin-test-token' } as { token: string } | null }));
+const mocks = vi.hoisted(() => ({ api: vi.fn(), apiWithDialog: vi.fn(), routerInit: vi.fn(), fetch: vi.fn(), alert: vi.fn(), pageWindow: vi.fn(), me: { token: 'admin-test-token' } as { token: string } | null }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
-vi.mock('@/os.js', () => ({ apiWithDialog: mocks.apiWithDialog, popupMenu: vi.fn(), alert: mocks.alert }));
+vi.mock('@/os.js', () => ({ apiWithDialog: mocks.apiWithDialog, popupMenu: vi.fn(), alert: mocks.alert, pageWindow: mocks.pageWindow }));
 vi.mock('@/i.js', () => ({ get $i() { return mocks.me; } }));
 vi.mock('@/router.js', () => ({ createRouter: () => ({ init: mocks.routerInit }) }));
 vi.mock('@/components/global/RouterView.vue', () => ({ default: { template: '<div/>' } }));
@@ -186,7 +186,7 @@ describe('admin abuse report details', () => {
 		expect(view.getByRole('heading', { name: i18n.ts._abuseUserReport.snapshot })).toBeTruthy();
 		expect(view.getByText('Original content Second line Third line Final evidence').textContent).toBe(snapshot.content);
 		expect(view.getByText('Original name')).toBeTruthy();
-		expect(view.getByText('@original-user@remote.example')).toBeTruthy();
+		expect(view.getAllByText('@original-user@remote.example')).toHaveLength(2);
 		expect(view.container.querySelector(`mk-time-stub[time="${snapshot.capturedAt}"][mode="absolute"]`)).toBeTruthy();
 		expect(view.queryByText('Edited content')).toBeNull();
 	});
@@ -224,6 +224,27 @@ describe('admin abuse report details', () => {
 		expect(view.container.querySelector('img, video, audio, iframe')).toBeNull();
 		expect(mocks.api).not.toHaveBeenCalled();
 		expect(mocks.fetch).not.toHaveBeenCalled();
+	});
+
+	test.each(['user', 'chat', 'note'] as const)('reviews the fixed %s snapshot without source links or live profile navigation', async type => {
+		const view = renderReport(makeReport({ snapshot: makeSnapshot({ type, sourceUrl: 'http://127.0.0.1:3000/users/target' }) }));
+		await openReport(view);
+		expect(mocks.api).not.toHaveBeenCalled();
+		expect(mocks.routerInit).not.toHaveBeenCalled();
+		expect(mocks.pageWindow).not.toHaveBeenCalled();
+		expect(view.container.querySelector('a[href]')).toBeNull();
+		expect(view.getAllByTestId('open-folder')).toHaveLength(1);
+		expect(view.getByText('Original content Second line Third line Final evidence')).toBeTruthy();
+	});
+
+	test('shows an empty saved snapshot without substituting the current profile', async () => {
+		const view = renderReport(makeReport({ snapshot: makeSnapshot({ type: 'user', content: '', files: [] }) }));
+		await openReport(view);
+		expect(view.getByRole('heading', { name: i18n.ts._abuseUserReport.profileSnapshot })).toBeTruthy();
+		expect(view.getByText(i18n.ts._abuseUserReport.profileSnapshotEmpty)).toBeTruthy();
+		expect(view.container.querySelector('a[href]')).toBeNull();
+		expect(mocks.api).not.toHaveBeenCalled();
+		expect(mocks.routerInit).not.toHaveBeenCalled();
 	});
 
 	test('downloads immutable evidence through the authenticated admin endpoint and revokes its object URL', async () => {

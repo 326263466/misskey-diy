@@ -115,16 +115,16 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .ilrvjyvi {
-	> .children {
-		margin: 16px;
+	padding: var(--MI-cardPadding);
 
+	> .children {
 		&:empty {
 			display: none;
 		}
 	}
 
 	> .add {
-		margin: 16px auto;
+		margin: var(--MI-cardPadding) auto 0;
 	}
 }
 </style>

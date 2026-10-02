@@ -28,6 +28,12 @@ export const packedChatRoomSchema = {
 			type: 'string',
 			optional: false, nullable: false,
 		},
+		memberCount: {
+			type: 'integer',
+			optional: false, nullable: false,
+			minimum: 1,
+			description: 'Number of members, including the owner.',
+		},
 		description: {
 			type: 'string',
 			optional: false, nullable: false,

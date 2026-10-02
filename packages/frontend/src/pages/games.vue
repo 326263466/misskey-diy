@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div class="_pageBody">
 		<div class="_gaps">
 			<div class="_panel" :class="$style.link">
 				<MkA to="/bubble-game">
@@ -27,7 +27,7 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 
 definePage(() => ({
-	title: 'Misskey Games',
+	title: i18n.ts.games,
 	icon: 'ti ti-device-gamepad',
 }));
 </script>

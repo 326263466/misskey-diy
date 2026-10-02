@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div>
 	<MkLoading v-if="fetching"/>
-	<div v-show="!fetching" :class="$style.root" class="_panel">
+	<div v-show="!fetching" class="_panel">
 		<canvas ref="chartEl"></canvas>
 		<MkChartLegend ref="legendEl" style="margin-top: 8px;"/>
 	</div>
@@ -70,8 +70,6 @@ async function renderChart() {
 	const raw = await misskeyApi('charts/user/following', { userId: props.user.id, limit: chartLimit, span: 'day' });
 
 	if (disposed || chartEl.value == null) return;
-
-	const vLineColor = store.s.darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)';
 
 	const colorFollowLocal = '#008FFB';
 	const colorFollowRemote = '#008FFB88';
@@ -177,7 +175,7 @@ async function renderChart() {
 				}),
 			},
 		},
-		plugins: [chartVLine(vLineColor), chartLegend(legendEl.value)],
+		plugins: [chartVLine(), chartLegend(legendEl.value)],
 	});
 
 	fetching.value = false;
@@ -192,9 +190,3 @@ onUnmounted(() => {
 	chartInstance?.destroy();
 });
 </script>
-
-<style lang="scss" module>
-.root {
-	padding: 20px;
-}
-</style>

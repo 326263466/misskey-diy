@@ -24,12 +24,14 @@ const props = withDefaults(defineProps<{
 	lang?: string;
 	codeEditor?: boolean;
 	withOuterStyle?: boolean;
+	forceDark?: boolean;
 }>(), {
 	codeEditor: false,
 	withOuterStyle: true,
+	forceDark: false,
 });
 
-const darkMode = store.r.darkMode;
+const darkMode = computed(() => props.forceDark || store.r.darkMode.value);
 
 const [highlighter, lightThemeName, darkThemeName, initialLanguage] = await Promise.all([
 	getHighlighter(),
@@ -62,6 +64,8 @@ watch(() => props.lang, async (to, _from, onCleanup) => {
 <style module lang="scss">
 .codeBlockRoot :global(.shiki) {
 	overflow: auto;
+	white-space: pre;
+	overflow-wrap: anywhere;
 	font-family: Consolas, Monaco, Andale Mono, Ubuntu Mono, monospace;
 
 	color: var(--shiki-fallback);

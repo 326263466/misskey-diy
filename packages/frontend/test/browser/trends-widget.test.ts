@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => {
 	vi.stubGlobal('_LANGS_', []);
 	vi.stubGlobal('_VERSION_', 'test');
 	vi.stubGlobal('_DEV_', true);
-	return { api: vi.fn(), storage: new Map<string, string>(), now: Date.UTC(2026, 8, 29, 4), setTime: vi.fn<(value: number) => void>() };
+	return { api: vi.fn(), navigate: vi.fn(), storage: new Map<string, string>(), now: Date.UTC(2026, 8, 29, 4), setTime: vi.fn<(value: number) => void>() };
 });
 
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApiGet: mocks.api }));
@@ -29,7 +29,7 @@ vi.mock('@/local-storage.js', () => ({ miLocalStorage: {
 } }));
 vi.mock('@/preferences.js', () => ({ prefer: { s: { animation: false } } }));
 vi.mock('@/os.js', () => ({ popup: vi.fn() }));
-vi.mock('@/theme.js', () => ({ themeManager: { currentCompiledTheme: { accent: '#86b300' } } }));
+vi.mock('@/theme.js', () => ({ themeManager: { on: vi.fn(), off: vi.fn(), currentCompiledTheme: { accent: '#86b300' } } }));
 vi.mock('@/composables/use-lowres-time.js', () => {
 	const time = ref(mocks.now);
 	mocks.setTime.mockImplementation(value => { time.value = value; });
@@ -63,7 +63,13 @@ async function mount(dark = false): Promise<HTMLElement> {
 	app = createApp({ render: () => h(WidgetTrends, { widget: { id: 'trends-browser', data: { showHeader: true } } }) });
 	app.component('MkA', defineComponent({
 		props: { to: { type: String, required: true } },
-		setup: (props, { slots }) => () => h('a', { href: props.to }, slots.default?.()),
+		setup: (props, { slots }) => () => h('a', {
+			href: props.to,
+			onClick: (event: MouseEvent) => {
+				event.preventDefault();
+				mocks.navigate(props.to);
+			},
+		}, slots.default?.()),
 	}));
 	app.component('MkLoading', { render: () => h('span', { role: 'status' }, '加载中') });
 	app.mount(host);
@@ -92,6 +98,11 @@ function assertLayout(element: HTMLElement): void {
 	expect(Math.abs((textBox.top + textBox.bottom) / 2 - center)).toBeLessThanOrEqual(2);
 	expect(header.nextElementSibling!.getBoundingClientRect().height).toBe(314);
 	expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1);
+	const topic = element.querySelector('.tagName');
+	if (topic) {
+		const headingSize = parseFloat(getComputedStyle(header.querySelector('.heading')!).fontSize);
+		expect(headingSize).toBeGreaterThan(parseFloat(getComputedStyle(topic).fontSize));
+	}
 }
 
 beforeEach(() => {
@@ -120,6 +131,15 @@ test.each([false, true])('centers the heading and preserves fixed height and zer
 	assertLayout(element);
 	expect(element.textContent).toContain('0人投稿');
 	expect(element.querySelectorAll('svg')).toHaveLength(2);
+	const row = element.querySelector<HTMLAnchorElement>('a[href^="/tags/"]')!;
+	const rowBox = row.getBoundingClientRect();
+	for (const target of [row.querySelector('p')!, row.querySelector('svg')!]) {
+		const box = target.getBoundingClientRect();
+		await page.elementLocator(row).click({ position: { x: box.left - rowBox.left + box.width / 2, y: box.top - rowBox.top + box.height / 2 } });
+		expect(mocks.navigate).toHaveBeenLastCalledWith('/tags/' + encodeURIComponent('功能测试'));
+	}
+	await page.elementLocator(row).click({ position: { x: 8, y: 8 } });
+	expect(mocks.navigate).toHaveBeenCalledTimes(3);
 	if (!dark) await page.screenshot({ element, path: '../e2e/artifacts/component-browser/trends-fixed-live.png' });
 });
 
@@ -136,7 +156,7 @@ test('appends distinct old topics after the current ranking without changing row
 	const old = ['旧话题A', '频道', '旧话题B', '旧话题C', '旧话题D'].map(tag => ({ ...sampleStats[0], tag }));
 	saveTrendsCache(mergeTrendsWithCache(old, null, mocks.now - 3600000));
 	const element = await mount(true);
-	await expect.poll(() => Array.from(element.querySelectorAll('a[href^="/tags/"]')).map(a => a.textContent)).toEqual(['#功能测试', '#频道', '#旧话题A', '#旧话题B', '#旧话题C']);
+	await expect.poll(() => Array.from(element.querySelectorAll('a[href^="/tags/"]')).map(a => a.querySelector('.tagName')?.textContent)).toEqual(['#功能测试', '#频道', '#旧话题A', '#旧话题B', '#旧话题C']);
 	assertLayout(element);
 	expect(element.querySelectorAll('svg')).toHaveLength(5);
 	expect(element.querySelector('header')!.textContent).toBe('趋势');
@@ -152,4 +172,37 @@ test('retains old topics when time passes without new trends', async () => {
 	await settle();
 	expect(element.querySelectorAll('a[href^="/tags/"]')).toHaveLength(2);
 	assertLayout(element);
+});
+
+test('shows a delayed first response immediately before the next clock tick', async () => {
+	const response = Promise.withResolvers<typeof sampleStats>();
+	mocks.api.mockReturnValue(response.promise);
+	const element = await mount();
+	expect(element.querySelector('[role="status"]')).not.toBeNull();
+	vi.setSystemTime(mocks.now + 1_000);
+	response.resolve(sampleStats);
+	await expect.poll(() => element.querySelectorAll('a[href^="/tags/"]').length).toBe(2);
+	expect(element.querySelector('[role="status"]')).toBeNull();
+	assertLayout(element);
+	await page.screenshot({ element, path: '../e2e/artifacts/component-browser/trends-delayed-response.png' });
+});
+
+test('keeps refreshed topics visible and restores them immediately after remounting', async () => {
+	saveTrendsCache(mergeTrendsWithCache(sampleStats, null, mocks.now - 60_000));
+	const response = Promise.withResolvers<typeof sampleStats>();
+	mocks.api.mockReturnValue(response.promise);
+	const element = await mount();
+	expect(element.querySelectorAll('a[href^="/tags/"]')).toHaveLength(2);
+	vi.setSystemTime(mocks.now + 1_000);
+	response.resolve(sampleStats);
+	await settle();
+	expect(element.querySelectorAll('a[href^="/tags/"]')).toHaveLength(2);
+	app!.unmount();
+	host!.remove();
+	mocks.api.mockReturnValue(new Promise(() => {}));
+	const refreshed = await mount(true);
+	expect(refreshed.querySelectorAll('a[href^="/tags/"]')).toHaveLength(2);
+	expect(refreshed.querySelector('[role="status"]')).toBeNull();
+	assertLayout(refreshed);
+	await page.screenshot({ element: refreshed, path: '../e2e/artifacts/component-browser/trends-refresh-cached.png' });
 });

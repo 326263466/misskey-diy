@@ -7,6 +7,7 @@ import * as Misskey from 'misskey-js';
 import { ref } from 'vue';
 import { apiUrl } from '@@/js/config.js';
 import { $i } from '@/i.js';
+import { getAccountSessionErrorReason, markAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 export const pendingApiRequestsCount = ref(0);
 
 // Implements Misskey.api.ApiClient.request
@@ -32,6 +33,7 @@ export function misskeyApi<
 		// Append a credential
 		if ($i) data.i = $i.token;
 		if (token !== undefined) data.i = token;
+		const requestToken = data.i;
 
 		// Send request
 		window.fetch(`${apiUrl}/${endpoint}`, {
@@ -51,6 +53,15 @@ export function misskeyApi<
 			} else if (res.status === 204) {
 				resolve(undefined as _ResT); // void -> undefined
 			} else {
+				if (res.status >= 400 && res.status < 500 && $i && requestToken === $i.token && getAccountSessionErrorReason(body.error)) {
+					// Mark before rejecting so API dialogs do not duplicate the session alert.
+					markAccountSessionErrorHandled(body.error);
+					// Keep the API module independent of account/UI initialization. Do not
+					// keep the failed request pending while waiting for user acknowledgement.
+					void import('@/accounts.js')
+						.then(({ handleInvalidSession }) => handleInvalidSession(body.error, requestToken))
+						.catch(err => console.error('Failed to recover the invalid session', err));
+				}
 				reject(body.error);
 			}
 		}).catch(reject);

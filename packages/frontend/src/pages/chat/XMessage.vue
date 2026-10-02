@@ -6,9 +6,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="[$style.root, { [$style.isMe]: isMe }]">
 	<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null]" :user="message.fromUser!" :link="!isMe" :preview="false"/>
-	<div ref="bodyEl" :class="[$style.body, message.file != null ? $style.fullWidth : null]" @contextmenu.stop="onContextmenu">
-		<div :class="$style.header"><MkUserName v-if="!isMe && prefer.s['chat.showSenderName'] && message.fromUser != null" :user="message.fromUser"/></div>
-		<MkFukidashi :class="$style.fukidashi" :tail="isMe ? 'right' : 'left'" :fullWidth="message.file != null" :accented="isMe">
+	<div :class="[$style.body, message.file != null || message.redPacket != null ? $style.fullWidth : null]">
+		<div :class="$style.header">
+			<span v-if="prefer.s['chat.showSenderName'] && message.fromUser != null" :class="$style.sender">
+				<MkUserName :user="message.fromUser" :class="$style.senderName"/>
+			</span>
+			<MkTime :class="$style.time" :time="message.createdAt"/>
+		</div>
+		<MkFukidashi ref="bubbleEl" :class="$style.fukidashi" :tail="isMe ? 'right' : 'left'" :fullWidth="message.file != null" :accented="isMe" data-chat-bubble @contextmenu.stop="onContextmenu">
 			<Mfm
 				v-if="message.text"
 				ref="text"
@@ -20,12 +25,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:enableEmojiMenuReaction="true"
 			/>
 			<MkMediaList v-if="message.file" :mediaList="[message.file]" :user="message.fromUser"/>
+			<MkRedPacket v-if="message.redPacket" :redPacketId="message.redPacket.id" :authorId="message.fromUserId" :redPacket="message.redPacket"/>
 		</MkFukidashi>
 		<MkUrlPreview v-for="url in urls" :key="url" :url="url" style="margin: 8px 0;"/>
-		<div :class="$style.footer">
+		<div v-if="('isAutoReply' in message && message.isAutoReply) || isSearchResult" :class="$style.footer">
 			<span v-if="'isAutoReply' in message && message.isAutoReply" :class="$style.autoReply">{{ i18n.ts._onlineStatus.autoReply }}</span>
-			<button class="_textButton" style="color: currentColor;" @click="showMenu"><i class="ti ti-dots-circle-horizontal"></i></button>
-			<MkTime :class="$style.time" :time="message.createdAt"/>
 			<MkA v-if="isSearchResult && 'toRoom' in message && message.toRoom != null" :to="`/chat/room/${message.toRoomId}`">{{ message.toRoom.name }}</MkA>
 			<MkA v-if="isSearchResult && 'toUser' in message && message.toUser != null && isMe" :to="`/chat/user/${message.toUserId}`">@{{ message.toUser.username }}</MkA>
 		</div>
@@ -37,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:moveClass="prefer.s.animation ? $style.transition_reaction_move : ''"
 			tag="div" :class="$style.reactions"
 		>
-			<div v-for="record in message.reactions" :key="record.reaction + record.user.id" :class="[$style.reaction, record.user.id === $i.id ? $style.reactionMy : null]" @click="onReactionClick(record)">
+			<button v-for="record in message.reactions" :key="record.reaction + record.user.id" type="button" class="_button" :class="[$style.reaction, record.user.id === $i.id ? $style.reactionMy : null]" :disabled="reacting || $i.policies.chatAvailability !== 'available'" :aria-label="`${i18n.ts.reaction}: ${record.reaction}`" @click.stop="onReactionClick(record)">
 				<MkAvatar :user="record.user" :link="false" :class="$style.reactionAvatar"/>
 				<MkReactionIcon
 					:withTooltip="true"
@@ -45,14 +49,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:noStyle="true"
 					:class="$style.reactionIcon"
 				/>
-			</div>
+			</button>
 		</TransitionGroup>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, provide, useTemplateRef } from 'vue';
+import { computed, provide, ref, useTemplateRef } from 'vue';
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
@@ -68,6 +72,7 @@ import MkFukidashi from '@/components/MkFukidashi.vue';
 import * as os from '@/os.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import MkMediaList from '@/components/MkMediaList.vue';
+import MkRedPacket from '@/components/MkRedPacket.vue';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import * as sound from '@/utility/sound.js';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
@@ -82,52 +87,40 @@ const props = defineProps<{
 	isSearchResult?: boolean;
 }>();
 
-const bodyEl = useTemplateRef('bodyEl');
+const bubbleEl = useTemplateRef('bubbleEl');
+const reacting = ref(false);
 const isMe = computed(() => props.message.fromUserId === $i.id);
 const urls = computed(() => props.message.text ? extractUrlFromMfm(mfm.parse(props.message.text)) : []);
 
-provide(DI.mfmEmojiReactCallback, (reaction) => {
-	if ($i.policies.chatAvailability !== 'available') return;
+provide(DI.mfmEmojiReactCallback, (reaction) => { void sendReaction(reaction); });
 
-	sound.playMisskeySfx('reaction');
-	misskeyApi('chat/messages/react', {
-		messageId: props.message.id,
-		reaction: reaction,
-	});
-});
+async function sendReaction(reaction: string, remove = false) {
+	if (reacting.value || $i.policies.chatAvailability !== 'available') return;
+	if (!remove && props.message.reactions.some(record => record.user.id === $i.id && record.reaction === reaction)) return;
+	reacting.value = true;
+	try {
+		await misskeyApi(remove ? 'chat/messages/unreact' : 'chat/messages/react', { messageId: props.message.id, reaction });
+		if (!remove) sound.playMisskeySfx('reaction');
+	} catch {
+		void os.alert({ type: 'error', text: i18n.ts.somethingHappened });
+	} finally {
+		reacting.value = false;
+	}
+}
 
 function react(ev: PointerEvent) {
 	if ($i.policies.chatAvailability !== 'available') return;
 
-	const targetEl = bodyEl.value ?? getHTMLElementOrNull(ev.currentTarget ?? ev.target);
+	const targetEl = getHTMLElementOrNull(bubbleEl.value?.$el) ?? getHTMLElementOrNull(ev.currentTarget ?? ev.target);
 	if (!targetEl) return;
 
-	reactionPicker.show(targetEl, null, async (reaction) => {
-		sound.playMisskeySfx('reaction');
-		misskeyApi('chat/messages/react', {
-			messageId: props.message.id,
-			reaction: reaction,
-		});
-	});
+	reactionPicker.show(targetEl, null, (reaction) => { void sendReaction(reaction); });
 }
 
 function onReactionClick(record: Misskey.entities.ChatMessage['reactions'][0]) {
 	if ($i.policies.chatAvailability !== 'available') return;
 
-	if (record.user.id === $i.id) {
-		misskeyApi('chat/messages/unreact', {
-			messageId: props.message.id,
-			reaction: record.reaction,
-		});
-	} else {
-		if (!props.message.reactions.some(r => r.user.id === $i.id && r.reaction === record.reaction)) {
-			sound.playMisskeySfx('reaction');
-			misskeyApi('chat/messages/react', {
-				messageId: props.message.id,
-				reaction: record.reaction,
-			});
-		}
-	}
+	void sendReaction(record.reaction, record.user.id === $i.id);
 }
 
 function onContextmenu(ev: PointerEvent) {
@@ -222,19 +215,26 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 .root {
 	position: relative;
 	display: flex;
+	align-items: flex-start;
+	gap: 12px;
 
 	&.isMe {
 		flex-direction: row-reverse;
 		text-align: right;
 
-		.footer {
+		.header, .footer {
 			flex-direction: row-reverse;
+		}
+
+		.body {
+			align-items: flex-end;
 		}
 	}
 }
 
 .avatar {
 	display: block;
+	flex-shrink: 0;
 	width: 40px;
 	height: 40px;
 
@@ -245,14 +245,6 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 }
 
 @container (max-width: 450px) {
-	.root {
-		&.isMe {
-			.avatar {
-				display: none;
-			}
-		}
-	}
-
 	.avatar {
 		width: 36px;
 		height: 36px;
@@ -264,7 +256,11 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 }
 
 .body {
-	margin: 0 12px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	min-width: 0;
+	max-width: calc(100% - 52px);
 
 	&.fullWidth {
 		width: 100%;
@@ -272,16 +268,47 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 }
 
 .header {
-	min-height: 4px; // fukidashiの位置調整も兼ねるため
-	font-size: 80%;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	margin-bottom: 4px;
+	line-height: 1.5;
+	font-size: 0.9em;
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.sender {
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.senderName {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--MI_THEME-fg);
+}
+
+.time {
+	flex-shrink: 0;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .fukidashi {
-	// 收到的气泡与卡片同为 panel 色会看不出轮廓，这里压暗一点；
-	// 自己发的气泡由 MkFukidashi 的 .root.accented 以更高优先级保持 accent 色
-	--fukidashi-bg: color-mix(in srgb, var(--MI_THEME-fg) 6%, var(--MI_THEME-panel));
-
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow-wrap: anywhere;
 	text-align: left;
+}
+
+.root:not(.isMe) .fukidashi {
+	// 用主题前景色拉开明暗差，避免深色主题下气泡与聊天背景融为一体。
+	--fukidashi-bg: color-mix(in srgb, var(--MI_THEME-fg) 16%, var(--MI_THEME-panel));
 }
 
 .content {
@@ -301,10 +328,6 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 
 .autoReply {
 	color: var(--MI_THEME-accent);
-}
-
-.time {
-	opacity: 0.5;
 }
 
 .reactions {

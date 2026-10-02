@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getVisitorContentVisibility } from '@/misc/visitor-content.js';
 import { In, IsNull } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
 import type { MiMeta, UsersRepository } from '@/models/_.js';
@@ -117,7 +118,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps, me, _1, _2, _3, ip) => {
 			// ログイン時にusers/showできなくなってしまう
-			//if (this.serverSettings.ugcVisibilityForVisitor === 'none' && me == null) {
+			//if (getVisitorContentVisibility(this.serverSettings) === 'none' && me == null) {
 			//	throw new ApiError(meta.errors.noSuchUser);
 			//}
 
@@ -138,6 +139,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				} : {
 					id: In(ps.userIds),
 					isSuspended: false,
+					...(getVisitorContentVisibility(this.serverSettings) === 'local' && me == null ? { host: IsNull() } : {}),
 				});
 
 				// リクエストされた通りに並べ替え
@@ -154,7 +156,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			} else {
 				// Lookup user
 				if (typeof ps.host === 'string' && 'username' in ps) {
-					if (this.serverSettings.ugcVisibilityForVisitor === 'local' && me == null) {
+					if (getVisitorContentVisibility(this.serverSettings) === 'local' && me == null) {
 						throw new ApiError(meta.errors.noSuchUser);
 					}
 
@@ -174,7 +176,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					throw new ApiError(meta.errors.noSuchUser);
 				}
 
-				if (this.serverSettings.ugcVisibilityForVisitor === 'local' && user.host != null && me == null) {
+				if (getVisitorContentVisibility(this.serverSettings) === 'local' && user.host != null && me == null) {
 					throw new ApiError(meta.errors.noSuchUser);
 				}
 

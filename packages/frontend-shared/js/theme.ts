@@ -31,7 +31,23 @@ export type CompiledTheme = Record<string, string>;
 
 const MAX_THEME_REFERENCE_DEPTH = 8;
 
-export const themeProps = Object.keys(lightTheme.props).filter(key => !key.startsWith('X'));
+const derivedTextProps = {
+	fgTransparent: ':alpha<0.75<@fg',
+	fgTransparentWeak: ':alpha<0.5<@fg',
+	fgTransparentVeryWeak: ':alpha<0.3<@fg',
+};
+const derivedAccentProps = {
+	accentHover: ':lighten<5<@accent',
+	accentActive: ':darken<5<@accent',
+	chartAccent: '@accent',
+};
+
+// Themes may override each derived color with a literal or another theme expression.
+export const themeProps = [
+	...Object.keys(lightTheme.props).filter(key => !key.startsWith('X')),
+	...Object.keys(derivedTextProps),
+	...Object.keys(derivedAccentProps),
+];
 
 export const getBuiltinThemes = () => Promise.all(
 	[
@@ -110,11 +126,21 @@ function getColor(theme: Theme, val: string, stack: string[] = [], depth = 0): t
 
 export function compile(theme: Theme): CompiledTheme {
 	const props = {} as CompiledTheme;
+	// Resolve defaults before references so existing expressions can refer to derived fields.
+	// Preserve partial-theme compilation and never mutate a saved or imported theme object.
+	const resolvedTheme = {
+		...theme,
+		props: {
+			...(typeof theme.props.fg === 'string' ? derivedTextProps : {}),
+			...(typeof theme.props.accent === 'string' ? derivedAccentProps : {}),
+			...theme.props,
+		},
+	};
 
-	for (const [k, v] of Object.entries(theme.props)) {
+	for (const [k, v] of Object.entries(resolvedTheme.props)) {
 		if (k.startsWith('$')) continue; // ignore const
 
-		props[k] = v.startsWith('"') ? v.replace(/^"\s*/, '') : genValue(getColor(theme, v));
+		props[k] = v.startsWith('"') ? v.replace(/^"\s*/, '') : genValue(getColor(resolvedTheme, v));
 	}
 
 	return Object.fromEntries(

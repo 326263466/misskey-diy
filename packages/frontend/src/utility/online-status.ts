@@ -67,6 +67,7 @@ export function getOnlineStatusMenu(): MenuItem {
 	return {
 		type: 'parent',
 		text: i18n.ts.onlineStatus,
+		truncateCaption: true,
 		caption: computed(() => $i ? selected.value === 'online' && customStatus.value
 			? customStatus.value.text
 			: choices.find(choice => choice.value === selected.value)?.text : undefined),

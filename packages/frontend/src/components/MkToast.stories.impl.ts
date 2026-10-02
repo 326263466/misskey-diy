@@ -42,3 +42,11 @@ export const LongMessage = {
 		message: Array(8).fill(i18n.ts.copiedToClipboard).join('\n'),
 	},
 } satisfies StoryObj<typeof MkToast>;
+
+export const Success = {
+	...Default,
+	args: {
+		message: i18n.ts.saved,
+		success: true,
+	},
+} satisfies StoryObj<typeof MkToast>;

@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template #label><SearchLabel>{{ i18n.ts.serverRules }}</SearchLabel></template>
 
 		<div class="_gaps_m">
-			<div><SearchText>{{ i18n.ts._serverRules.description }}</SearchText></div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);"><SearchText>{{ i18n.ts._serverRules.description }}</SearchText></div>
 
 			<MkDraggable
 				v-model="serverRules"

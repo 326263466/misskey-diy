@@ -84,7 +84,7 @@ function priroityRangeTextConverter(v: number): string {
 
 <style lang="scss" module>
 .useDefaultLabel {
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .priorityIndicator {

@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		/>
 		<slot v-if="hasMoreReactions" name="more"></slot>
 	</TransitionGroup>
-	<slot name="boost"></slot>
+	<slot v-if="_reactions.length > 0 && myReaction == null" name="boost"></slot>
 </div>
 </template>
 

@@ -4,13 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<span :class="[$style.root, $style[icon ?? 'add']]" :data-custom-status-icon="icon ?? 'add'" aria-hidden="true">
+<span :class="[$style.root, $style[icon ?? 'add'], { [$style.animated]: prefer.s.animation }]" :data-custom-status-icon="icon ?? 'add'" aria-hidden="true">
 	<span :class="$style.glyph"><span :class="$style.detail"></span></span>
 </span>
 </template>
 
 <script lang="ts" setup>
 import type { CustomStatusIcon } from '@/utility/status-icons.js';
+import { prefer } from '@/preferences.js';
 
 defineProps<{
 	icon?: CustomStatusIcon | null;
@@ -326,9 +327,27 @@ defineProps<{
 	--MI-customStatusEnd: var(--MI-statusMoonEnd);
 
 	.glyph::before {
-		inset: 23%;
+		inset: 28%;
+		border: 5.5cqi solid currentColor;
 		border-radius: 50%;
-		background: radial-gradient(circle closest-side, currentColor 0 17%, transparent 20% 40%, currentColor 43% 56%, transparent 59% 77%, currentColor 80% 100%);
+	}
+
+	.glyph::after {
+		inset: 43%;
+		border-radius: 50%;
+		background: currentColor;
+	}
+
+	.detail::before {
+		inset: 16% 47%;
+		border-radius: 3cqi;
+		background: linear-gradient(currentColor 23%, transparent 23% 77%, currentColor 77%);
+	}
+
+	.detail::after {
+		inset: 47% 16%;
+		border-radius: 3cqi;
+		background: linear-gradient(90deg, currentColor 23%, transparent 23% 77%, currentColor 77%);
 	}
 }
 
@@ -363,30 +382,28 @@ defineProps<{
 	--MI-customStatusEnd: var(--MI-statusBriefcaseEnd);
 
 	.glyph::before {
-		inset: 27% 22% 30%;
-		border-radius: 5cqi;
+		inset: 30% 17% 30%;
+		border-radius: 4cqi;
 		background: currentColor;
-		clip-path: polygon(15% 0, 85% 0, 100% 45%, 100% 90%, 88% 100%, 12% 100%, 0 90%, 0 45%);
+		clip-path: polygon(0 42%, 15% 42%, 29% 9%, 39% 0, 64% 0, 82% 35%, 95% 45%, 100% 61%, 100% 89%, 0 89%);
 	}
 
 	.glyph::after {
-		inset: 33% 31% 52%;
-		border-radius: 2cqi;
+		inset: 35% 30% 51% 35%;
 		background: var(--MI-customStatusEnd);
-		clip-path: polygon(9% 0, 91% 0, 100% 100%, 0 100%);
+		clip-path: polygon(15% 0, 65% 0, 100% 100%, 0 100%);
 	}
 
 	.detail::before {
-		inset: 52% 28% 37%;
+		inset: 58% 25% 24% 26%;
 		background:
-			radial-gradient(circle at 12% 50%, var(--MI-customStatusEnd) 0 3cqi, transparent 3.3cqi),
-			radial-gradient(circle at 88% 50%, var(--MI-customStatusEnd) 0 3cqi, transparent 3.3cqi);
+			radial-gradient(circle at 15% 50%, var(--MI-customStatusEnd) 0 2.5cqi, currentColor 2.8cqi 6cqi, transparent 6.3cqi),
+			radial-gradient(circle at 85% 50%, var(--MI-customStatusEnd) 0 2.5cqi, currentColor 2.8cqi 6cqi, transparent 6.3cqi);
 	}
 
 	.detail::after {
-		inset: 65% 27% 23%;
-		border-radius: 2cqi;
-		background: linear-gradient(90deg, currentColor 20%, transparent 20% 80%, currentColor 80%);
+		inset: 34% 49% 50% 48%;
+		background: currentColor;
 	}
 }
 
@@ -395,26 +412,26 @@ defineProps<{
 	--MI-customStatusEnd: var(--MI-statusInvisibleEnd);
 
 	.glyph::before {
-		inset: 21% 34% 57% 16%;
-		border-radius: 50% 50% 0 0;
+		inset: 23% 29% 48% 17%;
+		border-radius: 40cqi 40cqi 0 0;
 		background: currentColor;
-		clip-path: polygon(0 0, 100% 0, 100% 100%, 75% 85%, 50% 100%, 25% 85%, 0 100%);
+		clip-path: polygon(0 0, 100% 0, 100% 100%, 75% 88%, 50% 100%, 25% 88%, 0 100%);
 	}
 
 	.glyph::after {
-		inset: 39% 57% 22% 39%;
+		inset: 46% 53% 22% 42%;
 		border-radius: 2cqi;
 		background: currentColor;
 	}
 
 	.detail::before {
-		inset: 0;
-		background: currentColor;
-		clip-path: polygon(46% 47%, 50% 45%, 61% 63%, 82% 63%, 82% 68%, 75% 68%, 81% 79%, 76% 81%, 70% 68%, 66% 68%, 59% 80%, 54% 78%, 60% 67%);
+		inset: 73% 22% 16%;
+		border-top: 5cqi solid currentColor;
+		border-radius: 50% 50% 0 0;
 	}
 
 	.detail::after {
-		inset: 26% 21% 66% 71%;
+		inset: 25% 17% 63% 71%;
 		border-radius: 50%;
 		background: currentColor;
 	}
@@ -505,21 +522,139 @@ defineProps<{
 	--MI-customStatusEnd: var(--MI-statusBookEnd);
 
 	.glyph::before {
-		inset: 34% 26% 32% 20%;
-		border: 4.5cqi solid currentColor;
+		inset: 31% 24% 30% 17%;
+		border: 5cqi solid currentColor;
 		border-radius: 5cqi;
 	}
 
 	.glyph::after {
-		inset: 44% 19% 42% 75%;
+		inset: 42% 17% 41% 77%;
 		border-radius: 0 2cqi 2cqi 0;
 		background: currentColor;
 	}
 
 	.detail::before {
-		inset: 39% 38% 37% 36%;
+		inset: 33% 36% 32% 33%;
+		z-index: 1;
 		background: currentColor;
-		clip-path: polygon(57% 0, 100% 0, 68% 39%, 99% 39%, 21% 100%, 39% 57%, 0 57%);
+		clip-path: polygon(57% 0, 92% 0, 62% 38%, 100% 38%, 22% 100%, 40% 58%, 0 58%);
+	}
+
+	.detail::after {
+		inset: 38% 31% 37% 24%;
+		border-radius: 1cqi;
+		background: currentColor;
+		opacity: 0.35;
+		transform: scaleX(0.65);
+		transform-origin: left center;
+	}
+
+	&.animated .detail::after {
+		animation: batteryCharging 2.4s ease-in-out infinite;
+	}
+}
+
+// Animate only transforms and opacity, without timers or layout changes.
+@mixin statusMotion {
+	.glyph {
+		animation: statusSway 4s ease-in-out infinite;
+	}
+
+	&.coffee .glyph,
+	&.battery .glyph,
+	&.focus .glyph,
+	&.moon .glyph,
+	&.vacation .glyph {
+		animation: none;
+	}
+
+	&.coffee .detail::before {
+		animation: statusSteam 3s ease-in-out infinite;
+	}
+
+	&.focus .glyph::before {
+		animation: statusPulse 3.2s ease-in-out infinite;
+	}
+
+	&.moon .glyph,
+	&.book .glyph {
+		animation: statusBreathe 4s ease-in-out infinite;
+	}
+
+	&.car .glyph {
+		animation: statusDrive 2.8s ease-in-out infinite;
+	}
+
+	&.plane .glyph {
+		animation: statusTakeoff 3.6s ease-in-out infinite;
+	}
+
+	&.exercise .glyph {
+		animation: statusLift 3s ease-in-out infinite;
+	}
+
+	&.vacation .glyph::before {
+		transform-origin: 50% 100%;
+		animation: statusSway 4.5s ease-in-out infinite;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.animated:not(.add) {
+		@include statusMotion;
+	}
+}
+
+@keyframes statusSway {
+	0%, 100% { transform: rotate(0); }
+	30% { transform: rotate(-7deg); }
+	65% { transform: rotate(5deg); }
+}
+
+@keyframes statusSteam {
+	0%, 100% { transform: translateY(0); opacity: 1; }
+	55% { transform: translateY(-5cqi); opacity: 0.4; }
+}
+
+@keyframes statusPulse {
+	0%, 100% { transform: scale(1); opacity: 1; }
+	45% { transform: scale(0.86); opacity: 0.65; }
+}
+
+@keyframes statusBreathe {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.07); }
+}
+
+@keyframes statusDrive {
+	0%, 100% { transform: translate(0, 0); }
+	30% { transform: translate(-3cqi, -1cqi); }
+	65% { transform: translate(3cqi, -2cqi); }
+}
+
+@keyframes statusTakeoff {
+	0%, 100% { transform: translate(0, 0); }
+	50% { transform: translate(4cqi, -6cqi); }
+}
+
+@keyframes statusLift {
+	0%, 100% { transform: translateY(0) rotate(-35deg); }
+	50% { transform: translateY(-5cqi) rotate(-35deg); }
+}
+
+@keyframes batteryCharging {
+	0%, 10%, 100% {
+		transform: scaleX(0.1);
+	}
+
+	75%, 85% {
+		transform: scaleX(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.battery.animated .detail::after {
+		animation: none;
 	}
 }
 

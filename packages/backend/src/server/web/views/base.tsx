@@ -34,7 +34,7 @@ export function Layout(props: PropsWithChildren<CommonProps<{
 		<>
 			{'<!DOCTYPE html>'}
 			{comment}
-			<html>
+			<html lang="zh-CN">
 				<head>
 					<meta charset="UTF-8" />
 					<meta name="application-name" content="Misskey" />

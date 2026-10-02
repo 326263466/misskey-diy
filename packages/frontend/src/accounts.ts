@@ -19,6 +19,7 @@ import { signout } from '@/signout.js';
 import { getOnlineStatusMenu } from '@/utility/online-status.js';
 import { publishUserProfileUpdate } from '@/composables/use-user-profile.js';
 import { deepEqual } from '@/utility/deep-equal.js';
+import { getAccountSessionErrorReason } from '@/utility/account-session-error.js';
 
 type AccountWithToken = Misskey.entities.MeDetailed & { token: string };
 
@@ -63,81 +64,99 @@ async function addAccount(host: string, user: Misskey.entities.MeDetailed, token
 export async function removeAccount(host: string, id: AccountWithToken['id']) {
 	const tokens = JSON.parse(JSON.stringify(store.s.accountTokens));
 	delete tokens[host + '/' + id];
-	store.set('accountTokens', tokens);
+	const saveTokens = store.set('accountTokens', tokens);
 	const accountInfos = JSON.parse(JSON.stringify(store.s.accountInfos));
 	delete accountInfos[host + '/' + id];
-	store.set('accountInfos', accountInfos);
+	const saveInfos = store.set('accountInfos', accountInfos);
 
 	prefer.commit('accounts', prefer.s.accounts.filter(x => x[0] !== host || x[1].id !== id));
+	await Promise.all([saveTokens, saveInfos]);
 }
 
-const isAccountDeleted = Symbol('isAccountDeleted');
+const isAccountUnavailable = Symbol('isAccountUnavailable');
+let invalidSessionRecovery: Promise<void> | undefined;
 
-function fetchAccount(token: string, id?: string, forceShowDialog?: boolean): Promise<Misskey.entities.MeDetailed> {
-	return new Promise((done, fail) => {
-		window.fetch(`${apiUrl}/i`, {
-			method: 'POST',
-			body: JSON.stringify({
-				i: token,
-			}),
-			headers: {
-				'Content-Type': 'application/json',
-			},
-		})
-			.then(res => new Promise<Misskey.entities.MeDetailed | { error: Record<string, any> }>((done2, fail2) => {
-				if (res.status >= 500 && res.status < 600) {
-					// サーバーエラー(5xx)の場合をrejectとする
-					// （認証エラーなど4xxはresolve）
-					return fail2(res);
+function recoverInvalidSession(account: { id: string; token: string }, showDialog: () => Promise<unknown>): Promise<void> {
+	return invalidSessionRecovery ??= (async () => {
+		try {
+			await showDialog();
+		} finally {
+			// Another tab may have signed in while this dialog was open.
+			const savedAccount = miLocalStorage.getItemAsJson('account');
+			if (savedAccount && savedAccount.token !== account.token) {
+				unisonReload('/');
+			} else {
+				// An invalid token cannot flush cloud preferences. Preserve drafts, settings,
+				// and other accounts, and never try another potentially invalid saved token.
+				miLocalStorage.removeItem('account');
+				let timeout: number | undefined;
+				try {
+					await Promise.race([
+						removeAccount(host, account.id),
+						// Blocked IndexedDB must not prevent returning to the sign-in page.
+						new Promise<void>(resolve => { timeout = window.setTimeout(resolve, 1000); }),
+					]);
+				} catch (err) {
+					console.error('Failed to remove the invalid saved account', err);
+				} finally {
+					window.clearTimeout(timeout);
+					unisonReload('/');
 				}
-				res.json().then(done2, fail2);
-			}))
-			.then(async res => {
-				if ('error' in res) {
-					if (res.error.id === 'a8c724b3-6e9c-4b46-b1a8-bc3ed6258370') {
-						// SUSPENDED
-						if (forceShowDialog || $i && (token === $i.token || id === $i.id)) {
-							await showSuspendedDialog();
-						}
-					} else if (res.error.id === 'e5b3b9f0-2b8f-4b9f-9c1f-8c5c1b2e1b1a') {
-						// USER_IS_DELETED
-						// アカウントが削除されている
-						if (forceShowDialog || $i && (token === $i.token || id === $i.id)) {
-							await alert({
-								type: 'error',
-								title: i18n.ts.accountDeleted,
-								text: i18n.ts.accountDeletedDescription,
-							});
-						}
-					} else if (res.error.id === 'b0a7f5f8-dc2f-4171-b91f-de88ad238e14') {
-						// AUTHENTICATION_FAILED
-						// トークンが無効化されていたりアカウントが削除されたりしている
-						if (forceShowDialog || $i && (token === $i.token || id === $i.id)) {
-							await alert({
-								type: 'error',
-								title: i18n.ts.tokenRevoked,
-								text: i18n.ts.tokenRevokedDescription,
-							});
-						}
-					} else {
-						await alert({
-							type: 'error',
-							title: i18n.ts.failedToFetchAccountInformation,
-							text: JSON.stringify(res.error),
-						});
-					}
+			}
+		}
+	})();
+}
 
-					fail(isAccountDeleted);
-				} else {
-					done(res);
-				}
-			})
-			.catch(fail);
+function getAccountSessionErrorDialog(error: unknown): (() => Promise<unknown>) | undefined {
+	switch (getAccountSessionErrorReason(error)) {
+		case 'suspended': return showSuspendedDialog;
+		case 'deleted': return () => alert({ type: 'error', title: i18n.ts.accountDeleted, text: i18n.ts.accountDeletedDescription });
+		case 'revoked': return () => alert({ type: 'error', title: i18n.ts.tokenRevoked, text: i18n.ts.tokenRevokedDescription });
+		default: return undefined;
+	}
+}
+
+export function handleInvalidSession(error: unknown, token: string): Promise<void> | null {
+	if (!$i || token !== $i.token) return null;
+	const showDialog = getAccountSessionErrorDialog(error);
+	if (!showDialog) return null;
+	return recoverInvalidSession({ id: $i.id, token }, showDialog);
+}
+
+async function fetchAccount(token: string, id?: string, forceShowDialog?: boolean): Promise<Misskey.entities.MeDetailed> {
+	const response = await window.fetch(`${apiUrl}/i`, {
+		method: 'POST',
+		body: JSON.stringify({ i: token }),
+		headers: { 'Content-Type': 'application/json' },
 	});
+	if (response.status >= 500 && response.status < 600) throw response;
+
+	const res = await response.json();
+	if (!('error' in res)) return res;
+
+	const error = res.error;
+	const showDialog = getAccountSessionErrorDialog(error);
+
+	if (showDialog) {
+		if ($i && token === $i.token) {
+			await handleInvalidSession(error, token);
+		} else if (forceShowDialog || $i && id === $i.id) {
+			await showDialog();
+		}
+		throw isAccountUnavailable;
+	}
+
+	await alert({
+		type: 'error',
+		title: i18n.ts.failedToFetchAccountInformation,
+		text: JSON.stringify(error),
+	});
+	// Rate limits, permission errors, and other transient failures do not revoke a session.
+	throw error;
 }
 
 export function updateCurrentAccount(accountData: Misskey.entities.MeDetailed) {
-	if (!$i) return;
+	if (!$i || invalidSessionRecovery) return;
 	if (accountData.id !== $i.id) return;
 	const revision = ++accountRevision;
 	for (const key of new Set([...Object.keys($i), ...Object.keys(accountData)])) accountFieldRevisions.set(key, revision);
@@ -162,7 +181,7 @@ export function updateCurrentAccount(accountData: Misskey.entities.MeDetailed) {
 }
 
 export function updateCurrentAccountPartial(accountData: Partial<Misskey.entities.MeDetailed>, options: { fromStream?: boolean } = {}) {
-	if (!$i) return;
+	if (!$i || invalidSessionRecovery) return;
 	if (accountData.id != null && accountData.id !== $i.id) return;
 	publishUserProfileUpdate($i.id, accountData);
 	const revision = ++accountRevision;
@@ -185,8 +204,7 @@ export function updateCurrentAccountPartial(accountData: Partial<Misskey.entitie
 }
 
 export async function refreshCurrentAccount(options: { throwOnError?: boolean } = {}) {
-	if (!$i) return;
-	const me = $i;
+	if (!$i || invalidSessionRecovery) return;
 	const revision = accountRevision;
 	return fetchAccount($i.token, $i.id).then(account => {
 		if (revision === accountRevision) {
@@ -200,14 +218,7 @@ export async function refreshCurrentAccount(options: { throwOnError?: boolean } 
 			});
 		}
 	}).catch(reason => {
-		if (reason === isAccountDeleted) {
-			removeAccount(host, me.id);
-			if (Object.keys(store.s.accountTokens).length > 0) {
-				login(Object.values(store.s.accountTokens)[0]);
-			} else {
-				signout();
-			}
-		} else if (options.throwOnError) {
+		if (reason !== isAccountUnavailable && options.throwOnError) {
 			throw reason;
 		}
 	});
@@ -342,12 +353,12 @@ export async function getAccountMenu(opts: {
 			text: i18n.ts.profile,
 			to: `/@${$i.username}`,
 			avatar: $i,
-		}, getOnlineStatusMenu(), {
+		}, {
 			type: 'link',
 			icon: 'ti ti-settings',
 			text: i18n.ts.userSettings,
 			to: '/settings',
-		}, {
+		}, getOnlineStatusMenu(), {
 			type: 'divider',
 		});
 

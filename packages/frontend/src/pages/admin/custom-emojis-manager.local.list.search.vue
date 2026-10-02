@@ -208,8 +208,8 @@ async function onQueryRolesEditClicked() {
 .footerActions {
 	position: sticky;
 	bottom: 0;
-	padding: var(--MI-cardPadding, 20px);
-	background-color: var(--MI_THEME-bg);
+	padding: var(--MI-cardPadding, 18px);
+	background-color: var(--MI_THEME-panel);
 	display: flex;
 	gap: 8px;
 	z-index: 1;

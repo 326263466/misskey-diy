@@ -5,28 +5,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps">
-	<div :class="$style.searchRow">
-		<MkInput v-model="searchQuery" :class="$style.query" :large="true" :autofocus="true" type="search" :placeholder="i18n.ts._search.placeholder" @enter.prevent="search">
-			<template #label>{{ i18n.ts.search }}</template>
-			<template #prefix><i class="ti ti-search"></i></template>
-		</MkInput>
+	<div class="_gaps _panel _panelPadding">
+		<div v-if="!submittedQuery" :class="$style.searchRow">
+			<MkInput v-model="searchQuery" :class="$style.query" :large="true" :autofocus="true" type="search" :placeholder="i18n.ts._search.placeholder" @enter.prevent="search">
+				<template #label>{{ i18n.ts.search }}</template>
+				<template #prefix><i class="ti ti-search"></i></template>
+			</MkInput>
+			<MkButton large primary gradate rounded :disabled="!searchQuery.trim()" :class="$style.searchAction" @click="search">{{ i18n.ts.search }}</MkButton>
+		</div>
+		<h2 v-else :class="$style.resultHeading">{{ i18n.tsx._search.resultsFor({ query: submittedQuery }) }}</h2>
 		<MkRadios
-			v-if="instance.federation !== 'none'"
-			v-model="searchOrigin"
-			:options="[
-				{ value: 'combined', label: i18n.ts.all },
-				{ value: 'local', label: i18n.ts.local },
-				{ value: 'remote', label: i18n.ts.remote },
-			]"
+				v-if="instance.federation !== 'none'"
+				v-model="searchOrigin"
+				:options="[
+					{ value: 'combined', label: i18n.ts.all },
+					{ value: 'local', label: i18n.ts.local },
+					{ value: 'remote', label: i18n.ts.remote },
+				]"
 		>
+			<template #label>{{ i18n.ts.filter }}</template>
 		</MkRadios>
-		<MkButton large primary gradate rounded :disabled="!searchQuery.trim()" :class="$style.searchAction" @click="search">{{ i18n.ts.search }}</MkButton>
 	</div>
 
-	<MkFoldableSection v-if="paginator">
-		<template #header>{{ i18n.ts.searchResult }}</template>
-		<MkUserList :key="`searchUsers:${key}`" :paginator="paginator"/>
-	</MkFoldableSection>
+	<MkUserList v-if="paginator" :key="`searchUsers:${key}`" :paginator="paginator"/>
 </div>
 </template>
 
@@ -39,7 +40,6 @@ import MkRadios from '@/components/MkRadios.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
-import MkFoldableSection from '@/components/MkFoldableSection.vue';
 import { Paginator } from '@/utility/paginator.js';
 
 const props = withDefaults(defineProps<{
@@ -67,6 +67,7 @@ function search() {
 	if (query === '') return;
 
 	showResults(query);
+	emit('search', query);
 }
 
 function showResults(query: string) {
@@ -84,7 +85,6 @@ function showResults(query: string) {
 	}));
 
 	key.value++;
-	emit('search', query);
 }
 
 watch(() => props.query, query => {
@@ -119,5 +119,11 @@ watch(searchOrigin, () => {
 .searchAction {
 	flex-shrink: 0;
 	margin-left: auto;
+}
+
+.resultHeading {
+	margin: 0;
+	font-size: 1.1em;
+	overflow-wrap: anywhere;
 }
 </style>

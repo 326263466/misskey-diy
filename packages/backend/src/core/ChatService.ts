@@ -5,7 +5,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
-import { Brackets, In } from 'typeorm';
+import { Brackets, In, IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -16,7 +16,12 @@ import { ChatEntityService } from '@/core/entities/ChatEntityService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { PushNotificationService } from '@/core/PushNotificationService.js';
 import { bindThis } from '@/decorators.js';
-import type { ChatApprovalsRepository, ChatMessagesRepository, ChatRoomInvitationsRepository, ChatRoomMembershipsRepository, ChatRoomsRepository, MiChatMessage, MiChatRoom, MiChatRoomMembership, MiDriveFile, MiUser, MutingsRepository, UsersRepository } from '@/models/_.js';
+import type { ChatApprovalsRepository, ChatMessagesRepository, ChatRoomInvitationsRepository, ChatRoomMembershipsRepository, ChatRoomsRepository, MiDriveFile, MutingsRepository, UsersRepository } from '@/models/_.js';
+import { MiChatMessage } from '@/models/ChatMessage.js';
+import { MiChatRoom } from '@/models/ChatRoom.js';
+import { MiChatRoomMembership } from '@/models/ChatRoomMembership.js';
+import { MiUser } from '@/models/User.js';
+import { RedPacketService } from '@/core/RedPacketService.js';
 import { UserBlockingService } from '@/core/UserBlockingService.js';
 import { QueryService } from '@/core/QueryService.js';
 import { RoleService } from '@/core/RoleService.js';
@@ -31,6 +36,10 @@ import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { getUserOnlineStatusAutoReply } from '@/misc/user-online-status.js';
 import type Logger from '@/logger.js';
+
+export class ChatMessageAccessError extends Error {}
+export class ChatRoomFullError extends Error {}
+export class ChatRoomInvitationError extends Error {}
 
 const MAX_ROOM_MEMBERS = 50;
 const MAX_REACTIONS_PER_MESSAGE = 100;
@@ -97,6 +106,7 @@ export class ChatService {
 		private customEmojiService: CustomEmojiService,
 		private moderationLogService: ModerationLogService,
 		private loggerService: LoggerService,
+		private redPacketService: RedPacketService,
 	) {
 		this.logger = this.loggerService.getLogger('chat');
 	}
@@ -140,12 +150,14 @@ export class ChatService {
 		text?: string | null;
 		file?: MiDriveFile | null;
 		uri?: string | null;
+		redPacketId?: string | null;
 		/** Internal only; never accepted from a public chat endpoint. */
 		isAutoReply?: boolean;
 	}): Promise<Packed<'ChatMessageLiteFor1on1'>> {
 		if (fromUser.id === toUser.id) {
 			throw new Error('yourself');
 		}
+		if (params.redPacketId && (fromUser.host !== null || toUser.host !== null || params.isAutoReply)) throw new RedPacketService.AccessDeniedError();
 
 		const approvals = await this.chatApprovalsRepository.createQueryBuilder('approval')
 			.where(new Brackets(qb => { // 自分が相手を許可しているか
@@ -164,31 +176,37 @@ export class ChatService {
 
 		if (!otherApprovedMe) {
 			if (toUser.chatScope === 'none') {
+				if (params.redPacketId) throw new RedPacketService.AccessDeniedError();
 				throw new Error('recipient is cannot chat (none)');
 			} else if (toUser.chatScope === 'followers') {
 				const isFollower = await this.userFollowingService.isFollowing(fromUser.id, toUser.id);
 				if (!isFollower) {
+					if (params.redPacketId) throw new RedPacketService.AccessDeniedError();
 					throw new Error('recipient is cannot chat (followers)');
 				}
 			} else if (toUser.chatScope === 'following') {
 				const isFollowing = await this.userFollowingService.isFollowing(toUser.id, fromUser.id);
 				if (!isFollowing) {
+					if (params.redPacketId) throw new RedPacketService.AccessDeniedError();
 					throw new Error('recipient is cannot chat (following)');
 				}
 			} else if (toUser.chatScope === 'mutual') {
 				const isMutual = await this.userFollowingService.isMutual(fromUser.id, toUser.id);
 				if (!isMutual) {
+					if (params.redPacketId) throw new RedPacketService.AccessDeniedError();
 					throw new Error('recipient is cannot chat (mutual)');
 				}
 			}
 		}
 
 		if (!(await this.getChatAvailability(toUser.id)).write) {
+			if (params.redPacketId) throw new RedPacketService.AccessDeniedError();
 			throw new Error('recipient is cannot chat (policy)');
 		}
 
 		const blocked = await this.userBlockingService.checkBlocked(toUser.id, fromUser.id);
 		if (blocked) {
+			if (params.redPacketId) throw new RedPacketService.AccessDeniedError();
 			throw new Error('blocked');
 		}
 
@@ -203,7 +221,9 @@ export class ChatService {
 			isAutoReply: params.isAutoReply ?? false,
 		} satisfies Partial<MiChatMessage>;
 
-		const inserted = await this.chatMessagesRepository.insertOne(message);
+		const saved = params.redPacketId ? await this.insertMessageWithRedPacket(message, params.redPacketId) : { message: await this.chatMessagesRepository.insertOne(message), created: true };
+		const inserted = saved.message;
+		if (!saved.created) return this.chatEntityService.packMessageLiteFor1on1(inserted);
 
 		// 相手を許可しておく
 		if (!iApprovedOther && !params.isAutoReply) {
@@ -281,7 +301,9 @@ export class ChatService {
 		text?: string | null;
 		file?: MiDriveFile | null;
 		uri?: string | null;
+		redPacketId?: string | null;
 	}): Promise<Packed<'ChatMessageLiteForRoom'>> {
+		if (params.redPacketId && (fromUser.host !== null || toRoom.isArchived)) throw new RedPacketService.AccessDeniedError();
 		const memberships = (await this.chatRoomMembershipsRepository.findBy({ roomId: toRoom.id })).map(m => ({
 			userId: m.userId,
 			isMuted: m.isMuted,
@@ -291,6 +313,7 @@ export class ChatService {
 		});
 
 		if (!memberships.some(member => member.userId === fromUser.id)) {
+			if (params.redPacketId) throw new RedPacketService.AccessDeniedError();
 			throw new Error('you are not a member of the room');
 		}
 
@@ -306,7 +329,9 @@ export class ChatService {
 			uri: params.uri ?? null,
 		} satisfies Partial<MiChatMessage>;
 
-		const inserted = await this.chatMessagesRepository.insertOne(message);
+		const saved = params.redPacketId ? await this.insertMessageWithRedPacket(message, params.redPacketId) : { message: await this.chatMessagesRepository.insertOne(message), created: true };
+		const inserted = saved.message;
+		if (!saved.created) return this.chatEntityService.packMessageLiteForRoom(inserted);
 
 		const packedMessage = await this.chatEntityService.packMessageLiteForRoom(inserted);
 
@@ -353,6 +378,24 @@ export class ChatService {
 		}, 3000);
 
 		return packedMessage;
+	}
+
+	private async insertMessageWithRedPacket(message: Partial<MiChatMessage> & Pick<MiChatMessage, 'id' | 'fromUserId'>, redPacketId: string): Promise<{ message: MiChatMessage; created: boolean }> {
+		if (!(await this.getChatAvailability(message.fromUserId)).write) throw new RedPacketService.AccessDeniedError();
+		await this.redPacketService.assertCanReference(redPacketId, message.fromUserId);
+		return this.chatMessagesRepository.manager.transaction(async manager => {
+			// Serialize retries of this sender's reference without imposing a global packet binding.
+			const sender = await manager.findOne(MiUser, { where: { id: message.fromUserId }, lock: { mode: 'for_no_key_update' } });
+			if (!sender || sender.host !== null || sender.isSuspended || sender.isDeleted || sender.movedToUri) throw new RedPacketService.AccessDeniedError();
+			const existing = await manager.findOneBy(MiChatMessage, {
+				redPacketId, fromUserId: sender.id, toUserId: message.toUserId ?? IsNull(), toRoomId: message.toRoomId ?? IsNull(),
+				text: message.text ?? IsNull(), fileId: message.fileId ?? IsNull(),
+			});
+			if (existing) return { message: existing, created: false };
+			const inserted = manager.create(MiChatMessage, { ...message, redPacketId });
+			await manager.insert(MiChatMessage, inserted);
+			return { message: await manager.findOneByOrFail(MiChatMessage, { id: inserted.id }), created: true };
+		});
 	}
 
 	@bindThis
@@ -670,6 +713,7 @@ export class ChatService {
 		await redisPipeline.exec();
 
 		await this.chatRoomsRepository.delete(room.id);
+		this.globalEventService.publishChatRoomStream(room.id, 'membersChanged');
 
 		if (deleter) {
 			const deleterIsModerator = await this.roleService.isModerator(deleter);
@@ -705,41 +749,20 @@ export class ChatService {
 
 	@bindThis
 	public async createRoomInvitation(inviterId: MiUser['id'], roomId: MiChatRoom['id'], inviteeId: MiUser['id']) {
-		if (inviterId === inviteeId) {
-			throw new Error('yourself');
-		}
-
-		const room = await this.chatRoomsRepository.findOneByOrFail({ id: roomId, ownerId: inviterId });
-
-		if (await this.isRoomMember(room, inviteeId)) {
-			throw new Error('already member');
-		}
-
-		const existingInvitation = await this.chatRoomInvitationsRepository.findOneBy({ roomId, userId: inviteeId });
-		if (existingInvitation) {
-			throw new Error('already invited');
-		}
-
-		const membershipsCount = await this.chatRoomMembershipsRepository.countBy({ roomId });
-		if (membershipsCount >= MAX_ROOM_MEMBERS) {
-			throw new Error('room is full');
-		}
-
-		// TODO: cehck block
-
-		const invitation = {
-			id: this.idService.gen(),
-			roomId: room.id,
-			userId: inviteeId,
-		} satisfies Partial<MiChatRoomInvitation>;
-
-		const created = await this.chatRoomInvitationsRepository.insertOne(invitation);
-
-		this.notificationService.createNotification(inviteeId, 'chatRoomInvitationReceived', {
-			invitationId: invitation.id,
-		}, inviterId);
-
-		return created;
+		if (inviterId === inviteeId) throw new ChatRoomInvitationError();
+		const result = await this.chatRoomsRepository.manager.transaction(async manager => {
+			const room = await manager.findOneOrFail(MiChatRoom, { where: { id: roomId, ownerId: inviterId }, lock: { mode: 'pessimistic_write' } });
+			const invitee = await manager.findOneBy(MiUser, { id: inviteeId });
+			if (!invitee || invitee.host !== null || invitee.isSuspended || invitee.isDeleted || invitee.movedToUri || await manager.existsBy(MiChatRoomMembership, { roomId, userId: inviteeId })) throw new ChatRoomInvitationError();
+			const existing = await manager.findOneBy(MiChatRoomInvitation, { roomId, userId: inviteeId });
+			if (existing) return { invitation: existing, created: false };
+			if (await manager.countBy(MiChatRoomMembership, { roomId }) + 1 >= MAX_ROOM_MEMBERS) throw new ChatRoomFullError('room is full');
+			const invitation = manager.create(MiChatRoomInvitation, { id: this.idService.gen(), roomId: room.id, userId: inviteeId });
+			await manager.insert(MiChatRoomInvitation, invitation);
+			return { invitation, created: true };
+		});
+		if (result.created) this.notificationService.createNotification(inviteeId, 'chatRoomInvitationReceived', { invitationId: result.invitation.id }, inviterId);
+		return result.invitation;
 	}
 
 	@bindThis
@@ -775,22 +798,18 @@ export class ChatService {
 
 	@bindThis
 	public async joinToRoom(userId: MiUser['id'], roomId: MiChatRoom['id']) {
-		const invitation = await this.chatRoomInvitationsRepository.findOneByOrFail({ roomId, userId });
-
-		const membershipsCount = await this.chatRoomMembershipsRepository.countBy({ roomId });
-		if (membershipsCount >= MAX_ROOM_MEMBERS) {
-			throw new Error('room is full');
-		}
-
-		const membership = {
-			id: this.idService.gen(),
-			roomId: roomId,
-			userId: userId,
-		} satisfies Partial<MiChatRoomMembership>;
-
-		// TODO: transaction
-		await this.chatRoomMembershipsRepository.insertOne(membership);
-		await this.chatRoomInvitationsRepository.delete(invitation.id);
+		const joined = await this.chatRoomsRepository.manager.transaction(async manager => {
+			// 锁住群，避免同时入群突破容量；创建者没有成员记录，也占一人。
+			const room = await manager.findOneOrFail(MiChatRoom, { where: { id: roomId }, lock: { mode: 'pessimistic_write' } });
+			if (room.ownerId === userId || await manager.existsBy(MiChatRoomMembership, { roomId, userId })) return;
+			const invitation = await manager.findOneByOrFail(MiChatRoomInvitation, { roomId, userId });
+			const membershipsCount = await manager.countBy(MiChatRoomMembership, { roomId });
+			if (membershipsCount + 1 >= MAX_ROOM_MEMBERS) throw new ChatRoomFullError('room is full');
+			await manager.insert(MiChatRoomMembership, { id: this.idService.gen(), roomId, userId });
+			await manager.delete(MiChatRoomInvitation, invitation.id);
+			return true;
+		});
+		if (joined) this.globalEventService.publishChatRoomStream(roomId, 'membersChanged');
 	}
 
 	@bindThis
@@ -803,6 +822,7 @@ export class ChatService {
 	public async leaveRoom(userId: MiUser['id'], roomId: MiChatRoom['id']) {
 		const membership = await this.chatRoomMembershipsRepository.findOneByOrFail({ roomId, userId });
 		await this.chatRoomMembershipsRepository.delete(membership.id);
+		this.globalEventService.publishChatRoomStream(roomId, 'membersChanged');
 
 		// 未読フラグを消す (「既読にする」というわけでもないのでreadメソッドは使わないでおく)
 		const redisPipeline = this.redisClient.pipeline();
@@ -920,26 +940,27 @@ export class ChatService {
 			}
 		}
 
-		const message = await this.chatMessagesRepository.findOneByOrFail({ id: messageId });
+		const message = await this.chatMessagesRepository.findOneBy({ id: messageId });
+		if (message == null) throw new ChatMessageAccessError('no such message');
 
 		if (message.fromUserId === userId) {
-			throw new Error('cannot react to own message');
+			throw new ChatMessageAccessError('cannot react to own message');
 		}
 
 		if (message.toRoomId === null && message.toUserId !== userId) {
-			throw new Error('cannot react to others message');
-		}
-
-		if (message.reactions.length >= MAX_REACTIONS_PER_MESSAGE) {
-			throw new Error('too many reactions');
+			throw new ChatMessageAccessError('cannot react to others message');
 		}
 
 		const room = message.toRoomId ? await this.chatRoomsRepository.findOneByOrFail({ id: message.toRoomId }) : null;
 
 		if (room) {
 			if (!(await this.isRoomMember(room, userId))) {
-				throw new Error('cannot react to others message');
+				throw new ChatMessageAccessError('cannot react to others message');
 			}
+		}
+
+		if (message.reactions.length >= MAX_REACTIONS_PER_MESSAGE) {
+			throw new Error('too many reactions');
 		}
 
 		await this.chatMessagesRepository.createQueryBuilder().update()
@@ -981,11 +1002,18 @@ export class ChatService {
 			reaction = `:${name}:`;
 		}
 
-		// NOTE: 自分のリアクションを(あれば)削除するだけなので諸々の権限チェックは必要なし
-
-		const message = await this.chatMessagesRepository.findOneByOrFail({ id: messageId });
+		const message = await this.chatMessagesRepository.findOneBy({ id: messageId });
+		if (message == null) throw new ChatMessageAccessError('no such message');
 
 		const room = message.toRoomId ? await this.chatRoomsRepository.findOneByOrFail({ id: message.toRoomId }) : null;
+
+		if (room) {
+			if (!(await this.isRoomMember(room, userId))) {
+				throw new ChatMessageAccessError('cannot unreact to others message');
+			}
+		} else if (message.fromUserId !== userId && message.toUserId !== userId) {
+			throw new ChatMessageAccessError('cannot unreact to others message');
+		}
 
 		await this.chatMessagesRepository.createQueryBuilder().update()
 			.set({

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 700px;">
+<div class="_pageBody">
 	<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard>
 		<div :class="$style.root">
 			<MkGalleryPostPreview v-for="post in items" :key="post.id" :post="post" class="post"/>
@@ -36,7 +36,7 @@ const paginator = markRaw(new Paginator('users/gallery/posts', {
 <style lang="scss" module>
 .root {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 	grid-gap: 12px;
 }
 </style>

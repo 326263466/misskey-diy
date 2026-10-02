@@ -51,7 +51,7 @@ describe('Endpoints', () => {
 		test('persists one point per day and exposes the updated administrator balance', async () => {
 			const first = await api('i/checkin', {}, bob);
 			expect(first.status).toBe(200);
-			expect(first.body).toMatchObject({ newlyCheckedIn: true, earnedPoints: 1, points: 1, totalDays: 1, makeupCards: 0, earnedMakeupCards: 0, makeupCardProgress: 1, makeupCardTarget: 7, makeupCardExchangeCost: 7 });
+			expect(first.body).toMatchObject({ newlyCheckedIn: true, earnedPoints: 1, points: 1, totalDays: 1, makeupCards: 0, earnedMakeupCards: 0, makeupCardProgress: 1, makeupCardTarget: 7, makeupCardExchangeCost: 60, makeupCardLimit: 3, makeupCardExchangeAvailable: true });
 			const repeated = await api('i/checkin', {}, bob);
 			expect(repeated.body).toMatchObject({ newlyCheckedIn: false, earnedPoints: 0, points: 1, totalDays: 1 });
 			expect((await api('i/checkin-status', {}, bob)).body).toMatchObject({ checkedInToday: true, points: 1, makeupDates: [] });
@@ -97,8 +97,8 @@ describe('Endpoints', () => {
 			await api('admin/checkin/grant-cards', { userId: oldUser.id, amount: 1 }, alice);
 			const makeup = await api('i/checkin-makeup', { date }, oldUser);
 			expect(makeup.status).toBe(200);
-			expect(makeup.body).toMatchObject({ newlyCheckedIn: true, earnedPoints: 1, points: 1, makeupCards: 0, makeupDates: [date], month: date.slice(0, 7) });
-			expect((await api('i/checkin-makeup', { date }, oldUser)).body).toMatchObject({ newlyCheckedIn: false, earnedPoints: 0, points: 1, makeupCards: 0 });
+			expect(makeup.body).toMatchObject({ newlyCheckedIn: true, earnedPoints: 0, points: 0, makeupCards: 0, makeupDates: [date], month: date.slice(0, 7) });
+			expect((await api('i/checkin-makeup', { date }, oldUser)).body).toMatchObject({ newlyCheckedIn: false, earnedPoints: 0, points: 0, makeupCards: 0 });
 			const today = await api('i/checkin-makeup', { date: checkinDate(new Date()) }, oldUser);
 			expect(castAsError(today.body).error.code).toBe('INVALID_CHECKIN_DATE');
 		});
@@ -134,16 +134,16 @@ describe('Endpoints', () => {
 			expect(users.body).toMatchObject({ total: 1, items: [{ user: { id: bob.id }, grantedCards: 2, usedCards: 0, exchangedCards: 0, availableCards: 2, points: 1 }] });
 		});
 
-		test('gifts the seventh actual check-in card and exchanges seven points idempotently through HTTP', async () => {
+		test('repairs a 30-day reward and exchanges 60 points once per month idempotently through HTTP', async () => {
 			const db = await initTestDb(true);
-			const oldUser = { id: new IdService(loadConfig()).gen(Date.now() - 15 * 86400000), token: randomString() };
+			const oldUser = { id: new IdService(loadConfig()).gen(Date.now() - 40 * 86400000), token: randomString() };
 			const today = checkinDate(new Date());
 			try {
 				await db.getRepository(MiUser).insert({ ...oldUser, username: 'checkin-rewards', usernameLower: 'checkin-rewards' });
-				await db.getRepository(MiUserProfile).insert({ userId: oldUser.id, checkinPoints: 6 });
-				await db.getRepository(MiUserCheckin).insert(Array.from({ length: 6 }, (_, index) => ({
+				await db.getRepository(MiUserProfile).insert({ userId: oldUser.id, checkinPoints: 59, checkinFirstRewardClaimed: true });
+				await db.getRepository(MiUserCheckin).insert(Array.from({ length: 29 }, (_, index) => ({
 					userId: oldUser.id,
-					date: new Date(new Date(`${today}T00:00:00Z`).getTime() - (7 - index) * 86400000).toISOString().slice(0, 10),
+					date: new Date(new Date(`${today}T00:00:00Z`).getTime() - (30 - index) * 86400000).toISOString().slice(0, 10),
 					createdAt: new Date(), totalDays: index + 1, consecutiveDays: index + 1, isMakeup: false,
 				})));
 			} finally {
@@ -151,17 +151,17 @@ describe('Endpoints', () => {
 			}
 			const signed = await api('i/checkin', {}, oldUser);
 			expect(signed.status).toBe(200);
-			expect(signed.body).toMatchObject({ earnedMakeupCards: 1, points: 7, makeupCards: 1, makeupCardProgress: 0 });
+			expect(signed.body).toMatchObject({ earnedMakeupCards: 0, points: 60, makeupCards: 0, makeupCardProgress: 1 });
 			const requestId = randomUUID();
 			const exchange = await api('i/checkin-exchange', { requestId }, oldUser);
 			expect(exchange.status).toBe(200);
-			expect(exchange.body).toEqual({ points: 0, makeupCards: 2, exchanged: true });
-			expect((await api('i/checkin-exchange', { requestId }, oldUser)).body).toEqual({ points: 0, makeupCards: 2, exchanged: false });
+			expect(exchange.body).toEqual({ points: 0, makeupCards: 1, exchanged: true });
+			expect((await api('i/checkin-exchange', { requestId }, oldUser)).body).toEqual({ points: 0, makeupCards: 1, exchanged: false });
 			const makeup = await api('i/checkin-makeup', { date: previousCheckinDate(today) }, oldUser);
-			expect(makeup.body).toMatchObject({ points: 1, makeupCards: 1, earnedMakeupCards: 0, makeupCardProgress: 0 });
-			const insufficient = await api('i/checkin-exchange', { requestId: randomUUID() }, oldUser);
-			expect(insufficient.status).toBe(400);
-			expect(castAsError(insufficient.body).error.code).toBe('INSUFFICIENT_CHECKIN_POINTS');
+			expect(makeup.body).toMatchObject({ points: 0, makeupCards: 1, earnedMakeupCards: 1, consecutiveDays: 31, makeupCardProgress: 0, makeupCardExchangeAvailable: false });
+			const limited = await api('i/checkin-exchange', { requestId: randomUUID() }, oldUser);
+			expect(limited.status).toBe(400);
+			expect(castAsError(limited.body).error.code).toBe('MONTHLY_EXCHANGE_LIMIT');
 		});
 	});
 

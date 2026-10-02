@@ -6,8 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="uiWindow"
-	:width="520"
-	:height="700"
+	:width="460"
+	:height="690"
 	:autoHeight="deviceKind !== 'smartphone'"
 	role="dialog"
 	tabindex="-1"
@@ -25,10 +25,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 	<div :class="$style.body">
 		<div :class="$style.target">
+			<MkAvatar :user="user" :class="$style.targetAvatar"/>
 			<span :class="$style.targetLabel">{{ i18n.ts._abuseUserReport.reportedUser }}</span>
-			<strong v-if="user.name">{{ user.name }}</strong>
-			<MkAcct :user="user"/>
+			<span :class="$style.targetName">
+				<strong v-if="user.name">{{ user.name }}</strong>
+				<MkAcct :user="user"/>
+			</span>
 		</div>
+		<p :class="$style.hint">
+			<i class="ti ti-shield-check" :class="$style.hintIcon" aria-hidden="true"></i>
+			<span>{{ reportTarget.reportType === 'user' ? i18n.ts._abuseUserReport.accountReportHint : i18n.ts._abuseUserReport.contentReportHint }}</span>
+		</p>
 		<template v-if="context">
 			<h2 :class="$style.heading">{{ i18n.ts._abuseReport.reportedContent }}</h2>
 			<div :class="$style.context">
@@ -45,8 +52,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<fieldset :class="$style.reasons" :aria-label="i18n.ts._abuseReport.selectReason" :disabled="locked">
 			<label v-for="option in reasons" :key="option" :class="[$style.reason, { [$style.reasonSelected]: reason === option }]">
 				<input v-model="reason" type="radio" :name="titleId" :value="option" :class="$style.radio">
-				<span>{{ i18n.ts._abuseReport._reasons[option] }}</span>
-				<i class="ti ti-check" :class="$style.reasonCheck" aria-hidden="true"></i>
+				<span :class="$style.reasonLabel">{{ i18n.ts._abuseReport._reasons[option] }}</span>
+				<i class="ti" :class="[reason === option ? 'ti-circle-dot' : 'ti-circle', $style.reasonRadio]" aria-hidden="true"></i>
 			</label>
 		</fieldset>
 		<label :class="$style.detailLabel">
@@ -58,7 +65,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:required="reason === 'other'"
 				:disabled="locked"
 				:maxlength="2048"
-				rows="4"
+				rows="2"
 			></textarea>
 		</label>
 	</div>
@@ -100,14 +107,8 @@ const reasons = [
 	'spam',
 	'scam',
 	'sexualContent',
-	'violence',
 	'harassment',
-	'hateSpeech',
 	'privacyViolation',
-	'impersonation',
-	'misinformation',
-	'copyrightViolation',
-	'inciting',
 	'other',
 ] as const;
 
@@ -146,16 +147,21 @@ async function send() {
 }
 
 .body {
-	padding: var(--MI-cardPadding, 20px);
+	padding: 14px 16px 16px;
 }
 
 .target {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: baseline;
+	align-items: center;
 	gap: 8px;
-	margin-bottom: 16px;
+	margin-bottom: 8px;
 	overflow-wrap: anywhere;
+}
+
+.targetAvatar {
+	width: 28px;
+	height: 28px;
 }
 
 .targetLabel {
@@ -163,19 +169,41 @@ async function send() {
 	color: var(--MI_THEME-fgTransparentWeak);
 }
 
+.targetName {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px;
+}
+
+.hint {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 8px;
+	font-size: 0.85em;
+	line-height: 1.5;
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.hintIcon {
+	flex-shrink: 0;
+}
+
 .context {
-	margin-bottom: 16px;
-	padding: 12px;
-	border-radius: 6px;
-	background: var(--MI_THEME-panel);
+	margin-bottom: 8px;
+	padding: 10px 12px;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-bg);
+	border: 1px solid var(--MI_THEME-divider);
 }
 
 .contextText {
 	display: -webkit-box;
 	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
+	-webkit-line-clamp: 1;
 	overflow: hidden;
-	margin-bottom: 8px;
+	margin-bottom: 4px;
 	font-size: 0.9em;
 	line-height: 1.5;
 	white-space: pre-wrap;
@@ -189,68 +217,63 @@ async function send() {
 }
 
 .heading {
-	margin: 0 0 10px;
+	margin: 0 0 6px;
 	font-size: 0.9em;
 	font-weight: normal;
 }
 
 .reasons {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 8px;
 	min-width: 0;
-	margin: 0;
+	margin: 0 0 10px;
 	padding: 0;
 	border: 0;
+
+	&:disabled .reason {
+		cursor: default;
+		opacity: 0.6;
+	}
 }
 
 .reason {
 	position: relative;
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	min-height: 40px;
-	padding: 8px 28px;
+	gap: 8px;
+	min-height: 38px;
+	padding: 7px 10px;
 	box-sizing: border-box;
-	background: color-mix(in srgb, var(--MI_THEME-bg), var(--MI_THEME-fg) 8%);
-	border: 1px solid transparent;
-	border-radius: 8px;
-	font-size: 0.9em;
+	border-radius: calc(var(--MI-radius) / 2);
+	color: var(--MI_THEME-fg);
+	font-size: 0.95em;
 	line-height: 1.4;
-	text-align: center;
 	cursor: pointer;
-	transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+	transition: background 0.15s ease;
 
 	&:hover {
-		background: color-mix(in srgb, var(--MI_THEME-bg), var(--MI_THEME-fg) 13%);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 
 	&:has(.radio:focus-visible) {
 		outline: 2px solid var(--MI_THEME-accent);
-		outline-offset: 2px;
+		outline-offset: -2px;
 	}
 }
 
 .reasonSelected {
-	&, &:hover {
-		background: var(--MI_THEME-accentedBg);
-		color: var(--MI_THEME-accent);
-		border-color: var(--MI_THEME-accent);
-	}
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
+	font-weight: bold;
 
-	.reasonCheck {
-		opacity: 1;
+	.reasonRadio {
+		color: var(--MI_THEME-accent);
 	}
 }
 
-.reasonCheck {
-	position: absolute;
-	right: 9px;
-	top: 50%;
-	transform: translateY(-50%);
-	opacity: 0;
-	font-size: 1.05em;
-	transition: opacity 0.15s ease;
+.reasonRadio {
+	flex-shrink: 0;
+	font-size: 1.15em;
+	color: color-mix(in srgb, var(--MI_THEME-fg) 35%, transparent);
+	transition: color 0.15s ease;
 }
 
 .radio {
@@ -264,21 +287,20 @@ async function send() {
 .detailLabel {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	margin-top: 16px;
+	gap: 6px;
 	font-size: 0.9em;
 }
 
 .detail {
 	width: 100%;
 	box-sizing: border-box;
-	min-height: 100px;
-	padding: 12px;
-	border: 0;
+	min-height: 56px;
+	padding: 10px 12px;
+	border: 1px solid var(--MI_THEME-inputBorder);
 	border-radius: var(--MI-radius);
 	font: inherit;
 	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-panel);
+	background: var(--MI_THEME-bg);
 	resize: none;
 
 	&:focus-visible {

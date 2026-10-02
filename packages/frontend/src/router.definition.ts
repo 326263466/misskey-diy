@@ -19,7 +19,19 @@ function chatPage(...args: Parameters<typeof page>) {
 	return $i?.policies.chatAvailability !== 'unavailable' ? page(...args) : page(() => import('@/pages/not-found.vue'));
 }
 
-export const ROUTE_DEF = [{
+const communityRoutes = [
+	{ path: '/checkin', name: 'checkin', component: page(() => import('@/pages/checkin.vue')), loginRequired: true },
+	{ path: '/community-ranking', name: 'ranking', component: page(() => import('@/pages/community-ranking.vue')) },
+	{ path: '/my/achievements', name: 'achievements', component: page(() => import('@/pages/achievements.vue')), loginRequired: true },
+	{ path: '/my/benefits', name: 'benefits', component: page(() => import('@/pages/benefits.vue')), loginRequired: true },
+] as const satisfies RouteDef[];
+
+export const ROUTE_DEF = [...($i ? [{
+	path: '',
+	name: 'community',
+	component: page(() => import('@/pages/community.vue')),
+	children: communityRoutes,
+}] as const : communityRoutes), {
 	name: 'index',
 	path: '/',
 	component: $i ? PageTimeline : page(() => import('@/pages/welcome.vue')),
@@ -37,8 +49,12 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/user/followers.vue')),
 }, {
 	name: 'user',
-	path: '/@:acct/:page?',
+	path: '/@:acct',
 	component: page(() => import('@/pages/user/index.vue')),
+	children: [{
+		path: '/:page?',
+		component: page(() => import('@/pages/user/content.vue')),
+	}],
 }, {
 	name: 'note',
 	path: '/notes/:noteId/:initialTab?',
@@ -110,6 +126,10 @@ export const ROUTE_DEF = [{
 		path: '/security',
 		name: 'security',
 		component: page(() => import('@/pages/settings/security.vue')),
+	}, {
+		path: '/wallet',
+		name: 'wallet',
+		component: page(() => import('@/pages/settings/wallet.vue')),
 	}, {
 		path: '/preferences',
 		name: 'preferences',
@@ -243,13 +263,6 @@ export const ROUTE_DEF = [{
 	path: '/explore',
 	component: page(() => import('@/pages/explore.vue')),
 	hash: 'initialTab',
-}, {
-	path: '/checkin',
-	component: page(() => import('@/pages/checkin.vue')),
-	loginRequired: true,
-}, {
-	path: '/community-ranking',
-	component: page(() => import('@/pages/community-ranking.vue')),
 }, {
 	path: '/search',
 	component: page(() => import('@/pages/search.vue')),
@@ -406,6 +419,10 @@ export const ROUTE_DEF = [{
 		path: '/checkin',
 		redirect: '/admin/benefits',
 	}, {
+		path: '/wallet',
+		name: 'wallet',
+		component: iAmAdmin ? page(() => import('@/pages/admin/wallet.vue')) : page(() => import('@/pages/not-found.vue')),
+	}, {
 		path: '/benefits',
 		name: 'benefits',
 		component: iAmAdmin ? page(() => import('@/pages/admin/benefits.vue')) : page(() => import('@/pages/not-found.vue')),
@@ -533,14 +550,6 @@ export const ROUTE_DEF = [{
 }, {
 	path: '/my/favorites',
 	component: page(() => import('@/pages/favorites.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/achievements',
-	component: page(() => import('@/pages/achievements.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/benefits',
-	component: page(() => import('@/pages/benefits.vue')),
 	loginRequired: true,
 }, {
 	path: '/my/drive/folder/:folder',

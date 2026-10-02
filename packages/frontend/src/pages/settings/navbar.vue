@@ -151,7 +151,7 @@ definePage(() => ({
 	z-index: 10000;
 	width: 32px;
 	height: 32px;
-	color: #ff2a2a;
+	color: var(--MI_THEME-error);
 	right: 8px;
 	opacity: 0.8;
 }
@@ -161,6 +161,6 @@ definePage(() => ({
 	width: 32px;
 	height: 32px;
 	margin: 0 8px;
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

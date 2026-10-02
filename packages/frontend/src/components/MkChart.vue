@@ -159,8 +159,6 @@ const render = () => {
 		chartInstance.destroy();
 	}
 
-	const vLineColor = store.s.darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)';
-
 	const maxes = chartData.series.map((x, i) => Math.max(...x.data.map(d => d.y)));
 
 	chartInstance = new Chart(chartEl.value, {
@@ -291,7 +289,7 @@ const render = () => {
 				} : undefined,
 			},
 		},
-		plugins: [chartVLine(vLineColor), ...(props.detailed && legendEl.value ? [chartLegend(legendEl.value)] : [])],
+		plugins: [chartVLine(), ...(props.detailed && legendEl.value ? [chartLegend(legendEl.value)] : [])],
 	});
 };
 

@@ -35,7 +35,7 @@ const available = computed(() => props.meta.fs.total - props.meta.fs.used);
 <style lang="scss" scoped>
 .zbwaqsat {
 	display: flex;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 
 	> .pie {
 		height: 82px;

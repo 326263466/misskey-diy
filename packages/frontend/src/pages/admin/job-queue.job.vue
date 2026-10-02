@@ -67,7 +67,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 
 	<div v-if="tab === 'info'" class="_gaps_s">
-		<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px;">
+		<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 12px;">
 			<MkKeyValue>
 				<template #key>ID</template>
 				<template #value>{{ job.id }}</template>
@@ -136,7 +136,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</template>
 					<template v-else>
 						<div>{{ i18n.ts._queue.atTime }}: <MkTime :time="timestamp" mode="detail"/></div>
-						<div style="font-size: 90%; opacity: 0.7;">{{ timestamp }} (+{{ msSMH(delta) }})</div>
+						<div style="font-size: 90%; color: var(--MI_THEME-fgTransparentWeak);">{{ timestamp }} (+{{ msSMH(delta) }})</div>
 					</template>
 				</div>
 			</template>

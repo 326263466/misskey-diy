@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithAnimBg>
-	<div class="_spacer" style="--MI_SPACER-w: 550px; --MI_SPACER-max: 50px;">
+	<div class="_spacer _spacerCard" style="--MI_SPACER-w: 550px;">
 		<MkLoading v-if="uiPhase === 'fetching'"/>
 		<MkExtensionInstaller v-else-if="uiPhase === 'confirm' && data" :extension="data" @confirm="install()" @cancel="close_()">
 			<template #additionalInfo>
@@ -246,7 +246,7 @@ definePage(() => ({
 .extInstallerRoot {
 	border-radius: var(--MI-radius);
 	background: var(--MI_THEME-panel);
-	padding: 1.5rem;
+	padding: var(--MI-cardPadding);
 }
 
 .extInstallerIconWrapper {

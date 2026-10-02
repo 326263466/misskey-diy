@@ -23,6 +23,7 @@ import { initChart } from '@/utility/init-chart.js';
 import { formatChartDate } from '@/utility/chart-date.js';
 import { i18n } from '@/i18n.js';
 import { dateOnly } from '@/filters/date.js';
+import { themeManager } from '@/theme.js';
 
 initChart();
 
@@ -78,7 +79,7 @@ async function renderChart() {
 
 	await nextTick();
 
-	const color = store.s.darkMode ? '#b4e900' : '#86b300';
+	const color = () => themeManager.currentCompiledTheme?.chartAccent ?? (store.s.darkMode ? '#b4e900' : '#86b300');
 
 	const max = (createdAt: string) => raw.find(x => x.createdAt === createdAt)!.users;
 
@@ -95,14 +96,16 @@ async function renderChart() {
 				borderWidth: 0,
 				borderRadius: 3,
 				backgroundColor(c: any) {
+					if (c.type !== 'data') return 'transparent';
 					const v = c.dataset.data[c.dataIndex] as unknown as typeof data[0];
+					if (v == null) return 'transparent';
 					const value = v.v;
 					const m = max(v.y);
 					if (m === 0) {
-						return alpha(color, 0);
+						return alpha(color(), 0);
 					} else {
 						const a = value / m;
-						return alpha(color, a);
+						return alpha(color(), a);
 					}
 				},
 				width(c) {
@@ -200,11 +203,17 @@ async function renderChart() {
 	});
 }
 
+function updateThemeColor() {
+	chartInstance?.update('none');
+}
+
 onMounted(() => {
+	themeManager.on('themeChanging', updateThemeColor);
 	renderChart();
 });
 
 onUnmounted(() => {
+	themeManager.off('themeChanging', updateThemeColor);
 	chartInstance?.destroy();
 });
 </script>

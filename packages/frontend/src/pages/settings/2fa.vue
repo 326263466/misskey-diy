@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <SearchMarker markerId="2fa" :keywords="['2fa']">
-	<FormSection :first="first">
+	<FormSection>
 		<template #label><SearchLabel>{{ i18n.ts['2fa'] }}</SearchLabel></template>
 
 		<div v-if="$i" class="_gaps_s">
@@ -100,12 +100,6 @@ import { updateCurrentAccountPartial } from '@/accounts.js';
 const $i = ensureSignin();
 
 // メモ: 各エンドポイントはmeUpdatedを発行するため、refreshAccountは不要
-
-withDefaults(defineProps<{
-	first?: boolean;
-}>(), {
-	first: false,
-});
 
 const usePasswordLessLogin = computed(() => $i.usePasswordLessLogin ?? false);
 

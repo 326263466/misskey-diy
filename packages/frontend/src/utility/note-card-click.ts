@@ -11,6 +11,7 @@ const interactiveSelector = [
 	'[role="option"]', '[role="textbox"]', '[role="combobox"]',
 	'[tabindex]', '[contenteditable]:not([contenteditable="false"])',
 	'[data-note-interactive]', '[data-note-card]', '._button',
+	'._mfm', 'pre', 'code',
 ].join(',');
 
 /** Only the card's otherwise inert surface should act as a detail link. */

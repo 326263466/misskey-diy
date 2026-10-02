@@ -45,7 +45,7 @@ const props = defineProps<{
 	}
 
 	> article {
-		padding: 16px;
+		padding: var(--MI-cardPadding);
 
 		> header {
 			margin-bottom: 8px;
@@ -104,7 +104,6 @@ const props = defineProps<{
 		font-size: 12px;
 
 		> article {
-			padding: 12px;
 		}
 	}
 
@@ -112,7 +111,6 @@ const props = defineProps<{
 		font-size: 10px;
 
 		> article {
-			padding: 8px;
 
 			> header {
 				margin-bottom: 4px;

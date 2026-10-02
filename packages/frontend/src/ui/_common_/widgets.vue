@@ -6,34 +6,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div>
 	<XWidgets
-		:edit="editMode"
+		:edit="$i != null && editMode"
+		:readOnly="$i == null"
+		:canReset="true"
 		:widgets="widgets"
 		@addWidget="addWidget"
 		@removeWidget="removeWidget"
 		@updateWidget="updateWidget"
 		@updateWidgets="updateWidgets"
 		@exit="editMode = false"
+		@reset="resetWidgets"
 	/>
-
-	<div v-if="editMode" class="_buttonsCenter" style="font-size: 0.9em;">
-		<button class="_textButton" @click="editMode = false"><i class="ti ti-check"></i> {{ i18n.ts.editWidgetsExit }}</button>
-		<button class="_textButton" data-testid="widget-reset" @click="resetWidgets"><i class="ti ti-restore"></i> {{ i18n.ts.resetToDefaultValue }}</button>
-	</div>
-	<button v-else class="_textButton" data-testid="widget-edit" :class="$style.edit" style="font-size: 0.9em;" @click="editMode = true"><i class="ti ti-pencil"></i> {{ i18n.ts.editWidgets }}</button>
+	<button v-if="$i" :aria-expanded="editMode" class="_textButton" data-testid="widget-edit" :class="$style.edit" style="font-size: 0.9em;" @click="editMode = true"><i class="ti ti-pencil"></i> {{ i18n.ts.editWidgets }}</button>
 </div>
 </template>
 
-<script lang="ts">
-import { computed, ref } from 'vue';
-const editMode = ref(false);
-</script>
-
 <script lang="ts" setup>
+import { computed, ref } from 'vue';
 import type { DefaultStoredWidget, Widget } from '@/components/MkWidgets.vue';
 import XWidgets from '@/components/MkWidgets.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { getInitialPrefValue } from '@/preferences/manager.js';
+import { $i } from '@/i.js';
 
 const props = withDefaults(defineProps<{
 	// null = 全てのウィジェットを表示
@@ -44,10 +39,13 @@ const props = withDefaults(defineProps<{
 	place: null,
 });
 
+const editMode = ref(false);
+const guestWidgets = $i ? [] : getInitialPrefValue('widgets');
 const widgets = computed(() => {
-	if (props.place === null) return prefer.r.widgets.value;
-	if (props.place === 'left') return prefer.r.widgets.value.filter(w => w.place === 'left');
-	return prefer.r.widgets.value.filter(w => w.place !== 'left');
+	const available = $i ? prefer.r.widgets.value : guestWidgets;
+	if (props.place === null) return available;
+	if (props.place === 'left') return available.filter(w => w.place === 'left');
+	return available.filter(w => w.place !== 'left');
 });
 
 function addWidget(widget: Widget) {
@@ -99,5 +97,11 @@ button.edit {
 	display: block;
 	width: fit-content;
 	margin: 16px auto 0;
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	// 去掉 _textButton 悬停时的下划线，保持与周边弱化文案一致
+	&:not(:disabled):hover {
+		text-decoration: none;
+	}
 }
 </style>

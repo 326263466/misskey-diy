@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 900px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<SearchMarker path="/admin/system-webhook" label="SystemWebhook" :keywords="['webhook']" icon="ti ti-webhook">
 			<div class="_gaps_m">
 				<SearchMarker>

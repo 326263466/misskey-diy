@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkDriveFileThumbnail :class="$style.thumbnail" :file="file" fit="contain" :highlightWhenSensitive="true" title=""/>
 				<div v-if="viewMode === 'list'" :class="$style.body">
 					<div>
-						<small style="opacity: 0.7;">{{ file.name }}</small>
+						<small style="color: var(--MI_THEME-fgTransparentWeak);">{{ file.name }}</small>
 					</div>
 					<div>
 						<MkAcct v-if="file.user" :user="file.user"/>
@@ -98,7 +98,7 @@ defineProps<{
 
 .grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(130px, 100%), 1fr));
 	grid-gap: 12px;
 
 	> .file {

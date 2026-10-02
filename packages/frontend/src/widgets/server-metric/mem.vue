@@ -51,7 +51,7 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .zlxnikvl {
 	display: flex;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 
 	> .pie {
 		height: 82px;

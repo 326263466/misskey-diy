@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 900px;">
+	<div class="_pageBody">
 		<div class="_gaps">
 			<MkFoldableSection v-for="category in Object.keys(groupedDecorations)" :key="category" :expanded="true">
 				<template #header>{{ category || i18n.ts.other }}</template>
@@ -102,7 +102,7 @@ definePage(() => ({
 <style lang="scss" module>
 .decorations {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
 	grid-gap: 12px;
 }
 

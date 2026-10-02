@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <component :is="prefer.s.enablePullToRefresh ? MkPullToRefresh : 'div'" :refresher="() => reload()">
-	<div class="_spacer" :style="{ '--MI_SPACER-w': singleColumn ? '100%' : narrow ? '800px' : '1100px' }">
+	<div class="_pageBody">
 		<div ref="rootEl" class="ftskorzw" :class="{ wide: !narrow }" style="container-type: inline-size;">
 			<div class="main _gaps">
 				<div class="profile _gaps">
@@ -138,7 +138,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</template>
 					<div v-if="!disableNotes">
 						<MkLazy>
-							<XTimeline :user="user"/>
+							<XTimeline ref="timelineEl" :user="user"/>
 						</MkLazy>
 					</div>
 				</div>
@@ -181,6 +181,7 @@ import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
 import { isBirthday } from '@/utility/is-birthday.js';
 import { useUserStatistics } from '@/composables/use-user-statistics.js';
 import { useUserStatisticsVisibility } from '@/composables/use-user-statistics-visibility.js';
+import type XTimeline_TypeReferenceOnly from './index.timeline.vue';
 
 function calcAge(birthdate: string): number {
 	const date = new Date(birthdate);
@@ -204,10 +205,13 @@ const XTimeline = defineAsyncComponent(() => import('./index.timeline.vue'));
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed;
 	singleColumn?: boolean;
+	/** Refetches the user in place. Supplied by the parent page. */
+	refreshUser?: () => Promise<void>;
 	/** Test only; MkNotesTimeline currently causes problems in vitest */
 	disableNotes?: boolean;
 }>(), {
 	singleColumn: false,
+	refreshUser: undefined,
 	disableNotes: false,
 });
 
@@ -227,7 +231,11 @@ useUserStatistics(user, { active: useUserStatisticsVisibility(rootEl) });
 const bannerEl = useTemplateRef('bannerEl');
 const memo = ref(props.user.memo ?? '');
 const isMemoBusy = ref(false);
+const timelineEl = useTemplateRef<InstanceType<typeof XTimeline_TypeReferenceOnly>>('timelineEl');
 const moderationNote = ref(props.user.moderationNote ?? '');
+watch([() => props.user.id, () => props.user.moderationNote], () => {
+	moderationNote.value = props.user.moderationNote ?? '';
+});
 
 async function saveModerationNote(value: string) {
 	await os.apiWithDialog('admin/update-user-note', { userId: props.user.id, text: value });
@@ -280,8 +288,12 @@ watch([() => props.user.id, () => props.user.memo], () => {
 	memo.value = props.user.memo ?? '';
 });
 
+// ここでは失敗は握りつぶす（Pull to Refreshがもどらなくなるので）
 async function reload() {
-	// TODO
+	await Promise.allSettled([
+		props.refreshUser?.(),
+		timelineEl.value?.reload(),
+	]);
 }
 
 let bannerParallaxResizeObserver: ResizeObserver | null = null;
@@ -471,10 +483,10 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 					border-bottom: solid 0.5px var(--MI_THEME-divider);
 
 					> .bottom {
+						color: var(--MI_THEME-fgTransparentWeak);
 						> * {
 							display: inline-block;
 							margin-right: 8px;
-							opacity: 0.8;
 						}
 					}
 				}
@@ -500,7 +512,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 						font-size: 0.9em;
 
 						.messageHeader {
-							opacity: 0.7;
+							color: var(--MI_THEME-fgTransparentWeak);
 							font-size: 0.85em;
 						}
 					}
@@ -526,6 +538,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 				}
 
 				> .description {
+					color: var(--MI_THEME-fgTransparent);
 					// 头像下悬 40px (170+120-250), 信息区从其下方开始
 					// 签名与资料/统计同款圆片: 「签名:内容」, 同高度同格式
 					display: flex;
@@ -556,11 +569,12 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 
 					.empty {
 						margin: 0;
-						opacity: 0.75;
+						color: var(--MI_THEME-fgTransparentWeak);
 					}
 				}
 
 				> .fields {
+					color: var(--MI_THEME-fgTransparentWeak);
 					// 资料条目做成「内容宽度」的灰色圆角小片, 横向排列、放不下自动换行,
 					// 灰底只包住内容本身, 避免通栏灰底右侧大片留白
 					display: flex;
@@ -609,6 +623,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 				}
 
 				> .status {
+					color: var(--MI_THEME-fgTransparent);
 					display: flex;
 					flex-wrap: wrap;
 					gap: 8px;
@@ -796,6 +811,10 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 
 .centeredNameRow {
 	justify-content: center;
+
+	.memoButton {
+		color: var(--MI_THEME-fgTransparentWeak);
+	}
 }
 
 .displayName {
@@ -813,7 +832,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 	font-size: 14px;
 	font-weight: normal;
 	line-height: 1;
-	opacity: 0.7;
+	color: inherit;
 }
 
 .tl {

@@ -100,7 +100,7 @@ function copyInviteCode() {
 
 .items {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
 	grid-gap: 12px;
 }
 
@@ -108,7 +108,7 @@ function copyInviteCode() {
 	font-size: 0.85em;
 	padding: 0 0 8px 0;
 	user-select: none;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .user {

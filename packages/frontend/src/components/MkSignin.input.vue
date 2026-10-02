@@ -165,7 +165,7 @@ async function specifyHostAndOpenRemote(options: OpenOnRemoteOptions): Promise<v
 .avatar {
 	margin: 0 auto;
 	background-color: color-mix(in srgb, var(--MI_THEME-fg), transparent 85%);
-	color: color-mix(in srgb, var(--MI_THEME-fg), transparent 25%);
+	color: var(--MI_THEME-fgTransparentWeak);
 	text-align: center;
 	height: 64px;
 	width: 64px;
@@ -177,7 +177,7 @@ async function specifyHostAndOpenRemote(options: OpenOnRemoteOptions): Promise<v
 .instanceManualSelectButton {
 	display: block;
 	text-align: center;
-	opacity: .7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: .8em;
 
 	&:hover {

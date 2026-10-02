@@ -330,7 +330,7 @@ async function saveQr(): Promise<void> {
 	flex-direction: column;
 	gap: 16px;
 	min-width: 0;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 }
 
 .preview {
@@ -455,7 +455,7 @@ async function saveQr(): Promise<void> {
 
 .tools {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(100px, 100%), 1fr));
 	gap: 4px;
 	padding: 4px;
 	border: 1px solid var(--MI_THEME-divider);
@@ -681,12 +681,11 @@ async function saveQr(): Promise<void> {
 	}
 
 	.revealActive {
-		transition: grid-template-rows 220ms ease, opacity 180ms ease;
+		transition: grid-template-rows 250ms ease;
 	}
 
 	.revealHidden {
 		grid-template-rows: 0fr;
-		opacity: 0;
 	}
 }
 

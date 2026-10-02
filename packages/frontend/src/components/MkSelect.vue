@@ -5,15 +5,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div>
-	<div :class="$style.label" @click="focus"><slot name="label"></slot></div>
+	<div :id="`${id}-label`" :class="$style.label" @click="focus"><slot name="label"></slot></div>
 	<div
 		ref="container"
-		tabindex="0"
+		role="button"
+		:tabindex="disabled ? -1 : 0"
+		:aria-labelledby="$slots.label ? `${id}-label` : undefined"
+		:aria-describedby="`${id}-value`"
+		:aria-disabled="disabled || readonly"
+		:aria-expanded="opening"
+		aria-haspopup="menu"
 		:class="[$style.input, { [$style.inline]: inline, [$style.disabled]: disabled, [$style.focused]: focused || opening }]"
 		@focus="focused = true"
 		@blur="focused = false"
 		@mousedown.prevent="show"
-		@keydown.space.enter="show"
+		@click="show"
+		@keydown.space.enter.prevent="show"
 	>
 		<div ref="prefixEl" :class="$style.prefix"><slot name="prefix"></slot></div>
 		<div
@@ -27,7 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@mousedown.prevent="() => {}"
 			@keydown.prevent="() => {}"
 		>
-			<div style="pointer-events: none;">{{ currentValueText ?? '' }}</div>
+			<div :id="`${id}-value`" style="pointer-events: none;">{{ currentValueText ?? '' }}</div>
 			<div style="display: none;">
 				<slot></slot>
 			</div>
@@ -68,7 +75,7 @@ export type GetMkSelectValueTypesFromDef<T extends MkSelectItem[]> = T[number] e
 </script>
 
 <script lang="ts" setup generic="const ITEMS extends MkSelectItem[], MODELT extends OptionValue">
-import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useTemplateRef } from 'vue';
+import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useTemplateRef, useId } from 'vue';
 import type { MenuItem } from '@/types/menu.js';
 import * as os from '@/os.js';
 
@@ -91,6 +98,7 @@ type ModelTChecked = MODELT & (
 );
 
 const model = defineModel<ModelTChecked>({ required: true });
+const id = useId();
 
 const { autofocus } = toRefs(props);
 const focused = ref(false);
@@ -226,7 +234,7 @@ function show() {
 .caption {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:empty {
 		display: none;
@@ -282,7 +290,7 @@ function show() {
 	font-weight: normal;
 	font-size: 1em;
 	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-panel);
+	background: var(--MI_THEME-bg);
 	border: solid 1px var(--MI_THEME-inputBorder);
 	border-radius: 6px;
 	outline: none;

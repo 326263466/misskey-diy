@@ -80,7 +80,6 @@ onMounted(async () => {
 
 	if (disposed || chartEl.value == null || chartEl2.value == null) return;
 
-	const vLineColor = store.s.darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)';
 	const succColor = '#87e000';
 	const failColor = '#ff4400';
 
@@ -191,7 +190,7 @@ onMounted(async () => {
 				}),
 			},
 		},
-		plugins: [chartVLine(vLineColor)],
+		plugins: [chartVLine()],
 	});
 
 	chartInstance2 = new Chart(chartEl2.value, {
@@ -278,7 +277,7 @@ onMounted(async () => {
 				}),
 			},
 		},
-		plugins: [chartVLine(vLineColor)],
+		plugins: [chartVLine()],
 	});
 
 	fetching.value = false;
@@ -296,7 +295,7 @@ onUnmounted(() => {
 	&:global {
 		> .charts {
 			> .chart {
-				padding: 16px;
+				padding: var(--MI-cardPadding);
 
 				&:first-child {
 					border-bottom: solid 0.5px var(--MI_THEME-divider);

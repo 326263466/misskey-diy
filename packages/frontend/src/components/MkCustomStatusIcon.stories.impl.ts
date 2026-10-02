@@ -28,6 +28,11 @@ export const Coffee = {
 	args: { icon: 'coffee' },
 } satisfies StoryObj<typeof MkCustomStatusIcon>;
 
+export const Charging = {
+	...Add,
+	args: { icon: 'battery' },
+} satisfies StoryObj<typeof MkCustomStatusIcon>;
+
 export const Sizes = {
 	...Add,
 	render() {

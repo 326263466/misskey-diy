@@ -107,7 +107,7 @@ function menu(ev: PointerEvent) {
 }
 
 .info {
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 0.9em;
 	text-overflow: ellipsis;
 	overflow: hidden;

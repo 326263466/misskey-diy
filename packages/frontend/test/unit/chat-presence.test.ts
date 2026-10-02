@@ -171,7 +171,7 @@ describe('chat presence', () => {
 		mocks.connection.send.mockClear();
 		mocks.account.onlineStatusOverride = 'doNotDisturb';
 		onMessage({ ...message, id: 'second', text: 'Quiet incoming message' });
-		await nextTick();
+		await flush();
 		expect(view.getByText('Quiet incoming message')).toBeTruthy();
 		expect(mocks.sound).not.toHaveBeenCalled();
 		expect(mocks.connection.send).toHaveBeenCalledExactlyOnceWith('read', { id: 'second' });

@@ -106,7 +106,7 @@ defineExpose<WidgetComponentExpose>({
 		> .instance {
 			display: flex;
 			align-items: center;
-				padding: 14px var(--MI-cardPadding, 20px);
+				padding: 14px var(--MI-cardPadding, 18px);
 				border-bottom: solid 0.5px var(--MI_THEME-divider);
 
 			> img {
@@ -137,7 +137,7 @@ defineExpose<WidgetComponentExpose>({
 				> p {
 					margin: 0;
 					font-size: 75%;
-					opacity: 0.7;
+					color: var(--MI_THEME-fgTransparentWeak);
 					line-height: $bodyInfoHieght;
 					white-space: nowrap;
 					overflow: hidden;

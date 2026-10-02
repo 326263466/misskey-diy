@@ -99,7 +99,7 @@ export class UrlPreviewService implements OnApplicationShutdown {
 					return undefined;
 				}
 
-				return result;
+				return this.fillSiteDescription(result, lang);
 			};
 
 			const summary = deepClone(await this.summaryCache.fetchMaybe(`${url}@${lang ?? '_DEFAULT_'}`, fetcher));
@@ -138,12 +138,44 @@ export class UrlPreviewService implements OnApplicationShutdown {
 	}
 
 	@bindThis
+	private async fillSiteDescription(result: SummalyResult, lang?: string): Promise<SummalyResult> {
+		if (result.description?.trim()) return result;
+
+		const pageUrl = new URL(result.url);
+		const homepage = new URL('/', pageUrl).href;
+		if (!['http:', 'https:'].includes(pageUrl.protocol) || pageUrl.href === homepage) return result;
+
+		try {
+			const site = await this.summaryCache.fetchMaybe(`site:${homepage}@${lang ?? '_DEFAULT_'}`, async () => {
+				const summary = await (this.meta.urlPreviewSummaryProxyUrl
+					? this.fetchSummaryFromProxy(homepage, lang)
+					: this.fetchSummary(homepage, lang));
+				if (new URL(summary.url).origin !== pageUrl.origin) return undefined;
+				return summary;
+			});
+			if (!site) return result;
+
+			return {
+				...result,
+				description: site.description?.trim() || result.description,
+				sitename: !result.sitename || result.sitename === pageUrl.host
+					? (site.sitename && site.sitename !== pageUrl.host ? site.sitename : site.title) || result.sitename
+					: result.sitename,
+				sensitive: result.sensitive || site.sensitive,
+			};
+		} catch {
+			// A failed homepage lookup must not discard the original page preview.
+			return result;
+		}
+	}
+
+	@bindThis
 	private async fetchSummary(url: string, lang?: string): Promise<SummalyResult> {
 		const { summaly } = await import('@misskey-dev/summaly');
 
 		return summaly(url, {
 			followRedirects: this.meta.urlPreviewAllowRedirect,
-			lang: lang ?? 'ja-JP',
+			lang: lang ?? 'zh-CN',
 			agent: {
 				http: this.httpRequestService.httpAgent,
 				https: this.httpRequestService.httpsAgent,
@@ -160,7 +192,7 @@ export class UrlPreviewService implements OnApplicationShutdown {
 		const proxy = this.meta.urlPreviewSummaryProxyUrl!;
 		const queryStr = query({
 			url: url,
-			lang: lang ?? 'ja-JP',
+			lang: lang ?? 'zh-CN',
 			followRedirects: this.meta.urlPreviewAllowRedirect,
 			userAgent: this.meta.urlPreviewUserAgent ?? this.summalyDefaultUserAgent,
 			operationTimeout: this.meta.urlPreviewTimeout,

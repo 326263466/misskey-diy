@@ -70,7 +70,7 @@ onUnmounted(() => {
 	min-height: 150px;
 	border: none;
 	box-shadow: none;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	background: transparent;
 	color: var(--MI_THEME-fg);
 	font-size: 14px;

@@ -239,7 +239,7 @@ if (hasMoreReplies.value) void loadReplies();
 	display: grid;
 	grid-template-columns: var(--avatarSize) minmax(0, 1fr);
 	column-gap: var(--columnGap);
-	padding: 20px 32px;
+	padding: var(--MI-cardPadding);
 	font-size: 1.05em;
 	position: relative;
 
@@ -413,7 +413,6 @@ if (hasMoreReplies.value) void loadReplies();
 
 @container (max-width: 450px) {
 	.root {
-		padding: 14px 16px;
 
 		&.children {
 			padding: 10px 0 0;

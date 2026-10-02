@@ -68,6 +68,7 @@ const isBackupCode = ref(false);
 }
 
 .totpDescription {
+	color: var(--MI_THEME-fgTransparentWeak);
 	text-align: center;
 	font-size: 1.1em;
 }

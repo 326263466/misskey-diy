@@ -4,52 +4,35 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="[$style.root, { [$style.rootFirst]: first }]">
-	<div :class="[$style.label, { [$style.labelFirst]: first }]"><slot name="label"></slot></div>
-	<div :class="[$style.description]"><slot name="description"></slot></div>
+<div :class="$style.root">
+	<div v-if="$slots.label" :class="$style.label"><slot name="label"></slot></div>
 	<div :class="$style.main">
+		<div v-if="$slots.description" :class="$style.description"><slot name="description"></slot></div>
 		<slot></slot>
 	</div>
 </div>
 </template>
 
-<script lang="ts" setup>
-defineProps<{
-	first?: boolean;
-}>();
-</script>
-
 <style lang="scss" module>
 .root {
-	border-top: solid 0.5px var(--MI_THEME-divider);
-	//border-bottom: solid 0.5px var(--MI_THEME-divider);
-}
-
-.rootFirst {
-	border-top: none;
+	display: flow-root;
+	background: var(--MI_THEME-panel);
+	border-top: 1px solid var(--MI_THEME-divider);
 }
 
 .label {
-	font-weight: bold;
-	padding: 1.5em 0 0 0;
-	margin: 0 0 8px 0;
-
-	&:empty {
-		display: none;
-	}
-}
-
-.labelFirst {
-	padding-top: 0;
+	padding-top: var(--MI-margin);
+	color: var(--MI_THEME-fg);
 }
 
 .main {
-	margin: 1.5em 0 0 0;
+	display: flow-root;
+	padding-block: var(--MI-margin);
 }
 
 .description {
 	font-size: 0.85em;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
-	margin: 0 0 8px 0;
+	color: var(--MI_THEME-fgTransparentWeak);
+	margin-bottom: var(--MI-margin);
 }
 </style>

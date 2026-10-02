@@ -23,9 +23,9 @@
      输出 `SPDX: OK` 后不再做额外目视确认
    - `packages/misskey-js` 是 MIT 许可的子包，因此不统一添加该 AGPL 头（遵循子包自身的 `package.json` / `LICENSE` / 既有文件头）
 
-2. **除 `locales/ja-JP.yml` 外，不得手动编辑其他 locale YAML**
-   - 其他语言文件（例如 `en-US.yml`，即除 `ja-JP.yml` 外的全部文件）是 Crowdin 的自动分发目标，手动编辑会在下次同步时被覆盖丢失
-   - 依据：[locales/README.md](locales/README.md) 和 [crowdin.yml](crowdin.yml)（`ja-JP.yml` → `locales/%locale%.yml` 的同步配置）
+2. **除 `locales/zh-CN.yml` 外，不得手动编辑其他 locale YAML**
+   - 其他语言文件（例如 `en-US.yml`，即除 `zh-CN.yml` 外的全部文件）是 Crowdin 的自动分发目标，手动编辑会在下次同步时被覆盖丢失
+   - 依据：[locales/README.md](locales/README.md) 和 [crowdin.yml](crowdin.yml)（`zh-CN.yml` → `locales/%locale%.yml` 的同步配置）
 
 3. **不得编辑已合并的 migration 文件**
    - 对象：`packages/backend/migration/{unixMs}-{name}.js` 中已经合并进 `develop` / `master` 的文件
@@ -57,6 +57,20 @@
 15. **未参照 `shipping-misskey-change` skill，不得进行 commit / 创建 PR / 将工作交还用户**
 16. **未参照 `creating-issues-and-prs` skill，不得提交 Issue / PR**（也包含安全问题报告的规则）
 
+### 左右双列导航布局
+
+17. **带左侧菜单、右侧内容的页面，统一参考控制面板和用户设置的父子路由设计**
+   - 外层父布局保留左侧导航，只通过 `NestedRouterView` 切换右侧内容，不得随子页面切换重建左侧头像和菜单。
+   - 每个页面菜单项必须有独立 URL，支持直接访问、刷新和浏览器前进后退；选中状态由路由驱动，不得只靠组件内变量切换。
+   - 复用 `_pageLayout`、`_pageLayoutWithSidebar`、`_pageNavigation`、`_pageContent` 的双列及独立滚动规则；验证窄屏和菜单切换时无布局抖动。
+   - 双列内容区统一为 1040px，由公共样式控制，不在页面中单独写 1200px。
+   - 刷新首屏按路由使用最终宽度，不等待异步组件、页面元数据或用户资料加载后再调整。
+
+### 中文表达
+
+18. **使用简体中文，措辞简洁、意思清楚**
+   - 注释说明问题或原因，避免重复代码；界面文案用常用词，保留必要信息，避免重复说明。
+
 ---
 
 ## 交付变更前的最低检查
@@ -68,7 +82,7 @@
 2. **变更后端 API 时**：运行 `pnpm build-misskey-js-with-types`，并将 `packages/misskey-js/src/autogen/` 的差异一并纳入 commit
 3. **变更 entity / migration 时**：`pnpm --filter backend check-migrations` 以 pending DDL 0 件通过 / 新建 migration 已同时实现 `up()` 和 `down()`
 4. **SPDX**：确认 `node scripts/check-spdx.mjs` 返回 `SPDX: OK`
-5. **locale safety**：确认已 commit、未 commit 和 untracked 的全部变更集合中不存在除 `locales/ja-JP.yml` 以外的 locale YAML
+5. **locale safety**：确认已 commit、未 commit 和 untracked 的全部变更集合中不存在除 `locales/zh-CN.yml` 以外的 locale YAML
 6. **[CHANGELOG](.claude/skills/shipping-misskey-change/references/tasks/changelog-update.md)**：除用户明确要求外不进行编辑。
    存在用户影响的变更，只在交接信息中给出一行候选内容
 

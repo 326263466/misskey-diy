@@ -10,6 +10,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:class="$style.root"
 	role="img"
 	:aria-label="display.text"
+	@click.stop.prevent
+	@auxclick.stop.prevent
+	@pointerdown.stop
 >
 	<MkStatusIcon :class="$style.icon" :status="display.status" :icon="display.icon" plain/>
 </div>

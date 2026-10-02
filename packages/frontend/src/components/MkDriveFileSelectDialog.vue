@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<template #header>
 		{{ multiple ? i18n.ts.selectFiles : i18n.ts.selectFile }}
-		<span v-if="selected.length > 0" style="margin-left: 8px; opacity: 0.5;">({{ selected.length }})</span>
+		<span v-if="selected.length > 0" style="margin-left: 8px; color: var(--MI_THEME-fgTransparentWeak);">({{ selected.length }})</span>
 	</template>
 	<MkDrive :multiple="multiple" select="file" :initialFolder="initialFolder" @changeSelectedFiles="onChangeSelection"/>
 </MkModalWindow>

@@ -4,7 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="instance">
+<PageTimeline v-if="openGuestAccess"/>
+<div v-else-if="instance">
 	<XSetup v-if="instance.requireSetup"/>
 	<XEntranceClassic v-else-if="(instance.clientOptions.entrancePageStyle ?? 'classic') === 'classic'"/>
 	<XEntranceSimple v-else/>
@@ -12,27 +13,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
-import * as Misskey from 'misskey-js';
+import { ref } from 'vue';
+import type * as Misskey from 'misskey-js';
 import { instanceName } from '@@/js/config.js';
 import XSetup from './welcome.setup.vue';
 import XEntranceClassic from './welcome.entrance.classic.vue';
 import XEntranceSimple from './welcome.entrance.simple.vue';
+import PageTimeline from './timeline.vue';
+import { fetchInstance, instance as serverInstance } from '@/instance.js';
 import { definePage } from '@/page.js';
-import { fetchInstance } from '@/instance.js';
 
+const openGuestAccess = !serverInstance.requireSetup && serverInstance.clientOptions.openGuestAccess === true;
 const instance = ref<Misskey.entities.MetaDetailed | null>(null);
 
-fetchInstance(true).then((res) => {
-	instance.value = res;
-});
+if (!openGuestAccess) {
+	fetchInstance(true).then(res => {
+		instance.value = res;
+	});
 
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
-
-definePage(() => ({
-	title: instanceName,
-	icon: null,
-}));
+	definePage(() => ({
+		title: instanceName,
+		icon: null,
+	}));
+}
 </script>

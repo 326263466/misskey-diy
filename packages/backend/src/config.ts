@@ -266,8 +266,10 @@ export function loadConfig(): Config {
 
 	const meta = JSON.parse(fs.readFileSync(resolve(projectBuiltDir, 'meta.json'), 'utf-8'));
 
-	const frontendManifestExists = fs.existsSync(resolve(projectBuiltDir, '_frontend_vite_/manifest.json'));
-	const frontendEmbedManifestExists = fs.existsSync(resolve(projectBuiltDir, '_frontend_embed_vite_/manifest.json'));
+	// 开发模式忽略残留构建清单，避免入口与 Vite 不匹配导致 404。
+	const useBuiltFrontend = process.env.NODE_ENV !== 'development';
+	const frontendManifestExists = useBuiltFrontend && fs.existsSync(resolve(projectBuiltDir, '_frontend_vite_/manifest.json'));
+	const frontendEmbedManifestExists = useBuiltFrontend && fs.existsSync(resolve(projectBuiltDir, '_frontend_embed_vite_/manifest.json'));
 
 	const config = JSON.parse(fs.readFileSync(compiledConfigFilePath, 'utf-8')) as Source;
 

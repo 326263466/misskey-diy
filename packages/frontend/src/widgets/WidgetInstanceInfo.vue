@@ -60,7 +60,7 @@ defineExpose<WidgetComponentExpose>({
 .iconContainer {
 	display: inline-block;
 	text-align: center;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 }
 
 .icon {
@@ -76,7 +76,7 @@ defineExpose<WidgetComponentExpose>({
 	display: flex;
 	align-items: center;
 	min-width: 0;
-	padding: 0 var(--MI-cardPadding, 20px) 0 0;
+	padding: 0 var(--MI-cardPadding, 18px) 0 0;
 }
 
 .body {

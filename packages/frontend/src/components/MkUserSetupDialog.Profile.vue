@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<FormSlot>
 		<template #label>{{ i18n.ts.avatar }}</template>
-		<div v-adaptive-bg :class="$style.avatarSection" class="_panel">
+		<div :class="$style.avatarSection" class="_panel">
 			<MkAvatar :class="$style.avatar" :user="$i" @click="setAvatar"/>
 			<div style="margin-top: 16px;">
 				<MkButton primary rounded inline @click="setAvatar">{{ i18n.ts._profile.changeAvatar }}</MkButton>
@@ -103,7 +103,7 @@ async function setAvatar(ev: PointerEvent) {
 <style lang="scss" module>
 .avatarSection {
 	text-align: center;
-	padding: 20px;
+	padding: var(--MI-cardPadding);
 }
 
 .avatar {

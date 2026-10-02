@@ -56,7 +56,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template #icon><i class="ti ti-planet"></i></template>
 
 		<div class="_gaps_s">
-			<div>{{ i18n.ts._serverSetupWizard.doYouConnectToFediverse_description1 }}<br>{{ i18n.ts._serverSetupWizard.doYouConnectToFediverse_description2 }}<br><MkLink target="_blank" url="https://wikipedia.org/wiki/Fediverse">{{ i18n.ts.learnMore }}</MkLink></div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._serverSetupWizard.doYouConnectToFediverse_description1 }}<br>{{ i18n.ts._serverSetupWizard.doYouConnectToFediverse_description2 }}<br><MkLink target="_blank" url="https://wikipedia.org/wiki/Fediverse">{{ i18n.ts.learnMore }}</MkLink></div>
 
 			<MkRadios
 				v-model="q_federation"
@@ -82,7 +82,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template #icon><i class="ti ti-mail"></i></template>
 
 		<div class="_gaps_s">
-			<div>{{ i18n.ts._serverSetupWizard.adminInfo_description }}</div>
+			<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._serverSetupWizard.adminInfo_description }}</div>
 
 			<MkInfo warn>{{ i18n.ts._serverSetupWizard.adminInfo_mustBeFilled }}</MkInfo>
 

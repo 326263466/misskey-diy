@@ -70,24 +70,29 @@ watch(showBody, () => {
 .body {
 	display: grid;
 	grid-template-rows: 1fr;
+	background: var(--MI_THEME-panel);
 }
 
 .bodyInner {
+	--MI-formGroupInset: 0px;
 	// 网格项自身不能有内边距: auto 最小尺寸会含内边距, 折叠时把轨道顶在残留高度上
 	min-height: 0;
 	display: flow-root;
 }
 
 .bodyPadding {
-	padding: 0 16px 16px;
+	--MI-formGroupInset: var(--MI-cardPadding);
+	--MI-formGroupRadius: 0px;
+	padding: var(--MI-cardPadding);
 }
 
 .root {
+	margin-inline: calc(0px - var(--MI-formGroupInset, 0px));
 	position: relative;
 	// 标题与内容合成一张整卡, 折叠时只留标题行
 	// (overflow: clip 裁出圆角, header 的 sticky 因此只在卡片内生效, 不再悬浮于页面)
 	background: var(--MI_THEME-panel);
-	border-radius: var(--MI-cardRadius);
+	border-radius: var(--MI-formGroupRadius, var(--MI-cardRadius));
 	overflow: clip;
 }
 
@@ -96,14 +101,15 @@ watch(showBody, () => {
 	position: sticky;
 	top: var(--MI-stickyTop, 0px);
 	z-index: 10;
-	background-color: var(--MI_THEME-panel);
+	background-color: var(--MI_THEME-panelHighlight);
 }
 
 .title {
 	display: grid;
 	place-content: center;
 	margin: 0;
-	padding: 12px 16px;
+	padding: 12px var(--MI-cardPadding);
+	color: var(--MI_THEME-fg);
 }
 
 .divider {
@@ -114,20 +120,17 @@ watch(showBody, () => {
 }
 
 .button {
-	padding: 12px 16px;
+	padding: 12px var(--MI-cardPadding);
 }
 
 @container (max-width: 500px) {
 	.title {
-		padding: 8px 10px;
+		padding-block: 8px;
 	}
 
 	.button {
-		padding: 8px 10px;
+		padding-block: 8px;
 	}
 
-	.bodyPadding {
-		padding: 0 10px 10px;
-	}
 }
 </style>

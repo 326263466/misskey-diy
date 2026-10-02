@@ -14,7 +14,7 @@ import MkTabs from '@/components/MkTabs.vue';
 
 vi.mock('@/preferences.js', () => ({ prefer: { s: { animation: true } } }));
 vi.mock('@/os.js', () => ({ pageFolderTeleportCount: { value: 0 }, popup: vi.fn() }));
-vi.mock('@/theme.js', () => ({ themeManager: { currentCompiledTheme: { panel: 'transparent' } } }));
+vi.mock('@/theme.js', () => ({ themeManager: { on: vi.fn(), off: vi.fn(), currentCompiledTheme: { panel: 'transparent' } } }));
 vi.mock('@/utility/get-bg-color.js', () => ({ getBgColor: () => null }));
 vi.mock('@/utility/device-kind.js', () => ({ deviceKind: 'desktop' }));
 vi.mock('@/components/MkFolderPage.vue', () => ({ default: {} }));

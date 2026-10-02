@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkModal ref="modal" :zPriority="'middle'" :preferType="'dialog'" @closed="emit('closed')" @click="onBgClick">
-	<div ref="rootEl" :class="$style.root">
+	<div ref="rootEl" :class="$style.root" @scroll.passive="checkReachedBottom">
 		<div :class="$style.header">
 			<span :class="$style.icon">
 				<i v-if="announcement.icon === 'info'" class="ti ti-info-circle"></i>
@@ -16,7 +16,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span :class="$style.title">{{ announcement.title }}</span>
 		</div>
 		<div :class="$style.text"><Mfm :text="announcement.text"/></div>
-		<div ref="bottomEl"></div>
 		<div :class="$style.footer">
 			<MkButton
 				primary
@@ -30,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, useTemplateRef } from 'vue';
+import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -49,7 +48,6 @@ const emit = defineEmits<{
 }>();
 
 const rootEl = useTemplateRef('rootEl');
-const bottomEl = useTemplateRef('bottomEl');
 const modal = useTemplateRef('modal');
 
 async function ok() {
@@ -85,43 +83,30 @@ function onBgClick() {
 }
 
 const hasReachedBottom = ref(false);
+const resizeObserver = new ResizeObserver(checkReachedBottom);
+
+function checkReachedBottom() {
+	const root = rootEl.value;
+	if (root && root.scrollTop + root.clientHeight >= root.scrollHeight - 1) {
+		hasReachedBottom.value = true;
+	}
+}
 
 onMounted(() => {
-	if (bottomEl.value && rootEl.value) {
-		const bottomElRect = bottomEl.value.getBoundingClientRect();
-		const rootElRect = rootEl.value.getBoundingClientRect();
-		if (
-			bottomElRect.top >= rootElRect.top &&
-			bottomElRect.top <= (rootElRect.bottom - 66) // 66 ≒ 75 * 0.9 (modalのアニメーション分)
-		) {
-			hasReachedBottom.value = true;
-			return;
-		}
-
-		const observer = new IntersectionObserver(entries => {
-			for (const entry of entries) {
-				if (entry.isIntersecting) {
-					hasReachedBottom.value = true;
-					observer.disconnect();
-				}
-			}
-		}, {
-			root: rootEl.value,
-			rootMargin: '0px 0px -75px 0px',
-		});
-
-		observer.observe(bottomEl.value);
-	}
+	checkReachedBottom();
+	if (rootEl.value) resizeObserver.observe(rootEl.value);
 });
+
+onUnmounted(() => resizeObserver.disconnect());
 </script>
 
 <style lang="scss" module>
 .root {
 	margin: auto;
 	position: relative;
-	padding: 32px 32px 0;
-	min-width: 320px;
-	max-width: 480px;
+	padding: var(--MI-cardPadding) var(--MI-cardPadding) 0;
+	min-width: min(320px, 100%);
+	max-width: min(480px, 100%);
 	max-height: 100%;
 	overflow-y: auto;
 	overflow-x: hidden;
@@ -149,10 +134,11 @@ onMounted(() => {
 .footer {
 	position: sticky;
 	bottom: 0;
-	left: -32px;
+	left: 0;
 	backdrop-filter: var(--MI-blur, blur(15px));
-	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
-	margin: 0 -32px;
-	padding: 24px 32px;
+	background: var(--MI_THEME-panel);
+	border-top: 1px solid var(--MI_THEME-divider);
+	margin: 0 calc(-1 * var(--MI-cardPadding));
+	padding: var(--MI-cardPadding);
 }
 </style>

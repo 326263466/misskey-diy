@@ -21,7 +21,9 @@ const _rootPackage = JSON.parse(fs.readFileSync(resolve(_rootPackageDir, 'packag
 const _frontendLocalesDir = resolve(_dirname, '../../built/_frontend_dist_/locales');
 const _localesDir = resolve(_rootPackageDir, 'locales');
 
-const entryPoints = fs.globSync('./src/**/**.{ts,tsx}');
+// The generator atomically renames this temporary file; it is never a build entry.
+const entryPoints = fs.globSync('./src/**/**.{ts,tsx}')
+	.filter(file => resolve(file) !== resolve('src/autogen/_locale.ts'));
 
 const options: BuildOptions = {
 	entryPoints,

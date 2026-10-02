@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer">
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<div v-if="tab === '-'" class="_gaps">
 			<div :class="$style.queues">
 				<div v-for="q in queueInfos" :key="q.name" :class="$style.queue" @click="tab = q.name">
@@ -46,7 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<div class="_gaps">
 					<XChart :dataSet="{ completed: queueInfo.metrics.completed.data, failed: queueInfo.metrics.failed.data }" :aspectRatio="5"/>
-					<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+					<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 12px;">
 						<MkKeyValue>
 							<template #key>{{ i18n.ts._queue.active }}</template>
 							<template #value>{{ kmg(queueInfo.counts.active, 2) }}</template>
@@ -61,7 +61,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</MkKeyValue>
 					</div>
 					<hr>
-					<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+					<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 12px;">
 						<MkKeyValue>
 							<template #key>{{ i18n.ts._queue.clientsConnected }}</template>
 							<template #value>{{ queueInfo.db.clients.connected }}</template>
@@ -135,7 +135,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</template>
 
-				<div class="_spacer">
+				<div class="_spacer _spacerCard">
 					<MkInput
 						v-model="searchQuery"
 						:placeholder="i18n.ts.search"
@@ -361,7 +361,7 @@ definePage(() => ({
 <style lang="scss" module>
 .queues {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
 	gap: 14px;
 }
 
@@ -374,7 +374,7 @@ definePage(() => ({
 
 .queueCounts {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(80px, 100%), 1fr));
 	gap: 8px;
 	font-size: 85%;
 	margin: 6px 0;

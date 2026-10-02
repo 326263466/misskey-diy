@@ -102,9 +102,10 @@ definePage(() => ({
 }
 
 .redirectRoot {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	border-radius: var(--MI-radius);
-	background-color: var(--MI_THEME-bg);
+	background-color: var(--MI_THEME-panel);
+	border: 1px solid var(--MI_THEME-divider);
 }
 
 .redirectUrl {

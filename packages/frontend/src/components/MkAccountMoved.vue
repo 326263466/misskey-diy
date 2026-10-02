@@ -30,7 +30,7 @@ misskeyApi('users/show', { userId: props.movedTo }).then(u => user.value = u);
 
 <style lang="scss" module>
 .root {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	font-size: 90%;
 	background: var(--MI_THEME-infoWarnBg);
 	color: var(--MI_THEME-error);

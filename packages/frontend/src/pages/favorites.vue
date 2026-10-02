@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div class="_pageBody">
 		<MkPagination :paginator="paginator">
 			<template #empty><MkResult type="empty" :text="i18n.ts.noNotes"/></template>
 

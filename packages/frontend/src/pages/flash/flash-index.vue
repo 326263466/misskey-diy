@@ -8,10 +8,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-if="tab === 'liked'" #header-actions>
 		<MkPaginationControl :paginator="likedFlashsPaginator" compact/>
 	</template>
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div class="_pageBody">
 		<div v-if="tab === 'search'">
 			<div class="_gaps">
-				<div :class="$style.searchRow">
+				<div class="_panel _panelPadding" :class="$style.searchRow">
 					<MkInput v-model="searchQuery" :class="$style.searchInput" :large="true" type="search">
 						<template #prefix><i class="ti ti-search"></i></template>
 					</MkInput>

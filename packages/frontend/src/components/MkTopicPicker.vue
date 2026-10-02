@@ -196,7 +196,7 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timeout
 .input::placeholder { color: var(--MI_THEME-fgTransparentWeak); }
 .hint { margin: 8px 0 0; color: var(--MI_THEME-fgTransparentWeak); font-size: .75em; line-height: 1.5; }
 .invalid { color: var(--MI_THEME-error); }
-.results { box-sizing: border-box; min-height: 80px; max-height: calc(46px * 5 + 12px); overflow-y: auto; overscroll-behavior: contain; padding: 6px; }
+.results { box-sizing: border-box; min-height: 0; max-height: calc(46px * 5 + 12px); overflow-y: auto; overscroll-behavior: contain; padding: 6px; }
 .message { margin: 12px 10px; color: var(--MI_THEME-fgTransparentWeak); font-size: .8em; line-height: 1.5; }
 .group { padding: 8px 10px 4px; color: var(--MI_THEME-fgTransparentWeak); font-size: .7em; font-weight: 600; }
 .option { display: flex; align-items: center; gap: 8px; box-sizing: border-box; width: 100%; height: 46px; min-height: 46px; padding: 2px 10px; border-radius: 8px; font-size: .9em; text-align: start; cursor: pointer; }

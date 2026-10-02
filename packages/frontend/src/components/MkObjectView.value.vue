@@ -73,7 +73,7 @@ function collapsable(v: unknown): boolean {
 
 	> .null {
 		display: inline;
-		opacity: 0.7;
+		color: var(--MI_THEME-fgTransparentWeak);
 	}
 
 	> .boolean {
@@ -82,10 +82,6 @@ function collapsable(v: unknown): boolean {
 
 		&.true {
 			font-weight: bold;
-		}
-
-		&.false {
-			opacity: 0.7;
 		}
 	}
 
@@ -101,7 +97,7 @@ function collapsable(v: unknown): boolean {
 
 	> .array.empty {
 		display: inline;
-		opacity: 0.7;
+		color: var(--MI_THEME-fgTransparentWeak);
 	}
 
 	> .array:not(.empty) {
@@ -115,7 +111,7 @@ function collapsable(v: unknown): boolean {
 
 	> .object.empty {
 		display: inline;
-		opacity: 0.7;
+		color: var(--MI_THEME-fgTransparentWeak);
 	}
 
 	> .object:not(.empty) {

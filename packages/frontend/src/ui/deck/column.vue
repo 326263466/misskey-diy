@@ -376,7 +376,6 @@ function onDrop(ev: DragEvent) {
 
 		> .body {
 			background: transparent !important;
-			scrollbar-color: var(--MI_THEME-scrollbarHandle) transparent;
 		}
 	}
 
@@ -401,7 +400,6 @@ function onDrop(ev: DragEvent) {
 
 		> .body {
 			background: var(--MI_THEME-bg) !important;
-			scrollbar-color: var(--MI_THEME-scrollbarHandle) transparent;
 		}
 	}
 }
@@ -487,6 +485,5 @@ function onDrop(ev: DragEvent) {
 	box-sizing: border-box;
 	container-type: size;
 	background-color: var(--MI_THEME-bg);
-	scrollbar-color: var(--MI_THEME-scrollbarHandle) var(--MI_THEME-panel);
 }
 </style>

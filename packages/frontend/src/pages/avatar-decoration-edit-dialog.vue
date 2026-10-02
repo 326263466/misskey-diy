@@ -219,7 +219,7 @@ async function del() {
 	z-index: 10000;
 	bottom: 0;
 	left: 0;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));

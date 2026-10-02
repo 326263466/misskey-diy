@@ -5,8 +5,10 @@
 
 import { afterEach, assert, beforeEach, describe, test, vi } from 'vitest';
 import type { Theme } from '@@/js/theme.js';
+import { compile, getBuiltinThemes } from '@@/js/theme.js';
 import lightTheme from '@@/themes/_light.json5';
 import darkTheme from '@@/themes/_dark.json5';
+import miLight from '@@/themes/l-light.json5';
 
 vi.mock('@/i18n.js', () => ({
 	i18n: {
@@ -91,6 +93,52 @@ const resetDocument = () => {
 	});
 };
 
+describe('derived theme colors', () => {
+	test.each(['light', 'dark'] as const)('derives %s colors without changing the input', base => {
+		const theme = createTheme(base, { id: 'derived', name: 'Derived', accent: '#808080', bg: '#ffffff', fg: base === 'dark' ? '#ffffff' : '#000000' });
+		const original = cloneTheme(theme);
+		const colors = compile(theme);
+		const channel = base === 'dark' ? '255, 255, 255' : '0, 0, 0';
+		assert.strictEqual(colors.fgTransparent, `rgba(${channel}, ${base === 'dark' ? 0.85 : 0.75})`);
+		assert.strictEqual(colors.fgTransparentWeak, `rgba(${channel}, ${base === 'dark' ? 0.7 : 0.5})`);
+		assert.strictEqual(colors.fgTransparentVeryWeak, `rgba(${channel}, ${base === 'dark' ? 0.55 : 0.3})`);
+		assert.strictEqual(colors.accentHover, 'rgb(141, 141, 141)');
+		assert.strictEqual(colors.accentActive, 'rgb(115, 115, 115)');
+		assert.strictEqual(colors.chartAccent, 'rgb(128, 128, 128)');
+		assert.deepStrictEqual(theme, original);
+	});
+
+	test('explicit expressions override defaults and can reference other derived colors', () => {
+		const theme = cloneTheme(primaryTheme);
+		theme.props.fgTransparentWeak = '#123456';
+		theme.props.accentHover = '@accentActive';
+		theme.props.chartAccent = '@link';
+		theme.props.badge = '@fgTransparent';
+		const colors = compile(theme);
+		assert.strictEqual(colors.fgTransparentWeak, 'rgb(18, 52, 86)');
+		assert.strictEqual(colors.accentHover, colors.accentActive);
+		assert.strictEqual(colors.chartAccent, colors.link);
+		assert.strictEqual(colors.badge, colors.fgTransparent);
+	});
+
+	test('derived references retain cycle detection and partial themes remain compilable', () => {
+		const theme = cloneTheme(primaryTheme);
+		theme.props.accent = '@accentHover';
+		assert.throws(() => compile(theme), /circular references/);
+		assert.deepStrictEqual(compile({ ...primaryTheme, props: { bg: '#fff' } }), { bg: 'rgb(255, 255, 255)' });
+	});
+
+	test('all built-in themes compile the six derived fields', async () => {
+		for (const theme of await getBuiltinThemes()) {
+			const base = theme.base === 'dark' ? darkTheme : lightTheme;
+			const colors = compile({ ...theme, props: { ...base.props, ...theme.props } });
+			for (const key of ['fgTransparent', 'fgTransparentWeak', 'fgTransparentVeryWeak', 'accentHover', 'accentActive', 'chartAccent']) {
+				assert.match(colors[key], /^rgba?\(/, `${theme.name}: ${key}`);
+			}
+		}
+	});
+});
+
 describe('ThemeManager', () => {
 	beforeEach(() => {
 		resetDocument();
@@ -98,6 +146,20 @@ describe('ThemeManager', () => {
 
 	afterEach(() => {
 		window.localStorage.clear();
+	});
+
+	test('applies Mi Light overrides and replaces them with derived colors when switching themes', async () => {
+		const { themeManager } = await loadThemeModule();
+		themeManager.updateTheme(miLight);
+		const style = document.documentElement.style;
+		assert.strictEqual(style.getPropertyValue('--MI_THEME-accent'), 'rgb(30, 128, 255)');
+		assert.strictEqual(style.getPropertyValue('--MI_THEME-accentHover'), 'rgb(17, 113, 238)');
+		assert.strictEqual(style.getPropertyValue('--MI_THEME-accentActive'), 'rgb(0, 96, 221)');
+		assert.strictEqual(style.getPropertyValue('--MI_THEME-fgTransparentWeak'), 'rgb(138, 145, 159)');
+		assert.strictEqual(style.getPropertyValue('--MI_THEME-divider'), 'rgb(228, 230, 235)');
+		themeManager.updateTheme(replacementTheme);
+		assert.strictEqual(style.getPropertyValue('--MI_THEME-accentHover'), compile(replacementTheme).accentHover);
+		assert.strictEqual(style.getPropertyValue('--MI_THEME-fgTransparentWeak'), 'rgba(246, 231, 223, 0.7)');
 	});
 
 	test('通常テーマ適用後のプレビューは現在テーマのみを切り替え、キャッシュは保持する', async () => {

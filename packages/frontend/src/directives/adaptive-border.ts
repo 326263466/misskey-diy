@@ -27,10 +27,10 @@ export const adaptiveBorderDirective = {
 
 		calc();
 
-		themeManager.on('themeChanged', calc);
+		themeManager.on('themeChanging', calc);
 	},
 
 	unmounted(src) {
-		themeManager.off('themeChanged', handlerMap.get(src));
+		themeManager.off('themeChanging', handlerMap.get(src));
 	},
 } as Directive<HTMLElement>;

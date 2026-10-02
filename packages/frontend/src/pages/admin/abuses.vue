@@ -4,11 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<template #header-actions>
 		<MkButton type="routerLink" to="/admin/abuse-report-notification-recipient" primary>{{ i18n.ts.notificationSetting }}</MkButton>
 	</template>
-	<div class="_spacer" style="--MI_SPACER-w: 900px;">
+	<div class="_pageBody">
 		<div :class="$style.root" class="_gaps">
 			<MkTip k="abuses">
 				{{ i18n.ts._abuseUserReport.resolveTutorial }}

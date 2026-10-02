@@ -13,6 +13,7 @@ import { i18n } from '@/i18n.js';
 import { DI } from '@/di.js';
 import { publishCheckinStatus } from '@/composables/use-checkin-status.js';
 import { ACHIEVEMENT_BADGES, claimAchievement, claimedAchievements, SERVER_AWARDED_ACHIEVEMENT_TYPES } from '@/utility/achievements.js';
+import { checkinRewardForecast } from '@/utility/checkin.js';
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), confirm: vi.fn(), alert: vi.fn(), popup: vi.fn(), dispose: vi.fn(), account: { id: 'self', username: 'self', createdAt: '2023-01-01T00:00:00Z', achievements: [] } }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
@@ -31,7 +32,7 @@ function status(overrides: Partial<entities.ICheckinStatusResponse> = {}): entit
 		timeZone: 'Asia/Shanghai', today: '2026-01-15', month: '2026-01', checkedInToday: false,
 		totalDays: 0, consecutiveDays: 0, monthlyDays: 0, lastCheckinDate: null,
 		checkedInDates: [], achievements: [], points: 0, makeupCards: 0, makeupDates: [], registeredDate: '2023-01-01',
-		makeupCardProgress: 0, makeupCardTarget: 7, makeupCardExchangeCost: 7, ...overrides,
+		makeupCardProgress: 0, makeupCardTarget: 30, makeupCardFirstRewardClaimed: true, rewardDates: [], makeupCardExchangeCost: 60, makeupCardLimit: 3, makeupCardExchangeAvailable: true, makeupEarliestDate: '2026-01-08', ...overrides,
 	};
 }
 
@@ -71,6 +72,65 @@ afterEach(() => {
 });
 
 describe('daily check-in', () => {
+	test('distinguishes calendar states and supports keyboard inspection without mutations', async () => {
+		mocks.api.mockResolvedValueOnce(status({ registeredDate: '2026-01-02', checkedInDates: ['2026-01-12', '2026-01-13'], makeupDates: ['2026-01-12'] }));
+		const view = await readyPage();
+		const cell = (day: string) => view.container.querySelector(`[data-checkin-date="2026-01-${day}"]`)!;
+		for (const [day, state] of [['01', 'unavailable'], ['07', 'expired'], ['11', 'missed'], ['12', 'madeUp'], ['13', 'completed'], ['15', 'pending'], ['16', 'future']]) {
+			expect(cell(day).getAttribute('data-day-state')).toBe(state);
+		}
+		const today = cell('15').querySelector<HTMLButtonElement>('[data-date-select]')!;
+		expect(today.tabIndex).toBe(0);
+		await fireEvent.keyDown(today, { key: 'ArrowLeft' });
+		await nextTick();
+		expect(cell('14').querySelector('button')?.getAttribute('aria-pressed')).toBe('true');
+		await fireEvent.click(cell('12').querySelector('button')!);
+		expect(view.getByTestId('checkin-day-details').textContent).toContain(i18n.ts._checkin.makeupNoPoints);
+		expect(mocks.api).toHaveBeenCalledExactlyOnceWith('i/checkin-status', {});
+	});
+
+	test('does not allow stale calendar actions after a broadcast refresh fails', async () => {
+		mocks.api.mockResolvedValueOnce(status()).mockRejectedValueOnce(new Error('offline'));
+		const view = await readyPage();
+		publishCheckinStatus('self', status({ today: '2026-01-16' }));
+		await waitFor(() => expect(view.getByRole('alert')).toBeTruthy());
+		expect((view.getByTestId('checkin-submit') as HTMLButtonElement).disabled).toBe(true);
+		expect(view.container.querySelector('[data-card-reward="expected"]')).toBeNull();
+		await fireEvent.click(view.getByTestId('checkin-submit'));
+		expect(mocks.api.mock.calls.every(([endpoint]) => endpoint === 'i/checkin-status')).toBe(true);
+	});
+
+	test('forecasts first-week and subsequent rewards across months and year boundaries', () => {
+		const initial = status({ today: '2026-12-29', month: '2027-01', makeupCardTarget: 7, makeupCardProgress: 0, makeupCardFirstRewardClaimed: false });
+		expect([...checkinRewardForecast(initial)]).toEqual(['2027-01-04']);
+		expect([...checkinRewardForecast({ ...initial, month: '2027-02' })]).toEqual(['2027-02-03']);
+		expect([...checkinRewardForecast({ ...initial, today: '2027-01-04', checkedInToday: true, makeupCardTarget: 30, makeupCardProgress: 0, month: '2027-02' })]).toEqual(['2027-02-03']);
+		expect([...checkinRewardForecast(status({ makeupCardTarget: 7, makeupCardProgress: 7 }))]).toEqual(['2026-01-15']);
+	});
+
+	test('updates a predicted card to an actual reward on check-in and forecasts the next round', async () => {
+		mocks.api.mockResolvedValueOnce(status({ makeupCardTarget: 7, makeupCardProgress: 6, makeupCardFirstRewardClaimed: false }))
+			.mockResolvedValueOnce(signedIn({ makeupCardProgress: 0, makeupCardTarget: 30, rewardDates: ['2026-01-15'], earnedMakeupCards: 1, makeupCards: 1 }));
+		const view = await readyPage();
+		const cell = () => view.container.querySelector('[data-checkin-date="2026-01-15"]')!;
+		expect(cell().querySelector('[data-card-reward="expected"]')?.getAttribute('aria-label')).toBe(i18n.ts._checkin.calendarRewardExpected);
+		await fireEvent.click(view.getByTestId('checkin-submit'));
+		await waitFor(() => expect(cell().querySelector('[data-card-reward="received"]')).not.toBeNull());
+		expect(cell().querySelector('[data-card-reward="expected"]')).toBeNull();
+		expect(view.getByTestId('checkin-card-progress').textContent).toContain('0 / 30');
+	});
+
+	test('moves predicted rewards after a break and after restored continuity without inventing historical rewards', async () => {
+		mocks.api.mockResolvedValueOnce(status({ makeupCardTarget: 7, makeupCardProgress: 0, makeupCardFirstRewardClaimed: false }))
+			.mockResolvedValueOnce(status({ makeupCardTarget: 7, makeupCardProgress: 4, makeupCardFirstRewardClaimed: false, makeupDates: ['2026-01-14'] }));
+		const view = await readyPage();
+		expect(view.container.querySelector('[data-checkin-date="2026-01-21"] [data-card-reward="expected"]')).not.toBeNull();
+		publishCheckinStatus('self', status({ makeupCards: 0, makeupDates: ['2026-01-14'] }));
+		await waitFor(() => expect(view.container.querySelector('[data-checkin-date="2026-01-17"] [data-card-reward="expected"]')).not.toBeNull());
+		expect(view.container.querySelector('[data-checkin-date="2026-01-21"] [data-card-reward]')).toBeNull();
+		expect(view.container.querySelector('[data-card-reward="received"]')).toBeNull();
+	});
+
 	test('uses distinct artwork for check-in milestones without reusing existing achievements', () => {
 		const checkins = new Set<string>(SERVER_AWARDED_ACHIEVEMENT_TYPES);
 		const artwork = SERVER_AWARDED_ACHIEVEMENT_TYPES.map(name => ACHIEVEMENT_BADGES[name].img);
@@ -126,13 +186,13 @@ describe('daily check-in', () => {
 	});
 
 	test('reopens the same success reward after closing without submitting again or stacking dialogs', async () => {
-		mocks.api.mockResolvedValueOnce(status({ makeupCardProgress: 6 })).mockResolvedValueOnce(signedIn({ earnedMakeupCards: 1, makeupCards: 1, consecutiveDays: 7 }));
+		mocks.api.mockResolvedValueOnce(status({ makeupCardProgress: 29 })).mockResolvedValueOnce(signedIn({ earnedMakeupCards: 1, makeupCards: 1, consecutiveDays: 30 }));
 		const view = await readyPage();
 		const button = view.getByTestId('checkin-submit');
 		await fireEvent.click(button);
 		await waitFor(() => expect(mocks.popup).toHaveBeenCalledTimes(1));
 		const firstProps = mocks.popup.mock.calls[0][1];
-		expect(firstProps).toEqual({ points: 1, consecutiveDays: 7, earnedMakeupCards: 1, returnFocusTo: button });
+		expect(firstProps).toEqual({ points: 1, consecutiveDays: 30, earnedMakeupCards: 1, returnFocusTo: button });
 		await fireEvent.click(button);
 		expect(mocks.popup).toHaveBeenCalledTimes(1);
 		mocks.popup.mock.calls[0][2].closed();
@@ -153,14 +213,14 @@ describe('daily check-in', () => {
 		expect(mocks.api).toHaveBeenCalledExactlyOnceWith('i/checkin-status', {});
 	});
 
-	test('exchanges seven points, refreshes selected month, and broadcasts new balances', async () => {
-		mocks.api.mockResolvedValueOnce(status({ month: '2025-12', points: 7 }))
+	test('exchanges sixty points, refreshes selected month, and broadcasts new balances', async () => {
+		mocks.api.mockResolvedValueOnce(status({ month: '2025-12', points: 60 }))
 			.mockResolvedValueOnce({ points: 0, makeupCards: 1, exchanged: true })
-			.mockResolvedValueOnce(status({ month: '2025-12', makeupCards: 1 }));
+			.mockResolvedValueOnce(status({ month: '2025-12', makeupCards: 1, makeupCardExchangeAvailable: false }));
 		const view = await readyPage();
 		await fireEvent.click(view.getByTestId('checkin-exchange'));
 		await waitFor(() => expect(view.getByTestId('checkin-makeup-cards').textContent).toBe('1'));
-		expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ text: i18n.tsx._checkin.exchangeConfirm({ cost: 7 }) }));
+		expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ text: i18n.tsx._checkin.exchangeConfirm({ cost: 60 }) }));
 		expect(mocks.api).toHaveBeenNthCalledWith(2, 'i/checkin-exchange', { requestId: expect.any(String) });
 		expect(mocks.api).toHaveBeenLastCalledWith('i/checkin-status', { month: '2025-12' });
 		expect(view.getByTestId('checkin-points').textContent).toBe('0');
@@ -168,10 +228,10 @@ describe('daily check-in', () => {
 	});
 
 	test('retries an uncertain exchange with the same request ID to prevent double spending', async () => {
-		mocks.api.mockResolvedValueOnce(status({ points: 14 }))
+		mocks.api.mockResolvedValueOnce(status({ points: 120 }))
 			.mockRejectedValueOnce(new Error('response lost'))
-			.mockResolvedValueOnce({ points: 7, makeupCards: 1, exchanged: false })
-			.mockResolvedValueOnce(status({ points: 7, makeupCards: 1 }));
+			.mockResolvedValueOnce({ points: 60, makeupCards: 1, exchanged: false })
+			.mockResolvedValueOnce(status({ points: 60, makeupCards: 1, makeupCardExchangeAvailable: false }));
 		const view = await readyPage();
 		await fireEvent.click(view.getByTestId('checkin-exchange'));
 		await waitFor(() => expect(view.getByRole('alert').textContent).toContain(i18n.ts._checkin.cardExchangeFailed));
@@ -179,22 +239,41 @@ describe('daily check-in', () => {
 		await fireEvent.click(within(view.getByRole('alert')).getByRole('button', { name: i18n.ts.retry }));
 		await waitFor(() => expect(view.getByTestId('checkin-makeup-cards').textContent).toBe('1'));
 		expect(mocks.api.mock.calls[2]).toEqual(firstRequest);
-		expect(view.getByTestId('checkin-points').textContent).toBe('7');
+		expect(view.getByTestId('checkin-points').textContent).toBe('60');
+	});
+
+	test('keeps an uncertain exchange retry available after a refresh shows the monthly limit is used', async () => {
+		mocks.api.mockResolvedValueOnce(status({ points: 120 }))
+			.mockRejectedValueOnce(new Error('response lost'))
+			.mockResolvedValueOnce(status({ points: 60, makeupCards: 1, makeupCardExchangeAvailable: false }))
+			.mockResolvedValueOnce({ points: 60, makeupCards: 1, exchanged: false })
+			.mockResolvedValueOnce(status({ points: 60, makeupCards: 1, makeupCardExchangeAvailable: false }));
+		const view = await readyPage();
+		await fireEvent.click(view.getByTestId('checkin-exchange'));
+		await waitFor(() => expect(view.getByRole('alert').textContent).toContain(i18n.ts._checkin.cardExchangeFailed));
+		const firstRequest = mocks.api.mock.calls[1];
+		window.dispatchEvent(new Event('focus'));
+		await waitFor(() => expect(view.getByTestId('checkin-exchange-unavailable').textContent).toBe(i18n.ts._checkin.monthlyExchangeLimit));
+		expect((view.getByTestId('checkin-exchange') as HTMLButtonElement).disabled).toBe(false);
+		await fireEvent.click(view.getByTestId('checkin-exchange'));
+		await waitFor(() => expect(view.getByRole('status').textContent).toBe(i18n.ts._checkin.cardExchangeSuccess));
+		expect(mocks.api.mock.calls[3]).toEqual(firstRequest);
+		expect(view.getByTestId('checkin-points').textContent).toBe('60');
 	});
 
 	test('offers an exchange when a missed day has no card without automatically making up that day', async () => {
-		mocks.api.mockResolvedValueOnce(status({ points: 7 }))
+		mocks.api.mockResolvedValueOnce(status({ points: 60 }))
 			.mockResolvedValueOnce({ points: 0, makeupCards: 1, exchanged: true })
-			.mockResolvedValueOnce(status({ makeupCards: 1 }));
+			.mockResolvedValueOnce(status({ makeupCards: 1, makeupCardExchangeAvailable: false }));
 		const view = await readyPage();
 		await fireEvent.click(view.getByRole('button', { name: i18n.tsx._checkin.makeupDate({ date: '2026-01-14' }) }));
 		await waitFor(() => expect(view.getByTestId('checkin-makeup-cards').textContent).toBe('1'));
-		expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: i18n.ts._checkin.noMakeupCardsTitle, text: i18n.tsx._checkin.noCardsExchange({ cost: 7 }) }));
+		expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: i18n.ts._checkin.noMakeupCardsTitle, text: i18n.tsx._checkin.noCardsExchange({ cost: 60 }) }));
 		expect(mocks.api.mock.calls.some(([endpoint]) => endpoint === 'i/checkin-makeup')).toBe(false);
 	});
 
-	test('does not exchange when canceled or when fewer than seven points are available', async () => {
-		mocks.api.mockResolvedValueOnce(status({ points: 7 }));
+	test('does not exchange when canceled or when fewer than sixty points are available', async () => {
+		mocks.api.mockResolvedValueOnce(status({ points: 60 }));
 		mocks.confirm.mockResolvedValueOnce({ canceled: true });
 		let view = await readyPage();
 		await fireEvent.click(view.getByTestId('checkin-exchange'));
@@ -204,10 +283,44 @@ describe('daily check-in', () => {
 		view = await readyPage();
 		await fireEvent.click(view.getByTestId('checkin-exchange'));
 		expect(mocks.api).toHaveBeenCalledTimes(2);
-		expect(mocks.alert).toHaveBeenCalledWith(expect.objectContaining({ text: i18n.tsx._checkin.noPointsForCard({ cost: 7, current: 6, target: 7 }) }));
+		expect(mocks.alert).toHaveBeenCalledWith(expect.objectContaining({ text: i18n.tsx._checkin.noPointsForCardShort({ cost: 60, target: 30 }), progress: { value: 6, max: 30, label: i18n.tsx._checkin.cardRewardProgress({ current: 6, target: 30 }) } }));
 	});
 
-	test('spends one card to make up a past date and displays the server reward and updated streak', async () => {
+	test.each([
+		{ makeupCards: 0, makeupCardExchangeAvailable: false, reason: () => i18n.ts._checkin.monthlyExchangeLimit },
+		{ makeupCards: 3, makeupCardExchangeAvailable: true, reason: () => i18n.tsx._checkin.cardHoldingLimit({ limit: 3 }) },
+		{ makeupCards: 12, makeupCardExchangeAvailable: true, reason: () => i18n.tsx._checkin.cardHoldingLimit({ limit: 3 }) },
+	])('explains unavailable exchanges without spending points: %s', async ({ makeupCards, makeupCardExchangeAvailable, reason }) => {
+		mocks.api.mockResolvedValueOnce(status({ points: 120, makeupCards, makeupCardExchangeAvailable }));
+		const view = await readyPage();
+		const button = view.getByTestId('checkin-exchange') as HTMLButtonElement;
+		expect(button.disabled).toBe(true);
+		expect(view.getByTestId('checkin-exchange-unavailable').textContent).toBe(reason());
+		await fireEvent.click(button);
+		expect(mocks.api).toHaveBeenCalledTimes(1);
+		if (makeupCards === 0) {
+			await fireEvent.click(view.getByRole('button', { name: i18n.tsx._checkin.makeupDate({ date: '2026-01-14' }) }));
+			expect(mocks.alert).toHaveBeenCalledWith(expect.objectContaining({ text: reason() }));
+			expect(mocks.api).toHaveBeenCalledTimes(1);
+		}
+	});
+
+	test.each(['MONTHLY_EXCHANGE_LIMIT', 'CARD_LIMIT_EXCEEDED'] as const)('explains a server exchange restriction after another session updates the balance: %s', async code => {
+		mocks.api.mockResolvedValueOnce(status({ points: 120 })).mockRejectedValueOnce({ code });
+		const view = await readyPage();
+		await fireEvent.click(view.getByTestId('checkin-exchange'));
+		const message = code === 'MONTHLY_EXCHANGE_LIMIT' ? i18n.ts._checkin.monthlyExchangeLimit : i18n.tsx._checkin.cardHoldingLimit({ limit: 3 });
+		await waitFor(() => expect(view.getByRole('alert').textContent).toContain(message));
+		expect(view.getByTestId('checkin-points').textContent).toBe('120');
+	});
+
+	test.each([7, 14])('encourages a %i-day streak toward the next stage', async days => {
+		mocks.api.mockResolvedValueOnce(status({ consecutiveDays: days, makeupCardProgress: days }));
+		const view = await readyPage();
+		expect(view.getByTestId('checkin-streak-encouragement').textContent).toBe(i18n.tsx._checkin.streakStageReached({ days, target: days < 14 ? 14 : 30 }));
+	});
+
+	test('spends one card to make up a past date without points and displays the updated streak', async () => {
 		const pending = Promise.withResolvers<entities.ICheckinMakeupResponse>();
 		mocks.api.mockResolvedValueOnce(status({ makeupCards: 2, points: 3 })).mockReturnValueOnce(pending.promise);
 		const view = await readyPage();
@@ -217,10 +330,10 @@ describe('daily check-in', () => {
 		await fireEvent.click(button);
 		expect(mocks.confirm).toHaveBeenCalledTimes(1);
 		expect(mocks.api).toHaveBeenCalledTimes(2);
-		pending.resolve({ ...status({ points: 4, makeupCards: 1, makeupDates: ['2026-01-14'], checkedInDates: ['2026-01-14'], totalDays: 1, consecutiveDays: 1, monthlyDays: 1 }), newlyCheckedIn: true, earnedPoints: 1, earnedMakeupCards: 0, earnedAchievements: [] });
+		pending.resolve({ ...status({ points: 3, makeupCards: 1, makeupDates: ['2026-01-14'], checkedInDates: ['2026-01-14'], totalDays: 1, consecutiveDays: 1, monthlyDays: 1 }), newlyCheckedIn: true, earnedPoints: 0, earnedMakeupCards: 0, earnedAchievements: [] });
 		await waitFor(() => expect(view.getByTestId('checkin-makeup-cards').textContent).toBe('1'));
-		expect(view.getByTestId('checkin-points').textContent).toBe('4');
-		expect(view.getByRole('status').textContent).toContain(i18n.tsx._checkin.makeupSuccess({ date: '2026-01-14', n: 1 }));
+		expect(view.getByTestId('checkin-points').textContent).toBe('3');
+		expect(view.getByRole('status').textContent).toContain(i18n.tsx._checkin.makeupSuccess({ date: '2026-01-14' }));
 		expect(view.container.querySelector('[data-checkin-date="2026-01-14"]')!.getAttribute('aria-label')).toContain(i18n.ts._checkin.madeUp);
 		expect((view.getByTestId('checkin-submit') as HTMLButtonElement).disabled).toBe(false);
 	});
@@ -237,7 +350,26 @@ describe('daily check-in', () => {
 		await fireEvent.click(button);
 		expect(mocks.api).toHaveBeenCalledTimes(1);
 		expect(mocks.confirm).not.toHaveBeenCalled();
-		expect(mocks.alert).toHaveBeenCalledExactlyOnceWith({ type: 'warning', title: i18n.ts._checkin.noMakeupCardsTitle, text: i18n.tsx._checkin.noPointsForCard({ cost: 7, current: 0, target: 7 }) });
+		expect(mocks.alert).toHaveBeenCalledExactlyOnceWith({ type: 'warning', title: i18n.ts._checkin.noMakeupCardsTitle, text: i18n.tsx._checkin.noPointsForCardShort({ cost: 60, target: 30 }), progress: { value: 0, max: 30, label: i18n.tsx._checkin.cardRewardProgress({ current: 0, target: 30 }) } });
+	});
+
+	test('uses the server makeup cutoff across a month boundary', async () => {
+		mocks.api.mockResolvedValueOnce(status({ today: '2026-02-03', month: '2026-01', makeupEarliestDate: '2026-01-27', makeupCards: 1 }));
+		const view = await readyPage();
+		expect(view.queryByRole('button', { name: i18n.tsx._checkin.makeupDate({ date: '2026-01-26' }) })).toBeNull();
+		expect(view.getByRole('button', { name: i18n.tsx._checkin.makeupDate({ date: '2026-01-27' }) })).toBeTruthy();
+		expect(view.getByRole('button', { name: i18n.tsx._checkin.makeupDate({ date: '2026-01-31' }) })).toBeTruthy();
+	});
+
+	test('announces a card earned by a makeup that completes a consecutive milestone without awarding points', async () => {
+		mocks.api.mockResolvedValueOnce(status({ makeupCards: 1, points: 45 }))
+			.mockResolvedValueOnce({ ...status({ points: 45, makeupCards: 1, consecutiveDays: 30, makeupDates: ['2026-01-14'], checkedInDates: ['2026-01-14'] }), newlyCheckedIn: true, earnedPoints: 0, earnedMakeupCards: 1, earnedAchievements: [] });
+		const view = await readyPage();
+		await fireEvent.click(view.getByRole('button', { name: i18n.tsx._checkin.makeupDate({ date: '2026-01-14' }) }));
+		await waitFor(() => expect(view.getByRole('status').textContent).toContain(i18n.tsx._checkin.cardRewardReceived({ n: 1 })));
+		expect(view.getByRole('status').textContent).toContain(i18n.tsx._checkin.makeupSuccess({ date: '2026-01-14' }));
+		expect(view.getByRole('status').textContent).not.toContain(i18n.ts._checkin.alreadyMadeUp);
+		expect(view.getByTestId('checkin-points').textContent).toBe('45');
 	});
 
 	test('shows compact rewards, today, missing days, and the card balance beside the month', async () => {
@@ -245,19 +377,23 @@ describe('daily check-in', () => {
 		const view = await readyPage();
 		const calendar = view.getByTestId('checkin-calendar');
 		const cell = (date: string) => calendar.querySelector(`[data-checkin-date="${date}"]`)!;
-		for (const date of ['2026-01-13', '2026-01-14']) {
-			expect(cell(date).querySelector('.ti-check')).not.toBeNull();
+		for (const date of ['2026-01-14']) {
+			expect(cell(date).querySelector('.ti-circle-check-filled')).not.toBeNull();
 			expect(cell(date).querySelector('.ti-diamond-filled')).not.toBeNull();
-			expect(cell(date).textContent?.trim()).toBe(`${Number(date.slice(-2))}+1`);
-			expect(cell(date).querySelector('button')).toBeNull();
-			expect(cell(date).querySelector('[aria-label]')?.getAttribute('aria-label')).toBe(i18n.tsx._checkin.pointsEarned({ n: 1 }));
+			expect(cell(date).getAttribute('aria-label')).toContain(i18n.ts._checkin.signed);
+			expect(cell(date).querySelector('button')).not.toBeNull();
+			expect(cell(date).querySelector('.ti-diamond-filled')?.parentElement?.getAttribute('aria-label')).toBe(i18n.tsx._checkin.pointsEarned({ n: 1 }));
 		}
 		expect(cell('2026-01-13').getAttribute('aria-label')).toContain(i18n.ts._checkin.madeUp);
-		expect(cell('2026-01-15').textContent).toContain(i18n.ts._checkin.todayLabel);
-		expect(cell('2026-01-16').querySelector('.ti-diamond-filled')).not.toBeNull();
-		expect(cell('2026-01-16').textContent).toContain('+1');
-		expect(cell('2026-01-16').querySelector('button')).toBeNull();
-		expect(cell('2026-01-12').querySelector('button')?.textContent).toBe(i18n.ts._checkin.pendingMakeup);
+		expect(cell('2026-01-13').querySelector('.ti-history')).not.toBeNull();
+		expect(cell('2026-01-13').querySelector('.ti-diamond-filled')).toBeNull();
+		expect(cell('2026-01-13').textContent).not.toContain(i18n.ts._checkin.madeUp);
+		expect(cell('2026-01-13').textContent).not.toContain('+1');
+		expect(cell('2026-01-15').textContent).toContain(i18n.ts._checkin.checkIn);
+		expect(cell('2026-01-16').querySelector('.ti-diamond-filled')).toBeNull();
+		expect(cell('2026-01-16').getAttribute('aria-label')).toContain(i18n.ts._checkin.future);
+		expect(cell('2026-01-16').textContent).not.toContain(i18n.ts._checkin.future);
+		expect(within(cell('2026-01-12') as HTMLElement).getByRole('button', { name: i18n.tsx._checkin.makeupDate({ date: '2026-01-12' }) })).toBeTruthy();
 		const cardCount = view.getByTestId('checkin-makeup-cards');
 		expect(cardCount.textContent).toBe('2');
 		expect(cardCount.closest('section')?.getAttribute('aria-label')).toBe(i18n.ts._checkin.calendar);
@@ -265,7 +401,7 @@ describe('daily check-in', () => {
 	});
 
 	test.each([true, false])('does not spend a card when confirmation is canceled or the page unmounts (canceled: %s)', async canceled => {
-		mocks.api.mockResolvedValueOnce(status({ makeupCards: 1 }));
+		mocks.api.mockResolvedValueOnce(status({ makeupCards: 1, makeupCardExchangeAvailable: false }));
 		const confirmation = Promise.withResolvers<{ canceled: boolean }>();
 		mocks.confirm.mockReturnValueOnce(confirmation.promise);
 		const view = await readyPage();

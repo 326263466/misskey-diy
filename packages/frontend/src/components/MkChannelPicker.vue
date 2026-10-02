@@ -199,7 +199,7 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timer);
 
 <style lang="scss" module>
 .root {
-	--MI-channelPicker-muted: color-mix(in srgb, var(--MI_THEME-fg) 72%, var(--MI_THEME-popup));
+	--MI-channelPicker-muted: var(--MI_THEME-fgTransparentWeak);
 	--MI-channelPicker-hover: color-mix(in srgb, var(--MI_THEME-fg) 8%, var(--MI_THEME-popup));
 	--MI-channelPicker-selected: color-mix(in srgb, var(--MI_THEME-accent) 12%, var(--MI_THEME-popup));
 

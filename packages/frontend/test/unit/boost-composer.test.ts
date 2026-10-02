@@ -75,12 +75,40 @@ describe('Boost mixed text spacing', () => {
 	test('positions against its containing note and keeps the left alignment preference', async () => {
 		const anchorElement = document.createElement('button');
 		const boundaryElement = document.createElement('div');
+		boundaryElement.append(anchorElement);
+		document.body.append(boundaryElement);
 		render(MkBoostComposer, {
 			props: { note: { id: 'note', user: { username: 'author' } } as Misskey.entities.Note, anchorElement, boundaryElement },
 			global: { stubs: { MkAvatar: true } },
 		});
 		await nextTick();
 		expect(mocks.position).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({ anchorElement, boundaryElement, align: 'left' }));
+		boundaryElement.remove();
+	});
+
+	test('keeps the draft and follows the Boost button when its location changes', async () => {
+		const footerAnchor = document.createElement('button');
+		const inlineAnchor = document.createElement('button');
+		document.body.append(footerAnchor, inlineAnchor);
+		const view = render(MkBoostComposer, {
+			props: { note: { id: 'note', user: { username: 'author' } } as Misskey.entities.Note, anchorElement: footerAnchor },
+			global: { stubs: { MkAvatar: true } },
+		});
+		try {
+			const input = view.getByRole('textbox') as HTMLInputElement;
+			await edit(input, 'Keep my draft');
+			footerAnchor.remove();
+			await view.rerender({ anchorElement: inlineAnchor });
+			await nextTick();
+			expect(mocks.position).toHaveBeenLastCalledWith(expect.any(HTMLElement), expect.objectContaining({ anchorElement: inlineAnchor }));
+			expect(input.value).toBe('Keep my draft');
+			input.focus();
+			await fireEvent.click(view.getByRole('button', { name: i18n.ts.close }));
+			expect(document.activeElement).toBe(inlineAnchor);
+		} finally {
+			footerAnchor.remove();
+			inlineAnchor.remove();
+		}
 	});
 
 	test('renders the selected emoji style inside the editor without an extra preview', async () => {

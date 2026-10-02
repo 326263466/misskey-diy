@@ -7,7 +7,7 @@ import { watch, version as vueVersion } from 'vue';
 import { compareVersions } from 'compare-versions';
 import { version, lang, isSafeMode } from '@@/js/config.js';
 import defaultLightTheme from '@@/themes/l-light.json5';
-import defaultDarkTheme from '@@/themes/d-green-lime.json5';
+import defaultDarkTheme from '@@/themes/d-dark.json5';
 import { storeBootloaderErrors } from '@@/js/store-boot-errors';
 import type { App } from 'vue';
 import widgets from '@/widgets/index.js';
@@ -107,7 +107,7 @@ export async function common(createVue: () => Promise<App<Element>>) {
 
 	//#region Set lang attr
 	const html = window.document.documentElement;
-	html.setAttribute('lang', lang);
+	html.setAttribute('lang', 'zh-CN');
 	//#endregion
 
 	await store.ready;
@@ -254,6 +254,7 @@ export async function common(createVue: () => Promise<App<Element>>) {
 		});
 	});
 
+	await fetchInstanceMetaPromise;
 	const app = await createVue();
 
 	if (_DEV_) {

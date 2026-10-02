@@ -59,12 +59,12 @@ describe('visible widget spacing', () => {
 			const track = svg.querySelector('path[d="M20 111H204"]')!.getBoundingClientRect();
 			const calendar = host.querySelector('[data-testid="mkw-calendar"]')!;
 			const calendarDate = calendar.querySelector('p')!.getBoundingClientRect();
-			expect(date.left - clock.left).toBeCloseTo(20, 1);
+			expect(date.left - clock.left).toBeCloseTo(18, 1);
 			expect(track.left).toBeCloseTo(calendarDate.left, 1);
-			expect(clock.right - track.right).toBeCloseTo(20, 1);
-			expect(track.width).toBeCloseTo(width - 40, 1);
+			expect(clock.right - track.right).toBeCloseTo(18, 1);
+			expect(track.width).toBeCloseTo(width - 36, 1);
 			const lastMeter = calendar.querySelectorAll('[class*="meterVal"]');
-			expect(calendar.getBoundingClientRect().bottom - lastMeter[lastMeter.length - 1].getBoundingClientRect().bottom).toBeCloseTo(20, 1);
+			expect(calendar.getBoundingClientRect().bottom - lastMeter[lastMeter.length - 1].getBoundingClientRect().bottom).toBeCloseTo(18, 1);
 		}
 	});
 
@@ -72,7 +72,7 @@ describe('visible widget spacing', () => {
 		const host = await mountWidgets(240, design);
 		const card = host.querySelector('[data-testid="mkw-clock"]')!.getBoundingClientRect();
 		const svg = host.querySelector('svg')!;
-		expect(svg.getBoundingClientRect().width).toBeCloseTo(200, 1);
+		expect(svg.getBoundingClientRect().width).toBeCloseTo(204, 1);
 		for (const text of svg.querySelectorAll('text')) {
 			const bounds = text.getBoundingClientRect();
 			expect(bounds.left).toBeGreaterThan(card.left);

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 700px;">
+<div class="_pageBody">
 	<div v-if="roles != null && roles.length > 0" class="_gaps_s">
 		<MkRolePreview v-for="role in roles" :key="role.id" :role="role" :forModeration="false"/>
 	</div>

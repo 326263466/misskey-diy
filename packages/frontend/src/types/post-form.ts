@@ -20,6 +20,8 @@ export interface PostFormProps {
 	mention?: Misskey.entities.User;
 	specified?: Misskey.entities.UserDetailed;
 	initialText?: string;
+	/** An already funded, unbound packet selected from the wallet. */
+	initialRedPacket?: Misskey.entities.RedPacketsCreateResponse;
 	/** Initial body rows; omitted keeps the existing composer size. Content can grow beyond this. */
 	initialRows?: number;
 	initialHashtags?: string[];

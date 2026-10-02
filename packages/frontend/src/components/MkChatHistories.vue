@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkAcct :class="$style.messageHeaderUsername" :user="item.other!"/>
 				<MkTime :time="item.message.createdAt" :class="$style.messageHeaderTime"/>
 			</header>
-			<div :class="$style.messageBodyText"><span v-if="item.isMe" :class="$style.youSaid">{{ i18n.ts.you }}:</span>{{ item.message.text }}</div>
+			<div :class="$style.messageBodyText"><span v-if="item.isMe" :class="$style.youSaid">{{ i18n.ts.you }}:</span><span v-if="item.message.redPacket"><i class="ti ti-gift" aria-hidden="true"></i> {{ i18n.ts._redPacket.title }} </span>{{ item.message.text }}</div>
 		</div>
 	</MkA>
 </div>
@@ -108,11 +108,13 @@ onMounted(() => {
 .message {
 	position: relative;
 	display: flex;
-	padding: 16px 24px;
+	padding: var(--MI-cardPadding);
 
 	&.isRead,
 	&.isMe {
-		opacity: 0.8;
+		.messageBodyText {
+			color: var(--MI_THEME-fgTransparentWeak);
+		}
 	}
 
 	&:not(.isMe):not(.isRead) {
@@ -132,14 +134,12 @@ onMounted(() => {
 @container (max-width: 500px) {
 	.message {
 		font-size: 90%;
-		padding: 14px 20px;
 	}
 }
 
 @container (max-width: 450px) {
 	.message {
 		font-size: 80%;
-		padding: 12px 16px;
 	}
 }
 
@@ -187,13 +187,16 @@ onMounted(() => {
 
 .messageHeaderUsername {
 	margin: 0 8px;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .messageHeaderTime {
 	margin-left: auto;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .messageBodyText {
+	color: var(--MI_THEME-fgTransparent);
 	overflow: hidden;
 	overflow-wrap: break-word;
 	font-size: 1.1em;

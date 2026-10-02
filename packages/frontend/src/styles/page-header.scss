@@ -8,7 +8,7 @@
 	box-sizing: border-box;
 	width: 100%;
 	font-size: 1rem;
-	background: color(from var(--MI-pageHeaderBg, var(--MI_THEME-pageHeaderBg)) srgb r g b / var(--MI-pageHeaderBgOpacity, 0.75));
+	background: color(from var(--MI-pageHeaderBg, var(--MI_THEME-pageHeaderBg)) srgb r g b / var(--MI-pageHeaderBgOpacity, 0.85));
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 	border-radius: var(--MI-pageHeaderRadius, var(--MI-cardRadius));
@@ -26,7 +26,7 @@
 	width: calc(var(--height) - 8px);
 	box-sizing: border-box;
 	border-radius: 5px;
-	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%);
+	color: var(--MI_THEME-fgTransparentWeak);
 	transition: color 0.1s;
 
 	> i {

@@ -13,6 +13,8 @@ import ProfileSettings from '@/pages/settings/profile.vue';
 import SearchMarker from '@/components/global/SearchMarker.vue';
 import SearchLabel from '@/components/global/SearchLabel.vue';
 
+vi.hoisted(() => { vi.stubGlobal('_LANGS_', []); vi.stubGlobal('_VERSION_', 'test'); vi.stubGlobal('_DEV_', false); });
+vi.mock('@@/js/intl-const.js', () => ({ versatileLang: 'zh-CN' }));
 vi.mock('misskey-js', () => ({}));
 vi.mock('@/i.js', () => ({ ensureSignin: () => ({
 	id: 'self', username: 'alice', name: 'Alice', description: null, followedMessage: null,
@@ -38,6 +40,7 @@ vi.mock('@/components/MkInfo.vue', () => ({ default: { render: () => null } }));
 vi.mock('@/components/global/MkA.vue', () => ({ default: { render: () => null } }));
 vi.mock('@/i18n.js', () => ({ i18n: { ts: {
 	profile: '个人资料', location: '所在地', birthday: '生日', save: '保存', decorate: '装饰',
+	_datePicker: { title: '选择日期' },
 	_profile: {
 		changeBanner: '更换横幅', changeAvatar: '更换头像', name: '昵称', nameDescription: '',
 		company: '公司', jobTitle: '职位', companyPlaceholder: '公司或组织名称', jobTitlePlaceholder: '你的职位',
@@ -76,7 +79,7 @@ test.each([
 	const company = page.getByRole('textbox', { name: '公司', exact: true });
 	const title = page.getByRole('textbox', { name: '职位', exact: true });
 	const location = page.getByRole('textbox', { name: '所在地', exact: true });
-	const birthday = host.querySelector<HTMLInputElement>('input[type="date"]')!;
+	const birthday = page.getByRole('textbox', { name: '生日', exact: true }).element();
 	for (const [first, second] of [[company.element(), title.element()], [location.element(), birthday]]) {
 		const a = first.getBoundingClientRect();
 		const b = second.getBoundingClientRect();

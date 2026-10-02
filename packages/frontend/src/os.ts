@@ -15,7 +15,7 @@ import type { PostFormProps } from '@/types/post-form.js';
 import type { UploaderFeatures } from '@/composables/use-uploader.js';
 import type { MkSelectItem } from '@/components/MkSelect.vue';
 import type { OptionValue } from '@/types/option-value.js';
-import type { MkDialogReturnType } from '@/components/MkDialog.vue';
+import type { MkDialogProgress, MkDialogReturnType } from '@/components/MkDialog.vue';
 import type { OverloadToUnion } from '@/types/overload-to-union.js';
 import type MkRoleSelectDialog_TypeReferenceOnly from '@/components/MkRoleSelectDialog.vue';
 import type MkEmojiPickerDialog_TypeReferenceOnly from '@/components/MkEmojiPickerDialog.vue';
@@ -34,6 +34,7 @@ import { pleaseLogin } from '@/utility/please-login.js';
 import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import { focusParent } from '@/utility/focus.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
 export const openingWindowsCount = ref(0);
 
@@ -46,6 +47,7 @@ export const apiWithDialog = (<E extends keyof Misskey.Endpoints>(
 ) => {
 	const promise = misskeyApi(endpoint, data, token);
 	promiseDialog(promise, null, async (err) => {
+		if (isAccountSessionErrorHandled(err)) return;
 		let title: string | undefined;
 		let text = [err.message, err.id].filter(Boolean).join('\n') || i18n.ts.somethingHappened;
 		if (err.code === 'INTERNAL_ERROR') {
@@ -69,6 +71,8 @@ export const apiWithDialog = (<E extends keyof Misskey.Endpoints>(
 				copyToClipboard(`Endpoint: ${endpoint}\nInfo: ${JSON.stringify(err.info)}\nDate: ${date}`);
 			}
 			return;
+		} else if (err.code === 'CHAT_ROOM_FULL') {
+			text = i18n.ts._chat.roomFull;
 		} else if (err.code === 'RATE_LIMIT_EXCEEDED') {
 			title = i18n.ts.cannotPerformTemporary;
 			text = i18n.ts.cannotPerformTemporaryDescription;
@@ -113,7 +117,7 @@ export function promiseDialog<T extends Promise<any>>(
 		showing.value = false;
 		if (onFailure) {
 			onFailure(err);
-		} else {
+		} else if (!isAccountSessionErrorHandled(err)) {
 			alert({
 				type: 'error',
 				text: err,
@@ -256,6 +260,7 @@ export function alert(props: {
 	type?: 'error' | 'info' | 'success' | 'warning' | 'waiting' | 'question';
 	title?: string;
 	text?: string;
+	progress?: MkDialogProgress;
 }): Promise<void> {
 	return new Promise(resolve => {
 		const { dispose } = popup(MkDialog, props, {
@@ -486,7 +491,17 @@ export function select<C extends OptionValue, D extends C | null = null>(props: 
 	});
 }
 
-export function success(): Promise<void> {
+export function success(message?: string): Promise<void> {
+	if (message) {
+		return new Promise(resolve => {
+			const { dispose } = popup(MkToast, { message, success: true }, {
+				closed: () => {
+					dispose();
+					resolve();
+				},
+			});
+		});
+	}
 	return new Promise(resolve => {
 		const showing = ref(true);
 		window.setTimeout(() => {

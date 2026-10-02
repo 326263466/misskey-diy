@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getVisitorContentVisibility } from '@/misc/visitor-content.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { type Config, FulltextSearchProvider } from '@/config.js';
 import { bindThis } from '@/decorators.js';
 import { MiNote } from '@/models/Note.js';
-import type { NotesRepository } from '@/models/_.js';
+import type { MiMeta, NotesRepository } from '@/models/_.js';
 import { MiUser } from '@/models/_.js';
 import { sqlLikeEscape } from '@/misc/sql-like-escape.js';
 import { isUserRelated } from '@/misc/is-user-related.js';
@@ -40,17 +41,20 @@ export type SearchOpts = {
 	host?: string | null;
 	rangeStartAt?: number | null;
 	rangeEndAt?: number | null;
+	sort?: 'time' | 'popularity';
+	order?: 'asc' | 'desc';
 };
 
 export type SearchPagination = {
 	untilId?: MiNote['id'];
 	sinceId?: MiNote['id'];
 	limit: number;
+	offset?: number;
 };
 
 function compileValue(value: V): string {
 	if (typeof value === 'string') {
-		return `'${value}'`; // TODO: escape
+		return `'${value.replaceAll('\\', '\\\\').replaceAll('\'', '\\\'')}'`;
 	} else if (typeof value === 'number') {
 		return value.toString();
 	} else if (typeof value === 'boolean') {
@@ -96,6 +100,9 @@ export class SearchService {
 		private queryService: QueryService,
 		private idService: IdService,
 		private loggerService: LoggerService,
+
+		@Inject(DI.meta)
+		private meta: MiMeta,
 	) {
 		if (meilisearch) {
 			this.meilisearchNoteIndex = meilisearch.index(`${config.meilisearch!.index}---notes`);
@@ -181,6 +188,14 @@ export class SearchService {
 		opts: SearchOpts,
 		pagination: SearchPagination,
 	): Promise<MiNote[]> {
+		// Explicit sorting uses database text matching for every provider. Meilisearch
+		// does not index live interaction counts, so sorting its first page would
+		// produce an incomplete popularity ranking. Keep both sort modes on the
+		// same matching set without fetching the entire search index.
+		if (opts.sort != null || opts.order != null) {
+			return this.searchNoteByLike(q, me, opts, pagination);
+		}
+
 		switch (this.provider) {
 			case 'sqlLike':
 			case 'sqlPgroonga': {
@@ -209,7 +224,8 @@ export class SearchService {
 
 		if (opts.userId) {
 			query.andWhere('note.userId = :userId', { userId: opts.userId });
-		} else if (opts.channelId) {
+		}
+		if (opts.channelId) {
 			query.andWhere('note.channelId = :channelId', { channelId: opts.channelId });
 		}
 
@@ -224,6 +240,21 @@ export class SearchService {
 			query.andWhere('note.text &@~ :q', { q });
 		} else {
 			query.andWhere('LOWER(note.text) LIKE :q', { q: `%${ sqlLikeEscape(q.toLowerCase()) }%` });
+		}
+
+		// Preserve the configured index scope when explicitly sorted searches
+		// fall back from Meilisearch to SQL substring matching.
+		if (this.provider === 'meilisearch') {
+			query.andWhere('note.visibility IN (:...searchVisibilities)', { searchVisibilities: ['home', 'public'] });
+			if (this.meilisearchIndexScope === 'local') {
+				query.andWhere('note.userHost IS NULL');
+			} else if (Array.isArray(this.meilisearchIndexScope)) {
+				if (this.meilisearchIndexScope.length === 0) {
+					query.andWhere('note.userHost IS NULL');
+				} else {
+					query.andWhere('(note.userHost IS NULL OR note.userHost IN (:...searchHosts))', { searchHosts: this.meilisearchIndexScope });
+				}
+			}
 		}
 
 		if (opts.host) {
@@ -245,9 +276,22 @@ export class SearchService {
 		}
 
 		this.queryService.generateVisibilityQuery(query, me);
+		if (me == null) this.queryService.generateUgcVisibilityQueryForVisitor(query);
 		this.queryService.generateBaseNoteFilteringQuery(query, me);
 
-		return query.limit(pagination.limit).getMany();
+		if (opts.sort != null || opts.order != null) {
+			const direction = opts.order === 'asc' ? 'ASC' : 'DESC';
+			if (opts.sort === 'popularity') {
+				// Reactions, replies and renotes each contribute one point. Read the
+				// current counts before pagination and use the ID to break ties.
+				query.addSelect('note.repliesCount::bigint + note.renoteCount::bigint + (SELECT COALESCE(SUM(value::bigint), 0) FROM jsonb_each_text(note.reactions))', 'search_popularity');
+				query.orderBy('search_popularity', direction).addOrderBy('note.id', direction);
+			} else {
+				query.orderBy('note.id', direction);
+			}
+		}
+
+		return query.offset(pagination.offset ?? 0).limit(pagination.limit).getMany();
 	}
 
 	@bindThis
@@ -293,6 +337,10 @@ export class SearchService {
 			} else {
 				filter.qs.push({ op: '=', k: 'userHost', v: opts.host });
 			}
+		}
+		if (me == null) {
+			if (getVisitorContentVisibility(this.meta) === 'none') return [];
+			if (getVisitorContentVisibility(this.meta) === 'local') filter.qs.push({ op: 'is null', k: 'userHost' });
 		}
 
 		const res = await this.meilisearchNoteIndex.search(q, {

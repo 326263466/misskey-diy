@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getVisitorContentVisibility } from '@/misc/visitor-content.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
@@ -146,6 +147,16 @@ export class FanoutTimelineEndpointService {
 					}
 					if (note.userId !== note.renoteUserId && this.utilityService.isBlockedHost(this.meta.blockedHosts, note.renoteUserHost)) return false;
 					if (note.userId !== note.replyUserId && this.utilityService.isBlockedHost(this.meta.blockedHosts, note.replyUserHost)) return false;
+
+					return parentFilter(note);
+				};
+			}
+
+			if (ps.me == null && getVisitorContentVisibility(this.meta) !== 'all') {
+				const parentFilter = filter;
+				filter = (note) => {
+					if (getVisitorContentVisibility(this.meta) === 'none') return false;
+					if (getVisitorContentVisibility(this.meta) === 'local' && note.userHost != null) return false;
 
 					return parentFilter(note);
 				};

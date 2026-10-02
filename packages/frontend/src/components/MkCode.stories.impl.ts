@@ -42,3 +42,11 @@ export const Default = {
 		layout: 'centered',
 	},
 } satisfies StoryObj<typeof MkCode>;
+
+export const Collapsed = {
+	...Default,
+	args: {
+		...Default.args,
+		forceShow: false,
+	},
+} satisfies StoryObj<typeof MkCode>;

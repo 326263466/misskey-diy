@@ -74,6 +74,11 @@ export const packedMetaLiteSchema = {
 		clientOptions: {
 			ref: 'MetaClientOptions',
 		},
+		ugcVisibilityForVisitor: {
+			type: 'string',
+			enum: ['all', 'local', 'none'],
+			optional: false, nullable: false,
+		},
 		disableRegistration: {
 			type: 'boolean',
 			optional: false, nullable: false,
@@ -401,6 +406,10 @@ export const packedMetaClientOptionsSchema = {
 	type: 'object',
 	optional: false, nullable: false,
 	properties: {
+		openGuestAccess: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
 		entrancePageStyle: {
 			type: 'string',
 			enum: ['classic', 'simple'],

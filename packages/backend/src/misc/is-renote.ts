@@ -23,6 +23,8 @@ type Quote =
 		reply: NonNullable<MiNote['reply']>
 	} | {
 		hasPoll: true
+	} | {
+		hasRedPacket: true
 	});
 
 export function isRenote(note: MiNote): note is Renote {
@@ -35,6 +37,7 @@ export function isQuote(note: Renote): note is Quote {
 		note.cw != null ||
 		note.replyId != null ||
 		note.hasPoll ||
+		note.hasRedPacket ||
 		note.fileIds.length > 0;
 }
 
@@ -53,6 +56,8 @@ type PackedQuote =
 	} | {
 		poll: NonNullable<Packed<'Note'>['poll']>
 	} | {
+		redPacket: NonNullable<Packed<'Note'>['redPacket']>
+	} | {
 		fileIds: NonNullable<Packed<'Note'>['fileIds']>
 	});
 
@@ -65,5 +70,6 @@ export function isQuotePacked(note: PackedRenote): note is PackedQuote {
 		note.cw != null ||
 		note.replyId != null ||
 		note.poll != null ||
+		note.redPacket != null ||
 		(note.fileIds != null && note.fileIds.length > 0);
 }

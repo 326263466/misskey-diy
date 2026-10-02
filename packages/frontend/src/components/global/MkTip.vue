@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div v-if="!store.r.tips.value[props.k]" :class="[$style.root, { [$style.warn]: warn }]" class="_selectable _gaps_s _juejinTip">
 	<div style="font-weight: bold;"><i class="ti ti-bulb"></i> {{ i18n.ts.tip }}:</div>
-	<div><slot></slot></div>
+	<div :class="$style.body"><slot></slot></div>
 	<div>
 		<MkButton inline primary rounded small @click="_closeTip()"><i class="ti ti-check"></i> {{ i18n.ts.gotIt }}</MkButton>
 		<button class="_button" style="padding: 8px; margin-left: 4px;" @click="showMenu"><i class="ti ti-dots"></i></button>
@@ -47,7 +47,7 @@ function showMenu(ev: PointerEvent) {
 
 <style lang="scss" module>
 .root {
-	padding: 12px 14px;
+	padding: var(--MI-cardPadding);
 	font-size: 90%;
 	background: var(--MI_THEME-infoBg);
 	color: var(--MI_THEME-infoFg);
@@ -56,7 +56,15 @@ function showMenu(ev: PointerEvent) {
 	&.warn {
 		background: var(--MI_THEME-infoWarnBg);
 		color: var(--MI_THEME-infoWarnFg);
+
+		.body {
+			color: inherit;
+		}
 	}
+}
+
+.body {
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 </style>

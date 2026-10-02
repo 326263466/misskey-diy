@@ -73,7 +73,7 @@ onUnmounted(() => {
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	margin-bottom: var(--MI-margin);
 }
 

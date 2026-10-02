@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
-	<div :key="tab" class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div :key="tab" class="_pageBody">
 		<MkPagination :paginator="paginator">
 			<template #empty><MkResult type="empty" :text="i18n.ts.noFollowRequests"/></template>
 			<template #default="{items}">
@@ -115,7 +115,7 @@ definePage(() => ({
 .mk-follow-requests {
 	> .user {
 		display: flex;
-		padding: 16px;
+		padding: var(--MI-cardPadding);
 
 		> .avatar {
 			display: block;
@@ -151,7 +151,7 @@ definePage(() => ({
 
 				> .acct {
 					line-height: 16px;
-					opacity: 0.7;
+					color: var(--MI_THEME-fgTransparentWeak);
 				}
 			}
 
@@ -161,7 +161,7 @@ definePage(() => ({
 				white-space: nowrap;
 				overflow: hidden;
 				text-overflow: ellipsis;
-				opacity: 0.7;
+				color: var(--MI_THEME-fgTransparent);
 				padding-right: 40px;
 				padding-left: 8px;
 				box-sizing: border-box;

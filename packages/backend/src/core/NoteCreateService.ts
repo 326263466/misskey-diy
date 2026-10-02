@@ -58,6 +58,7 @@ import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { CacheService } from '@/core/CacheService.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
+import { RedPacketService } from '@/core/RedPacketService.js';
 
 type NotificationType = 'reply' | 'renote' | 'quote' | 'mention';
 
@@ -176,6 +177,7 @@ type Option = {
 	renote?: MiNote | null;
 	files?: MiDriveFile[] | null;
 	poll?: IPoll | null;
+	redPacketId?: string | null;
 	localOnly?: boolean | null;
 	reactionAcceptance?: MiNote['reactionAcceptance'];
 	cw?: string | null;
@@ -248,6 +250,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		private userEntityService: UserEntityService,
 		private noteEntityService: NoteEntityService,
+		private redPacketService: RedPacketService,
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
 		private queueService: QueueService,
@@ -295,6 +298,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		localOnly: boolean;
 		reactionAcceptance: MiNote['reactionAcceptance'];
 		poll: IPoll | null;
+		redPacketId?: string | null;
 		apMentions?: MinimumUser[] | null;
 		apHashtags?: string[] | null;
 		apEmojis?: string[] | null;
@@ -426,6 +430,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			createdAt: data.createdAt,
 			files: files,
 			poll: data.poll,
+			redPacketId: data.redPacketId,
 			text: data.text,
 			reply,
 			renote,
@@ -450,6 +455,11 @@ export class NoteCreateService implements OnApplicationShutdown {
 		isBot: MiUser['isBot'];
 		isCat: MiUser['isCat'];
 	}, data: Option, silent = false): Promise<MiNote> {
+		if (data.redPacketId != null) {
+			await this.redPacketService.assertCanReference(data.redPacketId, user.id);
+			const existing = await this.notesRepository.findOneBy({ redPacketId: data.redPacketId, userId: user.id });
+			if (existing != null) return existing;
+		}
 		// チャンネル外にリプライしたら対象のスコープに合わせる
 		// (クライアントサイドでやっても良い処理だと思うけどとりあえずサーバーサイドで)
 		if (data.reply && data.channel && data.reply.channelId !== data.channel.id) {
@@ -469,6 +479,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		if (data.createdAt == null) data.createdAt = new Date();
 		if (data.visibility == null) data.visibility = 'public';
 		if (data.localOnly == null) data.localOnly = false;
+		if (data.redPacketId != null) data.localOnly = true;
 		if (data.channel != null) data.visibility = 'public';
 		if (data.channel != null) data.visibleUsers = [];
 		if (data.channel != null) data.localOnly = true;
@@ -635,7 +646,16 @@ export class NoteCreateService implements OnApplicationShutdown {
 			throw new IdentifiableError('9f466dab-c856-48cd-9e65-ff90ff750580', 'Note contains too many mentions');
 		}
 
-		const note = await this.insertNote(user, data, tags, emojis, mentionedUsers);
+		let note: MiNote;
+		try {
+			note = await this.insertNote(user, data, tags, emojis, mentionedUsers);
+		} catch (error) {
+			if (data.redPacketId != null && error instanceof Error && error.name === 'duplicated') {
+				const existing = await this.notesRepository.findOneBy({ redPacketId: data.redPacketId, userId: user.id });
+				if (existing != null) return existing;
+			}
+			throw error;
+		}
 		await this.incNotesCountOfUser(user);
 		this.globalEventService.publishUserStats(user.id);
 
@@ -670,6 +690,8 @@ export class NoteCreateService implements OnApplicationShutdown {
 			name: data.name,
 			text: data.text,
 			hasPoll: data.poll != null,
+			hasRedPacket: data.redPacketId != null,
+			redPacketId: data.redPacketId ?? null,
 			cw: data.cw ?? null,
 			tags: tags.map(tag => normalizeForSearch(tag)),
 			emojis,
@@ -715,7 +737,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		// 投稿を作成
 		try {
-			if (insert.hasPoll || insert.replyId != null) {
+			if (insert.hasPoll || insert.replyId != null || data.redPacketId != null) {
 				await this.db.transaction(async transactionalEntityManager => {
 					const ancestors = insert.replyId == null ? [] : await lockNoteReplyAncestors(transactionalEntityManager, insert.replyId);
 					if (insert.replyId != null && !ancestors.some(ancestor => ancestor.id === insert.replyId && !isDeletedReply(ancestor))) {
@@ -969,13 +991,14 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 	@bindThis
 	private isQuote(note: Option & { renote: MiNote }): note is Option & { renote: MiNote } & (
-		{ text: string } | { cw: string } | { reply: MiNote } | { poll: IPoll } | { files: MiDriveFile[] }
+		{ text: string } | { cw: string } | { reply: MiNote } | { poll: IPoll } | { files: MiDriveFile[] } | { redPacketId: string }
 	) {
 		// NOTE: SYNC WITH misc/is-quote.ts
 		return note.text != null ||
 			note.reply != null ||
 			note.cw != null ||
 			note.poll != null ||
+			note.redPacketId != null ||
 			(note.files != null && note.files.length > 0);
 	}
 

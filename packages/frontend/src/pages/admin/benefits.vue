@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 1200px;">
+	<div class="_pageBody">
 		<div class="_gaps_m">
 			<section class="_panel _gaps" :class="$style.navigation" :aria-label="i18n.ts._benefits.adminTitle">
 				<div :class="$style.heading">
@@ -52,7 +52,7 @@ definePage(() => ({ title: i18n.ts._benefits.adminTitle, icon: 'ti ti-gift' }));
 </script>
 
 <style lang="scss" module>
-.navigation { padding: calc(var(--MI-margin) * 1.5); }
+.navigation { padding: var(--MI-cardPadding); }
 .heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--MI-margin); }
 .heading h2 { margin: 0; font-size: 1.15em; }
 .description { margin: 0; font-size: .85em; line-height: 1.7; color: var(--MI_THEME-fgTransparentWeak); }
@@ -66,7 +66,6 @@ definePage(() => ({ title: i18n.ts._benefits.adminTitle, icon: 'ti ti-gift' }));
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
 }
 @media (max-width: 500px) {
-	.navigation { padding: var(--MI-margin); }
 	.methods { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

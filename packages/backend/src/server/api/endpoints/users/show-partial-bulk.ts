@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getVisitorContentVisibility } from '@/misc/visitor-content.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { In, IsNull } from 'typeorm';
 import { RoleService } from '@/core/RoleService.js';
@@ -74,7 +75,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				where: {
 					id: In(ps.userIds),
 					...(!isModerator ? { isSuspended: false } : {}),
-					...(me == null && this.serverSettings.ugcVisibilityForVisitor === 'local' ? { host: IsNull() } : {}),
+					...(me == null && getVisitorContentVisibility(this.serverSettings) === 'local' ? { host: IsNull() } : {}),
 				},
 				select: { id: true, notesCount: true, followingCount: true, followersCount: true, hideOnlineStatus: true, onlineStatusOverride: true, lastActiveDate: true, customStatus: true },
 			});

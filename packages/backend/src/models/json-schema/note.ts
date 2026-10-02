@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { packedRedPacketSummarySchema } from './red-packet.js';
+
 export const packedNoteSchema = {
 	type: 'object',
 	properties: {
@@ -134,6 +136,8 @@ export const packedNoteSchema = {
 				optional: false, nullable: false,
 			},
 		},
+		redPacket: { ...packedRedPacketSummarySchema, optional: true, nullable: true },
+		hasRedPacket: { type: 'boolean', optional: true, nullable: false },
 		poll: {
 			type: 'object',
 			optional: true, nullable: true,

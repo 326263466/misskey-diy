@@ -29,16 +29,39 @@ import { themeManager } from '@/theme.js';
 import { store } from '@/store.js';
 import 'chartjs-adapter-date-fns';
 
-/**
- * テーマに依存する Chart.js のグローバルデフォルトを現在のテーマから再適用する。
- * Chart.defaults はモジュールスコープで一度しか評価されないため、テーマ切り替え後に
- * チャートを作り直す場合は描画前にこれを呼ぶ必要がある。
- */
+const themeListeners = new WeakMap<Chart, () => void>();
+const themePlugin = {
+	id: 'misskeyTheme',
+	afterInit(chart: Chart) {
+		const update = () => {
+			if (!chart.ctx) return;
+			applyChartThemeDefaults();
+			chart.update('none');
+		};
+		themeListeners.set(chart, update);
+		themeManager.on('themeChanging', update);
+	},
+	afterDestroy(chart: Chart) {
+		const update = themeListeners.get(chart);
+		if (update) themeManager.off('themeChanging', update);
+		themeListeners.delete(chart);
+	},
+};
+
+// 坐标轴会缓存默认值，使用回调让已创建的图表也能读取新主题。
 export function applyChartThemeDefaults() {
-	// フォントカラー
 	Chart.defaults.color = themeManager.currentCompiledTheme!.fg;
 
 	Chart.defaults.borderColor = store.s.darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+	Chart.defaults.set('scale', {
+		ticks: { color: () => Chart.defaults.color },
+		title: { color: () => Chart.defaults.color },
+		grid: { color: () => Chart.defaults.borderColor },
+		border: { color: () => Chart.defaults.borderColor },
+	});
+	Chart.defaults.set('plugins.legend.labels', { color: () => Chart.defaults.color });
+	Chart.defaults.set('plugins.title', { color: () => Chart.defaults.color });
+	Chart.defaults.set('plugins.subtitle', { color: () => Chart.defaults.color });
 }
 
 export function initChart() {
@@ -61,6 +84,7 @@ export function initChart() {
 		MatrixController, MatrixElement,
 		zoomPlugin,
 		gradient,
+		themePlugin,
 	);
 
 	applyChartThemeDefaults();

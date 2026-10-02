@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkButton primary gradate rounded @click="start"><i class="ti ti-plus"></i> {{ i18n.ts.startChat }}</MkButton>
 	</template>
 	<MkPolkadots v-if="tab === 'home'" accented :height="200" style="margin-bottom: -200px;"/>
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div class="_pageBody">
 		<XHome v-if="tab === 'home'"/>
 		<XInvitations v-else-if="tab === 'invitations'"/>
 		<XJoiningRooms v-else-if="tab === 'joiningRooms'"/>

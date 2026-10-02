@@ -62,7 +62,20 @@ function createMembers(record: LocaleRecord): ts.TypeElement[] {
 }
 
 export async function generateLocaleInterface(localesDir: string): Promise<void> {
-	const locale = loadYaml(fs.readFileSync(`${localesDir}/ja-JP.yml`, 'utf-8').toString()) as LocaleRecord;
+	// Chinese is the fork's source locale; retain untranslated upstream keys during migration.
+	const upstream = loadYaml(fs.readFileSync(`${localesDir}/ja-JP.yml`, 'utf-8')) as LocaleRecord;
+	const source = loadYaml(fs.readFileSync(`${localesDir}/zh-CN.yml`, 'utf-8')) as LocaleRecord;
+
+	function mergeSource(fallback: LocaleRecord, primary: LocaleRecord): LocaleRecord {
+		const merged = { ...fallback };
+		for (const [key, value] of Object.entries(primary)) {
+			const previous = merged[key];
+			merged[key] = typeof previous === 'object' && typeof value === 'object' ? mergeSource(previous, value) : value;
+		}
+		return merged;
+	}
+
+	const locale = mergeSource(upstream, source);
 	const members = createMembers(locale);
 
 	const elements: ts.Statement[] = [

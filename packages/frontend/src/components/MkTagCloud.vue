@@ -56,6 +56,7 @@ function createTagCanvas() {
 }
 
 onMounted(() => {
+	themeManager.on('themeChanging', createTagCanvas);
 	if (rootEl.value) width.value = rootEl.value.offsetWidth;
 
 	nextTick(() => {
@@ -64,6 +65,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	themeManager.off('themeChanging', createTagCanvas);
 	if (tagCanvas.value) {
 		tagCanvas.value.destroy();
 		tagCanvas.value = null;

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 1200px;">
+<div class="_pageBody">
 	<MkAchievements :user="user" card :withLocked="false" :withDescription="$i != null && (props.user.id === $i.id)"/>
 </div>
 </template>

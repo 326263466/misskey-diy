@@ -4,7 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="layoutEl" class="_pageLayout" :class="[$style.layout, narrow ? $style.narrow : '_pageLayoutWithSidebar']">
+<slot v-if="withinCommunityLayout"></slot>
+<div v-else ref="layoutEl" class="_pageLayout" :class="[$style.layout, narrow ? $style.narrow : '_pageLayoutWithSidebar']">
 	<nav class="_pageNavigation" :aria-label="i18n.ts.communityRanking">
 		<div class="_gaps_s">
 			<div v-if="$i && !narrow" :class="$style.profile">
@@ -14,20 +15,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkSuperMenu :def="menuDef" :grid="narrow"/>
 		</div>
 	</nav>
-	<PageWithHeader class="_pageContent" hideHeader>
+	<PageWithHeader :key="contentKey" class="_pageContent" hideHeader>
 		<slot></slot>
 	</PageWithHeader>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
+import { computed, inject, onMounted, onUnmounted, provide, ref, useTemplateRef } from 'vue';
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import MkSuperMenu from '@/components/MkSuperMenu.vue';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 
-const props = defineProps<{ active: 'checkin' | 'ranking' | 'achievements' | 'benefits' }>();
+const props = defineProps<{ active: 'checkin' | 'ranking' | 'achievements' | 'benefits'; contentKey?: string }>();
+
+// 子页面复用外层导航，独立打开时仍能显示完整布局。
+const withinCommunityLayout = inject('communityHubLayout', false);
+provide('communityHubLayout', true);
 
 const NARROW_THRESHOLD = 800;
 const layoutEl = useTemplateRef<HTMLElement>('layoutEl');
@@ -75,7 +80,7 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 	align-items: center;
 	flex-direction: column;
 	gap: 12px;
-	padding: 16px 12px 20px;
+	padding: var(--MI-cardPadding);
 	text-align: center;
 }
 

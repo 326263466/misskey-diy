@@ -114,7 +114,7 @@ onMounted(() => {
 <style lang="scss" module>
 .root {
 	display: block;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	width: 100%;
 	box-sizing: border-box;
 	cursor: all-scroll;

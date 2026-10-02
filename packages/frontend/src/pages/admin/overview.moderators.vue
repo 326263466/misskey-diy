@@ -42,7 +42,6 @@ onMounted(async () => {
 	grid-template-columns: repeat(auto-fill, minmax(30px, 40px));
 	grid-gap: 12px;
 	place-content: center;
-	padding: 12px;
 
 	&:global {
 		> .user {

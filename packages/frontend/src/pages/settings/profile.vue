@@ -169,7 +169,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<hr>
 
 		<SearchMarker :keywords="['qrcode']">
-			<FormLink to="/qr">
+			<FormLink data-testid="profile-qr" @click="showQr">
 				<template #icon><i class="ti ti-qrcode"></i></template>
 				<SearchLabel>{{ i18n.ts.qr }}</SearchLabel>
 			</FormLink>
@@ -179,7 +179,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
@@ -205,6 +205,12 @@ import { genId } from '@/utility/id.js';
 import { enqueueProfileSave } from '@/utility/profile-save.js';
 
 const $i = ensureSignin();
+
+function showQr(): void {
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserQrDialog.vue')), { user: $i }, {
+		closed: () => dispose(),
+	});
+}
 
 const reactionAcceptance = store.model('reactionAcceptance');
 
@@ -484,7 +490,7 @@ definePage(() => ({
 	width: 32px;
 	height: 32px;
 	margin: 0 8px 0 0;
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 	flex-shrink: 0;
 
 	&:active {
@@ -495,7 +501,7 @@ definePage(() => ({
 .dragItemRemove {
 	@extend .dragItemHandle;
 
-	color: #ff2a2a;
+	color: var(--MI_THEME-error);
 	opacity: 1;
 	cursor: pointer;
 
@@ -509,6 +515,7 @@ definePage(() => ({
 }
 
 .dragItemForm {
+	min-width: 0;
 	flex-grow: 1;
 }
 </style>

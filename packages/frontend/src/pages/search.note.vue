@@ -5,8 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps">
-	<div class="_gaps">
-		<div :class="$style.searchRow">
+	<div class="_gaps _panel _panelPadding">
+		<div v-if="!submittedQuery" :class="$style.searchRow">
 			<MkInput
 				v-model="searchQuery"
 				:class="$style.query"
@@ -23,6 +23,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 				{{ i18n.ts.search }}
 			</MkButton>
 		</div>
+		<template v-else>
+			<h2 :class="$style.resultHeading">{{ i18n.tsx._search.resultsFor({ query: submittedQuery }) }}</h2>
+			<div :class="$style.sortRow">
+				<MkSelect v-model="sort" :items="sortOptions" small :class="$style.sortSelect"><template #label>{{ i18n.ts.sort }}</template></MkSelect>
+				<MkSelect v-model="order" :items="orderOptions" small :class="$style.sortSelect"><template #label>{{ i18n.ts._search.sortOrder }}</template></MkSelect>
+			</div>
+			<div v-if="sort === 'popularity'" style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._search.popularityDescription }}</div>
+		</template>
 		<MkFoldableSection :expanded="false">
 			<template #header>{{ i18n.ts.filter }}</template>
 
@@ -35,6 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #label>{{ i18n.ts._search.postTo }}</template>
 					</MkInput>
 				</div>
+				<MkInfo v-if="invalidDateRange" warn>{{ i18n.ts._search.invalidDateRange }}</MkInfo>
 
 				<MkRadios
 					v-model="searchScope"
@@ -44,10 +53,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<div v-if="instance.federation !== 'none' && searchScope === 'server'" :class="$style.subOptionRoot">
 					<MkInput
-							v-model="hostInput"
-							:debounce="300"
+						v-model="hostInput"
+						:debounce="300"
 						:placeholder="i18n.ts._search.serverHostPlaceholder"
-						@enter.prevent="search"
 					>
 						<template #label>{{ i18n.ts._search.pleaseEnterServerHost }}</template>
 						<template #prefix><i class="ti ti-server"></i></template>
@@ -94,6 +102,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<button
 									class="_button"
 									:class="$style.userSelectedRemoveButton"
+									:aria-label="i18n.ts.remove"
 									@click="removeUser"
 								>
 									<i class="ti ti-x"></i>
@@ -106,10 +115,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkFoldableSection>
 	</div>
 
-	<MkFoldableSection v-if="paginator">
-		<template #header>{{ i18n.ts.searchResult }}</template>
-		<MkNotesTimeline :key="`searchNotes:${key}`" :paginator="paginator"/>
-	</MkFoldableSection>
+	<MkNotesTimeline v-if="paginator" :key="`searchNotes:${key}`" :paginator="paginator" :withControl="false"/>
 </div>
 </template>
 
@@ -125,6 +131,8 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import MkButton from '@/components/MkButton.vue';
 import MkFoldableSection from '@/components/MkFoldableSection.vue';
 import MkInput from '@/components/MkInput.vue';
+import MkSelect from '@/components/MkSelect.vue';
+import MkInfo from '@/components/MkInfo.vue';
 import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
 import MkRadios from '@/components/MkRadios.vue';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
@@ -152,9 +160,18 @@ const paginator = shallowRef<Paginator<'notes/search'> | null>(null);
 
 const searchQuery = ref(props.query);
 const submittedQuery = ref('');
+const sortOptions = [{ value: 'time', label: i18n.ts._search.sortByTime }, { value: 'popularity', label: i18n.ts._search.sortByPopularity }];
+const orderOptions = [{ value: 'desc', label: i18n.ts.descendingOrder }, { value: 'asc', label: i18n.ts.ascendingOrder }];
+const sort = ref<'time' | 'popularity'>('time');
+const order = ref<'asc' | 'desc'>('desc');
 const hostInput = ref(props.host);
 const rangeStartAt = ref<string | null>(null);
 const rangeEndAt = ref<string | null>(null);
+const invalidDateRange = computed(() => {
+	const start = rangeStartAt.value ? new Date(rangeStartAt.value).getTime() : null;
+	const end = rangeEndAt.value ? new Date(rangeEndAt.value).getTime() : null;
+	return (start != null && !Number.isFinite(start)) || (end != null && !Number.isFinite(end)) || (start != null && end != null && start > end);
+});
 
 const user = shallowRef<Misskey.entities.UserDetailed | null>(null);
 
@@ -231,7 +248,7 @@ const searchRange = () => {
 
 function getSearchParams(query: string): SearchParams | null {
 	const trimmedQuery = query.trim();
-	if (!trimmedQuery) return null;
+	if (!trimmedQuery || invalidDateRange.value) return null;
 
 	if (searchScope.value === 'user') {
 		if (user.value == null) return null;
@@ -296,23 +313,25 @@ function search() {
 	if (params == null) return;
 
 	showResults(params.query);
+	emit('search', params.query);
 }
 
 function showResults(query: string) {
+	submittedQuery.value = query.trim();
 	const params = getSearchParams(query);
 	if (params == null) {
 		paginator.value = null;
 		return;
 	}
 
-	submittedQuery.value = params.query;
 	paginator.value = markRaw(new Paginator('notes/search', {
 		limit: 10,
-		params,
+		offsetMode: true,
+		canFetchDetection: 'limit',
+		params: { ...params, sort: sort.value, order: order.value },
 	}));
 
 	key.value++;
-	emit('search', params.query);
 }
 
 watch(() => props.query, query => {
@@ -326,7 +345,7 @@ watch(() => props.query, query => {
 	}
 }, { immediate: true });
 
-watch([searchScope, rangeStartAt, rangeEndAt, hostInput, user], () => {
+watch([searchScope, rangeStartAt, rangeEndAt, hostInput, user, sort, order], () => {
 	if (submittedQuery.value) showResults(submittedQuery.value);
 });
 </script>
@@ -347,6 +366,20 @@ watch([searchScope, rangeStartAt, rangeEndAt, hostInput, user], () => {
 	flex-shrink: 0;
 	margin-left: auto;
 }
+
+.resultHeading {
+	margin: 0;
+	font-size: 1.1em;
+	overflow-wrap: anywhere;
+}
+
+.sortRow {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--MI-margin);
+}
+
+.sortSelect { min-width: 150px; }
 
 .dateRange {
 	display: grid;
@@ -396,6 +429,6 @@ watch([searchScope, rangeStartAt, rangeEndAt, hostInput, user], () => {
 .userSelectedRemoveButton {
 	width: 32px;
 	height: 32px;
-	color: #ff2a2a;
+	color: var(--MI_THEME-error);
 }
 </style>

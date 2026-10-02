@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader>
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div class="_pageBody">
 		<div class="_gaps">
 			<div class="_gaps_s">
 				<div :class="$style.editor" class="_panel">
@@ -46,7 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</MkContainer>
 
-			<div class="">
+			<div style="color: var(--MI_THEME-fgTransparentWeak);">
 				{{ i18n.ts.scratchpadDescription }}
 			</div>
 		</div>
@@ -218,17 +218,17 @@ definePage(() => ({
 }
 
 .ui {
-	padding: 32px;
+	padding: var(--MI-cardPadding);
 }
 
 .logs {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 
 	&:global {
 		> .log.print {
 		}
 		> .log.end {
-			opacity: 0.7;
+			color: var(--MI_THEME-fgTransparentWeak);
 		}
 		> .log.error {
 			color: var(--MI_THEME-error);
@@ -239,11 +239,11 @@ definePage(() => ({
 .uiInspector {
 	display: grid;
 	gap: 8px;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 }
 
 .uiInspectorUnShown {
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.5);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .uiInspectorType {
@@ -261,6 +261,7 @@ definePage(() => ({
 }
 
 .uiInspectorDescription {
+	color: var(--MI_THEME-fgTransparentWeak);
 	display: block;
 	font-size: 12px;
 	padding-top: 16px;

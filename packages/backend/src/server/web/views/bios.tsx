@@ -9,7 +9,7 @@ export function BiosPage(props: {
 	return (
 		<>
 			{'<!DOCTYPE html>'}
-			<html>
+			<html lang="zh-CN">
 				<head>
 					<meta charset="UTF-8" />
 					<meta name="application-name" content="Misskey" />

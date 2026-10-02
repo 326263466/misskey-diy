@@ -137,7 +137,7 @@ defineExpose<WidgetComponentExpose>({
 			display: block;
 			margin: 1em;
 			text-align: center;
-			color: #888;
+			color: var(--MI_THEME-fgTransparentWeak);
 		}
 
 		> * {

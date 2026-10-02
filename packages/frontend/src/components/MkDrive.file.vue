@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<p :class="$style.name">
 			<span>{{ file.name.lastIndexOf('.') != -1 ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name }}</span>
-			<span v-if="file.name.lastIndexOf('.') != -1" style="opacity: 0.5;">{{ file.name.substring(file.name.lastIndexOf('.')) }}</span>
+			<span v-if="file.name.lastIndexOf('.') != -1" :class="$style.extension">{{ file.name.substring(file.name.lastIndexOf('.')) }}</span>
 		</p>
 	</div>
 </div>
@@ -228,5 +228,13 @@ function onDragend() {
 	word-break: break-all;
 	color: var(--MI_THEME-fg);
 	overflow: hidden;
+}
+
+.extension {
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.root.isSelected .extension {
+	color: inherit;
 }
 </style>

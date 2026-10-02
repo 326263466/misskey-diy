@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 800px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<MkSuspense v-slot="{ result: database }" :p="databasePromiseFactory">
 			<MkKeyValue v-for="table in database" :key="table[0]" oneline style="margin: 0 0 1em;">
 				<template #key>{{ table[0] }}</template>

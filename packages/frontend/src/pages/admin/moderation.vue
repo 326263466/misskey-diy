@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader contentCard :tabs="headerTabs">
+	<div class="_pageBody">
 		<SearchMarker path="/admin/moderation" :label="i18n.ts.moderation" :keywords="['moderation']" icon="ti ti-shield" :inlining="['serverRules']">
 			<div class="_gaps_m">
 				<SearchMarker :keywords="['open', 'registration']">
@@ -24,7 +24,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</MkSwitch>
 				</SearchMarker>
 
-				<SearchMarker :keywords="['ugc', 'content', 'visibility', 'visitor', 'guest']">
+				<SearchMarker :keywords="['open', 'access', 'visitor', 'guest']">
+					<MkSwitch :modelValue="openGuestAccess" data-testid="open-guest-access" @update:modelValue="onChange_openGuestAccess">
+						<template #label><SearchLabel>{{ i18n.ts._serverSettings.openGuestAccess }}</SearchLabel></template>
+						<template #caption><SearchText>{{ i18n.ts._serverSettings.openGuestAccessDescription }}</SearchText></template>
+					</MkSwitch>
+				</SearchMarker>
+
+				<SearchMarker v-if="!openGuestAccess" :keywords="['ugc', 'content', 'visibility', 'visitor', 'guest']">
 					<MkSelect v-model="ugcVisibilityForVisitor" :items="ugcVisibilityForVisitorDef" @update:modelValue="onChange_ugcVisibilityForVisitor">
 						<template #label><SearchLabel>{{ i18n.ts._serverSettings.userGeneratedContentsVisibilityForVisitor }}</SearchLabel></template>
 						<template #caption>
@@ -186,6 +193,7 @@ const {
 	],
 	initialValue: meta.ugcVisibilityForVisitor,
 });
+const openGuestAccess = ref(meta.clientOptions.openGuestAccess === true);
 const sensitiveWords = ref(meta.sensitiveWords.join('\n'));
 const prohibitedWords = ref(meta.prohibitedWords.join('\n'));
 const prohibitedWordsForNameOfUser = ref(meta.prohibitedWordsForNameOfUser.join('\n'));
@@ -219,6 +227,12 @@ function onChange_emailRequiredForSignup(value: boolean) {
 	}).then(() => {
 		fetchInstance(true);
 	});
+}
+
+async function onChange_openGuestAccess(value: boolean) {
+	await os.apiWithDialog('admin/update-meta', { clientOptions: { openGuestAccess: value } });
+	openGuestAccess.value = value;
+	await fetchInstance(true);
 }
 
 function onChange_ugcVisibilityForVisitor(value: typeof ugcVisibilityForVisitor.value) {

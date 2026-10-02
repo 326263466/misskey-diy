@@ -62,11 +62,11 @@ const menu = [{
 	--MI-margin: 8px;
 	--MI_THEME-panelBorder: none;
 
-	padding: 0 var(--MI-margin);
 }
 
 .intro {
-	padding: 16px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	padding: var(--MI-cardPadding);
 	text-align: center;
 }
 </style>

@@ -9,6 +9,7 @@ import type { App } from 'vue';
 import MkContainer from '@/components/MkContainer.vue';
 import MkFoldableSection from '@/components/MkFoldableSection.vue';
 import MkFolder from '@/components/MkFolder.vue';
+import PageEditorContainer from '@/pages/page-editor/page-editor.container.vue';
 import MkStickyContainer from '@/components/global/MkStickyContainer.vue';
 import { prefer } from '@/preferences.js';
 
@@ -21,9 +22,9 @@ vi.mock('@/components/MkFolderPage.vue', () => ({ default: {} }));
 vi.mock('@/local-storage.js', () => ({ miLocalStorage: { getItem: () => null, setItem: vi.fn() } }));
 vi.mock('@/i18n.js', () => ({ i18n: { ts: { showMore: 'Show more' } } }));
 
-type CollapseKind = 'folder' | 'container' | 'section';
+type CollapseKind = 'folder' | 'container' | 'section' | 'page-editor';
 
-const kinds = ['folder', 'container', 'section'] as const;
+const kinds = ['folder', 'container', 'section', 'page-editor'] as const;
 const fixtures: { app: App; host: HTMLElement }[] = [];
 
 async function nextFrame() {
@@ -55,6 +56,9 @@ async function mountCollapse(kind: CollapseKind, { expanded = false, height = 24
 			if (kind === 'container') {
 				return h(MkContainer, { expanded, foldable: true, maxHeight, scrollable, style: scrollable ? 'height:200px' : undefined }, { header: label, default: content });
 			}
+			if (kind === 'page-editor') {
+				return h(PageEditorContainer, { expanded, removable: false, style: 'border:0' }, { header: label, default: content });
+			}
 			return h(MkFoldableSection, { expanded }, { header: label, default: content });
 		},
 	});
@@ -85,6 +89,24 @@ afterEach(() => {
 });
 
 describe.each(kinds)('%s expansion in a real browser', kind => {
+	test('keeps the content width and position fixed while revealing it vertically', async () => {
+		const fixture = await mountCollapse(kind, { expanded: true });
+		const content = fixture.content()!;
+		const full = content.getBoundingClientRect();
+		for (const expanding of [false, true]) {
+			fixture.toggle.click();
+			await wait(100);
+			const bounds = content.getBoundingClientRect();
+			expect(fixture.bodyHeight()).toBeGreaterThan(0);
+			expect(fixture.bodyHeight()).toBeLessThan(240);
+			expect(bounds.left).toBe(full.left);
+			expect(bounds.right).toBe(full.right);
+			expect(bounds.top).toBe(full.top);
+			expect(getComputedStyle(content).transform).toBe('none');
+			await expect.poll(fixture.bodyHeight).toBeCloseTo(expanding ? 240 : 0, 1);
+		}
+	});
+
 	test('follows content that grows during its first opening and preserves it for reopening', async () => {
 		const fixture = await mountCollapse(kind, { height: 40 });
 		if (kind === 'folder') expect(fixture.content()).toBeNull();

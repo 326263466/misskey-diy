@@ -83,7 +83,7 @@ onUnmounted(() => {
 	position: absolute;
 	top: 12px;
 	left: 12px;
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .count {

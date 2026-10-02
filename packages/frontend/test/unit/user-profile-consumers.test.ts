@@ -8,14 +8,23 @@ import { cleanup, render, waitFor } from '@testing-library/vue';
 import { nextTick } from 'vue';
 import type * as Misskey from 'misskey-js';
 import UserPage from '@/pages/user/index.vue';
+import UserContent from '@/pages/user/content.vue';
+import NestedRouterView from '@/components/global/NestedRouterView.vue';
 import MkUserInfo from '@/components/MkUserInfo.vue';
 import { publishUserProfileUpdate } from '@/composables/use-user-profile.js';
+import { Nirax } from '@/lib/nirax.js';
+import { DI } from '@/di.js';
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), definePage: vi.fn() }));
 
 vi.mock('@/i.js', () => ({ $i: null }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/page.js', () => ({ definePage: mocks.definePage }));
+vi.mock('@/router.js', async () => {
+	const { inject } = await import('vue');
+	const { DI } = await import('@/di.js');
+	return { useRouter: () => inject(DI.router) };
+});
 vi.mock('@/server-context.js', () => ({ serverContext: null, assertServerContext: () => false }));
 vi.mock('@/composables/use-scroll-position-keeper.js', () => ({ useScrollPositionKeeper: vi.fn() }));
 vi.mock('@/composables/use-user-statistics.js', () => ({ useUserStatistics: vi.fn() }));
@@ -27,6 +36,7 @@ vi.mock('@/pages/user/home.vue', () => ({ __esModule: true, default: {
 } }));
 
 const global = {
+	components: { NestedRouterView },
 	directives: { tooltip: {} },
 	stubs: {
 		PageWithHeader: { template: '<main><slot/></main>' },
@@ -36,6 +46,21 @@ const global = {
 		MkAvatar: true, MkAcct: true, MkLoading: true, MkError: true,
 	},
 };
+
+function renderProfile() {
+	const router = new Nirax([{
+		path: '/@:acct',
+		component: UserPage,
+		children: [{ path: '/:page?', component: UserContent }],
+	}], '/@alice', false, UserPage);
+	return render(UserPage, {
+		props: { acct: 'alice' },
+		global: {
+			...global,
+			provide: { [DI.router as symbol]: router, [DI.routerCurrentDepth as symbol]: 1 },
+		},
+	});
+}
 
 function profile(id: string): Misskey.entities.UserDetailed {
 	return {
@@ -60,7 +85,7 @@ describe('confirmed profile updates in page and cards', () => {
 	test('refreshes a mounted homepage and its title without requesting the user again', async () => {
 		const snapshot = profile('saved-profile-page');
 		mocks.api.mockResolvedValue(snapshot);
-		const view = render(UserPage, { props: { acct: 'alice' }, global });
+		const view = renderProfile();
 		await waitFor(() => expect(view.getByText('Old bio')).toBeTruthy());
 		publishUserProfileUpdate(snapshot.id, { name: 'New name', description: 'New bio', company: 'New Company', jobTitle: 'Designer' });
 		await nextTick();
@@ -76,7 +101,7 @@ describe('confirmed profile updates in page and cards', () => {
 		const snapshot = profile('saved-profile-navigation');
 		publishUserProfileUpdate(snapshot.id, { name: 'Saved name', company: 'Saved Company', jobTitle: null });
 		mocks.api.mockResolvedValue(snapshot);
-		const view = render(UserPage, { props: { acct: 'alice' }, global });
+		const view = renderProfile();
 		await waitFor(() => expect(view.getByText('Saved name')).toBeTruthy());
 		expect(view.getByText('Saved Company')).toBeTruthy();
 		expect(view.queryByText('Old job')).toBeNull();

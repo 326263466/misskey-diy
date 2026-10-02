@@ -130,7 +130,7 @@ defineExpose<WidgetComponentExpose>({
 		width: 100%;
 		max-width: 100%;
 		min-width: 100%;
-		padding: var(--MI-cardPadding, 20px);
+		padding: var(--MI-cardPadding, 18px);
 		color: var(--MI_THEME-fg);
 		background: transparent;
 		border: none;
@@ -161,7 +161,7 @@ defineExpose<WidgetComponentExpose>({
 	> .logs {
 		border-top: solid 0.5px var(--MI_THEME-divider);
 		text-align: left;
-		padding: var(--MI-cardPadding, 20px);
+		padding: var(--MI-cardPadding, 18px);
 
 		&:empty {
 			display: none;
@@ -170,7 +170,7 @@ defineExpose<WidgetComponentExpose>({
 		> .log.print {
 		}
 		> .log.end {
-			opacity: 0.7;
+			color: var(--MI_THEME-fgTransparentWeak);
 		}
 		> .log.error {
 			color: var(--MI_THEME-error);

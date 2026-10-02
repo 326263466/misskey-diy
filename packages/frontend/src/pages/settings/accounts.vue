@@ -99,7 +99,7 @@ definePage(() => ({
 	display: flex;
 	align-items: center;
 	text-align: start;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	background: var(--MI_THEME-panel);
 	border-radius: 8px;
 	font-size: 0.9em;
@@ -114,7 +114,7 @@ definePage(() => ({
 	font-size: 16px;
 	margin-right: 12px;
 	background-color: color-mix(in srgb, var(--MI_THEME-fg), transparent 85%);
-	color: color-mix(in srgb, var(--MI_THEME-fg), transparent 25%);
+	color: var(--MI_THEME-fgTransparentWeak);
 	border-radius: 50%;
 }
 
@@ -131,7 +131,7 @@ definePage(() => ({
 	display: block;
 	width: 100%;
 	font-size: 95%;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;

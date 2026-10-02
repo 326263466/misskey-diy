@@ -76,6 +76,16 @@ describe('abuse report form', () => {
 		const view = renderReport();
 		expect(view.getByText(i18n.ts._abuseUserReport.reportedUser)).toBeTruthy();
 		expect(view.getByText('@reported')).toBeTruthy();
+		expect(view.getByText(i18n.ts._abuseUserReport.accountReportHint)).toBeTruthy();
+	});
+
+	test.each(['note', 'chat'] as const)('identifies a %s report as content evidence rather than an account report', async reportType => {
+		const view = renderReport({ reportTarget: { reportType, targetId: 'content-id' } });
+		expect(view.getByText(i18n.ts._abuseUserReport.contentReportHint)).toBeTruthy();
+		expect(view.queryByText(i18n.ts._abuseUserReport.accountReportHint)).toBeNull();
+		await selectReason(view);
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts._abuseReport.submit }));
+		expect(mocks.apiWithDialog).toHaveBeenCalledWith('users/report-abuse', expect.objectContaining({ reportType, targetId: 'content-id' }), undefined);
 	});
 
 	test('requires a nonblank explanation for the other reason', async () => {
@@ -183,7 +193,7 @@ describe('abuse report form', () => {
 		});
 		expect((view.getByRole('button', { name: i18n.ts._abuseReport.submit }) as HTMLButtonElement).disabled).toBe(true);
 		expect(view.getAllByRole('button')).toHaveLength(1);
-		expect(view.getAllByRole('radio')).toHaveLength(12);
+		expect(view.getAllByRole('radio')).toHaveLength(6);
 		expect(view.queryByRole('radio', { name: i18n.ts._abuseReport._reasons.sensitivePolitics })).toBeNull();
 		expect(view.getByRole('dialog', { name: i18n.ts.reportAbuse })).toBeTruthy();
 		expect(view.getByText('Original content').closest('textarea, input, [contenteditable="true"]')).toBeNull();

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_gaps">
+<div class="_gaps _panel _panelPadding">
 	<MkButton v-if="isOwner" primary rounded style="margin: 0 auto;" @click="emit('inviteUser')"><i class="ti ti-plus"></i> {{ i18n.ts._chat.inviteUser }}</MkButton>
 
 	<MkA :class="$style.membershipBody" :to="`${userPage(room.owner)}`">
@@ -81,9 +81,9 @@ onMounted(async () => {
 }
 
 .membershipBody {
+	display: block;
 	flex: 1;
 	min-width: 0;
-	margin-right: 8px;
 }
 
 .invitation {
@@ -91,8 +91,8 @@ onMounted(async () => {
 }
 
 .invitationBody {
+	display: block;
 	flex: 1;
 	min-width: 0;
-	margin-right: 8px;
 }
 </style>

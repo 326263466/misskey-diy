@@ -28,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-else-if="note.visibility === 'followers'" class="ti ti-lock"></i>
 				<i v-else-if="note.visibility === 'specified'" ref="specified" class="ti ti-mail"></i>
 			</span>
-			<span v-if="note.localOnly" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
+			<span v-if="note.localOnly && !note.redPacket" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
 		</div>
 	</div>
 	<div v-if="hasWork || showTime" :class="$style.secondaryLine">
@@ -71,7 +71,7 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 .root {
 	min-width: 0;
 	max-width: 100%;
-	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 70%);
+	color: var(--MI_THEME-fgTransparentWeak);
 	line-height: 1.3;
 }
 

@@ -120,7 +120,7 @@ const isThumbnailAvailable = computed(() => {
 	pointer-events: none;
 	margin: auto;
 	font-size: 32px;
-	color: #777;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .large .icon {

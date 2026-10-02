@@ -60,7 +60,7 @@ const remaining = computed(() => {
 }
 
 .root {
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 }
 
 .divider {
@@ -69,6 +69,7 @@ const remaining = computed(() => {
 }
 
 .description {
+	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 90%;
 }
 

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions">
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div class="_pageBody">
 		<div class="_gaps">
 			<MkTip k="userLists">
 				{{ i18n.ts._userLists.tip }}
@@ -79,7 +79,7 @@ onActivated(() => {
 <style lang="scss" module>
 .list {
 	display: block;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	border: solid 1px var(--MI_THEME-divider);
 	border-radius: 6px;
 	margin-bottom: 8px;
@@ -92,6 +92,6 @@ onActivated(() => {
 
 .nUsers {
 	font-size: .9em;
-	opacity: .7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

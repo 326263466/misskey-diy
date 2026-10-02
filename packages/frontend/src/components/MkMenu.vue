@@ -183,6 +183,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<button
 				v-else-if="item.type === 'parent'"
+				:title="item.truncateCaption ? unref(item.caption) ?? undefined : undefined"
 				role="menuitem"
 				tabindex="0"
 				:class="['_button', $style.item, $style.parent, { [$style.active]: childShowingItem === item }]"
@@ -196,7 +197,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div :class="$style.item_content">
 					<div :class="$style.item_content_text" style="pointer-events: none;">
 						<div :class="$style.item_content_text_title">{{ item.text }}</div>
-						<div v-if="item.caption" :class="$style.item_content_text_caption">{{ item.caption }}</div>
+						<div v-if="item.caption" :class="[$style.item_content_text_caption, { [$style.truncatedCaption]: item.truncateCaption }]">{{ item.caption }}</div>
 					</div>
 					<span :class="$style.caret" style="pointer-events: none;"><i class="ti ti-chevron-right ti-fw"></i></span>
 				</div>
@@ -857,6 +858,7 @@ defineExpose({
 }
 
 .item {
+	--MI-menuCaptionFg: var(--menuFg, var(--MI_THEME-fgTransparentWeak));
 	display: flex;
 	align-items: center;
 	position: relative;
@@ -882,7 +884,7 @@ defineExpose({
 		right: 0;
 		margin: auto;
 		width: calc(100% - 16px);
-		height: 100%;
+		height: calc(100% - 1px);
 		border-radius: 6px;
 	}
 
@@ -899,6 +901,7 @@ defineExpose({
 		&:hover,
 		&:focus-visible:active,
 		&:focus-visible.active {
+			--MI-menuCaptionFg: currentColor;
 			color: var(--menuHoverFg, var(--MI_THEME-accent));
 			position: relative;
 			z-index: 10; // guardより上にする
@@ -910,6 +913,7 @@ defineExpose({
 
 		&:not(:focus-visible):active,
 		&:not(:focus-visible).active {
+			--MI-menuCaptionFg: currentColor;
 			color: var(--menuActiveFg, var(--MI_THEME-fgOnAccent));
 
 			&::before {
@@ -952,6 +956,8 @@ defineExpose({
 }
 
 .item_content {
+	min-width: 0;
+	flex: 1;
 	width: 100%;
 	max-width: 100vw;
 	display: flex;
@@ -962,6 +968,8 @@ defineExpose({
 }
 
 .item_content_text {
+	min-width: 0;
+	flex: 1;
 	max-width: calc(100vw - 4rem);
 }
 
@@ -974,7 +982,14 @@ defineExpose({
 	text-wrap: auto;
 	font-size: 85%;
 	line-height: 1.25;
-	opacity: 0.7;
+	color: var(--MI-menuCaptionFg, var(--MI_THEME-fgTransparentWeak));
+}
+
+.truncatedCaption {
+	white-space: nowrap;
+	text-wrap: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .switchButton {
@@ -1019,7 +1034,7 @@ defineExpose({
 	text-align: left;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	pointer-events: none;
 }
 

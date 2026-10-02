@@ -179,7 +179,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 
 <style lang="scss" module>
 .root {
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	text-align: center;
 }
 

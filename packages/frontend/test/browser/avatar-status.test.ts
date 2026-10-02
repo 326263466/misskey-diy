@@ -194,6 +194,9 @@ test.each([
 			const mark = badge.firstElementChild!.firstElementChild as HTMLElement;
 			expect(mark).not.toBeNull();
 			expectCenteredSymbol(mark, rect, false);
+			if (badge.getAttribute('aria-label') === '活跃') {
+				expect(getComputedStyle(mark).visibility).toBe('hidden');
+			}
 		}
 	}
 	await page.screenshot({ path: `../e2e/artifacts/component-browser/avatar-status-${dark ? 'dark' : 'light'}-${width}.png` });

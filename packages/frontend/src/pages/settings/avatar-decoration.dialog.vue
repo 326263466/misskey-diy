@@ -151,7 +151,7 @@ async function detach() {
 	position: sticky;
 	bottom: 0;
 	left: 0;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));

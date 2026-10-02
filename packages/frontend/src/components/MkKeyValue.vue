@@ -61,6 +61,10 @@ const copy_ = () => {
 .key {
 	font-size: 0.85em;
 	padding: 0 0 0.25em 0;
-	opacity: 0.75;
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.value {
+	color: var(--MI_THEME-fgTransparent);
 }
 </style>

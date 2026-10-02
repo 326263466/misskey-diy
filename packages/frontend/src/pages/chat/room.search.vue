@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_gaps">
+<div class="_gaps _panel _panelPadding">
 	<MkInput
 		v-model="searchQuery"
 		:placeholder="i18n.ts._chat.searchMessages"

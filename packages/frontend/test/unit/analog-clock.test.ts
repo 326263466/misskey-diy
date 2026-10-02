@@ -72,12 +72,12 @@ describe('clock dial timekeeping', () => {
 		expect([...svg.querySelectorAll('text')].filter(text => /(?:^|[_\s])period(?:[_\s]|$)/.test(text.getAttribute('class') ?? '')).map(text => text.textContent).join('')).toBe('上午');
 	});
 
-	test('word period color updates when the theme changes', async () => {
-		const view = render(MkAnalogClock, { props: { design: 'words', offset: 0 } });
+	test.each(['linear', 'words', 'digital', 'orbit', 'hud', 'satellite'] as const)('%s colors update before the theme transition finishes', async design => {
+		const view = render(MkAnalogClock, { props: { design, offset: 0 } });
 		const svg = view.container.querySelector('svg')!;
 		const lightColor = svg.style.getPropertyValue('--MI-clockDial-period');
 		Object.assign(mocks.theme, { bg: '#202124', panel: '#292b2f', fg: '#dadada', accent: '#86b300' });
-		mocks.onTheme.mock.calls.find(([event]) => event === 'themeChanged')![1]();
+		mocks.onTheme.mock.calls.find(([event]) => event === 'themeChanging')![1]();
 		await nextTick();
 		const darkColor = svg.style.getPropertyValue('--MI-clockDial-period');
 		expect(darkColor).not.toBe(lightColor);
@@ -110,7 +110,7 @@ describe('clock dial timekeeping', () => {
 			}
 			view.unmount();
 			expect(mocks.ticks.size).toBe(0);
-			expect(mocks.offTheme).toHaveBeenCalledWith('themeChanged', expect.any(Function));
+			expect(mocks.offTheme).toHaveBeenCalledWith('themeChanging', expect.any(Function));
 		},
 	);
 

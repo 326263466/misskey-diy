@@ -151,7 +151,7 @@ const emits = defineEmits<{
 .extInstallerRoot {
 	border-radius: var(--MI-radius);
 	background: var(--MI_THEME-panel);
-	padding: 20px;
+	padding: var(--MI-cardPadding);
 }
 
 .extInstallerIconWrapper {

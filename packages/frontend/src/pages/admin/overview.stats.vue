@@ -100,14 +100,14 @@ onMounted(async () => {
 <style lang="scss" module>
 .root {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
 	grid-gap: 12px;
 
 	&:global {
 		> .item {
 			display: flex;
 			box-sizing: border-box;
-			padding: 12px;
+			padding: var(--MI-cardPadding);
 
 			> .icon {
 				display: grid;
@@ -129,8 +129,8 @@ onMounted(async () => {
 
 			&.notes {
 				> .icon {
-					background: #86b30026;
-					color: #86b300;
+					background: color-mix(in srgb, var(--MI_THEME-chartAccent, #86b300) 15%, transparent);
+					color: var(--MI_THEME-chartAccent, #86b300);
 				}
 			}
 
@@ -170,7 +170,7 @@ onMounted(async () => {
 
 				> .label {
 					font-size: 0.8em;
-					opacity: 0.5;
+					color: var(--MI_THEME-fgTransparentWeak);
 				}
 			}
 		}

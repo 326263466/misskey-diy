@@ -271,6 +271,7 @@ export type Channels = {
 			roomId: string;
 		};
 		events: {
+			membersChanged: () => void;
 			message: (payload: ChatMessageLite) => void;
 			deleted: (payload: ChatMessageLite['id']) => void;
 			react: (payload: {

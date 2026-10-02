@@ -25,8 +25,11 @@ const minWidth = props.minWidth + 'px';
 
 <style lang="scss" module>
 .root {
+	// Each grid column is a separate content boundary.
+	--MI-formGroupInset: 0px;
+	--MI-formGroupRadius: initial;
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(v-bind('minWidth'), 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(v-bind('minWidth'), 100%), 1fr));
 	grid-gap: 12px;
 }
 </style>

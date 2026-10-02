@@ -131,7 +131,7 @@ function onDrop(ev: DragEvent) {
 <style lang="scss" module>
 .root {
 	&.draghover {
-		background: #eee;
+		background: var(--MI_THEME-accentedBg);
 	}
 }
 </style>

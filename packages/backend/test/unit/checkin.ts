@@ -10,7 +10,7 @@ import { MiUser } from '@/models/User.js';
 import { MiUserCheckin } from '@/models/UserCheckin.js';
 import { CHECKIN_ACHIEVEMENT_TYPES } from '@/models/UserProfile.js';
 import CheckinEndpoint from '@/server/api/endpoints/i/checkin.js';
-import StatusEndpoint from '@/server/api/endpoints/i/checkin-status.js';
+import StatusEndpoint, { meta as statusMeta } from '@/server/api/endpoints/i/checkin-status.js';
 import RankingEndpoint from '@/server/api/endpoints/checkin/ranking.js';
 import ClaimEndpoint from '@/server/api/endpoints/i/claim-achievement.js';
 import MakeupEndpoint from '@/server/api/endpoints/i/checkin-makeup.js';
@@ -25,7 +25,7 @@ import { CheckinRedemptionService } from '@/core/CheckinRedemptionService.js';
 
 function setup(records: Partial<MiUserCheckin>[] = []) {
 	const user = { id: 'user', username: 'user', host: null, isSuspended: false, isDeleted: false, movedToUri: null };
-	const profile = { achievements: [] as { name: string; unlockedAt: number }[], checkinPoints: 0, checkinMakeupCards: 0 };
+	const profile = { achievements: [] as { name: string; unlockedAt: number }[], checkinPoints: 0, checkinMakeupCards: 0, checkinFirstRewardClaimed: false };
 	const state = { failInsert: false };
 	const latest = (): Partial<MiUserCheckin> | null => [...records].sort((a, b) => b.date!.localeCompare(a.date!))[0] ?? null;
 	const query = {
@@ -36,7 +36,11 @@ function setup(records: Partial<MiUserCheckin>[] = []) {
 	const actualDays = () => records.filter(record => !record.isMakeup).length;
 	const repository = { findOne: vi.fn(async () => latest()), createQueryBuilder: vi.fn(() => query), countBy: vi.fn(async () => actualDays()) };
 	const manager = {
+		getRepository: vi.fn(() => repository),
+		withRepository: vi.fn((value: unknown) => value),
 		findOne: vi.fn(async (entity: unknown) => entity === MiUser ? user : latest()),
+		findOneBy: vi.fn(async (_entity: unknown, where: { date: string }) => records.find(record => record.date === where.date)),
+		existsBy: vi.fn(async () => false),
 		create: vi.fn((_entity: unknown, data: Partial<MiUserCheckin>) => data),
 		increment: vi.fn(async (_entity: unknown, _where: unknown, property: 'checkinPoints' | 'checkinMakeupCards', amount: number) => { profile[property] += amount; }),
 		findOneByOrFail: vi.fn(async () => profile),
@@ -52,7 +56,8 @@ function setup(records: Partial<MiUserCheckin>[] = []) {
 		return true;
 	}) };
 	const db = {
-		transaction: vi.fn(async (callback: (manager: unknown) => Promise<unknown>) => callback(manager)),
+		manager,
+		transaction: vi.fn(async (isolationOrCallback: string | ((manager: unknown) => Promise<unknown>), callback?: (manager: unknown) => Promise<unknown>) => typeof isolationOrCallback === 'function' ? isolationOrCallback(manager) : callback!(manager)),
 		query: vi.fn().mockResolvedValue([]),
 	};
 	const pack = { packMany: vi.fn(async (ids: string[]) => ids.map(id => ({ id }))) };
@@ -154,6 +159,9 @@ describe('manual check-in service', () => {
 });
 
 describe('check-in endpoint contracts', () => {
+	test('bounds calendar polling per authenticated account', () => {
+		expect(statusMeta).toMatchObject({ requireCredential: true, kind: 'read:account', limit: { duration: 60000, max: 120 } });
+	});
 	test('requires a UUID idempotency key for exchanging points', async () => {
 		const exchange = vi.fn();
 		const endpoint = new ExchangeEndpoint({ exchange } as never);
@@ -165,6 +173,7 @@ describe('check-in endpoint contracts', () => {
 
 	test.each([
 		[CheckinService.InsufficientPointsError, 'INSUFFICIENT_CHECKIN_POINTS'],
+		[CheckinService.MonthlyExchangeLimitError, 'MONTHLY_EXCHANGE_LIMIT'],
 		[CheckinService.CardLimitError, 'CARD_LIMIT_EXCEEDED'],
 		[CheckinService.NotAllowedError, 'CHECKIN_NOT_ALLOWED'],
 	] as const)('maps exchange errors to the API contract', async (ErrorClass, code) => {

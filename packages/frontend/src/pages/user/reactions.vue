@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 700px;">
+<div class="_pageBody">
 	<MkPagination v-slot="{items}" :paginator="paginator">
 		<div class="_gaps">
 			<div v-for="item in items" :key="item.id" class="_panel">

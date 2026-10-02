@@ -26,7 +26,7 @@ vi.mock('@/i18n.js', () => ({ i18n: {
 			_icons: {
 				coffee: '休息中', music: '听歌中', gamepad: '打游戏中', briefcase: '工作中', book: '学习中', moon: '睡觉中', heart: '心情很好', plane: '旅行中',
 				food: '吃饭中', home: '宅在家', pet: '陪陪毛孩子', code: '写代码中', focus: '专注中', film: '看电影', car: '在路上', vacation: '度假中',
-				exercise: '运动中', sun: '今天很灿烂', cloud: '放空一会儿', battery: '电量不足', chat: '聊聊天', celebrate: '值得庆祝', gift: '准备惊喜', handshake: '一起加油',
+				exercise: '运动中', sun: '今天很灿烂', cloud: '放空一会儿', battery: '充电中', chat: '聊聊天', celebrate: '值得庆祝', gift: '准备惊喜', handshake: '一起加油',
 			},
 		},
 	},
@@ -89,9 +89,9 @@ test.each([
 	expect(textBox.top).toBeGreaterThan(previewIcon.getBoundingClientRect().bottom);
 	expect(Math.abs(previewIcon.getBoundingClientRect().left + 20 - textBox.left - textBox.width / 2)).toBeLessThan(1);
 	const radios = Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
-	expect(radios).toHaveLength(12);
+	expect(radios).toHaveLength(13);
 	expect(host.querySelectorAll('h3, legend')).toHaveLength(0);
-	expect(new Set(radios.map(radio => radio.getBoundingClientRect().top)).size).toBe(width > 500 ? 3 : 4);
+	expect(new Set(radios.map(radio => radio.getBoundingClientRect().top)).size).toBe(width > 500 ? 4 : 5);
 	for (const radio of radios) {
 		const option = radio.parentElement!;
 		expect(getComputedStyle(option).boxShadow).toBe('none');
@@ -114,7 +114,7 @@ test.each([
 	expect(root.getBoundingClientRect().right).toBeLessThanOrEqual(width);
 	expect(root.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
 	if (width > 500) {
-		expect(root.getBoundingClientRect().height).toBeLessThanOrEqual(440);
+		expect(root.getBoundingClientRect().height).toBeLessThanOrEqual(520);
 		expect(body.scrollHeight).toBe(body.clientHeight);
 	}
 	const footer = root.lastElementChild as HTMLElement;
@@ -173,7 +173,12 @@ test.each([
 	expect(footer.getBoundingClientRect().top).toBe(footerBox.top);
 	await expect.element(page.getByRole('button', { name: '使用此状态', exact: true })).toBeVisible();
 	if (width === 320) await page.screenshot({ element: root, path: '../e2e/artifacts/component-browser/custom-status-320-scrolled.png' });
+	await page.getByRole('radio', { name: '充电中', exact: true }).click();
+	await expect.element(page.getByRole('button', { name: '文字' })).toHaveTextContent('充电中');
+	expect(preview.querySelector('[data-custom-status-icon="battery"]')).not.toBeNull();
+	expect(footer.getBoundingClientRect().top).toBe(footerBox.top);
+	if (width === 900) await page.screenshot({ element: root, path: '../e2e/artifacts/component-browser/custom-status-900-charging.png' });
 	await expect.element(page.getByRole('button', { name: '使用此状态', exact: true })).toBeEnabled();
 	await page.getByRole('button', { name: '使用此状态', exact: true }).click();
-	expect(save).toHaveBeenCalledExactlyOnceWith({ icon: 'vacation', text: '度假中' });
+	expect(save).toHaveBeenCalledExactlyOnceWith({ icon: 'battery', text: '充电中' });
 });

@@ -203,6 +203,13 @@ export class MiNote {
 	})
 	public hasPoll: boolean;
 
+	@Column('boolean', { default: false })
+	public hasRedPacket: boolean;
+
+	@Index('IDX_note_red_packet', { unique: true })
+	@Column({ ...id(), nullable: true })
+	public redPacketId: string | null;
+
 	@Column('varchar', {
 		length: 16,
 		nullable: true,

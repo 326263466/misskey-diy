@@ -11,12 +11,12 @@ import { i18n } from '@/i18n.js';
 import type * as Misskey from 'misskey-js';
 
 const mocks = vi.hoisted(() => ({
-	api: vi.fn(), update: vi.fn(), popupMenu: vi.fn(),
+	api: vi.fn(), update: vi.fn(), popupMenu: vi.fn(), popup: vi.fn(),
 	account: { id: 'self', username: 'alice', company: 'Example Company', jobTitle: 'Engineer', fields: [], lang: null, policies: {} },
 }));
 
 vi.mock('@/i.js', () => ({ $i: mocks.account, ensureSignin: () => mocks.account, iAmModerator: false }));
-vi.mock('@/os.js', () => ({ apiWithDialog: mocks.api, popupMenu: mocks.popupMenu }));
+vi.mock('@/os.js', () => ({ apiWithDialog: mocks.api, popupMenu: mocks.popupMenu, popup: mocks.popup }));
 vi.mock('@/accounts.js', () => ({ updateCurrentAccountPartial: mocks.update }));
 vi.mock('@/utility/drive.js', () => ({ chooseDriveFile: vi.fn() }));
 vi.mock('@/utility/achievements.js', () => ({ claimAchievement: vi.fn() }));
@@ -47,6 +47,19 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('company and job title profile editing', () => {
+	test('opens the profile QR code in a dialog without a route link', async () => {
+		const dispose = vi.fn();
+		mocks.popup.mockReturnValue({ dispose });
+		const view = render(ProfileSettings, { global });
+		const qr = view.getByTestId('profile-qr');
+		expect(qr.tagName).toBe('BUTTON');
+		expect(qr.querySelector('a')).toBeNull();
+		await fireEvent.click(qr);
+		expect(mocks.popup).toHaveBeenCalledTimes(1);
+		expect(mocks.popup.mock.calls[0][1]).toEqual({ user: mocks.account });
+		mocks.popup.mock.calls[0][2].closed();
+		expect(dispose).toHaveBeenCalledTimes(1);
+	});
 	test('publishes the confirmed nickname without waiting for a streaming event', async () => {
 		let confirmSave!: (user: unknown) => void;
 		mocks.api.mockReturnValueOnce(new Promise(resolve => { confirmSave = resolve; }));

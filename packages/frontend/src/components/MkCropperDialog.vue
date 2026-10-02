@@ -99,16 +99,20 @@ function onImageLoad() {
 	}
 }
 
+function updateThemeColor() {
+	const selection = cropper?.getCropperSelection();
+	if (selection) selection.themeColor = tinycolor(themeManager.currentCompiledTheme!.accent).toHexString();
+}
+
 onMounted(() => {
 	if (imgEl.value == null) return; // TSを黙らすため
 
 	cropper = new Cropper(imgEl.value, {
 	});
 
-	const themeValue = themeManager.currentCompiledTheme!;
-
 	const selection = cropper.getCropperSelection()!;
-	selection.themeColor = tinycolor(themeValue.accent).toHexString();
+	updateThemeColor();
+	themeManager.on('themeChanging', updateThemeColor);
 	if (props.aspectRatio != null) selection.aspectRatio = props.aspectRatio;
 	selection.initialAspectRatio = props.aspectRatio ?? 1;
 	selection.outlined = true;
@@ -128,6 +132,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+	themeManager.off('themeChanging', updateThemeColor);
 	URL.revokeObjectURL(imgUrl);
 });
 </script>

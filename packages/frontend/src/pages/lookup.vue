@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<div v-if="state === 'done'" class="_buttonsCenter">
 			<MkButton @click="close">{{ i18n.ts.close }}</MkButton>
 			<MkButton @click="goToMisskey">{{ i18n.ts.goToMisskey }}</MkButton>

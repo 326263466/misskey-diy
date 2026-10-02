@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getVisitorContentVisibility } from '@/misc/visitor-content.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
@@ -70,11 +71,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.contentRestrictedByUser);
 			}
 
-			if (this.serverSettings.ugcVisibilityForVisitor === 'none' && me == null) {
+			if (getVisitorContentVisibility(this.serverSettings) === 'none' && me == null) {
 				throw new ApiError(meta.errors.contentRestrictedByServer);
 			}
 
-			if (this.serverSettings.ugcVisibilityForVisitor === 'local' && note.userHost != null && me == null) {
+			if (getVisitorContentVisibility(this.serverSettings) === 'local' && note.userHost != null && me == null) {
 				throw new ApiError(meta.errors.contentRestrictedByServer);
 			}
 

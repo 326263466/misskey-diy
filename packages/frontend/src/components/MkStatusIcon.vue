@@ -117,12 +117,9 @@ const glyph = computed(() => {
 		font-size: 70cqi;
 	}
 
-	&.online > .glyph {
-		visibility: hidden;
-	}
-
+	&.online > .glyph,
 	&.active > .glyph {
-		font-size: 25cqi;
+		visibility: hidden;
 	}
 
 	&.away,

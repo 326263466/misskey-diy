@@ -12,6 +12,7 @@ import { mainRouter } from '@/router.js';
 
 const mocks = vi.hoisted(() => ({
 	receiveMetadata: null as ((getter: () => PageMetadata | null) => void) | null,
+	signedIn: false,
 }));
 
 vi.mock('@/router.js', async () => {
@@ -28,7 +29,7 @@ vi.mock('@/utility/reload-suggest.js', () => ({ shouldSuggestReload: false }));
 vi.mock('@/utility/device-kind.js', () => ({ deviceKind: 'desktop' }));
 vi.mock('@/local-storage.js', () => ({ miLocalStorage: { getItem: () => null } }));
 vi.mock('@/theme.js', () => ({ isPreviewMode: false }));
-vi.mock('@/i.js', () => ({ $i: null }));
+vi.mock('@/i.js', () => ({ get $i() { return mocks.signedIn ? { id: 'self' } : null; } }));
 vi.mock('@/os.js', () => ({}));
 vi.mock('@/ui/_common_/common.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/ui/_common_/mobile-footer-menu.vue', () => ({ default: { template: '<div/>' } }));
@@ -70,6 +71,7 @@ async function publishMetadata(needWideArea: boolean) {
 beforeEach(() => {
 	vi.stubGlobal('innerWidth', 1440);
 	mocks.receiveMetadata = null;
+	mocks.signedIn = false;
 });
 
 afterEach(() => {
@@ -79,6 +81,20 @@ afterEach(() => {
 });
 
 describe('desktop navigation page layout', () => {
+	test('uses the final community layout before its parent page loads', async () => {
+		mainRouter.currentRoute.value = { path: '', name: 'community' } as typeof mainRouter.currentRoute.value;
+		const { view, columns } = renderShell();
+		const initialClasses = columns.className;
+		expect(initialClasses).toContain('navigationLayout');
+		expect(initialClasses).toContain('singleColumn');
+		expect(view.container.querySelector('nav')).toBeNull();
+		expect(view.container.querySelector('aside')).toBeNull();
+		await publishMetadata(true);
+		expect(columns.className).toBe(initialClasses);
+		await publishMetadata(false);
+		expect(columns.className).toBe(initialClasses);
+	});
+
 	test.each(['/checkin', '/community-ranking', '/my/achievements'])('keeps %s in its own layout while metadata changes', async path => {
 		setRoute('/timeline');
 		const { view, columns } = renderShell();
@@ -95,7 +111,7 @@ describe('desktop navigation page layout', () => {
 		expect(columns.className).toBe(loadingClasses);
 	});
 
-	test.each(['/settings', '/admin'])('keeps %s at its final width before async metadata arrives', async path => {
+	test.each(['/settings', '/admin', '/feedback'])('keeps %s at its final width before async metadata arrives', async path => {
 		setRoute(path);
 		const { columns } = renderShell();
 		const initialClasses = columns.className;
@@ -111,7 +127,7 @@ describe('desktop navigation page layout', () => {
 		const { columns } = renderShell();
 		await publishMetadata(true);
 
-		setRoute('/@:acct/:page?');
+		setRoute('/@:acct');
 		await nextTick();
 		const loadingClasses = columns.className;
 		await publishMetadata(false);
@@ -131,7 +147,7 @@ describe('desktop navigation page layout', () => {
 
 describe('header dock visibility', () => {
 	test.each([
-		{ width: 500, hidden: null },
+		{ width: 500, hidden: true },
 		{ width: 501, hidden: true },
 		{ width: 751, hidden: true },
 		{ width: 752, hidden: false },
@@ -140,14 +156,10 @@ describe('header dock visibility', () => {
 		vi.stubGlobal('innerWidth', width);
 		setRoute('/timeline');
 		const { view } = renderShell();
-		if (hidden === null) {
-			expect(view.queryByTestId('header')).toBeNull();
-		} else {
-			expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe(String(hidden));
-		}
+		expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe(String(hidden));
 	});
 
-	test.each(['/@:acct/:page?', '/@:acct/following', '/@:acct/followers', '/settings', '/admin'])('reports the hidden dock on %s even at desktop width', path => {
+	test.each(['/@:acct', '/@:acct/following', '/@:acct/followers', '/settings', '/admin'])('reports the hidden dock on %s even at desktop width', path => {
 		setRoute(path);
 		const { view } = renderShell();
 		expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe('true');
@@ -158,19 +170,23 @@ describe('header dock visibility', () => {
 		const { view } = renderShell();
 		for (const { width, hidden } of [
 			{ width: 751, hidden: true },
-			{ width: 500, hidden: null },
+			{ width: 500, hidden: true },
 			{ width: 501, hidden: true },
 			{ width: 752, hidden: false },
 		]) {
 			vi.stubGlobal('innerWidth', width);
 			window.dispatchEvent(new Event('resize'));
 			await nextTick();
-			if (hidden === null) {
-				expect(view.queryByTestId('header')).toBeNull();
-			} else {
-				expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe(String(hidden));
-			}
+			expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe(String(hidden));
 		}
+	});
+
+	test('preserves the signed-in mobile layout without a guest header', () => {
+		mocks.signedIn = true;
+		vi.stubGlobal('innerWidth', 375);
+		setRoute('/timeline');
+		const { view } = renderShell();
+		expect(view.queryByTestId('header')).toBeNull();
 	});
 
 	test('updates the header when page metadata hides or restores the dock', async () => {

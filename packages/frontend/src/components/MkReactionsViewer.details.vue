@@ -100,9 +100,7 @@ function close(): void {
 	width: 32px;
 	height: 32px;
 }
-</style>
 
-<style lang="scss" module>
 .root {
 	display: flex;
 }
@@ -118,12 +116,12 @@ function close(): void {
 }
 
 .dialogContent {
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 }
 
 .dialogUsers {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 	gap: var(--MI-margin);
 }
 

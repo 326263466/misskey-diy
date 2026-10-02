@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 500px;">
-	<div :class="$style.root" class="_gaps">
+<div class="_pageBody">
+	<div :class="$style.root" class="_gaps _panel _panelPadding">
 		<div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
 			<span>({{ i18n.ts._reversi.black }})</span>
 			<MkAvatar style="width: 32px; height: 32px;" :user="blackUser" :showIndicator="true"/>
@@ -22,8 +22,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-if="(logPos !== game.logs.length) && turnUser">
 				<Mfm :key="'past-turn-of:' + turnUser.id" :text="i18n.tsx._reversi.pastTurnOf({ name: turnUser.name ?? turnUser.username })" :plain="true" :customEmojis="turnUser.emojis"/>
 			</div>
-			<div v-if="iAmPlayer && !game.isEnded && !isMyTurn">{{ i18n.ts._reversi.opponentTurn }}<MkEllipsis/><span style="margin-left: 1em; opacity: 0.7;">({{ i18n.tsx.remainingN({ n: opTurnTimerRmain }) }})</span></div>
-			<div v-if="iAmPlayer && !game.isEnded && isMyTurn"><span style="display: inline-block; font-weight: bold; animation: global-tada 1s linear infinite both;">{{ i18n.ts._reversi.myTurn }}</span><span style="margin-left: 1em; opacity: 0.7;">({{ i18n.tsx.remainingN({ n: myTurnTimerRmain }) }})</span></div>
+			<div v-if="iAmPlayer && !game.isEnded && !isMyTurn">{{ i18n.ts._reversi.opponentTurn }}<MkEllipsis/><span style="margin-left: 1em; color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.tsx.remainingN({ n: opTurnTimerRmain }) }})</span></div>
+			<div v-if="iAmPlayer && !game.isEnded && isMyTurn"><span style="display: inline-block; font-weight: bold; animation: global-tada 1s linear infinite both;">{{ i18n.ts._reversi.myTurn }}</span><span style="margin-left: 1em; color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.tsx.remainingN({ n: myTurnTimerRmain }) }})</span></div>
 			<div v-if="game.isEnded && logPos == game.logs.length">
 				<template v-if="game.winner">
 					<Mfm :key="'won'" :text="i18n.tsx._reversi.won({ name: game.winner.name ?? game.winner.username })" :plain="true" :customEmojis="game.winner.emojis"/>
@@ -34,7 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 
-		<div class="_woodenFrame">
+		<div class="_woodenFrame" :class="$style.board">
 			<div :class="$style.boardInner">
 				<div v-if="showBoardLabels" :class="$style.labelsX">
 					<span v-for="i in game.map[0].length" :key="i" :class="$style.labelsXLabel">{{ String.fromCharCode(64 + i) }}</span>
@@ -514,6 +514,13 @@ $gap: 4px;
 
 .root {
 	text-align: center;
+}
+
+.board {
+	width: 100%;
+	max-width: 500px;
+	margin-inline: auto;
+	box-sizing: border-box;
 }
 
 .boardInner {

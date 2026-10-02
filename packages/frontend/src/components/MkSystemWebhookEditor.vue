@@ -278,9 +278,9 @@ onMounted(async () => {
 	z-index: 10000;
 	bottom: 0;
 	left: 0;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	border-top: solid 0.5px var(--MI_THEME-divider);
-	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
+	background: var(--MI_THEME-panel);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 }
@@ -307,6 +307,6 @@ onMounted(async () => {
 .description {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

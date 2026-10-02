@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<i v-if="displayItem.item.isSensitive" style="color: var(--MI_THEME-warn); margin-right: 0.5em;" class="ti ti-eye-exclamation"></i>
 					<MkCondensedLine :minScale="2 / 3">
 						<span>{{ displayItem.nameParts.baseName }}</span>
-						<span v-if="displayItem.nameParts.extension != null" style="opacity: 0.5;">{{ displayItem.nameParts.extension }}</span>
+						<span v-if="displayItem.nameParts.extension != null" style="color: var(--MI_THEME-fgTransparentWeak);">{{ displayItem.nameParts.extension }}</span>
 					</MkCondensedLine>
 				</div>
 				<div :class="$style.itemInfo">
@@ -210,7 +210,7 @@ async function onThumbnailClick(item: UploaderItem, ev: PointerEvent) {
 }
 
 .itemInfo {
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	margin-top: 4px;
 	font-size: 90%;
 	display: flex;

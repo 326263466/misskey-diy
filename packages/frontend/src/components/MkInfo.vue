@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="[$style.root, { [$style.warn]: warn }]" class="_selectable">
 	<i v-if="warn" class="ti ti-alert-triangle" :class="$style.i"></i>
 	<i v-else class="ti ti-info-circle" :class="$style.i"></i>
-	<div><slot></slot></div>
+	<div :class="$style.body"><slot></slot></div>
 	<button v-if="closable" :class="$style.button" class="_button" @click="close()"><i class="ti ti-x"></i></button>
 </div>
 </template>
@@ -34,7 +34,7 @@ function close() {
 .root {
 	display: flex;
   align-items: center;
-	padding: 12px 14px;
+	padding: var(--MI-cardPadding);
 	font-size: 90%;
 	background: var(--MI_THEME-infoBg);
 	color: var(--MI_THEME-infoFg);
@@ -43,7 +43,15 @@ function close() {
 	&.warn {
 		background: var(--MI_THEME-infoWarnBg);
 		color: var(--MI_THEME-infoWarnFg);
+
+		.body {
+			color: inherit;
+		}
 	}
+}
+
+.body {
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .i {

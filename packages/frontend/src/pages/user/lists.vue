@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkStickyContainer>
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div class="_pageBody">
 		<div>
 			<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard>
 				<MkA v-for="list in items" :key="list.id" class="_panel" :class="$style.list" :to="`/list/${ list.id }`">
@@ -42,7 +42,7 @@ const paginator = markRaw(new Paginator('users/lists/list', {
 <style lang="scss" module>
 .list {
 	display: block;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	border: solid 1px var(--MI_THEME-divider);
 	border-radius: 6px;
 	margin-bottom: 8px;

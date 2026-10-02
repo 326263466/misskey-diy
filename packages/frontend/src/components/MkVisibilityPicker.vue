@@ -89,7 +89,6 @@ function choose(visibility: typeof Misskey.noteVisibilities[number]): void {
 			pointer-events: none;
 			font-size: 12px;
 			padding-bottom: 4px;
-			opacity: 0.7;
 		}
 
 		.item {
@@ -103,7 +102,7 @@ function choose(visibility: typeof Misskey.noteVisibilities[number]): void {
 	pointer-events: none;
 	font-size: 10px;
 	padding-bottom: 4px;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .item {
@@ -115,15 +114,19 @@ function choose(visibility: typeof Misskey.noteVisibilities[number]): void {
 	box-sizing: border-box;
 
 	&:hover {
-		background: rgba(0, 0, 0, 0.05);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 
 	&:active {
-		background: rgba(0, 0, 0, 0.1);
+		background: var(--MI_THEME-buttonBg);
 	}
 
 	&.active {
 		color: var(--MI_THEME-accent);
+
+		.itemDescription {
+			color: inherit;
+		}
 	}
 }
 
@@ -152,6 +155,6 @@ function choose(visibility: typeof Misskey.noteVisibilities[number]): void {
 }
 
 .itemDescription {
-	opacity: 0.6;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

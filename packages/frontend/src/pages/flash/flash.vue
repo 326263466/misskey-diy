@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div class="_pageBody">
 		<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
 			<div v-if="flash" :key="flash.id">
 				<Transition :name="prefer.s.animation ? 'zoom' : ''" mode="out-in">
@@ -327,7 +327,7 @@ definePage(() => ({
 .ready {
 	&:global {
 		> .main {
-			padding: 32px;
+			padding: var(--MI-cardPadding);
 
 			> .title {
 				font-size: 1.4em;
@@ -358,7 +358,7 @@ definePage(() => ({
 	&:global {
 		> .date {
 			margin: 8px 0;
-			opacity: 0.6;
+			color: var(--MI_THEME-fgTransparentWeak);
 		}
 	}
 }
@@ -366,7 +366,7 @@ definePage(() => ({
 .started {
 	&:global {
 		> .main {
-			padding: 32px;
+			padding: var(--MI-cardPadding);
 		}
 
 		> .actions {
@@ -377,7 +377,7 @@ definePage(() => ({
 				flex-wrap: wrap;
 				justify-content: center;
 				gap: 12px;
-				padding: 16px;
+				padding: var(--MI-cardPadding);
 				border-bottom: 1px solid var(--MI_THEME-divider);
 
 				&:last-child {

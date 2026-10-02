@@ -77,6 +77,13 @@ import { MiChannel } from '@/models/Channel.js';
 import { MiRetentionAggregation } from '@/models/RetentionAggregation.js';
 import { MiRole } from '@/models/Role.js';
 import { MiRoleAssignment } from '@/models/RoleAssignment.js';
+import { MiFeedback } from '@/models/Feedback.js';
+import { MiWallet } from '@/models/Wallet.js';
+import { MiWalletTransaction } from '@/models/WalletTransaction.js';
+import { MiWalletSettings } from '@/models/WalletSettings.js';
+import { MiRedPacket } from '@/models/RedPacket.js';
+import { MiRedPacketClaim } from '@/models/RedPacketClaim.js';
+import { MiRedPacketRecipient } from '@/models/RedPacketRecipient.js';
 import { MiFlash } from '@/models/Flash.js';
 import { MiFlashLike } from '@/models/FlashLike.js';
 import { MiUserMemo } from '@/models/UserMemo.js';
@@ -251,6 +258,13 @@ export const entities = [
 	MiRetentionAggregation,
 	MiRole,
 	MiRoleAssignment,
+	MiFeedback,
+	MiWallet,
+	MiWalletTransaction,
+	MiWalletSettings,
+	MiRedPacket,
+	MiRedPacketClaim,
+	MiRedPacketRecipient,
 	MiFlash,
 	MiFlashLike,
 	MiUserMemo,
@@ -310,12 +324,8 @@ export function createPostgresDataSource(config: Config) {
 		cache: !config.db.disableCache && process.env.NODE_ENV !== 'test' ? { // dbをcloseしても何故かredisのコネクションが内部的に残り続けるようで、テストの際に支障が出るため無効にする(キャッシュも含めてテストしたいため本当は有効にしたいが...)
 			type: 'ioredis',
 			options: {
-				host: config.redis.host,
-				port: config.redis.port,
-				family: config.redis.family ?? 0,
-				password: config.redis.pass,
+				...config.redis,
 				keyPrefix: `${config.redis.prefix}:query:`,
-				db: config.redis.db ?? 0,
 			},
 		} : false,
 		logging: log,

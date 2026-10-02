@@ -71,6 +71,7 @@ export const paramDef = {
 		clientOptions: {
 			type: 'object', nullable: false,
 			properties: {
+				openGuestAccess: { type: 'boolean', nullable: false },
 				entrancePageStyle: { type: 'string', nullable: false, enum: ['classic', 'simple'] },
 				showTimelineForVisitor: { type: 'boolean', nullable: false },
 				showActivitiesForVisitor: { type: 'boolean', nullable: false },

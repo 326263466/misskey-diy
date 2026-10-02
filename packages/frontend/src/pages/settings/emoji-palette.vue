@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<SearchText>{{ i18n.ts._settings.emojiPaletteBanner }}</SearchText>
 		</MkFeatureBanner>
 
-		<FormSection first>
+		<FormSection>
 			<template #label>{{ i18n.ts._emojiPalette.palettes }}</template>
 
 			<div class="_gaps_s">
@@ -280,6 +280,6 @@ definePage(() => ({
 .editorCaption {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

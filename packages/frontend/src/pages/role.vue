@@ -5,17 +5,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :tabs="headerTabs">
-	<div v-if="error != null" class="_spacer" style="--MI_SPACER-w: 1200px;">
+	<div v-if="error != null" class="_pageBody">
 		<MkResult type="error" :text="error"/>
 	</div>
-	<div v-else-if="tab === 'users'" class="_spacer" style="--MI_SPACER-w: 1200px;">
+	<div v-else-if="tab === 'users'" class="_pageBody">
 		<div class="_gaps_s">
-			<div v-if="role?.description">{{ role.description }}</div>
+			<div v-if="role?.description" class="_panel _panelPadding">{{ role.description }}</div>
 			<MkUserList v-if="visible" :paginator="usersPaginator" :extractor="(item) => item.user"/>
 			<MkResult v-else-if="!visible" type="empty" :text="i18n.ts.nothing"/>
 		</div>
 	</div>
-	<div v-else-if="tab === 'timeline'" class="_spacer" style="--MI_SPACER-w: 700px;">
+	<div v-else-if="tab === 'timeline'" class="_pageBody">
 		<MkStreamingNotesTimeline v-if="visible" ref="timeline" src="role" :role="props.roleId"/>
 		<MkResult v-else-if="!visible" type="empty" :text="i18n.ts.nothing"/>
 	</div>

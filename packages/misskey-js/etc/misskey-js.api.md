@@ -521,6 +521,21 @@ type AdminUpdateProxyAccountResponse = operations['admin___update-proxy-account'
 type AdminUpdateUserNoteRequest = operations['admin___update-user-note']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminWalletAdjustRequest = operations['admin___wallet___adjust']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminWalletAdjustResponse = operations['admin___wallet___adjust']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminWalletShowSettingsResponse = operations['admin___wallet___show-settings']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminWalletUpdateSettingsRequest = operations['admin___wallet___update-settings']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminWalletUpdateSettingsResponse = operations['admin___wallet___update-settings']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type Announcement = components['schemas']['Announcement'];
 
 // @public (undocumented)
@@ -977,6 +992,7 @@ export type Channels = {
             roomId: string;
         };
         events: {
+            membersChanged: () => void;
             message: (payload: ChatMessageLite) => void;
             deleted: (payload: ChatMessageLite['id']) => void;
             react: (payload: {
@@ -1762,6 +1778,11 @@ declare namespace entities {
         AdminUpdateProxyAccountRequest,
         AdminUpdateProxyAccountResponse,
         AdminUpdateUserNoteRequest,
+        AdminWalletAdjustRequest,
+        AdminWalletAdjustResponse,
+        AdminWalletShowSettingsResponse,
+        AdminWalletUpdateSettingsRequest,
+        AdminWalletUpdateSettingsResponse,
         AnnouncementsRequest,
         AnnouncementsResponse,
         AnnouncementsShowRequest,
@@ -1962,6 +1983,15 @@ declare namespace entities {
         FederationUpdateRemoteUserRequest,
         FederationUsersRequest,
         FederationUsersResponse,
+        FeedbackCreateRequest,
+        FeedbackCreateResponse,
+        FeedbackDeleteRequest,
+        FeedbackListRequest,
+        FeedbackListResponse,
+        FeedbackShowRequest,
+        FeedbackShowResponse,
+        FeedbackUpdateRequest,
+        FeedbackUpdateResponse,
         FetchExternalResourcesRequest,
         FetchExternalResourcesResponse,
         FetchRssRequest,
@@ -2103,6 +2133,11 @@ declare namespace entities {
         IUpdateResponse,
         IUpdateEmailRequest,
         IUpdateEmailResponse,
+        IWalletResponse,
+        IWalletExchangeRequest,
+        IWalletExchangeResponse,
+        IWalletTransactionsRequest,
+        IWalletTransactionsResponse,
         IWebhooksCreateRequest,
         IWebhooksCreateResponse,
         IWebhooksDeleteRequest,
@@ -2210,6 +2245,14 @@ declare namespace entities {
         PingResponse,
         PinnedUsersResponse,
         PromoReadRequest,
+        RedPacketsClaimRequest,
+        RedPacketsClaimResponse,
+        RedPacketsCreateRequest,
+        RedPacketsCreateResponse,
+        RedPacketsListRequest,
+        RedPacketsListResponse,
+        RedPacketsShowRequest,
+        RedPacketsShowResponse,
         RenoteMuteCreateRequest,
         RenoteMuteDeleteRequest,
         RenoteMuteListRequest,
@@ -2352,6 +2395,7 @@ declare namespace entities {
         EmojiSimple,
         EmojiDetailed,
         EmojiDetailedAdmin,
+        Feedback,
         Flash,
         Signin,
         RoleCondFormulaLogics,
@@ -2429,6 +2473,36 @@ type FederationUsersRequest = operations['federation___users']['requestBody']['c
 
 // @public (undocumented)
 type FederationUsersResponse = operations['federation___users']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type Feedback = components['schemas']['Feedback'];
+
+// @public (undocumented)
+type FeedbackCreateRequest = operations['feedback___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackCreateResponse = operations['feedback___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackDeleteRequest = operations['feedback___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackListRequest = operations['feedback___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackListResponse = operations['feedback___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackShowRequest = operations['feedback___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackShowResponse = operations['feedback___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackUpdateRequest = operations['feedback___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackUpdateResponse = operations['feedback___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type FetchExternalResourcesRequest = operations['fetch-external-resources']['requestBody']['content']['application/json'];
@@ -2978,6 +3052,21 @@ type IUpdateRequest = operations['i___update']['requestBody']['content']['applic
 type IUpdateResponse = operations['i___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type IWalletExchangeRequest = operations['i___wallet___exchange']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type IWalletExchangeResponse = operations['i___wallet___exchange']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type IWalletResponse = operations['i___wallet']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type IWalletTransactionsRequest = operations['i___wallet___transactions']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type IWalletTransactionsResponse = operations['i___wallet___transactions']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type IWebhooksCreateRequest = operations['i___webhooks___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3435,6 +3524,30 @@ type QueueStatsLog = QueueStats[];
 
 // @public (undocumented)
 export const queueTypes: readonly ["system", "endedPollNotification", "postScheduledNote", "deliver", "inbox", "db", "relationship", "objectStorage", "userWebhookDeliver", "systemWebhookDeliver"];
+
+// @public (undocumented)
+type RedPacketsClaimRequest = operations['red-packets___claim']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RedPacketsClaimResponse = operations['red-packets___claim']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RedPacketsCreateRequest = operations['red-packets___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RedPacketsCreateResponse = operations['red-packets___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RedPacketsListRequest = operations['red-packets___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RedPacketsListResponse = operations['red-packets___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RedPacketsShowRequest = operations['red-packets___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RedPacketsShowResponse = operations['red-packets___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type RenoteMuteCreateRequest = operations['renote-mute___create']['requestBody']['content']['application/json'];

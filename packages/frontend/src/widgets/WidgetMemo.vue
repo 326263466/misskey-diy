@@ -86,7 +86,7 @@ defineExpose<WidgetComponentExpose>({
 <style lang="scss" module>
 .root {
 	position: relative;
-	padding-bottom: calc(28px + var(--MI-cardPadding, 20px) * 2);
+	padding-bottom: calc(28px + var(--MI-cardPadding, 18px) * 2);
 }
 
 .textarea {
@@ -94,7 +94,7 @@ defineExpose<WidgetComponentExpose>({
 	width: 100%;
 	max-width: 100%;
 	min-width: 100%;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 	color: var(--MI_THEME-fg);
 	background: transparent;
 	border: none;
@@ -113,8 +113,8 @@ defineExpose<WidgetComponentExpose>({
 .save {
 	display: block;
 	position: absolute;
-	bottom: var(--MI-cardPadding, 20px);
-	right: var(--MI-cardPadding, 20px);
+	bottom: var(--MI-cardPadding, 18px);
+	right: var(--MI-cardPadding, 18px);
 	margin: 0;
 	padding: 0 10px;
 	height: 28px;

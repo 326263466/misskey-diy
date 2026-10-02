@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkDisableSection :disabled="!instance.enableEmail">
 			<div class="_gaps_m">
 				<SearchMarker :keywords="['email', 'address']">
-					<FormSection first>
+					<FormSection>
 						<template #label><SearchLabel>{{ i18n.ts.emailAddress }}</SearchLabel></template>
 						<MkInput v-model="emailAddress" type="email" manualSave>
 							<template #prefix><i class="ti ti-mail"></i></template>

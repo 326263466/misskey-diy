@@ -169,7 +169,7 @@ onMounted(() => {
 <style lang="scss" module>
 
 .form {
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 }
 
 .result,
@@ -187,14 +187,14 @@ onMounted(() => {
 }
 
 .users {
-	padding: 0 0 var(--MI-cardPadding, 20px);
+	padding: 0 0 var(--MI-cardPadding, 18px);
 }
 
 .user {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 8px var(--MI-cardPadding, 20px);
+	padding: 8px var(--MI-cardPadding, 18px);
 	font-size: 14px;
 
 	&:hover {
@@ -234,12 +234,12 @@ onMounted(() => {
 }
 
 .userAcct {
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .empty {
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 	text-align: center;
-	padding: var(--MI-cardPadding, 20px);
+	padding: var(--MI-cardPadding, 18px);
 }
 </style>

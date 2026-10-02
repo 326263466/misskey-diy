@@ -52,6 +52,17 @@ afterEach(() => {
 	for (const { app, host } of fixtures.splice(0)) { app.unmount(); host.remove(); }
 });
 
+test.each([false, true])('chat can remove the outer inset without changing regular cards (chat: %s)', async chat => {
+	const host = mount(() => h(PageWithHeader, {
+		contentCard: true,
+		style: chat ? '--MI-pageContentPadding:0px' : '',
+	}, () => h('div', { 'data-message-content': '', style: 'padding:18px' }, 'Message')), 'height:500px;container-type:size;--MI-cardPadding:18px');
+	await settle();
+	const content = host.querySelector<HTMLElement>('[data-message-content]')!;
+	expect(getComputedStyle(content.parentElement!).padding).toBe(chat ? '0px' : '18px');
+	expect(getComputedStyle(content).padding).toBe('18px');
+});
+
 test.each([
 	{ work: { jobTitle: 'Engineer' }, badges: false },
 	{ work: { company: 'Example' }, badges: true },

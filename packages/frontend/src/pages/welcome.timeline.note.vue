@@ -69,6 +69,8 @@ onUpdated(() => {
 <style lang="scss" module>
 .note {
 	margin-left: auto;
+	min-width: 0;
+	max-width: 100%;
 }
 
 .text {
@@ -88,9 +90,11 @@ onUpdated(() => {
 }
 
 .content {
+	box-sizing: border-box;
 	padding: 16px;
 	margin: 0 0 0 auto;
-	max-width: max-content;
+	width: fit-content;
+	max-width: 100%;
 	border-radius: 16px;
 }
 
@@ -103,6 +107,6 @@ onUpdated(() => {
 }
 
 .richcontent {
-	min-width: 250px;
+	min-width: min(250px, 100%);
 }
 </style>

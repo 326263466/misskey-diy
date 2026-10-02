@@ -89,7 +89,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<strong>{{ i18n.ts._welcome.title }}</strong>
 				<template v-if="full">
 					<p>{{ i18n.tsx._welcome.greeting({ name: instance.name ?? host }) }}</p>
-					<p>{{ i18n.ts._welcome.introduction }}</p>
+					<p style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._welcome.introduction }}</p>
 					<div class="_gaps_s" :class="$style.welcomeLinks">
 						<MkA class="_link" to="/about"><i class="ti ti-checkup-list" aria-hidden="true"></i> {{ i18n.ts.serverRules }}</MkA>
 						<a class="_link" href="https://misskey-hub.net/docs/for-users/" target="_blank" rel="noopener noreferrer"><i class="ti ti-book" aria-hidden="true"></i> {{ i18n.ts._welcome.userGuide }}</a>
@@ -153,18 +153,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<Mfm :text="i18n.tsx._notification.createTokenDescription({ text: i18n.ts.manageAccessTokens })"/>
 			</MkA>
 			<template v-else-if="notification.type === 'follow'">
-				<span :class="$style.text" style="opacity: 0.6;">{{ i18n.ts.youGotNewFollower }}</span>
+				<span :class="$style.text" style="color: var(--MI_THEME-fgTransparent);">{{ i18n.ts.youGotNewFollower }}</span>
 			</template>
 			<template v-else-if="notification.type === 'followRequestAccepted'">
-				<div :class="$style.text" style="opacity: 0.6;">{{ i18n.ts.followRequestAccepted }}</div>
-				<div v-if="notification.message" :class="$style.text" style="opacity: 0.6; font-style: oblique;">
+				<div :class="$style.text" style="color: var(--MI_THEME-fgTransparent);">{{ i18n.ts.followRequestAccepted }}</div>
+				<div v-if="notification.message" :class="$style.text" style="color: var(--MI_THEME-fgTransparent); font-style: oblique;">
 					<i class="ti ti-quote" :class="$style.quote"></i>
 					<Mfm :text="notification.message" :author="notification.user" :plain="true" :nowrap="true"/>
 					<i class="ti ti-quote" :class="$style.quote"></i>
 				</div>
 			</template>
 			<template v-else-if="notification.type === 'receiveFollowRequest'">
-				<span :class="$style.text" style="opacity: 0.6;">{{ i18n.ts.receiveFollowRequest }}</span>
+				<span :class="$style.text" style="color: var(--MI_THEME-fgTransparent);">{{ i18n.ts.receiveFollowRequest }}</span>
 				<div v-if="full && !followRequestDone" :class="$style.followRequestCommands">
 					<MkButton :class="$style.followRequestCommandButton" rounded primary @click="acceptFollowRequest()"><i class="ti ti-check"></i> {{ i18n.ts.accept }}</MkButton>
 					<MkButton :class="$style.followRequestCommandButton" rounded danger @click="rejectFollowRequest()"><i class="ti ti-x"></i> {{ i18n.ts.reject }}</MkButton>
@@ -264,7 +264,7 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 .root {
 	position: relative;
 	box-sizing: border-box;
-	padding: 24px 32px;
+	padding: var(--MI-cardPadding);
 	font-size: 0.9em;
 	overflow-wrap: break-word;
 	display: flex;
@@ -360,8 +360,7 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	width: 100%;
 	padding-top: var(--MI-marginHalf);
 	border-top: 1px solid var(--MI_THEME-divider);
-	color: var(--MI_THEME-fg);
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparent);
 }
 
 .welcomeLinks {
@@ -480,6 +479,7 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 .headerTime {
 	margin-left: auto;
 	font-size: 0.9em;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .text {
@@ -491,7 +491,7 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 .quote {
 	vertical-align: super;
 	font-size: 50%;
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .quote:first-child {
@@ -550,14 +550,12 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 
 @container (max-width: 600px) {
 	.root {
-		padding: 16px;
 		font-size: 0.9em;
 	}
 }
 
 @container (max-width: 500px) {
 	.root {
-		padding: 12px;
 		font-size: 0.85em;
 	}
 }

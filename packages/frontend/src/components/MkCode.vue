@@ -4,48 +4,52 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.codeBlockRoot">
-	<button v-if="copyButton" :class="[$style.codeBlockCopyButton, { [$style.withOuterStyle]: withOuterStyle }]" class="_button" @click="copy">
-		<i class="ti ti-copy"></i>
-	</button>
-	<Suspense>
-		<template #fallback>
-			<pre
-				class="_selectable"
-				:class="[$style.codeBlockFallbackRoot, {
-					[$style.outerStyle]: withOuterStyle,
-				}]"
-			><code :class="$style.codeBlockFallbackCode">{{ code }}</code></pre>
-		</template>
-		<XCode
-			v-if="show && lang"
-			class="_selectable"
-			:code="code"
-			:lang="lang"
-			:withOuterStyle="withOuterStyle"
-		/>
-		<pre
-			v-else-if="show"
-			class="_selectable"
-			:class="[$style.codeBlockFallbackRoot, {
-				[$style.outerStyle]: withOuterStyle,
-			}]"
-		><code :class="$style.codeBlockFallbackCode">{{ code }}</code></pre>
-		<button v-else :class="$style.codePlaceholderRoot" @click="show = true">
-			<div :class="$style.codePlaceholderContainer">
-				<div><i class="ti ti-code"></i> {{ i18n.ts.code }}</div>
-				<div>{{ i18n.ts.clickToShow }}</div>
-			</div>
-		</button>
-	</Suspense>
+<div :class="[$style.codeBlockRoot, { [$style.outerStyle]: withOuterStyle }]" data-note-interactive>
+	<div :class="$style.codeBlockHeader">
+		<span :class="$style.codeBlockDots" aria-hidden="true"><span></span><span></span><span></span></span>
+		<div :class="$style.codeBlockActions">
+			<span :class="$style.codeBlockLanguage">{{ lang || i18n.ts.code }}</span>
+			<button v-if="copyButton" type="button" :class="$style.codeBlockAction" class="_button" :title="copyFailed ? i18n.ts.error : copied ? i18n.ts._share.copied : i18n.ts.copy" :aria-label="copyFailed ? i18n.ts.retry : copied ? i18n.ts._share.copied : i18n.ts.copy" @click="copy">
+				<span aria-live="polite">{{ copied ? i18n.ts._share.copied : copyFailed ? i18n.ts.retry : i18n.ts.copy }}</span>
+			</button>
+			<button type="button" class="_button" :class="$style.codeBlockToggle" :aria-expanded="expanded" :aria-controls="bodyId" :aria-label="expanded ? i18n.ts.showLess : i18n.ts.clickToShow" :title="expanded ? i18n.ts.showLess : i18n.ts.clickToShow" @click="expanded = !expanded">
+				<i :class="expanded ? 'ti ti-circle-chevron-down' : 'ti ti-circle-chevron-left'" aria-hidden="true"></i>
+			</button>
+		</div>
+	</div>
+	<div :id="bodyId" :class="[$style.codeBlockBody, { [$style.collapsed]: !expanded }]" :inert="!expanded" :aria-hidden="!expanded">
+		<div :class="$style.codeBlockViewport" tabindex="0" :aria-label="i18n.ts.code">
+			<Suspense>
+				<template #fallback>
+					<pre
+						tabindex="0"
+						class="_selectable"
+						:class="$style.codeBlockFallbackRoot"
+					><code :class="$style.codeBlockFallbackCode">{{ code }}</code></pre>
+				</template>
+				<XCode
+					v-if="lang"
+					class="_selectable"
+					:code="code"
+					:lang="lang"
+					:withOuterStyle="false"
+					:forceDark="withOuterStyle"
+				/>
+				<pre
+					v-else
+					tabindex="0"
+					class="_selectable"
+					:class="$style.codeBlockFallbackRoot"
+				><code :class="$style.codeBlockFallbackCode">{{ code }}</code></pre>
+			</Suspense>
+		</div>
+	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, ref } from 'vue';
+import { defineAsyncComponent, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { i18n } from '@/i18n.js';
-import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
-import { prefer } from '@/preferences.js';
 
 const props = withDefaults(defineProps<{
 	code: string;
@@ -55,78 +59,198 @@ const props = withDefaults(defineProps<{
 	lang?: string;
 }>(), {
 	copyButton: true,
-	forceShow: false,
+	forceShow: true,
 	withOuterStyle: true,
 });
 
-const show = ref(props.forceShow === true ? true : !prefer.s.dataSaver.code);
+const expanded = ref(props.forceShow);
+const bodyId = useId();
+const copied = ref(false);
+const copyFailed = ref(false);
+let copyRequestId = 0;
+let copiedTimeout: ReturnType<typeof window.setTimeout> | null = null;
+
+function resetCopyFeedback() {
+	copyRequestId++;
+	if (copiedTimeout !== null) window.clearTimeout(copiedTimeout);
+	copiedTimeout = null;
+	copied.value = false;
+	copyFailed.value = false;
+}
+
+watch(() => props.code, resetCopyFeedback);
+onBeforeUnmount(resetCopyFeedback);
 
 const XCode = defineAsyncComponent(() => import('@/components/MkCode.core.vue'));
 
-function copy() {
-	copyToClipboard(props.code);
+async function copy() {
+	const requestId = ++copyRequestId;
+	try {
+		await navigator.clipboard.writeText(props.code);
+		if (requestId !== copyRequestId) return;
+		copied.value = true;
+		copyFailed.value = false;
+		if (copiedTimeout !== null) window.clearTimeout(copiedTimeout);
+		copiedTimeout = window.setTimeout(() => {
+			copied.value = false;
+			copiedTimeout = null;
+		}, 3000);
+	} catch {
+		if (requestId !== copyRequestId) return;
+		resetCopyFeedback();
+		copyFailed.value = true;
+	}
 }
 </script>
 
 <style module lang="scss">
 .codeBlockRoot {
-	position: relative;
+	min-width: 0;
+	cursor: default;
+	border-radius: 8px;
+	overflow: hidden;
 }
 
-.codeBlockCopyButton {
-	position: absolute;
-	opacity: 0.5;
+.outerStyle {
+	color: var(--MI_THEME-codeBlockFg);
+	background: var(--MI_THEME-codeBlockBg);
+}
 
-	top: 0;
-	right: 0;
+.codeBlockHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 0 12px;
+	height: 40px;
+	box-sizing: border-box;
+}
 
-	&.withOuterStyle {
-		top: 8px;
-		right: 8px;
-	}
+.codeBlockActions > .codeBlockToggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 28px;
+	height: 28px;
+	font-size: inherit;
+	font-weight: normal;
+	border-radius: 4px;
 
 	&:hover {
-		opacity: 0.8;
+		background: color-mix(in srgb, currentColor 6%, transparent);
+	}
+
+	&:focus-visible {
+		outline: 2px solid currentColor;
+		outline-offset: -3px;
+	}
+}
+
+.codeBlockDots {
+	display: flex;
+	flex-shrink: 0;
+	gap: 5px;
+
+	> span {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: var(--MI_THEME-error);
+	}
+
+	> span:nth-child(2) { background: var(--MI_THEME-warn); }
+	> span:nth-child(3) { background: var(--MI_THEME-success); }
+}
+
+.codeBlockActions {
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+}
+
+.codeBlockLanguage {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.codeBlockActions > .codeBlockAction {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	height: 28px;
+	padding: 0 4px;
+	border-radius: 4px;
+	white-space: nowrap;
+
+	&:hover, &:focus-visible {
+		background: color-mix(in srgb, currentColor 12%, transparent);
+	}
+}
+
+.codeBlockBody {
+	padding: 12px 16px;
+
+	&.collapsed {
+		// 保留代码的固有宽度，避免按内容收缩的卡片在折叠后变窄。
+		height: 0;
+		padding-block: 0;
+		overflow: hidden;
+		visibility: hidden;
+	}
+}
+
+.outerStyle .codeBlockBody {
+	--MI_THEME-scrollbarHandle: color-mix(in srgb, var(--MI_THEME-codeBlockFg) 45%, transparent);
+	--MI_THEME-scrollbarHandleHover: color-mix(in srgb, var(--MI_THEME-codeBlockFg) 65%, transparent);
+	background: color-mix(in srgb, var(--MI_THEME-codeBlockBg), black 18%);
+}
+
+.codeBlockViewport {
+	max-height: 7.5em;
+	overflow-y: auto;
+	// 长行在块内横向滚动，而不是被裁掉看不到
+	overflow-x: auto;
+	font-family: Consolas, Monaco, Andale Mono, Ubuntu Mono, monospace;
+	line-height: 1.5;
+
+	&:focus-visible {
+		outline: 2px solid currentColor;
+		outline-offset: -3px;
+	}
+}
+
+.codeBlockBody pre {
+	padding: 0;
+	margin: 0;
+	font-size: inherit;
+	line-height: inherit;
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
+
+	&:focus-visible {
+		outline: 2px solid currentColor;
+		outline-offset: -3px;
 	}
 }
 
 .codeBlockFallbackRoot {
 	display: block;
+	white-space: pre;
 	overflow-wrap: anywhere;
 	overflow: auto;
 	font-family: Consolas, Monaco, Andale Mono, Ubuntu Mono, monospace;
 }
 
-.outerStyle.codeBlockFallbackRoot {
-	background: var(--MI_THEME-bg);
-	padding: 1em;
-	margin: 0;
-	border-radius: 8px;
-	border: 1px solid var(--MI_THEME-divider);
-}
-
 .codeBlockFallbackCode {
 	font-family: Consolas, Monaco, Andale Mono, Ubuntu Mono, monospace;
-}
-
-.codePlaceholderRoot {
-	display: block;
-	width: 100%;
-	border: none;
-	outline: none;
-  font: inherit;
-	cursor: pointer;
-
-	box-sizing: border-box;
-	border-radius: 8px;
-	padding: 24px;
-	margin-top: 4px;
-	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-bg);
-}
-
-.codePlaceholderContainer {
-	text-align: center;
-	font-size: 0.8em;
 }
 </style>

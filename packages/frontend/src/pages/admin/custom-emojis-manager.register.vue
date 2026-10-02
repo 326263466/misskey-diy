@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer">
+<div class="_pageBody">
 	<div class="_gaps">
 		<MkFolder>
 			<template #icon><i class="ti ti-settings"></i></template>

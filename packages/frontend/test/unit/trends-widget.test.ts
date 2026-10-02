@@ -95,10 +95,38 @@ describe('trends widget', () => {
 		mocks.api.mockResolvedValue(fresh);
 		const view = renderWidget();
 		await waitFor(() => expect(view.getAllByRole('link')).toHaveLength(5));
-		expect(view.getByRole('link', { name: '#space / tag' }).getAttribute('href')).toBe('/tags/space%20%2F%20tag');
+		const firstRow = view.getByRole('link', { name: /^#space \/ tag/ });
+		expect(firstRow.getAttribute('href')).toBe('/tags/space%20%2F%20tag');
+		expect(firstRow.contains(view.getByText(i18n.tsx.nUsersMentioned({ n: 0 })))).toBe(true);
+		expect(firstRow.querySelector('[data-testid="chart"]')).not.toBeNull();
+		expect(firstRow.querySelector('a')).toBeNull();
 		expect(view.getAllByTestId('chart')).toHaveLength(5);
 		expect(view.getByText(i18n.tsx.nUsersMentioned({ n: 0 }))).toBeTruthy();
 		expect(mocks.saveCache).toHaveBeenCalledWith(mergeTrendsWithCache(fresh, null, initialTime));
+	});
+
+	test('shows a delayed response immediately without waiting for the shared clock', async () => {
+		const response = Promise.withResolvers<Stats>();
+		mocks.api.mockReturnValue(response.promise);
+		const view = renderWidget();
+		expect(view.getByTestId('loading')).toBeTruthy();
+		vi.mocked(Date.now).mockReturnValue(initialTime + 1_000);
+		response.resolve([stat('Fresh')]);
+		await waitFor(() => expect(view.getByRole('link', { name: /^#Fresh/ })).toBeTruthy());
+		expect(view.queryByTestId('loading')).toBeNull();
+	});
+
+	test('keeps cached topics visible when a refresh arrives between clock ticks', async () => {
+		mocks.readCache.mockReturnValue(snapshot());
+		const response = Promise.withResolvers<Stats>();
+		mocks.api.mockReturnValue(response.promise);
+		const view = renderWidget();
+		expect(view.getByRole('link', { name: /^#Earlier/ })).toBeTruthy();
+		vi.mocked(Date.now).mockReturnValue(initialTime + 1_000);
+		response.resolve([stat('Earlier', 5)]);
+		await waitFor(() => expect(view.getByText(i18n.tsx.nUsersMentioned({ n: 5 }))).toBeTruthy());
+		expect(view.getByRole('link', { name: /^#Earlier/ })).toBeTruthy();
+		expect(view.queryByTestId('loading')).toBeNull();
 	});
 
 	test('retains old topics through pending, empty and failed refreshes without changing timestamps', async () => {
@@ -108,18 +136,18 @@ describe('trends widget', () => {
 		const response = Promise.withResolvers<Stats>();
 		mocks.api.mockReturnValue(response.promise);
 		const view = renderWidget();
-		expect(view.getByRole('link', { name: '#Earlier' })).toBeTruthy();
+		expect(view.getByRole('link', { name: /^#Earlier/ })).toBeTruthy();
 		now.value = initialTime + oneYear;
 		vi.mocked(Date.now).mockReturnValue(now.value);
 		await nextTick();
-		expect(view.getByRole('link', { name: '#Earlier' })).toBeTruthy();
+		expect(view.getByRole('link', { name: /^#Earlier/ })).toBeTruthy();
 		response.resolve([]);
 		await waitFor(() => expect(mocks.saveCache).toHaveBeenCalledWith(old));
 		mocks.api.mockRejectedValue(new Error('offline'));
 		mocks.tick!();
 		await nextTick();
 		await nextTick();
-		expect(view.getByRole('link', { name: '#Earlier' })).toBeTruthy();
+		expect(view.getByRole('link', { name: /^#Earlier/ })).toBeTruthy();
 		expect(view.getByTestId('chart')).toBeTruthy();
 		expect(mocks.saveCache).toHaveBeenCalledTimes(1);
 	});
@@ -128,10 +156,10 @@ describe('trends widget', () => {
 		mocks.readCache.mockReturnValue(snapshot(initialTime - 365 * 24 * 60 * 60 * 1000, [stat('Earlier'), stat('Shared')]));
 		mocks.api.mockResolvedValue([stat('Shared', 10), stat('New')]);
 		const view = renderWidget();
-		await waitFor(() => expect(view.getAllByRole('link').map(link => link.textContent)).toEqual(['#Shared', '#New', '#Earlier']));
+		await waitFor(() => expect(view.getAllByRole('link').map(link => link.querySelector('.tagName')?.textContent)).toEqual(['#Shared', '#New', '#Earlier']));
 		const fresh = Array.from({ length: 5 }, (_, i) => stat(`replacement${i}`));
 		mocks.api.mockResolvedValue(fresh);
 		mocks.tick!();
-		await waitFor(() => expect(view.getAllByRole('link').map(link => link.textContent)).toEqual(fresh.map(entry => `#${entry.tag}`)));
+		await waitFor(() => expect(view.getAllByRole('link').map(link => link.querySelector('.tagName')?.textContent)).toEqual(fresh.map(entry => `#${entry.tag}`)));
 	});
 });

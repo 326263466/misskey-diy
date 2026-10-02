@@ -21,7 +21,7 @@ const preferences = vi.hoisted(() => ({ animation: true, useNativeUiForVideoAudi
 vi.mock('misskey-js', () => ({}));
 vi.mock('@/os.js', () => ({ claimZIndex: () => 1000, popupMenu: vi.fn(), contextMenu: vi.fn() }));
 vi.mock('@/i.js', () => ({ $i: null }));
-vi.mock('@/theme.js', () => ({ themeManager: { currentCompiledTheme: { accent: '#86b300' } } }));
+vi.mock('@/theme.js', () => ({ themeManager: { on: vi.fn(), off: vi.fn(), currentCompiledTheme: { accent: '#86b300' } } }));
 vi.mock('@/preferences.js', () => ({ prefer: { s: preferences } }));
 vi.mock('@/utility/device-kind.js', () => ({ deviceKind: 'desktop' }));
 vi.mock('@/utility/touch.js', () => ({ isTouchUsing: false, lastPointerType: 'mouse' }));
@@ -184,6 +184,8 @@ test.each([
 	const checkAlignment = () => {
 		const videoRect = surface.getBoundingClientRect();
 		const footerRect = footer.getBoundingClientRect();
+		expect(videoRect.width / videoRect.height).toBeCloseTo(16 / 9, 2);
+		expect(getComputedStyle(surface).objectFit).toBe('contain');
 		expect(footerRect.left).toBeCloseTo(videoRect.left, 0);
 		expect(footerRect.right).toBeCloseTo(videoRect.right, 0);
 		expect(footerRect.bottom).toBeCloseTo(videoRect.bottom, 0);

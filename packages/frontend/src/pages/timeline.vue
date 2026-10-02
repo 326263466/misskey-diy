@@ -5,8 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="src" :actions="headerActions" :tabs="$i ? headerTabs : headerTabsWhenNotLogin" :swipable="true" :displayMyAvatar="true" :canOmitTitle="true">
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
-		<MkPostForm v-if="prefer.r.showFixedPostForm.value" class="_panel" fixed :initialRows="3" :autofocus="false" style="margin-bottom: var(--MI-margin);"/>
+	<div class="_pageBody">
+		<MkPostForm v-if="$i && prefer.r.showFixedPostForm.value" class="_panel" fixed :initialRows="3" :autofocus="false" style="margin-bottom: var(--MI-margin);"/>
 		<MkStreamingNotesTimeline
 			ref="tlComponent"
 			:key="effectiveSrc + withRenotes + withReplies + onlyFiles + withSensitive"
@@ -163,13 +163,14 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 				text: i18n.ts.fileAttachedOnly,
 				ref: onlyFiles,
 				disabled: hasWithReplies(srcForAvailability.value) ? withReplies : false,
-			}, {
-				type: 'divider',
-			}, {
-				type: 'switch',
-				text: i18n.ts.showFixedPostForm,
-				ref: showFixedPostForm,
 			});
+			if ($i) {
+				menuItems.push({ type: 'divider' }, {
+					type: 'switch',
+					text: i18n.ts.showFixedPostForm,
+					ref: showFixedPostForm,
+				});
+			}
 
 			os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
 		},

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkStickyContainer style="background: var(--MI_THEME-bg);">
+<MkStickyContainer class="_panel" :class="$style.root">
 	<template #header>
 		<nav :class="$style.nav">
 			<div :class="$style.navPath" @contextmenu.prevent.stop="() => {}">
@@ -31,7 +31,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</nav>
 	</template>
 
-	<div>
+	<div
+		:class="$style.content"
+		@dragover.prevent.stop="onDragover"
+		@dragenter="onDragenter"
+		@dragleave="onDragleave"
+		@drop.prevent.stop="onDrop"
+		@contextmenu.stop="onContextmenu"
+	>
 		<div v-if="select === 'folder'">
 			<template v-if="folder == null">
 				<MkButton v-if="!isRootSelected" @click="isRootSelected = true">
@@ -51,20 +58,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</div>
 
-		<div
-			ref="main"
-			:class="[$style.main, { [$style.fetching]: fetching }]"
-			@dragover.prevent.stop="onDragover"
-			@dragenter="onDragenter"
-			@dragleave="onDragleave"
-			@drop.prevent.stop="onDrop"
-			@contextmenu.stop="onContextmenu"
-		>
+		<div :class="[$style.main, { [$style.fetching]: fetching }]">
 			<div :class="$style.tipContainer">
 				<MkTip k="drive"><div v-html="i18n.ts.driveAboutTip"></div></MkTip>
 			</div>
 
-			<div :class="$style.folders">
+			<div v-if="foldersPaginator.items.value.length > 0" :class="$style.folders">
 				<XFolder
 					v-for="(f, i) in foldersPaginator.items.value"
 					:key="f.id"
@@ -87,33 +86,51 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<template v-if="shouldBeGroupedByDate">
-				<MkStickyContainer v-for="(item, i) in filesTimeline" :key="`${item.date.getFullYear()}/${item.date.getMonth() + 1}`">
+				<MkStickyContainer v-for="item in filesTimeline" :key="item.key">
 					<template #header>
-						<div :class="$style.date">
-							<span><i class="ti ti-chevron-down"></i> {{ item.date.getFullYear() }}/{{ item.date.getMonth() + 1 }}</span>
-						</div>
+						<button
+							type="button"
+							class="_button"
+							:class="$style.date"
+							:aria-expanded="!collapsedMonths.has(item.key)"
+							:aria-controls="`${dateGroupId}-${item.key}`"
+							@click="toggleMonth(item.key)"
+						>
+							<i class="ti" :class="collapsedMonths.has(item.key) ? 'ti-chevron-right' : 'ti-chevron-down'" aria-hidden="true"></i>
+							<span>{{ item.key }}</span>
+						</button>
 					</template>
 
-					<TransitionGroup
-						tag="div"
-						:enterActiveClass="prefer.s.animation ? $style.transition_files_enterActive : ''"
-						:leaveActiveClass="prefer.s.animation ? $style.transition_files_leaveActive : ''"
-						:enterFromClass="prefer.s.animation ? $style.transition_files_enterFrom : ''"
-						:leaveToClass="prefer.s.animation ? $style.transition_files_leaveTo : ''"
-						:moveClass="prefer.s.animation ? $style.transition_files_move : ''"
-						:class="$style.files"
+					<Transition
+						:enterActiveClass="prefer.s.animation ? $style.groupToggleActive : ''"
+						:leaveActiveClass="prefer.s.animation ? $style.groupToggleActive : ''"
+						:enterFromClass="prefer.s.animation ? $style.groupToggleHidden : ''"
+						:leaveToClass="prefer.s.animation ? $style.groupToggleHidden : ''"
 					>
-						<XFile
-							v-for="file in item.items" :key="file.id"
-							:data-scroll-anchor="file.id"
-							:file="file"
-							:folder="folder"
-							:isSelected="selectedFiles.some(x => x.id === file.id)"
-							@click="onFileClick($event, file)"
-							@dragstart="onFileDragstart(file, $event)"
-							@dragend="isDragSource = false"
-						/>
-					</TransitionGroup>
+						<div v-show="!collapsedMonths.has(item.key)" :id="`${dateGroupId}-${item.key}`" :class="$style.groupBody" :inert="collapsedMonths.has(item.key)">
+							<div :class="$style.groupInner">
+								<TransitionGroup
+									tag="div"
+									:enterActiveClass="prefer.s.animation ? $style.transition_files_enterActive : ''"
+									:leaveActiveClass="prefer.s.animation ? $style.transition_files_leaveActive : ''"
+									:enterFromClass="prefer.s.animation ? $style.transition_files_enterFrom : ''"
+									:leaveToClass="prefer.s.animation ? $style.transition_files_leaveTo : ''"
+									:class="[$style.files, $style.groupFiles]"
+								>
+									<XFile
+										v-for="file in item.items" :key="file.id"
+										:data-scroll-anchor="file.id"
+										:file="file"
+										:folder="folder"
+										:isSelected="selectedFiles.some(x => x.id === file.id)"
+										@click="onFileClick($event, file)"
+										@dragstart="onFileDragstart(file, $event)"
+										@dragend="isDragSource = false"
+									/>
+								</TransitionGroup>
+							</div>
+						</div>
+					</Transition>
 				</MkStickyContainer>
 			</template>
 			<TransitionGroup
@@ -162,7 +179,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onActivated, onBeforeUnmount, onMounted, ref, useTemplateRef, watch, computed, TransitionGroup, markRaw } from 'vue';
+import { nextTick, onActivated, onBeforeUnmount, onMounted, ref, useId, useTemplateRef, watch, computed, TransitionGroup, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from './MkButton.vue';
 import type { MenuItem } from '@/types/menu.js';
@@ -257,10 +274,27 @@ async function fetchMoreFiles() {
 	}
 }
 
-const filesTimeline = makeDateGroupedTimelineComputedRef(filesPaginator.items, 'month');
+const dateGroupedFiles = makeDateGroupedTimelineComputedRef(filesPaginator.items, 'month');
+const filesTimeline = computed(() => dateGroupedFiles.value.map(item => ({
+	...item,
+	key: `${item.date.getFullYear()}/${item.date.getMonth() + 1}`,
+})));
+const collapsedMonths = ref(new Set<string>());
+const dateGroupId = useId();
 const shouldBeGroupedByDate = computed(() => ['+createdAt', '-createdAt'].includes(sortModeSelect.value));
 
-watch(folder, () => emit('cd', folder.value));
+function toggleMonth(key: string) {
+	if (collapsedMonths.value.has(key)) {
+		collapsedMonths.value.delete(key);
+	} else {
+		collapsedMonths.value.add(key);
+	}
+}
+
+watch(folder, () => {
+	collapsedMonths.value.clear();
+	emit('cd', folder.value);
+});
 watch(sortModeSelect, () => {
 	initialize();
 });
@@ -773,10 +807,26 @@ onBeforeUnmount(() => {
 <style lang="scss" module>
 @use "../styles/page-header.scss";
 
-.transition_files_move,
+.root {
+	isolation: isolate;
+}
+
+.content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--MI-cardPadding);
+	box-sizing: border-box;
+	min-height: max(0px, calc(100cqh - var(--MI-stickyTop, 0px) - var(--MI-stickyBottom, 0px)));
+	padding: var(--MI-cardPadding);
+}
+
+.transition_files_move {
+	transition: transform 0.2s ease;
+}
+
 .transition_files_enterActive,
 .transition_files_leaveActive {
-	transition: all 0.2s ease;
+	transition: opacity 0.2s ease;
 }
 .transition_files_enterFrom,
 .transition_files_leaveTo {
@@ -788,9 +838,13 @@ onBeforeUnmount(() => {
 
 .nav {
 	@include page-header.surface;
+	--MI-pageHeaderBg: var(--MI_THEME-panel);
+	--MI-pageHeaderBgOpacity: 1;
+	--MI-pageHeaderRadius: 0;
+	--MI-pageHeaderBorder: 1px solid var(--MI_THEME-divider);
 	display: flex;
 	align-items: center;
-	padding: 0 8px 0 12px;
+	padding: 0 var(--MI-cardPadding);
 	height: var(--height);
 }
 
@@ -830,7 +884,7 @@ onBeforeUnmount(() => {
 	&.navSeparator {
 		margin: 0;
 		padding: 0;
-		opacity: 0.5;
+		color: var(--MI_THEME-fgTransparentWeak);
 		cursor: default;
 	}
 }
@@ -841,7 +895,9 @@ onBeforeUnmount(() => {
 }
 
 .main {
-	min-height: 100cqh;
+	display: flex;
+	flex-direction: column;
+	gap: var(--MI-cardPadding);
 	user-select: none;
 
 	&.fetching {
@@ -851,35 +907,61 @@ onBeforeUnmount(() => {
 	}
 }
 
-.tipContainer:not(:empty) {
-	padding: 16px 32px;
+.tipContainer:empty {
+	display: none;
 }
 
 .folders,
 .files {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-	grid-gap: 12px;
-	padding: 16px 32px;
+	grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
+	gap: 12px;
 }
 
-@container (max-width: 600px) {
-	.tipContainer:not(:empty) {
-		padding: 16px;
-	}
+.groupFiles {
+	margin-top: var(--MI-cardPadding);
+}
 
-	.folders,
-	.files {
-		padding: 16px;
-	}
+.groupBody {
+	display: grid;
+	grid-template-rows: 1fr;
+	background: var(--MI_THEME-panel);
+}
+
+.groupInner {
+	min-height: 0;
+	display: flow-root;
+}
+
+.groupToggleActive {
+	overflow: clip;
+	transition: grid-template-rows 0.25s;
+}
+
+.groupBody.groupToggleHidden {
+	grid-template-rows: 0fr;
 }
 
 .date {
-	padding: 8px 16px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 8px 0;
 	font-size: 90%;
-	-webkit-backdrop-filter: var(--MI-blur, blur(8px));
-	backdrop-filter: var(--MI-blur, blur(8px));
-	background-color: color(from var(--MI_THEME-bg) srgb r g b / 0.85);
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-panel);
+	box-shadow: inset 0 -1px var(--MI_THEME-divider);
+	text-align: left;
+
+	&:hover {
+		color: var(--MI_THEME-accent);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -2px;
+	}
 }
 
 .sentinel {
@@ -887,26 +969,21 @@ onBeforeUnmount(() => {
 }
 
 .footer {
-	padding: 8px 16px;
+	padding: var(--MI-cardPadding);
 	font-size: 90%;
-	-webkit-backdrop-filter: var(--MI-blur, blur(8px));
-	backdrop-filter: var(--MI-blur, blur(8px));
-	background-color: color(from var(--MI_THEME-bg) srgb r g b / 0.85);
+	background: var(--MI_THEME-panel);
+	border-top: 1px solid var(--MI_THEME-divider);
 }
 
 .empty {
-	padding: 16px;
 	text-align: center;
 	pointer-events: none;
-	opacity: 0.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .dropzone {
 	position: absolute;
-	left: 0;
-	top: 38px;
-	width: 100%;
-	height: calc(100% - 38px);
+	inset: 0;
 	border: dashed 2px var(--MI_THEME-focus);
 	pointer-events: none;
 }

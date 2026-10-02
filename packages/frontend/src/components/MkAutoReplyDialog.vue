@@ -151,7 +151,7 @@ async function submit(): Promise<void> {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
-	padding: 18px;
+	padding: var(--MI-cardPadding);
 }
 
 .status {
@@ -180,7 +180,7 @@ async function submit(): Promise<void> {
 	box-sizing: border-box;
 	border: 1px solid var(--MI_THEME-inputBorder);
 	border-radius: var(--MI-radius);
-	background: var(--MI_THEME-panel);
+	background: var(--MI_THEME-bg);
 	text-align: start;
 	line-height: 1.5;
 	transition: border-color 0.15s, background-color 0.15s;
@@ -229,7 +229,7 @@ async function submit(): Promise<void> {
 	padding: 12px;
 	border: 1px solid var(--MI_THEME-inputBorder);
 	border-radius: var(--MI-radius);
-	background: var(--MI_THEME-panel);
+	background: var(--MI_THEME-bg);
 	color: var(--MI_THEME-fg);
 	font: inherit;
 	resize: none;
@@ -245,7 +245,7 @@ async function submit(): Promise<void> {
 	justify-content: space-between;
 	gap: 8px;
 	font-size: 0.8em;
-	color: var(--MI_THEME-fg);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .error {

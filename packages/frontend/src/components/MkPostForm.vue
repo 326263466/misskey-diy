@@ -15,13 +15,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<header :class="$style.header">
 		<div :class="$style.headerLeft">
 			<button v-if="!fixed" v-tooltip="i18n.ts.cancel" :class="$style.cancel" class="_button" :aria-label="i18n.ts.cancel" @click="cancel"><i class="ti ti-x"></i></button>
-			<button ref="accountMenuEl" v-click-anime v-tooltip="userName(postAccount ?? $i)" class="_button" :aria-label="i18n.ts.account" :disabled="isEditing" @click="openAccountMenu">
+			<button ref="accountMenuEl" v-click-anime v-tooltip="userName(postAccount ?? $i)" class="_button" :aria-label="i18n.ts.account" :disabled="isEditing || redPacket != null" @click="openAccountMenu">
 				<img :class="$style.avatar" :src="getUserAvatar(postAccount ?? $i).avatarUrl" alt="" style="border-radius: 100%;"/>
 			</button>
 		</div>
 		<div :class="$style.headerRight">
 			<template v-if="!(props.channel != null && fixed)">
-				<button v-if="targetChannel == null || canChooseChannel" ref="visibilityButton" :class="['_button', $style.headerRightItem, $style.visibility]" :aria-label="visibilityLabel" :disabled="isEditing || targetChannel != null" @click="setVisibility">
+				<button v-if="targetChannel == null || canChooseChannel" ref="visibilityButton" :class="['_button', $style.headerRightItem, $style.visibility]" :aria-label="visibilityLabel" :disabled="isEditing || targetChannel != null || redPacketConfirming || pendingRedPacketPost != null" @click="setVisibility">
 					<span v-tooltip="visibilityLabel" :class="$style.visibilityIcon">
 						<i v-if="visibility === 'public'" class="ti ti-world"></i>
 						<i v-if="visibility === 'home'" class="ti ti-home"></i>
@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span :class="$style.headerRightButtonText">{{ targetChannel.name }}</span>
 				</button>
 			</template>
-			<button v-if="visibility !== 'specified'" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :aria-label="i18n.ts._visibility.disableFederation" :aria-pressed="localOnly" :disabled="isEditing || targetChannel != null" @click="toggleLocalOnly">
+			<button v-if="visibility !== 'specified' && redPacket == null && !editingNote?.redPacket" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :aria-label="i18n.ts._visibility.disableFederation" :aria-pressed="localOnly" :disabled="isEditing || targetChannel != null || redPacket != null" @click="toggleLocalOnly">
 				<span v-if="!localOnly"><i class="ti ti-rocket"></i></span>
 				<span v-else><i class="ti ti-rocket-off"></i></span>
 			</button>
@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-if="maximized" class="ti ti-arrows-minimize"></i>
 				<i v-else class="ti ti-arrows-maximize"></i>
 			</button>
-			<button ref="otherSettingsButton" v-tooltip="i18n.ts.other" class="_button" :class="$style.headerRightItem" :aria-label="i18n.ts.other" :disabled="posting || posted" @click="showOtherSettings"><i class="ti ti-dots"></i></button>
+			<button ref="otherSettingsButton" v-tooltip="i18n.ts.other" class="_button" :class="$style.headerRightItem" :aria-label="i18n.ts.other" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="showOtherSettings"><i class="ti ti-dots"></i></button>
 			<button ref="submitButtonEl" v-click-anime class="_button" :class="$style.submit" :disabled="!canPost" data-testid="post-form-submit" @click="post">
 				<div :class="$style.submitInner">
 					<template v-if="posted"></template>
@@ -56,7 +56,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</header>
 	<MkNoteSimple v-if="replyTargetNote" :class="$style.targetNote" :note="replyTargetNote" compact/>
 	<div v-if="replyTargetNote" :class="$style.replyPublishing">
-		<input v-model="onlyDiscussUnderPost" type="checkbox" :class="$style.replyPublishingCheckbox" :aria-label="i18n.ts._postForm.onlyDiscussUnderPost" :disabled="isEditing || posting || posted" data-testid="post-form-publish-reply">
+		<input v-model="onlyDiscussUnderPost" type="checkbox" :class="$style.replyPublishingCheckbox" :aria-label="i18n.ts._postForm.onlyDiscussUnderPost" :disabled="isEditing || posting || posted || redPacketConfirming || pendingRedPacketPost != null" data-testid="post-form-publish-reply">
 		<span>{{ i18n.ts._postForm.onlyDiscussUnderPost }}</span>
 		<button v-tooltip:dialog="i18n.ts._postForm.onlyDiscussUnderPostDescription" type="button" class="_button" :class="$style.replyPublishingInfo" :aria-label="i18n.ts.info"><i class="ti ti-info-circle"></i></button>
 	</div>
@@ -87,10 +87,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.cwHeader">
 			<label :for="cwInputId" :class="$style.cwLabel"><i class="ti ti-eye-off" aria-hidden="true"></i>{{ i18n.ts._postForm.cwTitle }}</label>
 			<span :id="cwHintId" :class="$style.cwHint">{{ i18n.ts._postForm.cwHint }}</span>
-			<button type="button" class="_button" :class="$style.cwRemove" :disabled="posting || posted" :aria-label="i18n.ts._postForm.cwRemove" :title="i18n.ts._postForm.cwRemove" @click="toggleCw"><i class="ti ti-x" aria-hidden="true"></i></button>
+			<button type="button" class="_button" :class="$style.cwRemove" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :aria-label="i18n.ts._postForm.cwRemove" :title="i18n.ts._postForm.cwRemove" @click="toggleCw"><i class="ti ti-x" aria-hidden="true"></i></button>
 		</div>
 		<div :class="$style.cwInputWrap">
-			<input :id="cwInputId" ref="cwInputEl" v-model="cw" class="_mfm" :class="$style.cw" :disabled="posting || posted" :placeholder="i18n.ts._postForm.cwSummary" :aria-label="i18n.ts._postForm.cwSummary" :aria-describedby="cwHintId" :aria-required="useCw" @keydown="onKeydown" @keyup="onKeyup" @compositionend="onCompositionEnd">
+			<input :id="cwInputId" ref="cwInputEl" v-model="cw" class="_mfm" :class="$style.cw" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :placeholder="i18n.ts._postForm.cwSummary" :aria-label="i18n.ts._postForm.cwSummary" :aria-describedby="cwHintId" :aria-required="useCw" @keydown="onKeydown" @keyup="onKeyup" @compositionend="onCompositionEnd">
 			<MkEmojiInputOverlay :inputElement="cwInputEl" :text="cw"/>
 			<div v-if="maxCwTextLength - cwTextLength < 20" :class="['_acrylic', $style.cwTextCount, { [$style.cwTextOver]: cwTextLength > maxCwTextLength }]">{{ maxCwTextLength - cwTextLength }}</div>
 		</div>
@@ -98,18 +98,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="[$style.textOuter, { [$style.withCw]: useCw }]">
 		<div v-if="targetChannel && !canChooseChannel" :class="$style.colorBar" :style="{ '--MI-channelColor': channelColor(targetChannel.color) }"></div>
 		<div v-if="useCw" :class="$style.hiddenBodyLabel"><i class="ti ti-align-left" aria-hidden="true"></i>{{ i18n.ts._postForm.cwBody }}</div>
-		<textarea ref="textareaEl" v-model="text" class="_mfm" :class="[$style.text]" :rows="initialRows" :disabled="posting || posted" :readonly="textAreaReadOnly" :placeholder="placeholder" :aria-label="i18n.ts.text" data-testid="post-form-text" @keydown="onKeydown" @keyup="onKeyup" @paste="onPaste" @compositionupdate="onCompositionUpdate" @compositionend="onCompositionEnd"></textarea>
+		<textarea ref="textareaEl" v-model="text" class="_mfm" :class="[$style.text]" :rows="initialRows" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :readonly="textAreaReadOnly" :placeholder="placeholder" :aria-label="i18n.ts.text" data-testid="post-form-text" @keydown="onKeydown" @keyup="onKeyup" @paste="onPaste" @compositionupdate="onCompositionUpdate" @compositionend="onCompositionEnd"></textarea>
 		<MkEmojiInputOverlay :inputElement="textareaEl" :text="text"/>
 		<div v-if="maxTextLength - textLength < 100" :class="['_acrylic', $style.textCount, { [$style.textOver]: textLength > maxTextLength }]">{{ maxTextLength - textLength }}</div>
 		<div v-if="canChooseChannel || targetChannel" :class="$style.channelRow">
-			<button v-if="canChooseChannel" ref="channelButtonEl" type="button" class="_button" :class="$style.channelChip" :disabled="posting || posted" :aria-label="targetChannel ? `${i18n.ts.selectChannel}: ${targetChannel.name}` : i18n.ts.selectChannel" aria-haspopup="dialog" :aria-expanded="channelPickerOpen" data-testid="post-form-channel" @click="openChannelPicker">
+			<button v-if="canChooseChannel" ref="channelButtonEl" type="button" class="_button" :class="$style.channelChip" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :aria-label="targetChannel ? `${i18n.ts.selectChannel}: ${targetChannel.name}` : i18n.ts.selectChannel" aria-haspopup="dialog" :aria-expanded="channelPickerOpen" data-testid="post-form-channel" @click="openChannelPicker">
 				<i class="ti ti-device-tv" aria-hidden="true"></i><span :class="$style.channelName">{{ targetChannel?.name ?? i18n.ts.selectChannel }}</span><i class="ti ti-chevron-right" :class="[$style.channelArrow, { [$style.channelArrowOpen]: channelPickerOpen, [$style.channelArrowAnimated]: prefer.s.animation }]" aria-hidden="true"></i>
 			</button>
 			<span v-else :class="$style.channelChip" :title="i18n.ts._channelPicker.description"><i class="ti ti-device-tv" aria-hidden="true"></i><span :class="$style.channelName">{{ targetChannel?.name }}</span></span>
 		</div>
 	</div>
-	<MkPostFormTopics ref="topicsEl" v-model="hashtags" v-model:enabled="withHashtags" :disabled="posting || posted" @openChange="topicsOpen = $event" @empty="focusTopics"/>
-	<XPostFormAttaches v-model="files" :editing="isEditing" :disabled="posting || posted" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName"/>
+	<MkPostFormTopics ref="topicsEl" v-model="hashtags" v-model:enabled="withHashtags" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @openChange="topicsOpen = $event" @empty="focusTopics"/>
+	<XPostFormAttaches v-model="files" :editing="isEditing" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName"/>
 	<div v-if="uploader.items.value.length > 0" style="padding: 12px;">
 		<MkTip k="postFormUploader">
 			{{ i18n.ts._postForm.uploaderTip }}
@@ -118,29 +118,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<MkPoll v-if="editingNote?.poll" :class="$style.existingPoll" :noteId="editingNote.id" :multiple="editingNote.poll.multiple" :expiresAt="editingNote.poll.expiresAt" :choices="editingNote.poll.choices" :author="editingNote.user" :emojiUrls="editingNote.emojis" readOnly/>
 	<MkPollEditor v-else-if="poll" v-model="poll" @destroyed="poll = null"/>
+	<MkInfo v-if="editingNote?.redPacket" :class="$style.existingPoll">{{ i18n.ts._redPacket.existingPacket }}</MkInfo>
+	<section v-else-if="redPacket" :class="$style.existingPoll" class="_gaps">
+		<p style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._redPacket.createdDescription }}</p>
+		<MkRedPacket :redPacketId="redPacket.id" :authorId="$i.id" :redPacket="redPacket"/>
+		<button type="button" class="_textButton" :disabled="posting || redPacketConfirming" @click="removeRedPacket()">{{ i18n.ts.remove }}</button>
+	</section>
+	<MkInfo v-if="pendingRedPacketPost" :class="$style.existingPoll">{{ i18n.ts._redPacket.pendingLocked }}</MkInfo>
 	<MkNotePreview v-if="showPreview" :class="$style.preview" :text="getPostText() ?? ''" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
 	<div v-if="showingOptions" style="padding: 8px 16px;">
 	</div>
 	<footer ref="footerEl" :class="$style.footer">
 		<div :class="$style.footerLeft">
-			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" :disabled="posting || posted" @click="chooseFileFromPc"><i class="ti ti-photo-plus"></i></button>
-			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" :disabled="posting || posted" @click="chooseFileFromDrive"><i class="ti ti-cloud-download"></i></button>
-			<button v-tooltip="i18n.ts.poll" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: poll }]" :aria-label="i18n.ts.poll" :aria-pressed="poll != null" :disabled="isEditing" @click="togglePoll"><i class="ti ti-chart-arrows"></i></button>
-			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" :aria-label="i18n.ts.useCw" :aria-pressed="useCw" :disabled="posting || posted" @click="toggleCw"><i class="ti ti-eye-off"></i></button>
-			<button ref="topicsButtonEl" v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags && hashtags.trim() !== '' }]" :aria-label="i18n.ts.hashtags" aria-haspopup="dialog" :aria-expanded="topicsOpen" :disabled="posting || posted" @click="openTopics"><i class="ti ti-hash"></i></button>
-			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.mention" :disabled="posting || posted" @click="insertMention"><i class="ti ti-at"></i></button>
-			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.addMfmFunction" :disabled="posting || posted" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
-			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.plugins" :disabled="posting || posted" @click="showActions"><i class="ti ti-plug"></i></button>
+			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="chooseFileFromPc"><i class="ti ti-photo-plus"></i></button>
+			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="chooseFileFromDrive"><i class="ti ti-cloud-download"></i></button>
+			<button v-tooltip="i18n.ts.poll" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: poll }]" :aria-label="i18n.ts.poll" :aria-pressed="poll != null" :disabled="isEditing || redPacketConfirming || pendingRedPacketPost != null" @click="togglePoll"><i class="ti ti-chart-arrows"></i></button>
+			<button v-tooltip="i18n.ts._redPacket.title" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: redPacket }]" :aria-label="i18n.ts._redPacket.title" :aria-pressed="redPacket != null" :disabled="isEditing || posting || posted || postAccount != null || pendingRedPacketPost != null" @click="toggleRedPacket"><i class="ti ti-gift" aria-hidden="true"></i></button>
+			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" :aria-label="i18n.ts.useCw" :aria-pressed="useCw" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="toggleCw"><i class="ti ti-eye-off"></i></button>
+			<button ref="topicsButtonEl" v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags && hashtags.trim() !== '' }]" :aria-label="i18n.ts.hashtags" aria-haspopup="dialog" :aria-expanded="topicsOpen" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="openTopics"><i class="ti ti-hash"></i></button>
+			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.mention" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="insertMention"><i class="ti ti-at"></i></button>
+			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.addMfmFunction" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
+			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.plugins" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="showActions"><i class="ti ti-plug"></i></button>
 		</div>
 		<div :class="$style.footerRight">
-			<button v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.emoji" :disabled="posting || posted" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.emoji" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 		</div>
 	</footer>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { channelColor } from '@/utility/channel-color.js';
 import { watch, nextTick, onMounted, defineAsyncComponent, provide, shallowRef, ref, computed, useId, useTemplateRef, onUnmounted, onBeforeUnmount } from 'vue';
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
@@ -160,6 +167,9 @@ import XPostFormAttaches from '@/components/MkPostFormAttaches.vue';
 import XTextCounter from '@/components/MkPostForm.TextCounter.vue';
 import MkPollEditor from '@/components/MkPollEditor.vue';
 import MkPoll from '@/components/MkPoll.vue';
+import { redPacketError, redPacketRequestRejected } from '@/utility/red-packet.js';
+import MkRedPacket from '@/components/MkRedPacket.vue';
+import { channelColor } from '@/utility/channel-color.js';
 import MkNoteSimple from '@/components/MkNoteSimple.vue';
 import { erase, unique } from '@/utility/array.js';
 import { extractMentions } from '@/utility/extract-mentions.js';
@@ -192,6 +202,7 @@ import { closeTip } from '@/tips.js';
 import { getNoteTopics } from '@/utility/note-topics.js';
 import { MAX_TOPICS, parseTopics, uniqueTopics } from '@/utility/topic-picker.js';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
+import { genId } from '@/utility/id.js';
 
 const $i = ensureSignin();
 
@@ -255,12 +266,15 @@ const editSource = editingNote ? {
 const text = ref(props.initialText ?? '');
 const files = ref(props.initialFiles ?? []);
 const poll = ref<PollEditorModelValue | null>(null);
+const redPacket = ref<Misskey.entities.RedPacketsCreateResponse | null>(props.initialRedPacket ?? null);
+const redPacketConfirming = ref(false);
+const pendingRedPacketPost = ref<Misskey.entities.NotesCreateRequest | null>(null);
 const useCw = ref<boolean>(!!props.initialCw);
 const showPreview = ref(false);
 const showAddMfmFunction = ref(prefer.s.enableQuickAddMfmFunction);
 watch(showAddMfmFunction, () => prefer.commit('enableQuickAddMfmFunction', showAddMfmFunction.value));
 const cw = ref<string | null>(props.initialCw ?? null);
-const localOnly = ref(props.initialLocalOnly ?? (prefer.s.rememberNoteVisibility ? store.s.localOnly : prefer.s.defaultNoteLocalOnly));
+const localOnly = ref(props.initialRedPacket ? true : props.initialLocalOnly ?? (prefer.s.rememberNoteVisibility ? store.s.localOnly : prefer.s.defaultNoteLocalOnly));
 const visibility = ref(props.initialVisibility ?? (prefer.s.rememberNoteVisibility ? store.s.visibility : prefer.s.defaultNoteVisibility));
 const visibilityLabel = computed(() => `${i18n.ts.visibility}: ${i18n.ts._visibility[visibility.value]}`);
 const visibleUsers = ref<Misskey.entities.UserDetailed[]>([]);
@@ -325,6 +339,7 @@ const draftKey = computed((): string => {
 
 	return key;
 });
+let draftWritesPaused = false;
 
 function getRandomPlaceholder(): string {
 	const xs = [
@@ -390,12 +405,14 @@ const cwTextLength = computed((): number => {
 const maxCwTextLength = 100;
 
 const canPost = computed((): boolean => {
-	return !props.mock && !posting.value && !posted.value && !uploader.uploading.value && (uploader.items.value.length === 0 || uploader.readyForUpload.value) &&
+	return !props.mock && !posting.value && !redPacketConfirming.value && !posted.value && !uploader.uploading.value && (uploader.items.value.length === 0 || uploader.readyForUpload.value) &&
 		(
 			1 <= (isEditing ? ((getPostText() ?? '') + imeText.value).trim().length : textLength.value) ||
 			1 <= files.value.length ||
 			1 <= uploader.items.value.length ||
 			poll.value != null ||
+			redPacket.value != null ||
+			editingNote?.redPacket != null ||
 			renoteTargetNote.value != null ||
 			quoteId.value != null
 		) &&
@@ -409,12 +426,13 @@ const canPost = computed((): boolean => {
 				) : true
 		) &&
 		(files.value.length <= 16) &&
-		(!poll.value || poll.value.choices.length >= 2);
+		(!poll.value || poll.value.choices.length >= 2) &&
+		(!redPacket.value || redPacket.value.status === 'active' || pendingRedPacketPost.value != null);
 });
 
 // cannot save pure renote as draft
 const canSaveAsServerDraft = computed((): boolean => {
-	return !isEditing && canPost.value && (textLength.value > 0 || files.value.length > 0 || poll.value != null);
+	return !isEditing && !redPacket.value && canPost.value && (textLength.value > 0 || files.value.length > 0 || poll.value != null);
 });
 
 const hashtags = ref(uniqueTopics(props.initialHashtags ?? []).map(tag => `#${tag}`).join(' '));
@@ -512,7 +530,9 @@ function getPostText(): string | null {
 	let result = text.value;
 	if (withHashtags.value && hashtags.value.trim() !== '') {
 		const tags = hashtags.value.trim().split(/\s+/).map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
-		result += result === '' || result.endsWith('\n') ? tags : ` ${tags}`;
+		// A code block's closing fence must stay at the end of its line.
+		const separator = result.endsWith('```') && mfm.parse(result).at(-1)?.type === 'blockCode' ? '\n' : ' ';
+		result += result === '' || result.endsWith('\n') ? tags : `${separator}${tags}`;
 	}
 	return (isEditing ? result.trim() === '' : result === '') ? null : result;
 }
@@ -631,6 +651,39 @@ function addMissingMention() {
 	}
 }
 
+function toggleRedPacket() {
+	if (isEditing || posting.value || posted.value || postAccount.value || pendingRedPacketPost.value) return;
+	if (redPacket.value) { void removeRedPacket(); return; }
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkRedPacketDialog.vue')), {}, {
+		created: packet => {
+			redPacket.value = packet;
+			localOnly.value = true;
+			scheduledAt.value = null;
+			saveDraft();
+		},
+		closed: () => dispose(),
+	});
+}
+
+async function removeRedPacket(confirm = true): Promise<boolean> {
+	if (!redPacket.value) return true;
+	if (posting.value || redPacketConfirming.value) return false;
+	redPacketConfirming.value = true;
+	try {
+		if (confirm) {
+			const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts._redPacket.cancelCreated });
+			if (canceled) return false;
+		}
+		redPacket.value = null;
+		pendingRedPacketPost.value = null;
+		deleteDraft();
+		return true;
+	} catch {
+		await os.alert({ type: 'error', text: i18n.ts._redPacket.cancelFailed });
+		return false;
+	} finally { redPacketConfirming.value = false; }
+}
+
 function togglePoll() {
 	if (isEditing) return;
 	if (poll.value) {
@@ -715,6 +768,7 @@ function setVisibility() {
 }
 
 async function toggleLocalOnly() {
+	if (redPacket.value) return;
 	if (isEditing) return;
 	if (targetChannel.value) {
 		visibility.value = 'public';
@@ -820,7 +874,7 @@ function showOtherSettings() {
 		action: () => {
 			toggleReactionAcceptance();
 		},
-	}, ...(isEditing ? [] : [{ type: 'divider' }, {
+	}, ...(isEditing || redPacket.value ? [] : [{ type: 'divider' }, {
 		type: 'button',
 		text: i18n.ts._drafts.saveToDraft,
 		icon: 'ti ti-cloud-upload',
@@ -859,6 +913,7 @@ function showOtherSettings() {
 				restoreEditingNote();
 				uploader.reset();
 			} else {
+				if (!await removeRedPacket(false)) return;
 				clear();
 			}
 		},
@@ -891,6 +946,8 @@ function removeVisibleUser(id: string) {
 }
 
 function clear() {
+	draftWritesPaused = true;
+	deleteDraft();
 	closeChannelPicker();
 	text.value = '';
 	cw.value = null;
@@ -898,6 +955,8 @@ function clear() {
 	showPreview.value = false;
 	files.value = [];
 	poll.value = null;
+	redPacket.value = null;
+	pendingRedPacketPost.value = null;
 	quoteId.value = null;
 	scheduledAt.value = null;
 	visibleUsers.value = [];
@@ -917,9 +976,9 @@ function clear() {
 	withHashtags.value = false;
 	hashtags.value = '';
 	uploader.reset();
-	// 清空后连带丢弃草稿；等 watch 触发的 saveDraft 跑完再删，避免刚清空的内容又被写回
+	// Pause edit draft writes until the cleared fields have settled.
 	nextTick(() => {
-		deleteDraft();
+		draftWritesPaused = false;
 	});
 }
 
@@ -1087,50 +1146,63 @@ type StoredDrafts = {
 };
 
 function saveDraft() {
-	if (!isEditing || props.instant || props.mock || posted.value) return;
+	if (!isEditing || props.instant || props.mock || posted.value || draftWritesPaused) return;
 
-	const draftsData = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}') as StoredDrafts;
-	if (isEditing && !hasUnsavedEdit.value) {
-		delete draftsData[draftKey.value];
+	try {
+		const draftsData = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}') as StoredDrafts;
+		if (isEditing && !hasUnsavedEdit.value) {
+			delete draftsData[draftKey.value];
+			miLocalStorage.setItem('drafts', JSON.stringify(draftsData));
+			return;
+		}
+
+		draftsData[draftKey.value] = {
+			updatedAt: new Date().toISOString(),
+			...(isEditing ? { editSource } : {}),
+			data: {
+				text: text.value,
+				useCw: useCw.value,
+				cw: cw.value,
+				visibility: visibility.value,
+				localOnly: localOnly.value,
+				publishReply: publishReply.value,
+				files: files.value,
+				poll: poll.value,
+				...( visibleUsers.value.length > 0 ? { visibleUserIds: visibleUsers.value.map(x => x.id) } : {}),
+				quoteId: quoteId.value,
+				reactionAcceptance: reactionAcceptance.value,
+				scheduledAt: scheduledAt.value,
+				...(isEditing ? { withHashtags: withHashtags.value, hashtags: hashtags.value } : {}),
+			},
+		};
+
 		miLocalStorage.setItem('drafts', JSON.stringify(draftsData));
-		return;
+	} catch {
+		// Keep editing available when local draft storage is unavailable.
 	}
-
-	draftsData[draftKey.value] = {
-		updatedAt: new Date().toISOString(),
-		...(isEditing ? { editSource } : {}),
-		data: {
-			text: text.value,
-			useCw: useCw.value,
-			cw: cw.value,
-			visibility: visibility.value,
-			localOnly: localOnly.value,
-			publishReply: publishReply.value,
-			files: files.value,
-			poll: poll.value,
-			...( visibleUsers.value.length > 0 ? { visibleUserIds: visibleUsers.value.map(x => x.id) } : {}),
-			quoteId: quoteId.value,
-			reactionAcceptance: reactionAcceptance.value,
-			scheduledAt: scheduledAt.value,
-			...(isEditing ? { withHashtags: withHashtags.value, hashtags: hashtags.value } : {}),
-		},
-	};
-
-	miLocalStorage.setItem('drafts', JSON.stringify(draftsData));
 }
 
 function deleteDraft() {
-	const draftsData = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}') as StoredDrafts;
+	if (!isEditing) return;
 
-	delete draftsData[draftKey.value];
+	try {
+		const draftsData = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}') as StoredDrafts;
 
-	miLocalStorage.setItem('drafts', JSON.stringify(draftsData));
+		delete draftsData[draftKey.value];
+
+		miLocalStorage.setItem('drafts', JSON.stringify(draftsData));
+	} catch {
+		// Keep editing available when local draft storage is unavailable.
+	}
 }
+
+const hasContent = computed(() => text.value !== '' || files.value.length > 0 || poll.value != null || redPacket.value != null ||
+	(cw.value != null && cw.value !== '' && cw.value !== inheritedCw) || quoteId.value != null || renoteTargetNote.value != null || hashtags.value.trim() !== '' || scheduledAt.value != null);
 
 async function saveServerDraft(options: {
 	isActuallyScheduled?: boolean;
 } = {}) {
-	if (isEditing) return;
+	if (isEditing || redPacket.value) return;
 	return await os.apiWithDialog(serverDraftId.value == null ? 'notes/drafts/create' : 'notes/drafts/update', {
 		...(serverDraftId.value == null ? {} : { draftId: serverDraftId.value }),
 		text: text.value,
@@ -1207,6 +1279,11 @@ async function saveEdit() {
 
 async function post(ev?: PointerEvent) {
 	if (!canPost.value) return;
+	redPacketConfirming.value = redPacket.value != null;
+	try { await submitPost(ev); } finally { redPacketConfirming.value = false; }
+}
+
+async function submitPost(ev?: PointerEvent) {
 	if (ev != null) {
 		const el = (ev.currentTarget ?? ev.target) as HTMLElement | null;
 
@@ -1278,7 +1355,7 @@ async function post(ev?: PointerEvent) {
 		}
 	}
 
-	let postData = {
+	let postData: Misskey.entities.NotesCreateRequest = {
 		text: getPostText(),
 		fileIds: files.value.length > 0 ? files.value.map(f => f.id) : undefined,
 		replyId: replyTargetNote.value ? replyTargetNote.value.id : undefined,
@@ -1302,6 +1379,18 @@ async function post(ev?: PointerEvent) {
 			} catch (err) {
 				console.error(err);
 			}
+		}
+	}
+
+	if (redPacket.value) {
+		if (postAccount.value) return;
+		if (pendingRedPacketPost.value) {
+			postData = deepClone(pendingRedPacketPost.value);
+		} else {
+			postData.redPacketId = redPacket.value.id;
+			postData.localOnly = true;
+			pendingRedPacketPost.value = deepClone(postData);
+			saveDraft();
 		}
 	}
 
@@ -1390,9 +1479,11 @@ async function post(ev?: PointerEvent) {
 		});
 	}).catch(err => {
 		posting.value = false;
+		if (redPacket.value && redPacketRequestRejected(err)) pendingRedPacketPost.value = null;
+		saveDraft();
 		os.alert({
 			type: 'error',
-			text: err.message + '\n' + (err as any).id,
+			text: redPacket.value ? redPacketError(err) : err.message + '\n' + (err as any).id,
 		});
 	});
 }
@@ -1497,7 +1588,7 @@ function showActions(ev: PointerEvent) {
 const postAccount = ref<Misskey.entities.UserDetailed | null>(null);
 
 async function openAccountMenu(ev: PointerEvent) {
-	if (props.mock || isEditing) return;
+	if (props.mock || isEditing || redPacket.value) return;
 
 	function showDraftsDialog(scheduled: boolean) {
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkNoteDraftsDialog.vue')), {
@@ -1604,7 +1695,7 @@ function showPerUploadItemMenuViaContextmenu(item: UploaderItem, ev: PointerEven
 }
 
 async function schedule() {
-	if (isEditing) return;
+	if (isEditing || redPacket.value) return;
 	const { canceled, result } = await os.inputDatetime({
 		title: i18n.ts.schedulePost,
 	});
@@ -1750,6 +1841,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	window.removeEventListener('beforeunload', onBeforeUnload);
 	closeChannelPicker();
 	uploader.abortAll();
 	if (textAutocomplete) {
@@ -1761,8 +1853,9 @@ onBeforeUnmount(() => {
 });
 
 async function canClose() {
+	if (posted.value) return true;
+	if (redPacketConfirming.value || posting.value) return false;
 	if (isEditing && (posting.value || uploader.uploading.value)) return false;
-	if (isEditing && posted.value) return true;
 	if (!uploader.allItemsUploaded.value) {
 		const { canceled } = await os.confirm({
 			type: 'question',
@@ -1771,16 +1864,8 @@ async function canClose() {
 			cancelText: i18n.ts.no,
 		});
 		if (canceled) return false;
-	} else if (isEditing ? hasUnsavedEdit.value : (
-		text.value.trim() !== '' ||
-		(cw.value != null && cw.value.trim() !== '' && cw.value !== inheritedCw) ||
-		files.value.length > 0 ||
-		poll.value != null ||
-		quoteId.value != null ||
-		renoteTargetNote.value != null ||
-		hashtags.value.trim() !== '' ||
-		scheduledAt.value != null
-	)) {
+	}
+	if (isEditing ? hasUnsavedEdit.value : hasContent.value) {
 		const { canceled } = await os.confirm({
 			type: 'question',
 			text: i18n.ts.leaveConfirm,
@@ -1790,8 +1875,17 @@ async function canClose() {
 		if (canceled) return false;
 	}
 
+	if (!await removeRedPacket(false)) return false;
 	return true;
 }
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+	if (props.mock || posted.value || !(isEditing ? hasUnsavedEdit.value : hasContent.value) && uploader.allItemsUploaded.value) return;
+	event.preventDefault();
+	event.returnValue = '';
+}
+
+window.addEventListener('beforeunload', onBeforeUnload);
 
 defineExpose({
 	clear,
@@ -1869,6 +1963,7 @@ defineExpose({
 
 .cancel {
 	padding: 8px;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .avatar {
@@ -1955,6 +2050,7 @@ defineExpose({
 	margin: 0;
 	padding: 8px;
 	border-radius: 6px;
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:hover {
 		background: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05));
@@ -1983,11 +2079,6 @@ defineExpose({
 	white-space: nowrap;
 	max-width: 210px;
 
-	&:enabled {
-		> .headerRightButtonText {
-			opacity: 0.8;
-		}
-	}
 }
 //#endregion
 
@@ -2112,8 +2203,10 @@ html[data-color-scheme=light] .preview {
 	margin: 0 0 var(--MI-postForm-gap);
 }
 
-.showHowToUse {
+.root .showHowToUse {
 	margin: 0 0 var(--MI-postForm-gap);
+	padding: var(--MI-postForm-gap) var(--MI-postForm-inputPadding);
+	border-radius: var(--MI-cardRadius);
 }
 
 .cw,
@@ -2134,7 +2227,7 @@ html[data-color-scheme=light] .preview {
 
 	// 提示文案要明显比正文浅，否则空输入框看着像已经填了内容
 	&::placeholder {
-		color: color-mix(in srgb, var(--MI_THEME-fg) 45%, transparent);
+		color: var(--MI_THEME-fgTransparentWeak);
 		opacity: 1;
 	}
 
@@ -2387,7 +2480,7 @@ html[data-color-scheme=light] .preview {
 	min-width: 0;
 	display: grid;
 	grid-auto-flow: row;
-	grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(36px, 100%), 1fr));
 	grid-auto-rows: 36px;
 }
 
@@ -2409,6 +2502,7 @@ html[data-color-scheme=light] .preview {
 	width: auto;
 	height: 100%;
 	border-radius: 6px;
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:hover {
 		background: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05));

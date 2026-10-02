@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</button>
 
-	<button :class="$style.item" class="_button" @click="mainRouter.push('/my/notifications')">
+	<button v-if="$i" :class="$style.item" class="_button" :aria-label="i18n.ts.notifications" @click="mainRouter.push('/my/notifications')">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-bell"></i>
 			<span v-if="$i?.hasUnreadNotification" :class="$style.itemIndicator" class="_blink">
@@ -31,11 +31,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</span>
 		</div>
 	</button>
+	<button v-else :class="$style.item" class="_button" :aria-label="i18n.ts.search" @click="mainRouter.push('/search')">
+		<div :class="$style.itemInner"><i :class="$style.itemIcon" class="ti ti-search"></i></div>
+	</button>
 
-	<button :class="$style.item" class="_button" @click="widgetsShowing = true">
+	<button v-if="$i" :class="$style.item" class="_button" :aria-label="i18n.ts.widgets" @click="widgetsShowing = true">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-apps"></i>
 		</div>
+	</button>
+	<button v-else :class="$style.item" class="_button" :aria-label="i18n.ts.login" @click="pleaseLogin({ message: '' })">
+		<div :class="$style.itemInner"><i :class="$style.itemIcon" class="ti ti-login-2"></i></div>
 	</button>
 </div>
 </template>
@@ -46,6 +52,8 @@ import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { mainRouter } from '@/router.js';
 import { navbarItemDef } from '@/navbar.js';
+import { i18n } from '@/i18n.js';
+import { pleaseLogin } from '@/utility/please-login.js';
 
 const drawerMenuShowing = defineModel<boolean>('drawerMenuShowing');
 const widgetsShowing = defineModel<boolean>('widgetsShowing');

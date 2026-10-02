@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_spacer" style="--MI_SPACER-w: 800px;">
+<div class="_pageBody">
 	<MkPaginationControl :paginator="tab === 'notes' ? paginatorForNotes : paginatorForPolls" card style="margin-bottom: var(--MI-margin);">
 		<template #header>
 			<MkTab

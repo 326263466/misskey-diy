@@ -15,20 +15,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="draggable" class="drag-handle _button" tabindex="-1" :draggable="true" @dragstart.stop="dragStartCallback">
 				<i class="ti ti-menu-2"></i>
 			</button>
-			<button class="_button" @click="toggleContent(!showBody)">
+			<button type="button" class="_button" :aria-label="i18n.ts.details" :aria-expanded="showBody" :aria-controls="bodyId" @click="toggleContent(!showBody)">
 				<template v-if="showBody"><i class="ti ti-chevron-up"></i></template>
 				<template v-else><i class="ti ti-chevron-down"></i></template>
 			</button>
 		</div>
 	</header>
-	<div v-show="showBody" class="body">
-		<slot></slot>
-	</div>
+	<Transition :css="prefer.s.animation" name="vertical">
+		<div v-show="showBody" :id="bodyId" class="body" :inert="!showBody">
+			<div class="bodyInner"><slot></slot></div>
+		</div>
+	</Transition>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, useId } from 'vue';
+import { i18n } from '@/i18n.js';
+import { prefer } from '@/preferences.js';
 
 const props = withDefaults(defineProps<{
 	expanded?: boolean;
@@ -46,6 +50,7 @@ const emit = defineEmits<{
 }>();
 
 const showBody = ref(props.expanded);
+const bodyId = useId();
 
 function toggleContent(show: boolean) {
 	showBody.value = show;
@@ -58,30 +63,44 @@ function remove() {
 </script>
 
 <style lang="scss" scoped>
+.vertical-enter-active,
+.vertical-leave-active {
+	overflow: clip;
+	transition: grid-template-rows 250ms ease;
+}
+
+.vertical-enter-from,
+.vertical-leave-to {
+	grid-template-rows: 0fr !important;
+}
+
 .cpjygsrt {
 	position: relative;
 	overflow: hidden;
 	background: var(--MI_THEME-panel);
-	border: solid 2px light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1));
+	border: solid 2px var(--MI_THEME-divider);
 	border-radius: 8px;
 
 	&:hover {
-		border: solid 2px light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.15));
+		border-color: var(--MI_THEME-inputBorderHover);
 	}
 
 	&.warn {
-		border: solid 2px #dec44c;
+		border-color: var(--MI_THEME-warn);
 	}
 
 	&.error {
-		border: solid 2px #f00;
+		border-color: var(--MI_THEME-error);
 	}
 
 	> header {
+		background: var(--MI_THEME-panelHighlight);
+		color: var(--MI_THEME-fg);
+
 		> .title {
 			z-index: 1;
 			margin: 0;
-			padding: 0 16px;
+			padding: 0 var(--MI-cardPadding);
 			line-height: 42px;
 			font-size: 0.9em;
 			font-weight: bold;
@@ -116,14 +135,12 @@ function remove() {
 	}
 
 	> .body {
-		::v-deep(.juejbjww), ::v-deep(.eiipwacr) {
-			&:not(.inline):first-child {
-				margin-top: 28px;
-			}
+		display: grid;
+		grid-template-rows: 1fr;
 
-			&:not(.inline):last-child {
-				margin-bottom: 20px;
-			}
+		> .bodyInner {
+			min-height: 0;
+			display: flow-root;
 		}
 	}
 }

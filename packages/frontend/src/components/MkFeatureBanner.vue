@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-panel :class="$style.root">
+<div :class="$style.root">
 	<img :class="$style.img" :src="icon"/>
 	<div :class="$style.text">
 		<slot></slot>
@@ -22,10 +22,10 @@ withDefaults(defineProps<{
 
 <style module lang="scss">
 .root {
-	padding: 20px 24px;
+	padding: var(--MI-cardPadding);
 	text-align: center;
 	border-radius: var(--MI-radius);
-	background: linear-gradient(180deg, color(from v-bind(color) srgb r g b / 0.1), color(from v-bind(color) srgb r g b / 0));
+	background: linear-gradient(180deg, color(from v-bind(color) srgb r g b / 0.1), transparent), var(--MI_THEME-panel);
 }
 
 .img {

@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:aria-labelledby="messageId"
 		tabindex="-1"
 	>
-		<i class="ti ti-info-circle" :class="$style.icon" aria-hidden="true"></i>
+		<i class="ti" :class="[$style.icon, success ? 'ti-check' : 'ti-info-circle']" aria-hidden="true"></i>
 		<div :id="messageId" class="_selectable" :class="$style.message">{{ message }}</div>
 	</div>
 </MkModal>
@@ -25,6 +25,7 @@ import MkModal from '@/components/MkModal.vue';
 
 defineProps<{
 	message: string;
+	success?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -59,37 +60,37 @@ onBeforeUnmount(() => {
 .root {
 	position: relative;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	align-self: flex-start;
+	justify-content: center;
 	gap: 12px;
-	// Keep the original 66px top offset, including MkModal's padding.
-	margin: 34px auto 0;
-	padding: 16px;
+	margin: auto;
+	padding: var(--MI-cardPadding);
 	width: max-content;
-	max-width: min(420px, 100%);
-	min-width: min(300px, 100%);
+	max-width: min(320px, 100%);
+	min-width: min(120px, 100%);
+	min-height: 120px;
+	max-height: 100%;
 	box-sizing: border-box;
-	text-align: left;
+	text-align: center;
 	color: var(--MI_THEME-fg);
 	background: var(--MI_THEME-panel);
-	border-radius: 8px;
-	overflow: clip;
-
-	@media (max-width: 500px) {
-		margin-top: 50px;
-	}
+	border-radius: var(--MI-radius);
 }
 
 .icon {
 	flex-shrink: 0;
-	font-size: 20px;
+	font-size: 32px;
 	line-height: 1;
 	color: var(--MI_THEME-accent);
 }
 
 .message {
-	flex: 1;
+	flex: 0 1 auto;
 	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	overflow-y: auto;
 	font-weight: 500;
 	line-height: 1.5;
 	white-space: pre-wrap;

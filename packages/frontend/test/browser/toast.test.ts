@@ -75,15 +75,14 @@ async function mountToast(message = '已复制到剪贴板', dark = false) {
 function assertToastLayout(card: HTMLElement) {
 	const rect = card.getBoundingClientRect();
 	expect(rect.left + rect.width / 2).toBeCloseTo(window.innerWidth / 2, 1);
-	expect(rect.top).toBeCloseTo(66, 1);
+	expect(rect.top + rect.height / 2).toBeCloseTo(window.innerHeight / 2, 1);
 	expect(rect.left).toBeGreaterThanOrEqual(0);
 	expect(rect.right).toBeLessThanOrEqual(window.innerWidth);
 	expect(rect.bottom).toBeLessThanOrEqual(window.innerHeight);
 	const icon = card.querySelector<HTMLElement>('[aria-hidden="true"]')!.getBoundingClientRect();
 	const message = document.getElementById(card.getAttribute('aria-labelledby')!)!.getBoundingClientRect();
-	expect(icon.right).toBeLessThan(message.left);
-	expect(icon.top).toBeLessThan(message.bottom);
-	expect(icon.bottom).toBeGreaterThan(message.top);
+	expect(icon.bottom).toBeLessThan(message.top);
+	expect(icon.left + icon.width / 2).toBeCloseTo(rect.left + rect.width / 2, 1);
 }
 
 beforeEach(async () => {

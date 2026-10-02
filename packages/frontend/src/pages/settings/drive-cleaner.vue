@@ -163,7 +163,7 @@ definePage(() => ({
 .meter {
 	margin-top: 8px;
 	height: 12px;
-	background: rgba(0, 0, 0, 0.1);
+	background: var(--MI_THEME-bg);
 	overflow: clip;
 	border-radius: 999px;
 }

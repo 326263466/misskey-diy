@@ -47,7 +47,7 @@ defineExpose({ paginator });
 <style lang="scss" module>
 .users {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
 	grid-gap: var(--MI-margin);
 }
 </style>

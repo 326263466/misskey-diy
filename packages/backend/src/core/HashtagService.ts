@@ -168,9 +168,7 @@ export class HashtagService {
 
 	@bindThis
 	public async updateHashtagsRanking(hashtag: string, userId: MiUser['id']): Promise<void> {
-		const hiddenTags = this.meta.hiddenTags.map(t => normalizeForSearch(t));
-		if (hiddenTags.includes(hashtag)) return;
-		if (this.utilityService.isKeyWordIncluded(hashtag, this.meta.sensitiveWords)) return;
+		if (!this.isRecommendedHashtag(hashtag)) return;
 
 		// YYYYMMDDHHmm (10分間隔)
 		const now = new Date();
@@ -200,6 +198,51 @@ export class HashtagService {
 		);
 
 		redisPipeline.exec();
+	}
+
+	private isRecommendedHashtag(hashtag: string): boolean {
+		return !this.meta.hiddenTags.some(tag => normalizeForSearch(tag) === hashtag)
+			&& !this.utilityService.isKeyWordIncluded(hashtag, this.meta.sensitiveWords);
+	}
+
+	@bindThis
+	public async backfillHashtagsRanking(ranking: string[], minimum = 5): Promise<string[]> {
+		if (ranking.length >= minimum) return ranking;
+		const result = [...ranking];
+		const seen = new Set(ranking.map(normalizeForSearch));
+		const batchSize = 50;
+		let cursor: Pick<MiHashtag, 'id' | 'mentionedUsersCount'> | undefined;
+
+		try {
+			while (result.length < minimum) {
+				const query = this.hashtagsRepository.createQueryBuilder('tag')
+					.select(['tag.id', 'tag.name', 'tag.mentionedUsersCount'])
+					.where('tag.mentionedUsersCount > 0')
+					.orderBy('tag.mentionedUsersCount', 'DESC')
+					.addOrderBy('tag.id', 'DESC')
+					.limit(batchSize);
+				if (cursor) {
+					query.andWhere('(tag.mentionedUsersCount < :count OR (tag.mentionedUsersCount = :count AND tag.id < :id))', {
+						count: cursor.mentionedUsersCount, id: cursor.id,
+					});
+				}
+				const candidates = await query.getMany();
+				for (const candidate of candidates) {
+					const tag = normalizeForSearch(candidate.name);
+					if (seen.has(tag) || !this.isRecommendedHashtag(tag)) continue;
+					result.push(candidate.name);
+					seen.add(tag);
+					if (result.length === minimum) break;
+				}
+				if (candidates.length < batchSize) break;
+				cursor = candidates[candidates.length - 1];
+			}
+			return result;
+		} catch {
+			// Historical discovery must not interrupt the live Redis ranking.
+			logger.warn('Could not backfill hashtag trends from history.');
+			return ranking;
+		}
 	}
 
 	@bindThis

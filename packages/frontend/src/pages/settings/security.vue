@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkFeatureBanner>
 
 		<SearchMarker :keywords="['password']">
-			<FormSection first>
+			<FormSection>
 				<template #label><SearchLabel>{{ i18n.ts.password }}</SearchLabel></template>
 
 				<SearchMarker>
@@ -173,7 +173,7 @@ definePage(() => ({
 
 		> .time {
 			margin-left: auto;
-			opacity: 0.7;
+			color: var(--MI_THEME-fgTransparentWeak);
 		}
 	}
 }

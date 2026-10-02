@@ -3,9 +3,17 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { packedRedPacketSummarySchema } from './red-packet.js';
+
+const redPacketProperties = {
+	redPacketId: { type: 'string', format: 'id', optional: true, nullable: true },
+	redPacket: { ...packedRedPacketSummarySchema, optional: true, nullable: true },
+} as const;
+
 export const packedChatMessageSchema = {
 	type: 'object',
 	properties: {
+		...redPacketProperties,
 		id: {
 			type: 'string',
 			optional: false, nullable: false,
@@ -88,6 +96,7 @@ export const packedChatMessageSchema = {
 export const packedChatMessageLiteSchema = {
 	type: 'object',
 	properties: {
+		...redPacketProperties,
 		isAutoReply: {
 			type: 'boolean',
 			optional: true, nullable: false,
@@ -156,6 +165,7 @@ export const packedChatMessageLiteSchema = {
 export const packedChatMessageLiteFor1on1Schema = {
 	type: 'object',
 	properties: {
+		...redPacketProperties,
 		isAutoReply: {
 			type: 'boolean',
 			optional: false, nullable: false,
@@ -210,6 +220,7 @@ export const packedChatMessageLiteFor1on1Schema = {
 export const packedChatMessageLiteForRoomSchema = {
 	type: 'object',
 	properties: {
+		...redPacketProperties,
 		id: {
 			type: 'string',
 			optional: false, nullable: false,

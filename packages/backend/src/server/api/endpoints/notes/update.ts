@@ -182,7 +182,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const text = ps.text === undefined ? note.text : ps.text?.trim() || null;
 			const cw = ps.cw === undefined ? note.cw : ps.cw;
 			const fileIds = ps.fileIds ?? note.fileIds;
-			if (text == null && fileIds.length === 0 && !note.hasPoll && !(note.renoteId != null && cw != null)) {
+			if (text == null && fileIds.length === 0 && !note.hasPoll && !note.hasRedPacket && !(note.renoteId != null && cw != null)) {
 				throw new ApiError(meta.errors.emptyNote);
 			}
 			if (this.noteCreateService.checkProhibitedWordsContain({ text, cw })) {

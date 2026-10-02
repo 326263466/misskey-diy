@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 800px;">
+	<div class="_pageBody">
 		<Transition
 			:enterActiveClass="prefer.s.animation ? $style.fadeEnterActive : ''"
 			:leaveActiveClass="prefer.s.animation ? $style.fadeLeaveActive : ''"
@@ -344,14 +344,14 @@ definePage(() => ({
 
 .pageMain {
 	border-radius: var(--MI-radius);
-	padding: 2rem;
+	padding: var(--MI-cardPadding);
 	background: var(--MI_THEME-panel);
 	box-sizing: border-box;
 }
 
 .pageBanner {
-	width: calc(100% + 4rem);
-	margin: -2rem -2rem 1.5rem;
+	width: calc(100% + var(--MI-cardPadding) * 2);
+	margin: calc(-1 * var(--MI-cardPadding)) calc(-1 * var(--MI-cardPadding)) var(--MI-cardPadding);
 	border-radius: var(--MI-radius) var(--MI-radius) 0 0;
 	overflow: hidden;
 	position: relative;
@@ -406,7 +406,7 @@ definePage(() => ({
 
 	> .pageBannerTitle {
 		position: relative;
-		padding: 1.5rem 2rem;
+		padding: var(--MI-cardPadding);
 
 		h1 {
 			font-size: 2rem;
@@ -489,7 +489,7 @@ definePage(() => ({
 
 	.acct {
 		font-size: 90%;
-		opacity: 0.7;
+		color: var(--MI_THEME-fgTransparentWeak);
 	}
 
 	.follow {
@@ -509,7 +509,7 @@ definePage(() => ({
 }
 
 .relatedPagesRoot {
-	padding: var(--MI-margin);
+	padding: var(--MI-cardPadding);
 }
 
 .relatedPagesItem > article {

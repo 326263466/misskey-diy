@@ -10,13 +10,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<!-- :css="prefer.s.animation" にしたいけどバグる(おそらくvueのバグ) https://github.com/misskey-dev/misskey/issues/16078 -->
 		<Transition
-			:enterActiveClass="prefer.s.animation ? $style.transition_fade_enterActive : ''"
-			:leaveActiveClass="prefer.s.animation ? $style.transition_fade_leaveActive : ''"
-			:enterFromClass="prefer.s.animation ? $style.transition_fade_enterFrom : ''"
-			:leaveToClass="prefer.s.animation ? $style.transition_fade_leaveTo : ''"
-			:mode="prefer.s.animation ? 'out-in' : undefined"
+			:enterActiveClass="animate ? $style.transition_fade_enterActive : ''"
+			:leaveActiveClass="animate ? $style.transition_fade_leaveActive : ''"
+			:enterFromClass="animate ? $style.transition_fade_enterFrom : ''"
+			:leaveToClass="animate ? $style.transition_fade_leaveTo : ''"
+			:mode="animate ? 'out-in' : undefined"
 		>
-			<MkLoading v-if="paginator.fetching.value"/>
+			<template v-if="paginator.fetching.value">
+				<MkLoading v-if="showLoading"/>
+				<div v-else aria-busy="true"></div>
+			</template>
 
 			<MkError v-else-if="paginator.error.value" @retry="paginator.init()"/>
 
@@ -27,12 +30,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-else key="_root_" class="_gaps">
 				<div v-if="(direction === 'up' || direction === 'both') && upButtonVisible">
 					<div :key="paginator.items.value[0]?.id" v-appear="upButtonClick" :class="$style.sentinel" aria-hidden="true"></div>
-					<MkLoading v-if="upButtonLoading"/>
+					<MkLoading v-if="upButtonLoading && showLoading"/>
 				</div>
 				<slot :items="getValue(paginator.items)" :fetching="paginator.fetching.value || paginator.fetchingOlder.value"></slot>
 				<div v-if="(direction === 'down' || direction === 'both') && downButtonVisible">
 					<div :key="paginator.items.value.at(-1)?.id" v-appear="downButtonClick" :class="$style.sentinel" aria-hidden="true"></div>
-					<MkLoading v-if="downButtonLoading"/>
+					<MkLoading v-if="downButtonLoading && showLoading"/>
 				</div>
 			</div>
 		</Transition>
@@ -43,6 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts">
 export type MkPaginationOptions = {
 	autoLoad?: boolean;
+	showLoading?: boolean;
 	/**
 	 * ページネーションを進める方向
 	 * - up: 上方向
@@ -73,11 +77,15 @@ const props = withDefaults(defineProps<MkPaginationOptions & {
 	paginator: T;
 }>(), {
 	autoLoad: true,
+	showLoading: true,
 	direction: 'down',
 	pullToRefresh: true,
 	withControl: false,
 	controlCard: false,
 });
+
+// Silent refreshes swap content immediately to keep auto-sized containers stable.
+const animate = computed(() => prefer.s.animation && props.showLoading);
 
 function onContextmenu(ev: PointerEvent) {
 	if (ev.target && isLink(ev.target as HTMLElement)) return;

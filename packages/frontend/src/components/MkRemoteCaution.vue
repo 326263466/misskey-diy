@@ -18,7 +18,7 @@ defineProps<{
 <style lang="scss" module>
 .root {
 	font-size: 0.8em;
-	padding: 16px;
+	padding: var(--MI-cardPadding);
 	background: var(--MI_THEME-infoWarnBg);
 	color: var(--MI_THEME-infoWarnFg);
 	border-radius: var(--MI-radius);

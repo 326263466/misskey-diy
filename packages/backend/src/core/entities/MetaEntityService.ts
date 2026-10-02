@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getVisitorContentVisibility } from '@/misc/visitor-content.js';
 import { Brackets } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
 import JSON5 from 'json5';
@@ -110,6 +111,7 @@ export class MetaEntityService {
 			defaultLightTheme,
 			defaultDarkTheme,
 			clientOptions: instance.clientOptions,
+			ugcVisibilityForVisitor: getVisitorContentVisibility(instance),
 			ads: ads.map(ad => ({
 				id: ad.id,
 				url: ad.url,

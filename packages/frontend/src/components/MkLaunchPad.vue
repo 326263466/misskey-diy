@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkModal ref="modal" v-slot="{ type, maxHeight }" :preferType="preferedModalType" :anchor="anchor" :transparentBg="true" :anchorElement="anchorElement" @click="modal?.close()" @closed="emit('closed')" @esc="modal?.close()">
-	<div class="szkkfdyq _popup _shadow" :class="{ asDrawer: type === 'drawer' }" :style="{ maxHeight: maxHeight ? maxHeight + 'px' : '' }">
+	<div class="szkkfdyq _popup _shadow" :class="{ asDrawer: type === 'drawer' }" :style="{ maxHeight: maxHeight ? Math.min(maxHeight, 560) + 'px' : '' }">
 		<div class="main">
 			<template v-for="item in items" :key="item.text">
 				<button v-if="item.action != null" v-click-anime class="_button item" @click="$event => { item.action!($event); close(); }">
@@ -74,10 +74,10 @@ function close() {
 
 <style lang="scss" scoped>
 .szkkfdyq {
-	max-height: 100%;
+	max-height: min(560px, calc(100dvh - var(--MI-pageGap) * 2));
 	width: min(460px, 100vw);
 	margin: auto;
-	padding: 24px;
+	padding: var(--MI-cardPadding);
 	box-sizing: border-box;
 	overflow: auto;
 	overscroll-behavior: contain;
@@ -86,7 +86,7 @@ function close() {
 
 	&.asDrawer {
 		width: 100%;
-		padding: 16px 16px max(env(safe-area-inset-bottom, 0px), 16px) 16px;
+		padding: var(--MI-cardPadding) var(--MI-cardPadding) max(env(safe-area-inset-bottom, 0px), var(--MI-cardPadding));
 		border-radius: 24px;
 		border-bottom-right-radius: 0;
 		border-bottom-left-radius: 0;
@@ -95,7 +95,7 @@ function close() {
 
 	> .main {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
 
 		> .item {
 			position: relative;
@@ -104,10 +104,11 @@ function close() {
 			align-items: center;
 			justify-content: center;
 			vertical-align: bottom;
-			height: 100px;
+			min-height: 80px;
 			border-radius: 10px;
 			padding: 10px;
 			box-sizing: border-box;
+			color: var(--MI_THEME-fgTransparentWeak);
 
 			&:hover {
 				color: var(--MI_THEME-accent);
@@ -118,10 +119,11 @@ function close() {
 			> .icon {
 				font-size: 24px;
 				height: 24px;
+				flex-shrink: 0;
 			}
 
 			> .text {
-				margin-top: 12px;
+				margin-top: 6px;
 				font-size: 0.8em;
 				line-height: 1.5em;
 				text-align: center;

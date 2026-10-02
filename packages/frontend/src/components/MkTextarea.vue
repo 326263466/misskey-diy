@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div v-if="!collapsible || expanded" :class="$style.caption"><slot name="caption"></slot></div>
 	<button v-if="mfmPreview && (!collapsible || expanded)" style="font-size: 0.85em;" class="_textButton" type="button" @click="preview = !preview">{{ i18n.ts.preview }}</button>
-	<div v-if="mfmPreview" v-show="preview && (!collapsible || expanded)" v-panel :class="$style.mfmPreview">
+	<div v-if="mfmPreview" v-show="preview && (!collapsible || expanded)" :class="$style.mfmPreview">
 		<Mfm :text="v"/>
 	</div>
 
@@ -248,7 +248,7 @@ onUnmounted(() => {
 .caption {
 	font-size: 0.85em;
 	padding: 8px 0 0 0;
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:empty {
 		display: none;
@@ -270,8 +270,8 @@ onUnmounted(() => {
 	font-weight: normal;
 	font-size: 1em;
 	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-panel);
-	border: solid 1px var(--MI_THEME-panel);
+	background: var(--MI_THEME-bg);
+	border: solid 1px transparent;
 	border-radius: 6px;
 	outline: none;
 	box-shadow: none;
@@ -340,7 +340,9 @@ onUnmounted(() => {
 }
 
 .mfmPreview {
-  padding: 12px;
+	background: var(--MI_THEME-panel);
+	border: 1px solid var(--MI_THEME-divider);
+	padding: var(--MI-cardPadding);
   border-radius: var(--MI-radius);
   box-sizing: border-box;
   min-height: 130px;

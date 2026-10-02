@@ -55,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</header>
 			<p v-if="unknownUrl" :class="$style.text">{{ i18n.ts.failedToPreviewUrl }}</p>
 			<p v-else-if="fetching" :class="$style.text"><MkEllipsis/></p>
-			<p v-else-if="description" :class="$style.text" :title="description">{{ description.length > 85 ? description.slice(0, 85) + '…' : description }}</p>
+			<p v-else-if="description?.trim()" :class="$style.text" :title="description">{{ description }}</p>
 			<footer :class="$style.footer">
 				<img v-if="icon" :class="$style.siteIcon" :src="icon"/>
 				<p v-if="unknownUrl" :class="$style.siteName">{{ requestUrl.host }}</p>
@@ -232,12 +232,12 @@ onUnmounted(() => {
 	height: 1.5em;
 	padding: 0;
 	margin: 0;
-	color: var(--MI_THEME-fg);
-	background: rgba(128, 128, 128, 0.2);
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
+	background: var(--MI_THEME-buttonBg);
 
 	&:hover {
-		opacity: 0.9;
+		color: var(--MI_THEME-fgHighlighted);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 }
 
@@ -251,16 +251,21 @@ onUnmounted(() => {
 
 .link {
 	position: relative;
-	display: block;
+	display: flex;
+	flex-direction: row-reverse;
+	align-items: stretch;
+	gap: 12px;
+	padding: 6px 8px;
 	font-size: 14px;
-	box-shadow: 0 0 0 1px var(--MI_THEME-divider);
-	border-radius: 8px;
+	line-height: 1.4;
+	border-left: 4px solid var(--MI_THEME-accent);
+	background: var(--MI_THEME-accentedBg);
+	border-radius: calc(var(--MI-radius) / 3);
 	overflow: clip;
 	text-align: left;
 
 	&:hover {
 		text-decoration: none;
-		border-color: rgba(0, 0, 0, 0.2);
 
 		> .body > .header > .title {
 			text-decoration: underline;
@@ -269,7 +274,7 @@ onUnmounted(() => {
 
 	&.compact {
 		> .body {
-			> .header .title, .text, .footer {
+			> .header .title, .footer {
 				overflow: hidden;
 				white-space: nowrap;
 				text-overflow: ellipsis;
@@ -279,30 +284,30 @@ onUnmounted(() => {
 }
 
 .thumbnail {
-	position: absolute;
+	flex: none;
 	width: 100px;
-	height: 100%;
+	height: auto;
+	border-radius: calc(var(--MI-radius) / 3);
 	background-position: center;
-	background-size: cover;
+	background-size: contain;
+	background-repeat: no-repeat;
 	background-color: var(--MI_THEME-bg);
 	display: flex;
 	justify-content: center;
 	align-items: center;
-
-	& + .body {
-		left: 100px;
-		width: calc(100% - 100px);
-	}
 }
 
 .body {
-	position: relative;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
 	box-sizing: border-box;
-	padding: 16px;
+	overflow-wrap: anywhere;
 }
 
 .header {
-	margin-bottom: 8px;
+	margin: 0;
 }
 
 .title {
@@ -311,28 +316,41 @@ onUnmounted(() => {
 }
 
 .text {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
 	margin: 0;
-	font-size: 0.8em;
+	color: var(--MI_THEME-fgTransparent);
+	font-size: 1em;
+	line-height: 1.4;
 }
 
 .footer {
-	margin-top: 8px;
-	height: 16px;
+	order: -1;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin: 0;
+	color: var(--MI_THEME-accent);
 }
 
 .siteIcon {
-	display: inline-block;
+	display: none;
 	width: 16px;
 	height: 16px;
-	margin-right: 4px;
+	flex: none;
 	vertical-align: top;
 }
 
 .siteName {
-	display: inline-block;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 	margin: 0;
-	font-size: 0.8em;
-	line-height: 16px;
+	font-size: 1em;
+	line-height: 1.4;
 	vertical-align: top;
 }
 
@@ -349,55 +367,23 @@ onUnmounted(() => {
 	}
 
 	.thumbnail {
-		height: 80px;
-	}
-
-	.body {
-		padding: 12px;
+		width: 80px;
 	}
 }
 
 @container (max-width: 350px) {
 	.link {
-		font-size: 10px;
+		gap: 8px;
 
 		&.compact {
 			> .thumbnail {
-				position: absolute;
 				width: 56px;
-				height: 100%;
-			}
-
-			> .body {
-				left: 56px;
-				width: calc(100% - 56px);
-				padding: 4px;
-
-				> .header {
-					margin-bottom: 2px;
-				}
-
-				> .footer {
-					margin-top: 2px;
-				}
 			}
 		}
 	}
 
 	.thumbnail {
-		height: 70px;
-	}
-
-	.body {
-		padding: 8px;
-	}
-
-	.header {
-		margin-bottom: 4px;
-	}
-
-	.footer {
-		margin-top: 4px;
+		width: 70px;
 	}
 
 	.siteIcon {

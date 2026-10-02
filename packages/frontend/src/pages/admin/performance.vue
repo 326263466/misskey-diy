@@ -4,62 +4,50 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 700px; --MI_SPACER-min: 16px; --MI_SPACER-max: 32px;">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+	<div class="_pageBody">
 		<SearchMarker path="/admin/performance" :label="i18n.ts.performance" :keywords="['performance']" icon="ti ti-bolt">
 			<div class="_gaps">
 				<SearchMarker>
-					<div class="_panel" style="padding: 16px;">
-						<MkSwitch v-model="enableServerMachineStats" @change="onChange_enableServerMachineStats">
-							<template #label><SearchLabel>{{ i18n.ts.enableServerMachineStats }}</SearchLabel></template>
-							<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
-						</MkSwitch>
-					</div>
+					<MkSwitch v-model="enableServerMachineStats" @change="onChange_enableServerMachineStats">
+						<template #label><SearchLabel>{{ i18n.ts.enableServerMachineStats }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
+					</MkSwitch>
 				</SearchMarker>
 
 				<SearchMarker>
-					<div class="_panel" style="padding: 16px;">
-						<MkSwitch v-model="enableIdenticonGeneration" @change="onChange_enableIdenticonGeneration">
-							<template #label><SearchLabel>{{ i18n.ts.enableIdenticonGeneration }}</SearchLabel></template>
-							<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
-						</MkSwitch>
-					</div>
+					<MkSwitch v-model="enableIdenticonGeneration" @change="onChange_enableIdenticonGeneration">
+						<template #label><SearchLabel>{{ i18n.ts.enableIdenticonGeneration }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
+					</MkSwitch>
 				</SearchMarker>
 
 				<SearchMarker>
-					<div class="_panel" style="padding: 16px;">
-						<MkSwitch v-model="enableChartsForRemoteUser" @change="onChange_enableChartsForRemoteUser">
-							<template #label><SearchLabel>{{ i18n.ts.enableChartsForRemoteUser }}</SearchLabel></template>
-							<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
-						</MkSwitch>
-					</div>
+					<MkSwitch v-model="enableChartsForRemoteUser" @change="onChange_enableChartsForRemoteUser">
+						<template #label><SearchLabel>{{ i18n.ts.enableChartsForRemoteUser }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
+					</MkSwitch>
 				</SearchMarker>
 
 				<SearchMarker>
-					<div class="_panel" style="padding: 16px;">
-						<MkSwitch v-model="enableStatsForFederatedInstances" @change="onChange_enableStatsForFederatedInstances">
-							<template #label><SearchLabel>{{ i18n.ts.enableStatsForFederatedInstances }}</SearchLabel></template>
-							<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
-						</MkSwitch>
-					</div>
+					<MkSwitch v-model="enableStatsForFederatedInstances" @change="onChange_enableStatsForFederatedInstances">
+						<template #label><SearchLabel>{{ i18n.ts.enableStatsForFederatedInstances }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
+					</MkSwitch>
 				</SearchMarker>
 
 				<SearchMarker>
-					<div class="_panel" style="padding: 16px;">
-						<MkSwitch v-model="enableChartsForFederatedInstances" @change="onChange_enableChartsForFederatedInstances">
-							<template #label><SearchLabel>{{ i18n.ts.enableChartsForFederatedInstances }}</SearchLabel></template>
-							<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
-						</MkSwitch>
-					</div>
+					<MkSwitch v-model="enableChartsForFederatedInstances" @change="onChange_enableChartsForFederatedInstances">
+						<template #label><SearchLabel>{{ i18n.ts.enableChartsForFederatedInstances }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
+					</MkSwitch>
 				</SearchMarker>
 
 				<SearchMarker>
-					<div class="_panel" style="padding: 16px;">
-						<MkSwitch v-model="showRoleBadgesOfRemoteUsers" @change="onChange_showRoleBadgesOfRemoteUsers">
-							<template #label><SearchLabel>{{ i18n.ts.showRoleBadgesOfRemoteUsers }}</SearchLabel></template>
-							<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
-						</MkSwitch>
-					</div>
+					<MkSwitch v-model="showRoleBadgesOfRemoteUsers" @change="onChange_showRoleBadgesOfRemoteUsers">
+						<template #label><SearchLabel>{{ i18n.ts.showRoleBadgesOfRemoteUsers }}</SearchLabel></template>
+						<template #caption>{{ i18n.ts.turnOffToImprovePerformance }}</template>
+					</MkSwitch>
 				</SearchMarker>
 
 				<SearchMarker>

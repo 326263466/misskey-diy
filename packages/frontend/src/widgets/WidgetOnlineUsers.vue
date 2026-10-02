@@ -69,11 +69,11 @@ defineExpose<WidgetComponentExpose>({
 	text-align: center;
 
 	&.pad {
-		padding: var(--MI-cardPadding, 20px) 0;
+		padding: var(--MI-cardPadding, 18px);
 	}
 }
 
 .text {
-	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

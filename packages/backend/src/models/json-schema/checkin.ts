@@ -23,7 +23,12 @@ export const checkinStatusSchema = {
 		makeupCards: { type: 'integer', optional: false, nullable: false },
 		makeupCardProgress: { type: 'integer', optional: false, nullable: false },
 		makeupCardTarget: { type: 'integer', optional: false, nullable: false },
+		makeupCardFirstRewardClaimed: { type: 'boolean', optional: false, nullable: false },
+		rewardDates: { type: 'array', optional: false, nullable: false, items: { type: 'string', optional: false, nullable: false } },
 		makeupCardExchangeCost: { type: 'integer', optional: false, nullable: false },
+		makeupEarliestDate: { type: 'string', optional: false, nullable: false },
+		makeupCardLimit: { type: 'integer', optional: false, nullable: false },
+		makeupCardExchangeAvailable: { type: 'boolean', optional: false, nullable: false },
 		achievements: {
 			type: 'array', optional: false, nullable: false,
 			items: {

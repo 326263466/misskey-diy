@@ -14,18 +14,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 		v-model="text"
 		:class="$style.textarea"
 		class="_acrylic _mfm"
+		rows="2"
 		:placeholder="i18n.ts.inputMessageHere"
 		:aria-label="i18n.ts.inputMessageHere"
 		:readonly="textareaReadOnly"
+		:disabled="editLocked"
 		@keydown="onKeydown"
 		@paste="onPaste"
 	></textarea>
 	<MkEmojiInputOverlay :inputElement="textareaEl" :text="text"/>
+	<section v-if="redPacket" :class="$style.redPacket" class="_gaps_s">
+		<div :class="$style.redPacketHeading"><strong>{{ i18n.ts._redPacket.created }}</strong><button type="button" class="_textButton" :disabled="sending || pending != null" @click="removeRedPacket">{{ i18n.ts.remove }}</button></div>
+		<MkRedPacket :redPacketId="redPacket.id" :authorId="$i.id" :redPacket="redPacket"/>
+		<p>{{ pending ? i18n.ts._redPacket.pendingLocked : i18n.ts._redPacket.createdDescription }}</p>
+	</section>
 	<footer :class="$style.footer">
-		<div v-if="file" :class="$style.file" @click="file = null">{{ file.name }}</div>
+		<button v-if="file" type="button" class="_button" :class="$style.file" :disabled="editLocked" @click="file = null">{{ file.name }} <i class="ti ti-x" aria-hidden="true"></i></button>
 		<div :class="$style.buttons">
-			<button v-tooltip="i18n.ts.attachFile" class="_button" :class="$style.button" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
-			<button v-tooltip="i18n.ts.emoji" class="_button" :class="$style.button" :aria-label="i18n.ts.emoji" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-tooltip="i18n.ts.attachFile" class="_button" :class="$style.button" :disabled="editLocked" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
+			<button v-tooltip="i18n.ts._redPacket.create" class="_button" :class="$style.button" :disabled="!canCreatePacket" :aria-label="i18n.ts._redPacket.create" @click="createRedPacket"><i class="ti ti-gift" aria-hidden="true"></i></button>
+			<button v-tooltip="i18n.ts.emoji" class="_button" :class="$style.button" :disabled="editLocked" :aria-label="i18n.ts.emoji" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 			<button v-tooltip="i18n.ts.send" class="_button" :class="[$style.button, $style.send]" :disabled="!canSend || sending" :aria-label="i18n.ts.send" @click="send">
 				<template v-if="!sending"><i class="ti ti-send"></i></template><template v-if="sending"><MkLoading :em="true"/></template>
 			</button>
@@ -50,6 +58,12 @@ import { Autocomplete } from '@/utility/autocomplete.js';
 import { emojiPicker } from '@/utility/emoji-picker.js';
 import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
 import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
+import MkRedPacket from '@/components/MkRedPacket.vue';
+import MkRedPacketDialog from '@/components/MkRedPacketDialog.vue';
+import { ensureSignin } from '@/i.js';
+import { redPacketError, redPacketRequestRejected } from '@/utility/red-packet.js';
+
+const $i = ensureSignin();
 
 const props = defineProps<{
 	user?: Misskey.entities.UserDetailed | null;
@@ -62,18 +76,57 @@ const fileEl = shallowRef<HTMLInputElement>();
 const text = ref<string>('');
 const file = ref<Misskey.entities.DriveFile | null>(null);
 const sending = ref(false);
-const textareaReadOnly = ref(false);
-let autocompleteInstance: Autocomplete | null = null;
+const creating = ref(false);
+const redPacket = ref<Misskey.entities.RedPacketsCreateResponse | null>(null);
+const pending = ref<{ text?: string; fileId?: string; redPacketId?: string } | null>(null);
 
-const canSend = computed(() => (text.value != null && text.value !== '') || file.value != null);
-
-function getDraftKey() {
-	return props.user ? 'user:' + props.user.id : 'room:' + props.room?.id;
+function showError(text: string) {
+	if (active) void os.alert({ type: 'error', text });
 }
 
-watch([text, file], saveDraft);
+const textareaReadOnly = ref(false);
+let autocompleteInstance: Autocomplete | null = null;
+let active = true;
+
+const canSend = computed(() => $i.policies.chatAvailability === 'available' && !creating.value && ((text.value != null && text.value !== '') || file.value != null || redPacket.value != null));
+const editLocked = computed(() => sending.value || pending.value != null);
+const canCreatePacket = computed(() => !editLocked.value && !creating.value && !redPacket.value && $i.policies.chatAvailability === 'available' && (!props.user || props.user.host === null));
+
+function getDraftKey() {
+	return `${$i.id}:${props.user ? 'user:' + props.user.id : 'room:' + props.room?.id}`;
+}
+
+watch([text, file, redPacket, pending], () => { try { saveDraft(); } catch { showError(i18n.ts._postForm.draftSaveFailed); } });
+
+async function createRedPacket() {
+	if (!canCreatePacket.value || (!props.user && !props.room)) return;
+	creating.value = true;
+	const key = getDraftKey();
+	try {
+		const { dispose } = os.popup(MkRedPacketDialog, props.user ? { kind: 'direct', recipientIds: [props.user.id] } : { kind: 'group', roomId: props.room!.id }, {
+			created: packet => {
+				if (!active || key !== getDraftKey()) return;
+				redPacket.value = packet;
+				try { saveDraft(key); } catch { showError(i18n.ts._postForm.draftSaveFailed); }
+			},
+			closed: () => { creating.value = false; dispose(); },
+		});
+	} catch (error) {
+		showError(redPacketError(error));
+		creating.value = false;
+	}
+}
+
+function removeRedPacket() {
+	if (!redPacket.value || editLocked.value) return;
+	redPacket.value = null;
+	try {
+		saveDraft();
+	} catch { showError(i18n.ts._postForm.draftSaveFailed); }
+}
 
 async function onPaste(ev: ClipboardEvent) {
+	if (editLocked.value) return;
 	if (!ev.clipboardData) return;
 
 	const pastedFileName = 'yyyy-MM-dd HH-mm-ss [{{number}}]';
@@ -90,7 +143,7 @@ async function onPaste(ev: ClipboardEvent) {
 			const formattedName = formatTimeString(new Date(pastedFile.lastModified), pastedFileName).replace(/{{number}}/g, '1') + ext;
 			const renamedFile = new File([pastedFile], formattedName, { type: pastedFile.type });
 			os.launchUploader([renamedFile], { multiple: false }).then(driveFiles => {
-				file.value = driveFiles[0];
+				if (!editLocked.value) file.value = driveFiles[0];
 			});
 		}
 	} else {
@@ -129,6 +182,7 @@ function onDragover(ev: DragEvent) {
 }
 
 function onDrop(ev: DragEvent): void {
+	if (editLocked.value) return;
 	if (!ev.dataTransfer) return;
 
 	// ファイルだったら
@@ -172,71 +226,64 @@ function onKeydown(ev: KeyboardEvent) {
 }
 
 function chooseFile(ev: PointerEvent) {
+	if (editLocked.value) return;
 	selectFile({
 		anchorElement: ev.currentTarget ?? ev.target,
 		multiple: false,
 		label: i18n.ts.selectFile,
 	}).then(selectedFile => {
-		file.value = selectedFile;
+		if (!editLocked.value) file.value = selectedFile;
 	});
 }
 
 function onChangeFile() {
+	if (editLocked.value) return;
 	if (fileEl.value == null || fileEl.value.files == null) return;
 
 	if (fileEl.value.files[0]) {
 		os.launchUploader(Array.from(fileEl.value.files), { multiple: false }).then(driveFiles => {
-			file.value = driveFiles[0];
+			if (!editLocked.value) file.value = driveFiles[0];
 		});
 	}
 }
 
-function send() {
-	if (!canSend.value) return;
-
+async function send() {
+	if (!canSend.value || sending.value || (!props.user && !props.room)) return;
 	sending.value = true;
-
-	if (props.user) {
-		misskeyApi('chat/messages/create-to-user', {
-			toUserId: props.user.id,
-			text: text.value ? text.value : undefined,
-			fileId: file.value ? file.value.id : undefined,
-		}).then(message => {
-			clear();
-		}).catch(err => {
-			console.error(err);
-		}).then(() => {
-			sending.value = false;
-		});
-	} else if (props.room) {
-		misskeyApi('chat/messages/create-to-room', {
-			toRoomId: props.room.id,
-			text: text.value ? text.value : undefined,
-			fileId: file.value ? file.value.id : undefined,
-		}).then(message => {
-			clear();
-		}).catch(err => {
-			console.error(err);
-		}).then(() => {
-			sending.value = false;
-		});
-	}
+	try {
+		const data = pending.value ?? { text: text.value || undefined, fileId: file.value?.id, redPacketId: redPacket.value?.id };
+		if (redPacket.value) {
+			pending.value = data;
+			saveDraft();
+		}
+		if (props.user) await misskeyApi('chat/messages/create-to-user', { toUserId: props.user.id, ...data });
+		else if (props.room) await misskeyApi('chat/messages/create-to-room', { toRoomId: props.room.id, ...data });
+		clear();
+	} catch (error) {
+		showError(redPacketError(error));
+		if (redPacketRequestRejected(error) || ['RED_PACKET_ACCESS_DENIED', 'RED_PACKET_EXPIRED', 'RED_PACKET_CANCELLED', 'NO_SUCH_USER', 'NO_SUCH_ROOM', 'ROLE_PERMISSION_DENIED', 'CONTENT_REQUIRED'].includes((error as { code?: string }).code ?? '')) pending.value = null;
+		try { saveDraft(); } catch { showError(i18n.ts._postForm.draftSaveFailed); }
+	} finally { sending.value = false; }
 }
 
 function clear() {
 	text.value = '';
 	file.value = null;
+	redPacket.value = null;
+	pending.value = null;
 	deleteDraft();
 }
 
-function saveDraft() {
+function saveDraft(key = getDraftKey()) {
 	const drafts = JSON.parse(miLocalStorage.getItem('chatMessageDrafts') || '{}');
 
-	drafts[getDraftKey()] = {
+	drafts[key] = {
 		updatedAt: new Date(),
 		data: {
 			text: text.value,
 			file: file.value,
+			redPacket: redPacket.value,
+			pending: pending.value,
 		},
 	};
 
@@ -252,6 +299,7 @@ function deleteDraft() {
 }
 
 async function insertEmoji(ev: MouseEvent) {
+	if (editLocked.value) return;
 	const target = ev.currentTarget ?? ev.target;
 	if (target == null) return;
 	textareaReadOnly.value = true;
@@ -267,6 +315,7 @@ async function insertEmoji(ev: MouseEvent) {
 	emojiPicker.show(
 		target as HTMLElement,
 		emoji => {
+			if (editLocked.value) return;
 			const textBefore = text.value.substring(0, pos);
 			const textAfter = text.value.substring(posEnd);
 			text.value = textBefore + emoji + textAfter;
@@ -289,14 +338,19 @@ onMounted(() => {
 	}
 
 	// 書きかけの投稿を復元
-	const draft = JSON.parse(miLocalStorage.getItem('chatMessageDrafts') || '{}')[getDraftKey()];
-	if (draft) {
-		text.value = draft.data.text;
-		file.value = draft.data.file;
-	}
+	try {
+		const draft = JSON.parse(miLocalStorage.getItem('chatMessageDrafts') || '{}')[getDraftKey()];
+		if (draft) {
+			text.value = draft.data.text;
+			file.value = draft.data.file;
+			redPacket.value = draft.data.redPacket ?? null;
+			pending.value = draft.data.pending ?? null;
+		}
+	} catch { showError(i18n.ts._postForm.draftSaveFailed); }
 });
 
 onBeforeUnmount(() => {
+	active = false;
 	if (autocompleteInstance) {
 		autocompleteInstance.detach();
 		autocompleteInstance = null;
@@ -307,8 +361,7 @@ onBeforeUnmount(() => {
 <style lang="scss" module>
 .root {
 	position: relative;
-	border-bottom: none;
-	border-radius: 14px 14px 0 0;
+	border-radius: var(--MI-cardRadius) var(--MI-cardRadius) 0 0;
 	overflow: clip;
 }
 
@@ -318,17 +371,17 @@ onBeforeUnmount(() => {
 	width: 100%;
 	min-width: 100%;
 	max-width: 100%;
-	min-height: 80px;
+	min-height: calc(1.5em + var(--MI-marginHalf) * 2);
 	margin: 0;
-	padding: 16px 16px 0 16px;
+	padding: var(--MI-marginHalf) var(--MI-cardPadding);
 	resize: none;
 	font-size: 1em;
+	line-height: 1.5;
 	font-family: inherit;
 	outline: none;
 	border: none;
-	// _acrylic 的 backdrop-filter 会生成独立合成层，跳出父级的 overflow: clip，
-	// 所以圆角必须在 textarea 上再写一遍，否则滚动时能看到直角残留
-	border-radius: 14px 14px 0 0;
+	// 毛玻璃会建立独立合成层，输入框自身也需要圆角，避免滚动时露出直角。
+	border-radius: var(--MI-cardRadius) var(--MI-cardRadius) 0 0;
 	box-shadow: none;
 	box-sizing: border-box;
 	color: var(--MI_THEME-fg);
@@ -362,4 +415,8 @@ onBeforeUnmount(() => {
 	margin-left: auto;
 	color: var(--MI_THEME-accent);
 }
+
+.redPacket { padding: var(--MI-margin); background: var(--MI_THEME-panel); }
+.redPacket p { margin: 0; font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); }
+.redPacketHeading { display: flex; align-items: center; justify-content: space-between; gap: var(--MI-margin); }
 </style>

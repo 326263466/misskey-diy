@@ -5,9 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkModalWindow
+	v-if="ready"
 	ref="dialogEl"
 	:width="600"
-	:height="650"
+	:height="900"
+	autoHeight
 	:withOkButton="false"
 	@click="cancel()"
 	@close="cancel()"
@@ -15,154 +17,132 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@esc="cancel()"
 >
 	<template #header>
-		{{ i18n.ts.draftsAndScheduledNotes }} ({{ currentDraftsCount }}/{{ $i?.policies.noteDraftLimit }})
+		{{ props.scheduled ? i18n.ts.scheduled : i18n.ts.drafts }} <template v-if="currentDraftsCount != null">({{ currentDraftsCount }}/{{ $i?.policies.noteDraftLimit }})</template>
 	</template>
 
-	<MkStickyContainer>
-		<template #header>
-			<MkPaginationControl :paginator="tab === 'scheduled' ? scheduledPaginator : draftsPaginator" :class="$style.tabs">
-				<template #header>
-					<MkTabs
-						v-model:tab="tab"
-						:tabs="[
-							{
-								key: 'drafts',
-								title: i18n.ts.drafts,
-								icon: 'ti ti-pencil-question',
-							},
-							{
-								key: 'scheduled',
-								title: i18n.ts.scheduled,
-								icon: 'ti ti-calendar-clock',
-							},
-						]"
-					/>
-				</template>
-			</MkPaginationControl>
-		</template>
+	<template #headerActions>
+		<MkPaginationControl :paginator="paginator" inHeader/>
+	</template>
+	<div ref="listEl" class="_spacer _spacerCard" :class="$style.list" :style="{ minHeight: refreshingHeight == null ? undefined : `${refreshingHeight}px` }">
+		<MkPagination :paginator="paginator" :autoLoad="false" :showLoading="false" :pullToRefresh="false">
+			<template #empty>
+				<MkResult type="empty" :text="props.scheduled ? i18n.ts.nothing : i18n.ts._drafts.noDrafts"/>
+			</template>
 
-		<div class="_spacer _spacerCard">
-			<MkPagination :key="tab" :paginator="tab === 'scheduled' ? scheduledPaginator : draftsPaginator">
-				<template #empty>
-					<MkResult type="empty" :text="i18n.ts._drafts.noDrafts"/>
-				</template>
-
-				<template #default="{ items }">
-					<div class="_gaps_s">
-						<div
-							v-for="draft in (items as unknown as Misskey.entities.NoteDraft[])"
-							:key="draft.id"
-							v-panel
-							:class="[$style.draft]"
-						>
-							<div :class="$style.draftBody" class="_gaps_s">
-								<MkInfo v-if="draft.scheduledAt != null && draft.isActuallyScheduled">
-									<I18n :src="i18n.ts.scheduledToPostOnX" tag="span">
-										<template #x>
-											<MkTime :time="draft.scheduledAt" :mode="'detail'" style="font-weight: bold;"/>
-										</template>
-									</I18n>
-								</MkInfo>
-								<div :class="$style.draftInfo">
-									<div :class="$style.draftMeta">
-										<div v-if="draft.reply" class="_nowrap">
-											<i class="ti ti-message-circle"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
-												<template #user>
-													<Mfm v-if="draft.reply.user.name != null" :text="draft.reply.user.name" :plain="true" :nowrap="true"/>
-													<MkAcct v-else :user="draft.reply.user"/>
-												</template>
-											</I18n>
-										</div>
-										<div v-else-if="draft.replyId" class="_nowrap">
-											<i class="ti ti-message-circle"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
-												<template #user>
-													{{ i18n.ts.deletedNote }}
-												</template>
-											</I18n>
-										</div>
-										<div v-if="draft.renote && draft.text != null" class="_nowrap">
-											<i class="ti ti-quote"></i> <I18n :src="i18n.ts._drafts.quoteOf" tag="span">
-												<template #user>
-													<Mfm v-if="draft.renote.user.name != null" :text="draft.renote.user.name" :plain="true" :nowrap="true"/>
-													<MkAcct v-else :user="draft.renote.user"/>
-												</template>
-											</I18n>
-										</div>
-										<div v-else-if="draft.renoteId" class="_nowrap">
-											<i class="ti ti-quote"></i> <I18n :src="i18n.ts._drafts.quoteOf" tag="span">
-												<template #user>
-													{{ i18n.ts.deletedNote }}
-												</template>
-											</I18n>
-										</div>
-										<div v-if="draft.channel" class="_nowrap">
-											<i class="ti ti-device-tv"></i> {{ i18n.tsx._drafts.postTo({ channel: draft.channel.name }) }}
-										</div>
+			<template #default="{ items }">
+				<div class="_gaps_s">
+					<div
+						v-for="draft in (items as unknown as Misskey.entities.NoteDraft[])"
+						:key="draft.id"
+						:class="[$style.draft]"
+					>
+						<div :class="$style.draftBody" class="_gaps_s">
+							<MkInfo v-if="draft.scheduledAt != null && draft.isActuallyScheduled">
+								<I18n :src="i18n.ts.scheduledToPostOnX" tag="span">
+									<template #x>
+										<MkTime :time="draft.scheduledAt" :mode="'detail'" style="font-weight: bold;"/>
+									</template>
+								</I18n>
+							</MkInfo>
+							<div :class="$style.draftInfo">
+								<div :class="$style.draftMeta">
+									<div v-if="draft.reply" class="_nowrap">
+										<i class="ti ti-message-circle"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
+											<template #user>
+												<Mfm v-if="draft.reply.user.name != null" :text="draft.reply.user.name" :plain="true" :nowrap="true"/>
+												<MkAcct v-else :user="draft.reply.user"/>
+											</template>
+										</I18n>
 									</div>
-								</div>
-								<div :class="$style.draftContent">
-									<Mfm :text="getNoteSummary(draft, { showRenote: false, showReply: false })" :plain="true" :author="draft.user"/>
-								</div>
-								<div :class="$style.draftFooter">
-									<div :class="$style.draftVisibility">
-										<span :title="i18n.ts._visibility[draft.visibility]">
-											<i v-if="draft.visibility === 'public'" class="ti ti-world"></i>
-											<i v-else-if="draft.visibility === 'home'" class="ti ti-home"></i>
-											<i v-else-if="draft.visibility === 'followers'" class="ti ti-lock"></i>
-											<i v-else-if="draft.visibility === 'specified'" class="ti ti-mail"></i>
-										</span>
-										<span v-if="draft.localOnly" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
+									<div v-else-if="draft.replyId" class="_nowrap">
+										<i class="ti ti-message-circle"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
+											<template #user>
+												{{ i18n.ts.deletedNote }}
+											</template>
+										</I18n>
 									</div>
-									<MkTime :time="draft.createdAt" :class="$style.draftCreatedAt" mode="detail" colored/>
+									<div v-if="draft.renote && draft.text != null" class="_nowrap">
+										<i class="ti ti-quote"></i> <I18n :src="i18n.ts._drafts.quoteOf" tag="span">
+											<template #user>
+												<Mfm v-if="draft.renote.user.name != null" :text="draft.renote.user.name" :plain="true" :nowrap="true"/>
+												<MkAcct v-else :user="draft.renote.user"/>
+											</template>
+										</I18n>
+									</div>
+									<div v-else-if="draft.renoteId" class="_nowrap">
+										<i class="ti ti-quote"></i> <I18n :src="i18n.ts._drafts.quoteOf" tag="span">
+											<template #user>
+												{{ i18n.ts.deletedNote }}
+											</template>
+										</I18n>
+									</div>
+									<div v-if="draft.channel" class="_nowrap">
+										<i class="ti ti-device-tv"></i> {{ i18n.tsx._drafts.postTo({ channel: draft.channel.name }) }}
+									</div>
 								</div>
 							</div>
-
-							<div :class="$style.draftActions" class="_buttons">
-								<template v-if="draft.scheduledAt != null && draft.isActuallyScheduled">
-									<MkButton
-										small
-										@click="cancelSchedule(draft)"
-									>
-										<i class="ti ti-calendar-x"></i> {{ i18n.ts._drafts.cancelSchedule }}
-									</MkButton>
-									<!-- TODO
-									<MkButton
-										small
-										@click="reSchedule(draft)"
-									>
-										<i class="ti ti-calendar-time"></i> {{ i18n.ts._drafts.reSchedule }}
-									</MkButton>
-									-->
-								</template>
-								<MkButton
-									v-else
-									small
-									@click="restoreDraft(draft)"
-								>
-									<i class="ti ti-corner-up-left"></i> {{ i18n.ts._drafts.restore }}
-								</MkButton>
-								<MkButton
-									v-tooltip="i18n.ts._drafts.delete"
-									danger
-									small
-									:iconOnly="true"
-									style="margin-left: auto;"
-									@click="deleteDraft(draft)"
-								>
-									<i class="ti ti-trash"></i>
-								</MkButton>
+							<div :class="$style.draftContent">
+								<Mfm :text="getNoteSummary(draft, { showRenote: false, showReply: false })" :plain="true" :author="draft.user"/>
+							</div>
+							<div :class="$style.draftFooter">
+								<div :class="$style.draftVisibility">
+									<span :title="i18n.ts._visibility[draft.visibility]">
+										<i v-if="draft.visibility === 'public'" class="ti ti-world"></i>
+										<i v-else-if="draft.visibility === 'home'" class="ti ti-home"></i>
+										<i v-else-if="draft.visibility === 'followers'" class="ti ti-lock"></i>
+										<i v-else-if="draft.visibility === 'specified'" class="ti ti-mail"></i>
+									</span>
+									<span v-if="draft.localOnly" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
+								</div>
+								<MkTime :time="draft.createdAt" :class="$style.draftCreatedAt" mode="detail" colored/>
 							</div>
 						</div>
+
+						<div :class="$style.draftActions" class="_buttons">
+							<template v-if="draft.scheduledAt != null && draft.isActuallyScheduled">
+								<MkButton
+									small
+									@click="cancelSchedule(draft)"
+								>
+									<i class="ti ti-calendar-x"></i> {{ i18n.ts._drafts.cancelSchedule }}
+								</MkButton>
+								<!-- TODO
+								<MkButton
+									small
+									@click="reSchedule(draft)"
+								>
+									<i class="ti ti-calendar-time"></i> {{ i18n.ts._drafts.reSchedule }}
+								</MkButton>
+								-->
+							</template>
+							<MkButton
+								v-else
+								small
+								@click="restoreDraft(draft)"
+							>
+								<i class="ti ti-corner-up-left"></i> {{ i18n.ts._drafts.restore }}
+							</MkButton>
+							<MkButton
+								v-tooltip="i18n.ts._drafts.delete"
+								danger
+								small
+								:iconOnly="true"
+								style="margin-left: auto;"
+								@click="deleteDraft(draft)"
+							>
+								<i class="ti ti-trash"></i>
+							</MkButton>
+						</div>
 					</div>
-				</template>
-			</MkPagination>
-		</div>
-	</MkStickyContainer>
+				</div>
+			</template>
+		</MkPagination>
+	</div>
 </MkModalWindow>
 </template>
 
 <script lang="ts" setup>
-import { ref, shallowRef, markRaw } from 'vue';
+import { computed, ref, shallowRef, markRaw, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkPagination from '@/components/MkPagination.vue';
@@ -174,7 +154,6 @@ import * as os from '@/os.js';
 import { $i } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api';
 import { Paginator } from '@/utility/paginator.js';
-import MkTabs from '@/components/MkTabs.vue';
 import MkInfo from '@/components/MkInfo.vue';
 
 const props = defineProps<{
@@ -187,25 +166,29 @@ const emit = defineEmits<{
 	(ev: 'closed'): void;
 }>();
 
-const tab = ref<'drafts' | 'scheduled'>(props.scheduled ? 'scheduled' : 'drafts');
-
-const draftsPaginator = markRaw(new Paginator('notes/drafts/list', {
+const paginator = markRaw(new Paginator('notes/drafts/list', {
 	limit: 10,
-	params: {
-		scheduled: false,
-	},
+	computedParams: computed(() => ({ scheduled: props.scheduled ?? false })),
 }));
 
-const scheduledPaginator = markRaw(new Paginator('notes/drafts/list', {
-	limit: 10,
-	params: {
-		scheduled: true,
-	},
-}));
+const ready = ref(false);
+const currentDraftsCount = ref<number | null>(null);
+const listEl = useTemplateRef('listEl');
+const refreshingHeight = ref<number>();
 
-const currentDraftsCount = ref(0);
-misskeyApi('notes/drafts/count').then((count) => {
-	currentDraftsCount.value = count;
+// Measure before Vue removes the previous rows for a refresh.
+watch(paginator.fetching, fetching => {
+	refreshingHeight.value = fetching ? listEl.value?.getBoundingClientRect().height : undefined;
+}, { flush: 'sync' });
+
+// Mount the window only after its first page is ready, so its opening height is final.
+Promise.all([
+	paginator.init(),
+	misskeyApi('notes/drafts/count').then(count => {
+		currentDraftsCount.value = count;
+	}).catch(() => { /* The list remains usable without the quota count. */ }),
+]).then(() => {
+	ready.value = true;
 });
 
 const dialogEl = shallowRef<InstanceType<typeof MkModalWindow>>();
@@ -229,7 +212,7 @@ async function deleteDraft(draft: Misskey.entities.NoteDraft) {
 	if (canceled) return;
 
 	os.apiWithDialog('notes/drafts/delete', { draftId: draft.id }).then(() => {
-		draftsPaginator.reload();
+		paginator.reload();
 	});
 }
 
@@ -239,14 +222,20 @@ async function cancelSchedule(draft: Misskey.entities.NoteDraft) {
 		isActuallyScheduled: false,
 		scheduledAt: null,
 	}).then(() => {
-		scheduledPaginator.reload();
+		paginator.reload();
 	});
 }
 </script>
 
 <style lang="scss" module>
+.list {
+	box-sizing: border-box;
+}
+
 .draft {
-	padding: 16px;
+	background: var(--MI_THEME-panel);
+	border: 1px solid var(--MI_THEME-divider);
+	padding: var(--MI-cardPadding);
 	gap: 16px;
 	border-radius: 10px;
 }
@@ -260,7 +249,7 @@ async function cancelSchedule(draft: Misskey.entities.NoteDraft) {
 	display: flex;
 	width: 100%;
 	font-size: 0.85em;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .draftMeta {
@@ -289,7 +278,7 @@ async function cancelSchedule(draft: Misskey.entities.NoteDraft) {
 
 .draftCreatedAt {
 	font-size: 85%;
-	opacity: 0.7;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .draftActions {
@@ -298,11 +287,4 @@ async function cancelSchedule(draft: Misskey.entities.NoteDraft) {
 	border-top: solid 1px var(--MI_THEME-divider);
 }
 
-.tabs {
-	padding: 0 var(--MI-marginHalf);
-	background: color(from var(--MI_THEME-bg) srgb r g b / 0.75);
-	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
-	backdrop-filter: var(--MI-blur, blur(15px));
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
-}
 </style>
