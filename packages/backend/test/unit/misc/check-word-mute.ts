@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { checkWordMute } from '@/misc/check-word-mute.js';
 
 describe(checkWordMute, () => {
-	describe('Slacc boost mode', () => {
+	describe('Slacc native mode', () => {
 		it('should return false if mutedWords is empty', async () => {
 			expect(await checkWordMute({ userId: '1', text: 'foo' }, null, [])).toBe(false);
 		});

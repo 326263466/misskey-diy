@@ -107,7 +107,7 @@ defineExpose<WidgetComponentExpose>({
 			display: flex;
 			align-items: center;
 				padding: 14px var(--MI-cardPadding, 18px);
-				border-bottom: solid 0.5px var(--MI_THEME-divider);
+				border-bottom: var(--MI-divider);
 
 			> img {
 				display: block;

@@ -20,7 +20,7 @@ export const Multiline = {
 				return { args, inputElement, text, i18n };
 			},
 			template: `<div style="position: relative; width: 320px; background: var(--MI_THEME-panel); color: var(--MI_THEME-fg)">
-				<textarea ref="inputElement" v-model="text" :aria-label="i18n.ts.text" style="display: block; width: 100%; height: 140px; box-sizing: border-box; resize: both; padding: 12px; font: inherit; line-height: 1.5; color: inherit; background: transparent; border: 1px solid var(--MI_THEME-divider)"></textarea>
+				<textarea ref="inputElement" v-model="text" :aria-label="i18n.ts.text" style="display: block; width: 100%; height: 140px; box-sizing: border-box; resize: both; padding: 12px; font: inherit; line-height: 1.5; color: inherit; background: transparent; border: var(--MI-divider)"></textarea>
 				<MkEmojiInputOverlay :inputElement="inputElement" :text="text" :disabled="args.disabled"/>
 			</div>`,
 		};
@@ -43,7 +43,7 @@ export const SingleLine = {
 				return { args, inputElement, text, i18n };
 			},
 			template: `<div style="position: relative; width: 240px; background: var(--MI_THEME-panel); color: var(--MI_THEME-fg)">
-				<input ref="inputElement" v-model="text" :aria-label="i18n.ts.text" style="display: block; width: 100%; height: 36px; box-sizing: border-box; padding: 0 8px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--MI_THEME-divider)">
+				<input ref="inputElement" v-model="text" :aria-label="i18n.ts.text" style="display: block; width: 100%; height: 36px; box-sizing: border-box; padding: 0 8px; font: inherit; color: inherit; background: transparent; border: var(--MI-divider)">
 				<MkEmojiInputOverlay :inputElement="inputElement" :text="text" :disabled="args.disabled"/>
 			</div>`,
 		};

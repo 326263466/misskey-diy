@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { cleanup, fireEvent, render } from '@testing-library/vue';
+import { cleanup, fireEvent, render as renderComponent } from '@testing-library/vue';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
 import type * as Misskey from 'misskey-js';
@@ -35,6 +35,11 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
 }
 
 async function settle(): Promise<void> { await Promise.resolve(); await nextTick(); }
+
+const render: typeof renderComponent = (component, options) => renderComponent(component, {
+	...options,
+	global: { stubs: { Mfm: { props: ['text'], template: '<span>{{ text }}</span>' } } },
+});
 
 describe('channel picker', () => {
 	beforeEach(() => {

@@ -19,25 +19,127 @@ function chatPage(...args: Parameters<typeof page>) {
 	return $i?.policies.chatAvailability !== 'unavailable' ? page(...args) : page(() => import('@/pages/not-found.vue'));
 }
 
-const communityRoutes = [
-	{ path: '/checkin', name: 'checkin', component: page(() => import('@/pages/checkin.vue')), loginRequired: true },
-	{ path: '/community-ranking', name: 'ranking', component: page(() => import('@/pages/community-ranking.vue')) },
-	{ path: '/my/achievements', name: 'achievements', component: page(() => import('@/pages/achievements.vue')), loginRequired: true },
-	{ path: '/my/benefits', name: 'benefits', component: page(() => import('@/pages/benefits.vue')), loginRequired: true },
-] as const satisfies RouteDef[];
+const chatRoomPage = chatPage(() => import('@/pages/chat/room.vue'));
 
-export const ROUTE_DEF = [...($i ? [{
-	path: '',
-	name: 'community',
-	component: page(() => import('@/pages/community.vue')),
-	children: communityRoutes,
-}] as const : communityRoutes), {
+export const ROUTE_DEF = [{
+	path: '/my/achievements',
+	name: 'achievements',
+	component: page(() => import('@/pages/achievements.vue')),
+	loginRequired: true,
+}, {
+	path: '/my/benefits',
+	redirect: '/wallet/benefits',
+	loginRequired: true,
+}, {
+	path: '/checkin',
+	name: 'checkin',
+	component: page(() => import('@/pages/checkin.vue')),
+	loginRequired: true,
+}, {
+	path: '/orders/:orderId',
+	component: page(() => import('@/pages/order-detail.vue')),
+	loginRequired: true,
+}, {
+	path: '/orders',
+	component: page(() => import('@/pages/orders.vue')),
+	query: { mode: 'mode' },
+	reuseOnPropsChange: ['mode'],
+	loginRequired: true,
+}, {
+	path: '/products/:productId/edit',
+	component: page(() => import('@/pages/product-edit.vue')),
+	loginRequired: true,
+}, {
+	path: '/products/new',
+	component: page(() => import('@/pages/product-edit.vue')),
+	loginRequired: true,
+}, {
+	path: '/products/manage',
+	component: page(() => import('@/pages/products-manage.vue')),
+	loginRequired: true,
+}, {
+	path: '/products/:productId',
+	name: 'shop',
+	component: page(() => import('@/pages/shop.vue')),
+	loginRequired: true,
+	reuseOnPropsChange: ['productId'],
+}, {
+	path: '/shop',
+	name: 'shop',
+	component: page(() => import('@/pages/shop.vue')),
+	loginRequired: true,
+}, {
+	path: '/community-ranking',
+	name: 'community-ranking',
+	component: page(() => import('@/pages/community-ranking.vue')),
+	query: { type: 'type' },
+	reuseOnPropsChange: ['type'],
+}, {
 	name: 'index',
 	path: '/',
-	component: $i ? PageTimeline : page(() => import('@/pages/welcome.vue')),
+	component: $i ? page(() => import('@/pages/articles/index.vue')) : page(() => import('@/pages/welcome.vue')),
+	children: [{
+		path: '/',
+		component: page(() => import('@/pages/articles/list.vue')),
+		query: { tab: 'tab' },
+		reuseOnPropsChange: ['tab'],
+	}, {
+		path: '/articles/category/:categoryId',
+		component: page(() => import('@/pages/articles/list.vue')),
+		query: { tab: 'tab' },
+		reuseOnPropsChange: ['tab'],
+	}, {
+		path: '/articles/tag/:tag',
+		component: page(() => import('@/pages/articles/list.vue')),
+		query: { tab: 'tab' },
+		reuseOnPropsChange: ['tab'],
+	}],
+}, {
+	path: '/articles/new',
+	component: page(() => import('@/pages/articles/editor.vue')),
+	query: { draftKey: 'draft', cloudDraftId: 'cloudDraft' },
+	loginRequired: true,
+}, {
+	path: '/articles/edit/:articleId',
+	component: page(() => import('@/pages/articles/editor.vue')),
+	query: { draftKey: 'draft', cloudDraftId: 'cloudDraft' },
+	loginRequired: true,
+}, {
+	name: 'article',
+	path: '/articles/:articleId',
+	component: page(() => import('@/pages/articles/article.vue')),
 }, {
 	path: '/timeline',
-	component: PageTimeline,
+	component: page(() => import('@/pages/timeline/index.vue')),
+	reuseOnPropsChange: [],
+	children: [{
+		path: '/:initialTab?',
+		component: PageTimeline,
+		reuseOnPropsChange: ['initialTab'],
+	}],
+}, {
+	name: 'wallet',
+	path: '/wallet',
+	component: page(() => import('@/pages/user/wallet.vue')),
+	loginRequired: true,
+	reuseOnPropsChange: [],
+	children: [{
+		path: '/overview', name: 'overview', component: page(() => import('@/pages/user/wallet.overview.vue')),
+	}, {
+		path: '/transactions', name: 'transactions', component: page(() => import('@/pages/user/wallet.transactions.vue')),
+	}, {
+		path: '/red-packets', name: 'red-packets', component: page(() => import('@/pages/user/wallet.red-packets.vue')),
+	}, {
+		path: '/transfers', name: 'transfers', component: page(() => import('@/pages/user/wallet.transfers.vue')),
+	}, {
+		path: '/benefits', name: 'benefits', component: page(() => import('@/pages/benefits.vue')),
+	}, {
+		path: '/', component: page(() => import('@/pages/_empty_.vue')),
+	}],
+}, {
+	path: '/@:acct/wallet',
+	redirect: '/wallet',
+	loginRequired: true,
 }, {
 	path: '/@:username/pages/:pageName(*)',
 	component: page(() => import('@/pages/page.vue')),
@@ -54,11 +156,13 @@ export const ROUTE_DEF = [...($i ? [{
 	children: [{
 		path: '/:page?',
 		component: page(() => import('@/pages/user/content.vue')),
+		reuseOnPropsChange: ['page'],
 	}],
 }, {
 	name: 'note',
 	path: '/notes/:noteId/:initialTab?',
 	component: page(() => import('@/pages/note.vue')),
+	reuseOnPropsChange: ['initialTab'],
 }, {
 	name: 'list',
 	path: '/list/:listId',
@@ -67,21 +171,47 @@ export const ROUTE_DEF = [...($i ? [{
 	path: '/clips/:clipId',
 	component: page(() => import('@/pages/clip.vue')),
 }, {
+	name: 'chat',
 	path: '/chat',
-	component: chatPage(() => import('@/pages/chat/home.vue')),
+	component: chatPage(() => import('@/pages/chat/index.vue')),
 	loginRequired: true,
-}, {
-	path: '/chat/user/:userId',
-	component: chatPage(() => import('@/pages/chat/room.vue')),
-	loginRequired: true,
-}, {
-	path: '/chat/room/:roomId',
-	component: chatPage(() => import('@/pages/chat/room.vue')),
-	loginRequired: true,
-}, {
-	path: '/chat/messages/:messageId',
-	component: chatPage(() => import('@/pages/chat/message.vue')),
-	loginRequired: true,
+	children: [{
+		path: '/',
+		name: 'chat-home',
+		component: chatPage(() => import('@/pages/chat/home.vue')),
+	}, {
+		path: '/groups',
+		name: 'chat-groups',
+		component: chatPage(() => import('@/pages/chat/home.vue')),
+	}, {
+		path: '/search',
+		name: 'chat-search',
+		component: chatPage(() => import('@/pages/chat/home.vue')),
+	}, {
+		path: '/invitations',
+		name: 'chat-invitations',
+		component: chatPage(() => import('@/pages/chat/home.vue')),
+	}, {
+		path: '/joining-rooms',
+		name: 'chat-joining-rooms',
+		component: chatPage(() => import('@/pages/chat/home.vue')),
+	}, {
+		path: '/owned-rooms',
+		name: 'chat-owned-rooms',
+		component: chatPage(() => import('@/pages/chat/home.vue')),
+	}, {
+		path: '/user/:userId',
+		name: 'chat-user',
+		component: chatRoomPage,
+	}, {
+		path: '/room/:roomId',
+		name: 'chat-room',
+		component: chatRoomPage,
+	}, {
+		path: '/messages/:messageId',
+		name: 'chat-message',
+		component: chatPage(() => import('@/pages/chat/message.vue')),
+	}],
 }, {
 	path: '/instance-info/:host',
 	component: page(() => import('@/pages/instance-info.vue')),
@@ -126,10 +256,6 @@ export const ROUTE_DEF = [...($i ? [{
 		path: '/security',
 		name: 'security',
 		component: page(() => import('@/pages/settings/security.vue')),
-	}, {
-		path: '/wallet',
-		name: 'wallet',
-		component: page(() => import('@/pages/settings/wallet.vue')),
 	}, {
 		path: '/preferences',
 		name: 'preferences',
@@ -233,6 +359,7 @@ export const ROUTE_DEF = [...($i ? [{
 	path: '/about',
 	component: page(() => import('@/pages/about.vue')),
 	hash: 'initialTab',
+	reuseOnPropsChange: ['initialTab'],
 }, {
 	path: '/contact',
 	component: page(() => import('@/pages/contact.vue')),
@@ -261,11 +388,17 @@ export const ROUTE_DEF = [...($i ? [{
 	component: page(() => import('@/pages/user-tag.vue')),
 }, {
 	path: '/explore',
-	component: page(() => import('@/pages/explore.vue')),
-	hash: 'initialTab',
+	component: page(() => import('@/pages/explore/index.vue')),
+	reuseOnPropsChange: [],
+	children: [{
+		path: '/:initialTab?',
+		component: page(() => import('@/pages/explore.vue')),
+		reuseOnPropsChange: ['initialTab'],
+	}],
 }, {
 	path: '/search',
 	component: page(() => import('@/pages/search.vue')),
+	reuseOnPropsChange: ['query', 'type'],
 	query: {
 		q: 'query',
 		userId: 'userId',
@@ -365,15 +498,41 @@ export const ROUTE_DEF = [...($i ? [{
 	component: page(() => import('@/pages/channel-editor.vue')),
 	loginRequired: true,
 }, {
+	path: '/channels/:channelId/members',
+	component: page(() => import('@/pages/channel-members.vue')),
+}, {
 	path: '/channels/new',
 	component: page(() => import('@/pages/channel-editor.vue')),
 	loginRequired: true,
 }, {
+	// 子路径写死，避免与 /channels/:channelId 冲突；结构同设置页，外框不随子页面重建
+	path: '/channels',
+	component: page(() => import('@/pages/channels/index.vue')),
+	reuseOnPropsChange: [],
+	children: [{
+		path: '/search',
+		name: 'search',
+		component: page(() => import('@/pages/channels/search.vue')),
+	}, {
+		path: '/favorites',
+		name: 'favorites',
+		component: page(() => import('@/pages/channels/favorites.vue')),
+	}, {
+		path: '/following',
+		name: 'following',
+		component: page(() => import('@/pages/channels/following.vue')),
+	}, {
+		path: '/owned',
+		name: 'owned',
+		component: page(() => import('@/pages/channels/owned.vue')),
+	}, {
+		path: '/',
+		name: 'featured',
+		component: page(() => import('@/pages/channels/featured.vue')),
+	}],
+}, {
 	path: '/channels/:channelId',
 	component: page(() => import('@/pages/channel.vue')),
-}, {
-	path: '/channels',
-	component: page(() => import('@/pages/channels.vue')),
 }, {
 	path: '/custom-emojis-manager',
 	component: page(() => import('@/pages/custom-emojis-manager.vue')),
@@ -495,6 +654,14 @@ export const ROUTE_DEF = [...($i ? [{
 		name: 'settings',
 		component: page(() => import('@/pages/admin/settings.vue')),
 	}, {
+		path: '/article-categories',
+		name: 'article-categories',
+		component: page(() => import('@/pages/admin/article-categories.vue')),
+	}, {
+		path: '/payments',
+		name: 'payments',
+		component: page(() => import('@/pages/admin/payments.vue')),
+	}, {
 		path: '/branding',
 		name: 'branding',
 		component: page(() => import('@/pages/admin/branding.vue')),
@@ -544,9 +711,22 @@ export const ROUTE_DEF = [...($i ? [{
 	}],
 }, {
 	path: '/my/notifications',
-	component: page(() => import('@/pages/notifications.vue')),
+	name: 'notifications',
+	component: page(() => import('@/pages/notifications/index.vue')),
 	loginRequired: true,
-	hash: 'initialTab',
+	reuseOnPropsChange: [],
+	// 具体路径必须排在 /:initialTab? 前面，否则会被当作通知分类。
+	children: [{
+		path: '/follow-requests',
+		component: page(() => import('@/pages/follow-requests.vue')),
+	}, {
+		path: '/announcements',
+		component: page(() => import('@/pages/announcements.vue')),
+	}, {
+		path: '/:initialTab?',
+		component: page(() => import('@/pages/notifications.vue')),
+		reuseOnPropsChange: ['initialTab'],
+	}],
 }, {
 	path: '/my/favorites',
 	component: page(() => import('@/pages/favorites.vue')),
@@ -562,10 +742,12 @@ export const ROUTE_DEF = [...($i ? [{
 }, {
 	path: '/my/drive/file/:fileId',
 	component: page(() => import('@/pages/drive.file.vue')),
+	query: { tab: 'initialTab' },
+	reuseOnPropsChange: ['initialTab'],
 	loginRequired: true,
 }, {
 	path: '/my/follow-requests',
-	component: page(() => import('@/pages/follow-requests.vue')),
+	redirect: '/my/notifications/follow-requests',
 	loginRequired: true,
 }, {
 	path: '/my/lists/:listId',

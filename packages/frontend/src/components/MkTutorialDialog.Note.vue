@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_gaps_s">
 		<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-message-circle"></i> <b>{{ i18n.ts.reply }}</b> … {{ i18n.ts._initialTutorial._note.reply }}</div>
 		<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-repeat"></i> <b>{{ i18n.ts.renote }}</b> … {{ i18n.ts._initialTutorial._note.renote }}</div>
-		<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-plus"></i> <b>{{ i18n.ts.reaction }}</b> … {{ i18n.ts._initialTutorial._note.reaction }}</div>
+		<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-mood-happy"></i> <b>{{ i18n.ts.reaction }}</b> … {{ i18n.ts._initialTutorial._note.reaction }}</div>
 		<div style="color: var(--MI_THEME-fgTransparentWeak);"><i class="ti ti-dots"></i> <b>{{ i18n.ts.menu }}</b> … {{ i18n.ts._initialTutorial._note.menu }}</div>
 	</div>
 </div>
@@ -100,7 +100,7 @@ function doNotification(emoji: string): void {
 
 function removeReaction(emoji: string) {
 	delete exampleNote.reactions[emoji];
-	exampleNote.myReaction = undefined;
+	exampleNote.myReactions = [];
 }
 </script>
 
@@ -112,7 +112,7 @@ function removeReaction(emoji: string) {
 }
 
 .divider {
-	height: 1px;
-	background: var(--MI_THEME-divider);
+	height: var(--MI-dividerWidth);
+	background: var(--MI-dividerColor);
 }
 </style>

@@ -201,6 +201,12 @@ export class NotificationEntityService implements OnModuleInit {
 				exportedEntity: notification.exportedEntity,
 				fileId: notification.fileId,
 			} : {}),
+			...(notification.type === 'login' && notification.newNetwork != null ? {
+				ip: notification.ip ?? null,
+				userAgent: notification.userAgent ?? null,
+				newNetwork: notification.newNetwork,
+				newDevice: notification.newDevice ?? false,
+			} : {}),
 			...(notification.type === 'app' ? {
 				body: notification.customBody,
 				header: notification.customHeader,

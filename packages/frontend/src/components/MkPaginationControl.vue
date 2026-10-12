@@ -8,9 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.toolbar">
 		<div v-if="$slots.header" :class="$style.header"><slot name="header"></slot></div>
 		<div :class="$style.control">
-			<MkSelect v-model="order" :class="$style.order" :items="orderDef" :small="compact">
-				<template v-if="!compact" #prefix><i class="ti ti-arrows-sort"></i></template>
-			</MkSelect>
+			<MkButton :class="$style.order" transparent rounded @click="toggleOrder">
+				<span :class="$style.orderContent"><i class="ti" :class="order === 'newest' ? 'ti-sort-descending' : 'ti-sort-ascending'" aria-hidden="true"></i><span>{{ orderLabel }}</span></span>
+			</MkButton>
 			<MkButton v-if="paginator.canSearch" :aria-label="searchLabel" iconOnly transparent rounded :active="!!paginator.searchQuery.value" @click="selectSearch"><i class="ti ti-search"></i></MkButton>
 			<MkButton v-if="canFilter" :aria-label="i18n.ts.filter" iconOnly transparent rounded :active="filterOpened" @click="filterOpened = !filterOpened"><i class="ti ti-filter"></i></MkButton>
 			<MkButton :aria-label="dateLabel" iconOnly transparent rounded :active="date != null" @click="selectDate"><i class="ti ti-calendar-clock"></i></MkButton>
@@ -29,7 +29,6 @@ import type { IPaginator } from '@/utility/paginator.js';
 import MkButton from '@/components/MkButton.vue';
 import { getScrollContainer } from '@@/js/scroll.js';
 import { i18n } from '@/i18n.js';
-import MkSelect from '@/components/MkSelect.vue';
 import MkDialog from '@/components/MkDialog.vue';
 import * as os from '@/os.js';
 import { formatDateTimeString } from '@/utility/format-time-string.js';
@@ -71,19 +70,16 @@ onUnmounted(() => {
 	(scrollContainer ?? window).removeEventListener('scroll', onScroll);
 });
 
-const orderDef = [
-	{ label: i18n.ts._order.newest, value: 'newest' as const },
-	{ label: i18n.ts._order.oldest, value: 'oldest' as const },
-];
-const order = computed({
-	get: () => props.paginator.order.value,
-	set: (value: 'newest' | 'oldest') => {
-		if (value === props.paginator.order.value) return;
-		props.paginator.order.value = value;
-		props.paginator.initialDirection = value === 'oldest' ? 'newer' : 'older';
-		props.paginator.reload();
-	},
-});
+const order = computed(() => props.paginator.order.value);
+const orderLabel = computed(() => order.value === 'newest' ? i18n.ts._order.newest : i18n.ts._order.oldest);
+
+function toggleOrder() {
+	const value = order.value === 'newest' ? 'oldest' : 'newest';
+	props.paginator.order.value = value;
+	props.paginator.initialDirection = value === 'oldest' ? 'newer' : 'older';
+	props.paginator.reload();
+}
+
 const date = ref(props.paginator.initialDate);
 watch(() => props.paginator, paginator => {
 	date.value = paginator.initialDate;
@@ -198,18 +194,20 @@ function selectSearch() {
 }
 
 .order {
-	flex: 1;
-	margin-right: 6px;
+	flex: none;
+	min-height: 32px;
+	padding: 6px 8px;
+	white-space: nowrap;
+}
+
+.orderContent {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 }
 
 .compact {
 	margin-bottom: 0;
-
-	.order {
-		flex: none;
-		width: 130px;
-		margin-right: 0;
-	}
 }
 
 .inHeader {
@@ -220,11 +218,7 @@ function selectSearch() {
 		flex-wrap: nowrap;
 	}
 
-	.order {
-		width: clamp(8.5em, 18vw, 130px);
-	}
-
-	.control > button {
+	.control > button:not(.order) {
 		display: flex;
 		align-items: center;
 		justify-content: center;

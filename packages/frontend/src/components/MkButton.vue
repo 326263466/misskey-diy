@@ -162,6 +162,7 @@ function onMousedown(evt: MouseEvent): void {
 	}
 
 	&.iconOnly {
+		--MI-iconScale: 1.28;
 		padding: 7px;
 		min-width: auto;
 	}
@@ -185,7 +186,7 @@ function onMousedown(evt: MouseEvent): void {
 	}
 
 	&.primary {
-		font-weight: bold;
+		font-weight: normal;
 		color: var(--MI_THEME-fgOnAccent) !important;
 		background: var(--MI_THEME-accent);
 
@@ -234,9 +235,11 @@ function onMousedown(evt: MouseEvent): void {
 	}
 
 	&.gradate {
-		font-weight: bold;
+		font-weight: normal;
 		color: var(--MI_THEME-fgOnAccent) !important;
-		background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
+		// 渐变底下垫同色实底：hover 换色时背景图先移除、颜色渐变跟上，
+		// 若没有这层实底，中间帧会透出半透明底色造成闪烁
+		background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB)) var(--MI_THEME-buttonGradateB);
 
 		&:not(:disabled):hover {
 			background: var(--MI_THEME-accentHover, linear-gradient(90deg, hsl(from var(--MI_THEME-buttonGradateA) h s calc(l + 5)), hsl(from var(--MI_THEME-buttonGradateB) h s calc(l + 5))));
@@ -248,7 +251,7 @@ function onMousedown(evt: MouseEvent): void {
 	}
 
 	&.danger {
-		font-weight: bold;
+		font-weight: normal;
 		color: var(--MI_THEME-error);
 
 		&.primary {
@@ -316,6 +319,10 @@ function onMousedown(evt: MouseEvent): void {
 }
 
 .content {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.35em;
 	position: relative;
 	z-index: 1;
 	pointer-events: none;

@@ -6,9 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="uiWindow"
+	:closeOnBackdrop="false"
 	:width="460"
 	:height="690"
-	:autoHeight="deviceKind !== 'smartphone'"
+	autoHeight
 	role="dialog"
 	tabindex="-1"
 	aria-modal="true"
@@ -16,7 +17,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:aria-busy="sending"
 	:withCloseButton="!locked"
 	@close="close"
-	@click="close"
 	@esc="close"
 	@closed="emit('closed')"
 >
@@ -28,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkAvatar :user="user" :class="$style.targetAvatar"/>
 			<span :class="$style.targetLabel">{{ i18n.ts._abuseUserReport.reportedUser }}</span>
 			<span :class="$style.targetName">
-				<strong v-if="user.name">{{ user.name }}</strong>
+				<strong v-if="user.name"><MkUserName :user="user" :nowrap="false"/></strong>
 				<MkAcct :user="user"/>
 			</span>
 		</div>
@@ -52,22 +52,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<fieldset :class="$style.reasons" :aria-label="i18n.ts._abuseReport.selectReason" :disabled="locked">
 			<label v-for="option in reasons" :key="option" :class="[$style.reason, { [$style.reasonSelected]: reason === option }]">
 				<input v-model="reason" type="radio" :name="titleId" :value="option" :class="$style.radio">
-				<span :class="$style.reasonLabel">{{ i18n.ts._abuseReport._reasons[option] }}</span>
-				<i class="ti" :class="[reason === option ? 'ti-circle-dot' : 'ti-circle', $style.reasonRadio]" aria-hidden="true"></i>
+				<span>{{ i18n.ts._abuseReport._reasons[option] }}</span>
 			</label>
 		</fieldset>
-		<label :class="$style.detailLabel">
-			<span>{{ i18n.ts._abuseReport.description }}</span>
-			<textarea
-				v-model="detail"
-				:class="$style.detail"
-				:placeholder="reason === 'other' ? i18n.ts._abuseReport.otherDescriptionHint : i18n.ts._abuseReport.descriptionHint"
-				:required="reason === 'other'"
-				:disabled="locked"
-				:maxlength="2048"
-				rows="2"
-			></textarea>
-		</label>
+		<div :class="$style.detailLabel">
+			<label :for="detailId">{{ i18n.ts._abuseReport.description }}</label>
+			<span :class="$style.detailInput">
+				<textarea
+					:id="detailId"
+					v-model="detail"
+					:class="$style.detail"
+					:placeholder="reason === 'other' ? i18n.ts._abuseReport.otherDescriptionHint : i18n.ts._abuseReport.descriptionHint"
+					:required="reason === 'other'"
+					:disabled="locked"
+					:aria-invalid="detailLength > 2048"
+					rows="2"
+				></textarea>
+				<span class="_inputCounter" :class="{ _inputCounterOver: detailLength > 2048 }">{{ detailLength }}/2048</span>
+			</span>
+		</div>
 	</div>
 	<template #footer>
 		<MkButton primary full :disabled="!canSubmit" :wait="sending" @click="send">{{ sending ? i18n.ts.processing : i18n.ts._abuseReport.submit }}</MkButton>
@@ -82,12 +85,11 @@ import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
-import { deviceKind } from '@/utility/device-kind.js';
 
 const props = defineProps<{
 	user: Misskey.entities.UserLite;
 	context?: { label: string; text?: string | null; url: string; sourceUrl?: string };
-	reportTarget: { reportType: 'user' } | { reportType: 'note' | 'chat' | 'page' | 'gallery' | 'play'; targetId: string } | { reportType: 'boost'; targetId: string; reaction: string };
+	reportTarget: { reportType: 'user' } | { reportType: 'note' | 'chat' | 'page' | 'gallery' | 'play'; targetId: string };
 }>();
 
 const emit = defineEmits<{
@@ -96,12 +98,14 @@ const emit = defineEmits<{
 
 const uiWindow = useTemplateRef('uiWindow');
 const titleId = useId();
+const detailId = useId();
 const reason = ref<(typeof reasons)[number] | null>(null);
 const detail = ref('');
+const detailLength = computed(() => Array.from(detail.value).length);
 const sending = ref(false);
 const submitted = ref(false);
 const locked = computed(() => sending.value || submitted.value);
-const canSubmit = computed(() => !locked.value && reason.value != null && detail.value.trim().length <= 2048 && (reason.value !== 'other' || detail.value.trim().length > 0));
+const canSubmit = computed(() => !locked.value && reason.value != null && detailLength.value <= 2048 && (reason.value !== 'other' || detail.value.trim().length > 0));
 let submission: { payload: string; requestId: string } | null = null;
 const reasons = [
 	'spam',
@@ -195,7 +199,7 @@ async function send() {
 	padding: 10px 12px;
 	border-radius: var(--MI-radius);
 	background: var(--MI_THEME-bg);
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 }
 
 .contextText {
@@ -223,6 +227,9 @@ async function send() {
 }
 
 .reasons {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+	gap: 8px;
 	min-width: 0;
 	margin: 0 0 10px;
 	padding: 0;
@@ -238,18 +245,21 @@ async function send() {
 	position: relative;
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	justify-content: center;
 	min-height: 38px;
 	padding: 7px 10px;
 	box-sizing: border-box;
+	border: 1px solid var(--MI_THEME-inputBorder);
 	border-radius: calc(var(--MI-radius) / 2);
+	background: var(--MI_THEME-buttonBg);
 	color: var(--MI_THEME-fg);
 	font-size: 0.95em;
 	line-height: 1.4;
+	text-align: center;
 	cursor: pointer;
 	transition: background 0.15s ease;
 
-	&:hover {
+	&:has(.radio:enabled):hover {
 		background: var(--MI_THEME-buttonHoverBg);
 	}
 
@@ -260,20 +270,13 @@ async function send() {
 }
 
 .reasonSelected {
-	background: var(--MI_THEME-accentedBg);
+	border-color: var(--MI_THEME-accent);
 	color: var(--MI_THEME-accent);
 	font-weight: bold;
 
-	.reasonRadio {
-		color: var(--MI_THEME-accent);
+	&, &:has(.radio:enabled):hover {
+		background: var(--MI_THEME-accentedBg);
 	}
-}
-
-.reasonRadio {
-	flex-shrink: 0;
-	font-size: 1.15em;
-	color: color-mix(in srgb, var(--MI_THEME-fg) 35%, transparent);
-	transition: color 0.15s ease;
 }
 
 .radio {
@@ -291,7 +294,12 @@ async function send() {
 	font-size: 0.9em;
 }
 
+.detailInput {
+	position: relative;
+}
+
 .detail {
+	display: block;
 	width: 100%;
 	box-sizing: border-box;
 	min-height: 56px;

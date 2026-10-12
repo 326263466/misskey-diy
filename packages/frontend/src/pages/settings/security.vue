@@ -26,18 +26,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<SearchMarker :keywords="['signin', 'login', 'history', 'log']">
 			<FormSection>
-				<template #label><SearchLabel>{{ i18n.ts.signinHistory }}</SearchLabel></template>
 				<MkPagination :paginator="paginator" withControl>
+					<template #controlHeader><SearchLabel>{{ i18n.ts.signinHistory }}</SearchLabel></template>
 					<template #default="{items}">
-						<div>
-							<div v-for="item in items" :key="item.id" v-panel class="timnmucd">
-								<header>
-									<i v-if="item.success" class="ti ti-check icon succ"></i>
-									<i v-else class="ti ti-circle-x icon fail"></i>
-									<code class="ip _monospace">{{ item.ip }}</code>
-									<MkTime :time="item.createdAt" class="time"/>
-								</header>
-							</div>
+						<div class="_gaps_s">
+							<XSignin v-for="item in items" :key="item.id" :signin="item"/>
 						</div>
 					</template>
 				</MkPagination>
@@ -59,6 +52,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, markRaw } from 'vue';
 import X2fa from './2fa.vue';
+import XSignin from './security.signin.vue';
 import FormSection from '@/components/form/section.vue';
 import FormSlot from '@/components/form/slot.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -126,55 +120,3 @@ definePage(() => ({
 	icon: 'ti ti-lock',
 }));
 </script>
-
-<style lang="scss" scoped>
-.timnmucd {
-	padding: 12px;
-
-	&:first-child {
-		border-top-left-radius: 6px;
-		border-top-right-radius: 6px;
-	}
-
-	&:last-child {
-		border-bottom-left-radius: 6px;
-		border-bottom-right-radius: 6px;
-	}
-
-	&:not(:last-child) {
-		border-bottom: solid 0.5px var(--MI_THEME-divider);
-	}
-
-	> header {
-		display: flex;
-		align-items: center;
-
-		> .icon {
-			width: 1em;
-			margin-right: 0.75em;
-
-			&.succ {
-				color: var(--MI_THEME-success);
-			}
-
-			&.fail {
-				color: var(--MI_THEME-error);
-			}
-		}
-
-		> .ip {
-			flex: 1;
-			min-width: 0;
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			margin-right: 12px;
-		}
-
-		> .time {
-			margin-left: auto;
-			color: var(--MI_THEME-fgTransparentWeak);
-		}
-	}
-}
-</style>

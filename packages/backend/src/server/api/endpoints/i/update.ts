@@ -4,6 +4,8 @@
  */
 
 import RE2 from 're2';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
 import * as mfm from 'mfm-js';
 import { Inject, Injectable } from '@nestjs/common';
 import ms from 'ms';
@@ -50,6 +52,7 @@ export const meta = {
 	},
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: '7a10688d-14c1-4bbf-bd3d-40314aedf6d8' },
 		noSuchAvatar: {
 			message: 'No such avatar file.',
 			code: 'NO_SUCH_AVATAR',
@@ -138,6 +141,9 @@ const muteWords = { type: 'array', items: { oneOf: [
 
 const shortProfileText = { type: 'string', nullable: true, maxLength: 128, pattern: '^[^\\u0000-\\u001f\\u007f-\\u009f\\u2028-\\u202e\\u2066-\\u2069]*$' } as const;
 
+// 关注审批时长最多 30 天。
+const FOLLOW_APPROVAL_MAX_SECONDS = 30 * 24 * 60 * 60;
+
 export const paramDef = {
 	type: 'object',
 	properties: {
@@ -198,6 +204,8 @@ export const paramDef = {
 		publicReactions: { type: 'boolean' },
 		carefulBot: { type: 'boolean' },
 		autoAcceptFollowed: { type: 'boolean' },
+		followApprovalLocalSeconds: { type: 'integer', nullable: true, minimum: 0, maximum: FOLLOW_APPROVAL_MAX_SECONDS },
+		followApprovalRemoteSeconds: { type: 'integer', nullable: true, minimum: 0, maximum: FOLLOW_APPROVAL_MAX_SECONDS },
 		noCrawle: { type: 'boolean' },
 		preventAiLearning: { type: 'boolean' },
 		requireSigninToViewContents: { type: 'boolean' },
@@ -289,6 +297,23 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private utilityService: UtilityService,
 	) {
 		super(meta, paramDef, async (ps, _user, token) => {
+			if (ps.birthday != null) {
+				const birthday = new Date(`${ps.birthday}T00:00:00.000Z`);
+				const now = new Date();
+				// 生日是日历日期；UTC 只用于校验日期有效性，今天按服务器本地时区判断。
+				const today = `${now.getFullYear().toString().padStart(4, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+				if (!Number.isFinite(birthday.getTime()) || birthday.toISOString().slice(0, 10) !== ps.birthday || ps.birthday > today) {
+					throw new ApiError({
+						message: 'Invalid param.',
+						code: 'INVALID_PARAM',
+						id: '3d81ceae-475f-4600-b2a8-2bc116157532',
+					}, {
+						param: '#/properties/birthday',
+						reason: 'must be a valid calendar date no later than today in the server time zone',
+					});
+				}
+			}
+
 			const user = await this.usersRepository.findOneByOrFail({ id: _user.id }) as MiLocalUser;
 			const isSecure = token == null;
 
@@ -343,6 +368,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			const profile = await this.userProfilesRepository.findOneByOrFail({ userId: user.id });
+			if (isContentTooLong(ps.description, CONTENT_LIMITS.profileDescription, profile.description)) {
+				throw new ApiError(meta.errors.contentTooLong);
+			}
 			let policies: RolePolicies | null = null;
 
 			if (ps.name !== undefined) {
@@ -421,6 +449,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (typeof ps.isBot === 'boolean') updates.isBot = ps.isBot;
 			if (typeof ps.carefulBot === 'boolean') profileUpdates.carefulBot = ps.carefulBot;
 			if (typeof ps.autoAcceptFollowed === 'boolean') profileUpdates.autoAcceptFollowed = ps.autoAcceptFollowed;
+			if (ps.followApprovalLocalSeconds !== undefined) profileUpdates.followApprovalLocalSeconds = ps.followApprovalLocalSeconds;
+			if (ps.followApprovalRemoteSeconds !== undefined) profileUpdates.followApprovalRemoteSeconds = ps.followApprovalRemoteSeconds;
 			if (typeof ps.noCrawle === 'boolean') profileUpdates.noCrawle = ps.noCrawle;
 			if (typeof ps.preventAiLearning === 'boolean') profileUpdates.preventAiLearning = ps.preventAiLearning;
 			if (typeof ps.requireSigninToViewContents === 'boolean') updates.requireSigninToViewContents = ps.requireSigninToViewContents;
@@ -504,6 +534,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			if (ps.fields) {
+				for (const field of ps.fields) {
+					const previous = profile.fields.find(existing => existing.name === field.name);
+					if (isContentTooLong(field.name, CONTENT_LIMITS.profileFieldName, previous?.name) ||
+						isContentTooLong(field.value, CONTENT_LIMITS.profileFieldValue, previous?.value)) {
+						throw new ApiError(meta.errors.contentTooLong);
+					}
+				}
 				profileUpdates.fields = ps.fields
 					.filter(x => typeof x.name === 'string' && x.name.trim() !== '' && typeof x.value === 'string' && x.value.trim() !== '')
 					.map(x => {
@@ -618,9 +655,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// Publish meUpdated event
 			this.globalEventService.publishMainStream(user.id, 'meUpdated', iObj);
 
-			// 鍵垢を解除したとき、溜まっていたフォローリクエストがあるならすべて承認
+			// 鍵垢を解除したとき、期間による承認条件も考慮してフォローリクエストを承認
 			if (user.isLocked && ps.isLocked === false) {
-				this.userFollowingService.acceptAllFollowRequests(user);
+				await this.userFollowingService.acceptAllFollowRequests(user);
 			}
 
 			// フォロワーにUpdateを配信
@@ -655,7 +692,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				await this.userProfilesRepository.createQueryBuilder('profile').update()
 					.where('userId = :userId', { userId: user.id })
 					.set({
-						verifiedLinks: () => `array_append("verifiedLinks", :url)`,
+						verifiedLinks: () => 'array_append("verifiedLinks", :url)',
 					})
 					.setParameter('url', url)
 					.execute();

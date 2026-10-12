@@ -8,6 +8,7 @@ import { cleanup, fireEvent, render } from '@testing-library/vue';
 import { nextTick, ref } from 'vue';
 import MkAutocomplete from '@/components/MkAutocomplete.vue';
 import { Autocomplete } from '@/utility/autocomplete.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
 
 const mocks = vi.hoisted(() => ({
 	popup: vi.fn(),
@@ -27,6 +28,7 @@ let autocomplete: Autocomplete | undefined;
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	vi.mocked(misskeyApi).mockReset();
 	mocks.popup.mockReturnValue({ dispose: vi.fn() });
 	mocks.caret.mockReturnValue({ left: 40, top: 60, height: 24 });
 	vi.stubGlobal('innerWidth', 1000);
@@ -42,8 +44,60 @@ afterEach(() => {
 	autocomplete = undefined;
 	cleanup();
 	scroller.remove();
+	vi.useRealTimers();
+	for (const query of ['old', 'new', 'cached', 'pending']) sessionStorage.removeItem(`autocomplete:hashtag:${query}`);
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
+});
+
+test('连续输入合并搜索，新查询取消旧请求且不接受迟到的结果', async () => {
+	vi.useFakeTimers();
+	let resolveOld!: (items: string[]) => void;
+	const oldResponse = new Promise<string[]>(resolve => { resolveOld = resolve; });
+	vi.mocked(misskeyApi).mockReturnValueOnce(oldResponse as never).mockResolvedValueOnce(['new-topic'] as never);
+	const view = render(MkAutocomplete, {
+		props: { type: 'hashtag', q: 'o', textarea, close: vi.fn(), x: 40, y: 60 },
+	});
+	await view.rerender({ q: 'ol' });
+	await vi.advanceTimersByTimeAsync(100);
+	await view.rerender({ q: 'old' });
+	await vi.advanceTimersByTimeAsync(249);
+	expect(misskeyApi).not.toHaveBeenCalled();
+	await vi.advanceTimersByTimeAsync(1);
+	expect(misskeyApi).toHaveBeenCalledExactlyOnceWith('hashtags/search', { query: 'old', limit: 30 }, undefined, expect.any(AbortSignal));
+	const oldSignal = vi.mocked(misskeyApi).mock.calls[0][3]!;
+
+	await view.rerender({ q: 'new' });
+	expect(oldSignal.aborted).toBe(true);
+	await vi.advanceTimersByTimeAsync(250);
+	await nextTick();
+	expect(view.getByText('new-topic')).toBeTruthy();
+	resolveOld(['outdated-topic']);
+	await oldResponse;
+	await nextTick();
+	expect(view.queryByText('outdated-topic')).toBeNull();
+	expect(view.getByText('new-topic')).toBeTruthy();
+	expect(sessionStorage.getItem('autocomplete:hashtag:old')).toBeNull();
+	expect(misskeyApi).toHaveBeenCalledTimes(2);
+});
+
+test('缓存标签直接恢复，清空或卸载取消尚未执行的搜索', async () => {
+	vi.useFakeTimers();
+	sessionStorage.setItem('autocomplete:hashtag:cached', JSON.stringify(['cached-topic']));
+	const view = render(MkAutocomplete, {
+		props: { type: 'hashtag', q: 'cached', textarea, close: vi.fn(), x: 40, y: 60 },
+	});
+	await nextTick();
+	expect(view.getByText('cached-topic')).toBeTruthy();
+	expect(misskeyApi).not.toHaveBeenCalled();
+	await view.rerender({ q: 'pending' });
+	await view.rerender({ q: '' });
+	await vi.advanceTimersByTimeAsync(500);
+	expect(misskeyApi).not.toHaveBeenCalled();
+	await view.rerender({ q: 'pending' });
+	view.unmount();
+	await vi.advanceTimersByTimeAsync(500);
+	expect(misskeyApi).not.toHaveBeenCalled();
 });
 
 test('keeps an open suggestion at the caret through ancestor scrolling, textarea scrolling and resize', async () => {

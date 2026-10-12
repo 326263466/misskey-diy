@@ -4,7 +4,7 @@
  */
 
 import { afterEach, expect, test, vi } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/vue';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/vue';
 import MkDatePicker from '@/components/MkDatePicker.vue';
 import MkInput from '@/components/MkInput.vue';
 import { versatileLang } from '@@/js/intl-const.js';
@@ -12,6 +12,14 @@ import { i18n } from '@/i18n.js';
 
 vi.mock('@/os.js', () => ({}));
 vi.mock('@/utility/autocomplete.js', () => ({ Autocomplete: class { detach() {} } }));
+vi.mock('@/components/MkButton.vue', () => ({ default: { template: '<button type="button"><slot/></button>' } }));
+vi.mock('@/components/MkModal.vue', async () => {
+	const { defineComponent, h } = await import('vue');
+	return { default: defineComponent({ emits: ['closed', 'click', 'esc'], setup(_props, { slots, expose, emit }) {
+		expose({ close: () => emit('closed') });
+		return () => h('div', slots.default?.({ maxHeight: 600 }));
+	} }) };
+});
 afterEach(cleanup);
 
 test('Today commits a date immediately without a second confirmation', async () => {
@@ -63,14 +71,20 @@ test('embedded picker updates the dialog draft and has no second confirmation bu
 	expect(view.emitted('update:modelValue')?.at(-1)).toEqual(['2026-10-01T12:30']);
 });
 
-test('keyboard opens and dismisses the custom picker without submitting its parent', async () => {
+test.each([
+	{ type: 'date' as const, value: '2026-10-01' },
+	{ type: 'time' as const, value: '12:30' },
+	{ type: 'datetime-local' as const, value: '2026-10-01T12:30' },
+])('$type opens in a popup and returns keyboard focus without submitting its parent', async ({ type, value }) => {
 	const enter = vi.fn();
-	const view = render(MkInput, { props: { modelValue: '2026-10-01', type: 'date', onEnter: enter }, global: { directives: { 'adaptive-border': () => {} } } });
+	const view = render(MkInput, { props: { modelValue: value, type, onEnter: enter }, global: { directives: { 'adaptive-border': () => {} } } });
 	const input = view.container.querySelector('input')!;
 	expect(input.type).toBe('text');
 	await fireEvent.keyDown(input, { key: 'Enter' });
-	expect(view.getByRole('region', { name: i18n.ts._datePicker.title })).toBeTruthy();
+	await waitFor(() => expect(view.getByRole('dialog', { name: i18n.ts._datePicker.title })).toBeTruthy());
+	expect(view.container.querySelector('[role="dialog"]')).toBeNull();
 	expect(enter).not.toHaveBeenCalled();
-	await fireEvent.keyDown(input, { key: 'Escape' });
-	expect(view.queryByRole('region')).toBeNull();
+	await fireEvent.keyDown(view.getByRole('dialog'), { key: 'Escape' });
+	await waitFor(() => expect(view.queryByRole('dialog')).toBeNull());
+	expect(document.activeElement).toBe(input);
 });

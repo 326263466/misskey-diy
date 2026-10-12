@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModalWindow ref="dialogEl" :class="$style.root" :width="420" :height="520" autoHeight @close="close" @click="close" @esc="close" @closed="emit('closed')">
+<MkModalWindow ref="dialogEl" :class="$style.root" :width="420" :height="520" autoHeight :closeOnBackdrop="false" @close="close" @esc="close" @closed="emit('closed')">
 	<template #header>{{ i18n.ts._onlineStatus.customStatus }}</template>
 	<form :class="$style.content" @submit.prevent>
 		<div :class="$style.preview" :aria-label="i18n.ts.preview">
@@ -29,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					@blur="finishEditing()"
 				>
 				<button v-else ref="textButton" type="button" class="_button" :class="$style.textButton" :aria-label="i18n.ts.text" :disabled="saving" @click="startEditing">
-					<span>{{ text || i18n.ts._onlineStatus.customStatusPlaceholder }}</span>
+					<span><Mfm v-if="text" :text="text" :plain="true" :nowrap="true"/><template v-else>{{ i18n.ts._onlineStatus.customStatusPlaceholder }}</template></span>
 				</button>
 			</div>
 		</div>
@@ -126,9 +126,9 @@ function onInput(event: Event): void {
 		return;
 	}
 
-		const value = input.value;
-		const isTruncated = [...value.trim()].length > CUSTOM_STATUS_TEXT_LIMIT;
-		text.value = isTruncated ? [...value.trim()].slice(0, CUSTOM_STATUS_TEXT_LIMIT).join('') : value;
+	const value = input.value;
+	const isTruncated = [...value.trim()].length > CUSTOM_STATUS_TEXT_LIMIT;
+	text.value = isTruncated ? [...value.trim()].slice(0, CUSTOM_STATUS_TEXT_LIMIT).join('') : value;
 	if (input.value !== text.value) {
 		const leadingSpace = value.length - value.trimStart().length;
 		const caret = Math.max(0, Math.min((input.selectionStart ?? value.length) - leadingSpace, text.value.length));
@@ -176,8 +176,6 @@ async function saveValue(value: CustomStatus | null): Promise<void> {
 	} catch {
 		saving.value = false;
 		await startEditing();
-	} finally {
-		saving.value = false;
 	}
 }
 </script>
@@ -222,6 +220,16 @@ async function saveValue(value: CustomStatus | null): Promise<void> {
 	max-width: 250px;
 	min-width: 0;
 	height: 24px;
+
+	// 独立绘制下划线，避开全局输入框阴影重置，也不改变文字布局。
+	&:has(> .input:focus, > .textButton:focus-visible)::after {
+		content: '';
+		position: absolute;
+		inset: auto 0 0;
+		height: 2px;
+		background: var(--MI_THEME-accent);
+		pointer-events: none;
+	}
 }
 
 .icons {
@@ -287,8 +295,8 @@ async function saveValue(value: CustomStatus | null): Promise<void> {
 	--MI-statusIconSize: 28px;
 }
 
-.input,
-.textButton {
+.textEditor > .input,
+.textEditor > .textButton {
 	display: block;
 	width: 100%;
 	height: 100%;
@@ -303,23 +311,16 @@ async function saveValue(value: CustomStatus | null): Promise<void> {
 	color: var(--MI_THEME-fg);
 	font: inherit;
 	font-size: 1.1em;
-	line-height: 24px;
+	line-height: normal;
 	text-align: center;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.input {
-	box-shadow: inset 0 -2px 0 0 var(--MI_THEME-accent);
-}
-
-.textButton {
+.textEditor > .textButton {
+	// 与输入框共用自然行高，避免固定行高与原生输入文字的基线取整不同。
 	cursor: pointer;
-
-	&:focus-visible {
-		box-shadow: inset 0 -2px 0 0 var(--MI_THEME-accent);
-	}
 }
 
 .actions {

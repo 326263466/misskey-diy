@@ -9,9 +9,14 @@ import pluginVue from '@vitejs/plugin-vue';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 import pluginJson5 from './lib/vite-plugin-json5.js';
+import { pluginTablerIcons } from '../frontend-builder/vite-plugin-tabler-icons.js';
 
 export default defineConfig({
-	plugins: [pluginVue(), pluginJson5(), {
+	define: {
+		_LANGS_: JSON.stringify([['zh-CN', '简体中文']]),
+		_VERSION_: JSON.stringify('test'),
+	},
+	plugins: [pluginVue(), pluginJson5(), pluginTablerIcons(), {
 		name: 'browser-test-emoji-assets',
 		configureServer(server) {
 			server.middlewares.use(async (request, response, next) => {
@@ -35,7 +40,7 @@ export default defineConfig({
 			'/client-assets': fileURLToPath(new URL('./assets', import.meta.url)).replaceAll('\\', '/'),
 		},
 	},
-	optimizeDeps: { noDiscovery: true, include: ['vue', 'qr-code-styling'] },
+	optimizeDeps: { noDiscovery: true, include: ['vue', 'eventemitter3', 'qr-code-styling', 'sanitize-html', 'md-editor-v3', 'json5', 'tinycolor2'] },
 	test: {
 		include: ['./test/browser/**/*.test.ts'],
 		attachmentsDir: './test/e2e/artifacts/component-browser/attachments',

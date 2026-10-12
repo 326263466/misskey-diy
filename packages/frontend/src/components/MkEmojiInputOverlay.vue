@@ -192,7 +192,7 @@ onBeforeUnmount(() => {
 .emoji > img.image {
 	top: 50%;
 	width: 100%;
-	height: 1.25em;
+	height: var(--MI-textEmojiHeight);
 	max-width: none;
 	object-fit: contain;
 	transform: translateY(-50%);

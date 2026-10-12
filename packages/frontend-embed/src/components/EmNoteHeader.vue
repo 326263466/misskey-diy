@@ -31,8 +31,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { } from 'vue';
 import * as Misskey from 'misskey-js';
-import { notePage } from '@/utils.js';
-import { userPage } from '@/utils.js';
+import { notePage } from '@@/js/note.js';
+import { userPage } from '@@/js/user.js';
 import EmA from '@/components/EmA.vue';
 import EmUserName from '@/components/EmUserName.vue';
 import EmAcct from '@/components/EmAcct.vue';
@@ -72,7 +72,7 @@ defineProps<{
 	margin: 0 .5em 0 0;
 	padding: 1px 6px;
 	font-size: 80%;
-	border: solid 0.5px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: 3px;
 }
 
@@ -95,7 +95,7 @@ defineProps<{
 
 .badgeRole {
 	height: 1.3em;
-	vertical-align: -20%;
+	vertical-align: -0.275em;
 
 	& + .badgeRole {
 		margin-left: 0.2em;

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_pageBody">
-	<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard>
+	<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard pageEmpty>
 		<MkPagePreview v-for="page in items" :key="page.id" :page="page"/>
 	</MkPagination>
 </div>

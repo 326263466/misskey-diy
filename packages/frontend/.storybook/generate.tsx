@@ -449,6 +449,7 @@ function toStories(component: string): Promise<string> {
 		globSync('src/components/MkAnnouncementDialog.vue'),
 		globSync('src/components/MkAntennaEditor.vue'),
 		globSync('src/components/MkAntennaEditorDialog.vue'),
+		globSync('src/components/MkPoll*.vue'),
 		globSync('src/components/MkAsUi.vue'),
 		globSync('src/components/MkAutocomplete.vue'),
 		globSync('src/components/MkAutoReplyDialog.vue'),
@@ -463,6 +464,7 @@ function toStories(component: string): Promise<string> {
 		globSync('src/components/MkTopicPicker.vue'),
 		globSync('src/components/MkStatusIcon.vue'),
 		globSync('src/components/MkUserOnlineIndicator.vue'),
+		globSync('src/components/MkUserCardMini.vue'),
 		globSync('src/components/MkUserQrDialog.vue'),
 		globSync('src/components/MkUserStatus.vue'),
 		globSync('src/components/MkUserSetupDialog.vue'),
@@ -475,6 +477,8 @@ function toStories(component: string): Promise<string> {
 		globSync('src/components/MkTagItem.vue'),
 		globSync('src/components/MkTextarea.vue'),
 		globSync('src/components/MkToast.vue'),
+		globSync('src/components/MkTipDialog.vue'),
+		globSync('src/components/MkTipSection.vue'),
 		globSync('src/components/MkRoleSelectDialog.vue'),
 		globSync('src/components/MkRollingNumber.vue'),
 		globSync('src/components/grid/MkGrid.vue'),
@@ -482,9 +486,10 @@ function toStories(component: string): Promise<string> {
 		globSync('src/pages/admin/overview.ap-requests.vue'),
 		globSync('src/pages/user/home.vue'),
 		globSync('src/pages/search.vue'),
-	].flat();
+	// Windows 下 globSync 返回反斜杠路径，统一成正斜杠供 posix path 与 story 标题使用
+	].flat().map((component) => component.replace(/\\/g, '/'));
 	await Promise.all(components.map(async (component) => {
 		const stories = component.replace(/\.vue$/, '.stories.ts');
 		await writeFile(stories, await toStories(component));
-	}))
+	}));
 })();

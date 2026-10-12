@@ -98,5 +98,10 @@ export const packedChannelSchema = {
 				ref: 'Note',
 			},
 		},
+		participantsCount: {
+			type: 'number',
+			optional: true, nullable: false,
+			description: 'Number of users who currently have posts in the channel. Only included in detailed responses.',
+		},
 	},
 } as const;

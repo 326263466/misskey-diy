@@ -10,7 +10,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.nonTitlebarArea">
 		<XSidebar v-if="!isMobile && prefer.r['deck.navbarPosition'].value === 'left'"/>
 
-		<div :class="[$style.main, { [$style.withWallpaper]: withWallpaper, [$style.withSidebarAndTitlebar]: !isMobile && prefer.r['deck.navbarPosition'].value === 'left' && prefer.r.showTitlebar.value }]" :style="{ backgroundImage: prefer.s['deck.wallpaper'] != null ? `url(${ prefer.s['deck.wallpaper'] })` : '' }">
+		<div class="_imageContainer" :class="[$style.main, { [$style.withWallpaper]: withWallpaper, [$style.withSidebarAndTitlebar]: !isMobile && prefer.r['deck.navbarPosition'].value === 'left' && prefer.r.showTitlebar.value }]">
+			<div v-if="prefer.s['deck.wallpaper'] != null" class="_imageBackground" :style="{ backgroundImage: `url(${JSON.stringify(prefer.s['deck.wallpaper'])})` }">
+				<img data-image-fade-background :src="prefer.s['deck.wallpaper']" alt="" style="display: none;"/>
+			</div>
 			<XNavbarH v-if="!isMobile && prefer.r['deck.navbarPosition'].value === 'top'" :acrylic="withWallpaper"/>
 
 			<XReloadSuggestion v-if="shouldSuggestReload"/>
@@ -19,9 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<XAnnouncements v-if="$i"/>
 			<XStatusBars/>
 			<div :class="$style.columnsWrapper">
-				<!-- passive: https://bugs.webkit.org/show_bug.cgi?id=281300 -->
 				<div ref="columnsEl" :class="[$style.columns, { [$style.center]: prefer.r['deck.columnAlign'].value === 'center', [$style.snapScroll]: snapScroll }]" @contextmenu.self.prevent="onContextmenu" @wheel.passive.self="onWheel">
-					<!-- sectionを利用しているのは、deck.vue側でcolumnに対してfirst-of-typeを効かせるため -->
 					<section
 						v-for="ids in layout"
 						:class="$style.section"
@@ -50,28 +51,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<div v-if="prefer.r['deck.menuPosition'].value === 'right'" :class="$style.sideMenu">
 					<div :class="$style.sideMenuTop">
-						<button ref="swicthProfileButtonEl" v-tooltip.left="`${i18n.ts._deck.profile}: ${prefer.s['deck.profile']}`" :class="$style.sideMenuButton" class="_button" @click="switchProfileMenu"><i class="ti ti-caret-down"></i></button>
-						<button v-tooltip.left="i18n.ts._deck.deleteProfile" :class="$style.sideMenuButton" class="_button" @click="deleteProfile"><i class="ti ti-trash"></i></button>
+						<button ref="swicthProfileButtonEl" v-tooltip.left="`${i18n.ts._deck.profile}: ${prefer.s['deck.profile']}`" :class="$style.sideMenuButton" class="_button _iconButton" @click="switchProfileMenu"><i class="ti ti-caret-down"></i></button>
+						<button v-tooltip.left="i18n.ts._deck.deleteProfile" :class="$style.sideMenuButton" class="_button _iconButton" @click="deleteProfile"><i class="ti ti-trash"></i></button>
 					</div>
 					<div :class="$style.sideMenuMiddle">
-						<button ref="addColumnButtonEl" v-tooltip.left="i18n.ts._deck.addColumn" :class="$style.sideMenuButton" class="_button" @click="addColumn"><i class="ti ti-plus"></i></button>
+						<button ref="addColumnButtonEl" v-tooltip.left="i18n.ts._deck.addColumn" :class="$style.sideMenuButton" class="_button _iconButton" @click="addColumn"><i class="ti ti-plus"></i></button>
 					</div>
 					<div :class="$style.sideMenuBottom">
-						<button ref="settingsButtonEl" v-tooltip.left="i18n.ts.settings" :class="$style.sideMenuButton" class="_button" @click="showSettings"><i class="ti ti-settings-2"></i></button>
+						<button ref="settingsButtonEl" v-tooltip.left="i18n.ts.settings" :class="$style.sideMenuButton" class="_button _iconButton" @click="showSettings"><i class="ti ti-settings-2"></i></button>
 					</div>
 				</div>
 			</div>
 
 			<div v-if="prefer.r['deck.menuPosition'].value === 'bottom'" :class="$style.bottomMenu">
 				<div :class="$style.bottomMenuLeft">
-					<button ref="swicthProfileButtonEl" v-tooltip.top="`${i18n.ts._deck.profile}: ${prefer.s['deck.profile']}`" :class="$style.bottomMenuButton" class="_button" @click="switchProfileMenu"><i class="ti ti-caret-down"></i></button>
-					<button v-tooltip.top="i18n.ts._deck.deleteProfile" :class="$style.bottomMenuButton" class="_button" @click="deleteProfile"><i class="ti ti-trash"></i></button>
+					<button ref="swicthProfileButtonEl" v-tooltip.top="`${i18n.ts._deck.profile}: ${prefer.s['deck.profile']}`" :class="$style.bottomMenuButton" class="_button _iconButton" @click="switchProfileMenu"><i class="ti ti-caret-down"></i></button>
+					<button v-tooltip.top="i18n.ts._deck.deleteProfile" :class="$style.bottomMenuButton" class="_button _iconButton" @click="deleteProfile"><i class="ti ti-trash"></i></button>
 				</div>
 				<div :class="$style.bottomMenuMiddle">
-					<button ref="addColumnButtonEl" v-tooltip.top="i18n.ts._deck.addColumn" :class="$style.bottomMenuButton" class="_button" @click="addColumn"><i class="ti ti-plus"></i></button>
+					<button ref="addColumnButtonEl" v-tooltip.top="i18n.ts._deck.addColumn" :class="$style.bottomMenuButton" class="_button _iconButton" @click="addColumn"><i class="ti ti-plus"></i></button>
 				</div>
 				<div :class="$style.bottomMenuRight">
-					<button ref="settingsButtonEl" v-tooltip.top="i18n.ts.settings" :class="$style.bottomMenuButton" class="_button" @click="showSettings"><i class="ti ti-settings-2"></i></button>
+					<button ref="settingsButtonEl" v-tooltip.top="i18n.ts.settings" :class="$style.bottomMenuButton" class="_button _iconButton" @click="showSettings"><i class="ti ti-settings-2"></i></button>
 				</div>
 			</div>
 

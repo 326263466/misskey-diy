@@ -776,7 +776,7 @@ export class ApInboxService {
 		const note = await this.apNoteService.fetchNote(targetUri);
 		if (!note) return `skip: target note not found ${targetUri}`;
 
-		await this.reactionService.delete(actor, note).catch(e => {
+		await this.reactionService.delete(actor, note, activity._misskey_reaction ?? activity.content ?? activity.name ?? '❤').catch(e => {
 			if (e.id === '60527ec9-b4cb-4a88-a6bd-32d3ad26817d') return;
 			throw e;
 		});
@@ -804,7 +804,9 @@ export class ApInboxService {
 			await this.apPersonService.updatePerson(actor.uri, resolver, object);
 			return 'ok: Person updated';
 		} else if (getApType(object) === 'Question') {
-			await this.apQuestionService.updateQuestion(object, actor, resolver).catch(err => console.error(err));
+			await this.apQuestionService.updateQuestion(object, actor, resolver).catch(err => {
+				this.logger.error('Failed to update ActivityPub Question', { actorUri: actor.uri, error: err });
+			});
 			return 'ok: Question updated';
 		} else {
 			return `skip: Unknown type: ${getApType(object)}`;

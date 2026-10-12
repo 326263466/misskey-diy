@@ -12,11 +12,16 @@ export type Keys = (
 	'latestDonationInfoShownAt' |
 	'neverShowDonationInfo' |
 	'neverShowLocalOnlyInfo' |
-	'modifiedVersionMustProminentlyOfferInAgplV3Section13Read' |
 	'lastUsed' |
 	'lang' |
 	'drafts' |
+	'lastSigninAlert' |
 	`wallet-exchange:${string}` |
+	`wallet-transfer:${string}` |
+	`wallet-tip:${string}` |
+	`order-purchase:${string}` |
+	`product-publish:${string}` |
+	'tip-barrage-hidden' |
 	`red-packet-create:${string}` |
 	`red-packet-cover-cleanup:${string}` |
 	`wallet-adjust:${string}` |
@@ -33,6 +38,10 @@ export type Keys = (
 	'themeCachedVersion' |
 	'customCss' |
 	'chatMessageDrafts' |
+	'chatRecentConversations' |
+	`chat-pinned:${string}` |
+	`chat-scroll:${string}` |
+	`chat-hidden-members:${string}` |
 	'scratchpad' |
 	'debug' |
 	'preferences' |

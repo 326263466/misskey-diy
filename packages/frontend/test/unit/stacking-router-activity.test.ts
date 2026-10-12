@@ -27,7 +27,7 @@ function mountRouter() {
 	let path = '/first';
 	const route = { path: '/:page', component: Page };
 	const router = {
-		current: { route, props: new Map([['page', 'first']]) },
+		current: { route, props: new Map([['page', 'first']]), _parsedRoute: { fullPath: path, queryString: null, hash: null } },
 		getCurrentFullPath: () => path,
 		useListener: (event: string, handler: (event: unknown) => void) => listeners.set(event, handler),
 	};
@@ -37,7 +37,7 @@ function mountRouter() {
 	});
 	const navigate = async (page: string) => {
 		path = `/${page}`;
-		listeners.get('change')!({ resolved: { route, props: new Map([['page', page]]) } });
+		listeners.get('change')!({ resolved: { route, props: new Map([['page', page]]), _parsedRoute: { fullPath: path, queryString: null, hash: null } } });
 		await nextTick();
 	};
 	return { ...view, activity, navigate };

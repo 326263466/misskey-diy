@@ -5,7 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_panel">
-	<div :class="$style.container" :style="{ backgroundImage: instance.bannerUrl ? `url(${ instance.bannerUrl })` : undefined }">
+	<div class="_imageContainer" :class="$style.container">
+		<img v-if="instance.bannerUrl" class="_imageBackground" :src="instance.bannerUrl" alt=""/>
 		<div :class="$style.iconContainer">
 			<img :src="instance.iconUrl ?? '/favicon.ico'" alt="" :class="$style.icon"/>
 		</div>
@@ -52,8 +53,6 @@ defineExpose<WidgetComponentExpose>({
 <style lang="scss" module>
 .container {
 	position: relative;
-	background-size: cover;
-	background-position: center;
 	display: flex;
 }
 

@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/vue';
-import { nextTick, reactive } from 'vue';
+import { nextTick, reactive, ref } from 'vue';
 import type * as Misskey from 'misskey-js';
 import MkAvatar from '@/components/global/MkAvatar.vue';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
@@ -15,7 +15,9 @@ import { i18n } from '@/i18n.js';
 const mocks = vi.hoisted(() => ({
 	account: null as (Omit<Misskey.entities.UserLite, 'avatarUrl'> & { avatarUrl: string | null }) | null,
 	staticUrl: vi.fn((url: string | null) => `static:${url ?? ''}`),
+	preload: vi.fn(),
 }));
+vi.mock('@/composables/use-image-preload.js', () => ({ useImagePreload: (...args: unknown[]) => mocks.preload(...args) }));
 vi.mock('@/i.js', () => ({ get $i() { return mocks.account; } }));
 vi.mock('@/utility/media-proxy.js', () => ({ getStaticImageUrl: mocks.staticUrl }));
 vi.mock('@/preferences.js', async () => {
@@ -51,6 +53,7 @@ function renderAvatar(user: Misskey.entities.UserLite, props: { decorations?: { 
 describe('current account avatars', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.preload.mockReturnValue(ref(true));
 		mocks.account = reactive(makeUser());
 		prefer.s.enableHighQualityImagePlaceholders = false;
 		prefer.s.disableShowingAnimatedImages = false;
@@ -58,6 +61,29 @@ describe('current account avatars', () => {
 	});
 
 	afterEach(cleanup);
+
+	test.each([false, true])('defers decorations added to a mounted avatar until its scroll position is ready (link: %s)', async link => {
+		const ready = ref(false);
+		mocks.preload.mockReturnValue(ready);
+		const view = renderAvatar(makeUser(), { link });
+		const observedRoot = mocks.preload.mock.calls[0][0];
+		expect(observedRoot.value).toBeNull();
+		mocks.account!.avatarDecorations = [{ id: 'added', url: 'https://example.test/added.png' }];
+		await nextTick();
+		expect(observedRoot.value.tagName).toBe(link ? 'A' : 'SPAN');
+		const decoration = view.container.querySelectorAll('img')[1];
+		expect(decoration.getAttribute('src')).toBeNull();
+		ready.value = true;
+		await nextTick();
+		expect(decoration.getAttribute('src')).toBe('https://example.test/added.png');
+		mocks.account!.avatarDecorations = [{ id: 'updated', url: 'https://example.test/updated.png' }];
+		await nextTick();
+		expect(decoration.getAttribute('src')).toBe('https://example.test/updated.png');
+		mocks.account!.avatarDecorations = [];
+		await nextTick();
+		expect(observedRoot.value).toBeNull();
+		expect(view.container.querySelectorAll('img')).toHaveLength(1);
+	});
 
 	test.each([
 		{ type: 'click', button: 0 },

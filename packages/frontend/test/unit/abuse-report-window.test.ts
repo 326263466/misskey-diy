@@ -55,6 +55,7 @@ function renderReport(props: Partial<Pick<InstanceType<typeof MkAbuseReportWindo
 		global: { stubs: {
 			I18n: { template: '<span><slot name="name"/></span>' },
 			MkAcct: { props: ['user'], template: '<span>@{{ user.username }}</span>' },
+			MkUserName: { props: ['user'], template: '<span>{{ user.name ?? user.username }}</span>' },
 			Mfm: { props: ['text', 'linkNavigationBehavior'], template: '<span :data-navigation="linkNavigationBehavior">{{ text }}</span>' },
 		} },
 	});
@@ -88,22 +89,32 @@ describe('abuse report form', () => {
 		expect(mocks.apiWithDialog).toHaveBeenCalledWith('users/report-abuse', expect.objectContaining({ reportType, targetId: 'content-id' }), undefined);
 	});
 
-	test('requires a nonblank explanation for the other reason', async () => {
+	test('requires a nonblank explanation and accepts at most 2048 complete Unicode characters', async () => {
 		const view = renderReport();
 		await selectReason(view, i18n.ts._abuseReport._reasons.other);
 		const button = view.getByRole('button', { name: i18n.ts._abuseReport.submit }) as HTMLButtonElement;
-		const detail = view.getByRole('textbox') as HTMLTextAreaElement;
+		const detail = view.getByLabelText(i18n.ts._abuseReport.description) as HTMLTextAreaElement;
 		expect(button.disabled).toBe(true);
 		expect(detail.required).toBe(true);
-		expect(detail.maxLength).toBe(2048);
+		expect(detail.hasAttribute('maxlength')).toBe(false);
 		expect(detail.placeholder).toBe(i18n.ts._abuseReport.otherDescriptionHint);
 		await fireEvent.update(detail, ' \n\t ');
 		await fireEvent.click(button);
 		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
-		await fireEvent.update(detail, '  Specific violation  ');
+		const allowed = '🎉'.repeat(2048);
+		const overlong = `${allowed}🎉`;
+		await fireEvent.update(detail, overlong);
+		expect(detail.value).toBe(overlong);
+		expect(view.getByText('2049/2048')).toBeTruthy();
+		expect(button.disabled).toBe(true);
+		await fireEvent.click(button);
+		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
+		await fireEvent.update(detail, allowed);
+		expect(detail.value).toBe(allowed);
+		expect(view.getByText('2048/2048')).toBeTruthy();
 		expect(button.disabled).toBe(false);
 		await fireEvent.click(button);
-		expect(mocks.apiWithDialog).toHaveBeenCalledWith('users/report-abuse', expect.objectContaining({ reason: 'other', comment: 'Specific violation' }), undefined);
+		expect(mocks.apiWithDialog).toHaveBeenCalledWith('users/report-abuse', expect.objectContaining({ reason: 'other', comment: allowed }), undefined);
 	});
 
 	test('blocks duplicate submission and dismissal until success is confirmed, then closes once', async () => {
@@ -167,9 +178,7 @@ describe('abuse report form', () => {
 
 	test.each([
 		{ reportType: 'user' },
-		{ reportType: 'note', targetId: 'reported-note' },
-		{ reportType: 'boost', targetId: 'boost-parent', reaction: 'text:Original Boost\nABC 123' },
-		{ reportType: 'chat', targetId: 'reported-message' },
+		{ reportType: 'note', targetId: 'reported-note' },		{ reportType: 'chat', targetId: 'reported-message' },
 		{ reportType: 'page', targetId: 'reported-page' },
 		{ reportType: 'gallery', targetId: 'reported-gallery' },
 		{ reportType: 'play', targetId: 'reported-play' },
@@ -223,20 +232,6 @@ describe('abuse report form', () => {
 		await fireEvent.click(view.getByRole('button', { name: i18n.ts._abuseReport.submit }));
 		expect(mocks.apiWithDialog).toHaveBeenCalledWith('users/report-abuse', {
 			userId: 'reported-user', requestId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i), reportType: 'note', targetId: 'reported', reason: 'spam', comment: '',
-		}, undefined);
-	});
-
-	test('labels Boost context separately from the parent note and submits the raw reaction', async () => {
-		const view = renderReport({
-			reportTarget: { reportType: 'boost', targetId: 'parent', reaction: 'text:888' },
-			context: { label: i18n.ts._boost.title, text: '888', url: 'https://example.test/notes/parent' },
-		});
-		expect(view.getByText('888')).toBeTruthy();
-		expect(view.getByText(`${i18n.ts._boost.title}: https://example.test/notes/parent`).getAttribute('data-navigation')).toBe('window');
-		await selectReason(view);
-		await fireEvent.click(view.getByRole('button', { name: i18n.ts._abuseReport.submit }));
-		expect(mocks.apiWithDialog).toHaveBeenCalledWith('users/report-abuse', {
-			userId: 'reported-user', requestId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i), reportType: 'boost', targetId: 'parent', reaction: 'text:888', reason: 'spam', comment: '',
 		}, undefined);
 	});
 

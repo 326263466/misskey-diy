@@ -244,7 +244,8 @@ function unmute() {
 <style lang="scss" module>
 .root {
 	height: 2em;
-	vertical-align: middle;
+	// 大号和普通表情的中心都位于文字基线上方 0.375em。
+	vertical-align: calc(0.375em - 1em);
 	-webkit-user-drag: none;
 	transition: transform 0.2s ease;
 
@@ -254,8 +255,8 @@ function unmute() {
 }
 
 .normal {
-	height: 1.25em;
-	vertical-align: -0.25em;
+	height: var(--MI-emojiHeight);
+	vertical-align: var(--MI-emojiVerticalAlign);
 
 	&:hover {
 		transform: none;

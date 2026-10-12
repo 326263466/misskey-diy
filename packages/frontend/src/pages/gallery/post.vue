@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</div>
 					<div class="body">
-						<div class="title">{{ post.title }}</div>
+						<div class="title"><Mfm :text="post.title" :plain="true"/></div>
 						<div class="description"><Mfm v-if="post.description != null" :text="post.description"/></div>
 						<div class="info">
 							<i class="ti ti-clock"></i> <MkTime :time="post.createdAt" mode="detail"/>
@@ -26,10 +26,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<MkButton v-else v-tooltip="i18n.ts._gallery.like" class="button" @click="like()"><i class="ti ti-heart"></i><span v-if="post.likedCount > 0" class="count">{{ post.likedCount }}</span></MkButton>
 							</div>
 							<div class="other">
-								<button v-if="$i && $i.id === post.user.id" v-tooltip="i18n.ts.edit" v-click-anime class="_button" @click="edit"><i class="ti ti-pencil ti-fw"></i></button>
-								<button v-tooltip="i18n.ts.copyLink" v-click-anime class="_button" @click="copyLink"><i class="ti ti-link ti-fw"></i></button>
-								<button v-tooltip="i18n.ts.share" v-click-anime class="_button" @click="share"><i class="ti ti-share ti-fw"></i></button>
-								<button v-if="$i && $i.id !== post.user.id" v-click-anime class="_button" @click="showMenu"><i class="ti ti-dots ti-fw"></i></button>
+								<button v-if="$i && $i.id === post.user.id" v-tooltip="i18n.ts.edit" v-click-anime class="_button _iconButton" @click="edit"><i class="ti ti-pencil ti-fw"></i></button>
+								<button v-tooltip="i18n.ts.copyLink" v-click-anime class="_button _iconButton" @click="copyLink"><i class="ti ti-link ti-fw"></i></button>
+								<button v-tooltip="i18n.ts.share" v-click-anime class="_button _iconButton" @click="share"><i class="ti ti-share ti-fw"></i></button>
+								<button v-if="$i && $i.id !== post.user.id" v-click-anime class="_button _iconButton" @click="showMenu"><i class="ti ti-dots ti-fw"></i></button>
 							</div>
 						</div>
 						<div class="user">
@@ -38,7 +38,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<MkUserName :user="post.user" style="display: block;"/>
 								<MkAcct :user="post.user"/>
 							</div>
-							<!--<MkFollowButton v-if="!$i || $i.id != post.user.id" v-model:user="post.user" :inline="true" :transparent="false" :full="true" large class="koudoku"/>-->
 						</div>
 					</div>
 					<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
@@ -257,6 +256,7 @@ definePage(() => ({
 			font-weight: bold;
 			font-size: 1.2em;
 			margin-bottom: 16px;
+			overflow-wrap: anywhere;
 		}
 
 		> .info {
@@ -270,7 +270,7 @@ definePage(() => ({
 			align-items: center;
 			margin-top: 16px;
 			padding: 16px 0 0 0;
-			border-top: solid 0.5px var(--MI_THEME-divider);
+			border-top: var(--MI-divider);
 
 			> .like {
 				> .button {
@@ -303,7 +303,7 @@ definePage(() => ({
 		> .user {
 			margin-top: 16px;
 			padding: 16px 0 0 0;
-			border-top: solid 0.5px var(--MI_THEME-divider);
+			border-top: var(--MI-divider);
 			display: flex;
 			align-items: center;
 			flex-wrap: wrap;

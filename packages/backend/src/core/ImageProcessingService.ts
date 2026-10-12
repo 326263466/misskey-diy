@@ -51,6 +51,8 @@ import { Readable } from 'node:stream';
 export class ImageProcessingService {
 	constructor(
 	) {
+		// Windows 不允许删除仍被 libvips 文件缓存持有的临时上传或 ZIP 图片。
+		if (process.platform === 'win32') sharp.cache({ files: 0 });
 	}
 
 	/**

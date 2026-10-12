@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	:closeOnBackdrop="false"
 	:width="500"
 	:height="550"
 	@close="cancel"
@@ -13,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<template #header>{{ i18n.ts.setupOf2fa }}</template>
 
-	<div style="overflow-x: clip;">
+	<div data-image-fade="off" style="overflow-x: clip;">
 		<Transition
 			mode="out-in"
 			:enterActiveClass="$style.transition_x_enterActive"
@@ -38,7 +39,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div>{{ i18n.ts._2fa.step2 }}</div>
 							<div>
 								<a :class="$style.qrRoot" :href="twoFactorData.url"><img :class="$style.qr" :src="twoFactorData.qr"></a>
-								<!-- QRコード側にマージンが入っているので直下でOK -->
 								<div><MkButton inline rounded type="routerLink" :to="twoFactorData.url" :linkBehavior="'browser'">{{ i18n.ts.launchApp }}</MkButton></div>
 							</div>
 							<MkKeyValue :copy="twoFactorData.url">

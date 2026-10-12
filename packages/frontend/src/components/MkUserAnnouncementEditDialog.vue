@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	:closeOnBackdrop="false"
 	:width="400"
 	@close="dialog?.close()"
 	@closed="emit('closed')"
@@ -16,10 +17,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div>
 		<div class="_spacer _spacerCard">
 			<div class="_gaps_m">
-				<MkInput v-model="title">
+				<MkInput v-model="title" :counterMaxLength="Misskey.CONTENT_LIMITS.announcementTitle">
 					<template #label>{{ i18n.ts.title }}</template>
 				</MkInput>
-				<MkTextarea v-model="text">
+				<MkTextarea v-model="text" :counterMaxLength="Misskey.CONTENT_LIMITS.announcementText">
 					<template #label>{{ i18n.ts.text }}</template>
 				</MkTextarea>
 				<MkRadios
@@ -51,14 +52,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 		<div :class="$style.footer">
-			<MkButton primary rounded style="margin: 0 auto;" @click="done"><i class="ti ti-check"></i> {{ props.announcement ? i18n.ts.update : i18n.ts.create }}</MkButton>
+			<MkButton primary rounded style="margin: 0 auto;" :disabled="!validContent" @click="done"><i class="ti ti-check"></i> {{ props.announcement ? i18n.ts.update : i18n.ts.create }}</MkButton>
 		</div>
 	</div>
 </MkModalWindow>
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -85,11 +86,14 @@ const emit = defineEmits<{
 const dialog = useTemplateRef('dialog');
 const title = ref(props.announcement ? props.announcement.title : '');
 const text = ref(props.announcement ? props.announcement.text : '');
+const validContent = computed(() => (title.value === props.announcement?.title || Array.from(title.value).length <= Misskey.CONTENT_LIMITS.announcementTitle) &&
+	(text.value === props.announcement?.text || Array.from(text.value).length <= Misskey.CONTENT_LIMITS.announcementText));
 const icon = ref(props.announcement ? props.announcement.icon : 'info');
 const display = ref(props.announcement ? props.announcement.display : 'dialog');
 const needConfirmationToRead = ref(props.announcement ? props.announcement.needConfirmationToRead : false);
 
 async function done() {
+	if (!validContent.value) return;
 	const params = {
 		title: title.value,
 		text: text.value,
@@ -151,7 +155,7 @@ async function del() {
 	bottom: 0;
 	left: 0;
 	padding: var(--MI-cardPadding, 18px);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 }

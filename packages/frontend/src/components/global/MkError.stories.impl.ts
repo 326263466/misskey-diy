@@ -44,3 +44,8 @@ export const Default = {
 		layout: 'centered',
 	},
 } satisfies StoryObj<typeof MkError>;
+export const Page = {
+	...Default,
+	args: { page: true },
+	parameters: { layout: 'padded' },
+} satisfies StoryObj<typeof MkError>;

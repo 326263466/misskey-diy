@@ -12,6 +12,7 @@ import { cli } from '@/scripts/operations.js';
 import { getAccountFromId } from '@/scripts/get-account-from-id.js';
 import { swLang } from '@/scripts/lang.js';
 import { getUserName } from '@/scripts/get-user-name.js';
+import { formatUserAgent } from '@@/js/parse-user-agent.js';
 
 const closeNotificationsByTags = async (tags: string[]): Promise<void> => {
 	for (const n of (await Promise.all(tags.map(tag => globalThis.registration.getNotifications({ tag })))).flat()) {
@@ -212,6 +213,7 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 
 				case 'login':
 					return [i18n.ts._notification.login, {
+						body: [formatUserAgent(data.body.userAgent), data.body.ip].filter(part => part != null).join(' · ') || undefined,
 						badge: iconUrl('login-2'),
 						data,
 					}];

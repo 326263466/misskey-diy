@@ -5,26 +5,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <component :is="prefer.s.enablePullToRefresh && pullToRefresh ? MkPullToRefresh : 'div'" :refresher="() => paginator.reload()" @contextmenu.prevent.stop="onContextmenu">
-	<div>
-		<MkPaginationControl v-if="props.withControl" :paginator="paginator" :card="controlCard" style="margin-bottom: 10px"/>
+	<div ref="content" :class="$style.content" :style="loadingHeight != null ? { minHeight: `${loadingHeight}px` } : undefined" :aria-busy="fetching || undefined">
+		<MkPaginationControl v-if="props.withControl" :paginator="paginator" :card="controlCard" style="margin-bottom: 10px">
+			<template v-if="$slots.controlHeader" #header>
+				<slot name="controlHeader"></slot>
+			</template>
+		</MkPaginationControl>
 
-		<!-- :css="prefer.s.animation" にしたいけどバグる(おそらくvueのバグ) https://github.com/misskey-dev/misskey/issues/16078 -->
-		<Transition
-			:enterActiveClass="animate ? $style.transition_fade_enterActive : ''"
-			:leaveActiveClass="animate ? $style.transition_fade_leaveActive : ''"
-			:enterFromClass="animate ? $style.transition_fade_enterFrom : ''"
-			:leaveToClass="animate ? $style.transition_fade_leaveTo : ''"
-			:mode="animate ? 'out-in' : undefined"
-		>
-			<template v-if="paginator.fetching.value">
-				<MkLoading v-if="showLoading"/>
-				<div v-else aria-busy="true"></div>
+		<div>
+			<template v-if="paginator.fetching.value || (paginator.items.value.length === 0 && fetching)">
+				<slot name="loading">
+					<MkLoading v-if="showLoading" :page="pageEmpty"/>
+					<div v-else :class="{ [$style.pageState]: pageEmpty }" aria-busy="true"></div>
+				</slot>
 			</template>
 
-			<MkError v-else-if="paginator.error.value" @retry="paginator.init()"/>
+			<slot v-else-if="paginator.error.value" name="error" :retry="paginator.init">
+				<MkError :page="pageEmpty" @retry="paginator.init()"/>
+			</slot>
 
 			<div v-else-if="paginator.items.value.length === 0" key="_empty_">
-				<slot name="empty"><MkResult type="empty"/></slot>
+				<slot name="empty" :fetching="fetching"><MkResult type="empty" :page="pageEmpty"/></slot>
 			</div>
 
 			<div v-else key="_root_" class="_gaps">
@@ -38,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkLoading v-if="downButtonLoading && showLoading"/>
 				</div>
 			</div>
-		</Transition>
+		</div>
 	</div>
 </component>
 </template>
@@ -59,12 +60,14 @@ export type MkPaginationOptions = {
 	pullToRefresh?: boolean;
 	withControl?: boolean;
 	controlCard?: boolean;
+	/** 页面主列表的空状态；分组内列表保持紧凑。 */
+	pageEmpty?: boolean;
 };
 </script>
 
 <script lang="ts" setup generic="T extends IPaginator">
 import { isLink } from '@@/js/is-link.js';
-import { onMounted, computed, watch, unref } from 'vue';
+import { onMounted, computed, watch, unref, ref, useTemplateRef } from 'vue';
 import type { UnwrapRef } from 'vue';
 import type { IPaginator } from '@/utility/paginator.js';
 import { i18n } from '@/i18n.js';
@@ -82,10 +85,17 @@ const props = withDefaults(defineProps<MkPaginationOptions & {
 	pullToRefresh: true,
 	withControl: false,
 	controlCard: false,
+	pageEmpty: false,
 });
 
-// Silent refreshes swap content immediately to keep auto-sized containers stable.
-const animate = computed(() => prefer.s.animation && props.showLoading);
+const fetching = computed(() => props.paginator.fetching.value || props.paginator.fetchingOlder.value || props.paginator.fetchingNewer.value);
+const content = useTemplateRef('content');
+const loadingHeight = ref<number | null>(null);
+
+watch(() => props.paginator.fetching.value, value => {
+	// 清空列表或更换标签时保留加载前的高度，避免卡片先缩到空状态再展开。
+	loadingHeight.value = value ? content.value?.getBoundingClientRect().height ?? null : null;
+}, { flush: 'sync' });
 
 function onContextmenu(ev: PointerEvent) {
 	if (ev.target && isLink(ev.target as HTMLElement)) return;
@@ -105,17 +115,21 @@ function getValue(v: IPaginator['items']) {
 	return unref(v) as UnwrapRef<T['items']>;
 }
 
-if (props.autoLoad) {
-	onMounted(() => {
-		props.paginator.init();
-	});
-}
-
-if (props.paginator.computedParams) {
-	watch(props.paginator.computedParams, () => {
-		props.paginator.reload();
-	}, { immediate: false, deep: true });
-}
+onMounted(() => {
+	const initialized = new WeakSet<IPaginator>();
+	watch(() => props.paginator, (paginator, _, onCleanup) => {
+		// 静态参数的标签保留已加载内容；动态参数可能在离开标签后变化。
+		if (props.autoLoad && (!initialized.has(paginator) || paginator.computedParams != null)) {
+			initialized.add(paginator);
+			paginator.init();
+		}
+		if (paginator.computedParams) {
+			onCleanup(watch(paginator.computedParams, () => {
+				paginator.reload();
+			}, { deep: true }));
+		}
+	}, { immediate: true });
+});
 
 const upButtonVisible = computed(() => {
 	return props.paginator.order.value === 'oldest' ? props.paginator.canFetchOlder.value : props.paginator.canFetchNewer.value;
@@ -150,19 +164,23 @@ function downButtonClick() {
 }
 
 defineSlots<{
-	empty: () => void;
-	default: (props: { items: UnwrapRef<T['items']>, fetching: boolean }) => void;
+	controlHeader?: () => void;
+	loading?: () => void;
+	error?: (props: { retry: () => Promise<void> }) => void;
+	empty?: (props: { fetching: boolean }) => void;
+	default?: (props: { items: UnwrapRef<T['items']>, fetching: boolean }) => void;
 }>();
 </script>
 
 <style lang="scss" module>
-.transition_fade_enterActive,
-.transition_fade_leaveActive {
-	transition: opacity 0.125s ease;
+@use "../styles/page-state.scss";
+
+.pageState {
+	@include page-state.surface;
 }
-.transition_fade_enterFrom,
-.transition_fade_leaveTo {
-	opacity: 0;
+
+.content {
+	position: relative;
 }
 
 .sentinel {

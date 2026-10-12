@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/vue';
 import { nextTick } from 'vue';
-import Header from '@/ui/_common_/juejin-header.vue';
+import Header from '@/ui/_common_/header.vue';
 import { i18n } from '@/i18n.js';
 
 const mocks = vi.hoisted(() => ({
@@ -28,7 +28,7 @@ vi.mock('@/os.js', () => ({
 }));
 vi.mock('@/ui/_common_/common.js', () => ({ openInstanceMenu: vi.fn(), toggleRealtimeMode: vi.fn() }));
 vi.mock('@/accounts.js', () => ({ getAccountMenu: vi.fn() }));
-vi.mock('@/navbar.js', () => ({ navbarItemDef: {} }));
+vi.mock('@/navbar.js', () => ({ navbarItemDef: {}, primaryNavItems: ['explore', 'channels', 'shop'], launchPadExcludedItems: [] }));
 vi.mock('@/instance.js', () => ({ instance: { name: 'Test instance', iconUrl: null } }));
 vi.mock('@/i.js', () => ({ $i: null }));
 vi.mock('@/store.js', () => ({ store: { r: { realtimeMode: { value: false } } } }));

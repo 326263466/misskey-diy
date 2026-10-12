@@ -7,9 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkStickyContainer>
 	<div class="_pageBody">
 		<div>
-			<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard>
+			<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard pageEmpty>
 				<MkA v-for="list in items" :key="list.id" class="_panel" :class="$style.list" :to="`/list/${ list.id }`">
-					<div>{{ list.name }}</div>
+					<div><Mfm :text="list.name" :plain="true" :nowrap="true"/></div>
 					<MkAvatars v-if="list.userIds != null" :userIds="list.userIds"/>
 				</MkA>
 			</MkPagination>
@@ -43,7 +43,7 @@ const paginator = markRaw(new Paginator('users/lists/list', {
 .list {
 	display: block;
 	padding: var(--MI-cardPadding);
-	border: solid 1px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: 6px;
 	margin-bottom: 8px;
 

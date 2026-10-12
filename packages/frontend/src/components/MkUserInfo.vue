@@ -5,7 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div ref="rootEl" class="_panel" :class="$style.root">
-	<div :class="$style.banner" :style="user.bannerUrl ? { backgroundImage: `url(${prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl})` } : ''"></div>
+	<div class="_imageContainer" :class="$style.banner">
+		<img v-if="user.bannerUrl" class="_imageBackground" :src="prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl" alt=""/>
+	</div>
 	<MkA :to="userPage(user)">
 		<MkAvatar :class="$style.avatar" :user="user" indicator/>
 	</MkA>
@@ -50,7 +52,7 @@ import { ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkFollowButton from '@/components/MkFollowButton.vue';
 import number from '@/filters/number.js';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { isFollowingVisibleForMe, isFollowersVisibleForMe } from '@/utility/isFfVisibleForMe.js';
@@ -81,8 +83,6 @@ watch(() => props.user, value => {
 .banner {
 	height: 84px;
 	background-color: rgba(0, 0, 0, 0.1);
-	background-size: cover;
-	background-position: center;
 }
 
 .avatar {
@@ -132,7 +132,7 @@ watch(() => props.user, value => {
 	color: var(--MI_THEME-fgTransparent);
 	padding: var(--MI-cardPadding);
 	font-size: 0.8em;
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 
 .mfm {
@@ -169,7 +169,7 @@ watch(() => props.user, value => {
 
 .status {
 	padding: var(--MI-cardPadding);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 
 .statusItem {

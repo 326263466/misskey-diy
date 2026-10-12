@@ -124,7 +124,9 @@ onUnmounted(() => {
 
 <style lang="scss" module>
 $arrowSize: 6px;
-$arrowOffset: 3px;
+$arrowHalfSize: $arrowSize * .5;
+// 向面板内重叠 1px，避免旋转边缘在分数像素上形成接缝。
+$arrowOffset: $arrowHalfSize - 1px;
 $arrowRadius: 2px;
 
 .tooltipEnterActive {
@@ -178,28 +180,28 @@ $arrowRadius: 2px;
 .arrowTop {
 	top: -$arrowOffset;
 	left: var(--MI-tooltip-arrow-position, 50%);
-	margin-left: -$arrowOffset;
+	margin-left: -$arrowHalfSize;
 	border-top-left-radius: $arrowRadius;
 }
 
 .arrowBottom {
 	bottom: -$arrowOffset;
 	left: var(--MI-tooltip-arrow-position, 50%);
-	margin-left: -$arrowOffset;
+	margin-left: -$arrowHalfSize;
 	border-bottom-right-radius: $arrowRadius;
 }
 
 .arrowLeft {
 	left: -$arrowOffset;
 	top: var(--MI-tooltip-arrow-position, 50%);
-	margin-top: -$arrowOffset;
+	margin-top: -$arrowHalfSize;
 	border-bottom-left-radius: $arrowRadius;
 }
 
 .arrowRight {
 	right: -$arrowOffset;
 	top: var(--MI-tooltip-arrow-position, 50%);
-	margin-top: -$arrowOffset;
+	margin-top: -$arrowHalfSize;
 	border-top-right-radius: $arrowRadius;
 }
 </style>

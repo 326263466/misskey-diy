@@ -6,16 +6,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.wrapper" data-testid="signin-page-password">
 	<div class="_gaps" :class="$style.root">
-		<div :class="$style.avatar" :style="{ backgroundImage: user ? `url('${getUserAvatar(user).avatarUrl}')` : undefined }"></div>
+		<div class="_imageContainer" :class="$style.avatar">
+			<img v-if="user" class="_imageBackground" :src="getUserAvatar(user).avatarUrl" alt=""/>
+		</div>
 		<div :class="$style.welcomeBackMessage">
 			<I18n :src="i18n.ts.welcomeBackWithName" tag="span">
-				<template #name><Mfm :text="user.name ?? user.username" :plain="true"/></template>
+				<template #name><MkUserName :user="user" :nowrap="false"/></template>
 			</I18n>
 		</div>
 
-		<!-- password入力 -->
 		<form class="_gaps_s" @submit.prevent="onSubmit">
-			<!-- ブラウザ オートコンプリート用 -->
 			<input type="hidden" name="username" autocomplete="username" :value="user.username">
 
 			<MkInput v-model="password" :placeholder="i18n.ts.password" type="password" autocomplete="current-password webauthn" :withPasswordToggle="true" required autofocus data-testid="signin-password">
@@ -145,8 +145,6 @@ defineExpose({
 	width: 64px;
 	height: 64px;
 	background: var(--MI_THEME-bg);
-	background-position: center;
-	background-size: cover;
 	border-radius: 100%;
 }
 
@@ -170,8 +168,8 @@ defineExpose({
 	position: relative;
 	margin: .4em auto;
 	width: 100%;
-	height: 1px;
-	background: var(--MI_THEME-divider);
+	height: var(--MI-dividerWidth);
+	background: var(--MI-dividerColor);
 }
 
 .orMsg {

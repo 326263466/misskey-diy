@@ -4,11 +4,11 @@
  */
 
 import ms from 'ms';
+import { CONTENT_LIMITS } from 'misskey-js';
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { DriveFilesRepository, GalleryPostsRepository } from '@/models/_.js';
 import { MiGalleryPost } from '@/models/GalleryPost.js';
-import type { MiDriveFile } from '@/models/DriveFile.js';
 import { IdService } from '@/core/IdService.js';
 import { GalleryPostEntityService } from '@/core/entities/GalleryPostEntityService.js';
 import { DI } from '@/di-symbols.js';
@@ -41,8 +41,8 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		title: { type: 'string', minLength: 1 },
-		description: { type: 'string', nullable: true },
+		title: { type: 'string', minLength: 1, maxLength: CONTENT_LIMITS.galleryTitle },
+		description: { type: 'string', nullable: true, maxLength: CONTENT_LIMITS.galleryDescription },
 		fileIds: { type: 'array', uniqueItems: true, minItems: 1, maxItems: 32, items: {
 			type: 'string', format: 'misskey:id',
 		} },

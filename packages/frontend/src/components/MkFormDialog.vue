@@ -6,12 +6,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	:closeOnBackdrop="closeOnBackdrop"
 	:width="450"
 	autoHeight
 	:canClose="false"
 	:withOkButton="true"
 	:okButtonDisabled="!canSave"
-	@click="cancel()"
 	@ok="ok()"
 	@close="cancel()"
 	@esc="cancel()"
@@ -33,10 +33,13 @@ import type { Form } from '@/utility/form.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkForm from '@/components/MkForm.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	title: string;
 	form: Form;
-}>();
+	closeOnBackdrop?: boolean;
+}>(), {
+	closeOnBackdrop: false,
+});
 
 const emit = defineEmits<{
 	(ev: 'done', v: {

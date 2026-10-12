@@ -5,17 +5,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <component :is="prefer.s.enablePullToRefresh ? MkPullToRefresh : 'div'" :refresher="() => reload()">
-	<MkLoading v-if="paginator.fetching.value"/>
+	<MkLoading v-if="paginator.fetching.value || (paginator.items.value.length === 0 && fetching)" :page="pageEmpty"/>
 
-	<MkError v-else-if="paginator.error.value" @retry="paginator.init()"/>
+	<MkError v-else-if="paginator.error.value" :page="pageEmpty" @retry="paginator.init()"/>
 
 	<div v-else-if="paginator.items.value.length === 0" key="_empty_">
-		<slot name="empty"><MkResult type="empty" :text="i18n.ts.noNotifications"/></slot>
+		<slot name="empty" :fetching="fetching"><MkResult type="empty" :text="i18n.ts.noNotifications" :page="pageEmpty"/></slot>
 	</div>
 
 	<div v-else ref="rootEl">
 		<component
-			:is="prefer.s.animation ? TransitionGroup : 'div'" :class="[$style.notifications, '_juejinCard']"
+			:is="prefer.s.animation ? TransitionGroup : 'div'" :class="[$style.notifications, '_card']"
 			:enterActiveClass="$style.transition_x_enterActive"
 			:leaveActiveClass="$style.transition_x_leaveActive"
 			:enterFromClass="$style.transition_x_enterFrom"
@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-for="(notification, i) in paginator.items.value" :key="notification.id" :data-scroll-anchor="notification.id" :class="$style.item">
 				<div v-if="i > 0 && isSeparatorNeeded(paginator.items.value[i -1].createdAt, notification.createdAt)" :class="$style.date">
 					<span><i class="ti ti-chevron-up"></i> {{ getSeparatorInfo(paginator.items.value[i -1].createdAt, notification.createdAt)?.prevText }}</span>
-					<span style="height: 1em; width: 1px; background: var(--MI_THEME-divider);"></span>
+					<span style="height: 1em; width: var(--MI-dividerWidth); background: var(--MI-dividerColor);"></span>
 					<span>{{ getSeparatorInfo(paginator.items.value[i -1].createdAt, notification.createdAt)?.nextText }} <i class="ti ti-chevron-down"></i></span>
 				</div>
 				<MkNote v-if="['reply', 'quote', 'mention'].includes(notification.type) && 'note' in notification" :class="$style.content" :note="notification.note" :withHardMute="true"/>
@@ -58,9 +58,12 @@ import { store } from '@/store.js';
 import { isSeparatorNeeded, getSeparatorInfo } from '@/utility/timeline-date-separate.js';
 import { NotificationPaginator } from '@/utility/notification-paginator.js';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	excludeTypes?: typeof notificationTypes[number][] | null;
-}>();
+	pageEmpty?: boolean;
+}>(), {
+	pageEmpty: false,
+});
 
 const rootEl = useTemplateRef('rootEl');
 
@@ -79,6 +82,7 @@ const paginator = prefer.s.useGroupedNotifications ? markRaw(new NotificationPag
 }));
 
 const canFetchMore = computed(() => paginator.order.value === 'oldest' ? paginator.canFetchNewer.value : paginator.canFetchOlder.value);
+const fetching = computed(() => paginator.fetching.value || paginator.fetchingOlder.value || paginator.fetchingNewer.value);
 
 function fetchMore() {
 	return paginator.order.value === 'oldest' ? paginator.fetchNewer() : paginator.fetchOlder();
@@ -219,7 +223,7 @@ defineExpose({
 
 	&.content,
 	.content {
-		/* Skip Note Rendering有効時、TransitionGroupで通知を追加するときに一瞬がくっとなる問題を抑制する */
+		// Skip Note Rendering有効時、TransitionGroupで通知を追加するときに一瞬がくっとなる問題を抑制する
 		content-visibility: visible !important;
 	}
 }
@@ -250,7 +254,7 @@ defineExpose({
 }
 
 .item {
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .date {
@@ -261,7 +265,7 @@ defineExpose({
 	gap: 1em;
 	padding: 8px 8px;
 	margin: 0 auto;
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .sentinel {

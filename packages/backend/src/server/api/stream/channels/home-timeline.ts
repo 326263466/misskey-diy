@@ -82,8 +82,8 @@ export class HomeTimelineChannel extends Channel {
 		if (this.user) {
 			if (isRenotePacked(note) && !isQuotePacked(note)) {
 				if (note.renote && Object.keys(note.renote.reactions).length > 0) {
-					const myRenoteReaction = await this.noteEntityService.populateMyReaction(note.renote, this.user.id);
-					note.renote.myReaction = myRenoteReaction;
+					const myRenoteReactions = await this.noteEntityService.populateMyReactions(note.renote, this.user.id);
+					note.renote.myReactions = myRenoteReactions;
 				}
 			}
 		}

@@ -11,7 +11,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:height="900"
 	autoHeight
 	:withOkButton="false"
-	@click="cancel()"
 	@close="cancel()"
 	@closed="emit('closed')"
 	@esc="cancel()"
@@ -49,7 +48,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<div v-if="draft.reply" class="_nowrap">
 										<i class="ti ti-message-circle"></i> <I18n :src="i18n.ts._drafts.replyTo" tag="span">
 											<template #user>
-												<Mfm v-if="draft.reply.user.name != null" :text="draft.reply.user.name" :plain="true" :nowrap="true"/>
+												<MkUserName v-if="draft.reply.user.name != null" :user="draft.reply.user"/>
 												<MkAcct v-else :user="draft.reply.user"/>
 											</template>
 										</I18n>
@@ -64,7 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<div v-if="draft.renote && draft.text != null" class="_nowrap">
 										<i class="ti ti-quote"></i> <I18n :src="i18n.ts._drafts.quoteOf" tag="span">
 											<template #user>
-												<Mfm v-if="draft.renote.user.name != null" :text="draft.renote.user.name" :plain="true" :nowrap="true"/>
+												<MkUserName v-if="draft.renote.user.name != null" :user="draft.renote.user"/>
 												<MkAcct v-else :user="draft.renote.user"/>
 											</template>
 										</I18n>
@@ -77,7 +76,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 										</I18n>
 									</div>
 									<div v-if="draft.channel" class="_nowrap">
-										<i class="ti ti-device-tv"></i> {{ i18n.tsx._drafts.postTo({ channel: draft.channel.name }) }}
+										<i class="ti ti-device-tv"></i> <I18n :src="i18n.ts._drafts.postTo" tag="span">
+											<template #channel><Mfm :text="draft.channel.name" :plain="true" :nowrap="true"/></template>
+										</I18n>
 									</div>
 								</div>
 							</div>
@@ -106,14 +107,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 								>
 									<i class="ti ti-calendar-x"></i> {{ i18n.ts._drafts.cancelSchedule }}
 								</MkButton>
-								<!-- TODO
-								<MkButton
-									small
-									@click="reSchedule(draft)"
-								>
-									<i class="ti ti-calendar-time"></i> {{ i18n.ts._drafts.reSchedule }}
-								</MkButton>
-								-->
 							</template>
 							<MkButton
 								v-else
@@ -234,7 +227,7 @@ async function cancelSchedule(draft: Misskey.entities.NoteDraft) {
 
 .draft {
 	background: var(--MI_THEME-panel);
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	padding: var(--MI-cardPadding);
 	gap: 16px;
 	border-radius: 10px;
@@ -284,7 +277,7 @@ async function cancelSchedule(draft: Misskey.entities.NoteDraft) {
 .draftActions {
 	margin-top: 16px;
 	padding-top: 16px;
-	border-top: solid 1px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 
 </style>

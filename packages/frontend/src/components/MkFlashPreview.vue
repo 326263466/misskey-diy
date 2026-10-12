@@ -7,14 +7,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkA :to="`/play/${flash.id}`" class="vhpxefrk _panel" :class="[{ gray: flash.visibility === 'private' }]">
 	<article>
 		<header>
-			<h1 :title="flash.title">{{ flash.title }}</h1>
+			<h1 :title="flash.title"><Mfm class="titleMfm" :text="flash.title" :plain="true" :nowrap="true"/></h1>
 		</header>
 		<p v-if="flash.summary" :title="flash.summary">
 			<Mfm class="summaryMfm" :text="flash.summary" :plain="true" :nowrap="true"/>
 		</p>
 		<footer>
 			<img class="icon" :src="getUserAvatar(flash.user).avatarUrl"/>
-			<p>{{ userName(flash.user) }}</p>
+			<p><MkUserName :user="flash.user"/></p>
 		</footer>
 	</article>
 </MkA>
@@ -23,7 +23,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { } from 'vue';
 import * as Misskey from 'misskey-js';
-import { userName } from '@/filters/user.js';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
 
 const props = defineProps<{
@@ -54,6 +53,11 @@ const props = defineProps<{
 				margin: 0;
 				font-size: 1em;
 				color: var(--urlPreviewTitle);
+
+				> .titleMfm {
+					display: block;
+					width: 100%;
+				}
 			}
 		}
 

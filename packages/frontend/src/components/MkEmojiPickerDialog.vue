@@ -7,16 +7,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkModal
 	ref="modal"
 	v-slot="{ type, maxHeight }"
+	:class="$style.modal"
+	:waitForPosition="true"
 	:zPriority="'middle'"
 	:preferType="prefer.s.emojiPickerStyle"
 	:hasInteractionWithOtherFocusTrappedEls="true"
 	:transparentBg="true"
 	:manualShowing="manualShowing"
 	:anchorElement="anchorElement"
-	@click="modal?.close()"
-	@esc="modal?.close()"
+	:boundaryElement="boundaryElement"
+	@click="close"
+	@esc="close"
 	@opening="opening"
-	@close="emit('close')"
+	@close="onClose"
 	@closed="emit('closed')"
 >
 	<MkEmojiPicker
@@ -30,14 +33,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:asDrawer="type === 'drawer'"
 		:max-height="maxHeight"
 		@chosen="chosen"
-		@esc="modal?.close()"
+		@esc="close"
 	/>
 </MkModal>
 </template>
 
 <script lang="ts" setup>
 import * as Misskey from 'misskey-js';
-import { useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, useTemplateRef } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import MkEmojiPicker from '@/components/MkEmojiPicker.vue';
 import { prefer } from '@/preferences.js';
@@ -66,26 +69,51 @@ const emit = defineEmits<{
 
 const modal = useTemplateRef('modal');
 const picker = useTemplateRef('picker');
+const boundaryElement = computed(() => props.anchorElement?.closest<HTMLElement>('[data-popup-boundary], [data-emoji-picker-boundary], ._pageContent') ?? null);
+let chosenOnce = false;
+let focusTimer: number | undefined;
+
+function close() {
+	modal.value?.close();
+}
+
+function onClose() {
+	window.clearTimeout(focusTimer);
+	emit('close');
+}
 
 function chosen(emoji: string) {
+	if (props.choseAndClose && chosenOnce) return;
+	chosenOnce = true;
 	emit('done', emoji);
 	if (props.choseAndClose) {
-		modal.value?.close();
+		close();
 	}
 }
 
 function opening() {
+	chosenOnce = false;
 	picker.value?.reset();
 	picker.value?.focus();
 
 	// 何故かちょっと待たないとフォーカスされない
-	window.setTimeout(() => {
+	window.clearTimeout(focusTimer);
+	focusTimer = window.setTimeout(() => {
 		picker.value?.focus();
 	}, 10);
 }
+
+onBeforeUnmount(() => window.clearTimeout(focusTimer));
+
+defineExpose({ close });
 </script>
 
 <style lang="scss" module>
+.modal :global(._modalBg) {
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+}
+
 .drawer {
 	border-radius: 24px;
 	border-bottom-right-radius: 0;

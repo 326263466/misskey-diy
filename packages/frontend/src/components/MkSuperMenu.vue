@@ -11,7 +11,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:placeholder="i18n.ts.search"
 		type="search"
 		style="margin-bottom: 16px;"
-		@input.passive="searchOnInput"
 		@keydown="searchOnKeyDown"
 	>
 		<template #prefix><i class="ti ti-search"></i></template>
@@ -96,7 +95,7 @@ export type SuperMenuDef = {
 
 <script lang="ts" setup>
 import { useTemplateRef, ref, watch, nextTick, computed, onUnmounted } from 'vue';
-import { throttle } from 'throttle-debounce';
+import { debounce } from 'throttle-debounce';
 import { getScrollContainer } from '@@/js/scroll.js';
 import type { SearchIndexItem } from '@/utility/inapp-search.js';
 import MkInput from '@/components/MkInput.vue';
@@ -131,6 +130,7 @@ const rawSearchQuery = ref('');
 
 const searchSelectedIndex = ref<null | number>(null);
 const searchResult = ref<SearchResultItem[]>([]);
+let searchedQuery = '';
 const searchIndexItemByIdComputed = computed(() => props.searchIndex && new Map<string, SearchIndexItem>(props.searchIndex.map(i => [i.id, i])));
 
 watch(searchQuery, (value) => {
@@ -138,6 +138,8 @@ watch(searchQuery, (value) => {
 });
 
 function execSearch(value: string) {
+	searchedQuery = value;
+	searchSelectedIndex.value = null;
 	const newResult: SearchResultItem[] = [];
 
 	const searchIndexItemById = searchIndexItemByIdComputed.value;
@@ -203,10 +205,10 @@ function execSearch(value: string) {
 	searchResult.value = newResult;
 }
 
-const execSearchThrottled = throttle(150, execSearch);
+const execSearchDebounced = debounce(200, execSearch);
 
 onUnmounted(() => {
-	execSearchThrottled.cancel();
+	execSearchDebounced.cancel();
 });
 
 watch(rawSearchQuery, (value) => {
@@ -214,26 +216,31 @@ watch(rawSearchQuery, (value) => {
 
 	if (value === '') {
 		// クリア時は即座にメニュー表示へ戻すため、保留中の検索も破棄する
-		execSearchThrottled.cancel({ upcomingOnly: true });
+		execSearchDebounced.cancel({ upcomingOnly: true });
+		searchedQuery = value;
 		searchResult.value = [];
 		return;
 	}
 
-	execSearchThrottled(value);
+	execSearchDebounced(value);
 });
 
-function searchOnInput(ev: InputEvent) {
-	searchSelectedIndex.value = null;
-	rawSearchQuery.value = (ev.target as HTMLInputElement).value;
-}
-
 function searchOnKeyDown(ev: KeyboardEvent) {
-	if (ev.isComposing) return;
+	if (ev.isComposing || !['Enter', 'ArrowDown', 'ArrowUp'].includes(ev.key)) return;
+	if (searchedQuery !== rawSearchQuery.value) {
+		execSearchDebounced.cancel({ upcomingOnly: true });
+		execSearch(rawSearchQuery.value);
+	}
 	if (searchResult.value.length === 0) return;
 
 	if (ev.key === 'Enter' && searchSelectedIndex.value != null) {
+		const selected = searchResult.value[searchSelectedIndex.value];
+		if (!selected) {
+			searchSelectedIndex.value = null;
+			return;
+		}
 		ev.preventDefault();
-		router.pushByPath(searchResult.value[searchSelectedIndex.value].path + '#' + searchResult.value[searchSelectedIndex.value].id);
+		router.pushByPath(selected.path + '#' + selected.id);
 	} else if (ev.key === 'ArrowDown') {
 		ev.preventDefault();
 		const current = searchSelectedIndex.value ?? -1;
@@ -271,7 +278,7 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 		> .title {
 			color: var(--MI_THEME-fgTransparentWeak);
 			margin: 0 0 8px 0;
-			font-size: 0.9em;
+			font-size: 1em;
 		}
 
 		> .items {
@@ -286,12 +293,14 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 				width: 100%;
 				box-sizing: border-box;
 				padding: 9px 16px 9px 8px;
-				border-radius: 9px;
-				font-size: 0.9em;
+				border-radius: var(--MI-cardRadius);
+				font-size: 1em;
 
+				// 悬停不加深色背景，与 el-menu 一致只改变文字颜色
 				&:hover {
 					text-decoration: none;
-					background: var(--MI_THEME-panelHighlight);
+					background: none;
+					color: var(--MI_THEME-accent);
 				}
 
 				&:focus-visible {
@@ -301,6 +310,7 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 				&.active {
 					color: var(--MI_THEME-accent);
 					background: var(--MI_THEME-accentedBg);
+					font-weight: 500;
 				}
 
 				&.danger {
@@ -377,7 +387,7 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 					> .text {
 						padding-right: 0;
 						width: 100%;
-						font-size: 0.8em;
+						font-size: 1em;
 					}
 				}
 			}
@@ -393,11 +403,13 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 		margin-bottom: 2px;
 		padding: 9px 16px 9px 8px;
 		border-radius: 9px;
-		font-size: 0.9em;
+		font-size: 1em;
 
+		// 悬停不加深色背景，与上方菜单项一致只改变文字颜色
 		&:hover {
 			text-decoration: none;
-			background: var(--MI_THEME-panelHighlight);
+			background: none;
+			color: var(--MI_THEME-accent);
 		}
 
 		&.selected {

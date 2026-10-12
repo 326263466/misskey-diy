@@ -90,8 +90,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<MkA :class="$style.userItemMainBody" :to="userPage(item.mutee)">
 											<MkUserCardMini :user="item.mutee"/>
 										</MkA>
-										<button class="_button" :class="$style.userToggle" @click="toggleRenoteMuteItem(item)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
-										<button class="_button" :class="$style.remove" @click="unrenoteMute(item.mutee, $event)"><i class="ti ti-x"></i></button>
+										<button class="_button _iconButton" :class="$style.userToggle" @click="toggleRenoteMuteItem(item)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
+										<button class="_button _iconButton" :class="$style.remove" @click="unrenoteMute(item.mutee, $event)"><i class="ti ti-x"></i></button>
 									</div>
 									<div v-if="expandedRenoteMuteItems.includes(item.id)" :class="$style.userItemSub">
 										<div>{{ i18n.ts._settings.mutedAt }}: <MkTime :time="item.createdAt" mode="detail"/></div>
@@ -121,8 +121,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<MkA :class="$style.userItemMainBody" :to="userPage(item.mutee)">
 											<MkUserCardMini :user="item.mutee"/>
 										</MkA>
-										<button class="_button" :class="$style.userToggle" @click="toggleMuteItem(item)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
-										<button class="_button" :class="$style.remove" @click="unmute(item.mutee, $event)"><i class="ti ti-x"></i></button>
+										<button class="_button _iconButton" :class="$style.userToggle" @click="toggleMuteItem(item)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
+										<button class="_button _iconButton" :class="$style.remove" @click="unmute(item.mutee, $event)"><i class="ti ti-x"></i></button>
 									</div>
 									<div v-if="expandedMuteItems.includes(item.id)" :class="$style.userItemSub">
 										<div>{{ i18n.ts._settings.mutedAt }}: <MkTime :time="item.createdAt" mode="detail"/></div>
@@ -154,8 +154,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<MkA :class="$style.userItemMainBody" :to="userPage(item.blockee)">
 											<MkUserCardMini :user="item.blockee"/>
 										</MkA>
-										<button class="_button" :class="$style.userToggle" @click="toggleBlockItem(item)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
-										<button class="_button" :class="$style.remove" @click="unblock(item.blockee, $event)"><i class="ti ti-x"></i></button>
+										<button class="_button _iconButton" :class="$style.userToggle" @click="toggleBlockItem(item)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
+										<button class="_button _iconButton" :class="$style.remove" @click="unblock(item.blockee, $event)"><i class="ti ti-x"></i></button>
 									</div>
 									<div v-if="expandedBlockItems.includes(item.id)" :class="$style.userItemSub">
 										<div>{{ i18n.ts._settings.blockedAt }}: <MkTime :time="item.createdAt" mode="detail"/></div>
@@ -178,7 +178,7 @@ import XEmojiMute from './mute-block.emoji-mute.vue';
 import XInstanceMute from './mute-block.instance-mute.vue';
 import XWordMute from './mute-block.word-mute.vue';
 import MkPagination from '@/components/MkPagination.vue';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
@@ -278,10 +278,12 @@ async function toggleBlockItem(item: { id: string }) {
 
 async function saveMutedWords(mutedWords: (string | string[])[]) {
 	await os.apiWithDialog('i/update', { mutedWords });
+	os.toast(i18n.ts.saved, 'success');
 }
 
 async function saveHardMutedWords(hardMutedWords: (string | string[])[]) {
 	await os.apiWithDialog('i/update', { hardMutedWords });
+	os.toast(i18n.ts.saved, 'success');
 }
 
 const headerActions = computed(() => []);

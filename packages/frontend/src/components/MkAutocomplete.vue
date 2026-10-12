@@ -24,7 +24,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<li v-for="emoji in emojis" :key="emoji.emoji" :class="$style.item" tabindex="-1" @click="complete(type, emoji.emoji)" @keydown="onKeydown">
 			<MkCustomEmoji v-if="'isCustomEmoji' in emoji && emoji.isCustomEmoji" :name="emoji.emoji" :class="$style.emoji" :fallbackToImage="true"/>
 			<MkEmoji v-else :emoji="emoji.emoji" :class="$style.emoji"/>
-			<!-- eslint-disable-next-line vue/no-v-html -->
 			<span v-if="q != null && typeof q === 'string'" :class="$style.emojiName" v-html="sanitizeHtml(emoji.name.replace(q, `<b>${q}</b>`))"></span>
 			<span v-else v-text="emoji.name"></span>
 			<span v-if="emoji.aliasOf" :class="$style.emojiAlias">({{ emoji.aliasOf }})</span>
@@ -32,26 +31,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</ol>
 	<ol v-else-if="type === 'mfmTag' && mfmTags.length > 0" ref="suggests" :class="$style.list">
 		<li v-for="tag in mfmTags" tabindex="-1" :class="$style.item" @click="complete(type, tag)" @keydown="onKeydown">
-			<span>{{ tag }}</span>
+			<span>{{ mfmFunctionLabel(tag) }}</span>
 		</li>
 	</ol>
 	<ol v-else-if="type === 'mfmParam' && mfmParams.length > 0" ref="suggests" :class="$style.list">
 		<li v-for="param in mfmParams" tabindex="-1" :class="$style.item" @click="completeMfmParam(param)" @keydown="onKeydown">
-			<span>{{ param }}</span>
+			<span>{{ mfmParameterLabel(param) }}</span>
 		</li>
 	</ol>
 </div>
 </template>
 
 <script lang="ts">
-import { markRaw, ref, useTemplateRef, computed, onUpdated, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import { markRaw, ref, useTemplateRef, computed, onUpdated, onMounted, onBeforeUnmount, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import sanitizeHtml from 'sanitize-html';
 import { emojilist, getEmojiName } from '@@/js/emojilist.js';
 import { MFM_TAGS, MFM_PARAMS } from '@@/js/const.js';
 import type { EmojiDef } from '@/utility/search-emoji.js';
 import { elementContains } from '@/utility/element-contains.js';
-import { acct } from '@/filters/user.js';
+import { acct } from '@@/js/user.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { store } from '@/store.js';
@@ -60,6 +59,7 @@ import { miLocalStorage } from '@/local-storage.js';
 import { customEmojis } from '@/custom-emojis.js';
 import { searchEmoji, searchEmojiExact } from '@/utility/search-emoji.js';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
+import { mfmFunctionLabel, mfmParameterLabel } from '@/utility/mfm-function-label.js';
 
 export type CompleteInfo = {
 	user: {
@@ -189,6 +189,36 @@ const mfmTags = ref<string[]>([]);
 const mfmParams = ref<string[]>([]);
 const select = ref(-1);
 const zIndex = os.claimZIndex('high');
+let searchTimer: number | undefined;
+let searchController: AbortController | null = null;
+
+function cancelSearch() {
+	window.clearTimeout(searchTimer);
+	searchTimer = undefined;
+	searchController?.abort();
+	searchController = null;
+}
+
+function searchRemote<Result>(cacheKey: string, request: (signal: AbortSignal) => Promise<Result>, apply: (result: Result) => void) {
+	const controller = new AbortController();
+	searchController = controller;
+	fetching.value = true;
+	searchTimer = window.setTimeout(() => {
+		searchTimer = undefined;
+		void request(controller.signal).then(result => {
+			if (controller.signal.aborted) return;
+			apply(result);
+			sessionStorage.setItem(cacheKey, JSON.stringify(result));
+		}).catch(() => {
+			// 取消或失败后保留输入，下次输入时重新搜索。
+		}).finally(() => {
+			if (searchController === controller) {
+				searchController = null;
+				fetching.value = false;
+			}
+		});
+	}, 250);
+}
 
 function completeMfmParam(param: string) {
 	if (props.type !== 'mfmParam') throw new Error('Invalid type');
@@ -233,6 +263,7 @@ function setPosition() {
 }
 
 function exec() {
+	cancelSearch();
 	select.value = -1;
 	if (suggests.value) {
 		for (const el of Array.from(items.value)) {
@@ -240,8 +271,8 @@ function exec() {
 		}
 	}
 	if (props.type === 'user') {
+		users.value = [];
 		if (!props.q) {
-			users.value = [];
 			fetching.value = false;
 			return;
 		}
@@ -254,16 +285,13 @@ function exec() {
 			fetching.value = false;
 		} else {
 			const [username, host] = props.q.toString().split('@');
-			misskeyApi('users/search-by-username-and-host', {
+			searchRemote(cacheKey, signal => misskeyApi('users/search-by-username-and-host', {
 				username: username,
 				host: host,
 				limit: 10,
 				detail: false,
-			}).then(searchedUsers => {
+			}, undefined, signal), searchedUsers => {
 				users.value = searchedUsers;
-				fetching.value = false;
-				// キャッシュ
-				sessionStorage.setItem(cacheKey, JSON.stringify(searchedUsers));
 			});
 		}
 	} else if (props.type === 'hashtag') {
@@ -271,21 +299,19 @@ function exec() {
 			hashtags.value = JSON.parse(miLocalStorage.getItem('hashtags') ?? '[]');
 			fetching.value = false;
 		} else {
+			hashtags.value = [];
 			const cacheKey = `autocomplete:hashtag:${props.q}`;
 			const cache = sessionStorage.getItem(cacheKey);
 			if (cache) {
-				const hashtags = JSON.parse(cache);
-				hashtags.value = hashtags;
+				hashtags.value = JSON.parse(cache);
 				fetching.value = false;
 			} else {
-				misskeyApi('hashtags/search', {
-					query: props.q,
+				const query = props.q;
+				searchRemote(cacheKey, signal => misskeyApi('hashtags/search', {
+					query,
 					limit: 30,
-				}).then(searchedHashtags => {
+				}, undefined, signal), searchedHashtags => {
 					hashtags.value = searchedHashtags;
-					fetching.value = false;
-					// キャッシュ
-					sessionStorage.setItem(cacheKey, JSON.stringify(searchedHashtags));
 				});
 			}
 		}
@@ -307,12 +333,8 @@ function exec() {
 
 		mfmTags.value = MFM_TAGS.filter(tag => tag.startsWith(props.q ?? ''));
 	} else if (props.type === 'mfmParam') {
-		if (props.q.params.at(-1) === '') {
-			mfmParams.value = MFM_PARAMS[props.q.tag] ?? [];
-			return;
-		}
-
-		mfmParams.value = MFM_PARAMS[props.q.tag].filter(param => param.startsWith(props.q.params.at(-1) ?? ''));
+		const params = MFM_PARAMS[props.q.tag] ?? [];
+		mfmParams.value = params.filter(param => param.startsWith(props.q.params.at(-1) ?? ''));
 	}
 }
 
@@ -321,6 +343,7 @@ function onMousedown(event: MouseEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
+	if (event.isComposing || event.key === 'Process' || event.keyCode === 229) return;
 	const cancel = () => {
 		event.preventDefault();
 		event.stopPropagation();
@@ -410,6 +433,8 @@ onUpdated(() => {
 	items.value = suggests.value?.children ?? [];
 });
 
+watch(() => [props.type, props.q], exec);
+
 onMounted(() => {
 	setPosition();
 	window.addEventListener('resize', setPosition);
@@ -418,18 +443,11 @@ onMounted(() => {
 
 	window.document.body.addEventListener('mousedown', onMousedown);
 
-	nextTick(() => {
-		exec();
-
-		watch(() => props.q, () => {
-			nextTick(() => {
-				exec();
-			});
-		});
-	});
+	exec();
 });
 
 onBeforeUnmount(() => {
+	cancelSearch();
 	window.removeEventListener('resize', setPosition);
 	props.textarea.removeEventListener('keydown', onKeydown);
 

@@ -10,8 +10,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-click-anime v-tooltip="instance.name ?? i18n.ts.instance" :class="[$style.item, $style.instance]" class="_button" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
 				<img :class="$style.instanceIcon" :src="instance.iconUrl ?? '/favicon.ico'" alt="" draggable="false"/>
 			</button>
-			<MkA v-click-anime v-tooltip="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.timeline" to="/" exact>
+			<MkA v-click-anime v-tooltip="i18n.ts.home" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.home" to="/" exact>
 				<i :class="$style.itemIcon" class="ti ti-home ti-fw"></i>
+			</MkA>
+			<MkA v-click-anime v-tooltip="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.timeline" to="/timeline">
+				<i :class="$style.itemIcon" class="ti ti-messages ti-fw"></i>
 			</MkA>
 			<template v-for="item in menu">
 				<div v-if="item === '-'" :class="$style.divider"></div>
@@ -22,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<div :class="$style.divider"></div>
 			<MkA v-if="$i && ($i.isAdmin || $i.isModerator)" v-click-anime v-tooltip="i18n.ts.controlPanel" class="item" :activeClass="$style.active" :aria-label="i18n.ts.controlPanel" to="/admin" :behavior="settingsWindowed ? 'window' : null">
-				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw"></i>
+				<i :class="$style.itemIcon" class="ti ti-adjustments ti-fw"></i>
 			</MkA>
 			<button v-click-anime v-tooltip="i18n.ts.more" :class="$style.item" class="_button" :aria-label="i18n.ts.more" @click="more">
 				<i :class="$style.itemIcon" class="ti ti-dots ti-fw"></i>
@@ -57,7 +60,7 @@ import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
-import { userName } from '@/filters/user.js';
+import { userName } from '@@/js/user.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 
 const WINDOW_THRESHOLD = 1400;
@@ -86,6 +89,8 @@ async function more(ev: PointerEvent) {
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkLaunchPad.vue').then(x => x.default), {
 		anchorElement: target,
 		anchor: { x: 'center', y: 'bottom' },
+		// 成就和二维码不再从“更多”展示
+		excludedItems: ['achievements', 'qr'],
 	}, {
 		closed: () => dispose(),
 	});
@@ -191,7 +196,7 @@ onBeforeUnmount(() => {
 	display: inline-block;
 	height: 16px;
 	margin: 0 10px;
-	border-right: solid 0.5px var(--MI_THEME-divider);
+	border-right: var(--MI-divider);
 }
 
 .instance {

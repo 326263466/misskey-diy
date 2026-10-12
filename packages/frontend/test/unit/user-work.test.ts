@@ -13,8 +13,8 @@ import MkUserName from '@/components/global/MkUserName.vue';
 import { i18n } from '@/i18n.js';
 import { publishUserProfileUpdate } from '@/composables/use-user-profile.js';
 
-vi.mock('@/filters/user.js', () => ({ userPage: () => '/@alice' }));
-vi.mock('@/filters/note.js', () => ({ notePage: () => '/notes/note' }));
+vi.mock('@@/js/user.js', () => ({ userPage: () => '/@alice' }));
+vi.mock('@@/js/note.js', () => ({ notePage: () => '/notes/note' }));
 
 afterEach(cleanup);
 
@@ -124,7 +124,7 @@ describe('note author profile', () => {
 		const header = view.container.querySelector('header')!;
 		const primary = header.firstElementChild!;
 		expect(header.querySelector('[title="Channel"]')).toBeNull();
-		expect(primary.textContent).toBe('Alice@alice');
+		expect(primary.textContent).toBe('Alice');
 		expect(header.children).toHaveLength(2);
 		expect(header.lastElementChild!.textContent).toBe(expected);
 		expect(view.getByRole('link', { name: 'now' }).getAttribute('href')).toBe('/notes/note');

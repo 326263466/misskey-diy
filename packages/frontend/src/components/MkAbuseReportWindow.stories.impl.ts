@@ -50,9 +50,9 @@ export const WithContent = {
 	...Default,
 	args: {
 		...Default.args,
-		reportTarget: { reportType: 'boost', targetId: 'example', reaction: 'text:888' },
+		reportTarget: { reportType: 'note', targetId: 'example' },
 		context: {
-			label: i18n.ts._boost.title,
+			label: i18n.ts.note,
 			text: '888',
 			url: 'https://example.com/notes/example',
 		},

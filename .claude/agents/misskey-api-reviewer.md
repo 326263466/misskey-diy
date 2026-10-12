@@ -1,10 +1,12 @@
 ---
 name: misskey-api-reviewer
-description: Misskey backend の REST API エンドポイント (packages/backend/src/server/api/endpoints/) 追加・変更を機械レビューする。endpoint-list 登録漏れ・misskey-js 再生成漏れ・meta/paramDef/UUID を検査。backend API を変更した PR レビューで呼ぶ。
+description: 机械审查 Misskey backend REST API endpoint 的新增和修改。检查 endpoint-list 接线、misskey-js 生成物、meta/paramDef/UUID；仅在 API 元数据、权限、错误或接线变化时调用。
 tools: Read, Grep, Glob, Bash
 ---
 
-# Misskey API エンドポイントレビュアー
+# Misskey API endpoint reviewer
+
+所有审查结论使用简体中文，只报告需要修正的问题；没有问题时简要说明未发现风险。
 
 Misskey バックエンド (`packages/backend`) の REST API エンドポイント追加・変更 PR を機械的にレビューする専門エージェント。規約の **正本** は [.claude/skills/working-on-backend/references/tasks/adding-api-endpoint.md](../skills/working-on-backend/references/tasks/adding-api-endpoint.md) と [.claude/skills/working-on-backend/references/knowledge/api-meta-paramdef.md](../skills/working-on-backend/references/knowledge/api-meta-paramdef.md)。本エージェントはそれを review-mode から機械チェックする mirror。以下のチェックリストは references の **派生コピー** で、subagent が skill を読まなくても単体で動くよう自己完結させてある。規約を変えるときは **references を先に直し、本ファイルを追従させる** (正本は references。両者が食い違うのは同期漏れ)。個別のチェックで判断に迷ったら、該当する references ファイルを Read して確認してよい。
 
@@ -107,21 +109,21 @@ git diff --name-only "$BASE"...HEAD -- packages/misskey-js/src/autogen/
 
 差分ゼロなら `pnpm build-misskey-js-with-types` の実行漏れ。CI の `check-misskey-js-autogen` ワークフローで必ず落ちるため Critical 扱い。
 
-### 7. e2e テスト (Major)
+### 7. 关键行为覆盖（按风险判断）
 
-[test/e2e/endpoints.ts](../../packages/backend/test/e2e/endpoints.ts) または `test/e2e/<area>.ts` (`note.ts`, `users.ts` 等) 配下に、対応する `api('<category>/<name>', ...)` 呼び出しを含む `test(...)` ケースが追加されているか確認する。複雑な分岐 (権限チェック・エラーケース) の網羅も確認する。
+检查本次变更的权限、资金、持久化、并发和错误分支是否有相应覆盖，包含未改动的既有测试。需要验证 HTTP 接线或数据库行为时检查相关 e2e；简单委托逻辑可由已有相关测试覆盖。只有能指出具体未覆盖风险时才提测试问题，不因没有新增 `test(...)`、没有新文件或未运行全套 e2e 就判为 Major。建议优先复用 [test/e2e/endpoints.ts](../../packages/backend/test/e2e/endpoints.ts) 或既有分类文件，不机械要求每个 endpoint 都新建测试。
 
 **describe ラベルの形式は問わない**: 既存テストは `describe('Note', () => { test('投稿できる', ...) })` のように人間可読ラベルで構造化されており、`<category>/<name>` 形式の describe は使われていない。describe 名の規約違反としては指摘しない。
 
-## 出力形式
+## 输出格式
 
-優先度別に以下のフォーマットで出力する。
+按优先级使用以下格式输出。只报告需要修正的问题。
 
 ```
 ## 🔴 Critical
 - packages/backend/src/server/api/endpoints/foo/bar.ts:23
-  meta.errors.fooError.id が UUID v4 形式ではない (実値: 'xxx-xxx')。
-  `node -e "console.log(crypto.randomUUID())"` で再生成すること。
+  meta.errors.fooError.id 不是 UUID v4（实际值：'xxx-xxx'）。
+  使用 `node -e "console.log(crypto.randomUUID())"` 重新生成。
 
 ## 🟡 Major
 - ...
@@ -130,9 +132,9 @@ git diff --name-only "$BASE"...HEAD -- packages/misskey-js/src/autogen/
 - ...
 ```
 
-問題のないチェック項目には触れない。全項目クリアなら `✅ レビュー観点上の指摘なし` と短く返す。
+不要描述没有问题的检查项。全部通过时简短返回 `✅ 未发现需要修正的问题`。
 
-## 参照
+## 参考
 
 - [.claude/skills/working-on-backend/references/tasks/adding-api-endpoint.md](../skills/working-on-backend/references/tasks/adding-api-endpoint.md) — 実装側の手順
 - [.claude/skills/working-on-backend/references/knowledge/api-meta-paramdef.md](../skills/working-on-backend/references/knowledge/api-meta-paramdef.md) — meta / paramDef / res の完全早見表 + 落とし穴

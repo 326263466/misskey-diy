@@ -12,7 +12,7 @@ import { DriveService } from '@/core/DriveService.js';
 import { bindThis } from '@/decorators.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
 import type * as Bull from 'bullmq';
-import type { DbJobDataWithUser } from '../types.js';
+import type { DbDeleteDriveFilesJobData } from '../types.js';
 
 @Injectable()
 export class DeleteDriveFilesProcessorService {
@@ -32,7 +32,14 @@ export class DeleteDriveFilesProcessorService {
 	}
 
 	@bindThis
-	public async process(job: Bull.Job<DbJobDataWithUser>): Promise<void> {
+	public async process(job: Bull.Job<DbDeleteDriveFilesJobData>): Promise<void> {
+		if (Object.hasOwn(job.data, 'fileIds') || Object.hasOwn(job.data, 'fileUrls')) {
+			// 兼容旧的自动清理任务；未完整登记引用前，不能据扫描结果永久删除上传。
+			this.logger.info('文件引用尚未完整登记，已保留自动清理任务中的上传文件。');
+			await job.updateProgress(100);
+			return;
+		}
+
 		this.logger.info(`Deleting drive files of ${job.data.user.id} ...`);
 
 		const user = await this.usersRepository.findOneBy({ id: job.data.user.id });

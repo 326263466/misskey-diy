@@ -4,6 +4,8 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { DriveFilesRepository, ChannelsRepository } from '@/models/_.js';
 import { ChannelEntityService } from '@/core/entities/ChannelEntityService.js';
@@ -25,6 +27,7 @@ export const meta = {
 	},
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: 'e734f495-c609-49af-af61-57b47a4847a8' },
 		noSuchChannel: {
 			message: 'No such channel.',
 			code: 'NO_SUCH_CHANNEL',
@@ -91,6 +94,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const iAmModerator = await this.roleService.isModerator(me);
 			if (channel.userId !== me.id && !iAmModerator) {
 				throw new ApiError(meta.errors.accessDenied);
+			}
+			if (isContentTooLong(ps.name, CONTENT_LIMITS.channelName, channel.name) ||
+				isContentTooLong(ps.description, CONTENT_LIMITS.channelDescription, channel.description)) {
+				throw new ApiError(meta.errors.contentTooLong);
 			}
 
 			// eslint:disable-next-line:no-unnecessary-initializer

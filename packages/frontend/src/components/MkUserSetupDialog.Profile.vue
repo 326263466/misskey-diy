@@ -17,12 +17,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</FormSlot>
 
-	<MkInput v-model="name" :placeholder="$i.username" manualSave :mfmAutocomplete="['emoji']" data-testid="user-setup-user-name">
+	<MkInput v-model="name" :counterMaxLength="50" :placeholder="$i.username" manualSave :mfmAutocomplete="['emoji']" data-testid="user-setup-user-name">
 		<template #label>{{ i18n.ts._profile.name }}</template>
 		<template #caption>{{ i18n.ts._profile.nameDescription }}</template>
 	</MkInput>
 
-	<MkTextarea v-model="description" :max="500" tall manualSave data-testid="user-setup-user-description">
+	<MkTextarea v-model="description" :counterMaxLength="CONTENT_LIMITS.profileDescription" tall manualSave data-testid="user-setup-user-description">
 		<template #label>{{ i18n.ts._profile.description }}</template>
 	</MkTextarea>
 
@@ -32,6 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
+import { CONTENT_LIMITS } from 'misskey-js';
 import { i18n } from '@/i18n.js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
@@ -48,6 +49,10 @@ const name = ref($i.name ?? '');
 const description = ref($i.description ?? '');
 
 watch(name, () => {
+	if (Array.from(name.value).length > 50) {
+		os.toast(i18n.tsx.inputTooLong({ limit: 50 }), 'error');
+		return;
+	}
 	os.apiWithDialog('i/update', {
 		// 空文字列をnullにしたいので??は使うな
 
@@ -61,6 +66,10 @@ watch(name, () => {
 });
 
 watch(description, () => {
+	if (Array.from(description.value).length > CONTENT_LIMITS.profileDescription) {
+		os.toast(i18n.tsx.inputTooLong({ limit: CONTENT_LIMITS.profileDescription }), 'error');
+		return;
+	}
 	os.apiWithDialog('i/update', {
 		// 空文字列をnullにしたいので??は使うな
 

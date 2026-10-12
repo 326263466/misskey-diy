@@ -6,7 +6,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { AbuseReportSnapshotService } from '@/core/AbuseReportSnapshotService.js';
 import type { AbuseReportTarget } from '@/core/AbuseReportSnapshotService.js';
-import { MiChatMessage, MiChatRoom, MiDriveFile, MiFlash, MiFollowing, MiGalleryPost, MiNote, MiNoteReaction, MiPage, MiPoll, MiUser, MiUserProfile } from '@/models/_.js';
+import { MiChatMessage, MiChatRoom, MiDriveFile, MiFlash, MiFollowing, MiGalleryPost, MiNote, MiPage, MiPoll, MiUser, MiUserProfile } from '@/models/_.js';
 import { DELETED_REPLY_THREAD_PREFIX } from '@/misc/is-reply.js';
 
 function setup() {
@@ -22,7 +22,6 @@ function setup() {
 	const play = { id: 'play', userId: user.id, title: 'Play title', summary: 'Play summary', script: 'Original play script', visibility: 'private' };
 	const profiles = { findOneBy: vi.fn().mockResolvedValue(profile) };
 	const notes = { findOneBy: vi.fn().mockResolvedValue(note) };
-	const reactions = { findOneBy: vi.fn().mockResolvedValue({ userId: user.id, noteId: note.id, reaction: 'text:Original Boost' }) };
 	const polls = { findOneBy: vi.fn().mockResolvedValue(poll) };
 	const messages = { findOneBy: vi.fn().mockResolvedValue(message) };
 	const pages = { findOneBy: vi.fn().mockResolvedValue(page) };
@@ -41,7 +40,7 @@ function setup() {
 	const archive = { storage: 'local', key: 'key', sha256: 'digest', size: file.size, encryptionKey: 'secret', iv: 'iv', authTag: 'tag' };
 	const evidence = { archive: vi.fn().mockResolvedValue(archive), delete: vi.fn().mockResolvedValue(undefined) };
 	const repositories = new Map<unknown, unknown>([
-		[MiUserProfile, profiles], [MiNote, notes], [MiNoteReaction, reactions], [MiPoll, polls], [MiChatMessage, messages],
+		[MiUserProfile, profiles], [MiNote, notes], [MiPoll, polls], [MiChatMessage, messages],
 		[MiPage, pages], [MiGalleryPost, galleries], [MiFlash, plays], [MiFollowing, followings], [MiDriveFile, files], [MiChatRoom, rooms], [MiUser, users],
 	]);
 	const manager = { getRepository: vi.fn((entity: unknown) => repositories.get(entity)) };
@@ -51,7 +50,7 @@ function setup() {
 		noteEntities as never, fileEntities as never, chat as never, roles as never, evidence as never,
 	);
 	const capture = (targetUser: MiUser, reportingUser: MiUser, target: AbuseReportTarget) => service.capture(targetUser, reportingUser, target, manager as never);
-	return { manager, rooms, capture, user, reporter, note, file, profile, poll, message, page, gallery, play, profiles, notes, reactions, polls, messages, pages, galleries, plays, followings, files, noteEntities, chat, roles, users, evidence, archive };
+	return { manager, rooms, capture, user, reporter, note, file, profile, poll, message, page, gallery, play, profiles, notes, polls, messages, pages, galleries, plays, followings, files, noteEntities, chat, roles, users, evidence, archive };
 }
 
 describe('AbuseReportSnapshotService', () => {
@@ -124,35 +123,6 @@ describe('AbuseReportSnapshotService', () => {
 		expect(snapshot.content).toBe('Private message');
 		expect(snapshot.files[0].name).toBe('Original image');
 		await expect(capture(user, reporter, { type: 'chat', id: message.id })).rejects.toThrow('INVALID_REPORT_TARGET');
-	});
-
-	test('captures the stored Boost text belonging to the reported user on the visible note', async () => {
-		const { capture, user, reporter, note, reactions } = setup();
-		note.userId = 'someone-else';
-		const snapshot = await capture(user, reporter, { type: 'boost', id: note.id, reaction: 'text:Original Boost' });
-		reactions.findOneBy.mockResolvedValue(null);
-		expect(snapshot.content).toBe('Original Boost');
-		expect(snapshot.sourceUrl).toBe('https://example.com/notes/note');
-		expect(snapshot.files).toEqual([]);
-		expect(reactions.findOneBy).toHaveBeenCalledWith({ noteId: note.id, userId: user.id });
-	});
-
-	test.each([
-		[':smile@.:', ':smile:'],
-		['❤', '❤️'],
-		['text:café', 'text:cafe\u0301'],
-	])('recognizes reaction aliases %s and %s', async (stored, requested) => {
-		const { capture, user, reporter, reactions } = setup();
-		reactions.findOneBy.mockResolvedValue({ reaction: stored });
-		const snapshot = await capture(user, reporter, { type: 'boost', id: 'note', reaction: requested });
-		expect(snapshot.content).toBe(stored.replace(/^text:/, ''));
-	});
-
-	test.each(['missing', 'different reaction', 'invisible note'])('rejects a Boost with %s', async (state) => {
-		const { capture, user, reporter, reactions, noteEntities } = setup();
-		if (state === 'missing') reactions.findOneBy.mockResolvedValue(null);
-		if (state === 'invisible note') noteEntities.isContentVisible.mockResolvedValue(false);
-		await expect(capture(user, reporter, { type: 'boost', id: 'note', reaction: 'text:Different Boost' })).rejects.toThrow('INVALID_REPORT_TARGET');
 	});
 
 	test('captures exact private message text for its recipient', async () => {

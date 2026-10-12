@@ -122,6 +122,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<button
 				v-else-if="item.type === 'switch'"
+				v-tooltip="unref(item.tooltip)"
 				role="menuitemcheckbox"
 				tabindex="0"
 				:class="['_button', $style.item]"
@@ -279,7 +280,7 @@ const childrenCache = new WeakMap<MenuParent, MenuItem[]>();
 <script lang="ts" setup>
 const XChild = defineAsyncComponent(() => import('./MkMenu.child.vue'));
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	items: MenuItem[];
 	asDrawer?: boolean;
 	align?: 'center' | string;
@@ -287,9 +288,12 @@ const props = defineProps<{
 	maxHeight?: number;
 	guardInitialPointer?: boolean;
 	focusOnMount?: boolean;
+	focusReady?: boolean;
 	debugDisablePredictionCone?: boolean;
 	debugShowPredictionCone?: boolean;
-}>();
+}>(), {
+	focusReady: true,
+});
 
 const emit = defineEmits<{
 	(ev: 'close', actioned?: boolean): void;
@@ -615,14 +619,19 @@ const disposeHandlers = () => {
 onMounted(() => {
 	setupHandlers();
 
-	if (props.focusOnMount) {
+	// 锚定菜单完成定位前不可聚焦，重新定位也不应打断菜单内已有焦点。
+	watch(() => props.focusReady, () => {
 		nextTick(() => {
-			const items = getFocusableItems();
-			(items.find(item => item.getAttribute('aria-checked') === 'true') ?? items[0] ?? itemsEl.value)?.focus({ preventScroll: true });
+			if (disposed || props.focusReady === false || itemsEl.value == null) return;
+			if (itemsEl.value.parentElement?.contains(window.document.activeElement)) return;
+			if (props.focusOnMount) {
+				const items = getFocusableItems();
+				(items.find(item => item.getAttribute('aria-checked') === 'true') ?? items[0] ?? itemsEl.value).focus({ preventScroll: true });
+			} else if (!isNestingMenu) {
+				itemsEl.value.focus({ preventScroll: true });
+			}
 		});
-	} else if (!isNestingMenu) {
-		nextTick(() => itemsEl.value?.focus({ preventScroll: true }));
-	}
+	}, { immediate: true, flush: 'post' });
 });
 
 onBeforeUnmount(() => {
@@ -715,8 +724,8 @@ defineExpose({
 			min-width: 230px;
 
 			> .item {
-				padding: 6px 20px;
-				font-size: 0.95em;
+				padding: 4px 20px;
+				font-size: 1em;
 				line-height: 24px;
 			}
 		}
@@ -862,11 +871,12 @@ defineExpose({
 	display: flex;
 	align-items: center;
 	position: relative;
-	padding: 5px 16px;
+	padding: 4px 16px;
+	min-height: 32px;
 	width: 100%;
 	box-sizing: border-box;
 	white-space: nowrap;
-	font-size: 0.9em;
+	font-size: 1em;
 	line-height: 20px;
 	text-align: left;
 	overflow: hidden;
@@ -1004,6 +1014,10 @@ defineExpose({
 }
 
 .icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
 	margin-right: 8px;
 	line-height: 1;
 }
@@ -1040,7 +1054,7 @@ defineExpose({
 
 .divider {
 	margin: 8px 0;
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 
 .radioIcon {
@@ -1050,7 +1064,7 @@ defineExpose({
 	height: 1em;
 	vertical-align: -0.125em;
 	border-radius: 50%;
-	border: solid 2px var(--MI_THEME-divider);
+	border: solid 2px var(--MI_THEME-divider); // divider-exempt: radio control outline
 	background-color: var(--MI_THEME-panel);
 
 	&.radioChecked {

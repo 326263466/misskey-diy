@@ -15,6 +15,12 @@ import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 
+// 顶部只放内容板块；公告属于站方消息，登录后归入通知中心。
+export const primaryNavItems: readonly string[] = ['explore', 'channels', 'shop'];
+
+// 已在头像菜单、关于菜单或设置页提供，“更多”中不再重复。
+export const launchPadExcludedItems: readonly string[] = ['achievements', 'qr', 'benefits', 'tools', 'cacheClear'];
+
 export const navbarItemDef = reactive<{
 	[key: string]: {
 		title: string;
@@ -53,7 +59,7 @@ export const navbarItemDef = reactive<{
 		icon: 'ti ti-user-plus',
 		show: computed(() => $i != null),
 		indicated: computed(() => $i != null && $i.hasPendingReceivedFollowRequest),
-		to: '/my/follow-requests',
+		to: '/my/notifications/follow-requests',
 	},
 	explore: {
 		title: i18n.ts.explore,
@@ -64,7 +70,7 @@ export const navbarItemDef = reactive<{
 		title: i18n.ts.announcements,
 		icon: 'ti ti-speakerphone',
 		indicated: computed(() => $i != null && $i.hasUnreadAnnouncement),
-		to: '/announcements',
+		to: $i != null ? '/my/notifications/announcements' : '/announcements',
 	},
 	search: {
 		title: i18n.ts.search,
@@ -130,16 +136,10 @@ export const navbarItemDef = reactive<{
 	},
 	chat: {
 		title: i18n.ts.chat,
-		icon: 'ti ti-message-dots',
+		icon: 'ti ti-message-circle',
 		to: '/chat',
 		show: computed(() => $i != null && $i.policies.chatAvailability !== 'unavailable'),
 		indicated: computed(() => $i != null && $i.hasUnreadChatMessages),
-	},
-	wallet: {
-		title: i18n.ts._wallet.title,
-		icon: 'ti ti-wallet',
-		show: computed(() => $i != null),
-		to: '/settings/wallet',
 	},
 	checkin: {
 		title: i18n.ts._checkin.dailyCheckin,
@@ -153,10 +153,17 @@ export const navbarItemDef = reactive<{
 		to: '/community-ranking',
 	},
 	benefits: {
-		title: i18n.ts._benefits.title,
-		icon: 'ti ti-gift',
+		// 保留旧菜单键，避免已保存的导航偏好失效。
+		title: i18n.ts._wallet.title,
+		icon: 'ti ti-wallet',
 		show: computed(() => $i != null),
-		to: '/my/benefits',
+		to: '/wallet',
+	},
+	shop: {
+		title: i18n.ts._marketplace.title,
+		icon: 'ti ti-shopping-cart',
+		show: computed(() => $i != null),
+		to: '/shop',
 	},
 	achievements: {
 		title: i18n.ts.achievements,
@@ -210,12 +217,6 @@ export const navbarItemDef = reactive<{
 		action: (ev) => {
 			window.location.reload();
 		},
-	},
-	profile: {
-		title: i18n.ts.profile,
-		icon: 'ti ti-user',
-		show: computed(() => $i != null),
-		to: `/@${$i?.username}`,
 	},
 	cacheClear: {
 		title: i18n.ts.clearCache,

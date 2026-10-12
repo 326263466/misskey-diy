@@ -9,6 +9,7 @@ import { version, lang, isSafeMode } from '@@/js/config.js';
 import defaultLightTheme from '@@/themes/l-light.json5';
 import defaultDarkTheme from '@@/themes/d-dark.json5';
 import { storeBootloaderErrors } from '@@/js/store-boot-errors';
+import { initializeImageFade } from '@@/js/image-fade.js';
 import type { App } from 'vue';
 import widgets from '@/widgets/index.js';
 import directives from '@/directives/index.js';
@@ -31,8 +32,26 @@ import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
 import { launchPlugins } from '@/plugin.js';
 import { initTelemetry } from '@/telemetry.js';
+import { initializeInputCaret } from '@/utility/input-caret.js';
+import { initializeInputWheel } from '@/utility/input-wheel.js';
 
 export async function common(createVue: () => Promise<App<Element>>) {
+	initializeInputCaret();
+	initializeInputWheel();
+	const imageFade = initializeImageFade({ animationsEnabled: () => prefer.s.animation });
+	const updateAnimationPreference = () => {
+		window.document.documentElement.style.setProperty('--MI-iconCloseTransitionDuration', prefer.s.animation ? '200ms' : '0ms');
+		window.document.documentElement.style.setProperty('--MI-iconCloseHoverRotation', prefer.s.animation ? '90deg' : '0deg');
+		imageFade.refresh();
+	};
+	updateAnimationPreference();
+	const stopImageFadeWatch = watch(prefer.r.animation, updateAnimationPreference);
+	import.meta.hot?.dispose(() => {
+		stopImageFadeWatch();
+		imageFade.disconnect();
+		window.document.documentElement.style.removeProperty('--MI-iconCloseTransitionDuration');
+		window.document.documentElement.style.removeProperty('--MI-iconCloseHoverRotation');
+	});
 	console.info(`Misskey v${version}`);
 
 	if (_DEV_) {

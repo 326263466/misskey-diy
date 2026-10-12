@@ -8,22 +8,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_pageBody">
 		<div class="jqqmcavi">
 			<MkButton v-if="pageId && author != null" class="button" inline type="routerLink" :to="`/@${ author.username }/pages/${ currentName }`"><i class="ti ti-external-link"></i> {{ i18n.ts._pages.viewPage }}</MkButton>
-			<MkButton v-if="!readonly" inline primary class="button" @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
+			<MkButton v-if="!readonly" inline primary class="button" :disabled="!validTextFields" @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
 			<MkButton v-if="pageId" inline class="button" @click="duplicate"><i class="ti ti-copy"></i> {{ i18n.ts.duplicate }}</MkButton>
 			<MkButton v-if="pageId && !readonly" inline class="button" danger @click="del"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 		</div>
 
 		<div v-if="tab === 'settings'">
 			<div class="_gaps_m">
-				<MkInput v-model="title">
+				<MkInput v-model="title" :counterMaxLength="Misskey.CONTENT_LIMITS.articleTitle">
 					<template #label>{{ i18n.ts._pages.title }}</template>
 				</MkInput>
 
-				<MkInput v-model="summary">
+				<MkInput v-model="summary" :counterMaxLength="Misskey.CONTENT_LIMITS.articleSummary">
 					<template #label>{{ i18n.ts._pages.summary }}</template>
 				</MkInput>
 
-				<MkInput v-model="name">
+				<MkInput v-model="name" :counterMaxLength="256">
 					<template #prefix>{{ url }}/@{{ author?.username ?? '???' }}/pages/</template>
 					<template #label>{{ i18n.ts._pages.url }}</template>
 				</MkInput>
@@ -49,6 +49,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else-if="tab === 'contents'">
 			<div :class="$style.contents">
 				<XBlocks v-model="content" class="content"/>
+				<span class="_inputCounter" :class="{ _inputCounterOver: contentLength > Misskey.CONTENT_LIMITS.articleText }">{{ contentLength }}/{{ Misskey.CONTENT_LIMITS.articleText }}</span>
 
 				<MkButton v-if="!readonly" rounded class="add" @click="add()"><i class="ti ti-plus"></i></MkButton>
 			</div>
@@ -76,6 +77,7 @@ import { $i } from '@/i.js';
 import { mainRouter } from '@/router.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 import { getPageBlockList } from '@/pages/page-editor/common.js';
+import { isArticle } from '@/utility/article.js';
 
 const props = defineProps<{
 	initPageId?: string;
@@ -92,6 +94,9 @@ const currentName = ref<string | null>(null);
 const title = ref('');
 const summary = ref<string | null>(null);
 const name = ref(Date.now().toString());
+const validTextFields = computed(() => name.value.trim() !== '' && Array.from(name.value.trim()).length <= 256 &&
+	(title.value === page.value?.title || Array.from(title.value.trim()).length <= Misskey.CONTENT_LIMITS.articleTitle) &&
+	(summary.value === page.value?.summary || Array.from(summary.value ?? '').length <= Misskey.CONTENT_LIMITS.articleSummary));
 const eyeCatchingImage = ref<Misskey.entities.DriveFile | null>(null);
 const eyeCatchingImageId = ref<string | null>(null);
 const {
@@ -105,6 +110,8 @@ const {
 	initialValue: 'sans-serif',
 });
 const content = ref<Misskey.entities.Page['content']>([]);
+const contentText = computed(() => collectText(content.value));
+const contentLength = computed(() => Array.from(contentText.value).length);
 const alignCenter = ref(false);
 const hideTitleWhenPinned = ref(false);
 
@@ -122,7 +129,7 @@ watch(eyeCatchingImageId, async () => {
 
 function getSaveOptions(): Misskey.entities.PagesCreateRequest {
 	return {
-		title: title.value.trim(),
+		title: title.value === page.value?.title ? title.value : title.value.trim(),
 		name: name.value.trim(),
 		summary: summary.value,
 		font: font.value,
@@ -135,7 +142,17 @@ function getSaveOptions(): Misskey.entities.PagesCreateRequest {
 	};
 }
 
+function collectText(blocks: Misskey.entities.Page['content']): string {
+	return blocks.map(block => ('text' in block && typeof block.text === 'string' ? block.text : '') +
+		('children' in block && Array.isArray(block.children) ? collectText(block.children) : '')).join('');
+}
+
 async function save() {
+	if (!validTextFields.value) return;
+	if (contentLength.value > Misskey.CONTENT_LIMITS.articleText && contentText.value !== collectText(page.value?.content ?? [])) {
+		os.toast(i18n.tsx.inputTooLong({ limit: Misskey.CONTENT_LIMITS.articleText }), 'error');
+		return;
+	}
 	const options = getSaveOptions();
 
 	if (pageId.value) {
@@ -168,6 +185,7 @@ async function save() {
 			},
 		});
 	}
+	os.toast(i18n.ts.saved, 'success');
 }
 
 async function del() {
@@ -183,6 +201,7 @@ async function del() {
 	await os.apiWithDialog('pages/delete', {
 		pageId: pageId.value,
 	});
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 
 	mainRouter.replace('/pages');
 }
@@ -190,6 +209,10 @@ async function del() {
 async function duplicate() {
 	title.value = i18n.tsx._pages.duplicateTitle({ title: title.value });
 	name.value = name.value + '-copy';
+	if (Array.from(title.value.trim()).length > Misskey.CONTENT_LIMITS.articleTitle || Array.from(summary.value ?? '').length > Misskey.CONTENT_LIMITS.articleSummary || Array.from(name.value.trim()).length > 256 || contentLength.value > Misskey.CONTENT_LIMITS.articleText) {
+		os.toast(i18n.ts._article.invalidArticle, 'error');
+		return;
+	}
 
 	const created = await os.apiWithDialog('pages/create', getSaveOptions(), undefined, {
 		'4650348e-301c-499a-83c9-6aa988c66bc1': {
@@ -274,6 +297,10 @@ async function init() {
 	}
 
 	if (page.value) {
+		if (isArticle(page.value) && !readonly.value) {
+			mainRouter.replace('/articles/edit/:articleId', { params: { articleId: page.value.id } });
+			return;
+		}
 		author.value = page.value.user;
 		pageId.value = page.value.id;
 		title.value = page.value.title;
@@ -319,6 +346,7 @@ definePage(() => ({
 
 <style lang="scss" module>
 .contents {
+	position: relative;
 	&:global {
 		> .add {
 			margin: 16px auto 0 auto;

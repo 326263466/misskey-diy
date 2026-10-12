@@ -10,6 +10,7 @@ import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import { DEFAULT_POLICIES } from '@/core/RoleService.js';
 import { SystemAccountService } from '@/core/SystemAccountService.js';
+import { packedArticleCategoriesSchema } from '@/models/json-schema/meta.js';
 
 export const meta = {
 	tags: ['meta'],
@@ -22,6 +23,8 @@ export const meta = {
 		type: 'object',
 		optional: false, nullable: false,
 		properties: {
+			articleCategories: packedArticleCategoriesSchema,
+			articleTags: { type: 'array', optional: false, nullable: false, items: { type: 'string', optional: false, nullable: false } },
 			cacheRemoteFiles: {
 				type: 'boolean',
 				optional: false, nullable: false,
@@ -694,6 +697,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				cacheRemoteFiles: instance.cacheRemoteFiles,
 				cacheRemoteSensitiveFiles: instance.cacheRemoteSensitiveFiles,
 				pinnedUsers: instance.pinnedUsers,
+				articleCategories: instance.articleCategories,
+				articleTags: instance.articleTags,
 				hiddenTags: instance.hiddenTags,
 				blockedHosts: instance.blockedHosts,
 				silencedHosts: instance.silencedHosts,

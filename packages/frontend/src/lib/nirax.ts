@@ -7,19 +7,14 @@
 
 import { onBeforeUnmount, onMounted, shallowRef } from 'vue';
 import { EventEmitter } from 'eventemitter3';
+import { safeURIDecode } from '@@/js/url.js';
 import type { Component, ShallowRef } from 'vue';
-
-function safeURIDecode(str: string): string {
-	try {
-		return decodeURIComponent(str);
-	} catch {
-		return str;
-	}
-}
 
 interface RouteDefBase {
 	path: string;
 	query?: Record<string, string>;
+	/** 这些参数变化时复用页面；页面需响应其更新，其余参数继续区分实例。 */
+	reuseOnPropsChange?: readonly string[];
 	loginRequired?: boolean;
 	name?: string;
 	hash?: string;
@@ -91,6 +86,14 @@ export type PathResolvedResult = {
 	};
 };
 
+export function getRouteViewKey(resolved: PathResolvedResult): string {
+	const reusableProps = resolved.route.reuseOnPropsChange;
+	if (!reusableProps) return resolved._parsedRoute.fullPath;
+	const identityProps = [...resolved.props].filter(([name]) => !reusableProps.includes(name));
+	identityProps.sort(([a], [b]) => a.localeCompare(b));
+	return JSON.stringify([resolved.route.path, identityProps]);
+}
+
 //#region Path Types
 type Prettify<T> = {
 	[K in keyof T]: T[K]
@@ -123,7 +126,7 @@ type GetPaths<Def extends RouteDef> = Def extends { path: infer Path }
 	? Path extends string
 		? Def extends { children: infer Children }
 			? Children extends RouteDef[]
-				? Path | `${Path}${FlattenAllPaths<Children>}`
+				? Path | `${Path extends '/' ? '' : Path}${FlattenAllPaths<Children>}`
 				: Path
 			: Path
 		: never
@@ -134,7 +137,7 @@ type FlattenAllPaths<Defs extends RouteDef[]> = GetPaths<Defs[number]>;
 type GetSinglePathQuery<Def extends RouteDef, Path extends FlattenAllPaths<RouteDef[]>> = RemoveNever<
 	Def extends { path: infer BasePath, children: infer Children }
 		? BasePath extends string
-			? Path extends `${BasePath}${infer ChildPath}`
+			? Path extends `${BasePath extends '/' ? '' : BasePath}${infer ChildPath}`
 				? Children extends RouteDef[]
 					? ChildPath extends FlattenAllPaths<Children>
 						? GetPathQuery<Children, ChildPath>

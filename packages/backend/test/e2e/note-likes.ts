@@ -31,7 +31,7 @@ describe('note likes', () => {
 
 	test('likes and reactions coexist and can be removed independently', async () => {
 		const note = await post(alice, { text: 'separate data' });
-		expect((await api('notes/reactions/create', { noteId: note.id, reaction: '\u2764\ufe0f' }, bob)).status).toBe(204);
+		expect((await api('notes/reactions/create', { noteId: note.id, reaction: '\u2764\ufe0f' }, bob)).status).toBe(200);
 		const liked = await api('notes/likes/create', { noteId: note.id }, bob);
 		expect(liked.status).toBe(200);
 		expect(liked.body).toMatchObject({ likeCount: 1, isLiked: true, likeUsers: [{ id: bob.id }] });
@@ -42,7 +42,7 @@ describe('note likes', () => {
 		expect(unliked.body).toEqual({ likeCount: 0, isLiked: false, likeUsers: [] });
 		expect(await reactions.countBy({ noteId: note.id })).toBe(1);
 		await api('notes/likes/create', { noteId: note.id }, bob);
-		await api('notes/reactions/delete', { noteId: note.id }, bob);
+		await api('notes/reactions/delete', { noteId: note.id, reaction: '❤' }, bob);
 		expect(await likes.countBy({ noteId: note.id })).toBe(1);
 		expect(await reactions.countBy({ noteId: note.id })).toBe(0);
 	});

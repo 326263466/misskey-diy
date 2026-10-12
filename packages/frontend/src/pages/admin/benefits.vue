@@ -59,7 +59,7 @@ definePage(() => ({ title: i18n.ts._benefits.adminTitle, icon: 'ti ti-gift' }));
 .benefit { display: inline-flex; align-items: center; gap: var(--MI-marginHalf); padding: var(--MI-marginHalf) var(--MI-margin); border-radius: var(--MI-radius); background: var(--MI_THEME-accentedBg); color: var(--MI_THEME-accent); font-weight: bold; font-size: .85em; }
 .methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--MI-marginHalf); }
 .method {
-	display: flex; align-items: flex-start; gap: var(--MI-margin); padding: var(--MI-margin); text-align: left; border: 1px solid var(--MI_THEME-divider); border-radius: var(--MI-radius);
+	display: flex; align-items: flex-start; gap: var(--MI-margin); padding: var(--MI-margin); text-align: left; border: var(--MI-divider); border-radius: var(--MI-radius);
 	> i { margin-top: .1em; font-size: 1.25em; }
 	&:hover:not(:disabled) { background: var(--MI_THEME-buttonHoverBg); }
 	&.selected { border-color: var(--MI_THEME-accent); background: var(--MI_THEME-accentedBg); color: var(--MI_THEME-accent); }

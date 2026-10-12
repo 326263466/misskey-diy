@@ -24,20 +24,21 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		kind: { type: 'string', enum: ['direct', 'group', 'tip'] },
+		kind: { type: 'string', enum: ['direct', 'group'] },
 		audience: { type: 'string', enum: ['public', 'recipients', 'room'] },
 		roomId: { type: 'string', format: 'misskey:id' },
 		recipientIds: { type: 'array', items: { type: 'string', format: 'misskey:id' }, maxItems: 10000, uniqueItems: true },
 		mode: { type: 'string', enum: ['equal', 'random'] },
-		totalCoins: { type: 'integer', minimum: 1, maximum: 1_000_000 },
+		totalCoins: { type: 'number', minimum: 1, maximum: 1000, description: 'Total points, with at most two decimal places.' },
 		count: { type: 'integer', minimum: 1, maximum: 100 },
-		message: { type: 'string', maxLength: 100, default: '' },
-		expiresInHours: { type: 'integer', minimum: 1, maximum: 24 },
+		message: { type: 'string', maxLength: 18, default: '', description: 'Greeting, at most 18 Unicode characters.' },
+		password: { type: 'string', nullable: true, minLength: 1, maxLength: 32, description: 'New challenge phrases allow at most 18 Unicode characters. Up to 32 are accepted only to recover an existing request.' },
+		expiresInHours: { type: 'integer', minimum: 1, maximum: 24, default: 24, description: 'New packets last 24 hours. Other durations are accepted only to recover an existing request.' },
 		requestId: { type: 'string', pattern: WALLET_REQUEST_ID_PATTERN },
 		coverId: { type: 'string', enum: redPacketCoverIds, default: 'classic' },
 		coverFileId: { type: 'string', format: 'misskey:id', nullable: true },
 	},
-	required: ['kind', 'audience', 'mode', 'totalCoins', 'count', 'expiresInHours', 'requestId'],
+	required: ['kind', 'audience', 'mode', 'totalCoins', 'count', 'requestId'],
 } as const;
 
 @Injectable()

@@ -8,7 +8,7 @@ import { cleanup, render } from '@testing-library/vue';
 import { defineComponent, nextTick, ref } from 'vue';
 import { publishCheckinStatus, refreshCheckinStatus, useCheckinStatus } from '@/composables/use-checkin-status.js';
 import type { CheckinStatus } from '@/composables/use-checkin-status.js';
-import CheckinCard from '@/ui/_common_/juejin-checkin.vue';
+import CheckinCard from '@/ui/_common_/checkin-card.vue';
 import { i18n } from '@/i18n.js';
 import { DI } from '@/di.js';
 
@@ -32,7 +32,7 @@ class TestBroadcastChannel extends EventTarget {
 }
 
 function snapshot(checkedInToday = false, today = '2026-09-28'): CheckinStatus {
-	return { today, checkedInToday, timeZone: 'Asia/Shanghai' };
+	return { today, checkedInToday, consecutiveDays: 0, timeZone: 'Asia/Shanghai' };
 }
 
 function renderCard() {

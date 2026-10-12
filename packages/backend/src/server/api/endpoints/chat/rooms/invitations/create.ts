@@ -9,7 +9,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { EntityNotFoundError } from 'typeorm';
 import { ApiError } from '@/server/api/error.js';
-import { ChatService, ChatRoomFullError, ChatRoomInvitationError } from '@/core/ChatService.js';
+import { ChatService, ChatRoomAccessError, ChatRoomFullError, ChatRoomInvitationError } from '@/core/ChatService.js';
 import { ChatEntityService } from '@/core/entities/ChatEntityService.js';
 
 export const meta = {
@@ -65,12 +65,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me) => {
 			await this.chatService.checkChatAvailability(me.id, 'write');
 
-			const room = await this.chatService.findMyRoomById(me.id, ps.roomId);
+			const room = await this.chatService.findRoomById(ps.roomId);
 			if (room == null) {
 				throw new ApiError(meta.errors.noSuchRoom);
 			}
 			const invitation = await this.chatService.createRoomInvitation(me.id, room.id, ps.userId).catch(error => {
-				if (error instanceof ChatRoomInvitationError) throw new ApiError(meta.errors.invalidInvitee);
+				if (error instanceof ChatRoomAccessError) throw new ApiError(meta.errors.noSuchRoom);
+				if (error instanceof ChatRoomInvitationError) throw new ApiError(meta.errors.invalidInvitee, { reason: error.reason, userId: error.userId, chatScope: error.chatScope });
 				if (error instanceof EntityNotFoundError) throw new ApiError(meta.errors.noSuchRoom);
 				if (error instanceof ChatRoomFullError) throw new ApiError(meta.errors.roomFull);
 				throw error;

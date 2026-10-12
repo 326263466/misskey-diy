@@ -20,7 +20,6 @@ import { shouldHideNoteByTime } from '@/misc/should-hide-note-by-time.js';
 import { isDeletedReply, isOrdinaryReply } from '@/misc/is-reply.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { CacheService } from '@/core/CacheService.js';
-import { parseReactionUserPair } from '@/misc/reaction.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { CustomEmojiService } from '../CustomEmojiService.js';
 import type { ReactionService } from '../ReactionService.js';
@@ -258,44 +257,10 @@ export class NoteEntityService implements OnModuleInit {
 	}
 
 	@bindThis
-	public async populateMyReaction(note: { id: MiNote['id']; reactions: MiNote['reactions']; reactionAndUserPairCache?: MiNote['reactionAndUserPairCache']; }, meId: MiUser['id'], _hint_?: {
-		myReactions: Map<MiNote['id'], string | null>;
-	}) {
-		if (_hint_?.myReactions) {
-			const reaction = _hint_.myReactions.get(note.id);
-			if (reaction) {
-				return this.reactionService.convertLegacyReaction(reaction);
-			} else {
-				return undefined;
-			}
-		}
-
-		const reactionsCount = Object.values(note.reactions).reduce((a, b) => a + b, 0);
-		if (reactionsCount === 0) return undefined;
-		if (note.reactionAndUserPairCache && reactionsCount <= note.reactionAndUserPairCache.length) {
-			const pair = note.reactionAndUserPairCache.find(p => p.startsWith(`${meId}/`));
-			if (pair) {
-				return this.reactionService.convertLegacyReaction(parseReactionUserPair(pair)[1]);
-			} else {
-				return undefined;
-			}
-		}
-
-		// パフォーマンスのためノートが作成されてから2秒以上経っていない場合はリアクションを取得しない
-		if (this.idService.parse(note.id).date.getTime() + 2000 > Date.now()) {
-			return undefined;
-		}
-
-		const reaction = await this.noteReactionsRepository.findOneBy({
-			userId: meId,
-			noteId: note.id,
-		});
-
-		if (reaction) {
-			return this.reactionService.convertLegacyReaction(reaction.reaction);
-		}
-
-		return undefined;
+	public async populateMyReactions(note: { id: MiNote['id'] }, meId: MiUser['id'], hint?: { myReactions: Map<MiNote['id'], string[]> }): Promise<string[]> {
+		const reactions = hint?.myReactions.get(note.id)
+			?? (await this.noteReactionsRepository.find({ where: { userId: meId, noteId: note.id }, order: { id: 'ASC' } })).map(record => record.reaction);
+		return [...new Set(reactions.map(reaction => this.reactionService.convertLegacyReaction(reaction)))];
 	}
 
 	@bindThis
@@ -410,7 +375,7 @@ export class NoteEntityService implements OnModuleInit {
 			withReactionAndUserPairCache?: boolean;
 			_hint_?: {
 				bufferedReactions: Map<MiNote['id'], { deltas: Record<string, number>; pairs: ([MiUser['id'], string])[] }> | null;
-				myReactions: Map<MiNote['id'], string | null>;
+				myReactions: Map<MiNote['id'], string[]>;
 				favorites: Map<MiNote['id'], NoteFavoriteState>;
 				packedFiles: Map<MiNote['fileIds'][number], Packed<'DriveFile'> | null>;
 				packedUsers: Map<MiUser['id'], Packed<'UserLite'>>
@@ -444,6 +409,7 @@ export class NoteEntityService implements OnModuleInit {
 		const reactions = deleted ? {} : this.reactionService.convertLegacyReactions(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions.deltas ?? {}));
 
 		const reactionAndUserPairCache = note.reactionAndUserPairCache.concat(bufferedReactions.pairs.map(x => x.join('/')));
+		const myReactions = meId && opts.detail && !deleted ? await this.populateMyReactions(note, meId, options?._hint_) : [];
 
 		let text = note.text;
 
@@ -533,13 +499,7 @@ export class NoteEntityService implements OnModuleInit {
 
 				poll: !deleted && note.hasPoll ? this.populatePoll(note, meId) : undefined,
 
-				...(meId && Object.keys(reactions).length > 0 ? {
-					myReaction: this.populateMyReaction({
-						id: note.id,
-						reactions: reactions,
-						reactionAndUserPairCache: reactionAndUserPairCache,
-					}, meId, options?._hint_),
-				} : {}),
+				...(meId ? { myReactions } : {}),
 
 			} : {}),
 
@@ -571,51 +531,13 @@ export class NoteEntityService implements OnModuleInit {
 		const bufferedReactions = this.meta.enableReactionsBuffering ? await this.reactionsBufferingService.getMany([...getReactionNoteIds(notes)]) : null;
 
 		const meId = me ? me.id : null;
-		const myReactionsMap = new Map<MiNote['id'], string | null>();
+		const myReactionsMap = new Map<MiNote['id'], string[]>([...getReactionNoteIds(notes)].map(id => [id, []]));
 		if (meId) {
-			const idsNeedFetchMyReaction = new Set<MiNote['id']>();
-
-			// パフォーマンスのためノートが作成されてから2秒以上経っていない場合はリアクションを取得しない
-			const oldId = this.idService.gen(Date.now() - 2000);
-			const collectMyReaction = (note: MiNote, includeRecent: boolean): void => {
-				if (!includeRecent && note.id >= oldId) {
-					myReactionsMap.set(note.id, null);
-					return;
-				}
-
-				const reactionsCount = Object.values(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions?.get(note.id)?.deltas ?? {})).reduce((a, b) => a + b, 0);
-				if (reactionsCount === 0) {
-					myReactionsMap.set(note.id, null);
-				} else if (reactionsCount <= note.reactionAndUserPairCache.length + (bufferedReactions?.get(note.id)?.pairs.length ?? 0)) {
-					const pairInBuffer = bufferedReactions?.get(note.id)?.pairs.find(p => p[0] === meId);
-					if (pairInBuffer) {
-						myReactionsMap.set(note.id, pairInBuffer[1]);
-					} else {
-						const pair = note.reactionAndUserPairCache.find(p => p.startsWith(`${meId}/`));
-						myReactionsMap.set(note.id, pair ? parseReactionUserPair(pair)[1] : null);
-					}
-				} else {
-					idsNeedFetchMyReaction.add(note.id);
-				}
-			};
-
-			for (const note of notes) {
-				if (isPureRenote(note)) {
-					collectMyReaction(note.renote, true);
-					collectMyReaction(note, true);
-				} else {
-					collectMyReaction(note, false);
-				}
-			}
-
-			const myReactions = idsNeedFetchMyReaction.size > 0 ? await this.noteReactionsRepository.findBy({
-				userId: meId,
-				noteId: In(Array.from(idsNeedFetchMyReaction)),
-			}) : [];
-
-			for (const id of idsNeedFetchMyReaction) {
-				myReactionsMap.set(id, myReactions.find(reaction => reaction.noteId === id)?.reaction ?? null);
-			}
+			// 完整读取自己的回应，不能再用缓存中的第一条代表全部状态。
+			const records = await this.noteReactionsRepository.find({
+				where: { userId: meId, noteId: In([...myReactionsMap.keys()]) }, order: { id: 'ASC' },
+			});
+			for (const record of records) myReactionsMap.get(record.noteId)?.push(record.reaction);
 		}
 
 		// 同时统计本体及引用目标，避免列表逐条查询收藏数和自己的收藏状态。
@@ -736,11 +658,18 @@ export class NoteEntityService implements OnModuleInit {
 		const authorsById = new Map(authors.map(user => [user.id, user]));
 		const visible = await Promise.all(notes.map(note => this.isContentVisible(note, me, authorsById.get(note.userId))));
 		const visibleNoteIds = notes.filter((_note, index) => visible[index]).map(note => note.id);
-		const [likeStates, favoriteStates] = await Promise.all([
+		const [likeStates, favoriteStates, ownReactions] = await Promise.all([
 			this.noteLikeService.getStates(visibleNoteIds, me),
 			this.getFavoriteStates(visibleNoteIds, me?.id ?? null),
+			meId ? this.noteReactionsRepository.find({ where: { userId: meId, noteId: In(visibleNoteIds) }, order: { id: 'ASC' } }) : [],
 		]);
 		const visibleIds = new Set(visibleNoteIds);
+		const ownReactionsByNote = new Map<string, string[]>();
+		for (const record of ownReactions) {
+			const reactions = ownReactionsByNote.get(record.noteId) ?? [];
+			reactions.push(this.reactionService.convertLegacyReaction(record.reaction));
+			ownReactionsByNote.set(record.noteId, reactions);
+		}
 
 		const packings = notes.filter(note => !isDeletedReply(note)).map(note => {
 			const bufferedReactions = bufferedReactionsMap?.get(note.id);
@@ -758,6 +687,7 @@ export class NoteEntityService implements OnModuleInit {
 				...(favoriteStates.get(note.id) ?? { favoritesCount: 0, isFavorited: false }),
 				viewsCount: visibleIds.has(note.id) ? note.viewsCount : 0,
 				reactions,
+				myReactions: ownReactionsByNote.get(note.id) ?? [],
 				reactionEmojis,
 				repliesCount: note.repliesCount,
 				renoteCount: note.renoteCount,
@@ -769,6 +699,7 @@ export class NoteEntityService implements OnModuleInit {
 			deletedBy: note.deletedBy,
 			likeCount: 0, isLiked: false, likeUsers: [],
 			favoritesCount: 0, isFavorited: false, viewsCount: 0,
+			myReactions: [],
 			reactions: {}, reactionEmojis: {}, repliesCount: note.repliesCount, renoteCount: 0,
 		}));
 

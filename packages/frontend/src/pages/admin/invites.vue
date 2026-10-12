@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts.sort }}</template>
 				</MkSelect>
 			</div>
-			<MkPagination :paginator="paginator">
+			<MkPagination :paginator="paginator" pageEmpty>
 				<template #default="{ items }">
 					<div class="_gaps_s">
 						<MkInviteCode v-for="item in items" :key="item.id" :invite="item" :onDeleted="deleted" moderator/>

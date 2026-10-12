@@ -4,14 +4,20 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { In } from 'typeorm';
+import { assertContentLength } from '@/misc/content-limits.js';
 import { DI } from '@/di-symbols.js';
 import type { FeedbacksRepository, MiUser } from '@/models/_.js';
-import { type FeedbackCategory, type FeedbackStatus, type MiFeedback } from '@/models/Feedback.js';
+import { type FeedbackCategory, type FeedbackStatus, MiFeedback } from '@/models/Feedback.js';
+import { MiDriveFile } from '@/models/DriveFile.js';
 import type { Packed } from '@/misc/json-schema.js';
 import { sqlLikeEscape } from '@/misc/sql-like-escape.js';
 import { IdService } from '@/core/IdService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
+import { DriveFileLifecycleService } from '@/core/DriveFileLifecycleService.js';
 
 export type FeedbackListOptions = {
 	limit: number;
@@ -36,6 +42,8 @@ export class FeedbackService {
 		private idService: IdService,
 		private userEntityService: UserEntityService,
 		private roleService: RoleService,
+		private driveFileEntityService: DriveFileEntityService,
+		private driveFileLifecycleService: DriveFileLifecycleService,
 	) {}
 
 	private async find(feedbackId: string): Promise<MiFeedback> {
@@ -47,27 +55,39 @@ export class FeedbackService {
 	private async packMany(items: MiFeedback[], me?: { id: MiUser['id'] } | null): Promise<Packed<'Feedback'>[]> {
 		const users = await this.userEntityService.packMany(items.map(item => item.user ?? item.userId), me);
 		const userMap = new Map(users.map(user => [user.id, user]));
+		const fileIds = [...new Set(items.flatMap(item => [...item.fileIds, ...item.responseFileIds]))];
+		const files = fileIds.length ? await this.feedbacksRepository.manager.findBy(MiDriveFile, { id: In(fileIds) }) : [];
+		const fileMap = new Map((await this.driveFileEntityService.packMany(files)).map(file => [file.id, file]));
+		const packFiles = (ids: string[]) => ids.flatMap(id => fileMap.has(id) ? [fileMap.get(id)!] : []);
 		return items.map(item => ({
 			id: item.id,
 			createdAt: this.idService.parse(item.id).date.toISOString(),
 			updatedAt: item.updatedAt.toISOString(),
 			title: item.title,
 			description: item.description,
+			files: packFiles(item.fileIds),
 			category: item.category,
 			status: item.status,
 			response: item.response,
+			responseFiles: packFiles(item.responseFileIds),
 			userId: item.userId,
 			user: userMap.get(item.userId)!,
 		}));
 	}
 
-	public async create(input: { title: string; description: string; category: FeedbackCategory }, me: MiUser) {
+	public async create(input: { title: string; description: string; category: FeedbackCategory; fileIds?: string[] }, me: MiUser) {
+		assertContentLength(input.title, CONTENT_LIMITS.feedbackTitle);
+		assertContentLength(input.description, CONTENT_LIMITS.feedbackText);
 		const title = input.title.trim();
 		const description = input.description.trim();
-		if (!title || !description) throw new FeedbackService.InvalidContentError();
-		const feedback = await this.feedbacksRepository.insertOne({
-			id: this.idService.gen(), updatedAt: new Date(), userId: me.id,
-			title, description, category: input.category, status: 'open', response: null,
+		const fileIds = input.fileIds ?? [];
+		if (!title || (!description && fileIds.length === 0)) throw new FeedbackService.InvalidContentError();
+		const feedback = await this.feedbacksRepository.manager.transaction(async manager => {
+			await this.driveFileLifecycleService.validateImages(manager, me.id, fileIds);
+			return manager.save(MiFeedback, manager.create(MiFeedback, {
+				id: this.idService.gen(), updatedAt: new Date(), userId: me.id,
+				title, description, fileIds, category: input.category, status: 'open', response: null, responseFileIds: [],
+			}));
 		});
 		return (await this.packMany([feedback], me))[0];
 	}
@@ -100,13 +120,21 @@ export class FeedbackService {
 		return (await this.packMany([await this.find(feedbackId)], me))[0];
 	}
 
-	public async update(feedbackId: string, input: { status?: FeedbackStatus; response?: string | null }, me: MiUser) {
+	public async update(feedbackId: string, input: { status?: FeedbackStatus; response?: string | null; responseFileIds?: string[] }, me: MiUser) {
 		if (!await this.roleService.isModerator(me)) throw new FeedbackService.AccessDeniedError();
-		await this.find(feedbackId);
-		const updates: Partial<MiFeedback> = { updatedAt: new Date() };
-		if (input.status !== undefined) updates.status = input.status;
-		if (input.response !== undefined) updates.response = input.response?.trim() || null;
-		await this.feedbacksRepository.update(feedbackId, updates);
+		await this.feedbacksRepository.manager.transaction(async manager => {
+			const feedback = await manager.findOne(MiFeedback, { where: { id: feedbackId }, lock: { mode: 'pessimistic_write' } });
+			if (!feedback) throw new FeedbackService.NoSuchFeedbackError();
+			assertContentLength(input.response, CONTENT_LIMITS.feedbackText, feedback.response);
+			const updates: Partial<MiFeedback> = { updatedAt: new Date() };
+			if (input.status !== undefined) updates.status = input.status;
+			if (input.response !== undefined) updates.response = input.response?.trim() || null;
+			if (input.responseFileIds !== undefined) {
+				await this.driveFileLifecycleService.validateImages(manager, me.id, input.responseFileIds, feedback.responseFileIds);
+				updates.responseFileIds = input.responseFileIds;
+			}
+			await manager.update(MiFeedback, feedbackId, updates);
+		});
 		return this.show(feedbackId, me);
 	}
 

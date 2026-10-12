@@ -25,3 +25,7 @@ export const Default = {
 export const Equal = { ...Default, args: { ...Default.args, modelValue: { ...Default.args.modelValue, mode: 'equal' } } } satisfies StoryObj<typeof MkRedPacketEditor>;
 export const InsufficientBalance = { ...Default, args: { ...Default.args, balance: 0 } } satisfies StoryObj<typeof MkRedPacketEditor>;
 export const Pending = { ...Default, args: { ...Default.args, disabled: true } } satisfies StoryObj<typeof MkRedPacketEditor>;
+export const CustomCover = {
+	...Default,
+	args: { ...Default.args, modelValue: { ...Default.args.modelValue, coverFileId: 'custom-cover', coverUrl: '/client-assets/tutorial/ai.webp' } },
+} satisfies StoryObj<typeof MkRedPacketEditor>;

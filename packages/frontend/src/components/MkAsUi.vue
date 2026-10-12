@@ -107,7 +107,7 @@ const containerStyle = computed(() => {
 
 	const border = isBordered ? {
 		borderWidth: `${c.borderWidth ?? 1}px`,
-		borderColor: c.borderColor ?? 'var(--MI_THEME-divider)',
+		borderColor: c.borderColor ?? 'var(--MI-dividerColor)',
 		borderStyle: c.borderStyle ?? 'solid',
 	} : undefined;
 

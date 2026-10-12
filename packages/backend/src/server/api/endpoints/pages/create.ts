@@ -4,14 +4,17 @@
  */
 
 import ms from 'ms';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError } from '@/misc/content-limits.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { DriveFilesRepository, MiDriveFile, PagesRepository } from '@/models/_.js';
-import { pageNameSchema } from '@/models/Page.js';
+import { articleCategoryIdSchema, pageNameSchema } from '@/models/Page.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { PageEntityService } from '@/core/entities/PageEntityService.js';
 import { DI } from '@/di-symbols.js';
 import { PageService } from '@/core/PageService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
+import { newArticleTagsSchema, invalidArticleTagsErrorId } from '@/misc/article-tags.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -35,6 +38,17 @@ export const meta = {
 	},
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: '2b8c3e94-43cc-48f2-bcb0-29bafac9cf14' },
+		invalidArticleTags: {
+			message: 'Article tags must contain at most three distinct configured tags of up to 10 characters.',
+			code: 'INVALID_ARTICLE_TAGS',
+			id: '39b70c21-e24c-4bd6-b4c6-799a2a12269d',
+		},
+		noSuchArticleCategory: {
+			message: 'No such article category.',
+			code: 'NO_SUCH_ARTICLE_CATEGORY',
+			id: '29a99021-9d59-47d5-841a-ad8aa386328b',
+		},
 		noSuchFile: {
 			message: 'No such file.',
 			code: 'NO_SUCH_FILE',
@@ -51,9 +65,11 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		title: { type: 'string' },
+		articleCategoryId: { ...articleCategoryIdSchema, nullable: true },
+		articleTags: newArticleTagsSchema,
+		title: { type: 'string', maxLength: CONTENT_LIMITS.articleTitle },
 		name: { ...pageNameSchema, minLength: 1 },
-		summary: { type: 'string', nullable: true },
+		summary: { type: 'string', nullable: true, maxLength: CONTENT_LIMITS.articleSummary },
 		content: { type: 'array', items: {
 			type: 'object', additionalProperties: true,
 		} },
@@ -112,6 +128,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 				return await this.pageEntityService.pack(page);
 			} catch (err) {
+				if (err instanceof IdentifiableError && err.id === contentTooLongError.id) throw new ApiError(meta.errors.contentTooLong);
+				if (err instanceof IdentifiableError && err.id === invalidArticleTagsErrorId) {
+					throw new ApiError(meta.errors.invalidArticleTags);
+				}
+				if (err instanceof IdentifiableError && err.id === '8500efe3-a63d-402d-889d-52845f6a2b55') {
+					throw new ApiError(meta.errors.noSuchArticleCategory);
+				}
 				if (err instanceof IdentifiableError && err.id === '1a79e38e-3d83-4423-845b-a9d83ff93b61') {
 					throw new ApiError(meta.errors.nameAlreadyExists);
 				}

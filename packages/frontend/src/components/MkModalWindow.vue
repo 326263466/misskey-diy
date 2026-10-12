@@ -4,16 +4,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModal ref="modal" v-slot="{ type }" :preferType="deviceKind === 'smartphone' ? 'drawer' : 'dialog'" @click="onBgClick" @closed="emit('closed')" @esc="emit('esc')">
-	<div ref="rootEl" :class="[$style.root, type === 'drawer' ? $style.asDrawer : null, autoHeight ? $style.autoHeight : null]" :style="type === 'drawer' ? undefined : rootStyle">
+<MkModal ref="modal" v-slot="{ type }" :preferType="deviceKind === 'smartphone' ? 'drawer' : 'dialog'" :closeOnBackdrop="closeOnBackdrop" @click="onBgClick" @closed="emit('closed')" @esc="onEsc">
+	<div ref="rootEl" data-popup-boundary :class="[$style.root, type === 'drawer' ? $style.asDrawer : null, autoHeight ? $style.autoHeight : null]" :style="type === 'drawer' ? undefined : rootStyle">
 		<div :class="[$style.header, { [$style.closeButtonRight]: closeButtonRight }]">
-			<button v-if="withCloseButton" :class="$style.headerButton" class="_button" :aria-label="i18n.ts.close" data-testid="modal-window-close" @click="emit('close')"><i class="ti ti-x" aria-hidden="true"></i></button>
-			<span :class="$style.title">
-				<slot name="header"></slot>
+			<button v-if="withCloseButton" :class="$style.headerButton" class="_button" :aria-label="i18n.ts.close" data-testid="modal-window-close" @click="requestClose"><i class="ti ti-x" aria-hidden="true"></i></button>
+			<span :class="$style.title" data-testid="modal-window-title">
+				<i v-if="headerIcon" :class="[$style.titleIcon, headerIcon]" aria-hidden="true"></i>
+				<span :class="$style.titleLabel"><slot name="header"></slot></span>
 			</span>
 			<div v-if="withOkButton || $slots.headerActions" :class="[$style.headerActions, { [$style.customHeaderActions]: $slots.headerActions != null }]">
 				<slot name="headerActions"></slot>
-				<MkButton v-if="withOkButton" primary gradate small rounded :disabled="okButtonDisabled" @click="emit('ok')">{{ i18n.ts.done }} <i class="ti ti-check"></i></MkButton>
+				<MkButton v-if="withOkButton" :class="$style.okButton" primary gradate small rounded :disabled="okButtonDisabled" @click="emit('ok')">{{ i18n.ts.done }} <i class="ti ti-check" aria-hidden="true"></i></MkButton>
 			</div>
 		</div>
 		<div :class="$style.body">
@@ -27,13 +28,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, useTemplateRef, ref } from 'vue';
+import { computed, useTemplateRef, getCurrentInstance } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n';
 import { deviceKind } from '@/utility/device-kind.js';
 
 const props = withDefaults(defineProps<{
+	headerIcon?: string;
 	withOkButton?: boolean;
 	withCloseButton?: boolean;
 	closeButtonRight?: boolean;
@@ -43,6 +45,9 @@ const props = withDefaults(defineProps<{
 
 	/** 高さを内容に合わせ、`height` を上限としてのみ使う */
 	autoHeight?: boolean;
+
+	/** 是否允许点击空白关闭，不影响 Esc 和关闭按钮。 */
+	closeOnBackdrop?: boolean;
 }>(), {
 	withOkButton: false,
 	withCloseButton: true,
@@ -51,6 +56,7 @@ const props = withDefaults(defineProps<{
 	width: 400,
 	height: 500,
 	autoHeight: false,
+	closeOnBackdrop: true,
 });
 
 const emit = defineEmits<{
@@ -62,6 +68,7 @@ const emit = defineEmits<{
 }>();
 
 const modal = useTemplateRef('modal');
+const instance = getCurrentInstance()!;
 
 const rootStyle = computed(() => ({
 	width: `${props.width}px`,
@@ -73,7 +80,18 @@ function close() {
 }
 
 function onBgClick() {
-	emit('click');
+	if (instance.vnode.props?.onClick) emit('click');
+	else requestClose();
+}
+
+function requestClose() {
+	if (instance.vnode.props?.onClose) emit('close');
+	else close();
+}
+
+function onEsc() {
+	if (instance.vnode.props?.onEsc) emit('esc');
+	else requestClose();
 }
 
 defineExpose({
@@ -82,6 +100,8 @@ defineExpose({
 </script>
 
 <style lang="scss" module>
+@use '@/styles/window-header.scss' as window-header;
+
 .root {
 	margin: auto;
 	overflow: hidden;
@@ -90,7 +110,7 @@ defineExpose({
 	contain: content;
 	border-radius: var(--MI-radius);
 
-	--MI_THEME-headerHeight: 40px;
+	--MI_THEME-headerHeight: 46px;
 	--MI_THEME-headerHeightNarrow: 40px;
 
 	&.asDrawer {
@@ -119,7 +139,7 @@ defineExpose({
 	min-height: var(--MI_THEME-headerHeight);
 	background: var(--MI_THEME-panel);
 	color: var(--MI_THEME-fg);
-	box-shadow: inset 0 -1px var(--MI_THEME-divider);
+	box-shadow: inset 0 calc(-1 * var(--MI-dividerWidth)) var(--MI-dividerColor);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 
@@ -129,17 +149,9 @@ defineExpose({
 }
 
 .headerButton {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
+	@include window-header.control;
 	height: var(--MI_THEME-headerHeight);
 	width: var(--MI_THEME-headerHeight);
-
-	> i {
-		display: block;
-		line-height: 1;
-	}
 
 	@media (max-width: 500px) {
 		height: var(--MI_THEME-headerHeightNarrow);
@@ -148,27 +160,33 @@ defineExpose({
 }
 
 .title {
+	@include window-header.title;
 	flex: 1;
-	min-width: 0;
-	line-height: 1.3;
 	padding-left: var(--MI-cardPadding);
 	font-weight: bold;
-	white-space: nowrap;
 	overflow: hidden;
-	text-overflow: ellipsis;
 	pointer-events: none;
+}
 
-	> i {
-		vertical-align: middle;
-	}
+.titleIcon {
+	@include window-header.icon;
+}
+
+.titleLabel {
+	@include window-header.label;
 }
 
 .headerActions {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 4px;
 	flex-shrink: 0;
-	padding: 0 16px;
+	padding: 0 8px;
+}
+
+.okButton {
+	min-width: 0 !important;
+	padding-inline: 10px !important;
 }
 
 .customHeaderActions {
@@ -214,6 +232,6 @@ defineExpose({
 	padding: var(--MI-cardPadding, 18px);
 	overflow: clip;
 	background: var(--MI_THEME-panel);
-	border-top: 1px solid var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 </style>

@@ -4,15 +4,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" class="_panel" :class="[$style.root, { [$style.naked]: naked, [$style.thin]: thin, [$style.scrollable]: scrollable }]">
+<div ref="rootEl" class="_panel" :class="[$style.root, { [$style.naked]: naked, [$style.thin]: thin, [$style.scrollable]: scrollable, [$style.flatBody]: !showHeader || !foldable }]">
 	<header v-if="showHeader" ref="headerEl" :class="$style.header">
-		<div :class="$style.title">
+		<h2 :class="$style.title">
 			<span :class="$style.titleIcon"><slot name="icon"></slot></span>
 			<slot name="header"></slot>
-		</div>
+		</h2>
 		<div :class="$style.headerSub">
 			<slot name="func" :buttonStyleClass="$style.headerButton"></slot>
-			<button v-if="foldable" :class="$style.headerButton" class="_button" @click="() => showBody = !showBody">
+			<button v-if="foldable" :class="$style.headerButton" class="_button _iconButton" @click="() => showBody = !showBody">
 				<template v-if="showBody"><i class="ti ti-chevron-up"></i></template>
 				<template v-else><i class="ti ti-chevron-down"></i></template>
 			</button>
@@ -29,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<slot></slot>
 			</div>
 			<button v-if="omitted" :class="$style.fade" class="_button" @click="showMore">
-				<span :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
+				<span class="_textAction" :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
 			</button>
 		</div>
 	</Transition>
@@ -105,6 +105,8 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" module>
+@use '@/styles/card-header.scss';
+
 .transition_toggle_enterActive,
 .transition_toggle_leaveActive {
 	overflow: clip;
@@ -116,6 +118,7 @@ onUnmounted(() => {
 }
 
 .root {
+	background: var(--MI_THEME-panel);
 	position: relative;
 	overflow: clip;
 	contain: content;
@@ -147,35 +150,33 @@ onUnmounted(() => {
 	&.thin {
 		> .header {
 			> .title {
-				min-height: 36px;
-				font-size: 0.9em;
+				padding-block: card-header.$compactPadding;
 			}
 		}
 	}
 }
 
 .header {
+	display: flex;
 	position: sticky;
 	top: var(--MI-stickyTop, 0px);
 	left: 0;
-	color: var(--MI_THEME-fg);
+	color: var(--MI_THEME-panelHeaderFg);
 	// 各容器可经 --MI-containerHeaderBg 单独覆盖（如趋势组件要求与卡片同色）
-	background: var(--MI-containerHeaderBg, var(--MI_THEME-panelHighlight));
-	box-shadow: inset 0 -1px var(--MI_THEME-divider);
+	background: var(--MI-containerHeaderBg, var(--MI_THEME-panelHeaderBg));
 	z-index: 2;
 	line-height: 1.4em;
 }
 
 .title {
+	@include card-header.title;
+	flex: 1;
+	min-width: 0;
 	display: flex;
 	align-items: center;
 	box-sizing: border-box;
-	// 高度写死，标题文字和图标靠 align-items 在表头高度内垂直居中，不依赖上下 padding 对称。
-	// 行高必须保留（继承表头的 1.4em）：压到 1 时行盒正好等于 1em，而中日文字体的
-	// ascent+descent 超过 1em，溢出量会按字体比例偏向一侧，墨迹反而压不到正中
-	min-height: 44px;
 	margin: 0;
-	padding: 0 var(--MI-cardPadding, 18px);
+	padding-inline: var(--MI-cardPadding, 18px);
 
 	&:empty {
 		display: none;
@@ -197,17 +198,17 @@ onUnmounted(() => {
 
 .headerSub {
 	display: flex;
-	align-items: center;
-	position: absolute;
+	flex-shrink: 0;
+	align-self: stretch;
 	z-index: 2;
-	top: 0;
-	right: 0;
-	height: 100%;
 }
 
 .headerButton {
 	width: 42px;
-	height: 100%;
+}
+
+.flatBody {
+	--MI-containerBodyBg: var(--MI_THEME-panel);
 }
 
 .content {
@@ -215,13 +216,11 @@ onUnmounted(() => {
 	grid-template-rows: 1fr;
 	--MI-stickyTop: 0px;
 
-	/*
-	理屈は知らないけど、ここでbackgroundを設定しておかないと
-	スクロールコンテナーが少なくともChromeにおいて
-	main thread scrolling になってしまい、パフォーマンスが(多分)落ちる。
-	backgroundが透明だと裏側を描画しないといけなくなるとかそういう理由かもしれない
-	*/
-	background: var(--MI_THEME-panel);
+	// 理屈は知らないけど、ここでbackgroundを設定しておかないと
+	// スクロールコンテナーが少なくともChromeにおいて
+	// main thread scrolling になってしまい、パフォーマンスが(多分)落ちる。
+	// backgroundが透明だと裏側を描画しないといけなくなるとかそういう理由かもしれない
+	background: var(--MI-containerBodyBg, var(--MI_THEME-panel));
 
 	&.omitted {
 		position: relative;
@@ -236,11 +235,11 @@ onUnmounted(() => {
 			left: 0;
 			width: 100%;
 			height: 64px;
-			background: linear-gradient(0deg, var(--MI_THEME-panel), color(from var(--MI_THEME-panel) srgb r g b / 0));
+			background: linear-gradient(0deg, var(--MI-containerBodyBg, var(--MI_THEME-panel)), color(from var(--MI-containerBodyBg, var(--MI_THEME-panel)) srgb r g b / 0));
 
 			> .fadeLabel {
 				display: inline-block;
-				background: var(--MI_THEME-panel);
+				background: var(--MI-containerBodyBg, var(--MI_THEME-panel));
 				padding: 6px 10px;
 				font-size: 0.8em;
 				border-radius: 999px;
@@ -259,13 +258,5 @@ onUnmounted(() => {
 .bodyInner {
 	min-height: 0;
 	display: flow-root;
-}
-
-@container (max-width: 380px) {
-	.title {
-		min-height: 36px;
-		padding: 0 var(--MI-cardPadding, 18px);
-		font-size: 0.9em;
-	}
 }
 </style>

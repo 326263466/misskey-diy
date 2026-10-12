@@ -19,8 +19,10 @@ export class ChatRoomChannel extends Channel {
 	public static shouldShare = false;
 	public static requireCredential = true as const;
 	public static kind = 'read:chat';
+	private static recipientCache = new WeakMap<GlobalEvents['chatRoom']['payload'], Promise<{ recipients: Set<string>; blocked: Set<string> }>>();
 	private roomId: string;
 	private stopped = false;
+	private readRevision = 0;
 	private eventQueue: Promise<void> = Promise.resolve();
 
 	constructor(
@@ -66,13 +68,26 @@ export class ChatRoomChannel extends Channel {
 		// 权限检查与后续事件串行，退群校验期间不能先发出新消息。
 		this.eventQueue = this.eventQueue.then(async () => {
 			if (this.stopped) return;
-			if (data.type === 'membersChanged') {
-				const room = await this.chatRoomsRepository.findOneBy({ id: this.roomId });
-				if (!room || !this.user || !await this.chatService.hasPermissionToViewRoomTimeline(this.user.id, room)) {
-					this.dispose();
-					return;
-				}
+			// 撤权通知可能晚于新消息到达；每个事件重验，同进程所有连接共享一次查询。
+			let delivery = ChatRoomChannel.recipientCache.get(data);
+			if (!delivery) {
+				delivery = Promise.all([this.chatService.getRoomRecipientIds(this.roomId), this.chatService.getRoomBlockedRecipientIds(this.roomId)]).then(([recipients, blocked]) => ({ recipients, blocked }));
+				ChatRoomChannel.recipientCache.set(data, delivery);
 			}
+			const { recipients, blocked } = await delivery;
+			let allowed = this.user != null && recipients.has(this.user.id);
+			if (!allowed && this.user) {
+				// 保留站点审核员原有的非成员查看权限，不将群管理员等同于站点角色。
+				const room = await this.chatRoomsRepository.findOneBy({ id: this.roomId });
+				allowed = room != null && await this.chatService.hasPermissionToViewRoomTimeline(this.user.id, room);
+			}
+			if (this.stopped) return;
+			if (!allowed) {
+				this.send('accessRevoked', null);
+				this.dispose();
+				return;
+			}
+			if (this.user && blocked.has(this.user.id)) return;
 			if (!this.stopped) this.send(data.type, data.body);
 		}).catch(() => { this.dispose(); });
 		await this.eventQueue;
@@ -83,7 +98,13 @@ export class ChatRoomChannel extends Channel {
 		switch (type) {
 			case 'read':
 				if (this.roomId && !this.stopped) {
-					this.chatService.readRoomChatMessage(this.user!.id, this.roomId);
+					const revision = ++this.readRevision;
+					const id = typeof body?.id === 'string' ? body.id : undefined;
+					void this.chatService.readRoomChatMessage(this.user!.id, this.roomId, id).then(async () => {
+						if (!body?.count || !id || this.stopped || revision !== this.readRevision) return;
+						const unread = await this.chatService.getUnreadSnapshot(this.user!.id, 'room', this.roomId, false);
+						if (!this.stopped && revision === this.readRevision) this.send('unreadCount', { ...unread, throughId: id });
+					}).catch(() => {});
 				}
 				break;
 		}

@@ -9,7 +9,7 @@ import { nextTick } from 'vue';
 import WidgetMemo from '@/widgets/WidgetMemo.vue';
 import WidgetCalendar from '@/widgets/WidgetCalendar.vue';
 import { store } from '@/store.js';
-import { useLowresTime } from '@/composables/use-lowres-time.js';
+import { useLowresTime } from '@@/js/use-lowres-time.js';
 import { i18n } from '@/i18n.js';
 
 vi.mock('@/os.js', () => ({ popup: vi.fn() }));
@@ -23,7 +23,7 @@ vi.mock('@/store.js', async () => {
 		set: vi.fn((_key: string, value: string | null) => { memo.value = value; }),
 	} };
 });
-vi.mock('@/composables/use-lowres-time.js', async () => {
+vi.mock('@@/js/use-lowres-time.js', async () => {
 	const { ref } = await import('vue');
 	const time = ref(0);
 	return { useLowresTime: () => time, TIME_UPDATE_INTERVAL: 10000 };

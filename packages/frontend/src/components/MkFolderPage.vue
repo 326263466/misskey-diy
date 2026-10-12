@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="[$style.bg]" :style="{ zIndex }"></div>
 		<div :class="[$style.content]" :style="{ zIndex }">
 			<div :class="$style.header">
-				<button :class="$style.back" class="_button" @click="closePage"><i class="ti ti-chevron-left"></i></button>
+				<button :class="$style.back" class="_button _iconButton" @click="closePage"><i class="ti ti-chevron-left"></i></button>
 				<div :id="`v-${pageId}-header`" :class="$style.title"></div>
 				<div :class="$style.spacer"></div>
 			</div>
@@ -132,7 +132,7 @@ function onClosed() {
 	background: color(from var(--MI_THEME-panel) srgb r g b / 0.75);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .back {

@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { comment } from '@/server/web/views/_.js';
 import type { CommonProps } from '@/server/web/views/_.js';
 import { Splash } from '@/server/web/views/_splash.js';
 import type { PropsWithChildren, Children } from '@kitajs/html';
@@ -31,7 +30,6 @@ export function BaseEmbed(props: PropsWithChildren<CommonProps<{
 	return (
 		<>
 			{'<!DOCTYPE html>'}
-			{comment}
 			<html lang="zh-CN">
 				<head>
 					<meta charset="UTF-8" />
@@ -74,7 +72,7 @@ export function BaseEmbed(props: PropsWithChildren<CommonProps<{
 				<body>
 					<noscript>
 						<p>
-							JavaScriptを有効にしてください<br />
+							请启用 JavaScript<br />
 							Please turn on your JavaScript
 						</p>
 					</noscript>

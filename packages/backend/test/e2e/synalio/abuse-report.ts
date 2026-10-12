@@ -189,25 +189,6 @@ describe('[シナリオ] ユーザ通報', () => {
 			expect(after.body.find(report => report.id === saved.id)?.snapshot).toEqual(saved.snapshot);
 			expect((await api('admin/abuse-user-reports', {}, bob)).status).toBe(403);
 		});
-
-		test('retains a text Boost after it and its post are deleted', async () => {
-			const note = await post(bob, { text: 'Boost target' });
-			const reaction = 'text:Boost ABC 123 🧐';
-			expect((await api('notes/reactions/create', { noteId: note.id, reaction }, alice)).status).toBe(204);
-			const comment = randomString();
-			expect((await api('users/report-abuse', {
-				userId: alice.id, comment, reason: 'other', reportType: 'boost', targetId: note.id, reaction, requestId: randomUUID(),
-			}, bob)).status).toBe(204);
-			const reports = await api('admin/abuse-user-reports', {}, admin);
-			const saved = reports.body.find(report => report.comment === comment)!;
-			expect(saved.snapshot).toMatchObject({
-				type: 'boost', content: 'Boost ABC 123 🧐', user: { id: alice.id },
-			});
-			expect((await api('notes/reactions/delete', { noteId: note.id }, alice)).status).toBe(204);
-			expect((await api('notes/delete', { noteId: note.id }, bob)).status).toBe(204);
-			const after = await api('admin/abuse-user-reports', {}, admin);
-			expect(after.body.find(report => report.id === saved.id)?.snapshot).toEqual(saved.snapshot);
-		});
 	});
 
 	describe('SystemWebhook', () => {

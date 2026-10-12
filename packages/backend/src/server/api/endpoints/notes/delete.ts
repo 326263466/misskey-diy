@@ -70,6 +70,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// この操作を行うのが投稿者とは限らない(例えばモデレーター)ため
+			// 文件引用尚未完整登记，删除内容时保留上传，避免破坏未登记的复用。
 			await this.noteDeleteService.delete(await this.usersRepository.findOneByOrFail({ id: note.userId }), note, false, me);
 		});
 	}

@@ -20,9 +20,10 @@ vi.mock('@/preferences.js', async () => {
 	return { prefer: { s: reactive({ emojiStyle: 'twemoji' }) } };
 });
 vi.mock('@/utility/emoji-mute.js', () => ({ checkMuted: () => ({ value: false }) }));
+vi.mock('@/instance.js', () => ({ instance: { clientOptions: {}, policies: {} } }));
 vi.mock('@/os.js', () => ({}));
 
-function renderTextarea(props: { modelValue?: string; collapsible?: boolean; disabled?: boolean; manualSave?: boolean; code?: boolean; collapsedPlaceholder?: string } = {}, realMfm = false) {
+function renderTextarea(props: { modelValue?: string; collapsible?: boolean; disabled?: boolean; manualSave?: boolean; code?: boolean; collapsedPlaceholder?: string; counterMaxLength?: number } = {}, realMfm = false) {
 	const onUpdate = vi.fn();
 	return {
 		...render(MkTextarea, {
@@ -44,6 +45,34 @@ function renderTextarea(props: { modelValue?: string; collapsible?: boolean; dis
 		onUpdate,
 	};
 }
+
+describe('textarea counters', () => {
+	afterEach(cleanup);
+
+	test('counts local edits without turning the display limit into an input limit', async () => {
+		const view = renderTextarea({ modelValue: 'abc', collapsible: false });
+		expect(view.getByText('3')).toBeTruthy();
+		const textarea = view.getByRole('textbox') as HTMLTextAreaElement;
+		await fireEvent.update(textarea, 'abcde🎉');
+		expect(view.getByText('6')).toBeTruthy();
+		await view.rerender({ counterMaxLength: 4 });
+		expect(view.getByText('6 / 4')).toBeTruthy();
+		expect(textarea.hasAttribute('maxlength')).toBe(false);
+		expect(textarea.value).toBe('abcde🎉');
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.save }));
+		expect(view.onUpdate).toHaveBeenCalledExactlyOnceWith('abcde🎉');
+	});
+
+	test('lets a custom counter replace the default display', () => {
+		const view = render(MkTextarea, {
+			props: { modelValue: 'abc', counterMaxLength: 8 },
+			slots: { counter: 'Custom count' },
+			global: { directives: { 'adaptive-border': () => {} } },
+		});
+		expect(view.getByText('Custom count')).toBeTruthy();
+		expect(view.queryByText('3 / 8')).toBeNull();
+	});
+});
 
 describe('collapsible textareas', () => {
 	afterEach(cleanup);

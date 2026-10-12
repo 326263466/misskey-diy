@@ -4,10 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
-	<div :key="tab" class="_pageBody">
-		<MkPagination :paginator="paginator">
-			<template #empty><MkResult type="empty" :text="i18n.ts.noFollowRequests"/></template>
+<PageWithHeader v-model:tab="tab" contentCard :tabs="headerTabs" :swipable="true" :loading="paginator.fetching.value">
+	<div class="_pageBody">
+		<MkPagination :paginator="paginator" pageEmpty>
+			<template #empty="{ fetching }"><MkResult type="empty" :text="i18n.ts.noFollowRequests" page :loading="fetching"/></template>
 			<template #default="{items}">
 				<div class="mk-follow-requests _gaps">
 					<div v-for="req in items" :key="req.id" class="user _panel">
@@ -35,32 +35,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import * as Misskey from 'misskey-js';
-import { computed, markRaw, ref, watch } from 'vue';
+import { computed, markRaw, ref } from 'vue';
 import MkPagination from '@/components/MkPagination.vue';
 import MkButton from '@/components/MkButton.vue';
-import { userPage, acct } from '@/filters/user.js';
+import { userPage, acct } from '@@/js/user.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { $i } from '@/i.js';
 import { Paginator } from '@/utility/paginator.js';
 
-const tab = ref($i?.isLocked ? 'list' : 'sent');
+// 未锁定账户也可能因新账户关注审批收到请求，有待处理请求时先显示收到的。
+const tab = ref($i?.isLocked || $i?.hasPendingReceivedFollowRequest ? 'list' : 'sent');
 const cancelingUserIds = ref(new Set<string>());
 
-let paginator: Paginator<'following/requests/list' | 'following/requests/sent'>;
-
-watch(tab, (newTab) => {
-	if (newTab === 'list') {
-		paginator = markRaw(new Paginator('following/requests/list', { limit: 10 }));
-	} else {
-		paginator = markRaw(new Paginator('following/requests/sent', { limit: 10 }));
-	}
-}, { immediate: true });
+const receivedPaginator = markRaw(new Paginator('following/requests/list', { limit: 10 }));
+const sentPaginator = markRaw(new Paginator('following/requests/sent', { limit: 10 }));
+const paginator = computed(() => tab.value === 'list' ? receivedPaginator : sentPaginator);
 
 function accept(user: Misskey.entities.UserLite) {
 	os.apiWithDialog('following/requests/accept', { userId: user.id }).then(() => {
-		paginator.reload();
+		receivedPaginator.reload();
 	});
 }
 
@@ -73,7 +68,7 @@ async function reject(user: Misskey.entities.UserLite) {
 	if (canceled) return;
 
 	await os.apiWithDialog('following/requests/reject', { userId: user.id }).then(() => {
-		paginator.reload();
+		receivedPaginator.reload();
 	});
 }
 
@@ -83,7 +78,7 @@ async function cancel(user: Misskey.entities.UserLite) {
 
 	try {
 		await os.apiWithDialog('following/requests/cancel', { userId: user.id });
-		paginator.reload();
+		sentPaginator.reload();
 	} finally {
 		cancelingUserIds.value.delete(user.id);
 	}
@@ -115,7 +110,7 @@ definePage(() => ({
 .mk-follow-requests {
 	> .user {
 		display: flex;
-		padding: var(--MI-cardPadding);
+		padding-block: var(--MI-cardPadding);
 
 		> .avatar {
 			display: block;

@@ -77,7 +77,7 @@ const errored = ref(url.value == null);
 <style lang="scss" module>
 .root {
 	height: 2em;
-	vertical-align: middle;
+	vertical-align: calc(0.375em - 1em);
 	transition: transform 0.2s ease;
 
 	&:hover {
@@ -86,8 +86,8 @@ const errored = ref(url.value == null);
 }
 
 .normal {
-	height: 1.25em;
-	vertical-align: -0.25em;
+	height: var(--MI-emojiHeight);
+	vertical-align: var(--MI-emojiVerticalAlign);
 
 	&:hover {
 		transform: none;

@@ -6,6 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	headerIcon="ti ti-sparkles"
+	:closeOnBackdrop="false"
 	:width="1000"
 	:height="600"
 	:scroll="false"
@@ -14,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@ok="save()"
 	@closed="emit('closed')"
 >
-	<template #header><i class="ti ti-sparkles"></i> {{ i18n.ts._imageEffector.title }}</template>
+	<template #header>{{ i18n.ts._imageEffector.title }}</template>
 
 	<MkPreviewWithControls>
 		<template #preview>
@@ -22,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.previewContainer">
 				<div class="_acrylic" :class="$style.previewTitle">{{ i18n.ts.preview }}</div>
 				<div class="_acrylic" :class="$style.editControls">
-					<button class="_button" :class="[$style.previewControlsButton, penMode != null ? $style.active : null]" @click="showPenMenu"><i class="ti ti-pencil"></i></button>
+					<button class="_button _iconButton" :class="[$style.previewControlsButton, penMode != null ? $style.active : null]" @click="showPenMenu"><i class="ti ti-pencil"></i></button>
 				</div>
 				<div class="_acrylic" :class="$style.previewControls">
 					<button class="_button" :class="[$style.previewControlsButton, !enabled ? $style.active : null]" @click="enabled = false">{{ i18n.ts._imageEffector.before }}</button>
@@ -415,10 +417,9 @@ function onImagePointerdown(ev: PointerEvent) {
 	position: absolute;
 	top: 0;
 	left: 0;
-	/* なんかiOSでレンダリングがおかしい
-	width: stretch;
-	height: stretch;
-	*/
+	// なんかiOSでレンダリングがおかしい
+	// width: stretch;
+	// height: stretch;
 	width: calc(100% - 40px);
 	height: calc(100% - 40px);
 	margin: 20px;

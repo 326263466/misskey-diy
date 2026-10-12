@@ -34,7 +34,7 @@
 		dateLabelFg: '@fg',
 		inputBorder: 'rgba(255, 255, 255, 0.1)',
 		inputBorderHover: 'rgba(255, 255, 255, 0.2)',
-		panelBorder: '" solid 1px var(--MI_THEME-divider)',
+		panelBorder: '" var(--MI-divider)',
 		navIndicator: '@accent',
 		buttonGradateA: '@accent',
 		buttonGradateB: ':hue<-20<@accent',
@@ -44,7 +44,7 @@
 		htmlThemeColor: '@bg',
 		fgOnWhite: '@accent',
 		panelHighlight: ':lighten<3<@panel',
-		scrollbarHandle: 'rgba(255, 255, 255, 0.2)',
+		scrollbarHandle: 'rgba(255, 255, 255, 0.14)',
 		scrollbarHandleHover: 'rgba(255, 255, 255, 0.4)',
 	},
 }

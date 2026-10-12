@@ -333,7 +333,7 @@ definePage(() => ({
 .gamePreviewFooter {
 	display: flex;
 	align-items: baseline;
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	padding: 6px 10px;
 	font-size: 0.9em;
 }

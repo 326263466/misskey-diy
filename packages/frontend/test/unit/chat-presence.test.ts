@@ -115,6 +115,23 @@ afterEach(async () => {
 });
 
 describe('chat presence', () => {
+	test('does not open a conversation stream after navigating away during initialization', async () => {
+		let completeUser!: (user: typeof sourceUser) => void;
+		const pendingUser = new Promise<typeof sourceUser>(resolve => { completeUser = resolve; });
+		mocks.api.mockImplementation(async endpoint => {
+			if (endpoint === 'users/show') return pendingUser;
+			if (endpoint === 'users/show-partial-bulk') return [snapshot];
+			return [];
+		});
+		const openChannel = vi.spyOn(stream, 'useChannel');
+		const view = renderChat();
+		await nextTick();
+		view.unmount();
+		completeUser(sourceUser);
+		await flush();
+		expect(openChannel).not.toHaveBeenCalledWith('chatUser', { otherId: sourceUser.id });
+	});
+
 	test('refreshes the header when the other user changes status or goes invisible', async () => {
 		const view = renderChat();
 		await flush();

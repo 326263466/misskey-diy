@@ -67,7 +67,7 @@ defineProps<{
 	width: 100%;
 	box-sizing: border-box;
 	padding: 12px var(--MI-cardPadding);
-	background: var(--MI_THEME-panelHighlight);
+	background: var(--MI_THEME-folderHeaderBg);
 	border-radius: var(--MI-formGroupRadius, 6px);
 	font-size: 0.9em;
 

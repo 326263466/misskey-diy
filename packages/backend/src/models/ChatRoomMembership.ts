@@ -38,8 +38,26 @@ export class MiChatRoomMembership {
 	@JoinColumn()
 	public room: MiChatRoom | null;
 
+	@Column('varchar', {
+		length: 16,
+		default: 'member',
+	})
+	public role: 'administrator' | 'member';
+
+	@Column('varchar', { length: 32, default: '' })
+	public nickname: string;
+
+	@Column('boolean', { default: false })
+	public isSilenced: boolean;
+
+	@Column('timestamp with time zone', { nullable: true })
+	public silenceUntil: Date | null;
+
 	@Column('boolean', {
 		default: false,
 	})
 	public isMuted: boolean;
+
+	@Column('timestamp with time zone', { nullable: true })
+	public mutedUntil: Date | null;
 }

@@ -6,7 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="[$style.root, { [$style.collapsed]: collapsed }]">
 	<div>
-		<span v-if="note.isHidden" style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.private }})</span>
+		<span v-if="note.isHidden" :class="$style.hiddenContent">
+			<span :class="$style.hiddenContentTitle"><i class="ti ti-lock" aria-hidden="true"></i>{{ i18n.ts.invisibleNote }}</span>
+			<span :class="$style.hiddenContentDivider" aria-hidden="true"></span>
+		</span>
 		<span v-if="note.isDeleted" style="color: var(--MI_THEME-fgTransparentWeak);">({{ getDeletedText(note.deletedBy) }})</span>
 		<span v-else-if="note.deletedAt" style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.deletedNote }})</span>
 		<Mfm v-if="note.text" :text="note.text" :parsedNodes="displayNodes" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
@@ -29,10 +32,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</details>
 	<MkA v-if="note.hasPoll && note.poll == null" :to="`/notes/${note.id}`">({{ i18n.ts.poll }})</MkA>
 	<button v-if="isLong && collapsed" :class="$style.fade" class="_button" @click="collapsed = false">
-		<span :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
+		<span class="_textAction" :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
 	</button>
 	<button v-else-if="isLong && !collapsed" :class="$style.showLess" class="_button" @click="collapsed = true">
-		<span :class="$style.showLessLabel">{{ i18n.ts.showLess }}</span>
+		<span class="_textAction" :class="$style.showLessLabel">{{ i18n.ts.showLess }}</span>
 	</button>
 </div>
 </template>
@@ -103,6 +106,39 @@ watch(isLong, long => {
 			}
 		}
 	}
+}
+
+.hiddenContent {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 12px;
+	margin: 4px 0;
+	padding: 16px 20px;
+	border-radius: var(--MI-radius);
+	background: color-mix(in srgb, var(--MI_THEME-fg) 8%, var(--MI_THEME-panel));
+	color: var(--MI_THEME-fg);
+	font-size: 0.92em;
+	font-weight: 500;
+	line-height: 1.5;
+	box-sizing: border-box;
+}
+
+.hiddenContentTitle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.hiddenContentTitle > i {
+	flex: 0 0 auto;
+	color: var(--MI_THEME-accent);
+}
+
+.hiddenContentDivider {
+	display: block;
+	width: 100%;
+	border-top: var(--MI-divider);
 }
 
 .rp {

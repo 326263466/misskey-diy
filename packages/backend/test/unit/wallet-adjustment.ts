@@ -39,7 +39,7 @@ test.each(['', ' \n ', '  Grant  '])('optional reasons are normalized before wri
 test('invalid amounts and overlong reasons are rejected before a transaction starts', async () => {
 	const transaction = vi.fn();
 	const service = new WalletService({ transaction } as never, {} as never);
-	for (const amount of [0, 1.5, 2000000001, -2000000001]) {
+	for (const amount of [0, 1.005, 2000000001, -2000000001]) {
 		await expect(service.adjust('recipient', amount, '', randomUUID(), 'admin')).rejects.toBeInstanceOf(WalletService.InvalidAmountError);
 	}
 	await expect(service.adjust('recipient', 1, '🎁'.repeat(501), randomUUID(), 'admin')).rejects.toBeInstanceOf(WalletService.InvalidAmountError);

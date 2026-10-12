@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <img v-if="shouldMute" :class="$style.root" src="/client-assets/unknown.png" :alt="props.emoji" :title="noTooltip ? '' : undefined" decoding="async" @pointerenter="computeTitle" @click="onClick"/>
-<img v-else-if="url" :key="url" ref="imageEl" :class="$style.root" :src="url" :alt="props.emoji" :title="noTooltip ? '' : undefined" decoding="async" @error="onImageError" @pointerenter="computeTitle" @click="onClick"/>
+<img v-else-if="url" :key="url" ref="imageEl" :class="$style.root" :style="alignVisualCenter ? { translate: `0 ${visualOffset * 100}%` } : undefined" :src="url" :alt="props.emoji" :title="noTooltip ? '' : undefined" decoding="async" @load="onImageLoad" @error="onImageError" @pointerenter="computeTitle" @click="onClick"/>
 <span v-else :alt="props.emoji" :title="noTooltip ? '' : undefined" @pointerenter="computeTitle" @click="onClick"><slot name="fallback">{{ colorizedNativeEmoji }}</slot></span>
 </template>
 
@@ -21,6 +21,7 @@ import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
 import { mute as muteEmoji, unmute as unmuteEmoji, checkMuted as checkMutedEmoji } from '@/utility/emoji-mute.js';
 import { addToEmojiPalette } from '@/utility/emoji-palette.js';
+import { getEmojiVisualOffset } from '@/utility/emoji-visual-offset.js';
 
 const props = defineProps<{
 	emoji: string;
@@ -28,11 +29,13 @@ const props = defineProps<{
 	menuReaction?: boolean;
 	ignoreMuted?: boolean;
 	noTooltip?: boolean;
+	alignVisualCenter?: boolean;
 }>();
 
 const react = inject(DI.mfmEmojiReactCallback, null);
 
 const imageEl = useTemplateRef('imageEl');
+const visualOffset = ref(0);
 const failedUrls = ref(new Set<string>());
 const url = computed(() => {
 	if (prefer.s.emojiStyle === 'native') return null;
@@ -46,7 +49,12 @@ const shouldMute = computed(() => isMuted.value && !props.ignoreMuted);
 
 watch([() => props.emoji, () => prefer.s.emojiStyle], () => {
 	failedUrls.value = new Set();
+	visualOffset.value = 0;
 }, { flush: 'sync' });
+
+function onImageLoad(event: Event): void {
+	if (props.alignVisualCenter && event.currentTarget === imageEl.value && imageEl.value) visualOffset.value = getEmojiVisualOffset(imageEl.value);
+}
 
 function onImageError(event: Event): void {
 	if (event.currentTarget !== imageEl.value) return;
@@ -147,7 +155,11 @@ function onClick(ev: PointerEvent) {
 
 <style lang="scss" module>
 .root {
-	height: 1.25em;
-	vertical-align: -0.25em;
+	// 懒加载尚无图源时也保留图片盒子，避免替代文字改变行高和换行。
+	display: inline-block;
+	width: var(--MI-emojiHeight);
+	height: var(--MI-emojiHeight);
+	overflow: hidden;
+	vertical-align: var(--MI-emojiVerticalAlign);
 }
 </style>

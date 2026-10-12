@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkContainer :naked="widgetProps.transparent" :showHeader="widgetProps.showHeader" class="mkw-rss-ticker">
 	<template #icon><i class="ti ti-rss"></i></template>
 	<template #header>RSS</template>
-	<template #func="{ buttonStyleClass }"><button class="_button" :class="buttonStyleClass" @click="configure"><i class="ti ti-settings"></i></button></template>
+	<template #func="{ buttonStyleClass }"><button class="_button _iconButton" :class="buttonStyleClass" @click="configure"><i class="ti ti-settings"></i></button></template>
 
 	<div :class="$style.feed">
 		<div v-if="fetching" :class="$style.loading">
@@ -190,9 +190,9 @@ defineExpose<WidgetComponentExpose>({
 
 .divider {
 	display: inline-block;
-	width: 0.5px;
+	width: var(--MI-dividerWidth);
 	height: 16px;
 	margin: 0 1em;
-	background: var(--MI_THEME-divider);
+	background: var(--MI-dividerColor);
 }
 </style>

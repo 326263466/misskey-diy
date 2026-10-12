@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_pageBody">
 		<div class="_gaps">
 			<MkInfo v-if="$i && $i.hasUnreadAnnouncement && tab === 'current'" warn>{{ i18n.ts.youHaveUnreadAnnouncements }}</MkInfo>
-			<MkPagination v-slot="{items}" :paginator="paginator" class="_gaps">
+			<MkPagination v-slot="{items}" :paginator="paginator" class="_gaps" pageEmpty>
 				<section v-for="announcement in items" :key="announcement.id" class="_panel" :class="$style.announcement">
 					<div v-if="announcement.forYou" :class="$style.forYou"><i class="ti ti-pin"></i> {{ i18n.ts.forYou }}</div>
 					<div :class="$style.header">
@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<i v-else-if="announcement.icon === 'error'" class="ti ti-circle-x" style="color: var(--MI_THEME-error);"></i>
 							<i v-else-if="announcement.icon === 'success'" class="ti ti-check" style="color: var(--MI_THEME-success);"></i>
 						</span>
-						<MkA :to="`/announcements/${announcement.id}`"><span>{{ announcement.title }}</span></MkA>
+						<MkA :to="`/announcements/${announcement.id}`"><Mfm :text="announcement.title" :plain="true"/></MkA>
 					</div>
 					<div :class="$style.content">
 						<Mfm :text="announcement.text" class="_selectable"/>
@@ -102,8 +102,10 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+@use '@/styles/card-header.scss';
+
 .announcement {
-	padding: var(--MI-cardPadding);
+	padding: 0 var(--MI-cardPadding) var(--MI-cardPadding);
 }
 
 .forYou {
@@ -116,8 +118,7 @@ definePage(() => ({
 }
 
 .header {
-	margin-bottom: 16px;
-	font-weight: bold;
+	@include card-header.title;
 }
 
 .content {

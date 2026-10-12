@@ -8,12 +8,7 @@ import MkEmojiPickerDialog from '@/components/MkEmojiPickerDialog.vue';
 import { popup } from '@/os.js';
 import { prefer } from '@/preferences.js';
 
-/**
- * 絵文字ピッカーを表示する。
- * 類似の機能として{@link ReactionPicker}が存在しているが、この機能とは動きが異なる。
- * 投稿フォームなどで絵文字を選択する時など、絵文字ピックアップ後でもダイアログが消えずに残り、
- * 一度表示したダイアログを連続で使用できることが望ましいシーンでの利用が想定される。
- */
+/** 打开表情选择器，选中一个后关闭。 */
 class EmojiPicker {
 	private emojisRef = ref<string[]>([]);
 
@@ -41,7 +36,7 @@ class EmojiPicker {
 			anchorElement: anchorRef,
 			pinnedEmojis: this.emojisRef,
 			asReactionPicker: false,
-			choseAndClose: false,
+			choseAndClose: true,
 		}, {
 			done: (emoji: string) => {
 				if (onChosen) onChosen(emoji);

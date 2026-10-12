@@ -28,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 					<div v-else :class="$style.ready">
 						<div class="_panel main">
-							<div class="title">{{ flash.title }}</div>
+							<div class="title"><Mfm :text="flash.title" :plain="true"/></div>
 							<div class="summary"><Mfm :text="flash.summary"/></div>
 							<MkButton class="start" gradate rounded large @click="start">{{ i18n.ts.start }}</MkButton>
 							<div class="info">
@@ -378,7 +378,7 @@ definePage(() => ({
 				justify-content: center;
 				gap: 12px;
 				padding: var(--MI-cardPadding);
-				border-bottom: 1px solid var(--MI_THEME-divider);
+				border-bottom: var(--MI-divider);
 
 				&:last-child {
 					border-bottom: none;

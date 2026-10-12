@@ -95,9 +95,10 @@ watch([() => props.width, () => props.height, canvas], () => {
 	immediate: true,
 });
 
-watch(() => props.blurhash, () => {
-	draw();
-});
+// 异步页面挂载和画布尺寸更新后再绘制，避免首屏占位为空或被尺寸更新清空。
+watch([canvas, canvasWidth, canvasHeight, () => props.blurhash, () => props.onlyAvgColor], () => {
+	if (canvas.value != null) void draw();
+}, { flush: 'post' });
 
 function drawImage(bitmap: CanvasImageSource) {
 	// canvasがない（mountedされていない）場合はTmpに保存しておく
@@ -165,8 +166,6 @@ canvasPromise.then(work => {
 	if (work instanceof WorkerMultiDispatch) {
 		work.addListener(workerOnMessage);
 	}
-
-	draw();
 });
 
 onMounted(() => {

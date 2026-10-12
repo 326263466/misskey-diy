@@ -9,9 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.rightDivider" style="flex: 0.5">{{ entity.name }}</div>
 	<div :class="$style.rightDivider" style="flex: 1">
 		<div v-if="method === 'email' && user">
-			{{
-				`${i18n.ts._abuseReport._notificationRecipient.notifiedUser}: ` + ((user.name) ? `${user.name}(${user.username})` : user.username)
-			}}
+			{{ i18n.ts._abuseReport._notificationRecipient.notifiedUser }}: <MkUserName :user="user"/><template v-if="user.name">({{ user.username }})</template>
 		</div>
 		<div v-if="method === 'webhook' && systemWebhook">
 			{{ `${i18n.ts._abuseReport._notificationRecipient.notifiedWebhook}: ` + systemWebhook.name }}
@@ -87,7 +85,7 @@ function onDeleteButtonClicked() {
 }
 
 .rightDivider {
-	border-right: 0.5px solid var(--MI_THEME-divider);
+	border-right: var(--MI-divider);
 }
 
 .recipientButtons {

@@ -54,7 +54,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</Teleport>
 		</div>
 
-		<div v-else-if="openedAtLeastOnce" :class="$style.body" :style="{ maxHeight: maxHeight ? `${maxHeight}px` : undefined, overflow: maxHeight ? `auto` : undefined }" :aria-hidden="!opened">
+		<div v-else-if="openedAtLeastOnce" :class="[$style.body, { [$style.bgSame]: bgSame }]" :style="{ maxHeight: maxHeight ? `${maxHeight}px` : undefined, overflow: maxHeight ? `auto` : undefined }" :aria-hidden="!opened">
 			<Transition
 				:enterActiveClass="prefer.s.animation ? $style.transition_toggle_enterActive : ''"
 				:leaveActiveClass="prefer.s.animation ? $style.transition_toggle_leaveActive : ''"
@@ -94,11 +94,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { prefer } from '@/preferences.js';
 import { pageFolderTeleportCount, popup } from '@/os.js';
 import MkFolderPage from '@/components/MkFolderPage.vue';
 import { deviceKind } from '@/utility/device-kind.js';
+import { themeManager } from '@/theme.js';
+import { getBgColor } from '@/utility/get-bg-color.js';
 
 const props = withDefaults(defineProps<{
 	defaultOpen?: boolean;
@@ -120,6 +122,7 @@ const emit = defineEmits<{
 }>();
 
 const rootEl = useTemplateRef('rootEl');
+const bgSame = ref(false);
 const asPage = props.canPage && deviceKind === 'smartphone' && prefer.s['experimental.enableFolderPageView'];
 const spacerStyle = computed(() => ({
 	'--MI_SPACER-min': props.spacerMin == null ? 'var(--MI-cardPadding)' : `${props.spacerMin}px`,
@@ -153,6 +156,11 @@ async function toggle(ev: PointerEvent) {
 	});
 }
 
+onMounted(() => {
+	const parentBg = getBgColor(rootEl.value?.parentElement) ?? 'transparent';
+	bgSame.value = parentBg === themeManager.currentCompiledTheme!.panel;
+});
+
 watch(opened, (isOpened) => {
 	if (isOpened) {
 		emit('opened');
@@ -178,10 +186,8 @@ watch(opened, (isOpened) => {
 
 .root {
 	display: block;
-	// A padded form owns the inset: stretch groups into it, then apply it once.
+	// 分组跟随内容宽度，保留外层卡片的内边距。
 	margin-inline: calc(0px - var(--MI-formGroupInset, 0px));
-	background: var(--MI_THEME-panel);
-	border-radius: var(--MI-formGroupRadius, var(--MI-cardRadius));
 }
 
 .header {
@@ -190,7 +196,7 @@ watch(opened, (isOpened) => {
 	width: 100%;
 	box-sizing: border-box;
 	padding: 12px var(--MI-cardPadding);
-	background: var(--MI_THEME-panelHighlight);
+	background: var(--MI_THEME-folderHeaderBg);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 	border-radius: var(--MI-formGroupRadius, var(--MI-cardRadius));
@@ -198,6 +204,7 @@ watch(opened, (isOpened) => {
 
 	&:hover {
 		text-decoration: none;
+		background: var(--MI_THEME-folderHeaderHoverBg);
 	}
 
 	&:focus-within {
@@ -215,7 +222,6 @@ watch(opened, (isOpened) => {
 
 	&.opened {
 		border-radius: var(--MI-formGroupRadius, var(--MI-cardRadius)) var(--MI-formGroupRadius, var(--MI-cardRadius)) 0 0;
-		box-shadow: inset 0 -1px var(--MI_THEME-divider);
 	}
 }
 
@@ -278,6 +284,14 @@ watch(opened, (isOpened) => {
 	background: var(--MI_THEME-panel);
 	border-radius: 0 0 var(--MI-formGroupRadius, var(--MI-cardRadius)) var(--MI-formGroupRadius, var(--MI-cardRadius));
 	container-type: inline-size;
+
+	&.bgSame {
+		background: var(--MI_THEME-bg);
+
+		.inBodyHeader {
+			background: color(from var(--MI_THEME-bg) srgb r g b / 0.75);
+		}
+	}
 }
 
 .bodyContent {
@@ -292,29 +306,24 @@ watch(opened, (isOpened) => {
 }
 
 .spacer {
-	--MI-formGroupInset: var(--MI_SPACER-max, var(--MI-cardPadding));
-	--MI-formGroupRadius: 0px;
-}
-
-:global(._forceShrinkSpacer) .spacer {
-	--MI-formGroupInset: var(--MI_SPACER-min, var(--MI-cardPadding));
-}
-
-@container (max-width: 450px) {
-	.spacer {
-		--MI-formGroupInset: var(--MI_SPACER-min, var(--MI-cardPadding));
-	}
+	--MI-formGroupInset: 0px;
+	--MI-formGroupRadius: initial;
 }
 
 .inBodyHeader {
-	background: var(--MI_THEME-panel);
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	background: color(from var(--MI_THEME-panel) srgb r g b / 0.75);
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
+	border-bottom: var(--MI-divider);
 }
 
 .inBodyFooter {
 	padding: var(--MI-cardPadding);
-	background: var(--MI_THEME-panel);
-	border-top: 1px solid var(--MI_THEME-divider);
+	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
+	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+	backdrop-filter: var(--MI-blur, blur(15px));
+	background-size: auto auto;
+	background-image: repeating-linear-gradient(135deg, transparent, transparent 5px, var(--MI_THEME-panel) 5px, var(--MI_THEME-panel) 10px);
 	border-radius: 0 0 var(--MI-formGroupRadius, var(--MI-cardRadius)) var(--MI-formGroupRadius, var(--MI-cardRadius));
 }
 </style>

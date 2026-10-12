@@ -49,14 +49,18 @@ vi.mock('@/components/MkNoteSimple.vue', () => ({ default: { template: '<div/>' 
 vi.mock('@/components/MkNotePreview.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/components/MkPostFormAttaches.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/components/MkUploaderItems.vue', () => ({ default: { template: '<div/>' } }));
-vi.mock('@/components/MkPollEditor.vue', () => ({ default: { template: '<div/>' } }));
+vi.mock('@/components/MkPollEditorDialog.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/components/MkModal.vue', async () => {
 	const { defineComponent, h } = await import('vue');
 	return { default: defineComponent({
-		setup(_props, { slots, expose, emit }) {
+		props: { closeOnBackdrop: { type: Boolean, default: true } },
+		setup(props, { slots, expose, emit }) {
 			expose({ close: mocks.closeModal });
 			mocks.finishClose = () => emit('closed');
-			return () => h('div', slots.default?.());
+			return () => h('div', [
+				h('button', { 'data-testid': 'modal-backdrop', onClick: () => { if (props.closeOnBackdrop) emit('click'); } }),
+				slots.default?.(),
+			]);
 		},
 	}) };
 });
@@ -200,6 +204,10 @@ describe('post form closing', () => {
 			},
 		});
 		const textarea = view.getByTestId('post-form-text') as HTMLTextAreaElement;
+		await fireEvent.click(view.getByTestId('modal-backdrop'));
+		expect(mocks.confirm).not.toHaveBeenCalled();
+		expect(mocks.closeModal).not.toHaveBeenCalled();
+		expect(textarea.value).toBe('Unsaved reply');
 		await fireEvent.keyDown(textarea, { key: 'Escape' });
 		await waitFor(() => expect(mocks.closeModal).toHaveBeenCalledOnce());
 		expect(textarea.value).toBe('Unsaved reply');

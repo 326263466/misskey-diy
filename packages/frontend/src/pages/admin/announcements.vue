@@ -14,22 +14,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts.filter }}</template>
 			</MkSelect>
 
-			<MkLoading v-if="loading"/>
-			<MkError v-else-if="error" @retry="refresh"/>
+			<MkLoading v-if="loading" page/>
+			<MkError v-else-if="error" page @retry="refresh"/>
+			<MkResult v-else-if="announcements.length === 0" type="empty" page/>
 
 			<template v-else>
 				<MkFolder v-for="announcement in announcements" :key="announcement.id ?? announcement._id" :defaultOpen="announcement.id == null">
-					<template #label>{{ announcement.title }}</template>
+					<template #label><Mfm :text="announcement.title" :plain="true" :nowrap="true"/></template>
 					<template #icon>
 						<i v-if="announcement.icon === 'info'" class="ti ti-info-circle"></i>
 						<i v-else-if="announcement.icon === 'warning'" class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);"></i>
 						<i v-else-if="announcement.icon === 'error'" class="ti ti-circle-x" style="color: var(--MI_THEME-error);"></i>
 						<i v-else-if="announcement.icon === 'success'" class="ti ti-check" style="color: var(--MI_THEME-success);"></i>
 					</template>
-					<template #caption>{{ announcement.text }}</template>
+					<template #caption><Mfm :text="announcement.text" :plain="true" :nowrap="true"/></template>
 					<template #footer>
 						<div class="_buttons">
-							<MkButton rounded primary @click="save(announcement)"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
+							<MkButton rounded primary :disabled="!validContent(announcement)" @click="save(announcement)"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
 							<MkButton v-if="announcement.id != null && announcement.isActive" rounded @click="archive(announcement)"><i class="ti ti-check"></i> {{ i18n.ts._announcement.end }} ({{ i18n.ts.archive }})</MkButton>
 							<MkButton v-if="announcement.id != null && !announcement.isActive" rounded @click="unarchive(announcement)"><i class="ti ti-restore"></i> {{ i18n.ts.unarchive }}</MkButton>
 							<MkButton v-if="announcement.id != null" rounded danger @click="del(announcement)"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
@@ -37,10 +38,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</template>
 
 					<div class="_gaps">
-						<MkInput v-model="announcement.title">
+						<MkInput v-model="announcement.title" :counterMaxLength="Misskey.CONTENT_LIMITS.announcementTitle">
 							<template #label>{{ i18n.ts.title }}</template>
 						</MkInput>
-						<MkTextarea v-model="announcement.text" mfmAutocomplete :mfmPreview="true">
+						<MkTextarea v-model="announcement.text" :counterMaxLength="Misskey.CONTENT_LIMITS.announcementText" mfmAutocomplete :mfmPreview="true">
 							<template #label>{{ i18n.ts.text }}</template>
 						</MkTextarea>
 						<MkInput v-model="announcement.imageUrl" type="url">
@@ -95,6 +96,7 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
+import MkTextarea from '@/components/MkTextarea.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkRadios from '@/components/MkRadios.vue';
@@ -104,7 +106,6 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import MkFolder from '@/components/MkFolder.vue';
-import MkTextarea from '@/components/MkTextarea.vue';
 import { genId } from '@/utility/id.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 
@@ -133,6 +134,13 @@ const announcements = ref<(Omit<Misskey.entities.AdminAnnouncementsListResponse[
 	isActive?: Misskey.entities.AdminAnnouncementsListResponse[number]['isActive'];
 	reads?: Misskey.entities.AdminAnnouncementsListResponse[number]['reads'];
 })[]>([]);
+const savedContent = new Map<string, { title: string; text: string }>();
+
+function validContent(announcement: (typeof announcements)['value'][number]) {
+	const previous = announcement.id != null ? savedContent.get(announcement.id) : null;
+	return (announcement.title === previous?.title || Array.from(announcement.title).length <= Misskey.CONTENT_LIMITS.announcementTitle) &&
+		(announcement.text === previous?.text || Array.from(announcement.text).length <= Misskey.CONTENT_LIMITS.announcementText);
+}
 
 watch(announcementsStatus, refresh, { immediate: true });
 onBeforeUnmount(() => requestId++);
@@ -189,15 +197,17 @@ async function unarchive(announcement: (typeof announcements)['value'][number]) 
 }
 
 async function save(announcement: (typeof announcements)['value'][number]) {
+	if (!validContent(announcement)) return;
 	const { _id, ...data } = announcement;
 	if (announcement.id == null) {
 		await os.apiWithDialog('admin/announcements/create', data);
 		refresh();
 	} else {
-		os.apiWithDialog('admin/announcements/update', {
+		await os.apiWithDialog('admin/announcements/update', {
 			...data,
 			id: announcement.id,
 		});
+		savedContent.set(announcement.id, { title: data.title, text: data.text });
 	}
 }
 
@@ -215,6 +225,7 @@ async function more() {
 	loadingMore.value = false;
 	if (announcementResponse == null) return;
 	const page = announcementResponse.slice(0, limit);
+	for (const announcement of page) savedContent.set(announcement.id, { title: announcement.title, text: announcement.text });
 	const existingIds = new Set(announcements.value.map(announcement => announcement.id));
 	announcements.value.push(...page.filter(announcement => !existingIds.has(announcement.id)));
 	const nextUntilId = page.at(-1)?.id;
@@ -240,6 +251,10 @@ async function refresh() {
 		return;
 	}
 	announcements.value = announcementResponse.slice(0, limit);
+	savedContent.clear();
+	for (const announcement of announcements.value) {
+		if (announcement.id != null) savedContent.set(announcement.id, { title: announcement.title, text: announcement.text });
+	}
 	untilId.value = announcements.value.at(-1)?.id ?? undefined;
 	canFetchMore.value = announcementResponse.length > limit;
 }

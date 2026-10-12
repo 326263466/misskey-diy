@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<a ref="el" :href="to" :class="active ? activeClass : null" @click="nav" @contextmenu.prevent.stop="onContextmenu">
+<a ref="el" :href="to" :class="[$style.root, active ? activeClass : null]" @click="nav" @contextmenu.prevent.stop="onContextmenu">
 	<slot></slot>
 </a>
 </template>
@@ -50,6 +50,18 @@ export function getLinkMenu(to: string, router: Router): MenuItem[] {
 	}];
 }
 </script>
+
+<style lang="scss" module>
+.root:has(> :global(._userName)) {
+	&:hover {
+		text-decoration: none !important;
+
+		> :global(._userName) {
+			--MI-userNameUnderline: 1;
+		}
+	}
+}
+</style>
 
 <script lang="ts" setup>
 import { computed, inject, useTemplateRef } from 'vue';

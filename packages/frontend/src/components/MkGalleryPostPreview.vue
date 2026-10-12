@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkAvatar :user="post.user" class="avatar" link preview/>
 		</header>
 		<footer>
-			<span class="title">{{ post.title }}</span>
+			<span class="title"><Mfm :text="post.title" :plain="true" :nowrap="true"/></span>
 		</footer>
 	</article>
 </MkA>

@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_pageBody">
 		<SearchMarker path="/admin/relays" :label="i18n.ts.relays" :keywords="['relays']" icon="ti ti-planet">
 			<div class="_gaps">
-				<div v-for="relay in relays" :key="relay.inbox" class="relaycxt" style="padding-block: var(--MI-cardPadding); border-top: 1px solid var(--MI_THEME-divider);">
+				<div v-for="relay in relays" :key="relay.inbox" class="relaycxt" style="padding-block: var(--MI-cardPadding); border-top: var(--MI-divider);">
 					<div>{{ relay.inbox }}</div>
 					<div style="margin: 8px 0;">
 						<i v-if="relay.status === 'accepted'" class="ti ti-check" :class="$style.icon" style="color: var(--MI_THEME-success);"></i>
@@ -92,7 +92,6 @@ definePage(() => ({
 
 <style lang="scss" module>
 .icon {
-	width: 1em;
 	margin-right: 0.75em;
 }
 </style>

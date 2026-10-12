@@ -56,6 +56,13 @@ async function offlineContentHTML() {
 		header: i18n.ts?._offlineScreen.header ?? 'Unable to connect to the server',
 		reload: i18n.ts?.reload ?? 'Reload',
 	};
+	const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#39;',
+	}[character] ?? character));
 
 	// City longitude/latitude coordinates use the same projection as the land outline.
 	const mapCities = {
@@ -100,7 +107,7 @@ async function offlineContentHTML() {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${messages.title}</title>
+<title>${escapeHtml(messages.title)}</title>
 <style>
 :root {
 	--background: #0c1210;
@@ -156,7 +163,7 @@ main {
 	/* Reserve space for the message, controls, footer, and vertical spacing. */
 	max-height: max(0px, calc(100svh - 23rem));
 	aspect-ratio: 9 / 5;
-	margin: 0 auto 24px;
+	margin: 0 auto 16px;
 }
 .illustration svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .land { fill: color-mix(in srgb, var(--muted) 26%, var(--background)); }
@@ -173,10 +180,10 @@ main {
 .ray-ring { fill: none; stroke: var(--accent); stroke-width: .6; }
 .ray-dot { fill: var(--accent); }
 h1 {
-	margin: 0 0 28px;
-	font-size: clamp(24px, 3vw, 30px);
-	font-weight: 650;
-	letter-spacing: -.025em;
+	margin: 0 0 20px;
+	font-size: 20px;
+	font-weight: 400;
+	letter-spacing: 0;
 	line-height: 1.4;
 	text-wrap: balance;
 }
@@ -214,7 +221,7 @@ footer { display: flex; flex-wrap: wrap; justify-content: center; align-items: c
 @media (max-height: 560px) {
 	body { padding: 16px 24px; }
 	main { padding: 8px 0 32px; }
-	.illustration { width: 300px; max-height: max(0px, calc(100svh - 19rem)); margin-bottom: 20px; }
+	.illustration { width: 300px; max-height: max(0px, calc(100svh - 19rem)); margin-bottom: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
 	*, *::before { animation: none !important; transition: none !important; }
@@ -233,10 +240,10 @@ footer { display: flex; flex-wrap: wrap; justify-content: center; align-items: c
 			<g id="map-rays"></g>
 		</svg>
 	</div>
-	<h1 id="title">${messages.header}</h1>
+	<h1 id="title">${escapeHtml(messages.header)}</h1>
 	<button type="button" onclick="reloadPage()">
 		${refreshIcon}
-		${messages.reload}
+		${escapeHtml(messages.reload)}
 	</button>
 </main>
 <footer class="version">v${_VERSION_}</footer>
@@ -346,6 +353,18 @@ function reloadPage(){location.reload(!0)}
 	window.addEventListener('pagehide', stop);
 	window.addEventListener('pageshow', syncPlayback);
 	syncPlayback();
+	let refreshing = false;
+	async function checkServer() {
+		if (refreshing) return;
+		try {
+			const response = await fetch('/api/meta', { method: 'POST', body: '{}', cache: 'no-store', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'cache-control': 'no-cache' } });
+			if (response.ok) { refreshing = true; location.reload(); }
+		} catch {}
+	}
+	const connectionTimer = setInterval(checkServer, 2500);
+	window.addEventListener('pagehide', () => clearInterval(connectionTimer), { once: true });
+	checkServer();
+
 })();
 </script>
 </body>
@@ -353,6 +372,9 @@ function reloadPage(){location.reload(!0)}
 }
 
 globalThis.addEventListener('install', (ev) => {
+	// 离线页是导航失败时才会显示，更新后立即接管才能避免继续返回旧页面。
+	ev.waitUntil(globalThis.skipWaiting());
+
 	// 次の問題が発生するため、ServiceWorkerAutoPreload をオプトアウトする必要がある
 	// https://issues.chromium.org/issues/466790291
 	if ('addRoutes' in ev) {
@@ -464,12 +486,12 @@ globalThis.addEventListener('notificationclick', (ev: ServiceWorkerGlobalScopeEv
 						}
 						break;
 					case 'showFollowRequests':
-						client = await swos.openClient('push', '/my/follow-requests', loginId);
+						client = await swos.openClient('push', '/my/notifications/follow-requests', loginId);
 						break;
 					default:
 						switch (data.body.type) {
 							case 'receiveFollowRequest':
-								client = await swos.openClient('push', '/my/follow-requests', loginId);
+								client = await swos.openClient('push', '/my/notifications/follow-requests', loginId);
 								break;
 							case 'reaction':
 								client = await swos.openNote(data.body.note.id, loginId);

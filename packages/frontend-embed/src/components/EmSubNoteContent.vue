@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="[$style.root, { [$style.collapsed]: collapsed }]">
 	<div>
-		<span v-if="note.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
+		<span v-if="note.isHidden" :class="$style.hiddenContent"><i class="ti ti-lock" aria-hidden="true"></i><span>({{ i18n.ts.private }})</span></span>
 		<span v-if="note.deletedAt" style="opacity: 0.5">({{ i18n.ts.deletedNote }})</span>
 		<EmA v-if="note.replyId" :class="$style.reply" :to="`/notes/${note.replyId}`"><i class="ti ti-arrow-back-up"></i></EmA>
 		<EmMfm v-if="note.text" :text="note.text" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
@@ -82,6 +82,23 @@ const collapsed = ref(isLong);
 				}
 			}
 		}
+	}
+}
+
+.hiddenContent {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 10px 12px;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-panelHighlight);
+	color: var(--MI_THEME-accent);
+	font-size: 0.92em;
+	font-weight: 500;
+	line-height: 1.5;
+
+	> i {
+		flex: 0 0 auto;
 	}
 }
 

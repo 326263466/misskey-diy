@@ -37,7 +37,7 @@
 		dateLabelFg: '@fg',
 		inputBorder: 'rgba(0, 0, 0, 0.1)',
 		inputBorderHover: 'rgba(0, 0, 0, 0.2)',
-		panelBorder: '" solid 1px var(--MI_THEME-divider)',
+		panelBorder: '" var(--MI-divider)',
 		navIndicator: '@accent',
 		fgHighlighted: ':darken<3<@fg',
 		fgOnWhite: '@accent',
@@ -45,7 +45,7 @@
 		panelHeaderFg: '@fg',
 		htmlThemeColor: '@bg',
 		panelHighlight: ':darken<3<@panel',
-		scrollbarHandle: 'rgba(0, 0, 0, 0.2)',
-		scrollbarHandleHover: 'rgba(0, 0, 0, 0.4)',
+		scrollbarHandle: 'rgba(134, 144, 156, 0.25)',
+		scrollbarHandleHover: 'rgba(134, 144, 156, 0.6)',
 	},
 }

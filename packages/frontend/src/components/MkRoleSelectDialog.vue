@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-if="selectedRoles.length > 0" class="_gaps" :class="$style.roleItemArea">
 				<div v-for="role in selectedRoles" :key="role.id" :class="$style.roleItem">
 					<MkRolePreview :class="$style.role" :role="role" :forModeration="true" :detailed="false" style="pointer-events: none;"/>
-					<button class="_button" :class="$style.roleUnAssign" @click="removeRole(role.id)"><i class="ti ti-x"></i></button>
+					<button class="_button _iconButton" :class="$style.roleUnAssign" @click="removeRole(role.id)"><i class="ti ti-x"></i></button>
 				</div>
 			</div>
 			<div v-else :class="$style.roleItemArea" style="text-align: center">
@@ -191,7 +191,7 @@ fetchRoles();
 }
 
 .divider {
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 
 </style>

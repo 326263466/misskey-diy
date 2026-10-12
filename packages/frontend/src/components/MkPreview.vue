@@ -69,7 +69,7 @@ const openForm = async () => {
 			default: 'Misskey makes you happy.',
 			label: 'This is a string property',
 		},
-	});
+	}, { closeOnBackdrop: true });
 };
 
 const openDrive = async () => {

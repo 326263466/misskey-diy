@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader>
+<PageWithHeader contentCard>
 	<div class="_pageBody">
 		<div class="_gaps">
 			<div class="_gaps_s">

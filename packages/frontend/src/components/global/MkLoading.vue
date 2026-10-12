@@ -4,8 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="[$style.root, { [$style.inline]: inline, [$style.colored]: colored, [$style.mini]: mini, [$style.em]: em }]">
-	<div :class="$style.container">
+<div :class="[$style.root, { [$style.inModal]: inModal, [$style.inline]: inline, [$style.colored]: colored, [$style.mini]: mini, [$style.em]: em, [$style.page]: page, [$style.imagePlaceholder]: page && !!instance.infoImageUrl }]" role="status" aria-busy="true">
+	<span v-if="inModal">{{ i18n.ts.loading }}</span>
+	<div v-else :class="$style.container">
 		<svg :class="[$style.spinner, $style.bg]" viewBox="0 0 168 168" xmlns="http://www.w3.org/2000/svg">
 			<g transform="matrix(1.125,0,0,1.125,12,12)">
 				<circle cx="64" cy="64" r="64" style="fill:none;stroke:currentColor;stroke-width:21.33px;"/>
@@ -17,11 +18,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</g>
 		</svg>
 	</div>
+	<slot></slot>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
+import { inject } from 'vue';
+import { instance } from '@/instance.js';
+import { DI } from '@/di.js';
+import { i18n } from '@/i18n.js';
+
+const inModal = inject(DI.inModal, false) || inject('inWindow', false);
 
 const props = withDefaults(defineProps<{
 	static?: boolean;
@@ -29,16 +36,20 @@ const props = withDefaults(defineProps<{
 	colored?: boolean;
 	mini?: boolean;
 	em?: boolean;
+	page?: boolean;
 }>(), {
 	static: false,
 	inline: false,
 	colored: true,
 	mini: false,
 	em: false,
+	page: false,
 });
 </script>
 
 <style lang="scss" module>
+@use "../../styles/page-state.scss";
+
 @keyframes spinner {
 	0% {
 		transform: rotate(0deg);
@@ -76,6 +87,37 @@ const props = withDefaults(defineProps<{
 		padding: 0;
 		--size: 1em;
 	}
+}
+
+.page {
+	@include page-state.surface;
+
+	.container {
+		@include page-state.icon;
+	}
+
+	.spinner {
+		top: calc(50% - var(--size) / 2);
+		left: calc(50% - var(--size) / 2);
+	}
+}
+
+.root.inModal {
+	padding: 12px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 13px;
+	line-height: 1.5;
+
+	&.em, &.inline {
+		padding: 0;
+		font-size: inherit;
+	}
+}
+
+.imagePlaceholder .container {
+	width: 128px;
+	height: 128px;
+	margin-bottom: 16px;
 }
 
 .container {

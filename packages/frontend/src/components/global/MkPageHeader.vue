@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 					<div class="_nowrap" :class="$style.title">
 						<MkUserName v-if="pageMetadata.userName" :user="pageMetadata.userName" :nowrap="true"/>
-						<div v-else-if="pageMetadata.title" class="_nowrap">{{ pageMetadata.title }}</div>
+						<div v-else-if="pageMetadata.title" class="_nowrap"><Mfm :text="pageMetadata.title" :plain="true" :nowrap="true" :author="pageMetadata.avatar ?? undefined" :emojiUrls="pageMetadata.avatar?.emojis"/></div>
 						<div v-if="pageMetadata.subtitle" :class="$style.subtitle">
 							{{ pageMetadata.subtitle }}
 						</div>
@@ -61,6 +61,7 @@ export type PageHeaderProps = {
 	displayMyAvatar?: boolean;
 	displayBackButton?: boolean;
 	embedded?: boolean;
+	onScrollToTop?: () => void;
 };
 </script>
 
@@ -110,8 +111,10 @@ function goBack() {
 }
 
 const top = () => {
-	if (el.value) {
-		scrollToTop(el.value as HTMLElement, { behavior: 'smooth' });
+	if (props.onScrollToTop) {
+		props.onScrollToTop();
+	} else if (el.value) {
+		scrollToTop(el.value, { behavior: 'smooth' });
 	}
 };
 
@@ -140,10 +143,13 @@ let ro: ResizeObserver | null;
 onMounted(() => {
 	if (el.value && el.value.parentElement) {
 		narrow.value = el.value.parentElement.offsetWidth < 500;
-		ro = new ResizeObserver((entries, observer) => {
-			if (el.value && el.value.parentElement && window.document.body.contains(el.value as HTMLElement)) {
-				narrow.value = el.value.parentElement.offsetWidth < 500;
-			}
+		ro = new ResizeObserver(() => {
+			// 延后切换窄屏布局，避免在观察回调内改变父容器高度。
+			window.requestAnimationFrame(() => {
+				if (el.value && el.value.parentElement && window.document.body.contains(el.value as HTMLElement)) {
+					narrow.value = el.value.parentElement.offsetWidth < 500;
+				}
+			});
 		});
 		ro.observe(el.value.parentElement as HTMLElement);
 	}
@@ -204,8 +210,8 @@ onUnmounted(() => {
 		position: absolute;
 		inset-inline: 0;
 		bottom: 0;
-		height: 0.5px;
-		background: var(--MI_THEME-divider);
+		height: var(--MI-dividerWidth);
+		background: var(--MI-dividerColor);
 		pointer-events: none;
 	}
 }
@@ -228,7 +234,7 @@ onUnmounted(() => {
 	height: var(--height);
 
 	.tabs:first-child {
-		padding: 0 12px;
+		padding: 0 var(--MI-cardPadding);
 	}
 
 	.tabs {
@@ -283,7 +289,7 @@ onUnmounted(() => {
 		--height: 44px;
 		box-sizing: border-box;
 		padding: 0 8px;
-		box-shadow: inset 0 1px var(--MI_THEME-divider);
+		box-shadow: inset 0 var(--MI-dividerWidth) var(--MI-dividerColor);
 	}
 
 	.title > div {
@@ -314,6 +320,8 @@ onUnmounted(() => {
 	justify-content: flex-end;
 	margin-left: auto;
 	padding: 0 8px 0 0;
+	// 插入的透明按钮继承颜色，与后面的操作图标同色
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .avatar {
@@ -369,7 +377,7 @@ onUnmounted(() => {
 	flex-shrink: 1;
 	margin-left: 12px;
 
-	/* 返回按钮已经占据了左侧空间，标题不再需要额外缩进 */
+	// 返回按钮已经占据了左侧空间，标题不再需要额外缩进
 	&.titleContainerWithBackButton {
 		margin-left: 0;
 	}
@@ -393,7 +401,6 @@ onUnmounted(() => {
 
 .titleIcon {
 	margin-right: 8px;
-	width: 16px;
 	text-align: center;
 }
 

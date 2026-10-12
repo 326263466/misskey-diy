@@ -4,7 +4,7 @@
  */
 
 :root {
-	--MI-scrollbarSize: 6px;
+	--MI-scrollbarSize: 4px;
 	--MI-scrollbarRadius: 999px;
 }
 
@@ -13,7 +13,7 @@
 	scrollbar-color: var(--MI_THEME-scrollbarHandle) transparent;
 
 	@supports selector(::-webkit-scrollbar) {
-		// Standard scrollbar properties override the custom track in Chromium.
+		// Chromium 中标准属性会覆盖 ::-webkit-scrollbar 的绘制规则。
 		scrollbar-width: auto;
 		scrollbar-color: auto;
 
@@ -37,9 +37,25 @@
 
 		&::-webkit-scrollbar-button {
 			display: none;
+			width: 0;
+			height: 0;
 		}
 
 		&::-webkit-scrollbar-corner {
+			background: transparent;
+		}
+	}
+}
+
+// 只显示鼠标所在滚动区的滑块，透明时保留尺寸，避免内容宽度变化。
+._scrollbarOnHover:not(:hover),
+._scrollbarOnHover:has(._scrollbarOnHover:hover) {
+	scrollbar-color: transparent transparent;
+
+	@supports selector(::-webkit-scrollbar) {
+		scrollbar-color: auto;
+
+		&::-webkit-scrollbar-thumb {
 			background: transparent;
 		}
 	}

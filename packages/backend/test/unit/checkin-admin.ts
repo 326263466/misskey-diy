@@ -16,6 +16,7 @@ import { MiUserProfile } from '@/models/UserProfile.js';
 import { MiUserCheckin } from '@/models/UserCheckin.js';
 import { MiUserCheckinExchange } from '@/models/UserCheckinExchange.js';
 import { MiModerationLog } from '@/models/ModerationLog.js';
+import { MiWallet } from '@/models/Wallet.js';
 import StatsEndpoint, { meta as statsMeta } from '@/server/api/endpoints/admin/checkin/stats.js';
 import HistoryEndpoint, { meta as historyMeta } from '@/server/api/endpoints/admin/checkin/history.js';
 import UsersEndpoint, { meta as usersMeta } from '@/server/api/endpoints/admin/checkin/users.js';
@@ -32,15 +33,19 @@ describe('administrator check-in analytics', () => {
 		const id = `checkinadmin${serial++}`;
 		await db.getRepository(MiUser).insert({ id, username: id, usernameLower: id, ...overrides });
 		await db.getRepository(MiUserProfile).insert({ userId: id });
+		await db.getRepository(MiWallet).insert({ userId: id, balance: 0, reservedBalance: 0 });
 		userIds.push(id);
 		return db.getRepository(MiUser).findOneByOrFail({ id });
 	}
 
 	async function seed() {
 		const [admin, first, second, inactive, remote] = await Promise.all([user(), user(), user(), user(), user({ host: 'remote.example' })]);
-		await db.getRepository(MiUserProfile).update({ userId: first.id }, { checkinPoints: 5, checkinMakeupCards: 3 });
-		await db.getRepository(MiUserProfile).update({ userId: second.id }, { checkinPoints: 8, checkinMakeupCards: 4 });
-		await db.getRepository(MiUserProfile).update({ userId: remote.id }, { checkinPoints: 99, checkinMakeupCards: 99 });
+		await db.getRepository(MiUserProfile).update({ userId: first.id }, { checkinMakeupCards: 3 });
+		await db.getRepository(MiUserProfile).update({ userId: second.id }, { checkinMakeupCards: 4 });
+		await db.getRepository(MiUserProfile).update({ userId: remote.id }, { checkinMakeupCards: 99 });
+		await db.getRepository(MiWallet).update({ userId: first.id }, { balance: 5 });
+		await db.getRepository(MiWallet).update({ userId: second.id }, { balance: 8 });
+		await db.getRepository(MiWallet).update({ userId: remote.id }, { balance: 99 });
 		for (const [recipient, amount, before] of [[first, 3, 0], [first, 2, 3], [second, 4, 0]] as const) {
 			await db.getRepository(MiModerationLog).insert({ id: idService.gen(), userId: admin.id, type: 'grantCheckinCards', info: {
 				userId: recipient.id, userUsername: recipient.username, userHost: null, amount, before, after: before + amount,

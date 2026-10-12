@@ -212,7 +212,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 		background: var(--MI_THEME-panel);
 		color: var(--MI_THEME-fgHighlighted);
 		font-weight: 600;
-		box-shadow: 0 1px 3px var(--MI_THEME-divider);
+		box-shadow: 0 1px 3px var(--MI_THEME-divider); // divider-exempt: soft shadow
 
 		> i {
 			color: var(--MI_THEME-accent);

@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkWindow
 	ref="windowEl"
+	:headerIcon="pageMetadata?.icon ?? undefined"
 	:canResize="true"
 	:closeButton="true"
 	:buttonsLeft="buttonsLeft"
@@ -15,8 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<template #header>
 		<template v-if="pageMetadata">
-			<i v-if="pageMetadata.icon" :class="pageMetadata.icon" style="margin-right: 0.5em;"></i>
-			<span>{{ pageMetadata.title }}</span>
+			<span><Mfm v-if="pageMetadata.title" :text="pageMetadata.title" :plain="true" :nowrap="true" :author="pageMetadata.avatar ?? undefined" :emojiUrls="pageMetadata.avatar?.emojis"/></span>
 		</template>
 	</template>
 
@@ -208,7 +208,7 @@ defineExpose({
 <style lang="scss" module>
 .root {
 	height: 100%;
-	padding: var(--MI-cardPadding);
+	padding: var(--MI-cardPadding) var(--MI-cardPadding) 0;
 	box-sizing: border-box;
 	background: var(--MI_THEME-bg);
 
@@ -230,6 +230,10 @@ defineExpose({
 
 	:global(._pageContainer > ._standalonePage) {
 		padding-top: 0;
+	}
+
+	:global(._pageBody) {
+		padding-bottom: 0;
 	}
 }
 </style>

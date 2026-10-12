@@ -4,22 +4,24 @@
  */
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { page, userEvent } from 'vitest/browser';
+import { page } from 'vitest/browser';
 import { createApp, h, nextTick } from 'vue';
 import type { App } from 'vue';
 import '@/style.scss';
 import MkDrive from '@/components/MkDrive.vue';
 import MkStickyContainer from '@/components/global/MkStickyContainer.vue';
-import MkTip from '@/components/global/MkTip.vue';
-import { store } from '@/store.js';
-import { prefer } from '@/preferences.js';
+import MkLoading from '@/components/global/MkLoading.vue';
 
 const mocks = vi.hoisted(() => ({
 	selection: vi.fn(),
 	menu: vi.fn(),
 	contextMenu: vi.fn(),
 	upload: vi.fn(),
+	fetchOlder: vi.fn(),
 	events: new Map<string, (items: unknown) => void>(),
+	appear: new Map<HTMLElement, (() => void) | null>(),
+	hasMore: false,
+	pageGate: null as Promise<void> | null,
 	files: [
 		{ id: 'october', name: 'October file', createdAt: '2026-10-02T12:00:00Z', folderId: null },
 		{ id: 'september', name: 'September file', createdAt: '2026-09-02T12:00:00Z', folderId: null },
@@ -29,13 +31,14 @@ const mocks = vi.hoisted(() => ({
 vi.mock('misskey-js', () => ({}));
 vi.mock('@/os.js', () => ({ popupMenu: mocks.menu, contextMenu: mocks.contextMenu, launchUploader: mocks.upload }));
 vi.mock('@/components/global/MkA.vue', () => ({ default: { render: () => null } }));
-vi.mock('@/preferences.js', () => ({ prefer: { s: { animation: false } } }));
-vi.mock('@/store.js', async () => {
-	const { ref } = await import('vue');
-	return { store: { s: { realtimeMode: false }, r: { tips: ref({}) } } };
+vi.mock('@/components/MkButton.vue', async () => {
+	const { defineComponent, h } = await import('vue');
+	return { default: defineComponent({ setup: (_props, { slots }) => () => h('button', slots.default?.()) }) };
 });
-vi.mock('@/tips.js', () => ({ TIPS: ['drive'], hideAllTips: vi.fn(), closeTip: vi.fn() }));
+vi.mock('@/preferences.js', () => ({ prefer: { s: { animation: false } } }));
+vi.mock('@/store.js', () => ({ store: { s: { realtimeMode: false } } }));
 vi.mock('@/stream.js', () => ({ useStream: vi.fn() }));
+vi.mock('@/instance.js', () => ({ instance: {} }));
 vi.mock('@/utility/achievements.js', () => ({ claimAchievement: vi.fn() }));
 vi.mock('@/utility/drive.js', () => ({ chooseFileFromPcAndUpload: vi.fn(), selectDriveFolder: vi.fn() }));
 vi.mock('@/utility/get-drive-file-menu.js', () => ({ getDriveFileMenu: () => [] }));
@@ -55,7 +58,18 @@ vi.mock('@/utility/paginator.js', async () => {
 		fetchingOlder = ref(false);
 		fetchingNewer = ref(false);
 		constructor(private endpoint: string) {}
-		async reload() { this.items.value = this.endpoint === 'drive/files' ? [...mocks.files] : [{ id: 'folder', name: 'Folder' }]; }
+		async reload() {
+			this.items.value = this.endpoint === 'drive/files' ? [...mocks.files] : [{ id: 'folder', name: 'Folder' }];
+			this.canFetchOlder.value = this.endpoint === 'drive/files' && mocks.hasMore;
+		}
+		async fetchOlder() {
+			mocks.fetchOlder(this.endpoint);
+			this.fetchingOlder.value = true;
+			await mocks.pageGate;
+			this.items.value.push({ id: 'older', name: 'Older file', createdAt: '2026-08-02T12:00:00Z', folderId: null });
+			this.canFetchOlder.value = false;
+			this.fetchingOlder.value = false;
+		}
 		prepend(file: unknown) { this.items.value.unshift(file); }
 	} };
 });
@@ -73,144 +87,92 @@ vi.mock('@/components/MkDrive.file.vue', async () => {
 		props: ['file', 'isSelected'], emits: ['click'],
 		setup: (props, { emit }) => () => h('button', {
 			'data-file': props.file.id, 'aria-pressed': props.isSelected,
-			style: 'height:80px;background:var(--MI_THEME-bg);color:var(--MI_THEME-fg);border:0;',
 			onClick: (event: PointerEvent) => emit('click', event),
 		}, props.file.name),
 	}) };
 });
-vi.mock('@/i18n.js', () => ({ i18n: { ts: { more: 'More', drive: 'Drive', tip: 'Tip', gotIt: 'OK', driveAboutTip: 'Manage files in Drive.', _share: {} } } }));
+vi.mock('@/i18n.js', () => ({ i18n: { ts: { more: 'More', drive: 'Drive', loadMore: 'Load more', emptyDrive: '网盘为空', emptyFolder: '文件夹为空', _share: {} } } }));
 
 let app: App | undefined;
 let host: HTMLElement | undefined;
 
-async function settle() {
-	await nextTick();
-	await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-}
-
-async function mount(width: number, dark = false, select = false) {
-	await page.viewport(width, 700);
+async function mount(options: { select?: boolean; forceDisableInfiniteScroll?: boolean } = {}) {
+	await page.viewport(900, 700);
 	host = document.createElement('div');
-	host.style.cssText = `width:${width}px;height:320px;overflow:auto;container-type:size;--MI_THEME-panel:${dark ? '#292929' : '#fff'};--MI_THEME-bg:${dark ? '#181818' : '#f2f3f5'};--MI_THEME-fg:${dark ? '#ddd' : '#303540'};--MI_THEME-divider:#8884;--MI_THEME-infoBg:#1682ff20;--MI_THEME-infoFg:#1682ff;--MI_THEME-accent:#1682ff;--MI_THEME-fgOnAccent:#fff;`;
+	host.style.cssText = 'width:100%;height:600px;overflow:auto;container-type:size;';
 	document.body.append(host);
-	app = createApp({ render: () => h(MkDrive, { select: select ? 'file' : null, multiple: true, onChangeSelectedFiles: mocks.selection }) });
+	app = createApp({ render: () => h(MkDrive, { select: options.select ? 'file' : null, multiple: true, forceDisableInfiniteScroll: options.forceDisableInfiniteScroll, onChangeSelectedFiles: mocks.selection }) });
 	app.component('MkStickyContainer', MkStickyContainer);
-	app.component('MkTip', MkTip);
-	app.component('MkLoading', { render: () => null });
-	for (const name of ['anim', 'appear']) app.directive(name, () => {});
+	app.component('MkLoading', MkLoading);
+	app.component('MkTip', { render: () => null });
+	app.directive('anim', () => {});
+	app.directive('appear', {
+		mounted: (element, binding) => { mocks.appear.set(element, binding.value); },
+		updated: (element, binding) => { mocks.appear.set(element, binding.value); },
+		unmounted: element => { mocks.appear.delete(element); },
+	});
 	app.mount(host);
 	await expect.poll(() => host!.querySelectorAll('[data-file]').length).toBe(2);
-	await settle();
+	await nextTick();
 }
 
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.events.clear();
-	prefer.s.animation = false;
-	store.r.tips.value = {};
+	mocks.appear.clear();
+	mocks.hasMore = false;
+	mocks.pageGate = null;
 });
 
 afterEach(() => { app?.unmount(); host?.remove(); });
 
-test.each([320, 900].flatMap(width => [{ width, dark: false }, { width, dark: true }]))('Drive uses a single card and four 18px insets at $width px (dark=$dark)', async ({ width, dark }) => {
-	await mount(width, dark);
-	const card = host!.firstElementChild as HTMLElement;
-	const content = card.children[1].firstElementChild as HTMLElement;
-	const style = getComputedStyle(content);
-	expect([style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]).toEqual(['18px', '18px', '18px', '18px']);
-	expect(getComputedStyle(card).backgroundColor).toBe(dark ? 'rgb(41, 41, 41)' : 'rgb(255, 255, 255)');
-	const tip = host!.querySelector<HTMLElement>('._juejinTip')!;
-	expect(getComputedStyle(tip).padding).toBe('18px');
-	const bounds = content.getBoundingClientRect();
-	expect(tip.getBoundingClientRect().top - bounds.top).toBe(18);
-	expect(tip.getBoundingClientRect().left - bounds.left).toBe(18);
-	expect(bounds.right - tip.getBoundingClientRect().right).toBe(18);
-	expect(bounds.bottom - host!.querySelector('[data-file="september"]')!.getBoundingClientRect().bottom).toBeCloseTo(18, 1);
-	expect(host!.scrollWidth).toBe(host!.clientWidth);
-	for (const button of host!.querySelectorAll('button[aria-expanded]')) expect(getComputedStyle(button).backgroundColor).toBe(getComputedStyle(card).backgroundColor);
-	await page.screenshot({ element: card, path: `../e2e/artifacts/component-browser/drive-card-${dark ? 'dark' : 'light'}-${width}.png` });
-});
-
-test('month buttons collapse independently, retain selections and stay closed when files arrive', async () => {
-	await mount(390, false, true);
-	await page.getByRole('button', { name: 'October file' }).click();
-	expect(mocks.selection).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'october' })]);
-	const october = page.getByRole('button', { name: '2026/10', exact: true });
-	await october.click();
-	expect(october.element().getAttribute('aria-expanded')).toBe('false');
-	const group = document.getElementById(october.element().getAttribute('aria-controls')!)!;
-	await expect.poll(() => getComputedStyle(group).display).toBe('none');
-	expect(host!.querySelector('[data-file="september"]')!.getClientRects().length).toBeGreaterThan(0);
+test('selects files from different months and preserves the selection when a file arrives', async () => {
+	await mount({ select: true });
+	await page.getByRole('button', { name: 'October file', exact: true }).click();
+	await page.getByRole('button', { name: 'September file', exact: true }).click();
+	expect(mocks.selection).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'october' }), expect.objectContaining({ id: 'september' })]);
 	mocks.events.get('driveFileCreated')!({ id: 'new', name: 'New October file', createdAt: '2026-10-03T12:00:00Z', folderId: null });
-	await settle();
-	expect(getComputedStyle(group).display).toBe('none');
-	(october.element() as HTMLElement).focus();
-	await userEvent.keyboard('{Enter}');
-	expect(october.element().getAttribute('aria-expanded')).toBe('true');
+	await nextTick();
 	expect(page.getByRole('button', { name: 'October file', exact: true }).element().getAttribute('aria-pressed')).toBe('true');
 	expect(page.getByRole('button', { name: 'New October file', exact: true }).element()).toBeTruthy();
-	await userEvent.keyboard(' ');
-	expect(october.element().getAttribute('aria-expanded')).toBe('false');
-	await page.getByRole('button', { name: 'Folder', exact: true }).click();
-	await expect.poll(() => october.element().getAttribute('aria-expanded')).toBe('true');
 });
 
-test('blank space below collapsed months still accepts the Drive menu and uploads', async () => {
-	await mount(390);
-	store.r.tips.value = { drive: true };
-	await settle();
-	for (const month of ['2026/10', '2026/9']) await page.getByRole('button', { name: month, exact: true }).click();
-	host!.scrollTop = 0;
-	await settle();
-	const bounds = host!.getBoundingClientRect();
-	const target = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.bottom - 10)!;
-	expect(host!.contains(target)).toBe(true);
-	target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+test('opens the Drive menu and uploads files dropped into the file area', async () => {
+	await mount();
+	const files = host!.querySelector('[data-file]')!.parentElement!;
+	files.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
 	expect(mocks.contextMenu).toHaveBeenCalledOnce();
 	const file = new File(['example'], 'example.txt', { type: 'text/plain' });
 	const dataTransfer = new DataTransfer();
 	dataTransfer.items.add(file);
-	target.dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer }));
+	files.dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer }));
 	expect(mocks.upload).toHaveBeenCalledWith([file], { folderId: null });
 });
 
-test('month expansion only changes height, without moving or shrinking files horizontally', async () => {
-	prefer.s.animation = true;
-	await mount(900);
-	host!.style.height = '680px';
-	await settle();
-	await Promise.all(host!.getAnimations({ subtree: true }).map(animation => animation.finished));
-	const button = page.getByRole('button', { name: '2026/10', exact: true }).element() as HTMLButtonElement;
-	const group = document.getElementById(button.getAttribute('aria-controls')!)!;
-	const file = host!.querySelector<HTMLElement>('[data-file="october"]')!;
-	const full = group.getBoundingClientRect();
-	const fileBounds = file.getBoundingClientRect();
-	for (const expanding of [false, true, false, true]) {
-		const started = new Promise<Animation>(resolve => {
-			group.addEventListener('transitionrun', () => {
-				const animation = group.getAnimations()[0];
-				animation.pause();
-				resolve(animation);
-			}, { once: true });
-		});
-		button.click();
-		const animation = await started;
-		animation.currentTime = 100;
-		await settle();
-		const current = group.getBoundingClientRect();
-		expect(current.height).toBeGreaterThan(0);
-		expect(current.height).toBeLessThan(full.height);
-		expect(current.left).toBe(full.left);
-		expect(current.right).toBe(full.right);
-		expect(current.top).toBe(full.top);
-		const currentFile = file.getBoundingClientRect();
-		expect(currentFile.left).toBe(fileBounds.left);
-		expect(currentFile.right).toBe(fileBounds.right);
-		expect(currentFile.top).toBe(fileBounds.top);
-		expect(getComputedStyle(file).transform).toBe('none');
-		animation.play();
-		await animation.finished;
-		await expect.poll(() => group.getBoundingClientRect().height).toBe(expanding ? full.height : 0);
-		await settle();
+test.each([undefined, true])('automatically loads more unless explicitly disabled (forceDisableInfiniteScroll=%s)', async forceDisabled => {
+	mocks.hasMore = true;
+	await mount({ forceDisableInfiniteScroll: forceDisabled });
+	const autoLoad = [...mocks.appear.values()].find(callback => callback != null);
+	if (!forceDisabled) {
+		expect(autoLoad).toBeTypeOf('function');
+		autoLoad!();
+	} else {
+		expect(autoLoad).toBeUndefined();
+		await page.getByRole('button', { name: 'Load more', exact: true }).click();
 	}
+	await expect.poll(() => host!.querySelector('[data-file="older"]')).not.toBeNull();
+	expect(mocks.fetchOlder).toHaveBeenCalledExactlyOnceWith('drive/files');
+});
+
+test('does not request the same page twice while it is loading', async () => {
+	mocks.hasMore = true;
+	const pending = Promise.withResolvers<void>();
+	mocks.pageGate = pending.promise;
+	await mount();
+	const loadMore = page.getByRole('button', { name: 'Load more', exact: true }).element() as HTMLButtonElement;
+	loadMore.click();
+	loadMore.click();
+	expect(mocks.fetchOlder).toHaveBeenCalledExactlyOnceWith('drive/files');
+	pending.resolve();
+	await expect.poll(() => host!.querySelector('[data-file="older"]')).not.toBeNull();
 });

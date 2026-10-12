@@ -21,7 +21,10 @@ export const meta = {
 
 export const paramDef = {
 	type: 'object',
-	properties: { redPacketId: { type: 'string', format: 'misskey:id' } },
+	properties: {
+		redPacketId: { type: 'string', format: 'misskey:id' },
+		password: { type: 'string', minLength: 1, maxLength: 32, description: 'Challenge phrase for a password-protected red packet.' },
+	},
 	required: ['redPacketId'],
 } as const;
 
@@ -29,7 +32,7 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(private redPacketService: RedPacketService) {
 		super(meta, paramDef, async (ps, me) => {
-			return this.redPacketService.claim(ps.redPacketId, me).catch(throwRedPacketApiError);
+			return this.redPacketService.claim(ps.redPacketId, me, ps.password).catch(throwRedPacketApiError);
 		});
 	}
 }

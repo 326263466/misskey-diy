@@ -10,10 +10,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</nav>
 	<PageWithHeader v-model:tab="tab" class="_pageContent" :tabs="narrow ? profileTabs : []" :actions="headerActions" :swipable="narrow" :hideTitle="true" :displayBackButton="narrow">
 		<div v-if="user" :id="`profile-${tab}`" data-profile-content>
-			<NestedRouterView :initialRoute="initialRoute"/>
+			<NestedRouterView :initialRoute="initialRoute" :hideLoading="tab === 'home'"/>
 		</div>
-		<MkError v-else-if="error" @retry="fetchUser()"/>
-		<MkLoading v-else/>
+		<MkError v-else-if="error" page @retry="fetchUser()"/>
+		<MkLoading v-else-if="tab !== 'home'" page/>
 	</PageWithHeader>
 </div>
 </template>
@@ -24,7 +24,7 @@ import * as Misskey from 'misskey-js';
 import { userPageContext } from './context.js';
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import type { SearchIndexItem } from '@/utility/inapp-search.js';
-import { acct as getAcct } from '@/filters/user.js';
+import { acct as getAcct } from '@@/js/user.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
@@ -32,7 +32,7 @@ import { $i } from '@/i.js';
 import { useRouter } from '@/router.js';
 import MkSuperMenu from '@/components/MkSuperMenu.vue';
 import { serverContext, assertServerContext } from '@/server-context.js';
-import { useScrollPositionKeeper } from '@/composables/use-scroll-position-keeper.js';
+import { useScrollToTop } from '@/composables/use-scroll-to-top.js';
 import { useUserStatistics } from '@/composables/use-user-statistics.js';
 import { publishUserProfileUpdate, useUserProfile } from '@/composables/use-user-profile.js';
 
@@ -51,7 +51,7 @@ const initialRoute = router.current.route.path === '/@:acct' && router.current.p
 	: router.resolve(`/@${props.acct}`)!;
 
 // Unknown child pages keep the existing fallback to the profile overview.
-const PROFILE_PAGES = ['home', 'notes', 'files', 'activity', 'achievements', 'reactions', 'clips', 'lists', 'pages', 'flashs', 'gallery', 'raw'] as const;
+const PROFILE_PAGES = ['home', 'notes', 'files', 'activity', 'achievements', 'reactions', 'clips', 'lists', 'pages', 'flashs', 'gallery', 'raw', 'management'] as const;
 
 function pathForTab(key: string): string {
 	// トップは /@acct を正規のURLとして扱う (/@acct/home は別パスになってしまう)
@@ -61,6 +61,7 @@ function pathForTab(key: string): string {
 const tab = computed<string>({
 	get: () => {
 		const page = router.currentRef.value.child?.props.get('page');
+		if (page === 'management' && (!$i || user.value?.id !== $i.id)) return 'home';
 		return typeof page === 'string' && (PROFILE_PAGES as readonly string[]).includes(page) ? page : 'home';
 	},
 	set: (key) => {
@@ -70,7 +71,7 @@ const tab = computed<string>({
 });
 
 const layoutEl = useTemplateRef('layoutEl');
-useScrollPositionKeeper(layoutEl);
+useScrollToTop(layoutEl);
 const narrow = ref(window.innerWidth < 800);
 
 watch(layoutEl, (el, _previous, onCleanup) => {
@@ -187,7 +188,11 @@ const profileTabs = computed(() => user.value ? [{
 	key: 'raw',
 	title: i18n.ts.rawData,
 	icon: 'ti ti-code',
-}] : []);
+}, ...($i?.id === user.value.id ? [{
+	key: 'management',
+	title: i18n.ts._management.title,
+	icon: 'ti ti-layout-grid',
+}] : [])] : []);
 
 // 搜索范围与当前可见菜单一致，结果跳转到当前用户的对应页面。
 const searchIndex = computed<SearchIndexItem[]>(() => profileTabs.value.map(item => ({
@@ -225,4 +230,3 @@ definePage(() => ({
 	} : {},
 }));
 </script>
-

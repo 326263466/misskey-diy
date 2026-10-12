@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<component :is="currentPageComponent" :key="key" v-bind="Object.fromEntries(currentPageProps)"/>
 
 	<template #fallback>
-		<MkLoading/>
+		<MkLoading v-if="!hideLoading"/>
 	</template>
 </Suspense>
 </template>
@@ -20,10 +20,12 @@ import type { PathResolvedResult } from '@/lib/nirax.js';
 import MkLoadingPage from '@/pages/_loading_.vue';
 import { DI } from '@/di.js';
 import { deepEqual } from '@/utility/deep-equal.js';
+import { getRouteViewKey } from '@/lib/nirax.js';
 
 const props = defineProps<{
 	router?: Router;
 	initialRoute?: PathResolvedResult;
+	hideLoading?: boolean;
 }>();
 
 const router = props.router ?? inject(DI.router);
@@ -56,15 +58,18 @@ function resolveNested(current: PathResolvedResult, d = 0): PathResolvedResult |
 }
 
 const current = resolveNested(router.current) ?? resolveNested(ownerRoute)!;
-const currentPageComponent = shallowRef('component' in current.route ? current.route.component : MkLoadingPage);
+const currentPageComponent = shallowRef('component' in current.route ? current.route.component : props.hideLoading ? 'div' : MkLoadingPage);
 const currentPageProps = ref(current.props);
-const key = ref(current._parsedRoute.fullPath);
+let currentRoutePath = current.route.path;
+const key = ref(getRouteViewKey(current));
 
 router.useListener('change', ({ resolved }) => {
 	const current = resolveNested(resolved);
 	if (current == null || 'redirect' in current.route) return;
+	if (current.route.path === currentRoutePath && deepEqual(current.props, currentPageProps.value)) return;
 	currentPageComponent.value = current.route.component;
 	currentPageProps.value = current.props;
-	key.value = router.getCurrentFullPath();
+	currentRoutePath = current.route.path;
+	key.value = getRouteViewKey(current);
 });
 </script>

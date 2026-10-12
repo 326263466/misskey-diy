@@ -5,7 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_panel">
-	<div :class="$style.container" :style="{ backgroundImage: $i.bannerUrl ? `url(${ $i.bannerUrl })` : undefined }">
+	<div class="_imageContainer" :class="$style.container">
+		<img v-if="$i.bannerUrl" class="_imageBackground" :src="$i.bannerUrl" alt=""/>
 		<div :class="$style.avatarContainer">
 			<MkAvatar :class="$style.avatar" :user="$i"/>
 		</div>
@@ -26,7 +27,7 @@ import { useWidgetPropsManager } from './widget.js';
 import type { WidgetComponentEmits, WidgetComponentExpose, WidgetComponentProps } from './widget.js';
 import type { FormWithDefault, GetFormResultType } from '@/utility/form.js';
 import { ensureSignin } from '@/i.js';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 
 const $i = ensureSignin();
 
@@ -56,8 +57,6 @@ defineExpose<WidgetComponentExpose>({
 <style lang="scss" module>
 .container {
 	position: relative;
-	background-size: cover;
-	background-position: center;
 	display: flex;
 }
 

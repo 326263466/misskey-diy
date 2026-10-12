@@ -36,6 +36,12 @@ export class MiPage {
 	})
 	public summary: string | null;
 
+	@Index('IDX_page_article_category_id')
+	@Column('varchar', {
+		length: 64, nullable: true,
+	})
+	public articleCategoryId: string | null;
+
 	@Column('boolean')
 	public alignCenter: boolean;
 
@@ -110,6 +116,9 @@ export class MiPage {
 	})
 	public likedCount: number;
 
+	@Column('integer', { default: 0 })
+	public articleViews: number;
+
 	constructor(data: Partial<MiPage>) {
 		if (data == null) return;
 
@@ -120,3 +129,5 @@ export class MiPage {
 }
 
 export const pageNameSchema = { type: 'string', pattern: /^[^\s:\/?#\[\]@!$&'()*+,;=\\%\x00-\x20]{1,256}$/.source } as const;
+
+export const articleCategoryIdSchema = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[a-zA-Z0-9_-]+$' } as const;

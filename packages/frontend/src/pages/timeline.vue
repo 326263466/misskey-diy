@@ -10,6 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkStreamingNotesTimeline
 			ref="tlComponent"
 			:key="effectiveSrc + withRenotes + withReplies + onlyFiles + withSensitive"
+			pageEmpty
 			:class="$style.tl"
 			:src="effectiveSrc"
 			:withRenotes="withRenotes"
@@ -39,18 +40,39 @@ import { deviceKind } from '@/utility/device-kind.js';
 import { deepMerge } from '@/utility/merge.js';
 import { hasWithReplies, isAvailableBasicTimeline } from '@/timelines.js';
 import { prefer } from '@/preferences.js';
+import { useRouter } from '@/router.js';
+
+const props = defineProps<{
+	initialTab?: string;
+}>();
+
+const router = useRouter();
 
 const tlComponent = useTemplateRef('tlComponent');
 
 type TimelinePageSrc = 'recommended' | 'following';
 
+// 路径未指定标签时（/timeline）沿用上次的选择
 const src = computed<TimelinePageSrc>({
 	get: () => {
 		if (!$i) return 'recommended';
+		if (props.initialTab === 'recommended' || props.initialTab === 'following') return props.initialTab;
 		return store.r.tl.value.src === 'home' ? 'following' : 'recommended';
 	},
-	set: (x: TimelinePageSrc) => saveSrc(x),
+	set: (x: TimelinePageSrc) => setSrc(x),
 });
+
+function setSrc(newSrc: TimelinePageSrc, replace = false) {
+	saveSrc(newSrc);
+	if (props.initialTab === newSrc) return;
+	if (replace) router.replace('/timeline/:initialTab?', { params: { initialTab: newSrc } });
+	else router.push('/timeline/:initialTab?', { params: { initialTab: newSrc } });
+}
+
+// 通过链接直接进入某个标签时也记住它，下次打开 /timeline 时保持一致
+watch(() => props.initialTab, (tab) => {
+	if ($i && (tab === 'recommended' || tab === 'following')) saveSrc(tab);
+}, { immediate: true });
 
 // 推荐流恒定走全局时间线：是否含联邦内容完全由管理员的实例设置决定
 // (未接入远程实例时，全局与本地的取数条件只差 userHost，返回内容等价)。
@@ -125,9 +147,9 @@ function saveTlFilter(key: keyof typeof store.s.tl.filter, newValue: boolean) {
 function switchTlIfNeeded() {
 	// 当前 tab 对应的时间线被角色策略禁用时，退到另一个可用的 tab
 	if (src.value === 'following' && !isAvailableBasicTimeline('home')) {
-		src.value = 'recommended';
+		setSrc('recommended', true);
 	} else if (src.value === 'recommended' && !isAvailableBasicTimeline(effectiveSrc.value) && isAvailableBasicTimeline('home')) {
-		src.value = 'following';
+		setSrc('following', true);
 	}
 }
 

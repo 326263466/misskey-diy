@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkContainer :style="`height: ${widgetProps.height}px;`" :showHeader="widgetProps.showHeader" :scrollable="true" class="mkw-bdayfollowings">
 	<template #icon><i class="ti ti-cake"></i></template>
 	<template #header>{{ i18n.ts._widgets.birthdayFollowings }}</template>
-	<template #func="{ buttonStyleClass }"><button class="_button" :class="buttonStyleClass" @click="fetch"><i class="ti ti-refresh"></i></button></template>
+	<template #func="{ buttonStyleClass }"><button class="_button _iconButton" :class="buttonStyleClass" @click="fetch"><i class="ti ti-refresh"></i></button></template>
 
 	<MkPagination v-slot="{ items }" :paginator="birthdayUsersPaginator">
 		<div>
@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				>
 					<div :class="$style.date">
 						<span><i class="ti ti-chevron-up"></i> {{ getSeparatorInfo(birthdayUsersPaginator.items.value[i - 1].birthday, user.birthday)?.prevText }}</span>
-						<span style="height: 1em; width: 1px; background: var(--MI_THEME-divider);"></span>
+						<span style="height: 1em; width: var(--MI-dividerWidth); background: var(--MI-dividerColor);"></span>
 						<span>{{ getSeparatorInfo(birthdayUsersPaginator.items.value[i - 1].birthday, user.birthday)?.nextText }} <i class="ti ti-chevron-down"></i></span>
 					</div>
 					<XUser :class="$style.user" :item="user" />
@@ -31,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, markRaw, ref, watch } from 'vue';
-import { useLowresTime } from '@/composables/use-lowres-time.js';
+import { useLowresTime } from '@@/js/use-lowres-time.js';
 import { isSeparatorNeeded, getSeparatorInfo } from '@/utility/timeline-date-separate.js';
 import { useWidgetPropsManager } from './widget.js';
 import type { WidgetComponentEmits, WidgetComponentExpose, WidgetComponentProps } from './widget.js';
@@ -173,7 +173,7 @@ defineExpose<WidgetComponentExpose>({
 }
 
 .user {
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .date {
@@ -185,6 +185,6 @@ defineExpose<WidgetComponentExpose>({
 	color: var(--MI_THEME-fgTransparentWeak);
 	padding: 8px var(--MI-cardPadding, 18px);
 	margin: 0 auto;
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 </style>

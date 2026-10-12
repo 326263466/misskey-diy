@@ -5,18 +5,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div v-if="tab === 'overview'" class="_pageBody">
-		<XOverview/>
-	</div>
-	<div v-else-if="tab === 'emojis'" class="_pageBody">
-		<XEmojis/>
-	</div>
-	<div v-else-if="instance.federation !== 'none' && tab === 'federation'" class="_pageBody">
-		<XFederation/>
-	</div>
-	<div v-else-if="tab === 'charts'" class="_pageBody">
-		<MkInstanceStats/>
-	</div>
+	<Suspense>
+		<div v-if="tab === 'overview'" class="_pageBody">
+			<XOverview/>
+		</div>
+		<div v-else-if="tab === 'emojis'" class="_pageBody">
+			<XEmojis/>
+		</div>
+		<div v-else-if="instance.federation !== 'none' && tab === 'federation'" class="_pageBody">
+			<XFederation/>
+		</div>
+		<div v-else-if="tab === 'charts'" class="_pageBody">
+			<MkInstanceStats/>
+		</div>
+	</Suspense>
 </PageWithHeader>
 </template>
 
@@ -39,6 +41,10 @@ const props = withDefaults(defineProps<{
 });
 
 const tab = ref(props.initialTab);
+
+watch(() => props.initialTab, value => {
+	tab.value = value;
+});
 
 watch(tab, () => {
 	if (tab.value === 'charts') {

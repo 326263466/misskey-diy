@@ -6,12 +6,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialogEl"
+	:closeOnBackdrop="false"
 	:width="450"
 	:height="590"
 	:canClose="true"
 	:withOkButton="false"
 	:okButtonDisabled="false"
-	@click="onCancelClicked"
 	@close="onCancelClicked"
 	@closed="emit('closed')"
 >
@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<div style="display: flex; flex-direction: column; min-height: 100%;">
 		<div class="_spacer _spacerCard" style="flex-grow: 1;">
-			<MkLoading v-if="loading !== 0"/>
+			<MkLoading v-if="loading !== 0 || closing"/>
 			<div v-else :class="$style.root" class="_gaps_m">
 				<MkInput v-model="title">
 					<template #label>{{ i18n.ts._webhookSettings.name }}</template>
@@ -81,11 +81,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 		<div :class="$style.footer" class="_buttonsCenter">
-			<MkButton primary rounded :disabled="disableSubmitButton" @click="onSubmitClicked">
+			<MkButton primary rounded :disabled="disableSubmitButton || closing" @click="onSubmitClicked">
 				<i class="ti ti-check"></i>
 				{{ i18n.ts.ok }}
 			</MkButton>
-			<MkButton rounded @click="onCancelClicked"><i class="ti ti-x"></i> {{ i18n.ts.cancel }}</MkButton>
+			<MkButton rounded :disabled="closing" @click="onCancelClicked"><i class="ti ti-x"></i> {{ i18n.ts.cancel }}</MkButton>
 		</div>
 	</div>
 </MkModalWindow>
@@ -129,6 +129,7 @@ const props = defineProps<MkSystemWebhookEditorProps>();
 const { mode, id, requiredEvents } = toRefs(props);
 
 const loading = ref<number>(0);
+const closing = ref(false);
 
 const title = ref<string>('');
 const url = ref<string>('');
@@ -178,6 +179,7 @@ async function onSubmitClicked() {
 			switch (mode.value) {
 				case 'create': {
 					const result = await misskeyApi('admin/system-webhook/create', params);
+					closing.value = true;
 					dialogEl.value?.close();
 					emit('submitted', result);
 					break;
@@ -185,6 +187,7 @@ async function onSubmitClicked() {
 				case 'edit': {
 					// eslint-disable-next-line
 					const result = await misskeyApi('admin/system-webhook/update', { id: id.value!, ...params });
+					closing.value = true;
 					dialogEl.value?.close();
 					emit('submitted', result);
 					break;
@@ -194,6 +197,7 @@ async function onSubmitClicked() {
 		} catch (ex: any) {
 			const msg = ex.message ?? i18n.ts.internalServerErrorDescription;
 			await os.alert({ type: 'error', title: i18n.ts.error, text: msg });
+			closing.value = true;
 			dialogEl.value?.close();
 			emit('canceled');
 		}
@@ -201,6 +205,8 @@ async function onSubmitClicked() {
 }
 
 function onCancelClicked() {
+	if (closing.value) return;
+	closing.value = true;
 	dialogEl.value?.close();
 	emit('canceled');
 }
@@ -279,7 +285,7 @@ onMounted(async () => {
 	bottom: 0;
 	left: 0;
 	padding: var(--MI-cardPadding, 18px);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	background: var(--MI_THEME-panel);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));

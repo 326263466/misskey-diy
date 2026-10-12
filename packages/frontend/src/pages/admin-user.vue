@@ -29,12 +29,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #key>ID</template>
 					<template #value><span class="_monospace">{{ user.id }}</span></template>
 				</MkKeyValue>
-				<!-- 要る？
-					<MkKeyValue v-if="ips.length > 0" :copy="user.id" oneline>
-						<template #key>IP (recent)</template>
-						<template #value><span class="_monospace">{{ ips[0].ip }}</span></template>
-					</MkKeyValue>
-					-->
 				<template v-if="!isSystem">
 					<MkKeyValue oneline>
 						<template #key>{{ i18n.ts.createdAt }}</template>
@@ -52,42 +46,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<MkModerationNote v-if="!isSystem" v-model="moderationNote" :save="saveModerationNote"/>
-
-			<!--
-				<FormSection>
-					<template #label>ActivityPub</template>
-
-					<div class="_gaps_m">
-						<div style="display: flex; flex-direction: column; gap: 1em;">
-							<MkKeyValue v-if="user.host" oneline>
-								<template #key>{{ i18n.ts.instanceInfo }}</template>
-								<template #value><MkA :to="`/instance-info/${user.host}`" class="_link">{{ user.host }} <i class="ti ti-chevron-right"></i></MkA></template>
-							</MkKeyValue>
-							<MkKeyValue v-else oneline>
-								<template #key>{{ i18n.ts.instanceInfo }}</template>
-								<template #value>(Local user)</template>
-							</MkKeyValue>
-							<MkKeyValue oneline>
-								<template #key>{{ i18n.ts.updatedAt }}</template>
-								<template #value><MkTime v-if="user.lastFetchedAt" mode="detail" :time="user.lastFetchedAt"/><span v-else>N/A</span></template>
-							</MkKeyValue>
-							<MkKeyValue v-if="ap" oneline>
-								<template #key>Type</template>
-								<template #value><span class="_monospace">{{ ap.type }}</span></template>
-							</MkKeyValue>
-						</div>
-
-						<MkButton v-if="user.host != null" @click="updateRemoteUser"><i class="ti ti-refresh"></i> {{ i18n.ts.updateRemoteUser }}</MkButton>
-
-						<MkFolder>
-							<template #label>Raw</template>
-
-							<MkObjectView v-if="ap" tall :value="ap">
-							</MkObjectView>
-						</MkFolder>
-					</div>
-				</FormSection>
-			-->
 
 			<FormSection v-if="!isSystem">
 				<div class="_gaps">
@@ -136,8 +94,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-for="role in info.roles" :key="role.id">
 				<div :class="$style.roleItemMain">
 					<MkRolePreview :class="$style.role" :role="role" :forModeration="true"/>
-					<button class="_button" @click="toggleRoleItem(role)"><i class="ti ti-chevron-down"></i></button>
-					<button v-if="role.target === 'manual'" class="_button" :class="$style.roleUnassign" @click="unassignRole(role, $event)"><i class="ti ti-x"></i></button>
+					<button class="_button _iconButton" @click="toggleRoleItem(role)"><i class="ti ti-chevron-down"></i></button>
+					<button v-if="role.target === 'manual'" class="_button _iconButton" :class="$style.roleUnassign" @click="unassignRole(role, $event)"><i class="ti ti-x"></i></button>
 					<button v-else class="_button" :class="$style.roleUnassign" disabled><i class="ti ti-ban"></i></button>
 				</div>
 				<div v-if="expandedRoleIds.includes(role.id)" :class="$style.roleItemSub">
@@ -222,7 +180,7 @@ import MkFileListForAdmin from '@/components/MkFileListForAdmin.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { acct } from '@/filters/user.js';
+import { acct } from '@@/js/user.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
@@ -699,7 +657,7 @@ definePage(() => ({
 .announcementItem {
 	display: flex;
 	background: var(--MI_THEME-panel);
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	padding: var(--MI-cardPadding);
 	border-radius: 6px;
 	cursor: pointer;

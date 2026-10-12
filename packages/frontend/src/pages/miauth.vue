@@ -105,7 +105,7 @@ definePage(() => ({
 	padding: var(--MI-cardPadding);
 	border-radius: var(--MI-radius);
 	background-color: var(--MI_THEME-panel);
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 }
 
 .redirectUrl {

@@ -5,36 +5,39 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.tabs" @wheel="onTabWheel">
-	<div :class="$style.tabsInner">
-		<button
-			v-for="t in tabs"
-			:key="t.key"
-			class="_button _tabUnderline"
-			:class="[$style.tab, {
-				[$style.active]: t.key != null && t.key === props.tab,
-				[$style.animate]: prefer.s.animation,
-				_tabUnderlineAnimated: prefer.s.animation,
-			}]"
-			@mousedown="(ev) => onTabMousedown(t, ev)"
-			@click="(ev) => onTabClick(t, ev)"
-		>
-			<div :class="$style.tabInner">
-				<i v-if="t.icon" :class="[$style.tabIcon, t.icon]"></i>
-				<div
-					v-if="!t.iconOnly || (!prefer.s.animation && t.key === tab)"
-					:class="$style.tabTitle"
-				>
-					{{ t.title }}
+	<div ref="tabsScroller" :class="$style.tabsScroller" @scroll="updateScrollButtons">
+		<div ref="tabsInner" :class="$style.tabsInner">
+			<button
+				v-for="t in tabs"
+				:key="t.key"
+				class="_button"
+				:class="[$style.tab, {
+					[$style.active]: t.key != null && t.key === props.tab,
+					[$style.animate]: prefer.s.animation,
+				}]"
+				@mousedown="(ev) => onTabMousedown(t, ev)"
+				@click="(ev) => onTabClick(t, ev)"
+			>
+				<div :class="$style.tabInner">
+					<i v-if="t.icon" :class="[$style.tabIcon, t.icon]"></i>
+					<div
+						v-if="!t.iconOnly || (!prefer.s.animation && t.key === tab)"
+						:class="$style.tabTitle"
+					>
+						{{ t.title }}
+					</div>
+					<Transition
+						v-else mode="in-out" @enter="enter" @afterEnter="afterEnter" @leave="leave"
+						@afterLeave="afterLeave"
+					>
+						<div v-show="t.key === tab" :class="[$style.tabTitle, $style.animate]">{{ t.title }}</div>
+					</Transition>
 				</div>
-				<Transition
-					v-else mode="in-out" @enter="enter" @afterEnter="afterEnter" @leave="leave"
-					@afterLeave="afterLeave"
-				>
-					<div v-show="t.key === tab" :class="[$style.tabTitle, $style.animate]">{{ t.title }}</div>
-				</Transition>
-			</div>
-		</button>
+			</button>
+		</div>
 	</div>
+	<button v-if="canScrollLeft" v-tooltip="i18n.ts.scrollLeft" type="button" class="_button" :class="[$style.scrollButton, $style.scrollLeft]" :aria-label="i18n.ts.scrollLeft" @click="scrollTabs(-1)"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+	<button v-if="canScrollRight" v-tooltip="i18n.ts.scrollRight" type="button" class="_button" :class="[$style.scrollButton, $style.scrollRight]" :aria-label="i18n.ts.scrollRight" @click="scrollTabs(1)"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
 </div>
 </template>
 
@@ -49,6 +52,8 @@ export type Tab = {
 </script>
 
 <script lang="ts" setup>
+import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
+import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 
 const props = withDefaults(defineProps<{
@@ -64,15 +69,48 @@ const emit = defineEmits<{
 	(ev: 'tabClick', key: string): void;
 }>();
 
+let pointerDownOnActiveTab: boolean | null = null;
+
+const tabsScroller = useTemplateRef<HTMLElement>('tabsScroller');
+const tabsInner = useTemplateRef<HTMLElement>('tabsInner');
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+let resizeObserver: ResizeObserver | undefined;
+
+function updateScrollButtons() {
+	const scroller = tabsScroller.value;
+	if (!scroller) return;
+	canScrollLeft.value = scroller.scrollLeft > 1;
+	canScrollRight.value = scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft > 1;
+}
+
+function scrollTabs(direction: number) {
+	const scroller = tabsScroller.value;
+	if (!scroller) return;
+	scroller.scrollBy({ left: direction * scroller.clientWidth * 0.8, behavior: prefer.s.animation ? 'smooth' : 'instant' });
+}
+
+onMounted(() => {
+	resizeObserver = new ResizeObserver(updateScrollButtons);
+	if (tabsScroller.value) resizeObserver.observe(tabsScroller.value);
+	if (tabsInner.value) resizeObserver.observe(tabsInner.value);
+	updateScrollButtons();
+});
+
+onUnmounted(() => resizeObserver?.disconnect());
+
 function onTabMousedown(tab: Tab, ev: MouseEvent): void {
 	// ユーザビリティの観点からmousedown時にはonClickは呼ばない
+	if (ev.button === 0) pointerDownOnActiveTab = tab.key === props.tab;
 	if (ev.button === 0 && tab.key && tab.key !== props.tab) {
 		emit('update:tab', tab.key);
 	}
 }
 
 function onTabClick(t: Tab, ev: PointerEvent): void {
-	emit('tabClick', t.key);
+	// mousedown 已切换选中项；只有原本选中的标签才触发返回顶部。
+	if (pointerDownOnActiveTab ?? t.key === props.tab) emit('tabClick', t.key);
+	pointerDownOnActiveTab = null;
 
 	if (t.onClick) {
 		ev.preventDefault();
@@ -89,7 +127,7 @@ function onTabWheel(ev: WheelEvent) {
 	if (ev.deltaY !== 0 && ev.deltaX === 0) {
 		ev.preventDefault();
 		ev.stopPropagation();
-		(ev.currentTarget as HTMLElement).scrollBy({
+		tabsScroller.value?.scrollBy({
 			left: ev.deltaY,
 			behavior: 'instant',
 		});
@@ -137,9 +175,41 @@ function afterLeave(el: Element) {
 	height: var(--height);
 	font-size: 1em;
 	text-align: left;
+	overflow: hidden;
+}
+
+.tabsScroller {
+	height: 100%;
 	overflow-x: auto;
 	overflow-y: hidden;
 	scrollbar-width: none;
+}
+
+.scrollButton {
+	position: absolute;
+	top: 0;
+	z-index: 1;
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 100%;
+	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-fgTransparent);
+	outline-offset: -3px;
+
+	&:hover {
+		color: var(--MI_THEME-fgHighlighted);
+	}
+}
+
+.scrollLeft {
+	left: 0;
+	box-shadow: 8px 0 12px var(--MI_THEME-panel);
+}
+
+.scrollRight {
+	right: 0;
+	box-shadow: -8px 0 12px var(--MI_THEME-panel);
 }
 
 .tabsInner {
@@ -155,10 +225,6 @@ function afterLeave(el: Element) {
 	padding: 0;
 	height: 100%;
 	font-weight: normal;
-
-	&.active {
-		--MI-tabUnderlineOpacity: 1;
-	}
 
 	&:hover > .tabInner {
 		color: var(--MI_THEME-fgHighlighted);

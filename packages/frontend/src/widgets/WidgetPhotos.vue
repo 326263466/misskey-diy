@@ -13,9 +13,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else :class="$style.stream">
 			<div
 				v-for="(image, i) in images" :key="i"
+				class="_imageContainer"
 				:class="$style.img"
-				:style="{ backgroundImage: `url(${thumbnail(image)})` }"
-			></div>
+			>
+				<img class="_imageBackground" :src="thumbnail(image)" alt=""/>
+			</div>
 		</div>
 	</div>
 </MkContainer>
@@ -106,6 +108,8 @@ defineExpose<WidgetComponentExpose>({
 	.img {
 		border: solid 4px transparent;
 		border-radius: 8px;
+
+		> img { border-radius: 4px; }
 	}
 }
 
@@ -120,11 +124,10 @@ defineExpose<WidgetComponentExpose>({
 		width: 33%;
 		height: 80px;
 		box-sizing: border-box;
-		background-position: center center;
-		background-size: cover;
-		background-clip: content-box;
 		border: solid 2px transparent;
 		border-radius: 4px;
+
+		> img { border-radius: 2px; }
 	}
 }
 </style>

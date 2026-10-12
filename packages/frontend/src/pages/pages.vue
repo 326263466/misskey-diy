@@ -4,32 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
-	<div class="_pageBody">
-		<div v-if="tab === 'featured'">
-			<MkPagination v-slot="{items}" :paginator="featuredPagesPaginator">
-				<div class="_gaps">
-					<MkPagePreview v-for="page in items" :key="page.id" :page="page"/>
-				</div>
-			</MkPagination>
-		</div>
-
-		<div v-else-if="tab === 'my'" class="_gaps">
-			<MkButton class="new" @click="create()"><i class="ti ti-plus"></i></MkButton>
-			<MkPagination v-slot="{items}" :paginator="myPagesPaginator">
-				<div class="_gaps">
-					<MkPagePreview v-for="page in items" :key="page.id" :page="page"/>
-				</div>
-			</MkPagination>
-		</div>
-
-		<div v-else-if="tab === 'liked'">
-			<MkPagination v-slot="{items}" :paginator="likedPagesPaginator">
-				<div class="_gaps">
-					<MkPagePreview v-for="like in items" :key="like.page.id" :page="like.page"/>
-				</div>
-			</MkPagination>
-		</div>
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true" :loading="paginator.fetching.value">
+	<div class="_pageBody _gaps">
+		<MkButton v-if="tab === 'my'" class="new" @click="create()"><i class="ti ti-plus"></i></MkButton>
+		<MkPagination v-slot="{items}" :paginator="paginator" pageEmpty>
+			<div class="_gaps">
+				<MkPagePreview v-for="page in items.map(item => 'page' in item ? item.page : item)" :key="page.id" :page="page"/>
+			</div>
+		</MkPagination>
 	</div>
 </PageWithHeader>
 </template>
@@ -57,6 +39,7 @@ const myPagesPaginator = markRaw(new Paginator('i/pages', {
 const likedPagesPaginator = markRaw(new Paginator('i/page-likes', {
 	limit: 5,
 }));
+const paginator = computed(() => tab.value === 'my' ? myPagesPaginator : tab.value === 'liked' ? likedPagesPaginator : featuredPagesPaginator);
 
 function create() {
 	router.push('/pages/new');

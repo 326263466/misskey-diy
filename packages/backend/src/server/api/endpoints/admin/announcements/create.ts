@@ -4,6 +4,7 @@
  */
 
 import { Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { AnnouncementService } from '@/core/AnnouncementService.js';
 
@@ -53,8 +54,8 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		title: { type: 'string', minLength: 1 },
-		text: { type: 'string', minLength: 1 },
+		title: { type: 'string', minLength: 1, maxLength: CONTENT_LIMITS.announcementTitle },
+		text: { type: 'string', minLength: 1, maxLength: CONTENT_LIMITS.announcementText },
 		imageUrl: { type: 'string', nullable: true, minLength: 0 },
 		icon: { type: 'string', enum: ['info', 'warning', 'error', 'success'], default: 'info' },
 		display: { type: 'string', enum: ['normal', 'banner', 'dialog'], default: 'normal' },

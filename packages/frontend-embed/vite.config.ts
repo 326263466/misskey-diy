@@ -8,7 +8,9 @@ import locales from 'i18n';
 import meta from '../../package.json';
 import packageInfo from './package.json' with { type: 'json' };
 import pluginJson5 from './lib/vite-plugin-json5.js';
+import { imageTemplateOptions } from '../frontend/lib/image-template.js';
 import { pluginRemoveUnrefI18n } from '../frontend-builder/rollup-plugin-remove-unref-i18n';
+import { pluginTablerIcons } from '../frontend-builder/vite-plugin-tabler-icons.js';
 import { Features } from 'lightningcss';
 
 const url = process.env.NODE_ENV === 'development' ? (loadYaml(await fsp.readFile('../../.config/default.yml', 'utf-8')) as any).url : null;
@@ -88,7 +90,8 @@ export function getConfig(): UserConfig {
 		},
 
 		plugins: [
-			pluginVue(),
+			pluginTablerIcons(),
+			pluginVue({ template: imageTemplateOptions }),
 			pluginRemoveUnrefI18n(),
 			pluginJson5(),
 		],

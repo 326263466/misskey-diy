@@ -128,8 +128,9 @@ export async function closeUserSetupDialogIfVisible(page: Page): Promise<void> {
 }
 
 export async function postNote(page: Page, noteText: string, timeout = 15_000): Promise<void> {
-	await page.getByTestId('open-post-form').waitFor({ state: 'visible' });
-	await page.getByTestId('open-post-form').click();
+	await page.getByTestId('open-publish-menu').waitFor({ state: 'visible' });
+	await page.getByTestId('open-publish-menu').click();
+	await page.getByRole('menu').getByRole('menuitem').first().click();
 	await page.getByTestId('post-form-text').fill(noteText);
 	await page.getByTestId('post-form-submit').click();
 	await page.getByText(noteText).waitFor({ timeout });

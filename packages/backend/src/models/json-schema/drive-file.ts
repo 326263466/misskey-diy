@@ -42,6 +42,22 @@ export const packedDriveFileSchema = {
 			type: 'boolean',
 			optional: false, nullable: false,
 		},
+		isManaged: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
+		isPinned: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
+		cleanupAt: {
+			type: 'string', format: 'date-time',
+			optional: true, nullable: true,
+		},
+		deleting: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
 		blurhash: {
 			type: 'string',
 			optional: false, nullable: true,

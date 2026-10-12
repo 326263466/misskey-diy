@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkPaginationControl :paginator="paginator"/>
 	</template>
 	<div class="_pageBody">
-		<MkNotesTimeline :paginator="paginator" :withControl="false"/>
+		<MkNotesTimeline :paginator="paginator" :withControl="false" pageEmpty/>
 	</div>
 	<template v-if="$i" #footer>
 		<div :class="$style.footer">
@@ -77,7 +77,7 @@ definePage(() => ({
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	display: flex;
 }
 

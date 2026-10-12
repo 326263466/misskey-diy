@@ -25,7 +25,7 @@ export const meta = {
 						usedCards: { type: 'integer', optional: false, nullable: false },
 						exchangedCards: { type: 'integer', optional: false, nullable: false },
 						availableCards: { type: 'integer', optional: false, nullable: false },
-						points: { type: 'integer', optional: false, nullable: false },
+						points: { type: 'number', optional: false, nullable: false },
 					},
 				},
 			},

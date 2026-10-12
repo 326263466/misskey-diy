@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="windowEl"
+	:closeOnBackdrop="false"
 	:withOkButton="false"
 	:okButtonDisabled="false"
 	:width="500"

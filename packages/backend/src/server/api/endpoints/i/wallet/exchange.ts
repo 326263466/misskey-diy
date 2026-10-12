@@ -12,6 +12,7 @@ export const meta = {
 	tags: ['account'], requireCredential: true, prohibitMoved: true, kind: 'write:account',
 	limit: { duration: 60000, max: 30 },
 	errors: {
+		invalidAmount: { message: 'The points must exchange to an exact positive amount with at most two decimal places.', code: 'INVALID_EXCHANGE_AMOUNT', id: '428bf3fd-6e77-4354-af81-e442a7a773d6' },
 		notAllowed: { message: 'This account cannot exchange check-in points.', code: 'WALLET_NOT_ALLOWED', id: '61ae5a77-dee9-446c-8c35-0561064c5535' },
 		disabled: { message: 'Point exchange is disabled.', code: 'EXCHANGE_DISABLED', id: 'cef49c96-ce04-4a9b-a289-28a22cf30fba' },
 		insufficientPoints: { message: 'Not enough check-in points.', code: 'INSUFFICIENT_CHECKIN_POINTS', id: 'b0dcc51f-8fb0-4d85-aec2-873ca9212ba8' },
@@ -21,10 +22,10 @@ export const meta = {
 	res: {
 		type: 'object', optional: false, nullable: false,
 		properties: {
-			balance: { type: 'integer', optional: false, nullable: false },
+			balance: { type: 'number', optional: false, nullable: false },
 			points: { type: 'integer', optional: false, nullable: false },
 			exchanged: { type: 'boolean', optional: false, nullable: false },
-			amount: { type: 'integer', optional: false, nullable: false },
+			amount: { type: 'number', optional: false, nullable: false },
 		},
 	},
 } as const;
@@ -45,6 +46,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			try {
 				return await this.walletService.exchange(me.id, ps.points, ps.requestId);
 			} catch (error) {
+				if (error instanceof WalletService.InvalidAmountError) throw new ApiError(meta.errors.invalidAmount);
 				if (error instanceof WalletService.NotAllowedError) throw new ApiError(meta.errors.notAllowed);
 				if (error instanceof WalletService.ExchangeDisabledError) throw new ApiError(meta.errors.disabled);
 				if (error instanceof WalletService.InsufficientPointsError) throw new ApiError(meta.errors.insufficientPoints);

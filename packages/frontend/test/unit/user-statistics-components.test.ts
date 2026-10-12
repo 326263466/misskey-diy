@@ -59,7 +59,7 @@ vi.mock('@/router.js', async () => {
 });
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
 vi.mock('@/server-context.js', () => ({ serverContext: null, assertServerContext: () => false }));
-vi.mock('@/composables/use-scroll-position-keeper.js', () => ({ useScrollPositionKeeper: vi.fn() }));
+vi.mock('@/composables/use-scroll-to-top.js', () => ({ useScrollToTop: vi.fn() }));
 vi.mock('@/components/MkNote.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/components/MkModerationNote.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/components/MkPullToRefresh.vue', () => ({ default: { template: '<div><slot/></div>' } }));

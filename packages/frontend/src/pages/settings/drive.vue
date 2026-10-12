@@ -214,6 +214,7 @@ import MkKeyValue from '@/components/MkKeyValue.vue';
 import FormSplit from '@/components/form/split.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { misskeyApiWithToast } from '@/utility/misskey-api-with-toast.js';
 import bytes from '@/filters/bytes.js';
 import MkChart from '@/components/MkChart.vue';
 import { i18n } from '@/i18n.js';
@@ -383,15 +384,10 @@ async function addImageFramePreset() {
 }
 
 function saveProfile() {
-	misskeyApi('i/update', {
+	misskeyApiWithToast('i/update', {
 		alwaysMarkNsfw: !!alwaysMarkNsfw.value,
 		autoSensitive: !!autoSensitive.value,
-	}).catch(err => {
-		os.alert({
-			type: 'error',
-			title: i18n.ts.error,
-			text: err.message,
-		});
+	}).catch(() => {
 		alwaysMarkNsfw.value = true;
 	});
 }

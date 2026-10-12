@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div>
 	<div>
 		<div class="_gaps_m">
-			<MkInput v-model="name">
+			<MkInput v-model="name" :counterMaxLength="100">
 				<template #label>{{ i18n.ts.name }}</template>
 			</MkInput>
 			<MkSelect v-model="src" :items="antennaSourcesSelectDef">
@@ -37,7 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div :class="$style.actions">
 			<div class="_buttons">
-				<MkButton inline primary @click="saveAntenna()"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
+				<MkButton inline primary :disabled="!validName" @click="saveAntenna()"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
 				<MkButton v-if="initialAntenna.id != null" inline danger @click="deleteAntenna()"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 			</div>
 		</div>
@@ -123,6 +123,7 @@ const {
 });
 
 const name = ref<string>(initialAntenna.name);
+const validName = computed(() => name.value.trim() !== '' && Array.from(name.value).length <= 100);
 const users = ref<string>(initialAntenna.users.join('\n'));
 const keywords = ref<string>(initialAntenna.keywords.map(x => x.join(' ')).join('\n'));
 const excludeKeywords = ref<string>(initialAntenna.excludeKeywords.map(x => x.join(' ')).join('\n'));
@@ -141,6 +142,7 @@ watch(() => src.value, async () => {
 });
 
 async function saveAntenna() {
+	if (!validName.value) return;
 	const antennaData = {
 		name: name.value,
 		src: src.value,
@@ -193,8 +195,10 @@ function addUser() {
 
 <style lang="scss" module>
 .actions {
-	margin-top: 16px;
-	padding: 24px 0;
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	// 外层（页面卡片 / 弹窗 _spacerCard）统一提供四周 18px 内距，
+	// 这里只保留与 _gaps_m 同拍的分隔线间距，避免底部间距叠加
+	margin-top: 21px;
+	padding: 21px 0 0;
+	border-top: var(--MI-divider);
 }
 </style>

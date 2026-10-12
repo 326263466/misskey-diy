@@ -5,7 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps_m">
-	<div :class="$style.banner" :style="{ backgroundImage: instance.bannerUrl ? `url(${ instance.bannerUrl })` : undefined }">
+	<div class="_imageContainer" :class="$style.banner">
+		<img v-if="instance.bannerUrl" class="_imageBackground" :src="instance.bannerUrl" alt=""/>
 		<div style="overflow: clip;">
 			<img :src="instance.iconUrl ?? '/favicon.ico'" alt="" :class="$style.bannerIcon"/>
 			<div :class="$style.bannerName">
@@ -148,8 +149,6 @@ const initStats = () => misskeyApi('stats', {});
 	border-radius: 10px;
 	overflow: clip;
 	background-color: var(--MI_THEME-panel);
-	background-size: cover;
-	background-position: center center;
 }
 
 .bannerIcon {

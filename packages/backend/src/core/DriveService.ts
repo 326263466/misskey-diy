@@ -26,7 +26,6 @@ import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { VideoProcessingService } from '@/core/VideoProcessingService.js';
 import { ImageProcessingService } from '@/core/ImageProcessingService.js';
 import type { IImage } from '@/core/ImageProcessingService.js';
-import { QueueService } from '@/core/QueueService.js';
 import type { MiDriveFolder } from '@/models/DriveFolder.js';
 import { createTemp } from '@/misc/create-temp.js';
 import DriveChart from '@/core/chart/charts/drive.js';
@@ -36,6 +35,7 @@ import { DownloadService } from '@/core/DownloadService.js';
 import { S3Service } from '@/core/S3Service.js';
 import { InternalStorageService } from '@/core/InternalStorageService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
+import { DriveFileLifecycleService, DRIVE_FILE_RETENTION_MS } from '@/core/DriveFileLifecycleService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { FileInfoService } from '@/core/FileInfoService.js';
 import { bindThis } from '@/decorators.js';
@@ -58,6 +58,8 @@ type AddFileArgs = {
 	folderId?: any;
 	/** If set to true, forcibly upload the file even if there is a file with the same hash. */
 	force?: boolean;
+	isManaged?: boolean;
+	draftId?: string;
 	/** Do not save file to local */
 	isLink?: boolean;
 	/** URL of source (URLからアップロードされた場合(ローカル/リモート)の元URL) */
@@ -117,6 +119,7 @@ export class DriveService {
 		private fileInfoService: FileInfoService,
 		private userEntityService: UserEntityService,
 		private driveFileEntityService: DriveFileEntityService,
+		private driveFileLifecycleService: DriveFileLifecycleService,
 		private idService: IdService,
 		private downloadService: DownloadService,
 		private internalStorageService: InternalStorageService,
@@ -124,7 +127,6 @@ export class DriveService {
 		private imageProcessingService: ImageProcessingService,
 		private videoProcessingService: VideoProcessingService,
 		private globalEventService: GlobalEventService,
-		private queueService: QueueService,
 		private roleService: RoleService,
 		private moderationLogService: ModerationLogService,
 		private driveChart: DriveChart,
@@ -450,6 +452,8 @@ export class DriveService {
 		comment = null,
 		folderId = null,
 		force = false,
+		isManaged = false,
+		draftId,
 		isLink = false,
 		url = null,
 		uri = null,
@@ -498,10 +502,12 @@ export class DriveService {
 
 		if (user && !force) {
 		// Check if there is a file with the same hash
-			const matched = await this.driveFilesRepository.findOneBy({
+			const candidate = await this.driveFilesRepository.findOneBy({
 				md5: info.md5,
 				userId: user.id,
+				deletingAt: IsNull(),
 			});
+			const matched = candidate ? await this.driveFileLifecycleService.reuseFile(candidate.id, isManaged) : null;
 
 			if (matched) {
 				this.registerLogger.info(`file with same hash is found: ${matched.id}`);
@@ -510,6 +516,10 @@ export class DriveService {
 					// Therefore, update the file to sensitive.
 					await this.driveFilesRepository.update({ id: matched.id }, { isSensitive: true });
 					matched.isSensitive = true;
+				}
+				if (isManaged && draftId && this.userEntityService.isLocalUser(user)) {
+					await this.driveFileLifecycleService.reserveUpload(user.id, draftId, matched.id);
+					matched.cleanupAt = null;
 				}
 				return matched;
 			}
@@ -601,6 +611,10 @@ export class DriveService {
 		file.properties = properties;
 		file.blurhash = info.blurhash ?? null;
 		file.isLink = isLink;
+		file.isManaged = isManaged && user != null && this.userEntityService.isLocalUser(user);
+		file.isPinned = !file.isManaged;
+		file.cleanupAt = file.isManaged ? new Date(Date.now() + DRIVE_FILE_RETENTION_MS) : null;
+		file.deletingAt = null;
 		file.requestIp = requestIp;
 		file.requestHeaders = requestHeaders;
 		file.maybeSensitive = info.sensitive;
@@ -659,6 +673,18 @@ export class DriveService {
 		}
 
 		this.registerLogger.succ(`drive file has been created ${file.id}`);
+		// 文件已占用存储；即使草稿刚被关闭导致预留失败，也应计入容量统计。
+		this.driveChart.update(file, true);
+		if (file.userHost == null) {
+			this.perUserDriveChart.update(file, true);
+		} else if (this.meta.enableChartsForFederatedInstances) {
+			this.instanceChart.updateDrive(file, true);
+		}
+
+		if (file.isManaged && user && draftId) {
+			await this.driveFileLifecycleService.reserveUpload(user.id, draftId, file.id);
+			file.cleanupAt = null;
+		}
 
 		if (user) {
 			this.driveFileEntityService.pack(file, { self: true }).then(packedFile => {
@@ -666,16 +692,6 @@ export class DriveService {
 				this.globalEventService.publishMainStream(user.id, 'driveFileCreated', packedFile);
 				this.globalEventService.publishDriveStream(user.id, 'fileCreated', packedFile);
 			});
-		}
-
-		this.driveChart.update(file, true);
-		if (file.userHost == null) {
-			// ローカルユーザーのみ
-			this.perUserDriveChart.update(file, true);
-		} else {
-			if (this.meta.enableChartsForFederatedInstances) {
-				this.instanceChart.updateDrive(file, true);
-			}
 		}
 
 		return file;
@@ -704,7 +720,7 @@ export class DriveService {
 			}
 		}
 
-		await this.driveFilesRepository.update(file.id, values);
+		await this.driveFileLifecycleService.updateFile(file.id, values);
 
 		const fileObj = await this.driveFileEntityService.pack(file.id, { self: true });
 
@@ -754,42 +770,32 @@ export class DriveService {
 
 	@bindThis
 	public async deleteFile(file: MiDriveFile, isExpired = false, deleter?: MiUser) {
-		if (file.storedInternal) {
-			this.internalStorageService.del(file.accessKey!);
-
-			if (file.thumbnailUrl) {
-				this.internalStorageService.del(file.thumbnailAccessKey!);
-			}
-
-			if (file.webpublicUrl) {
-				this.internalStorageService.del(file.webpublicAccessKey!);
-			}
-		} else if (!file.isLink) {
-			this.queueService.createDeleteObjectStorageFileJob(file.accessKey!);
-
-			if (file.thumbnailUrl) {
-				this.queueService.createDeleteObjectStorageFileJob(file.thumbnailAccessKey!);
-			}
-
-			if (file.webpublicUrl) {
-				this.queueService.createDeleteObjectStorageFileJob(file.webpublicAccessKey!);
-			}
-		}
-
-		this.deletePostProcess(file, isExpired, deleter);
+		await this.deleteFileSync(file, isExpired, deleter);
 	}
 
 	@bindThis
-	public async deleteFileSync(file: MiDriveFile, isExpired = false, deleter?: MiUser) {
+	public async deleteUnusedFile(file: MiDriveFile, deleter?: MiUser) {
+		const claimed = await this.driveFileLifecycleService.beginDelete(file.id);
+		if (claimed) await this.deleteFileSync(claimed, false, deleter, true);
+	}
+
+	@bindThis
+	public async deleteFileSync(file: MiDriveFile, isExpired = false, deleter?: MiUser, alreadyClaimed = false) {
+		if (!isExpired && !alreadyClaimed) {
+			// 显式删除保留强制语义，同时禁止登记新的引用。
+			const claimed = await this.driveFileLifecycleService.beginDelete(file.id, true);
+			if (!claimed) return;
+			file = claimed;
+		}
 		if (file.storedInternal) {
-			this.internalStorageService.del(file.accessKey!);
+			await this.internalStorageService.delAsync(file.accessKey!);
 
 			if (file.thumbnailUrl) {
-				this.internalStorageService.del(file.thumbnailAccessKey!);
+				await this.internalStorageService.delAsync(file.thumbnailAccessKey!);
 			}
 
 			if (file.webpublicUrl) {
-				this.internalStorageService.del(file.webpublicAccessKey!);
+				await this.internalStorageService.delAsync(file.webpublicAccessKey!);
 			}
 		} else if (!file.isLink) {
 			const promises = [];
@@ -826,7 +832,8 @@ export class DriveService {
 				webpublicAccessKey: 'webpublic-' + randomUUID(),
 			});
 		} else {
-			await this.driveFilesRepository.delete(file.id);
+			const result = await this.driveFilesRepository.delete(file.id);
+			if (result.affected === 0) return;
 		}
 
 		this.driveChart.update(file, false);

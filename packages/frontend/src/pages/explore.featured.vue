@@ -16,8 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			/>
 		</template>
 	</MkPaginationControl>
-	<MkNotesTimeline v-if="tab === 'notes'" :paginator="paginatorForNotes" :withControl="false"/>
-	<MkNotesTimeline v-else-if="tab === 'polls'" :paginator="paginatorForPolls" :withControl="false"/>
+	<MkNotesTimeline :paginator="tab === 'notes' ? paginatorForNotes : paginatorForPolls" :withControl="false" pageEmpty/>
 </div>
 </template>
 

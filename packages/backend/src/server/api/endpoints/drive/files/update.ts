@@ -9,6 +9,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
 import { DriveService } from '@/core/DriveService.js';
+import { DriveFileLifecycleService } from '@/core/DriveFileLifecycleService.js';
 import { ApiError } from '../../../error.js';
 
 export const meta = {
@@ -44,6 +45,11 @@ export const meta = {
 			code: 'NO_SUCH_FOLDER',
 			id: 'ea8fb7a5-af77-4a08-b608-c0218176cd73',
 		},
+		fileDeleting: {
+			message: 'This file is being deleted.',
+			code: 'FILE_DELETING',
+			id: 'bc9193a1-43bb-4204-b408-9148b1bf42fc',
+		},
 
 		restrictedByRole: {
 			message: 'This feature is restricted by your role.',
@@ -65,6 +71,7 @@ export const paramDef = {
 		folderId: { type: 'string', format: 'misskey:id', nullable: true },
 		name: { type: 'string' },
 		isSensitive: { type: 'boolean' },
+		isPinned: { type: 'boolean' },
 		comment: { type: 'string', nullable: true, maxLength: 512 },
 	},
 	required: ['fileId'],
@@ -96,6 +103,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					folderId: ps.folderId,
 					name: ps.name,
 					isSensitive: ps.isSensitive,
+					isPinned: ps.isPinned,
 					comment: ps.comment,
 				}, me);
 			} catch (e) {
@@ -105,6 +113,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					throw new ApiError(meta.errors.noSuchFolder);
 				} else if (e instanceof DriveService.CannotUnmarkSensitiveError) {
 					throw new ApiError(meta.errors.restrictedByRole);
+				} else if (e instanceof DriveFileLifecycleService.NoSuchFileError) {
+					throw new ApiError(meta.errors.noSuchFile);
+				} else if (e instanceof DriveFileLifecycleService.FileDeletingError) {
+					throw new ApiError(meta.errors.fileDeleting);
 				} else {
 					throw e;
 				}

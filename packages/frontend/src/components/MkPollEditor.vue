@@ -4,43 +4,40 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="zmdxowus">
-	<p v-if="choices.length < 2" class="caution">
-		<i class="ti ti-alert-triangle"></i>{{ i18n.ts._poll.noOnlyOneChoice }}
-	</p>
-	<ul>
-		<li v-for="(choice, i) in choices" :key="i">
-			<MkInput class="input" small :modelValue="choice" :placeholder="i18n.tsx._poll.choiceN({ n: i + 1 })" @update:modelValue="onInput(i, $event)">
+<div :class="$style.root">
+	<ul :class="$style.choices">
+		<li v-for="(choice, i) in choices" :key="i" :class="$style.choice">
+			<MkInput :class="$style.input" small :modelValue="choice" @update:modelValue="onInput(i, $event)">
+				<template #label>{{ i18n.tsx._poll.choiceN({ n: i + 1 }) }}</template>
 			</MkInput>
-			<button class="_button" @click="remove(i)">
-				<i class="ti ti-x"></i>
+			<button type="button" class="_button _iconButton" :class="$style.remove" :aria-label="`${i18n.ts.remove} ${i18n.tsx._poll.choiceN({ n: i + 1 })}`" @click="remove(i)">
+				<i class="ti ti-x" aria-hidden="true"></i>
 			</button>
 		</li>
 	</ul>
-	<MkButton v-if="choices.length < 10" class="add" @click="add">{{ i18n.ts.add }}</MkButton>
-	<MkButton v-else class="add" disabled>{{ i18n.ts._poll.noMore }}</MkButton>
+	<MkButton :class="$style.add" :disabled="choices.length >= 10" @click="add"><i class="ti ti-plus" aria-hidden="true"></i> {{ choices.length < 10 ? i18n.ts.add : i18n.ts._poll.noMore }}</MkButton>
 	<MkSwitch v-model="multiple">{{ i18n.ts._poll.canMultipleVote }}</MkSwitch>
-	<section>
-		<div>
-			<MkSelect v-model="expiration" :items="expirationDef" small>
-				<template #label>{{ i18n.ts._poll.expiration }}</template>
-			</MkSelect>
-			<section v-if="expiration === 'at'">
-				<MkInput v-model="atDate" small type="date" class="input">
-					<template #label>{{ i18n.ts._poll.deadlineDate }}</template>
-				</MkInput>
-				<MkInput v-model="atTime" small type="time" class="input">
-					<template #label>{{ i18n.ts._poll.deadlineTime }}</template>
-				</MkInput>
-			</section>
-			<section v-else-if="expiration === 'after'">
-				<MkInput v-model="after" small type="number" :min="1" class="input">
-					<template #label>{{ i18n.ts._poll.duration }}</template>
-				</MkInput>
-				<MkSelect v-model="unit" :items="unitDef" small></MkSelect>
-			</section>
+	<div :class="$style.expiration">
+		<MkSelect v-model="expiration" :items="expirationDef" small>
+			<template #label>{{ i18n.ts._poll.expiration }}</template>
+		</MkSelect>
+		<div v-if="expiration === 'at'" :class="$style.deadline">
+			<MkInput v-model="atDate" small type="date" :class="$style.input">
+				<template #label>{{ i18n.ts._poll.deadlineDate }}</template>
+			</MkInput>
+			<MkInput v-model="atTime" small type="time" :class="$style.input">
+				<template #label>{{ i18n.ts._poll.deadlineTime }}</template>
+			</MkInput>
 		</div>
-	</section>
+		<div v-else-if="expiration === 'after'" :class="$style.deadline">
+			<MkInput v-model="after" small type="number" :min="1" :step="1" :class="$style.input">
+				<template #label>{{ i18n.ts._poll.duration }}</template>
+			</MkInput>
+			<MkSelect v-model="unit" :items="unitDef" small :class="$style.input">
+				<template #label>{{ i18n.ts._poll.durationUnit }}</template>
+			</MkSelect>
+		</div>
+	</div>
 </div>
 </template>
 
@@ -69,7 +66,7 @@ const emit = defineEmits<{
 	(ev: 'update:modelValue', v: PollEditorModelValue): void;
 }>();
 
-const choices = ref(props.modelValue.choices);
+const choices = ref([...props.modelValue.choices]);
 const multiple = ref(props.modelValue.multiple);
 const {
 	model: expiration,
@@ -84,7 +81,7 @@ const {
 });
 const atDate = ref(formatDateTimeString(addTime(new Date(), 1, 'day'), 'yyyy-MM-dd'));
 const atTime = ref('00:00');
-const after = ref(0);
+const after = ref(1);
 const {
 	model: unit,
 	def: unitDef,
@@ -95,10 +92,10 @@ const {
 		{ label: i18n.ts._time.hour, value: 'hour' },
 		{ label: i18n.ts._time.day, value: 'day' },
 	],
-	initialValue: 'second',
+	initialValue: 'day',
 });
 
-if (props.modelValue.expiresAt) {
+if (props.modelValue.expiresAt != null) {
 	expiration.value = 'at';
 	const expiresAt = new Date(props.modelValue.expiresAt);
 	atDate.value = formatDateTimeString(expiresAt, 'yyyy-MM-dd');
@@ -106,6 +103,7 @@ if (props.modelValue.expiresAt) {
 } else if (typeof props.modelValue.expiredAfter === 'number') {
 	expiration.value = 'after';
 	after.value = props.modelValue.expiredAfter / 1000;
+	unit.value = 'second';
 } else {
 	expiration.value = 'infinite';
 }
@@ -115,11 +113,8 @@ function onInput(i: number, value: string) {
 }
 
 function add() {
+	if (choices.value.length >= 10) return;
 	choices.value.push('');
-	// TODO
-	// nextTick(() => {
-	//   (this.$refs.choices as any).childNodes[this.choices.length - 1].childNodes[0].focus();
-	// });
 }
 
 function remove(i: number) {
@@ -128,26 +123,19 @@ function remove(i: number) {
 
 function get(): PollEditorModelValue {
 	const calcAt = () => {
-		return new Date(`${atDate.value} ${atTime.value}`).getTime();
+		const date = new Date(`${atDate.value}T${atTime.value}`);
+		if (formatDateTimeString(date, 'yyyy-MM-dd') !== atDate.value || formatDateTimeString(date, 'HH:mm') !== atTime.value) return NaN;
+		return date.getTime();
 	};
 
 	const calcAfter = () => {
-		let base = parseInt(after.value.toString());
-		switch (unit.value) {
-			// @ts-expect-error fallthrough
-			case 'day': base *= 24;
-			// @ts-expect-error fallthrough
-			case 'hour': base *= 60;
-			// @ts-expect-error fallthrough
-			case 'minute': base *= 60;
-			// eslint-disable-next-line no-fallthrough
-			case 'second': return base *= 1000;
-			default: return null;
-		}
+		if (!Number.isSafeInteger(after.value) || after.value < 1) return NaN;
+		const multiplier = { second: 1000, minute: 60000, hour: 3600000, day: 86400000 };
+		return after.value * multiplier[unit.value];
 	};
 
 	return {
-		choices: choices.value,
+		choices: [...choices.value],
 		multiple: multiple.value,
 		expiresAt: expiration.value === 'at' ? calcAt() : null,
 		expiredAfter: expiration.value === 'after' ? calcAfter() : null,
@@ -159,78 +147,14 @@ watch([choices, multiple, expiration, atDate, atTime, after, unit], () => emit('
 });
 </script>
 
-<style lang="scss" scoped>
-.zmdxowus {
-	padding: 8px 16px;
-
-	> .caution {
-		margin: 0 0 8px 0;
-		font-size: 0.8em;
-		color: #f00;
-
-		> i {
-			margin-right: 4px;
-		}
-	}
-
-	> ul {
-		display: block;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-
-		> li {
-			display: flex;
-			margin: 8px 0;
-			padding: 0;
-			width: 100%;
-
-			> .input {
-				flex: 1;
-			}
-
-			> button {
-				width: 32px;
-				padding: 4px 0;
-			}
-		}
-	}
-
-	> .add {
-		margin: 8px 0;
-		z-index: 1;
-	}
-
-	> section {
-		margin: 16px 0 0 0;
-
-		> div {
-			margin: 0 8px;
-			display: flex;
-			flex-direction: row;
-			flex-wrap: wrap;
-			gap: 12px;
-
-			&:last-child {
-				flex: 1 0 auto;
-
-				> div {
-					flex-grow: 1;
-				}
-
-				> section {
-					// MAGIC: Prevent div above from growing unless wrapped to its own line
-					flex-grow: 9999;
-					align-items: end;
-					display: flex;
-					gap: 4px;
-
-					> .input {
-						flex: 1 1 auto;
-					}
-				}
-			}
-		}
-	}
-}
+<style lang="scss" module>
+.root { display: flex; flex-direction: column; gap: 18px; }
+.choices { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.choice { display: flex; align-items: end; gap: 8px; }
+.input { flex: 1; min-width: 0; }
+.remove { flex: 0 0 32px; height: 32px; margin-bottom: 2px; color: var(--MI_THEME-fgTransparentWeak); }
+.add { align-self: flex-start; }
+.expiration { display: flex; flex-direction: column; gap: 12px; }
+.deadline { display: flex; align-items: end; gap: 12px; }
+@container (max-width: 300px) { .deadline { flex-direction: column; align-items: stretch; } }
 </style>

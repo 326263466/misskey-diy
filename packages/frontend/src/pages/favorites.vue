@@ -6,11 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader>
 	<div class="_pageBody">
-		<MkPagination :paginator="paginator">
-			<template #empty><MkResult type="empty" :text="i18n.ts.noNotes"/></template>
+		<MkPagination :paginator="paginator" pageEmpty>
+			<template #empty="{ fetching }"><MkResult type="empty" :text="i18n.ts.noNotes" page :loading="fetching"/></template>
 
 			<template #default="{ items }">
-				<MkNote v-for="item in items" :key="item.id" :note="item.note" :class="[$style.note, '_juejinCard']"/>
+				<MkNote v-for="item in items" :key="item.id" :note="item.note" :class="[$style.note, '_card']"/>
 			</template>
 		</MkPagination>
 	</div>

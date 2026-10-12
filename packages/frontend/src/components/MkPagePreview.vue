@@ -4,7 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkA :to="`/@${page.user.username}/pages/${page.name}`" class="vhpxefrj">
+<MkArticlePreview v-if="isArticle(page)" :article="page"/>
+<MkA v-else :to="`/@${page.user.username}/pages/${page.name}`" class="vhpxefrj">
 	<div v-if="page.eyeCatchingImage" class="thumbnail">
 		<MediaImage
 			:image="page.eyeCatchingImage"
@@ -16,12 +17,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<article>
 		<header>
-			<h1 :title="page.title">{{ page.title }}</h1>
+			<h1 :title="page.title"><Mfm :text="page.title" :plain="true" :nowrap="true"/></h1>
 		</header>
-		<p v-if="page.summary" :title="page.summary">{{ page.summary.length > 85 ? page.summary.slice(0, 85) + '…' : page.summary }}</p>
+		<p v-if="page.summary" :title="page.summary"><Mfm :text="page.summary" :plain="true" :nowrap="true"/></p>
 		<footer>
 			<img v-if="avatarUrl" class="icon" :src="avatarUrl"/>
-			<p>{{ userName(page.user) }}</p>
+			<p><MkUserName :user="page.user"/></p>
 		</footer>
 	</article>
 </MkA>
@@ -30,9 +31,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed } from 'vue';
 import * as Misskey from 'misskey-js';
-import { userName } from '@/filters/user.js';
 import MediaImage from '@/components/MkMediaImage.vue';
+import MkArticlePreview from '@/components/MkArticlePreview.vue';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
+import { isArticle } from '@/utility/article.js';
 
 const props = defineProps<{
 	page: Misskey.entities.Page;
@@ -48,12 +50,17 @@ const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 	border-radius: var(--MI-radius) var(--MI-radius) 0 0;
 	overflow: hidden;
 }
+
 </style>
 
 <style lang="scss" scoped>
 .vhpxefrj {
 	display: block;
 	position: relative;
+	min-width: 0;
+	border-radius: var(--MI-radius);
+	overflow: clip;
+	background: var(--MI_THEME-panel);
 
 	&:hover {
 		text-decoration: none;
@@ -92,6 +99,9 @@ const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 
 			> h1 {
 				margin: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
 				font-size: 1em;
 				color: var(--urlPreviewTitle);
 			}
@@ -99,16 +109,21 @@ const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 
 		> p {
 			margin: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 			color: var(--urlPreviewText);
 			font-size: 0.8em;
 		}
 
 		> footer {
+			display: flex;
 			margin-top: 8px;
 			height: 16px;
 
 			> img {
 				display: inline-block;
+				flex-shrink: 0;
 				width: 16px;
 				height: 16px;
 				margin-right: 4px;
@@ -117,7 +132,11 @@ const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 
 			> p {
 				display: inline-block;
+				min-width: 0;
 				margin: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
 				font-size: 0.8em;
 				line-height: 16px;
 				vertical-align: top;

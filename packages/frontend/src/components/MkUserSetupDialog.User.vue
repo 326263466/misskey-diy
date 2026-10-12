@@ -5,7 +5,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_panel" style="position: relative;">
-	<div :class="$style.banner" :style="user.bannerUrl ? { backgroundImage: `url(${user.bannerUrl})` } : ''"></div>
+	<div class="_imageContainer" :class="$style.banner">
+		<img v-if="user.bannerUrl" class="_imageBackground" :src="user.bannerUrl" alt=""/>
+	</div>
 	<MkAvatar :class="$style.avatar" :user="user" indicator/>
 	<div :class="$style.title">
 		<div :class="$style.name"><MkUserName :user="user" :nowrap="false"/></div>
@@ -49,8 +51,6 @@ async function follow() {
 .banner {
 	height: 60px;
 	background-color: rgba(0, 0, 0, 0.1);
-	background-size: cover;
-	background-position: center;
 }
 
 .avatar {
@@ -99,7 +99,7 @@ async function follow() {
 }
 
 .footer {
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	padding: 16px;
 }
 </style>

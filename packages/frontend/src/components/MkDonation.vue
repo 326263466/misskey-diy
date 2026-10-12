@@ -5,31 +5,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_panel _shadow" :class="$style.root">
-	<!-- TODO: インスタンス運営者が任意のテキストとリンクを設定できるようにする -->
-	<div :class="$style.icon">
-		<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-pig-money" width="40" height="40" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-			<path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-			<path d="M15 11v.01"></path>
-			<path d="M5.173 8.378a3 3 0 1 1 4.656 -1.377"></path>
-			<path d="M16 4v3.803a6.019 6.019 0 0 1 2.658 3.197h1.341a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-1.342c-.336 .95 -.907 1.8 -1.658 2.473v2.027a1.5 1.5 0 0 1 -3 0v-.583a6.04 6.04 0 0 1 -1 .083h-4a6.04 6.04 0 0 1 -1 -.083v.583a1.5 1.5 0 0 1 -3 0v-2l.001 -.027a6 6 0 0 1 3.999 -10.473h2.5l4.5 -3h.001z"></path>
-		</svg>
-	</div>
-	<div :class="$style.main">
+	<div :class="$style.header">
+		<div :class="$style.icon">
+			<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message-heart" width="24" height="24" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+				<path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+				<path d="M8 9h8"></path>
+				<path d="M8 13h3.5"></path>
+				<path d="M10.48 19.512l-2.48 1.488v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v4"></path>
+				<path d="M18 22l3.35 -3.284a2.143 2.143 0 0 0 .005 -3.071a2.242 2.242 0 0 0 -3.129 -.006l-.224 .22l-.223 -.22a2.242 2.242 0 0 0 -3.128 -.006a2.143 2.143 0 0 0 -.006 3.071l3.355 3.296z"></path>
+			</svg>
+		</div>
 		<div :class="$style.title">{{ i18n.ts.didYouLikeMisskey }}</div>
-		<div :class="$style.text">
-			<I18n :src="i18n.ts.pleaseDonate" tag="span">
-				<template #host>
-					{{ instance.name ?? host }}
-				</template>
-			</I18n>
-			<div :class="$style.learnMore">
-				<MkA to="/feedback" @click="close">{{ i18n.ts.feedback }}</MkA>
-			</div>
+	</div>
+	<div :class="$style.text">
+		<I18n :src="i18n.ts.pleaseDonate" tag="span">
+			<template #host>
+				{{ instance.name ?? host }}
+			</template>
+		</I18n>
+		<div>
+			<MkA :class="$style.feedbackLink" to="/feedback" @click="close">{{ i18n.ts.feedback }}<i class="ti ti-arrow-right"></i></MkA>
 		</div>
-		<div class="_buttons">
-			<MkButton @click="close">{{ i18n.ts.remindMeLater }}</MkButton>
-			<MkButton @click="neverShow">{{ i18n.ts.neverShow }}</MkButton>
-		</div>
+	</div>
+	<div class="_buttons" :class="$style.buttons">
+		<MkButton small rounded primary @click="close">{{ i18n.ts.remindMeLater }}</MkButton>
+		<MkButton small rounded @click="neverShow">{{ i18n.ts.neverShow }}</MkButton>
 	</div>
 	<button class="_button" :class="$style.close" @click="close"><i class="ti ti-x"></i></button>
 </div>
@@ -70,51 +70,162 @@ function neverShow() {
 	margin: auto;
 	box-sizing: border-box;
 	width: calc(100% - (var(--MI-margin) * 2));
-	max-width: 500px;
+	max-width: 480px;
+	padding: 18px 44px 18px 20px;
+	border: solid 1px color-mix(in srgb, var(--MI_THEME-accent) 22%, transparent);
+	border-radius: 16px;
+	background: color-mix(in srgb, var(--MI_THEME-panel) 88%, transparent);
+	-webkit-backdrop-filter: blur(16px) saturate(1.5);
+	backdrop-filter: blur(16px) saturate(1.5);
+	box-shadow: 0 12px 40px rgb(0 0 0 / .14), 0 2px 8px rgb(0 0 0 / .06);
+	animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes cardIn {
+	from {
+		opacity: 0;
+		transform: translateY(24px) scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+.header {
 	display: flex;
 	align-items: center;
+	gap: 12px;
 }
 
 .icon {
+	position: relative;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 100px;
-	color: var(--MI_THEME-accent);
+	flex-shrink: 0;
+	width: 44px;
+	height: 44px;
+	border-radius: 14px;
+	color: var(--MI_THEME-fgOnAccent);
+	background: linear-gradient(135deg, color-mix(in srgb, var(--MI_THEME-accent), white 24%), var(--MI_THEME-accent) 60%, color-mix(in srgb, var(--MI_THEME-accent), black 12%));
+	box-shadow: 0 4px 14px color-mix(in srgb, var(--MI_THEME-accent) 38%, transparent);
+	overflow: hidden;
 }
-@media (max-width: 500px) {
-	.icon {
-		width: 80px;
+
+// 高光沿徽章对角线扫过，间歇循环
+.icon::after {
+	content: "";
+	position: absolute;
+	inset: -40%;
+	background: linear-gradient(115deg, transparent 42%, rgb(255 255 255 / .45) 50%, transparent 58%);
+	transform: translateX(-120%);
+	animation: sheen 4.2s ease-in-out 1.2s infinite;
+}
+
+@keyframes sheen {
+	0% {
+		transform: translateX(-120%);
 	}
-}
-@media (max-width: 450px) {
-	.icon {
-		width: 70px;
+	32%,
+	100% {
+		transform: translateX(120%);
 	}
 }
 
-.main {
-	padding: 25px 25px 25px 0;
-	flex: 1;
+.title {
+	font-weight: 700;
+	font-size: 1.05em;
+	letter-spacing: 0.01em;
+	background: linear-gradient(90deg, var(--MI_THEME-fg) 30%, color-mix(in srgb, var(--MI_THEME-accent) 65%, var(--MI_THEME-fg)));
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+@supports not (-webkit-background-clip: text) {
+	.title {
+		background: none;
+		color: var(--MI_THEME-fg);
+	}
+}
+
+.text {
+	margin-top: 8px;
+	font-size: 0.95em;
+	color: color-mix(in srgb, var(--MI_THEME-fg) 82%, transparent);
+}
+
+.feedbackLink {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	margin-top: 8px;
+	padding: 2px 10px;
+	border-radius: 999px;
+	font-weight: 600;
+	font-size: 0.95em;
+	color: var(--MI_THEME-accent);
+	background: color-mix(in srgb, var(--MI_THEME-accent) 12%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--MI_THEME-accent) 25%, transparent);
+	transition: background-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.feedbackLink:hover {
+	background: color-mix(in srgb, var(--MI_THEME-accent) 20%, transparent);
+	transform: translateY(-1px);
+	box-shadow:
+		inset 0 0 0 1px color-mix(in srgb, var(--MI_THEME-accent) 35%, transparent),
+		0 3px 10px color-mix(in srgb, var(--MI_THEME-accent) 22%, transparent);
+}
+
+.feedbackLink i {
+	font-size: 0.9em;
+	transition: transform 0.15s;
+}
+
+.feedbackLink:hover i {
+	transform: translateX(2px);
+}
+
+.buttons {
+	margin-top: 12px;
 }
 
 .close {
 	position: absolute;
-	top: 8px;
-	right: 8px;
-	padding: 8px;
+	top: 10px;
+	right: 10px;
+	padding: 7px;
+	border-radius: 999px;
+	color: color-mix(in srgb, var(--MI_THEME-fg) 55%, transparent);
+	transition: background-color 0.2s, color 0.2s;
 }
 
-.title {
-	font-weight: bold;
-	font-size: 1em;
+.close:hover {
+	background: color-mix(in srgb, var(--MI_THEME-fg) 8%, transparent);
+	color: var(--MI_THEME-fg);
 }
 
-.text {
-	margin: 0.7em 0 1em 0;
+@media (prefers-reduced-motion: reduce) {
+	.root {
+		animation: none;
+	}
+
+	.icon::after {
+		display: none;
+	}
 }
 
-.learnMore {
-	margin-top: 0.4em;
+@media (max-width: 450px) {
+	.root {
+		padding: 14px 40px 14px 14px;
+	}
+
+	.icon {
+		width: 38px;
+		height: 38px;
+		border-radius: 11px;
+	}
 }
 </style>

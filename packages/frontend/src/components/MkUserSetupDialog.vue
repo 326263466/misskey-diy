@@ -6,16 +6,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	:headerIcon="headerIcon"
+	:closeOnBackdrop="false"
 	:width="500"
 	:height="550"
 	data-testid="user-setup-dialog"
 	@close="close(true)"
 	@closed="emit('closed')"
 >
-	<template v-if="page === 1" #header><i class="ti ti-user-edit"></i> {{ i18n.ts._initialAccountSetting.profileSetting }}</template>
-	<template v-else-if="page === 2" #header><i class="ti ti-lock"></i> {{ i18n.ts._initialAccountSetting.privacySetting }}</template>
-	<template v-else-if="page === 3" #header><i class="ti ti-user-plus"></i> {{ i18n.ts.follow }}</template>
-	<template v-else-if="page === 4" #header><i class="ti ti-bell-plus"></i> {{ i18n.ts.pushNotification }}</template>
+	<template v-if="page === 1" #header>{{ i18n.ts._initialAccountSetting.profileSetting }}</template>
+	<template v-else-if="page === 2" #header>{{ i18n.ts._initialAccountSetting.privacySetting }}</template>
+	<template v-else-if="page === 3" #header>{{ i18n.ts.follow }}</template>
+	<template v-else-if="page === 4" #header>{{ i18n.ts.pushNotification }}</template>
 	<template v-else-if="page === 5" #header>{{ i18n.ts.done }}</template>
 	<template v-else #header>{{ i18n.ts.initialAccountSetting }}</template>
 
@@ -128,7 +130,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef, watch, nextTick, defineAsyncComponent } from 'vue';
+import { computed, ref, useTemplateRef, watch, nextTick, defineAsyncComponent } from 'vue';
 import { host } from '@@/js/config.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -149,6 +151,13 @@ const emit = defineEmits<{
 const dialog = useTemplateRef('dialog');
 
 const page = ref(store.s.accountSetupWizard);
+const headerIcon = computed(() => [
+	undefined,
+	'ti ti-user-edit',
+	'ti ti-lock',
+	'ti ti-user-plus',
+	'ti ti-bell-plus',
+][page.value]);
 
 watch(page, () => {
 	store.set('accountSetupWizard', page.value);
@@ -251,7 +260,7 @@ async function later(later: boolean) {
 	left: 0;
 	flex-shrink: 0;
 	padding: var(--MI-cardPadding, 18px);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	-webkit-backdrop-filter: blur(15px);
 	backdrop-filter: blur(15px);
 }

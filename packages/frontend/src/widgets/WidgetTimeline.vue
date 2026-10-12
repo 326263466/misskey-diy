@@ -11,9 +11,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<i v-else-if="widgetProps.src === 'antenna'" class="ti ti-antenna"></i>
 	</template>
 	<template #header>
-		<button class="_button" @click="choose">
-			<span>{{ headerTitle }}</span>
-			<i :class="menuOpened ? 'ti ti-chevron-up' : 'ti ti-chevron-down'" style="margin-left: 8px;"></i>
+		<button class="_button" :class="$style.headerButton" @click="choose">
+			<span :class="$style.headerTitle">
+				<Mfm v-if="widgetProps.src === 'list' || widgetProps.src === 'antenna'" :text="headerTitle" :plain="true" :nowrap="true"/>
+				<template v-else>{{ headerTitle }}</template>
+			</span>
+			<i :class="[$style.headerChevron, menuOpened ? 'ti ti-chevron-up' : 'ti ti-chevron-down']"></i>
 		</button>
 	</template>
 
@@ -161,6 +164,23 @@ defineExpose<WidgetComponentExpose>({
 </script>
 
 <style lang="scss" module>
+.headerButton {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+}
+
+.headerTitle {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.headerChevron {
+	flex-shrink: 0;
+	margin-left: 8px;
+}
+
 .disabled {
 	text-align: center;
 }

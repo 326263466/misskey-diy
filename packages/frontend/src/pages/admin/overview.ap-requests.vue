@@ -298,7 +298,7 @@ onUnmounted(() => {
 				padding: var(--MI-cardPadding);
 
 				&:first-child {
-					border-bottom: solid 0.5px var(--MI_THEME-divider);
+					border-bottom: var(--MI-divider);
 				}
 			}
 		}

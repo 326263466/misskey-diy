@@ -7,8 +7,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 <SearchMarker path="/settings/avatar-decoration" :label="i18n.ts.avatarDecorations" :keywords="['avatar', 'icon', 'decoration']" icon="ti ti-sparkles">
 	<div>
 		<div v-if="!loading" class="_gaps">
-			<MkInfo>{{ i18n.tsx._profile.avatarDecorationMax({ max: $i.policies.avatarDecorationLimit }) }} ({{ i18n.tsx.remainingN({ n: $i.policies.avatarDecorationLimit - $i.avatarDecorations.length }) }})</MkInfo>
-
 			<MkAvatar :class="$style.avatar" :user="$i" forceShowDecoration/>
 
 			<div v-if="$i.avatarDecorations.length > 0" :class="$style.current" class="_gaps_s">
@@ -52,7 +50,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, defineAsyncComponent, computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import XDecoration from './avatar-decoration.decoration.vue';
-import XDialog from './avatar-decoration.dialog.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkFoldableSection from '@/components/MkFoldableSection.vue';
 import * as os from '@/os.js';
@@ -60,11 +57,11 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { ensureSignin } from '@/i.js';
 import { updateCurrentAccountPartial } from '@/accounts.js';
-import MkInfo from '@/components/MkInfo.vue';
 import { definePage } from '@/page.js';
 import { groupAvatarDecorations } from '@/utility/group-avatar-decorations.js';
 import { enqueueProfileSave } from '@/utility/profile-save.js';
 
+const XDialog = defineAsyncComponent(() => import('./avatar-decoration.dialog.vue'));
 const $i = ensureSignin();
 
 const loading = ref(true);
@@ -99,8 +96,8 @@ async function openDecoration(avatarDecoration: {
 		decoration: avatarDecoration,
 		usingIndex: index ?? null,
 	}, {
-		'attach': async (payload) => {
-			await enqueueProfileSave(async () => {
+		'attach': async (payload, complete) => {
+			await saveDecoration(async () => {
 				const decoration = {
 					id: avatarDecoration.id,
 					url: avatarDecoration.url,
@@ -109,16 +106,16 @@ async function openDecoration(avatarDecoration: {
 					offsetX: payload.offsetX,
 					offsetY: payload.offsetY,
 				};
-				const update = [...$i.avatarDecorations, decoration];
 				const user = await os.apiWithDialog('i/update', {
-					avatarDecorations: update,
+					avatarDecorations: [decoration],
 				});
 				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
-			});
+				return true;
+			}, complete);
 		},
-		'update': async (payload) => {
-			await enqueueProfileSave(async () => {
-				if (!canEditAttachedDecoration()) return;
+		'update': async (payload, complete) => {
+			await saveDecoration(async () => {
+				if (!canEditAttachedDecoration()) return false;
 				const decoration = {
 					id: avatarDecoration.id,
 					url: avatarDecoration.url,
@@ -133,21 +130,33 @@ async function openDecoration(avatarDecoration: {
 					avatarDecorations: update,
 				});
 				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
-			});
+				return true;
+			}, complete);
 		},
-		'detach': async () => {
-			await enqueueProfileSave(async () => {
-				if (!canEditAttachedDecoration()) return;
+		'detach': async (complete) => {
+			await saveDecoration(async () => {
+				if (!canEditAttachedDecoration()) return false;
 				const update = [...$i.avatarDecorations];
 				update.splice(index!, 1);
 				const user = await os.apiWithDialog('i/update', {
 					avatarDecorations: update,
 				});
 				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
-			});
+				return true;
+			}, complete);
 		},
 		closed: () => dispose(),
 	});
+}
+
+async function saveDecoration(save: () => Promise<boolean>, complete?: (saved: boolean) => void) {
+	try {
+		const result = await enqueueProfileSave(save);
+		complete?.(result);
+	} catch {
+		// apiWithDialog 已显示错误，保留编辑内容供重试。
+		complete?.(false);
+	}
 }
 
 function detachAllDecorations() {

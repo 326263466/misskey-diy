@@ -11,15 +11,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkSelect v-model="origin" :items="originDef" style="margin: 0; flex: 1;">
 					<template #label>{{ i18n.ts.instance }}</template>
 				</MkSelect>
-				<MkInput v-model="searchHost" :debounce="true" type="search" style="margin: 0; flex: 1;" :disabled="paginator.computedParams?.value?.origin === 'local'">
+				<MkInput v-model="searchHost" type="search" style="margin: 0; flex: 1;" :disabled="paginator.computedParams?.value?.origin === 'local'">
 					<template #label>{{ i18n.ts.host }}</template>
 				</MkInput>
 			</div>
 			<div class="inputs" style="display: flex; gap: var(--MI-margin); flex-wrap: wrap;">
-				<MkInput v-model="userId" :debounce="true" type="search" style="margin: 0; flex: 1;">
+				<MkInput v-model="userId" type="search" style="margin: 0; flex: 1;">
 					<template #label>{{ i18n.ts.userId }}</template>
 				</MkInput>
-				<MkInput v-model="type" :debounce="true" type="search" style="margin: 0; flex: 1;">
+				<MkInput v-model="type" type="search" style="margin: 0; flex: 1;">
 					<template #label>{{ i18n.ts.mimeType }}</template>
 				</MkInput>
 			</div>
@@ -41,6 +41,7 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 import { Paginator } from '@/utility/paginator.js';
+import { useSearchQuery } from '@/composables/use-search-query.js';
 
 const {
 	model: origin,
@@ -56,14 +57,17 @@ const {
 const type = ref<string | null>(null);
 const searchHost = ref('');
 const userId = ref('');
+const filteredType = useSearchQuery(type);
+const filteredHost = useSearchQuery(searchHost);
+const filteredUserId = useSearchQuery(userId);
 const viewMode = ref<'grid' | 'list'>('grid');
 const paginator = markRaw(new Paginator('admin/drive/files', {
 	limit: 10,
 	computedParams: computed(() => ({
-		type: (type.value && type.value !== '') ? type.value : null,
-		userId: (userId.value && userId.value !== '') ? userId.value : null,
+		type: filteredType.value || null,
+		userId: filteredUserId.value || null,
 		origin: origin.value,
-		hostname: (searchHost.value && searchHost.value !== '') ? searchHost.value : null,
+		hostname: filteredHost.value || null,
 	})),
 }));
 

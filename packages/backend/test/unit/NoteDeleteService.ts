@@ -47,16 +47,23 @@ function createService(selected = reply, subtree = [selected], ancestors = [pare
 	const charts = { update: vi.fn() };
 	const users = { findOneByOrFail: vi.fn().mockResolvedValue(user) };
 	const moderation = { log: vi.fn() };
+	const packets = { cancelInTransaction: vi.fn().mockResolvedValue(undefined) };
 	const service = new NoteDeleteService(
 		db as never, null as never, {} as never, users as never, repository as never, null as never,
 		{ isLocalUser: () => false, isRemoteUser: () => false } as never, events as never,
 		null as never, null as never, null as never, null as never, search as never, moderation as never,
 		charts as never, charts as never, null as never,
 	);
-	return { service, manager, repository, events, search, charts, commit, db, query, moderation };
+	return { service, manager, repository, events, search, charts, commit, db, query, moderation, packets };
 }
 
 describe('NoteDeleteService', () => {
+	test.each([false, true])('deletes packet content without settling the independent voucher (comment=%s)', async comment => {
+		const selected = makeNote('packet-note', { redPacketId: 'packet', ...(comment ? { replyId: parent.id } : {}) });
+		const fixture = createService(selected, [selected], comment ? [parent] : []);
+		await fixture.service.delete(user, selected, true);
+		expect(fixture.packets.cancelInTransaction).not.toHaveBeenCalled();
+	});
 	test('invalidates every affected author once after deletion and count recalculation commit', async () => {
 		const otherAuthor = { ...user, id: 'other-author' };
 		const otherReply = makeNote('other-reply', { userId: otherAuthor.id, replyId: parent.id });

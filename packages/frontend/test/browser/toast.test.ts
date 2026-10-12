@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { createApp, h, nextTick, ref } from 'vue';
 import type { App } from 'vue';
-import '@tabler/icons-webfont/dist/tabler-icons.css';
+import 'virtual:tabler-icons.css';
 import '@/style.scss';
 import MkToast from '@/components/MkToast.vue';
 import { hotkeyDirective } from '@/directives/hotkey.js';
@@ -19,7 +19,7 @@ vi.mock('@/utility/device-kind.js', () => ({ deviceKind: 'smartphone' }));
 
 const fixtures: { app: App; host: HTMLElement }[] = [];
 
-async function mountToast(message = '已复制到剪贴板', dark = false) {
+async function mountToast(message = '已复制到剪贴板', dark = false, status: 'info' | 'success' | 'error' = 'info') {
 	const host = document.createElement('div');
 	host.style.cssText = 'position:relative;min-height:100vh;background:var(--MI_THEME-bg);color:var(--MI_THEME-fg);--MI_THEME-accent:#86b300;--MI_THEME-accentedBg:rgba(134,179,0,0.15);--MI_THEME-divider:rgba(128,128,128,0.2);--MI_THEME-shadow:rgba(0,0,0,0.15);--MI_THEME-modalBg:rgba(0,0,0,0.3);--MI-modalBgFilter:blur(4px);';
 	host.style.setProperty('--MI_THEME-bg', dark ? '#17191f' : '#f2f3f5');
@@ -50,10 +50,11 @@ async function mountToast(message = '已复制到剪贴板', dark = false) {
 	});
 	const mount = document.createElement('div');
 	host.append(mount);
-	const app = createApp({ render: () => showing.value ? h(MkToast, { message, onClosed: closed }) : null });
+	const app = createApp({ render: () => showing.value ? h(MkToast, { message, status, onClosed: closed }) : null });
 	app.directive('hotkey', hotkeyDirective);
 	app.mount(mount);
 	fixtures.push({ app, host });
+	await userEvent.hover(trigger);
 	trigger.focus();
 	trigger.click();
 	await nextTick();
@@ -101,7 +102,12 @@ afterEach(async () => {
 
 describe('toast overlays in a real browser', () => {
 	test('keeps blur outside fading ancestors during opening and dismisses through the backdrop without click-through', async () => {
+		const timers = vi.spyOn(window, 'setTimeout');
 		const fixture = await mountToast();
+		// 手动关闭在此单独验证，自动关闭由下面的时长用例覆盖。
+		const dismissTimer = timers.mock.calls.findIndex(([, delay]) => delay === 2000);
+		window.clearTimeout(timers.mock.results[dismissTimer].value);
+		timers.mockRestore();
 		expect(Number(getComputedStyle(fixture.backdrop).opacity)).toBeLessThan(1);
 		for (let frame = 0; frame < 8; frame++) {
 			for (let ancestor = fixture.backdrop.parentElement; ancestor; ancestor = ancestor.parentElement) {
@@ -146,7 +152,7 @@ describe('toast overlays in a real browser', () => {
 		expect(fixture.card.checkVisibility()).toBe(false);
 		expect(fixture.background.inert).toBe(false);
 		expect(document.activeElement === fixture.trigger).toBe(true);
-		await fixture.waitUntil(3300);
+		await fixture.waitUntil(2300);
 		expect(fixture.closed).toHaveBeenCalledOnce();
 	}, 10000);
 
@@ -161,14 +167,32 @@ describe('toast overlays in a real browser', () => {
 		expect(fixture.card.textContent?.trim()).toBe(message);
 	});
 
-	test('automatically disappears after three seconds and restores focus', async () => {
-		const fixture = await mountToast();
-		await fixture.waitUntil(2800);
+	test.each(['info', 'success', 'error'] as const)('automatically dismisses %s after two seconds and restores focus', async status => {
+		const fixture = await mountToast('操作反馈', false, status);
+		await fixture.waitUntil(1800);
 		expect(fixture.closed).not.toHaveBeenCalled();
 		expect(fixture.card.checkVisibility()).toBe(true);
 		await expect.poll(() => fixture.closed.mock.calls.length, { timeout: 1000 }).toBe(1);
 		expect(fixture.card.checkVisibility()).toBe(false);
 		expect(fixture.background.inert).toBe(false);
 		expect(document.activeElement === fixture.trigger).toBe(true);
+	}, 10000);
+
+	test('鼠标悬停暂停倒计时，离开后继续剩余时间，反复悬停不会重置', async () => {
+		const fixture = await mountToast('邀请失败：对方的隐私设置不允许发起聊天');
+		await fixture.waitUntil(1100);
+		await userEvent.hover(fixture.card);
+		await fixture.waitUntil(2600);
+		expect(fixture.closed).not.toHaveBeenCalled();
+		await userEvent.hover(fixture.backdrop, { position: { x: 8, y: 8 }, force: true });
+		expect(fixture.card.matches(':hover')).toBe(false);
+		await new Promise(resolve => window.setTimeout(resolve, 200));
+		await userEvent.hover(fixture.card);
+		await new Promise(resolve => window.setTimeout(resolve, 1000));
+		expect(fixture.closed).not.toHaveBeenCalled();
+		await userEvent.hover(fixture.backdrop, { position: { x: 8, y: 8 }, force: true });
+		expect(fixture.card.matches(':hover')).toBe(false);
+		await expect.poll(() => fixture.closed.mock.calls.length, { timeout: 1400 }).toBe(1);
+		expect(document.activeElement).toBe(fixture.trigger);
 	}, 10000);
 });

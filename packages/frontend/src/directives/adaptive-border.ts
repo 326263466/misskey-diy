@@ -17,7 +17,7 @@ export const adaptiveBorderDirective = {
 			const myBg = window.getComputedStyle(src).backgroundColor;
 
 			if (parentBg === myBg) {
-				src.style.borderColor = 'var(--MI_THEME-divider)';
+				src.style.borderColor = 'var(--MI-dividerColor)';
 			} else {
 				src.style.borderColor = myBg;
 			}

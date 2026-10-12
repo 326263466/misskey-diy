@@ -124,8 +124,8 @@ function close() {
 
 			> .text {
 				margin-top: 6px;
-				font-size: 0.8em;
-				line-height: 1.5em;
+				font-size: 1em;
+				line-height: 1.5;
 				text-align: center;
 			}
 

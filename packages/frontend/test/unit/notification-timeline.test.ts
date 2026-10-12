@@ -79,6 +79,42 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('notification timeline controls', () => {
+	test('首载、筛选刷新和空列表轮询等待接口返回后才显示空状态', async () => {
+		mocks.realtime = false;
+		const initial = Promise.withResolvers<unknown[]>();
+		mocks.api.mockReturnValueOnce(initial.promise);
+		const view = render(MkStreamingNotificationsTimeline, {
+			props: { pageEmpty: true },
+			global: {
+				stubs: { MkLoading: { template: '<div role="status"/>' }, MkResult: { template: '<div data-testid="empty"/>' }, MkError: true },
+				directives: { appear: {} },
+			},
+		});
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.queryByTestId('empty')).toBeNull();
+		initial.resolve([]);
+		await vi.waitFor(() => expect(view.queryByRole('status')).toBeNull());
+		expect(view.getByTestId('empty')).toBeTruthy();
+
+		const refresh = Promise.withResolvers<unknown[]>();
+		mocks.api.mockReturnValueOnce(refresh.promise);
+		await view.rerender({ excludeTypes: ['follow'] });
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.queryByTestId('empty')).toBeNull();
+		refresh.resolve([]);
+		await vi.waitFor(() => expect(view.queryByRole('status')).toBeNull());
+		expect(view.getByTestId('empty')).toBeTruthy();
+
+		const poll = Promise.withResolvers<unknown[]>();
+		mocks.api.mockReturnValueOnce(poll.promise);
+		await mocks.poll!();
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.queryByTestId('empty')).toBeNull();
+		poll.resolve([]);
+		await vi.waitFor(() => expect(view.queryByRole('status')).toBeNull());
+		expect(view.getByTestId('empty')).toBeTruthy();
+	});
+
 	test('does not clear hidden categories when fetching or receiving notifications in a filtered view', async () => {
 		const view = await renderTimeline(['follow']);
 		expect(mocks.api.mock.calls.every(([, params]) => params.markAsRead === false)).toBe(true);

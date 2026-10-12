@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkPagination :paginator="paginator">
-	<template #empty><MkResult type="empty" :text="i18n.ts.noUsers"/></template>
+<MkPagination :paginator="paginator" :pageEmpty="pageEmpty">
+	<template #empty="{ fetching }"><MkResult type="empty" :text="i18n.ts.noUsers" :page="pageEmpty" :loading="fetching"/></template>
 
 	<template #default="{ items }">
 		<div :class="$style.root">
@@ -25,8 +25,10 @@ import { i18n } from '@/i18n.js';
 const props = withDefaults(defineProps<{
 	paginator: P;
 	noGap?: boolean;
+	pageEmpty?: boolean;
 	extractor?: ExtractorFunction<P, Misskey.entities.UserDetailed>;
 }>(), {
+	pageEmpty: false,
 	extractor: (item: any) => item as Misskey.entities.UserDetailed,
 });
 </script>

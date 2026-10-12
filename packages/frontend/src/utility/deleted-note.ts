@@ -9,7 +9,7 @@ import { i18n } from '@/i18n.js';
 export function toDeletedNote(note: Misskey.entities.Note, deletedBy?: Misskey.entities.Note['deletedBy']): Misskey.entities.Note {
 	return {
 		...note, isDeleted: true, deletedBy: deletedBy ?? note.deletedBy, text: null, cw: null, files: [], fileIds: [], poll: undefined,
-		reactions: {}, reactionCount: 0, reactionEmojis: {}, myReaction: null,
+		reactions: {}, reactionCount: 0, reactionEmojis: {}, myReactions: [],
 		renote: null, renoteId: null, renoteCount: 0,
 		likeCount: 0, isLiked: false, likeUsers: [],
 	};

@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_gaps">
 	<MkInfo>{{ i18n.ts._fileViewer.thisPageCanBeSeenFromTheAuthor }}</MkInfo>
-	<MkNotesTimeline :paginator="paginator"/>
+	<MkNotesTimeline :paginator="paginator" pageEmpty/>
 </div>
 </template>
 

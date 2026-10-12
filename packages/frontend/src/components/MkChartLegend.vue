@@ -54,7 +54,7 @@ defineExpose({
 		> .item {
 			font-size: 85%;
 			padding: 4px 12px 4px 8px;
-			border: solid 1px var(--MI_THEME-divider);
+			border: var(--MI-divider);
 			border-radius: 999px;
 
 			&:hover {

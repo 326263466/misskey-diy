@@ -69,9 +69,8 @@ export const paramDef = {
 		userId: { type: 'string', format: 'misskey:id' },
 		comment: { type: 'string', maxLength: 2048 },
 		reason: { type: 'string', enum: abuseReportReasons },
-		reportType: { type: 'string', enum: ['user', 'note', 'boost', 'chat', 'page', 'gallery', 'play'] },
+		reportType: { type: 'string', enum: ['user', 'note', 'chat', 'page', 'gallery', 'play'] },
 		targetId: { type: 'string', format: 'misskey:id' },
-		reaction: { type: 'string', minLength: 1, maxLength: 512 },
 	},
 	required: ['userId', 'comment', 'reason', 'reportType', 'requestId'],
 } as const;
@@ -91,7 +90,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				reporterId: me.id,
 				comment,
 				reason: ps.reason,
-				target: { type: ps.reportType, id: ps.targetId, reaction: ps.reaction },
+				target: { type: ps.reportType, id: ps.targetId },
 				requestId: ps.requestId,
 			};
 			const handleError = (err: unknown): never => {

@@ -17,9 +17,11 @@ import { i18n } from '@/i18n.js';
 import { getOnlineStatusMenu, saveCustomStatus, saveOnlineStatusWithAutoReply } from '@/utility/online-status.js';
 import type { CustomStatus } from '@/utility/status-icons.js';
 import { getUserStatusDisplay } from '@/utility/user-status.js';
+import { markAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), updateAccount: vi.fn(), popup: vi.fn(), dispose: vi.fn() }));
-vi.mock('@/os.js', () => ({ apiWithDialog: mocks.api, popup: mocks.popup }));
+const mocks = vi.hoisted(() => ({ api: vi.fn(), updateAccount: vi.fn(), popup: vi.fn(), dispose: vi.fn(), toast: vi.fn() }));
+vi.mock('@/os.js', () => ({ popup: mocks.popup, toast: mocks.toast }));
+vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/accounts.js', () => ({ updateCurrentAccountPartial: mocks.updateAccount }));
 vi.mock('@/i.js', async () => {
 	const { reactive } = await import('vue');
@@ -62,10 +64,12 @@ describe('account online status menu', () => {
 		const action = buttons.find(button => button.status === status)!.action({} as PointerEvent);
 		expect(mocks.api).toHaveBeenCalledWith('i/update', status === 'invisible' ? { onlineStatusOverride: status } : { onlineStatusOverride: status, customStatus: null });
 		expect(mocks.updateAccount).not.toHaveBeenCalled();
+		expect(mocks.toast).not.toHaveBeenCalled();
 		resolve(user);
 		await action;
 		expect(mocks.updateAccount).toHaveBeenCalledWith(user);
 		expect($i!.customStatus).toEqual(user.customStatus);
+		expect(mocks.toast).toHaveBeenCalledExactlyOnceWith(i18n.ts.saved, 'success');
 	});
 
 	test.each(['away', 'busy', 'doNotDisturb'] as const)('configures %s before saving status and reply together', async status => {
@@ -166,6 +170,7 @@ describe('account online status menu', () => {
 		const button = (menu.children as MenuGrid[])[0].items.find(button => button.status === 'online')!;
 		await expect(button.action({} as PointerEvent)).rejects.toThrow('Connection failed');
 		expect(mocks.updateAccount).not.toHaveBeenCalled();
+		expect(mocks.toast).toHaveBeenCalledExactlyOnceWith(i18n.ts.somethingHappened, 'error');
 	});
 
 	test('keeps the saved custom status when an edit fails', async () => {
@@ -173,6 +178,15 @@ describe('account online status menu', () => {
 		await expect(saveCustomStatus({ icon: 'music', text: 'Listening' })).rejects.toThrow('Connection failed');
 		expect(mocks.updateAccount).not.toHaveBeenCalled();
 		expect($i).toMatchObject({ hideOnlineStatus: false, onlineStatusOverride: 'invisible', customStatus });
+	});
+
+	test('does not duplicate a handled account session error with another toast', async () => {
+		const failure = { code: 'AUTHENTICATION_FAILED' };
+		markAccountSessionErrorHandled(failure);
+		mocks.api.mockRejectedValueOnce(failure);
+		await expect(saveCustomStatus(customStatus)).rejects.toBe(failure);
+		expect(mocks.updateAccount).not.toHaveBeenCalled();
+		expect(mocks.toast).not.toHaveBeenCalled();
 	});
 
 	test.each(['online', 'invisible', 'away', 'custom'] as const)('keeps the privacy setting enabled when selecting %s', async status => {
@@ -234,23 +248,24 @@ describe('user status display', () => {
 });
 
 describe('custom status text beside avatars', () => {
+	const global = { stubs: { Mfm: { props: ['text'], template: '<span>{{ text }}</span>' } } };
 	test.each(['online', 'active', 'away', 'busy', 'doNotDisturb', 'offline', 'unknown'] as const)('does not repeat the builtin %s status as profile text', onlineStatus => {
-		const view = render(MkUserStatus, { props: { user: { id: 'alice', host: null, onlineStatus, customStatus: null } as Misskey.entities.User } });
+		const view = render(MkUserStatus, { props: { user: { id: 'alice', host: null, onlineStatus, customStatus: null } as Misskey.entities.User }, global });
 		expect(view.container.textContent).toBe('');
 		expect(view.container.children).toHaveLength(0);
 	});
 
 	test('renders only custom text without a second status icon', () => {
-		const view = render(MkUserStatus, { props: { user: { id: 'alice', host: null, onlineStatus: 'online', customStatus } as Misskey.entities.User } });
+		const view = render(MkUserStatus, { props: { user: { id: 'alice', host: null, onlineStatus: 'online', customStatus } as Misskey.entities.User }, global });
 		expect(view.getAllByText(customStatus.text)).toHaveLength(1);
-		expect(view.container.firstElementChild?.childElementCount).toBe(0);
+		expect(view.container.firstElementChild?.childElementCount).toBe(1);
 		expect(view.queryByRole('img')).toBeNull();
 		expect(view.container.querySelector('i, svg')).toBeNull();
 	});
 
 	test('reacts to the owner becoming invisible, busy and online without replacing the saved custom text', async () => {
 		Object.assign($i!, { hideOnlineStatus: true, onlineStatusOverride: 'online', onlineStatus: 'online', customStatus });
-		const view = render(MkUserStatus, { props: { user: { id: 'self', host: null, onlineStatus: 'offline', customStatus: null } as Misskey.entities.User } });
+		const view = render(MkUserStatus, { props: { user: { id: 'self', host: null, onlineStatus: 'offline', customStatus: null } as Misskey.entities.User }, global });
 		expect(view.container.textContent).toBe('');
 		$i!.hideOnlineStatus = false;
 		await nextTick();

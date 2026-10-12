@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.searchBox">
 				<i class="ti ti-search" aria-hidden="true"></i>
 				<input :id="inputId" ref="input" v-model="query" :class="$style.input" :disabled="disabled" :placeholder="i18n.ts._topics.search" :aria-label="i18n.ts._topics.search" role="combobox" aria-autocomplete="list" :aria-expanded="true" :aria-controls="listId" :aria-activedescendant="activeIndex >= 0 && options[activeIndex] ? `${listId}-${activeIndex}` : undefined" :aria-describedby="hintId" autocomplete="off" autocapitalize="off" spellcheck="false" @keydown="onKeydown" @compositionstart="composing = true" @compositionend="composing = false">
-				<i v-if="loading" class="ti ti-loader" :class="{ [$style.loading]: prefer.s.animation }" aria-hidden="true"></i>
+				<span v-if="loading" :class="$style.loading" role="status">{{ i18n.ts.loading }}</span>
 			</div>
 			<p :id="hintId" :class="[$style.hint, { [$style.invalid]: invalid }]">{{ invalid ? i18n.ts._topics.invalid : selected.length >= MAX_TOPICS ? i18n.ts._topics.singleLimit : i18n.ts._topics.hint }}</p>
 		</div>
@@ -41,7 +41,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import { i18n } from '@/i18n.js';
-import { prefer } from '@/preferences.js';
 import { MAX_TOPICS, TOPIC_RESULT_LIMIT, TOPIC_SEARCH_DELAY, parseTopic, searchTopics, topicKey, uniqueTopics } from '@/utility/topic-picker.js';
 
 const props = withDefaults(defineProps<{
@@ -160,7 +159,6 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timeout
 	box-sizing: border-box;
 	width: min(328px, calc(100vw - 32px));
 	max-height: min(440px, 70dvh);
-	border: 1px solid var(--MI_THEME-divider);
 	color: var(--MI_THEME-fg);
 	overflow: hidden;
 }
@@ -179,7 +177,7 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timeout
 .close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: var(--MI_THEME-fgTransparentWeak); }
 .close:hover { background: var(--MI_THEME-buttonHoverBg); }
 .close:focus-visible { outline: 2px solid var(--MI_THEME-focus); }
-.searchArea { flex-shrink: 0; padding: 8px 16px 12px; border-bottom: 1px solid var(--MI_THEME-divider); }
+.searchArea { flex-shrink: 0; padding: 8px 16px 12px; border-bottom: var(--MI-divider); }
 .searchBox {
 	display: flex;
 	align-items: center;
@@ -207,7 +205,5 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timeout
 .recommended { width: 20px; height: 20px; border-radius: 3px; background: var(--MI_THEME-accent); color: var(--MI_THEME-fgOnAccent); font-size: 12px; }
 .optionText { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .create { color: var(--MI_THEME-accent); }
-.loading { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .loading { animation: none; } }
+.loading { flex: none; font-size: .75em; }
 </style>

@@ -5,6 +5,7 @@
 
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { id } from './util/id.js';
+import { coinColumn } from './util/coin.js';
 import { MiRedPacket } from './RedPacket.js';
 import { MiUser } from './User.js';
 
@@ -29,7 +30,7 @@ export class MiRedPacketClaim {
 	@JoinColumn({ foreignKeyConstraintName: 'FK_red_packet_claim_user' })
 	public user: MiUser | null;
 
-	@Column('integer')
+	@Column(coinColumn)
 	public coins: number;
 
 	@Column('timestamp with time zone')

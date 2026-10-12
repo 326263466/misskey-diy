@@ -1,0 +1,21 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable import/no-default-export */
+import { HttpResponse, http } from 'msw';
+import type { StoryObj } from '@storybook/vue3';
+import { commonHandlers } from '../../.storybook/mocks.js';
+import { userDetailed } from '../../.storybook/fakes.js';
+import MkTipDialog from './MkTipDialog.vue';
+
+export const Default = {
+	render(args) { return { components: { MkTipDialog }, setup() { return { args }; }, template: '<MkTipDialog v-bind="args"/>' }; },
+	args: { recipient: userDetailed('tip-recipient', 'alice', null, 'Alice') },
+	parameters: { layout: 'fullscreen', msw: { handlers: [...commonHandlers, http.post('/api/i/wallet', () => HttpResponse.json({ balance: 1000, points: 100, reservedBalance: 0, exchangeEnabled: true, exchangeRate: 1 })), http.post('/api/i/wallet/tip', async ({ request }) => {
+		const { amount } = await request.json() as { amount: number };
+		return HttpResponse.json({ balance: 1000 - amount, amount, sent: true });
+	})] } },
+} satisfies StoryObj<typeof MkTipDialog>;

@@ -7,6 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PagesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { PageEntityService } from '@/core/entities/PageEntityService.js';
+import { ArticleService } from '@/core/ArticleService.js';
 import { DI } from '@/di-symbols.js';
 
 export const meta = {
@@ -38,6 +39,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private pagesRepository: PagesRepository,
 
 		private pageEntityService: PageEntityService,
+		private articleService: ArticleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const query = this.pagesRepository.createQueryBuilder('page')
@@ -47,7 +49,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const pages = await query.limit(10).getMany();
 
-			return await this.pageEntityService.packMany(pages, me);
+			return await this.pageEntityService.packMany(await this.articleService.filterAccessiblePages(pages, me), me);
 		});
 	}
 }

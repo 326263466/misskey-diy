@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModal
 	ref="modal"
-	v-slot="{ type, maxHeight, guardInitialPointer, anchorWidth }"
+	v-slot="{ type, maxHeight, guardInitialPointer, anchorWidth, ready }"
 	:manualShowing="manualShowing"
 	:zPriority="'high'"
 	:anchorElement="anchorElement"
@@ -16,6 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:transparentBg="true"
 	:returnFocusTo="returnFocusTo"
 	@click="click"
+	@esc="close"
 	@close="onModalClose"
 	@closed="onModalClosed"
 >
@@ -26,6 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:width="matchAnchorWidth ? (anchorWidth ?? width) : width"
 		:max-height="maxHeight"
 		:guardInitialPointer="guardInitialPointer"
+		:focusReady="ready"
 		:asDrawer="type === 'drawer'"
 		:returnFocusTo="returnFocusTo"
 		:debugDisablePredictionCone="debugDisablePredictionCone"

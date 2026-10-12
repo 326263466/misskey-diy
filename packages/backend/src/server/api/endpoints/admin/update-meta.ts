@@ -9,6 +9,9 @@ import type { MiMeta } from '@/models/Meta.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { MetaService } from '@/core/MetaService.js';
+import { articleCategoryIdSchema } from '@/models/Page.js';
+import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { ApiError } from '../../error.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -16,11 +19,35 @@ export const meta = {
 	requireCredential: true,
 	requireAdmin: true,
 	kind: 'write:admin:meta',
+	errors: {
+		invalidArticleTags: {
+			message: 'Article tags must be non-empty and unique. New names must be at most 10 characters after normalization; existing longer names may be preserved unchanged.',
+			code: 'INVALID_ARTICLE_TAGS',
+			id: '62d74e67-b983-44bf-b68b-f886023158d0',
+		},
+		invalidArticleCategories: {
+			message: 'Article category identifiers must be unique. New or renamed categories must have names of at most 10 characters; existing longer names may be preserved unchanged.',
+			code: 'INVALID_ARTICLE_CATEGORIES',
+			id: '1da48937-bd7c-481c-8c25-2b81506994a5',
+		},
+	},
 } as const;
 
 export const paramDef = {
 	type: 'object',
 	properties: {
+		articleTags: { type: 'array', description: 'New names are limited to 10 characters after normalization. Existing longer names may be preserved unchanged.', maxItems: 500, uniqueItems: true, items: { type: 'string', minLength: 1, maxLength: 100, pattern: '^[^\\u0000]*$' } },
+		articleCategories: {
+			type: 'array', maxItems: 50,
+			items: {
+				type: 'object',
+				properties: {
+					id: articleCategoryIdSchema,
+					name: { type: 'string', description: 'New or renamed categories are limited to 10 characters. Existing longer names may be preserved unchanged.', minLength: 1, maxLength: 40, pattern: '^(?=[\\s\\S]*\\S)[^\\u0000]*$' },
+				},
+				required: ['id', 'name'],
+			},
+		},
 		disableRegistration: { type: 'boolean', nullable: true },
 		pinnedUsers: {
 			type: 'array', nullable: true, items: {
@@ -667,6 +694,21 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				set.serverRules = ps.serverRules;
 			}
 
+			if (ps.articleCategories !== undefined) {
+				if (new Set(ps.articleCategories.map(category => category.id)).size !== ps.articleCategories.length) {
+					throw new ApiError(meta.errors.invalidArticleCategories);
+				}
+				set.articleCategories = ps.articleCategories.map(category => ({ id: category.id, name: category.name.trim() }));
+			}
+
+			if (ps.articleTags !== undefined) {
+				const tags = ps.articleTags.map(tag => normalizeForSearch(tag).trim());
+				if (tags.some(tag => !tag || Array.from(tag).length > 100) || new Set(tags).size !== tags.length) {
+					throw new ApiError(meta.errors.invalidArticleTags);
+				}
+				set.articleTags = tags;
+			}
+
 			if (ps.preservedUsernames !== undefined) {
 				set.preservedUsernames = ps.preservedUsernames;
 			}
@@ -795,7 +837,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const before = await this.metaService.fetch(true);
 
-			await this.metaService.update(set);
+			try {
+				await this.metaService.update(set);
+			} catch (error) {
+				if (error instanceof MetaService.InvalidArticleCategoriesError) throw new ApiError(meta.errors.invalidArticleCategories);
+				if (error instanceof MetaService.InvalidArticleTagsError) throw new ApiError(meta.errors.invalidArticleTags);
+				throw error;
+			}
 
 			const after = await this.metaService.fetch(true);
 

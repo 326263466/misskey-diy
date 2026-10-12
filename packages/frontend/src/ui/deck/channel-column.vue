@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <XColumn :menu="menu" :column="column" :isStacked="isStacked" :refresher="async () => { await timeline?.reloadTimeline() }">
 	<template #header>
-		<i class="ti ti-device-tv"></i><span style="margin-left: 8px;">{{ column.name || column.timelineNameCache || i18n.ts._deck._columns.channel }}</span>
+		<i class="ti ti-device-tv"></i><span style="margin-left: 8px;"><Mfm :text="column.name || column.timelineNameCache || i18n.ts._deck._columns.channel" :plain="true" :nowrap="true"/></span>
 	</template>
 
 	<template v-if="column.channelId">

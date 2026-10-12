@@ -6,6 +6,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { createApp, h, nextTick, reactive } from 'vue';
+import { initializeImageFade } from '@@/js/image-fade.js';
+import '@@/styles/image-fade.scss';
 import type { App } from 'vue';
 import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
 import MkEmoji from '@/components/global/MkEmoji.vue';
@@ -106,6 +108,37 @@ afterEach(() => {
 });
 
 describe('emoji input overlay in a real browser', () => {
+	test.each([1, 12])('懒加载前后 %s 个表情的正文行高和后续消息位置保持不变', async count => {
+		const host = document.createElement('div');
+		host.style.cssText = 'width:96px;margin:24px;font:14px/1.35 system-ui;--MI-emojiHeight:1.25em;--MI-emojiVerticalAlign:-0.25em;';
+		document.body.append(host);
+		const app = createApp({ render: () => h('div', [
+			h('span', { style: 'display:block;' }, Array.from({ length: count }, () => h(MkEmoji, {
+				emoji: '🤣', src: null, 'data-image-lazy': '', 'data-image-src': '/twemoji/1f923.svg',
+			}))),
+			h('div', { 'data-next-message': '' }, '下一条消息'),
+		]) });
+		app.mount(host);
+		fixtures.push({ app, host });
+		await settleLayout();
+		const images = Array.from(host.querySelectorAll('img'));
+		expect(images.every(image => !image.hasAttribute('src'))).toBe(true);
+		const elements = [host.firstElementChild!.firstElementChild!, ...images, host.querySelector('[data-next-message]')!];
+		const positions = () => elements.map(element => {
+			const { x, y, width, height } = element.getBoundingClientRect();
+			return [x, y, width, height];
+		});
+		const before = positions();
+		const imageFade = initializeImageFade({ root: host, animationsEnabled: () => true });
+		try {
+			await expect.poll(() => images.every(image => image.complete && image.naturalWidth > 0)).toBe(true);
+			await settleLayout();
+			positions().forEach((rect, index) => rect.forEach((value, axis) => expect(value).toBeCloseTo(before[index][axis], 2)));
+		} finally {
+			imageFade.disconnect();
+		}
+	});
+
 	test.each([
 		'管理员测试deepseek帖子🎉中文🙂内容',
 		'Latin wrapping 🎉 with emoji🙂near the line boundary',

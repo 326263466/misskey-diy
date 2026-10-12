@@ -38,13 +38,46 @@ export const packedChatRoomSchema = {
 			type: 'string',
 			optional: false, nullable: false,
 		},
+		avatarId: {
+			type: 'string',
+			format: 'misskey:id',
+			optional: true, nullable: true,
+		},
+		avatarUrl: {
+			type: 'string',
+			format: 'url',
+			optional: true, nullable: true,
+		},
+		joinPolicy: {
+			type: 'string',
+			optional: false, nullable: false,
+			enum: ['public', 'approval', 'invitation', 'closed'],
+		},
+		isMember: {
+			type: 'boolean',
+			optional: true, nullable: false,
+		},
+		myRole: {
+			type: 'string',
+			optional: false, nullable: true,
+			enum: ['owner', 'administrator', 'member'],
+		},
+		announcement: { type: 'string', optional: false, nullable: false },
+		ownerNickname: { type: 'string', optional: false, nullable: false },
+		myNickname: { type: 'string', optional: false, nullable: false },
+		myIsSilenced: { type: 'boolean', optional: false, nullable: false },
+		mySilenceUntil: { type: 'string', format: 'date-time', optional: false, nullable: true },
+		isSilenced: { type: 'boolean', optional: false, nullable: false },
+		silenceUntil: { type: 'string', format: 'date-time', optional: false, nullable: true },
 		isMuted: {
 			type: 'boolean',
 			optional: true, nullable: false,
 		},
+		mutedUntil: { type: 'string', format: 'date-time', optional: false, nullable: true },
 		invitationExists: {
 			type: 'boolean',
 			optional: true, nullable: false,
 		},
+		joinRequestPending: { type: 'boolean', optional: false, nullable: false },
 	},
 } as const;

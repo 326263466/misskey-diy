@@ -4,37 +4,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<component :is="link ? MkA : 'span'" v-user-preview="preview ? user.id : undefined" v-bind="bound" class="_noSelect" :class="[$style.root, { [$style.animation]: animation, [$style.cat]: avatar.isCat, [$style.square]: squareAvatars }]" :style="{ color }" :title="preview ? '' : acct(user)" :aria-label="link ? acct(user) : undefined" @click="onClick">
-	<MkImgWithBlurhash v-if="prefer.s.enableHighQualityImagePlaceholders" :class="$style.inner" :src="url" :hash="avatar.avatarBlurhash" :cover="true" :onlyAvgColor="true"/>
-	<img v-else :class="$style.inner" :src="url" alt="" decoding="async" style="pointer-events: none;"/>
+<component :is="link ? MkA : 'span'" ref="root" v-user-preview="preview ? user.id : undefined" v-bind="bound" class="_noSelect" :class="[$style.root, { [$style.animation]: animation, [$style.cat]: avatar.isCat, [$style.square]: squareAvatars }]" :style="{ color }" :title="preview ? '' : acct(user)" :aria-label="link ? acct(user) : undefined" @click="onClick">
+	<MkImgWithBlurhash :class="$style.inner" :src="url" :hash="avatar.avatarBlurhash" :useBlurhash="prefer.s.enableHighQualityImagePlaceholders" :cover="true" :onlyAvgColor="true"/>
 	<MkUserOnlineIndicator v-if="indicator" :class="$style.indicator" :user="user" :tooltip="indicatorTooltip" title=""/>
 	<div v-if="avatar.isCat" :class="[$style.ears]">
 		<div :class="$style.earLeft">
-			<div v-if="false" :class="$style.layer">
-				<div :class="$style.plot" :style="{ backgroundImage: `url(${JSON.stringify(url)})` }"></div>
-				<div :class="$style.plot" :style="{ backgroundImage: `url(${JSON.stringify(url)})` }"></div>
-				<div :class="$style.plot" :style="{ backgroundImage: `url(${JSON.stringify(url)})` }"></div>
-			</div>
+
 		</div>
 		<div :class="$style.earRight">
-			<div v-if="false" :class="$style.layer">
-				<div :class="$style.plot" :style="{ backgroundImage: `url(${JSON.stringify(url)})` }"></div>
-				<div :class="$style.plot" :style="{ backgroundImage: `url(${JSON.stringify(url)})` }"></div>
-				<div :class="$style.plot" :style="{ backgroundImage: `url(${JSON.stringify(url)})` }"></div>
-			</div>
+
 		</div>
 	</div>
 	<template v-if="showDecoration">
 		<img
 			v-for="decoration in decorations ?? avatar.avatarDecorations"
 			:class="[$style.decoration, { [$style.decorationBlink]: getDecorationIsBrink(decoration) }]"
-			:src="getDecorationUrl(decoration)"
+			:src="preloadDecorations ? getDecorationUrl(decoration) : undefined"
 			:style="{
 				rotate: getDecorationAngle(decoration),
 				scale: getDecorationScale(decoration),
 				translate: getDecorationOffset(decoration),
 			}"
 			alt=""
+			decoding="async"
 			draggable="false"
 			style="-webkit-user-drag: none;"
 		>
@@ -43,16 +35,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, useTemplateRef } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { extractAvgColorFromBlurhash } from '@@/js/extract-avg-color-from-blurhash.js';
 import MkImgWithBlurhash from '../MkImgWithBlurhash.vue';
 import MkA from './MkA.vue';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
-import { acct, userPage } from '@/filters/user.js';
+import { acct, userPage } from '@@/js/user.js';
 import MkUserOnlineIndicator from '@/components/MkUserOnlineIndicator.vue';
 import { prefer } from '@/preferences.js';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
+import { useImagePreload } from '@/composables/use-image-preload.js';
 
 const animation = ref(prefer.s.animation);
 const squareAvatars = ref(prefer.s.squareAvatars);
@@ -85,6 +78,12 @@ const emit = defineEmits<{
 
 const showDecoration = props.forceShowDecoration || prefer.s.showAvatarDecorations;
 const avatar = computed(() => getUserAvatar(props.user));
+const root = useTemplateRef<HTMLElement | { $el: HTMLElement }>('root');
+const decorationRoot = computed(() => {
+	if (root.value == null || !showDecoration || (props.decorations ?? avatar.value.avatarDecorations).length === 0) return null;
+	return root.value instanceof HTMLElement ? root.value : root.value.$el;
+});
+const preloadDecorations = useImagePreload(decorationRoot, () => false);
 
 const bound = computed(() => props.link
 	? { to: userPage(props.user), target: props.target }
@@ -231,32 +230,6 @@ const color = computed(() => {
 				background: #df548f;
 			}
 
-			> .layer {
-				contain: strict;
-				position: absolute;
-				top: 0;
-				width: 280%;
-				height: 280%;
-
-				> .plot {
-					contain: strict;
-					position: absolute;
-					width: 100%;
-					height: 100%;
-					clip-path: path('M0 0H1V1H0z');
-					transform: scale(32767);
-					transform-origin: 0 0;
-					opacity: 0.5;
-
-					&:first-child {
-						opacity: 1;
-					}
-
-					&:last-child {
-						opacity: calc(1 / 3);
-					}
-				}
-			}
 		}
 
 		> .earLeft {
@@ -266,26 +239,6 @@ const color = computed(() => {
 				border-radius: 25% 75% 75%;
 			}
 
-			> .layer {
-				left: 0;
-				transform:
-					skew(-30deg)
-					rotate(-37.5deg)
-					translate(-2.82842712475%, /* -2 * sqrt(2) */
-										-38.5857864376%); /* 40 - 2 * sqrt(2) */
-
-				> .plot {
-					background-position: 20% 10%; /* ~= 37.5deg */
-
-					&:first-child {
-						background-position-x: 21%;
-					}
-
-					&:last-child {
-						background-position-y: 11%;
-					}
-				}
-			}
 		}
 
 		> .earRight {
@@ -295,27 +248,6 @@ const color = computed(() => {
 				border-radius: 75% 25% 75% 75%;
 			}
 
-			> .layer {
-				right: 0;
-				transform:
-					skew(30deg)
-					rotate(37.5deg)
-					translate(2.82842712475%, /* 2 * sqrt(2) */
-										-38.5857864376%); /* 40 - 2 * sqrt(2) */
-
-				> .plot {
-					position: absolute;
-					background-position: 80% 10%; /* ~= 37.5deg */
-
-					&:first-child {
-						background-position-x: 79%;
-					}
-
-					&:last-child {
-						background-position-y: 11%;
-					}
-				}
-			}
 		}
 	}
 
@@ -334,7 +266,8 @@ const color = computed(() => {
 
 .decoration {
 	position: absolute;
-	z-index: 1;
+	// 装饰需覆盖在线状态，避免边框被状态图标截断。
+	z-index: 4;
 	top: -50%;
 	left: -50%;
 	width: 200%;

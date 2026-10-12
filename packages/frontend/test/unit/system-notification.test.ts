@@ -6,16 +6,23 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/vue';
 import { notificationTypes } from 'misskey-js';
+import { nextTick } from 'vue';
 import type * as Misskey from 'misskey-js';
 import type { MenuButton, MenuItem, MenuParent } from '@/types/menu.js';
+import type { RouteDef } from '@/lib/nirax.js';
 import MkNotification from '@/components/MkNotification.vue';
+import NestedRouterView from '@/components/global/NestedRouterView.vue';
 import Notifications from '@/pages/notifications.vue';
+import NotificationsLayout from '@/pages/notifications/index.vue';
+import { Nirax } from '@/lib/nirax.js';
+import { DI } from '@/di.js';
 import { i18n, updateI18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { getNotificationTypeLabel, systemNotificationTypes } from '@/utility/notification-types.js';
 
-const mocks = vi.hoisted(() => ({ reload: vi.fn() }));
-vi.mock('@/i.js', () => ({ ensureSignin: () => ({ id: 'new-user' }) }));
+const mocks = vi.hoisted(() => ({ reload: vi.fn(), router: null as Nirax<RouteDef[]> | null, account: { id: 'new-user', hasPendingReceivedFollowRequest: false, hasUnreadAnnouncement: false } }));
+vi.mock('@/router.js', () => ({ useRouter: () => mocks.router }));
+vi.mock('@/i.js', () => ({ $i: mocks.account, ensureSignin: () => mocks.account }));
 vi.mock('@/instance.js', () => ({ instance: { name: 'Test Community' } }));
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
 vi.mock('@/os.js', () => ({ popupMenu: vi.fn(), apiWithDialog: vi.fn() }));
@@ -39,7 +46,7 @@ vi.mock('@/components/MkStreamingNotificationsTimeline.vue', async () => {
 	return { default: defineComponent({
 		props: ['excludeTypes'],
 		setup(props, { expose }) {
-			expose({ paginator: { get kind() { return props.excludeTypes ? 'system' : 'all'; }, reload() { mocks.reload(props.excludeTypes ? 'system' : 'all'); } } });
+			expose({ paginator: { get kind() { return props.excludeTypes ? 'filtered' : 'all'; }, reload() { mocks.reload(props.excludeTypes ? 'filtered' : 'all'); } } });
 		},
 		template: '<div data-testid="notifications" :data-exclude="JSON.stringify(excludeTypes)"></div>',
 	}) };
@@ -47,7 +54,11 @@ vi.mock('@/components/MkStreamingNotificationsTimeline.vue', async () => {
 
 const global = {
 	stubs: {
-		MkA: { props: ['to'], template: '<a :href="to"><slot/></a>' },
+		MkA: {
+			props: ['to'],
+			setup: () => ({ navigate: (to: string) => mocks.router?.pushByPath(to) }),
+			template: '<a :href="to" @click.prevent="navigate(to)"><slot/></a>',
+		},
 		MkTime: { props: ['time'], template: '<time :datetime="time"/>' },
 		MkAvatar: { template: '<span data-testid="avatar"/>' },
 		PageWithHeader: {
@@ -65,7 +76,29 @@ const welcome: Misskey.entities.Notification = {
 
 const originalLocale = i18n.locale;
 
-afterEach(() => { cleanup(); vi.clearAllMocks(); updateI18n(originalLocale); });
+afterEach(() => { cleanup(); vi.clearAllMocks(); updateI18n(originalLocale); mocks.router = null; mocks.account.hasPendingReceivedFollowRequest = false; mocks.account.hasUnreadAnnouncement = false; });
+
+async function renderNotifications(initialTab = 'all') {
+	mocks.router = new Nirax([{
+		path: '/my/notifications',
+		component: NotificationsLayout,
+		reuseOnPropsChange: [],
+		children: [
+			{ path: '/follow-requests', component: { template: '<div data-testid="follow-requests"/>' } },
+			{ path: '/announcements', component: { template: '<div data-testid="announcements"/>' } },
+			{ path: '/:initialTab?', component: Notifications, reuseOnPropsChange: ['initialTab'] },
+		],
+	}], initialTab === 'all' ? '/my/notifications' : `/my/notifications/${initialTab}`, true, NotificationsLayout);
+	const view = render(NotificationsLayout, {
+		global: {
+			...global,
+			components: { NestedRouterView },
+			provide: { [DI.router]: mocks.router, [DI.routerCurrentDepth]: 1 },
+		},
+	});
+	await nextTick();
+	return view;
+}
 
 function menuItem(items: MenuItem[], text: string): MenuButton {
 	const item = items.find(item => 'text' in item && item.text === text);
@@ -99,12 +132,13 @@ describe('system welcome letter', () => {
 	test('keeps toast text concise and links to the system inbox', () => {
 		const view = render(MkNotification, { props: { notification: welcome, full: false }, global });
 		expect(view.getByText(i18n.ts._welcome.notificationBody)).toBeTruthy();
-		expect(view.getByRole('link', { name: i18n.ts._welcome.readGuide }).getAttribute('href')).toBe('/my/notifications#system');
+		expect(view.getByRole('link', { name: i18n.ts._welcome.readGuide }).getAttribute('href')).toBe('/my/notifications/system');
 		expect(view.queryByText(i18n.ts._welcome.introduction)).toBeNull();
 	});
 
-	test('opens the system tab with welcome, security and service events but without social activity', () => {
-		const view = render(Notifications, { props: { initialTab: 'system' }, global });
+	test('opens the system tab with welcome, security and service events but without social activity', async () => {
+		const view = await renderNotifications('system');
+		expect(view.getByRole('link', { name: i18n.ts.system }).getAttribute('aria-current')).toBe('page');
 		const excluded = JSON.parse(view.getByTestId('notifications').getAttribute('data-exclude')!);
 		for (const type of ['system', 'login', 'createToken', 'exportCompleted', 'roleAssigned', 'achievementEarned', 'scheduledNotePosted', 'scheduledNotePostFailed', 'test']) {
 			expect(excluded).not.toContain(type);
@@ -121,26 +155,27 @@ describe('system welcome letter', () => {
 	});
 
 	test('keeps all types accessible and the aggregate system filter identical to the system tab', async () => {
-		const view = render(Notifications, { global });
+		const view = await renderNotifications();
 		const items = await openFilter(view);
-		const systemMenu = items.find(item => 'type' in item && item.type === 'parent') as MenuParent;
-		expect(systemMenu.text).toBe(i18n.ts.system);
-		const children = systemMenu.children as MenuItem[];
+		const parents = items.filter((item): item is MenuParent => 'type' in item && item.type === 'parent');
+		expect(parents.map(parent => parent.text)).toEqual([i18n.ts._notificationCategories.mentions, i18n.ts._notificationCategories.reactions, i18n.ts._notificationCategories.follows, i18n.ts.system]);
+		const children = parents.flatMap(parent => parent.children as MenuItem[]);
 		const labels = [...items, ...children].flatMap(item => 'text' in item ? [item.text] : []);
 		for (const type of notificationTypes) {
 			expect(labels).toContain(getNotificationTypeLabel(type));
 		}
-		menuItem(children, i18n.ts.all).action(new PointerEvent('click'));
-		await fireEvent.click(view.getByRole('button', { name: i18n.ts.filter }));
+		menuItem(parents.at(-1)!.children as MenuItem[], i18n.ts.all).action(new PointerEvent('click'));
+		await nextTick();
+		expect(view.getByRole('link', { name: i18n.ts.system }).getAttribute('aria-current')).toBe('page');
 		const excluded = JSON.parse(view.getByTestId('notifications').getAttribute('data-exclude')!);
 		expect(notificationTypes.filter(type => !excluded.includes(type))).toEqual(expect.arrayContaining([...systemNotificationTypes]));
 		expect(excluded).toHaveLength(notificationTypes.length - systemNotificationTypes.length);
 	});
 
-	test('filters system subtypes and clears to all system events without losing each tab filter', async () => {
-		const view = render(Notifications, { global });
-		menuItem(await openFilter(view), getNotificationTypeLabel('mention')).action(new PointerEvent('click'));
-		await fireEvent.click(view.getByRole('button', { name: i18n.ts.system }));
+	test('filters only within the current category and keeps each tab filter', async () => {
+		const view = await renderNotifications();
+		menuItem(await openFilter(view), getNotificationTypeLabel('pollEnded')).action(new PointerEvent('click'));
+		await fireEvent.click(view.getByRole('link', { name: i18n.ts.system }));
 		const systemItems = await openFilter(view);
 		expect(systemItems.some(item => 'text' in item && item.text === getNotificationTypeLabel('mention'))).toBe(false);
 		menuItem(systemItems, getNotificationTypeLabel('login')).action(new PointerEvent('click'));
@@ -149,23 +184,72 @@ describe('system welcome letter', () => {
 		menuItem(await openFilter(view), i18n.ts.all).action(new PointerEvent('click'));
 		await openFilter(view);
 		expect(JSON.parse(view.getByTestId('notifications').getAttribute('data-exclude')!)).not.toContain('system');
-		await fireEvent.click(view.getByRole('button', { name: i18n.ts.all }));
-		expect(JSON.parse(view.getByTestId('notifications').getAttribute('data-exclude')!)).toEqual(notificationTypes.filter(type => type !== 'mention'));
+		await fireEvent.click(view.getByRole('link', { name: i18n.ts.all }));
+		expect(JSON.parse(view.getByTestId('notifications').getAttribute('data-exclude')!)).toEqual(notificationTypes.filter(type => type !== 'pollEnded'));
 		menuItem(await openFilter(view), i18n.ts.all).action(new PointerEvent('click'));
 		await openFilter(view);
 		expect(view.getByTestId('notifications').getAttribute('data-exclude')).toBe('null');
 	});
 
-	test('keeps header controls connected to the current paginator on every tab', async () => {
-		const view = render(Notifications, { global });
-		for (const [kind, title] of [['all', i18n.ts.all], ['system', i18n.ts.system], ['mentions', i18n.ts.mentions], ['directNotes', i18n.ts.directNotes], ['all', i18n.ts.all]]) {
-			await fireEvent.click(view.getByRole('button', { name: title }));
+	test('picking a categorized type from the all tab opens that category with the filter applied', async () => {
+		const view = await renderNotifications();
+		const items = await openFilter(view);
+		const reactions = items.find((item): item is MenuParent => 'type' in item && item.type === 'parent' && item.text === i18n.ts._notificationCategories.reactions)!;
+		menuItem(reactions.children as MenuItem[], getNotificationTypeLabel('renote')).action(new PointerEvent('click'));
+		await nextTick();
+		expect(view.getByRole('link', { name: i18n.ts._notificationCategories.reactions }).getAttribute('aria-current')).toBe('page');
+		expect(JSON.parse(view.getByTestId('notifications').getAttribute('data-exclude')!)).toEqual(notificationTypes.filter(type => type !== 'renote'));
+	});
+
+	test('keeps header controls connected to the current paginator and shows only each category', async () => {
+		const view = await renderNotifications();
+		const navigation = view.getByRole('navigation', { name: i18n.ts.notifications });
+		const tabs: [string, string, readonly string[] | null][] = [
+			['all', i18n.ts.all, null],
+			['filtered', i18n.ts._notificationCategories.mentions, ['reply', 'mention', 'quote']],
+			['filtered', i18n.ts._notificationCategories.reactions, ['reaction', 'renote']],
+			['filtered', i18n.ts._notificationCategories.follows, ['follow', 'receiveFollowRequest', 'followRequestAccepted']],
+			['directNotes', i18n.ts.directNotes, null],
+			['filtered', i18n.ts.system, systemNotificationTypes],
+			['all', i18n.ts.all, null],
+		];
+		for (const [kind, title, included] of tabs) {
+			const link = view.getByRole('link', { name: title });
+			expect(navigation.contains(link)).toBe(true);
+			await fireEvent.click(link);
+			expect(link.getAttribute('aria-current')).toBe('page');
+			expect(mocks.router!.getCurrentFullPath()).toBe(link.getAttribute('href'));
+			expect(view.getByRole('navigation', { name: i18n.ts.notifications })).toBe(navigation);
 			const control = view.getByTestId('pagination-control');
 			expect(view.getByTestId('header-actions').contains(control)).toBe(true);
 			expect(control.getAttribute('data-paginator')).toBe(kind);
 			await fireEvent.click(view.getByRole('button', { name: 'refresh' }));
 			expect(mocks.reload).toHaveBeenLastCalledWith(kind);
+			if (included != null) {
+				const excluded: string[] = JSON.parse(view.getByTestId('notifications').getAttribute('data-exclude')!);
+				expect(notificationTypes.filter(type => !excluded.includes(type))).toEqual(notificationTypes.filter(type => included.includes(type)));
+			}
 		}
 		expect(view.getByTestId('notifications').getAttribute('data-exclude')).toBe('null');
+		mocks.router!.replaceByPath('/my/notifications/system');
+		await nextTick();
+		expect(view.getByRole('link', { name: i18n.ts.system }).getAttribute('aria-current')).toBe('page');
+		expect(view.getByTestId('pagination-control').getAttribute('data-paginator')).toBe('filtered');
+	});
+
+	test.each([
+		['follow-requests', 'hasPendingReceivedFollowRequest', () => i18n.ts.followRequests],
+		['announcements', 'hasUnreadAnnouncement', () => i18n.ts.announcements],
+	] as const)('shows %s inside the notification layout and marks pending items', async (testId, flag, title) => {
+		mocks.account[flag] = true;
+		const view = await renderNotifications();
+		const navigation = view.getByRole('navigation', { name: i18n.ts.notifications });
+		const link = view.getByRole('link', { name: title() });
+		expect(link.querySelector('._indicatorCircle')).not.toBeNull();
+		await fireEvent.click(link);
+		expect(link.getAttribute('aria-current')).toBe('page');
+		expect(view.getByTestId(testId)).toBeTruthy();
+		expect(view.getByRole('navigation', { name: i18n.ts.notifications })).toBe(navigation);
+		expect(view.getByRole('link', { name: i18n.ts.all }).getAttribute('aria-current')).toBeNull();
 	});
 });

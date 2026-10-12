@@ -33,6 +33,27 @@ const textBlockSchema = {
 	},
 } as const;
 
+const markdownBlockSchema = {
+	type: 'object',
+	properties: {
+		...blockBaseSchema.properties,
+		type: {
+			type: 'string',
+			optional: false, nullable: false,
+			enum: ['markdown'],
+		},
+		text: {
+			type: 'string',
+			optional: false, nullable: false,
+		},
+		articleTags: {
+			type: 'array',
+			optional: true, nullable: false,
+			items: { type: 'string', optional: false, nullable: false },
+		},
+	},
+} as const;
+
 const sectionBlockSchema = {
 	type: 'object',
 	properties: {
@@ -99,6 +120,7 @@ export const packedPageBlockSchema = {
 	type: 'object',
 	oneOf: [
 		textBlockSchema,
+		markdownBlockSchema,
 		sectionBlockSchema,
 		imageBlockSchema,
 		noteBlockSchema,
@@ -163,6 +185,15 @@ export const packedPageSchema = {
 			type: 'string',
 			optional: false, nullable: true,
 		},
+		articleCategoryId: {
+			type: 'string',
+			optional: false, nullable: true,
+		},
+		articleTags: {
+			type: 'array',
+			optional: false, nullable: false,
+			items: { type: 'string', optional: false, nullable: false },
+		},
 		hideTitleWhenPinned: {
 			type: 'boolean',
 			optional: false, nullable: false,
@@ -200,6 +231,10 @@ export const packedPageSchema = {
 		},
 		likedCount: {
 			type: 'number',
+			optional: false, nullable: false,
+		},
+		articleViews: {
+			type: 'integer',
 			optional: false, nullable: false,
 		},
 		isLiked: {

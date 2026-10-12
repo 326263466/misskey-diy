@@ -183,7 +183,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 	gap: 8px;
 	min-width: 0;
 	padding: 14px 3px 11px;
-	border: 1px solid color-mix(in srgb, var(--MI_THEME-accent) 12%, var(--MI_THEME-divider));
+	border: var(--MI-dividerWidth) solid color-mix(in srgb, var(--MI_THEME-accent) 12%, var(--MI-dividerColor));
 	border-radius: var(--MI-radius);
 	background: linear-gradient(160deg, color-mix(in srgb, var(--MI_THEME-accent) 5%, var(--MI_THEME-panel)), var(--MI_THEME-panel));
 	text-align: center;
@@ -213,7 +213,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 	justify-content: space-between;
 	gap: 8px;
 	padding-top: 10px;
-	border-top: 1px solid var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 
 .target {
@@ -269,7 +269,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 	place-items: center;
 	width: 48px;
 	height: 48px;
-	border: 1px solid color-mix(in srgb, var(--MI_THEME-accent) 20%, var(--MI_THEME-divider));
+	border: var(--MI-dividerWidth) solid color-mix(in srgb, var(--MI_THEME-accent) 20%, var(--MI-dividerColor));
 	border-radius: var(--MI-radius);
 	font-size: 1.7em;
 	color: var(--MI_THEME-accent);
@@ -283,7 +283,7 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 	gap: 8px;
 	min-height: 76px;
 	margin: 16px 0;
-	border: 1px solid color-mix(in srgb, var(--MI_THEME-accent) 16%, var(--MI_THEME-divider));
+	border: var(--MI-dividerWidth) solid color-mix(in srgb, var(--MI_THEME-accent) 16%, var(--MI-dividerColor));
 	border-radius: var(--MI-radius);
 	color: var(--MI_THEME-accent);
 	background: color-mix(in srgb, var(--MI_THEME-accent) 5%, var(--MI_THEME-panel));

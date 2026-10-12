@@ -52,7 +52,7 @@ const total = computed(() => sum(props.poll.choices.map(x => x.votes)));
 	position: relative;
 	margin: 4px 0;
 	padding: 4px;
-	//border: solid 0.5px var(--MI_THEME-divider);
+	//border: var(--MI-divider);
 	background: var(--MI_THEME-accentedBg);
 	border-radius: 4px;
 	overflow: clip;

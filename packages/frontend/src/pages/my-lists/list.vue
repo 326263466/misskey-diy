@@ -4,19 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody">
 		<div v-if="list" class="_gaps">
 			<MkFolder>
 				<template #label>{{ i18n.ts.settings }}</template>
 
 				<div class="_gaps">
-					<MkInput v-model="name">
+					<MkInput v-model="name" :counterMaxLength="100">
 						<template #label>{{ i18n.ts.name }}</template>
 					</MkInput>
 					<MkSwitch v-model="isPublic">{{ i18n.ts.public }}</MkSwitch>
 					<div class="_buttons">
-						<MkButton rounded primary @click="updateSettings">{{ i18n.ts.save }}</MkButton>
+						<MkButton rounded primary :disabled="!validName" @click="updateSettings">{{ i18n.ts.save }}</MkButton>
 						<MkButton rounded danger @click="deleteList()">{{ i18n.ts.delete }}</MkButton>
 					</div>
 				</div>
@@ -37,8 +37,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<MkA :class="$style.userItemBody" :to="`${userPage(item.user)}`">
 											<MkUserCardMini :user="item.user"/>
 										</MkA>
-										<button class="_button" :class="$style.menu" @click="showMembershipMenu(item, $event)"><i class="ti ti-dots"></i></button>
-										<button class="_button" :class="$style.remove" @click="removeUser(item, $event)"><i class="ti ti-x"></i></button>
+										<button class="_button _iconButton" :class="$style.menu" @click="showMembershipMenu(item, $event)"><i class="ti ti-dots"></i></button>
+										<button class="_button _iconButton" :class="$style.remove" @click="removeUser(item, $event)"><i class="ti ti-x"></i></button>
 									</div>
 								</div>
 							</div>
@@ -59,7 +59,7 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkFolder from '@/components/MkFolder.vue';
@@ -81,6 +81,7 @@ const props = defineProps<{
 const list = ref<Misskey.entities.UserList | null>(null);
 const isPublic = ref(false);
 const name = ref('');
+const validName = computed(() => name.value.trim() !== '' && Array.from(name.value).length <= 100);
 const membershipsPaginator = markRaw(new Paginator('users/lists/get-memberships', {
 	limit: 30,
 	computedParams: computed(() => ({
@@ -178,6 +179,7 @@ async function deleteList() {
 }
 
 async function updateSettings() {
+	if (!validName.value) return;
 	if (!list.value) return;
 	await os.apiWithDialog('users/lists/update', {
 		listId: list.value.id,
@@ -248,6 +250,6 @@ definePage(() => ({
 .footer {
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 </style>

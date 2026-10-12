@@ -4,11 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<!-- eslint-disable vue/no-mutating-props -->
 <XContainer :draggable="true" :dragStartCallback="dragStartCallback" @remove="() => emit('remove')">
 	<template #header><i class="ti ti-note"></i> {{ props.modelValue.title }}</template>
 	<template #func>
-		<button class="_button" @click="rename()">
+		<button class="_button _iconButton" @click="rename()">
 			<i class="ti ti-pencil"></i>
 		</button>
 	</template>

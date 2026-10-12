@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody">
 		<div class="cwepdizn _gaps_m">
 			<MkFolder :defaultOpen="true">
@@ -271,7 +271,7 @@ definePage(() => ({
 				}
 
 				&.active {
-					box-shadow: 0 0 0 2px var(--MI_THEME-divider) inset;
+					box-shadow: 0 0 0 2px var(--MI_THEME-divider) inset; // divider-exempt: selectable tile outline
 				}
 
 				&.rounded {

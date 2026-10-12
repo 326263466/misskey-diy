@@ -128,6 +128,7 @@ export class MetaEntityService {
 			translatorAvailable: instance.deeplAuthKey != null,
 
 			serverRules: instance.serverRules,
+			articleCategories: instance.articleCategories,
 
 			policies: { ...DEFAULT_POLICIES, ...instance.policies },
 

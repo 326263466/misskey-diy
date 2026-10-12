@@ -49,6 +49,6 @@ defineExpose({
 }
 
 .note {
-	border-bottom: 0.5px solid var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 </style>

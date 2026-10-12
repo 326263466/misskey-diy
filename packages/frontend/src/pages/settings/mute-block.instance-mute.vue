@@ -20,7 +20,7 @@ import MkTextarea from '@/components/MkTextarea.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkButton from '@/components/MkButton.vue';
 import { ensureSignin } from '@/i.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
+import { misskeyApiWithToast } from '@/utility/misskey-api-with-toast.js';
 import { i18n } from '@/i18n.js';
 
 const $i = ensureSignin();
@@ -34,9 +34,9 @@ async function save() {
 		.map(el => el.trim())
 		.filter(el => el);
 
-	await misskeyApi('i/update', {
-		mutedInstances: mutes,
-	});
+	try {
+		await misskeyApiWithToast('i/update', { mutedInstances: mutes });
+	} catch { return; }
 
 	changed.value = false;
 

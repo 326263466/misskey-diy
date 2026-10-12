@@ -8,7 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #empty><MkResult type="empty"/></template>
 
 	<template #default="{ items }">
-		<MkChannelPreview v-for="item in items" :key="item.id" class="_margin" :channel="extractor(item)"/>
+		<div :class="$style.root">
+			<MkChannelPreview v-for="item in items" :key="item.id" :channel="extractor(item)"/>
+		</div>
 	</template>
 </MkPagination>
 </template>
@@ -27,3 +29,15 @@ const props = withDefaults(defineProps<{
 	extractor: (item: any) => item as Misskey.entities.Channel,
 });
 </script>
+
+<style lang="scss" module>
+.root {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+
+	> * + * {
+		border-top: var(--MI-divider);
+	}
+}
+</style>

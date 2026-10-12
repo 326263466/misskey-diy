@@ -4,12 +4,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader>
+<PageWithHeader contentCard>
 	<div class="_pageBody">
 		<div v-if="instance.ads.length > 0" class="_gaps">
 			<MkAd v-for="ad in instance.ads" :key="ad.id" :specify="ad"/>
 		</div>
-		<MkResult v-else type="empty"/>
+		<MkResult v-else type="empty" page/>
 	</div>
 </PageWithHeader>
 </template>

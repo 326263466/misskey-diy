@@ -20,7 +20,7 @@ const url = computed(() => char2twemojiFilePath(props.emoji));
 
 <style lang="scss" module>
 .root {
-	height: 1.25em;
-	vertical-align: -0.25em;
+	height: var(--MI-emojiHeight);
+	vertical-align: var(--MI-emojiVerticalAlign);
 }
 </style>

@@ -6,19 +6,23 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render, within } from '@testing-library/vue';
 import { nextTick } from 'vue';
-import Header from '@/ui/_common_/juejin-header.vue';
-import Dock from '@/ui/_common_/juejin-dock.vue';
+import Header from '@/ui/_common_/header.vue';
+import Dock from '@/ui/_common_/dock.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 
-const mocks = vi.hoisted(() => ({ popupAsyncWithDialog: vi.fn(), login: vi.fn(), session: { signedIn: true }, announcement: { indicated: false }, instance: { name: 'Test instance', iconUrl: null, disableRegistration: false } }));
+const mocks = vi.hoisted(() => ({ popupAsyncWithDialog: vi.fn(), login: vi.fn(), session: { signedIn: true }, announcement: { indicated: false }, route: { name: 'timeline' }, instance: { name: 'Test instance', iconUrl: null, disableRegistration: false } }));
 
-vi.mock('@/router.js', () => ({ useRouter: () => ({ pushByPath: vi.fn() }) }));
+vi.mock('@/router.js', async () => {
+	const { computed, reactive } = await import('vue');
+	mocks.route = reactive(mocks.route);
+	return { useRouter: () => ({ pushByPath: vi.fn(), currentRoute: computed(() => ({ name: mocks.route.name })) }) };
+});
 vi.mock('@/os.js', () => ({ popupAsyncWithDialog: mocks.popupAsyncWithDialog, popupMenu: vi.fn(), post: vi.fn() }));
 vi.mock('@/ui/_common_/common.js', () => ({ openInstanceMenu: vi.fn(), toggleRealtimeMode: vi.fn() }));
 vi.mock('@/accounts.js', () => ({ getAccountMenu: vi.fn() }));
 vi.mock('@/instance.js', () => ({ instance: mocks.instance }));
-vi.mock('@/i.js', () => ({ get $i() { return mocks.session.signedIn ? { id: 'user', username: 'user' } : null; } }));
+vi.mock('@/i.js', () => ({ get $i() { return mocks.session.signedIn ? { id: 'user', username: 'user', hasUnreadNotification: false, hasUnreadAnnouncement: mocks.announcement.indicated } : null; } }));
 vi.mock('@/utility/please-login.js', () => ({ pleaseLogin: mocks.login }));
 vi.mock('@/components/MkSignupDialog.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/store.js', () => ({ store: { r: { realtimeMode: { value: false } } } }));
@@ -35,10 +39,14 @@ vi.mock('@/navbar.js', async () => {
 	const { computed, reactive } = await import('vue');
 	mocks.announcement = reactive(mocks.announcement);
 	mocks.session = reactive(mocks.session);
-	return { navbarItemDef: reactive({
+		return { primaryNavItems: ['explore', 'channels', 'shop'], launchPadExcludedItems: ['achievements', 'qr', 'benefits', 'tools', 'cacheClear'], navbarItemDef: reactive({
+		benefits: { title: 'Wallet', icon: 'ti ti-wallet', to: '/wallet' },
+		tools: { title: 'Tools', icon: 'ti ti-tool', to: '/tools' },
+		cacheClear: { title: 'Clear cache', icon: 'ti ti-trash', to: '/cache' },
 		explore: { title: 'Explore', icon: 'ti ti-hash', to: '/explore' },
 		channels: { title: 'Channels', icon: 'ti ti-device-tv', to: '/channels' },
 		announcements: { title: 'Announcements', icon: 'ti ti-speakerphone', to: '/announcements', indicated: computed(() => mocks.announcement.indicated) },
+		shop: { title: 'Shop', icon: 'ti ti-shopping-cart', to: '/shop', show: computed(() => mocks.session.signedIn) },
 		drive: { title: 'Drive', icon: 'ti ti-cloud', to: '/my/drive', show: computed(() => mocks.session.signedIn) },
 		games: { title: 'Games', icon: 'ti ti-device-gamepad', to: '/games' },
 		about: { title: 'About', icon: 'ti ti-info-circle', to: '/about' },
@@ -102,6 +110,7 @@ describe('responsive header navigation', () => {
 		mocks.instance.disableRegistration = false;
 		prefer.s.menu = [];
 		mocks.announcement.indicated = false;
+		mocks.route.name = 'timeline';
 		media = Object.assign(new EventTarget(), { matches: false });
 		vi.spyOn(window, 'matchMedia').mockReturnValue(media as MediaQueryList);
 	});
@@ -114,21 +123,21 @@ describe('responsive header navigation', () => {
 	test('keeps home and timeline while compact and restores secondary links when the media query changes', async () => {
 		const view = renderHeader();
 		expect(window.matchMedia).toHaveBeenCalledWith('(max-width: 760px)');
-		expect(headerLinks(view)).toEqual(['/', '/timeline', '/explore', '/channels', '/announcements']);
+		expect(headerLinks(view)).toEqual(['/', '/timeline', '/explore', '/channels', '/shop']);
 		await setCompact(true);
 		expect(headerLinks(view)).toEqual(['/', '/timeline']);
 		await setCompact(false);
-		expect(headerLinks(view)).toEqual(['/', '/timeline', '/explore', '/channels', '/announcements']);
+		expect(headerLinks(view)).toEqual(['/', '/timeline', '/explore', '/channels', '/shop']);
 	});
 
 	test.each([false, true])('keeps collapsed secondary destinations available in More when they are configured in the menu (dockHidden=%s)', async dockHidden => {
 		media.matches = true;
-		prefer.s.menu = ['explore', 'channels', 'announcements', 'drive'];
+		prefer.s.menu = ['explore', 'channels', 'shop', 'drive'];
 		const view = renderHeader(dockHidden);
 		expect(headerLinks(view)).toEqual(['/', '/timeline']);
 		const menu = await openMore(view);
 		expect(menu.props.includeMenuItems).toBe(true);
-		for (const [name, path] of [['Explore', '/explore'], ['Channels', '/channels'], ['Announcements', '/announcements']]) {
+		for (const [name, path] of [['Explore', '/explore'], ['Channels', '/channels'], ['Shop', '/shop']]) {
 			expect(menu.content.getByRole('link', { name }).getAttribute('href')).toBe(path);
 		}
 	});
@@ -145,11 +154,34 @@ describe('responsive header navigation', () => {
 
 		await view.rerender({ dockHidden: true });
 		const hiddenDockMenu = await openMore(view);
-		for (const name of ['Drive', 'Games', 'About', 'Daily check-in', 'Community ranking']) {
+		for (const name of ['Drive', 'Games', 'Daily check-in', 'Community ranking']) {
 			expect(hiddenDockMenu.content.getByRole('link', { name })).toBeTruthy();
 		}
-		for (const name of ['Explore', 'Channels', 'Announcements', 'Notifications', 'Search']) {
+		for (const name of ['Explore', 'Channels', 'Announcements', 'Shop', 'Notifications', 'Search']) {
 			expect(hiddenDockMenu.content.queryByRole('link', { name })).toBeNull();
+		}
+	});
+
+	test('restores dock menu destinations on the home page where the dock lists article categories', async () => {
+		mocks.route.name = 'index';
+		prefer.s.menu = ['drive'];
+		const menu = await openMore(renderHeader(false));
+		for (const name of ['Drive', 'Games', 'Community ranking', 'Daily check-in']) {
+			expect(menu.content.getByRole('link', { name })).toBeTruthy();
+		}
+	});
+
+	test('keeps About in More on the chat page, which has no floating about button', async () => {
+		mocks.route.name = 'chat';
+		const menu = await openMore(renderHeader(true));
+		expect(menu.content.getByRole('link', { name: 'About' })).toBeTruthy();
+	});
+
+	test.each([[true, false], [true, true], [false, true]])('never repeats destinations offered by the account, about or settings menus (signedIn=%s, dockHidden=%s)', async (signedIn, dockHidden) => {
+		mocks.session.signedIn = signedIn;
+		const menu = await openMore(renderHeader(dockHidden));
+		for (const name of ['Wallet', 'Tools', 'Clear cache', 'About']) {
+			expect(menu.content.queryByRole('link', { name })).toBeNull();
 		}
 	});
 
@@ -162,9 +194,11 @@ describe('responsive header navigation', () => {
 		else expect(menu.content.queryByRole('link', { name: 'Community ranking' })).toBeNull();
 	});
 
-	test('keeps only the ranking destination in the dock when check-in is also configured in the menu', () => {
-		prefer.s.menu = ['checkin', 'communityRanking'];
+	test('keeps only the ranking destination in the dock when check-in and header links are also configured', () => {
+		prefer.s.menu = ['checkin', 'communityRanking', 'shop', 'explore'];
 		const view = render(Dock, { global: { components: { MkA: linkStub } } });
+		expect(view.queryByRole('link', { name: 'Shop' })).toBeNull();
+		expect(view.queryByRole('link', { name: 'Explore' })).toBeNull();
 		expect(view.queryByRole('link', { name: i18n.ts._checkin.dailyCheckin })).toBeNull();
 		expect(view.getAllByRole('link', { name: i18n.ts.communityRanking })).toHaveLength(1);
 		expect(view.getByRole('link', { name: i18n.ts.communityRanking }).getAttribute('href')).toBe('/community-ranking');
@@ -190,7 +224,7 @@ describe('responsive header navigation', () => {
 		mocks.session.signedIn = false;
 		mocks.instance.disableRegistration = invitationRequired;
 		const view = renderHeader();
-		expect(view.queryByTestId('open-post-form')).toBeNull();
+		expect(view.queryByTestId('open-publish-menu')).toBeNull();
 		await fireEvent.click(view.getByRole('button', { name: i18n.ts.login }));
 		expect(mocks.login).toHaveBeenCalledWith({ message: '' });
 		const signup = view.getByRole('button', { name: i18n.ts.signup });
@@ -200,22 +234,23 @@ describe('responsive header navigation', () => {
 		expect(mocks.instance.disableRegistration).toBe(invitationRequired);
 	});
 
-	test('moves an unread announcement indicator to More while its header link is collapsed', async () => {
-		prefer.s.menu = ['announcements'];
+	test('shows an unread announcement on the notification bell for signed-in users instead of the top bar or More', async () => {
 		mocks.announcement.indicated = true;
-		const view = renderHeader();
-		expect(within(view.container).getByRole('link', { name: 'Announcements' }).querySelector('._indicatorCircle')).not.toBeNull();
+		const view = renderHeader(true);
+		expect(headerLinks(view)).not.toContain('/announcements');
+		expect(within(view.container).getByRole('img', { name: i18n.ts.youHaveUnreadAnnouncements })).toBeTruthy();
 		expect(moreButton(view).querySelector('._indicatorCircle')).toBeNull();
+		const menu = await openMore(view);
+		expect(menu.content.queryByRole('link', { name: 'Announcements' })).toBeNull();
+	});
 
-		await setCompact(true);
-		expect(within(view.container).queryByRole('link', { name: 'Announcements' })).toBeNull();
-		expect(moreButton(view).querySelector('._indicatorCircle')).not.toBeNull();
-		mocks.announcement.indicated = false;
-		await nextTick();
-		expect(moreButton(view).querySelector('._indicatorCircle')).toBeNull();
+	test('keeps announcements and their unread indicator in More for guests', async () => {
+		mocks.session.signedIn = false;
 		mocks.announcement.indicated = true;
-		await setCompact(false);
-		expect(moreButton(view).querySelector('._indicatorCircle')).toBeNull();
+		const view = renderHeader(true);
+		expect(moreButton(view).querySelector('._indicatorCircle')).not.toBeNull();
+		const menu = await openMore(view);
+		expect(menu.content.getByRole('link', { name: 'Announcements' }).getAttribute('href')).toBe('/announcements');
 	});
 
 	test('removes the navigation media listener when the header unmounts', () => {

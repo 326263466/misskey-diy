@@ -12,9 +12,11 @@ import MkMediaImage from '@/components/MkMediaImage.vue';
 vi.mock('@/os.js', () => ({ confirm: vi.fn().mockResolvedValue({ canceled: false }) }));
 vi.mock('@/utility/get-file-menu.js', () => ({ getFileMenu: () => [] }));
 vi.mock('@/components/MkBlurhash.vue', () => ({ default: { template: '<div/>' } }));
+vi.mock('@/composables/use-image-preload.js', () => ({ useImagePreload: () => ({ value: true }) }));
 
 const originalUrl = 'https://example.test/original.png';
 const thumbnailUrl = 'https://example.test/thumbnail.webp';
+
 function file(overrides: Partial<Misskey.entities.DriveFile> = {}) {
 	return { id: 'image', name: 'photo.png', type: 'image/png', url: originalUrl, thumbnailUrl,
 		isSensitive: false, properties: { width: 640, height: 480 }, ...overrides } as Misskey.entities.DriveFile;
@@ -32,6 +34,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	delete preferState.nsfw;
 	delete preferState.enableHighQualityImagePlaceholders;
+	delete preferState.disableShowingAnimatedImages;
 	preferState.dataSaver = { media: false, avatar: false, urlPreview: false, code: false };
 });
 
@@ -61,6 +64,16 @@ describe('posted image previews', () => {
 		expect(view.container.querySelector('img')).toBeNull();
 		await fireEvent.click(view.container.firstElementChild!);
 		await waitFor(() => expect(view.container.querySelector('img')?.src).toBe(thumbnailUrl));
+	});
+
+	test('does not fall back to an animated original when animated images are disabled', async () => {
+		preferState.disableShowingAnimatedImages = true;
+		const view = render(MkMediaImage, { props: { image: file({ type: 'image/gif' }) } });
+		const image = view.container.querySelector('img')!;
+		const staticUrl = image.src;
+		expect(staticUrl).not.toBe(originalUrl);
+		await fireEvent.error(image);
+		expect(image.src).toBe(staticUrl);
 	});
 
 	test('does not reveal sensitive content before confirmation', async () => {

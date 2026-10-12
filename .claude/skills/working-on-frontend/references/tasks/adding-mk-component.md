@@ -6,7 +6,7 @@
 
 1. **SPDX ヘッダー** — `.vue` は HTML コメント形式 `<!-- ... -->`、`.stories.impl.ts` は TS コメント形式 `/* ... */`。欠落すると CI (`spdx` ジョブ) が落ちる
 2. **`Mk` プレフィックス必須** — 共有コンポーネントは `MkButton.vue` / `global/MkAvatar.vue` のように `Mk` で始める。ページ固有 UI は `Mk` を付けず `pages/` 側に置く
-3. **`locales/ja-JP.yml` のみ編集可** — i18n キー追加時に他言語 (`en-US.yml` 等) を手で触ってはいけない。Crowdin の自動配信で上書きされて失われる。詳細は [tasks/adding-i18n-key.md](adding-i18n-key.md) を参照
+3. **`locales/zh-CN.yml` のみ編集可** — i18n キー追加時に他言語 (`en-US.yml` 等) を手で触ってはいけない。Crowdin の自動配信で上書きされて失われる。詳細は [tasks/adding-i18n-key.md](adding-i18n-key.md) を参照
 4. **文字列リテラルの直書き禁止** — テンプレート / JS どちらでも、ユーザーに見せる文言は必ず `i18n.ts.<key>` か `i18n.tsx.<key>(...)` 経由 → [knowledge/i18n-usage.md](../knowledge/i18n-usage.md)
 5. **ブラウザ標準 UI を直接呼ばない** — `alert()` / `confirm()` / `window.prompt()` は禁止、必ず `os.alert` / `os.confirm` / `os.popup` 経由 → [knowledge/os-api.md](../knowledge/os-api.md)
 
@@ -157,21 +157,20 @@ const emit = defineEmits<{
 
 ## 検証フロー
 
+按改动风险选择以下检查，不要顺序执行整张清单。纯文案和样式默认不新增测试，可通过现有页面或 Storybook 验证；行为变化先运行最接近的已有测试，缺少关键覆盖时才补最小用例。必要检查通过后停止。
+
 ```bash
-# 型チェック (vue-tsc)
+# 类型变化时按需检查
 pnpm --filter frontend typecheck
 
-# ESLint (規約全体)
-pnpm --filter frontend eslint
-
-# 単一ファイルに ESLint --fix
-pnpm exec eslint --fix packages/frontend/src/components/Mk<Name>.vue
-
-# Storybook で目視確認
+# 需要界面验证时使用已有 Storybook
 pnpm --filter frontend storybook-dev    # localhost:6006
 
-# Vitest unit test (component spec があれば)
-pnpm --filter frontend test
+# 有适用行为测试时定向运行，可一次传多个路径
+pnpm --filter frontend test test/unit/<file>.test.ts
+
+# 最后从 package root 只检查本任务变更文件
+pnpm --filter frontend exec eslint --quiet src/components/Mk<Name>.vue
 ```
 
 ## 既存コンポーネントとの整合性

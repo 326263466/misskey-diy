@@ -63,3 +63,13 @@ export const Em = {
 		em: true,
 	},
 } satisfies StoryObj<typeof MkLoading>;
+export const Page = {
+	...Default,
+	args: {
+		...Default.args,
+		page: true,
+	},
+	parameters: {
+		layout: 'padded',
+	},
+} satisfies StoryObj<typeof MkLoading>;

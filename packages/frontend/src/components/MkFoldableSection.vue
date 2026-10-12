@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root">
+<div ref="rootEl" :class="$style.root">
 	<header :class="$style.header" class="_button" @click="showBody = !showBody">
 		<div :class="$style.title"><div><slot name="header"></slot></div></div>
 		<div :class="$style.divider"></div>
@@ -31,9 +31,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { miLocalStorage } from '@/local-storage.js';
 import { prefer } from '@/preferences.js';
+import { themeManager } from '@/theme.js';
+import { getBgColor } from '@/utility/get-bg-color.js';
 
 const miLocalStoragePrefix = 'ui:folder:' as const;
 
@@ -45,6 +47,8 @@ const props = withDefaults(defineProps<{
 	persistKey: null,
 });
 
+const rootEl = useTemplateRef('rootEl');
+const parentBg = ref<string | null>(null);
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const showBody = ref((props.persistKey && miLocalStorage.getItem(`${miLocalStoragePrefix}${props.persistKey}`)) ? (miLocalStorage.getItem(`${miLocalStoragePrefix}${props.persistKey}`) === 't') : props.expanded);
 
@@ -52,6 +56,19 @@ watch(showBody, () => {
 	if (props.persistKey) {
 		miLocalStorage.setItem(`${miLocalStoragePrefix}${props.persistKey}`, showBody.value ? 't' : 'f');
 	}
+});
+
+function updateBgColor() {
+	if (rootEl.value) parentBg.value = getBgColor(rootEl.value.parentElement);
+}
+
+onMounted(() => {
+	updateBgColor();
+	themeManager.on('themeChanging', updateBgColor);
+});
+
+onBeforeUnmount(() => {
+	themeManager.off('themeChanging', updateBgColor);
 });
 </script>
 
@@ -70,7 +87,6 @@ watch(showBody, () => {
 .body {
 	display: grid;
 	grid-template-rows: 1fr;
-	background: var(--MI_THEME-panel);
 }
 
 .bodyInner {
@@ -81,18 +97,13 @@ watch(showBody, () => {
 }
 
 .bodyPadding {
-	--MI-formGroupInset: var(--MI-cardPadding);
-	--MI-formGroupRadius: 0px;
-	padding: var(--MI-cardPadding);
+	--MI-formGroupRadius: initial;
 }
 
 .root {
 	margin-inline: calc(0px - var(--MI-formGroupInset, 0px));
 	position: relative;
-	// 标题与内容合成一张整卡, 折叠时只留标题行
-	// (overflow: clip 裁出圆角, header 的 sticky 因此只在卡片内生效, 不再悬浮于页面)
-	background: var(--MI_THEME-panel);
-	border-radius: var(--MI-formGroupRadius, var(--MI-cardRadius));
+	// 保留折叠区域内的 sticky 范围，不给内容额外套卡片。
 	overflow: clip;
 }
 
@@ -101,35 +112,32 @@ watch(showBody, () => {
 	position: sticky;
 	top: var(--MI-stickyTop, 0px);
 	z-index: 10;
-	background-color: var(--MI_THEME-panelHighlight);
+	-webkit-backdrop-filter: var(--MI-blur, blur(8px));
+	backdrop-filter: var(--MI-blur, blur(20px));
+	background-color: color(from v-bind("parentBg ?? 'var(--MI_THEME-bg)'") srgb r g b / 0.85);
 }
 
 .title {
 	display: grid;
 	place-content: center;
 	margin: 0;
-	padding: 12px var(--MI-cardPadding);
-	color: var(--MI_THEME-fg);
+	padding: 12px 16px 12px 0;
 }
 
 .divider {
 	flex: 1;
 	margin: auto;
-	height: 1px;
-	background: var(--MI_THEME-divider);
+	height: var(--MI-dividerWidth);
+	background: var(--MI-dividerColor);
 }
 
 .button {
-	padding: 12px var(--MI-cardPadding);
+	padding: 12px 0 12px 16px;
 }
 
 @container (max-width: 500px) {
 	.title {
-		padding-block: 8px;
-	}
-
-	.button {
-		padding-block: 8px;
+		padding: 8px 10px 8px 0;
 	}
 
 }

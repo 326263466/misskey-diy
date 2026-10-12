@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root">
+<div data-image-fade="off" :class="$style.root">
 	<div :class="[$style.content]">
 		<button
 			ref="qrCodeEl" v-flip type="button" class="_button" :aria-label="i18n.ts.share"
@@ -32,7 +32,7 @@ import type { Directive } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { instance } from '@/instance.js';
 import { ensureSignin } from '@/i.js';
-import { userPage, userName } from '@/filters/user.js';
+import { userPage, userName } from '@@/js/user.js';
 import misskeysvg from '/client-assets/misskey.svg';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
 import { i18n } from '@/i18n.js';
@@ -222,10 +222,8 @@ $avatarSize: 58px;
 </style>
 
 <style lang="scss">
-/*
- * useCssModuleで$styleを読み込みたかったが、rollupでのunwindが壊れてしまうらしく失敗。
- * グローバルにクラスを定義することでお茶を濁す。
- */
+// useCssModuleで$styleを読み込みたかったが、rollupでのunwindが壊れてしまうらしく失敗。
+// グローバルにクラスを定義することでお茶を濁す。
 ._qrShowFlip {
 	transition: rotate .3s linear, scale .3s .15s step-start;
 }

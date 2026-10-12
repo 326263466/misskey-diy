@@ -366,7 +366,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<MkInfo>{{ i18n.ts.proxyAccountDescription }}</MkInfo>
 
 							<SearchMarker :keywords="['description']">
-								<MkTextarea v-model="proxyAccountForm.state.description" :max="500" tall mfmAutocomplete :mfmPreview="true">
+					<MkTextarea v-model="proxyAccountForm.state.description" :max="500" :counterMaxLength="1500" tall mfmAutocomplete :mfmPreview="true">
 									<template #label><SearchLabel>{{ i18n.ts._profile.description }}</SearchLabel></template>
 									<template #caption>{{ i18n.ts._profile.youCanIncludeHashtags }}</template>
 								</MkTextarea>
@@ -557,7 +557,7 @@ definePage(() => ({
 	align-items: flex-end;
 	border-radius: 6px;
 
-	/* (drag button) 32px + (drag button margin) 8px + (input width) 200px * 2 + (input gap) 12px = 452px */
+	// (drag button) 32px + (drag button margin) 8px + (input width) 200px * 2 + (input gap) 12px = 452px
 	@container (max-width: 452px) {
 		align-items: center;
 	}

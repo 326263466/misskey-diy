@@ -32,6 +32,50 @@ describe('MFM text inputs', () => {
 	beforeEach(() => { preferences.emojiStyle = 'twemoji'; });
 	afterEach(cleanup);
 
+	test('shows a display-only character limit without changing native input limits', async () => {
+		const onUpdate = vi.fn();
+		const view = render(MkInput, {
+			props: { modelValue: 'abc', counterMaxLength: 4, 'onUpdate:modelValue': onUpdate },
+			global,
+		});
+		const input = view.getByRole('combobox') as HTMLInputElement;
+		expect(view.getByText('3 / 4')).toBeTruthy();
+		expect(input.hasAttribute('maxlength')).toBe(false);
+		await fireEvent.update(input, 'abcde🎉');
+		expect(view.getByText('6 / 4')).toBeTruthy();
+		expect(onUpdate).toHaveBeenCalledExactlyOnceWith('abcde🎉');
+		await view.rerender({ counterMaxLength: undefined, maxLength: 8 });
+		expect(view.getByText('6 / 8')).toBeTruthy();
+		expect(input.maxLength).toBe(8);
+	});
+
+	test('does not count unbounded text or non-text input values', async () => {
+		const view = render(MkInput, { props: { modelValue: 'abc' }, global });
+		expect(view.queryByText('3')).toBeNull();
+		await view.rerender({ type: 'number', modelValue: 42, counterMaxLength: 8 });
+		expect(view.queryByText('2 / 8')).toBeNull();
+		expect((view.getByRole('spinbutton') as HTMLInputElement).value).toBe('42');
+		await view.rerender({ type: 'color', modelValue: '#123456' });
+		expect(view.queryByText('7 / 8')).toBeNull();
+	});
+
+	test('synchronizes text before an immediate Enter and clear', () => {
+		let query = '';
+		const submit = vi.fn(() => query);
+		const view = render(MkInput, {
+			props: { modelValue: '', type: 'search', 'onUpdate:modelValue': value => { query = String(value); }, onEnter: submit },
+			global,
+		});
+		const input = view.getByRole('combobox') as HTMLInputElement;
+		input.value = '最新搜索';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+		expect(submit).toHaveReturnedWith('最新搜索');
+		input.value = '';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		expect(query).toBe('');
+	});
+
 	test('renders emoji in the editor and saves the complete raw MFM value on demand', async () => {
 		const onUpdate = vi.fn();
 		const view = render(MkInput, {

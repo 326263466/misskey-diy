@@ -12,8 +12,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<EmNoteSub v-if="appearNote.reply" :note="appearNote.reply" :class="$style.replyTo"/>
 	<div v-if="pinned" :class="$style.tip"><i class="ti ti-pin"></i> {{ i18n.ts.pinnedNote }}</div>
-	<!--<div v-if="appearNote._prId_" class="tip"><i class="ti ti-speakerphone"></i> {{ i18n.ts.promotion }}<button class="_textButton hide" @click="readPromo()">{{ i18n.ts.hideThisNote }} <i class="ti ti-x"></i></button></div>-->
-	<!--<div v-if="appearNote._featuredId_" class="tip"><i class="ti ti-bolt"></i> {{ i18n.ts.featured }}</div>-->
 	<div v-if="isRenote" :class="$style.renote">
 		<div v-if="note.channel" :class="$style.colorBar" :style="{ background: note.channel.color }"></div>
 		<EmAvatar :class="$style.renoteAvatar" :user="note.user" link/>
@@ -52,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</p>
 				<div v-show="appearNote.cw == null || showContent" :class="[{ [$style.contentCollapsed]: collapsed }]">
 					<div :class="$style.text">
-						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
+						<span v-if="appearNote.isHidden" :class="$style.hiddenContent"><i class="ti ti-lock" aria-hidden="true"></i><span>({{ i18n.ts.private }})</span></span>
 						<EmA v-if="appearNote.replyId" :class="$style.replyIcon" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-arrow-back-up"></i></EmA>
 						<EmMfm
 							v-if="appearNote.text"
@@ -79,11 +77,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 				<EmA v-if="appearNote.channel && !inChannel" :class="$style.channel" :to="`/channels/${appearNote.channel.id}`"><i class="ti ti-device-tv"></i> {{ appearNote.channel.name }}</EmA>
 			</div>
-			<EmReactionsViewer v-if="appearNote.reactionAcceptance !== 'likeOnly'" :note="appearNote" :maxNumber="16">
-				<template #more>
-					<EmA :to="`/notes/${appearNote.id}/reactions`" :class="[$style.reactionOmitted]">{{ i18n.ts.more }}</EmA>
-				</template>
-			</EmReactionsViewer>
+			<EmReactionsViewer v-if="appearNote.reactionAcceptance !== 'likeOnly'" :note="appearNote"/>
 			<footer :class="$style.footer">
 				<a :href="`/notes/${appearNote.id}`" target="_blank" rel="noopener" :class="[$style.footerButton, $style.footerButtonLink]" class="_button">
 					<i class="ti ti-arrow-back-up"></i>
@@ -93,7 +87,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</a>
 				<a :href="`/notes/${appearNote.id}`" target="_blank" rel="noopener" :class="[$style.footerButton, $style.footerButtonLink]" class="_button">
 					<i v-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
-					<i v-else class="ti ti-plus"></i>
+					<i v-else class="ti ti-mood-happy"></i>
 				</a>
 				<a :href="`/notes/${appearNote.id}`" target="_blank" rel="noopener" :class="[$style.footerButton, $style.footerButtonLink]" class="_button">
 					<i class="ti ti-dots"></i>
@@ -123,7 +117,7 @@ import EmA from '@/components/EmA.vue';
 import EmAvatar from '@/components/EmAvatar.vue';
 import EmUserName from '@/components/EmUserName.vue';
 import EmTime from '@/components/EmTime.vue';
-import { userPage } from '@/utils.js';
+import { userPage } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
 
 function getAppearNote(note: Misskey.entities.Note) {
@@ -417,13 +411,34 @@ const isDeleted = ref(false);
 	overflow-wrap: break-word;
 }
 
+.hiddenContent {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 68px;
+	margin: 4px 0;
+	padding: 16px 18px;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-panelHighlight);
+	color: var(--MI_THEME-accent);
+	font-size: 0.92em;
+	font-weight: 500;
+	line-height: 1.5;
+	box-sizing: border-box;
+
+	> i {
+		flex: 0 0 auto;
+		font-size: 1.15em;
+	}
+}
+
 .replyIcon {
 	color: var(--MI_THEME-accent);
 	margin-right: 0.5em;
 }
 
 .translation {
-	border: solid 0.5px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: var(--MI-radius);
 	padding: 12px;
 	margin-top: 8px;
@@ -596,10 +611,4 @@ const isDeleted = ref(false);
 	}
 }
 
-.reactionOmitted {
-	display: inline-block;
-	margin-left: 8px;
-	opacity: .8;
-	font-size: 95%;
-}
 </style>

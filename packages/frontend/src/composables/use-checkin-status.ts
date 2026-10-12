@@ -10,7 +10,7 @@ import { $i } from '@/i.js';
 import { checkinDateInZone } from '@/utility/checkin.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
-export type CheckinStatus = Pick<entities.ICheckinStatusResponse, 'today' | 'checkedInToday' | 'timeZone'>;
+export type CheckinStatus = Pick<entities.ICheckinStatusResponse, 'today' | 'checkedInToday' | 'timeZone' | 'consecutiveDays'>;
 type AccountState = {
 	status: ReturnType<typeof shallowRef<CheckinStatus | null>>;
 	observedLocalDate: string;
@@ -49,6 +49,7 @@ function applyStatus(accountId: string, incoming: CheckinStatus, allowEarlier = 
 		timeZone: incoming.timeZone,
 		// A completed day cannot become unchecked because an older request finished later.
 		checkedInToday: incoming.checkedInToday || (previous?.today === incoming.today && previous.checkedInToday),
+		consecutiveDays: incoming.consecutiveDays,
 	};
 	state.observedLocalDate = checkinDateInZone(new Date(), incoming.timeZone);
 }
@@ -135,7 +136,13 @@ function receiveStatus(event: MessageEvent<unknown>): void {
 	try {
 		if (new Date(`${value.today}T00:00:00Z`).toISOString().slice(0, 10) !== value.today) return;
 		checkinDateInZone(new Date(), value.timeZone);
-		applyStatus(value.accountId, { today: value.today, checkedInToday: value.checkedInToday, timeZone: value.timeZone });
+		applyStatus(value.accountId, {
+			today: value.today,
+			checkedInToday: value.checkedInToday,
+			timeZone: value.timeZone,
+			// Older tabs may still publish a status without the newer streak field.
+			consecutiveDays: typeof value.consecutiveDays === 'number' ? value.consecutiveDays : 0,
+		});
 	} catch {
 		// Ignore malformed cross-tab messages, including an unsupported time zone.
 	}
@@ -180,6 +187,7 @@ export function useCheckinStatus(options: { refresh?: boolean } = {}) {
 	let activated = true;
 	const status = computed(() => accountId.value ? accountState(accountId.value).status.value : null);
 	const checkedInToday = computed(() => status.value?.checkedInToday === true);
+	const consecutiveDays = computed(() => status.value?.consecutiveDays ?? 0);
 	const refresh = () => refreshCheckinStatus(accountId.value);
 	const refreshInBackground = () => { if (mounted && consumer.active && consumer.refresh && window.document.visibilityState !== 'hidden') void refresh().catch(() => {}); };
 	watch(accountId, id => { consumer.accountId = id; refreshInBackground(); });
@@ -197,5 +205,5 @@ export function useCheckinStatus(options: { refresh?: boolean } = {}) {
 		consumers.delete(consumer);
 		if (consumers.size === 0) stop();
 	});
-	return { status, checkedInToday, refresh };
+	return { status, checkedInToday, consecutiveDays, refresh };
 }

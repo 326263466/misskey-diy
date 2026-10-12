@@ -55,10 +55,40 @@ export class MiChatMessage {
 	})
 	public text: string | null;
 
+	@Column('jsonb', { nullable: true })
+	public systemEvent: { type: 'membersJoined'; userIds: MiUser['id'][]; invited: boolean } | null;
+
+	@Index('IDX_chat_message_reply')
+	@Column({ ...id(), nullable: true })
+	public replyId: MiChatMessage['id'] | null;
+
+	@ManyToOne(() => MiChatMessage, { onDelete: 'SET NULL' })
+	@JoinColumn({ foreignKeyConstraintName: 'FK_chat_message_reply' })
+	public reply: MiChatMessage | null;
+
+	@Column('varchar', { length: 8, nullable: true })
+	public replyType: 'reply' | 'quote' | null;
+
+	@Column('timestamp with time zone', {
+		nullable: true,
+	})
+	public editedAt: Date | null;
+
 	@Column('boolean', {
 		default: false,
 	})
 	public isAutoReply: boolean;
+
+	@Column('boolean', { default: false })
+	public isPoke: boolean;
+
+	@Index('IDX_chat_message_poke_user')
+	@Column({ ...id(), nullable: true })
+	public pokeUserId: MiUser['id'] | null;
+
+	@ManyToOne(() => MiUser, { onDelete: 'SET NULL' })
+	@JoinColumn({ foreignKeyConstraintName: 'FK_chat_message_poke_user' })
+	public pokeUser: MiUser | null;
 
 	@Column('varchar', {
 		length: 512, nullable: true,

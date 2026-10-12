@@ -8,10 +8,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.header">
 		<MkSelect v-model="typeModelForMkSelect" :items="typeDef" :class="$style.typeSelect">
 		</MkSelect>
-		<button v-if="draggable" class="_button" :class="$style.dragHandle" :draggable="true" @dragstart.stop="dragStartCallback">
+	<button v-if="draggable" class="_button _iconButton" :class="$style.dragHandle" :draggable="true" @dragstart.stop="dragStartCallback">
 			<i class="ti ti-menu-2"></i>
 		</button>
-		<button v-if="draggable" class="_button" :class="$style.remove" @click="removeSelf">
+		<button v-if="draggable" class="_button _iconButton" :class="$style.remove" @click="removeSelf">
 			<i class="ti ti-x"></i>
 		</button>
 	</div>
@@ -27,7 +27,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		>
 			<template #default="{ item, dragStart }">
 				<div :class="$style.item">
-					<!-- divが無いとエラーになる -->
 					<RolesEditorFormula
 						:modelValue="item"
 						:dragStartCallback="dragStart"
@@ -187,7 +186,7 @@ function removeSelf() {
 }
 
 .item {
-	border: solid 2px var(--MI_THEME-divider);
+	border: solid 2px var(--MI_THEME-divider); // divider-exempt: editor block with state-colored border
 	border-radius: var(--MI-radius);
 	padding: 12px;
 

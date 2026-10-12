@@ -33,8 +33,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<MkA :class="$style.userItemMainBody" :to="`/admin/user/${item.user.id}`">
 											<MkUserCardMini :user="item.user"/>
 										</MkA>
-										<button class="_button" :class="$style.userToggle" @click="toggleItem(item.id)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
-										<button class="_button" :class="$style.unassign" @click="unassign(item.user.id, $event)"><i class="ti ti-x"></i></button>
+										<button class="_button _iconButton" :class="$style.userToggle" @click="toggleItem(item.id)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
+										<button class="_button _iconButton" :class="$style.unassign" @click="unassign(item.user.id, $event)"><i class="ti ti-x"></i></button>
 									</div>
 									<div v-if="expandedItemIds.includes(item.id)" :class="$style.userItemSub">
 										<div>{{ i18n.ts._role.assignedAt }}: <MkTime :time="item.createdAt" mode="detail"/></div>

@@ -10,12 +10,17 @@ import type { Component } from 'vue';
 import type * as Misskey from 'misskey-js';
 import Announcements from '@/pages/admin/announcements.vue';
 import Ads from '@/pages/admin/ads.vue';
+import LocalEmojis from '@/pages/admin/custom-emojis-manager.local.list.vue';
+import RemoteEmojis from '@/pages/admin/custom-emojis-manager.remote.vue';
+import MkResult from '@/components/global/MkResult.vue';
 import { i18n } from '@/i18n.js';
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), confirm: vi.fn(), apiWithDialog: vi.fn(), alert: vi.fn() }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/os.js', () => mocks);
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
+vi.mock('@/instance.js', () => ({ instance: {} }));
+vi.mock('@/preferences.js', () => ({ prefer: { s: { animation: false } } }));
 vi.mock('@/components/MkButton.vue', () => ({ default: { template: '<button><slot/></button>' } }));
 vi.mock('@/components/MkInput.vue', () => ({ default: { props: ['modelValue'], template: '<input :value="modelValue"/>' } }));
 vi.mock('@/components/MkTextarea.vue', () => ({ default: { props: ['modelValue'], template: '<textarea :value="modelValue"/>' } }));
@@ -29,17 +34,25 @@ vi.mock('@/components/MkRadios.vue', () => ({ default: { template: '<div/>' } })
 vi.mock('@/components/MkSwitch.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/components/MkInfo.vue', () => ({ default: { template: '<div><slot/></div>' } }));
 vi.mock('@/components/form/split.vue', () => ({ default: { template: '<div><slot/></div>' } }));
+vi.mock('@/components/grid/MkGrid.vue', () => ({ default: { props: ['data'], template: '<div><p v-for="item in data" :key="item.id">{{ item.name }}</p></div>' } }));
+vi.mock('@/components/MkRemoteEmojiEditDialog.vue', () => ({ default: { template: '<div/>' } }));
+vi.mock('@/components/MkSortOrderEditor.vue', () => ({ default: { template: '<div/>' } }));
+vi.mock('@/utility/drive.js', () => ({ selectFile: vi.fn() }));
 
 const sentinels = new Map<HTMLElement, () => Promise<void>>();
 
 function renderPage(component: Component) {
 	return render(component, {
 		global: {
+			components: { MkResult },
 			stubs: {
+				MkStickyContainer: { template: '<main><slot name="header"/><slot/><slot name="footer"/></main>' },
+				MkPageHeader: true,
 				PageWithHeader: { props: ['actions'], template: '<main><button v-for="action in actions" @click="action.handler">{{ action.text }}</button><slot/></main>' },
 				MkLoading: { template: '<div role="status"/>' },
 				MkError: { emits: ['retry'], template: '<button @click="$emit(\'retry\')">retry</button>' },
 				MkAd: true,
+				MkSystemIcon: true,
 			},
 			directives: {
 				appear: {
@@ -94,6 +107,26 @@ describe.each(cases)('$name分页', ({ component, endpoint, initialParams, nextP
 		expect(mocks.api).toHaveBeenCalledExactlyOnceWith(endpoint, { ...initialParams, limit: 11 });
 		expect(view.queryByRole('button', { name: i18n.ts.more })).toBeNull();
 		expect(sentinels.size).toBe(0);
+	});
+
+	test('首载和切换筛选等待接口返回后才显示空状态', async () => {
+		const initial = Promise.withResolvers<ReturnType<typeof page>>();
+		mocks.api.mockReturnValueOnce(initial.promise);
+		const view = renderPage(component);
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.container.querySelector('mk-system-icon-stub')).toBeNull();
+		initial.resolve([]);
+		await waitFor(() => expect(view.queryByRole('status')).toBeNull());
+		expect(view.container.querySelector('mk-system-icon-stub')).not.toBeNull();
+		const refresh = Promise.withResolvers<ReturnType<typeof page>>();
+		mocks.api.mockReturnValueOnce(refresh.promise);
+		await fireEvent.update(view.getByRole('combobox'), nextFilter);
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.container.querySelector('mk-system-icon-stub')).toBeNull();
+		expect(mocks.api).toHaveBeenCalledTimes(2);
+		refresh.resolve([]);
+		await waitFor(() => expect(view.queryByRole('status')).toBeNull());
+		expect(view.container.querySelector('mk-system-icon-stub')).not.toBeNull();
 	});
 
 	test('触底只发起一个请求，使用服务端游标并在最后一页停止', async () => {
@@ -164,5 +197,61 @@ describe.each(cases)('$name分页', ({ component, endpoint, initialParams, nextP
 		expect(view.queryByDisplayValue('stale-100')).toBeNull();
 		expect(view.getByDisplayValue('filtered-100')).toBeTruthy();
 	});
+});
 
+describe.each([
+	{ name: '本地表情', component: LocalEmojis },
+	{ name: '远程表情', component: RemoteEmojis },
+])('$name加载状态', ({ component }) => {
+	const emptyText = i18n.ts._customEmojisManager._local._list.emojisNothing;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	afterEach(cleanup);
+
+	test('首载和失败重试都等待接口成功返回后才显示空状态', async () => {
+		const initial = Promise.withResolvers<unknown>();
+		mocks.api.mockReturnValueOnce(initial.promise);
+		const view = renderPage(component);
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.queryByText(emptyText)).toBeNull();
+
+		initial.reject(new Error('网络错误'));
+		await waitFor(() => expect(view.getByRole('button', { name: 'retry' })).toBeTruthy());
+		expect(view.queryByText(emptyText)).toBeNull();
+
+		const retry = Promise.withResolvers<unknown>();
+		mocks.api.mockReturnValueOnce(retry.promise);
+		await fireEvent.click(view.getByRole('button', { name: 'retry' }));
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.queryByText(emptyText)).toBeNull();
+		retry.resolve({ emojis: [], allPages: 0 });
+		await waitFor(() => expect(view.getByText(emptyText)).toBeTruthy());
+		expect(view.queryByRole('status')).toBeNull();
+	});
+
+	test('请求返回内容时，更新列表前不闪现空文案', async () => {
+		const pending = Promise.withResolvers<unknown>();
+		mocks.api.mockReturnValueOnce(pending.promise);
+		const view = renderPage(component);
+		let showedEmpty = false;
+		const observer = new MutationObserver(() => {
+			showedEmpty ||= view.queryByText(emptyText) != null;
+		});
+		observer.observe(view.container, { subtree: true, childList: true, characterData: true });
+		try {
+			pending.resolve({ emojis: [{
+				id: 'emoji-id', name: 'test_emoji', publicUrl: 'https://example.com/emoji.png',
+				host: null, aliases: [], license: null, category: null, isSensitive: false,
+				localOnly: false, roleIdsThatCanBeUsedThisEmojiAsReaction: [], updatedAt: null, type: null,
+			}], allPages: 1 });
+			await waitFor(() => expect(view.getByText('test_emoji')).toBeTruthy());
+			expect(showedEmpty).toBe(false);
+			expect(view.queryByText(emptyText)).toBeNull();
+		} finally {
+			observer.disconnect();
+		}
+	});
 });

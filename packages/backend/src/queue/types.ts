@@ -43,7 +43,7 @@ export type RelationshipJobData = {
 export type DbJobData<T extends keyof DbJobMap> = DbJobMap[T];
 
 export type DbJobMap = {
-	deleteDriveFiles: DbJobDataWithUser;
+	deleteDriveFiles: DbDeleteDriveFilesJobData;
 	exportCustomEmojis: DbJobDataWithUser;
 	exportAntennas: DBExportAntennasData;
 	exportNotes: DbJobDataWithUser;
@@ -65,6 +65,12 @@ export type DbJobMap = {
 
 export type DbJobDataWithUser = {
 	user: ThinUser;
+};
+
+export type DbDeleteDriveFilesJobData = DbJobDataWithUser & {
+	/** 仅用于识别并跳过旧的自动清理任务，不再创建带这些字段的任务。 */
+	fileIds?: string[];
+	fileUrls?: string[];
 };
 
 export type DbExportFollowingData = {

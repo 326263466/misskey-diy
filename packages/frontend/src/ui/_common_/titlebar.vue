@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div :class="$style.controls">
 		<span :class="$style.left">
-			<button v-if="canBack" class="_button" :class="$style.button" @click="goBack"><i class="ti ti-arrow-left"></i></button>
+			<button v-if="canBack" class="_button _iconButton" :class="$style.button" @click="goBack"><i class="ti ti-arrow-left"></i></button>
 		</span>
 		<span :class="$style.right">
 		</span>

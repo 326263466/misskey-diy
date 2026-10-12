@@ -27,10 +27,11 @@ test.each([false, true])('grid uses the project date dialog and handles canceled
 	await fireEvent.dblClick(root);
 	expect(view.container.querySelector('input[type="date"]')).toBeNull();
 	expect(mocks.popup.mock.calls[0][1]).toMatchObject({ input: { type: 'date', default: '2026-10-01' } });
-	mocks.popup.mock.calls[0][2].done({ canceled, result: canceled ? undefined : '2026-10-02' });
+	const handlers = mocks.popup.mock.calls[0][2] as { done: (result: { canceled: boolean; result?: string }) => void };
+	handlers.done({ canceled, result: canceled ? undefined : '2026-10-02' });
 	await nextTick();
 	expect(view.emitted('operation:endEdit')).toHaveLength(1);
 	if (canceled) expect(view.emitted('change:value')).toBeUndefined();
-	else expect(view.emitted('change:value')?.[0][1]).toBe('2026-10-02');
+	else expect((view.emitted('change:value') as unknown[][] | undefined)?.[0]?.[1]).toBe('2026-10-02');
 	expect(document.activeElement).toBe(root);
 });

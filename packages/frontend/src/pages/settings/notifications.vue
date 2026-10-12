@@ -50,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<MkA :class="$style.userItemMainBody" :to="userPage(item.followee!)">
 										<MkUserCardMini :user="item.followee!"/>
 									</MkA>
-									<button class="_button" :class="$style.notifyMenu" @click="showNotifyMenu(item.followee!, $event)"><i class="ti ti-dots"></i></button>
+									<button class="_button _iconButton" :class="$style.notifyMenu" @click="showNotifyMenu(item.followee!, $event)"><i class="ti ti-dots"></i></button>
 								</div>
 							</div>
 						</div>
@@ -106,7 +106,7 @@ import MkPushNotificationAllowButton from '@/components/MkPushNotificationAllowB
 import MkFeatureBanner from '@/components/MkFeatureBanner.vue';
 import { Paginator } from '@/utility/paginator.js';
 import MkPagination from '@/components/MkPagination.vue';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
 
 const $i = ensureSignin();

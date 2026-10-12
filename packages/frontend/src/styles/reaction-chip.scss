@@ -1,0 +1,100 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+@mixin list {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	max-width: 100%;
+	gap: 4px;
+	margin-top: 4px;
+
+	&:empty {
+		display: none;
+	}
+}
+
+@mixin enterActive {
+	transition: opacity 0.16s ease-out, transform 0.16s ease-out !important;
+}
+
+@mixin enterFrom {
+	opacity: 0;
+	transform: scale(0.7);
+}
+
+@mixin chip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	height: 28px;
+	gap: 4px;
+	padding: 0 6px;
+	border: var(--MI-divider);
+	border-radius: 8px;
+	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-fgTransparentWeak);
+	line-height: 1;
+
+	&:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--MI_THEME-panel) 88%, var(--MI_THEME-fg));
+	}
+
+	&.mine {
+		border-color: var(--MI_THEME-accent);
+		background: color-mix(in srgb, var(--MI_THEME-panel) 85%, var(--MI_THEME-accent));
+
+		&:hover:not(:disabled) {
+			border-color: var(--MI_THEME-accent);
+			background: color-mix(in srgb, var(--MI_THEME-panel) 85%, var(--MI_THEME-accent));
+		}
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-accent);
+		outline-offset: 2px;
+	}
+}
+
+@mixin icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 20px;
+	height: 20px;
+	font-size: 20px;
+	line-height: 20px;
+	pointer-events: none;
+
+	> * {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		max-width: 100%;
+		max-height: 100%;
+		object-fit: contain;
+		vertical-align: middle;
+	}
+}
+
+@mixin count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 20px;
+	min-width: 0.6em;
+	font-size: 13px;
+	line-height: 20px;
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+	color: var(--MI_THEME-fgTransparentWeak);
+	// 数字字形的墨迹中心略低于行盒中心，保持与表情图形的视觉中线一致。
+	translate: 0 -0.5px;
+}

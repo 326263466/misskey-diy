@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader>
 	<div class="_pageBody">
 		<div class="_gaps_s">
-			<MkUserList :paginator="paginator"/>
+			<MkUserList :paginator="paginator" pageEmpty/>
 		</div>
 	</div>
 </PageWithHeader>

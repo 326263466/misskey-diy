@@ -1,0 +1,17 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+// 保留普通表情的原始比例，对齐和尺寸分别控制。
+:root {
+	--MI-emojiHeight: 1.25em;
+	--MI-emojiVerticalAlign: -0.25em;
+	--MI-textEmojiHeight: 1.25em;
+	--MI-textEmojiVerticalAlign: -0.25em;
+}
+
+._mfm {
+	--MI-emojiHeight: var(--MI-textEmojiHeight);
+	--MI-emojiVerticalAlign: var(--MI-textEmojiVerticalAlign);
+}

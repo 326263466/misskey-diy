@@ -8,7 +8,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_gaps">
 		<div class="_buttons">
 			<MkButton primary @click="addAccount"><i class="ti ti-plus"></i> {{ i18n.ts.addAccount }}</MkButton>
-			<!--<MkButton @click="refreshAllAccounts"><i class="ti ti-refresh"></i></MkButton>-->
 		</div>
 
 		<template v-for="x in accounts" :key="x.host + x.id">

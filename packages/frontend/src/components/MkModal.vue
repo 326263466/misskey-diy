@@ -33,10 +33,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	})"
 	:duration="transitionDuration" appear @afterLeave="onClosed" @enter="emit('opening')" @afterEnter="onOpened"
 >
-	<div v-show="manualShowing != null ? manualShowing : showing" ref="modalRootEl" v-hotkey.global="keymap" v-bind="$attrs" :class="[$style.root, { [$style.drawer]: type === 'drawer', [$style.dialog]: type === 'dialog', [$style.popup]: type === 'popup', [$style.menu]: menu, [$style.fullScreen]: fullScreen }]" :style="{ zIndex, pointerEvents: (manualShowing != null ? manualShowing : showing) ? 'auto' : 'none', '--transformOrigin': transformOrigin }">
-		<div data-testid="bg" :data-test-is-transparent="isEnableBgTransparent" class="_modalBg" :class="[$style.bg, { [$style.bgTransparent]: isEnableBgTransparent }]" :style="{ zIndex }" @click="onBgClick" @mousedown="onBgClick" @contextmenu.prevent.stop="() => {}"></div>
-		<div ref="content" :class="[$style.content, { [$style.fixed]: fixed }]" :style="{ zIndex }" @click.self="onBgClick">
-			<slot :max-height="maxHeight" :type="type" :guardInitialPointer="menuOverlapsAnchor" :anchorWidth="anchorWidth"></slot>
+	<div v-show="manualShowing != null ? manualShowing : showing" ref="modalRootEl" v-bind="$attrs" :class="[$style.root, { [$style.drawer]: type === 'drawer', [$style.dialog]: type === 'dialog', [$style.popup]: type === 'popup', [$style.menu]: menu, [$style.fullScreen]: fullScreen }]" :style="{ zIndex, pointerEvents: (manualShowing != null ? manualShowing : showing) ? 'auto' : 'none', '--transformOrigin': transformOrigin }">
+		<div data-testid="bg" :data-test-is-transparent="isEnableBgTransparent" class="_modalBg" :class="[$style.bg, { [$style.bgTransparent]: isEnableBgTransparent }]" :style="{ zIndex }" @click="onBgClick" @contextmenu.prevent.stop="() => {}"></div>
+		<div ref="content" :class="[$style.content, { [$style.fixed]: fixed }]" :style="{ zIndex, visibility: awaitingPosition ? 'hidden' : undefined }" @click.self="onBgClick">
+			<slot :max-height="maxHeight" :type="type" :guardInitialPointer="menuOverlapsAnchor" :anchorWidth="anchorWidth" :ready="!awaitingPosition && (manualShowing ?? showing)"></slot>
 		</div>
 	</div>
 </Transition>
@@ -44,8 +44,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { nextTick, normalizeClass, onMounted, onUnmounted, provide, watch, ref, useTemplateRef, computed } from 'vue';
-import type { Keymap } from '@/utility/hotkey.js';
+import { nextTick, normalizeClass, onMounted, onUnmounted, provide, watch, ref, useTemplateRef, computed, getCurrentInstance } from 'vue';
+import { usePopupDismissal } from '@/composables/use-popup-dismissal.js';
 import * as os from '@/os.js';
 import { isTouchUsing } from '@/utility/touch.js';
 import { deviceKind } from '@/utility/device-kind.js';
@@ -76,9 +76,11 @@ const props = withDefaults(defineProps<{
 	manualShowing?: boolean | null;
 	anchor?: { x: string; y: string; };
 	anchorElement?: HTMLElement | null;
+	/** 优先在此容器内定位；放不下的方向退回窗口边界。 */
+	boundaryElement?: HTMLElement | null;
 	align?: 'left' | 'center' | 'right';
 	preferType?: ModalTypes | 'auto';
-	zPriority?: 'low' | 'middle' | 'high';
+	zPriority?: 'veryLow' | 'low' | 'middle' | 'high';
 	noOverlap?: boolean;
 	menu?: boolean;
 	menuMatchAnchorWidth?: boolean;
@@ -87,9 +89,13 @@ const props = withDefaults(defineProps<{
 	fullScreen?: boolean;
 	hasInteractionWithOtherFocusTrappedEls?: boolean;
 	returnFocusTo?: HTMLElement | null;
+	/** 是否允许点击空白关闭，不影响 Esc。 */
+	closeOnBackdrop?: boolean;
+	waitForPosition?: boolean;
 }>(), {
 	manualShowing: null,
 	anchorElement: null,
+	boundaryElement: null,
 	align: 'center',
 	anchor: () => ({ x: 'center', y: 'bottom' }),
 	preferType: 'auto',
@@ -101,6 +107,8 @@ const props = withDefaults(defineProps<{
 	fullScreen: false,
 	hasInteractionWithOtherFocusTrappedEls: false,
 	returnFocusTo: null,
+	closeOnBackdrop: true,
+	waitForPosition: true,
 });
 
 const emit = defineEmits<{
@@ -118,6 +126,7 @@ const maxHeight = ref<number>();
 const anchorWidth = ref<number>();
 const menuOverlapsAnchor = ref(false);
 const fixed = ref(false);
+const contentPositioned = ref(false);
 const transformOrigin = ref('center');
 const showing = ref(true);
 const modalRootEl = useTemplateRef('modalRootEl');
@@ -135,7 +144,9 @@ const type = computed<ModalTypes>(() => {
 		return props.preferType!;
 	}
 });
+const awaitingPosition = computed(() => props.waitForPosition && type.value === 'popup' && props.anchorElement != null && !contentPositioned.value);
 const isEnableBgTransparent = computed(() => props.transparentBg && (type.value === 'popup'));
+const boundaryElement = computed(() => props.boundaryElement ?? props.anchorElement?.closest<HTMLElement>('[data-popup-boundary], [data-emoji-picker-boundary], ._pageContent') ?? null);
 const transitionName = computed((() =>
 	prefer.s.animation
 		? useSendAnime.value
@@ -161,6 +172,16 @@ const transitionDuration = computed((() =>
 
 let releaseFocusTrap: (() => void) | null = null;
 let contentClicking = false;
+const instance = getCurrentInstance()!;
+
+const { isTopmost } = usePopupDismissal({
+	element: () => modalRootEl.value,
+	isShowing: () => props.manualShowing ?? showing.value,
+	onEscape: () => {
+		if (instance.vnode.props?.onEsc) emit('esc');
+		else close();
+	},
+});
 
 function close(opts: { useSendAnimation?: boolean } = {}) {
 	if (opts.useSendAnimation) {
@@ -173,20 +194,15 @@ function close(opts: { useSendAnimation?: boolean } = {}) {
 }
 
 function onBgClick() {
-	if (contentClicking) return;
-	emit('click');
+	if (contentClicking || !props.closeOnBackdrop || !isTopmost()) return;
+	// 自定义取消逻辑可能需要确认未保存内容，不能直接隐藏弹窗。
+	if (instance.vnode.props?.onClick) emit('click');
+	else close();
 }
 
 if (type.value === 'drawer') {
 	maxHeight.value = window.innerHeight / 1.5;
 }
-
-const keymap = {
-	'esc': {
-		allowRepeat: true,
-		callback: () => emit('esc'),
-	},
-} as const satisfies Keymap;
 
 const MARGIN = 16;
 const SCROLLBAR_THICKNESS = 16;
@@ -209,12 +225,14 @@ const align = () => {
 	// 光标锚点的四角展开是右键菜单的语义，由 MkContextMenu 负责，不能混用。
 	if (props.menu) {
 		if (props.menuMatchAnchorWidth) anchorWidth.value = anchorRect.width;
+		const naturalHeight = props.getContentHeight?.() ?? height;
 		const position = calcDropdownPosition(
 			// 传自然高度而非 offsetHeight，否则上一次施加的 maxHeight 会让菜单显得“放得下”
-			{ width, height: props.getContentHeight?.() ?? height },
+			{ width, height: naturalHeight },
 			anchorRect,
 			{ width: window.innerWidth, height: window.innerHeight },
 			{
+				boundary: boundaryElement.value?.isConnected ? boundaryElement.value.getBoundingClientRect() : undefined,
 				// 宽度跟随锚点的下拉（select）不应该甩到侧面
 				allowSideFlip: !props.menuMatchAnchorWidth,
 				rtl: window.getComputedStyle(props.anchorElement).direction === 'rtl',
@@ -225,6 +243,7 @@ const align = () => {
 		menuOverlapsAnchor.value = position.overlapsAnchor;
 		content.value.style.left = `${position.left + (fixed.value ? 0 : window.scrollX)}px`;
 		content.value.style.top = `${position.top + (fixed.value ? 0 : window.scrollY)}px`;
+		contentPositioned.value = true;
 		return;
 	}
 
@@ -250,10 +269,27 @@ const align = () => {
 		top = y + anchorRect.height + POPUP_GAP;
 	}
 
-	const viewportLeft = fixed.value ? 0 : window.scrollX;
-	const viewportTop = (fixed.value ? 0 : window.scrollY) + MARGIN;
-	const viewportRight = viewportLeft + window.innerWidth - SCROLLBAR_THICKNESS;
-	const viewportBottom = (fixed.value ? 0 : window.scrollY) + window.innerHeight - SCROLLBAR_THICKNESS - MARGIN;
+	const scrollX = fixed.value ? 0 : window.scrollX;
+	const scrollY = fixed.value ? 0 : window.scrollY;
+	let viewportLeft = scrollX;
+	let viewportTop = scrollY + MARGIN;
+	let viewportRight = scrollX + window.innerWidth - SCROLLBAR_THICKNESS;
+	let viewportBottom = scrollY + window.innerHeight - SCROLLBAR_THICKNESS - MARGIN;
+	if (boundaryElement.value?.isConnected) {
+		const boundary = boundaryElement.value.getBoundingClientRect();
+		const leftEdge = Math.max(viewportLeft, boundary.left + scrollX + POPUP_GAP);
+		const rightEdge = Math.min(viewportRight, boundary.right + scrollX - POPUP_GAP);
+		const topEdge = Math.max(viewportTop, boundary.top + scrollY + POPUP_GAP);
+		const bottomEdge = Math.min(viewportBottom, boundary.bottom + scrollY - POPUP_GAP);
+		if (rightEdge - leftEdge >= width) {
+			viewportLeft = leftEdge;
+			viewportRight = rightEdge;
+		}
+		if (bottomEdge - topEdge >= height) {
+			viewportTop = topEdge;
+			viewportBottom = bottomEdge;
+		}
+	}
 	let availableHeight = Math.max(0, viewportBottom - viewportTop);
 
 	if (props.noOverlap && props.anchor.x === 'center' && props.anchor.y !== 'center') {
@@ -290,6 +326,7 @@ const align = () => {
 
 	content.value.style.left = left + 'px';
 	content.value.style.top = top + 'px';
+	contentPositioned.value = true;
 };
 
 const onOpened = () => {
@@ -338,6 +375,8 @@ onMounted(() => {
 	window.document.addEventListener('scroll', onViewportChange, { capture: true, passive: true });
 
 	watch(() => props.anchorElement, async (anchor, previousAnchor) => {
+		// 先完成定位与高度限制，避免首帧在页面底部闪现。
+		if (props.waitForPosition) contentPositioned.value = false;
 		if (previousAnchor) alignObserver.unobserve(previousAnchor);
 		if (anchor) {
 			anchor.style.pointerEvents = 'none';
@@ -350,13 +389,20 @@ onMounted(() => {
 		align();
 	}, { immediate: true });
 
+	watch(boundaryElement, async (boundary, previousBoundary) => {
+		if (previousBoundary) alignObserver.unobserve(previousBoundary);
+		if (boundary) alignObserver.observe(boundary);
+		await nextTick();
+		align();
+	}, { immediate: true });
+
 	watch([showing, () => props.manualShowing], ([showing, manualShowing]) => {
 		if (manualShowing === true || (manualShowing == null && showing === true)) {
 			if (modalRootEl.value != null) {
 				const { release } = focusTrap(modalRootEl.value, props.hasInteractionWithOtherFocusTrappedEls);
 
 				releaseFocusTrap = release;
-				modalRootEl.value.focus();
+				modalRootEl.value.focus({ preventScroll: true });
 			}
 		} else {
 			releaseFocusTrap?.();

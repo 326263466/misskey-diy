@@ -24,7 +24,7 @@ const initialViewport = {
 	scrollY: window.scrollY,
 };
 
-function renderMenu(x: number, y: number, { width = 200, height = 300 } = {}) {
+function renderMenu(x: number, y: number, { width = 200, height = 300, closeOnBackdrop = true } = {}) {
 	vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width);
 	vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
 		// happy-dom does not lay out the menu; model MkMenu's viewport-height limit.
@@ -35,6 +35,7 @@ function renderMenu(x: number, y: number, { width = 200, height = 300 } = {}) {
 	const view = render(MkContextMenu, {
 		props: {
 			items: [],
+			closeOnBackdrop,
 			ev: { pageX: x + window.scrollX, pageY: y + window.scrollY } as PointerEvent,
 			onClosed: closed,
 		},
@@ -132,17 +133,46 @@ describe('context menu cursor anchoring', () => {
 		expect(Math.min(Math.abs(x - left), Math.abs(x - (left + root.offsetWidth)))).toBe(8);
 	});
 
-	test('still closes only on outside mousedown and removes the listener on unmount', async () => {
-		const removeListener = vi.spyOn(document.body, 'removeEventListener');
-		const { menu, root, closed, unmount } = renderMenu(100, 700);
-		await fireEvent.mouseDown(menu);
-		await fireEvent.mouseDown(root);
+	test.each([false, true])('handles outside right clicks with closeOnBackdrop=%s without blocking the target event', async closeOnBackdrop => {
+		const removeListener = vi.spyOn(document, 'removeEventListener');
+		const { menu, closed, unmount } = renderMenu(100, 100, { closeOnBackdrop });
+		await fireEvent.contextMenu(menu);
 		expect(closed).not.toHaveBeenCalled();
-		await fireEvent.mouseDown(document.body);
+
+		const target = document.createElement('button');
+		document.body.appendChild(target);
+		let eventWasPrevented = false;
+		target.addEventListener('contextmenu', event => {
+			eventWasPrevented = event.defaultPrevented;
+			event.stopPropagation();
+		});
+		await fireEvent.pointerDown(target, { button: 2 });
+		await fireEvent.contextMenu(target, { button: 2 });
+		expect(closed).toHaveBeenCalledTimes(closeOnBackdrop ? 1 : 0);
+		if (closeOnBackdrop) expect(closed).toHaveBeenCalledWith(false);
+		expect(eventWasPrevented).toBe(false);
+		unmount();
+		expect(removeListener).toHaveBeenCalledWith('contextmenu', expect.any(Function), true);
+		await fireEvent.contextMenu(target, { button: 2 });
+		expect(closed).toHaveBeenCalledTimes(closeOnBackdrop ? 1 : 0);
+		target.remove();
+	});
+
+	test('closes only on outside clicks and removes the listener on unmount', async () => {
+		const removeListener = vi.spyOn(document, 'removeEventListener');
+		const { menu, root, closed, unmount } = renderMenu(100, 700);
+		await fireEvent.pointerDown(menu, { button: 0 });
+		await fireEvent.click(menu);
+		await fireEvent.pointerDown(root, { button: 0 });
+		await fireEvent.click(root);
+		expect(closed).not.toHaveBeenCalled();
+		await fireEvent.pointerDown(document.body, { button: 0 });
+		await fireEvent.click(document.body);
 		expect(closed).toHaveBeenCalledOnce();
 		unmount();
-		expect(removeListener).toHaveBeenCalledWith('mousedown', expect.any(Function));
-		await fireEvent.mouseDown(document.body);
+		expect(removeListener).toHaveBeenCalledWith('click', expect.any(Function));
+		await fireEvent.pointerDown(document.body, { button: 0 });
+		await fireEvent.click(document.body);
 		expect(closed).toHaveBeenCalledOnce();
 	});
 });

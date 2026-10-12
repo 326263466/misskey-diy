@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { comment, CommonPropsMinimum } from '@/server/web/views/_.js';
+import { CommonPropsMinimum } from '@/server/web/views/_.js';
 import type { MiMeta } from '@/models/Meta.js';
 
 export function InfoCardPage(props: CommonPropsMinimum<{
@@ -15,7 +15,6 @@ export function InfoCardPage(props: CommonPropsMinimum<{
 	return (
 		<>
 			{'<!DOCTYPE html>'}
-			{comment}
 			<html lang="zh-CN">
 				<head>
 					<meta charset="UTF-8" />

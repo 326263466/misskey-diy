@@ -3,18 +3,35 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { afterEach, beforeAll, describe, test, expect } from 'vitest';
+import * as fs from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterAll, afterEach, beforeAll, describe, test, expect, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ZipArchive } from 'archiver';
+import sharp from 'sharp';
+import { IsNull } from 'typeorm';
+import type { DataSource } from 'typeorm';
+import type { Config } from '@/config.js';
+import { CoreModule } from '@/core/CoreModule.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
-import { EmojiEntityService } from '@/core/entities/EmojiEntityService.js';
-import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { DownloadService } from '@/core/DownloadService.js';
+import { DriveService } from '@/core/DriveService.js';
 import { IdService } from '@/core/IdService.js';
-import { ModerationLogService } from '@/core/ModerationLogService.js';
-import { UtilityService } from '@/core/UtilityService.js';
+import { InternalStorageService } from '@/core/InternalStorageService.js';
+import { RoleService } from '@/core/RoleService.js';
 import { DI } from '@/di-symbols.js';
 import { GlobalModule } from '@/GlobalModule.js';
-import { EmojisRepository } from '@/models/_.js';
+import type { DriveFilesRepository, EmojisRepository, RoleAssignmentsRepository, RolesRepository, UsersRepository, UserProfilesRepository } from '@/models/_.js';
 import { MiEmoji } from '@/models/Emoji.js';
+import { MiDriveFileReference } from '@/models/DriveFileReference.js';
+import type { MiLocalUser } from '@/models/User.js';
+import { allSettled } from '@/misc/promise-tracker.js';
+import { QueueLoggerService } from '@/queue/QueueLoggerService.js';
+import { ImportCustomEmojisProcessorService } from '@/queue/processors/ImportCustomEmojisProcessorService.js';
+import AddEmojiEndpoint from '@/server/api/endpoints/admin/emoji/add.js';
+import { DriveFileLifecycle1791215330183 } from '../../migration/1791215330183-DriveFileLifecycle.js';
 
 describe('CustomEmojiService', () => {
 	let app: TestingModule;
@@ -22,21 +39,26 @@ describe('CustomEmojiService', () => {
 
 	let emojisRepository: EmojisRepository;
 	let idService: IdService;
+	let tempDir: string;
 
 	beforeAll(async () => {
+		tempDir = await fs.promises.mkdtemp(join(tmpdir(), 'misskey-emoji-test-'));
 		app = await Test
 			.createTestingModule({
 				imports: [
 					GlobalModule,
+					CoreModule,
 				],
 				providers: [
-					CustomEmojiService,
-					UtilityService,
-					IdService,
-					EmojiEntityService,
-					ModerationLogService,
-					GlobalEventService,
+					AddEmojiEndpoint,
+					ImportCustomEmojisProcessorService,
+					QueueLoggerService,
 				],
+			})
+			.overrideProvider(InternalStorageService)
+			.useFactory({
+				factory: (config: Config) => new InternalStorageService({ ...config, rootDir: tempDir }),
+				inject: [DI.config],
 			})
 			.compile();
 		app.enableShutdownHooks();
@@ -44,6 +66,185 @@ describe('CustomEmojiService', () => {
 		service = app.get<CustomEmojiService>(CustomEmojiService);
 		emojisRepository = app.get<EmojisRepository>(DI.emojisRepository);
 		idService = app.get<IdService>(IdService);
+	});
+
+	afterAll(async () => {
+		await allSettled();
+		await app?.close();
+		if (tempDir) await fs.promises.rm(tempDir, { recursive: true, force: true });
+	});
+
+	describe('表情上传与 ZIP 导入', () => {
+		let db: DataSource;
+		let drive: DriveService;
+		let files: DriveFilesRepository;
+		let users: UsersRepository;
+		let admin: MiLocalUser;
+		let regularUser: MiLocalUser;
+		let adminRoleId: string;
+		let add: AddEmojiEndpoint;
+		let importer: ImportCustomEmojisProcessorService;
+		const imagePath = fileURLToPath(new URL('../resources/192.png', import.meta.url));
+
+		beforeAll(async () => {
+			db = app.get<DataSource>(DI.db);
+			drive = app.get(DriveService);
+			files = app.get(DI.driveFilesRepository);
+			users = app.get(DI.usersRepository);
+			add = app.get(AddEmojiEndpoint);
+			importer = app.get(ImportCustomEmojisProcessorService);
+			const runner = db.createQueryRunner();
+			try {
+				await new DriveFileLifecycle1791215330183().installTracking(runner);
+			} finally {
+				await runner.release();
+			}
+
+			async function createUser() {
+				const id = idService.gen();
+				await users.insert({ id, username: `emoji${id}`, usernameLower: `emoji${id}` });
+				await app.get<UserProfilesRepository>(DI.userProfilesRepository).insert({ userId: id });
+				return await users.findOneByOrFail({ id }) as MiLocalUser;
+			}
+
+			admin = await createUser();
+			regularUser = await createUser();
+			adminRoleId = idService.gen();
+			await app.get<RolesRepository>(DI.rolesRepository).insert({
+				id: adminRoleId, updatedAt: new Date(), lastUsedAt: new Date(),
+				name: '表情测试管理员', description: '', isAdministrator: true,
+			});
+			await app.get<RoleAssignmentsRepository>(DI.roleAssignmentsRepository).insert({
+				id: idService.gen(), userId: admin.id, roleId: adminRoleId,
+			});
+			expect(await app.get(RoleService).isAdministrator(admin)).toBe(true);
+		});
+
+		afterEach(async () => {
+			await allSettled();
+			await emojisRepository.createQueryBuilder().delete().execute();
+			for (const file of await files.find()) await drive.deleteFileSync(file);
+		});
+
+		afterAll(async () => {
+			if (admin) await users.delete(admin.id);
+			if (regularUser) await users.delete(regularUser.id);
+			if (adminRoleId) await app.get<RolesRepository>(DI.rolesRepository).delete(adminRoleId);
+		});
+
+		async function createArchive(records?: Array<{ fileName: string; name: string; category: string }>, user = admin, sourcePath = imagePath) {
+			const archivePath = join(tempDir, `${idService.gen()}.zip`);
+			await new Promise<void>((resolve, reject) => {
+				const output = fs.createWriteStream(archivePath);
+				const archive = new ZipArchive({ zlib: { level: 0 } });
+				output.once('close', resolve);
+				output.once('error', reject);
+				archive.once('error', reject);
+				archive.pipe(output);
+				if (records) {
+					archive.append(JSON.stringify({
+						metaVersion: 2,
+						host: 'example.test',
+						exportedAt: new Date().toISOString(),
+						emojis: records.map(record => ({
+							fileName: record.fileName,
+							downloaded: true,
+							emoji: {
+								name: record.name,
+								category: record.category,
+								aliases: ['测试表情'],
+								license: 'CC0',
+								isSensitive: false,
+								localOnly: true,
+							},
+						})),
+					}), { name: 'meta.json' });
+				}
+				for (const fileName of new Set(records?.map(record => record.fileName) ?? ['emoji.png'])) {
+					archive.file(sourcePath, { name: fileName });
+				}
+				void archive.finalize().catch(reject);
+			});
+			const uploaded = await drive.addFile({ user, path: archivePath, name: 'emojis.zip', force: true });
+			// 只替换 HTTP 下载；上传、ZIP 解包、数据库写入和引用触发器均执行真实逻辑。
+			vi.spyOn(app.get(DownloadService), 'downloadUrl').mockImplementation(async (url, destination) => {
+				expect(url).toBe(uploaded.url);
+				await fs.promises.copyFile(archivePath, destination);
+				return { filename: 'emojis.zip' };
+			});
+			return { data: { fileId: uploaded.id, user: { id: admin.id } } } as Parameters<ImportCustomEmojisProcessorService['process']>[0];
+		}
+
+		test('普通用户的默认上传策略拒绝 ZIP，管理员可正常上传', async () => {
+			await expect(createArchive([], regularUser)).rejects.toThrow('Unallowed file type: application/zip');
+			expect(await files.count()).toBe(0);
+			const job = await createArchive([]);
+			const file = await files.findOneByOrFail({ id: job.data.fileId });
+			expect(file).toMatchObject({ userId: admin.id, type: 'application/zip' });
+		});
+
+		test('手动添加保留分类和文件引用，重复名称不会产生第二条表情', async () => {
+			const file = await drive.addFile({ user: admin, path: imagePath, name: 'manual.png' });
+			const request = { name: 'manual_emoji', fileId: file.id, category: '原分类', aliases: ['测试'] };
+			const result = await add.exec(request, admin, null);
+			const emoji = await emojisRepository.findOneByOrFail({ id: result.id });
+			expect(emoji).toMatchObject({ name: 'manual_emoji', category: '原分类', aliases: ['测试'], originalUrl: file.url });
+			expect(await db.getRepository(MiDriveFileReference).countBy({ fileId: file.id, sourceType: 'emoji', sourceId: emoji.id })).toBe(1);
+			await expect(add.exec(request, admin, null)).rejects.toMatchObject({ code: 'DUPLICATE_NAME' });
+			expect(await emojisRepository.countBy({ name: request.name, host: IsNull() })).toBe(1);
+		});
+
+		test.each(['奶龙思考', 'emoji-name'])('手动添加拒绝不受支持的表情名：%s', async name => {
+			const file = await drive.addFile({ user: admin, path: imagePath, name: 'invalid-name.png' });
+			await expect(add.exec({ name, fileId: file.id }, admin, null)).rejects.toMatchObject({ code: 'INVALID_PARAM' });
+			expect(await emojisRepository.count()).toBe(0);
+		});
+
+		test('导入 Misskey ZIP 时保留分类和别名、建立文件引用，跳过非法名称', async () => {
+			const records = [
+				{ fileName: 'first.png', name: 'import_first', category: '第一类' },
+				{ fileName: 'second.png', name: 'import_second', category: '第二类' },
+				{ fileName: 'invalid.png', name: '奶龙思考', category: '第三类' },
+			];
+			await importer.process(await createArchive(records));
+			const emojis = await emojisRepository.find({ order: { name: 'ASC' } });
+			expect(emojis).toHaveLength(2);
+			for (const [index, emoji] of emojis.entries()) {
+				expect(emoji).toMatchObject({
+					name: records[index].name,
+					category: records[index].category,
+					aliases: ['测试表情'],
+					license: 'CC0',
+					localOnly: true,
+				});
+				const file = await files.findOneByOrFail({ url: emoji.originalUrl });
+				expect(await db.getRepository(MiDriveFileReference).countBy({ fileId: file.id, sourceType: 'emoji', sourceId: emoji.id })).toBe(1);
+			}
+		});
+
+		test('只有图片而没有根目录 meta.json 的 ZIP 明确失败且不写入表情', async () => {
+			await expect(importer.process(await createArchive())).rejects.toThrow('meta.json not found in the archive');
+			expect(await emojisRepository.count()).toBe(0);
+		});
+
+		test('WebP 表情导入后释放临时文件，后续条目继续导入', async () => {
+			const webpPath = join(tempDir, 'source.webp');
+			await sharp(imagePath).webp().toFile(webpPath);
+			const job = await createArchive([
+				{ fileName: 'first.webp', name: 'webp_first', category: 'WebP' },
+				{ fileName: 'second.webp', name: 'webp_second', category: 'WebP' },
+			], admin, webpPath);
+			const uploadPaths: string[] = [];
+			const addFile = drive.addFile.bind(drive);
+			vi.spyOn(drive, 'addFile').mockImplementation(async options => {
+				uploadPaths.push(options.path);
+				return addFile(options);
+			});
+			await importer.process(job);
+			expect((await emojisRepository.find({ order: { name: 'ASC' } })).map(emoji => emoji.name)).toEqual(['webp_first', 'webp_second']);
+			expect(uploadPaths).toHaveLength(2);
+			for (const path of uploadPaths) await expect(fs.promises.stat(path)).rejects.toMatchObject({ code: 'ENOENT' });
+		});
 	});
 
 	describe('fetchEmojis', () => {

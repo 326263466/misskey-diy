@@ -292,6 +292,8 @@ export const role = async (user: UserToken, role: Partial<misskey.entities.Role>
 };
 
 interface UploadOptions {
+	isManaged?: boolean;
+	draftId?: string;
 	/** Optional, absolute path or relative from ./resources/ */
 	path?: string | URL;
 	/** The name to be used for the file upload */
@@ -304,7 +306,7 @@ interface UploadOptions {
  * Upload file
  * @param user User
  */
-export const uploadFile = async (user?: UserToken, { path, name, blob }: UploadOptions = {}): Promise<{
+export const uploadFile = async (user?: UserToken, { path, name, blob, isManaged, draftId }: UploadOptions = {}): Promise<{
 	status: number,
 	headers: Headers,
 	body: misskey.entities.DriveFile | null
@@ -323,6 +325,8 @@ export const uploadFile = async (user?: UserToken, { path, name, blob }: UploadO
 	);
 
 	formData.append('force', 'true');
+	if (isManaged !== undefined) formData.append('isManaged', String(isManaged));
+	if (draftId !== undefined) formData.append('draftId', draftId);
 	if (name) {
 		formData.append('name', name);
 	}
@@ -595,6 +599,8 @@ export async function testPaginationConsistency<Entity extends { id: string, cre
 
 export async function initTestDb(justBorrow = false, initEntities?: any[]) {
 	if (process.env.NODE_ENV !== 'test') throw new Error('NODE_ENV is not a test');
+	// SDK 构建也会重写编译配置；不能仅凭 NODE_ENV 决定是否允许清空数据库。
+	if (!/(^|[_-])test([_-]|$)/i.test(config.db.db)) throw new Error('Refusing to connect tests to a database not explicitly named for testing.');
 
 	const db = new DataSource({
 		type: 'postgres',

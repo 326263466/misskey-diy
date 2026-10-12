@@ -42,7 +42,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			await this.chatService.checkChatAvailability(me.id, 'write');
 
 			const message = await this.chatService.findMyMessageById(me.id, ps.messageId);
-			if (message == null) {
+			if (message == null || message.systemEvent != null) {
 				throw new ApiError(meta.errors.noSuchMessage);
 			}
 			await this.chatService.deleteMessage(message);

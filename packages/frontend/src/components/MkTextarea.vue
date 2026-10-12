@@ -16,7 +16,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			ref="inputEl"
 			v-model="v"
 			v-adaptive-border
-			:class="[$style.textarea, { _monospace: code, _mfm: !code }]"
+			:class="[$style.textarea, { [$style.withRows]: rows != null, _monospace: code, _mfm: !code }]"
+			:rows="rows"
 			:disabled="disabled"
 			:required="required"
 			:readonly="readonly"
@@ -32,6 +33,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@compositionend="onCompositionEnd"
 		></textarea>
 		<MkEmojiInputOverlay :inputElement="inputEl" :text="v" :disabled="code"/>
+		<slot name="counter">
+			<span class="_inputCounter" :class="{ _inputCounterOver: textLength > (getCounterMaxLength() ?? Infinity) }">{{ textLength }}<template v-if="getCounterMaxLength() != null"> / {{ getCounterMaxLength() }}</template></span>
+		</slot>
 	</div>
 	<div v-if="!collapsible || expanded" :class="$style.caption"><slot name="caption"></slot></div>
 	<button v-if="mfmPreview && (!collapsible || expanded)" style="font-size: 0.85em;" class="_textButton" type="button" @click="preview = !preview">{{ i18n.ts.preview }}</button>
@@ -44,7 +48,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useTemplateRef } from 'vue';
+import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useAttrs, useTemplateRef } from 'vue';
 import { debounce } from 'throttle-debounce';
 import type { SuggestionType } from '@/utility/autocomplete.js';
 import MkButton from '@/components/MkButton.vue';
@@ -68,10 +72,13 @@ const props = defineProps<{
 	debounce?: boolean;
 	manualSave?: boolean;
 	code?: boolean;
+	rows?: number;
+	maxRows?: number;
 	tall?: boolean;
 	pre?: boolean;
 	collapsible?: boolean;
 	collapsedPlaceholder?: string;
+	counterMaxLength?: number;
 }>();
 
 const emit = defineEmits<{
@@ -83,7 +90,9 @@ const emit = defineEmits<{
 }>();
 
 const { modelValue, autofocus } = toRefs(props);
+const attrs = useAttrs();
 const v = ref<string>(modelValue.value ?? '');
+const textLength = computed(() => Array.from(v.value).length);
 let lastUpdatedValue = v.value;
 const composing = ref(false);
 let collapseAfterComposition = false;
@@ -98,6 +107,28 @@ const inputEl = useTemplateRef('inputEl');
 const preview = ref(false);
 let autocompleteWorker: Autocomplete | null = null;
 
+// 输入框随内容精确增减高度，上限 maxRows（默认 10 行），超出后内部滚动。
+const DEFAULT_MAX_ROWS = 10;
+
+function adjustHeight() {
+	const el = inputEl.value;
+	if (el == null || el.offsetHeight === 0) return;
+	el.style.height = 'auto';
+	const style = window.getComputedStyle(el);
+	const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5;
+	const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+	const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+	const max = lineHeight * (props.maxRows ?? DEFAULT_MAX_ROWS) + padding + border;
+	el.style.height = `${Math.min(el.scrollHeight + border, max)}px`;
+}
+
+function getCounterMaxLength(): number | undefined {
+	// 上限只用于计数展示，保留既有 attrs 转发和输入限制行为。
+	const value = props.counterMaxLength ?? attrs.maxlength ?? attrs.maxLength ?? attrs['max-length'];
+	const limit = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '') ? Number(value) : NaN;
+	return Number.isInteger(limit) && limit >= 0 ? limit : undefined;
+}
+
 function focus() {
 	if (props.disabled) return;
 	if (!props.collapsible) {
@@ -105,7 +136,10 @@ function focus() {
 		return;
 	}
 	expanded.value = true;
-	nextTick(() => inputEl.value?.focus());
+	nextTick(() => {
+		inputEl.value?.focus();
+		adjustHeight();
+	});
 }
 
 function collapse() {
@@ -210,8 +244,12 @@ watch([changed, invalid], ([newChanged, newInvalid]) => {
 	emit('savingStateChange', newChanged, newInvalid);
 }, { immediate: true });
 
+watch(v, adjustHeight, { flush: 'post' });
+
 onMounted(() => {
 	if (props.collapsible) window.document.addEventListener('pointerdown', onOutsidePointerDown);
+
+	adjustHeight();
 
 	nextTick(() => {
 		if (autofocus.value) {
@@ -329,6 +367,10 @@ onUnmounted(() => {
 	}
 }
 
+.textarea.withRows {
+	min-height: 0;
+}
+
 .pre {
 	> .textarea {
 		white-space: pre;
@@ -341,7 +383,7 @@ onUnmounted(() => {
 
 .mfmPreview {
 	background: var(--MI_THEME-panel);
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	padding: var(--MI-cardPadding);
   border-radius: var(--MI-radius);
   box-sizing: border-box;

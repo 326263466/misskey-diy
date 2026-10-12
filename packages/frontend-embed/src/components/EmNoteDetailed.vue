@@ -63,7 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button style="display: block; width: 100%; margin: 4px 0;" class="_buttonGray _buttonRounded" @click="showContent = !showContent">{{ showContent ? i18n.ts._cw.hide : i18n.ts._cw.show }}</button>
 			</p>
 			<div v-show="appearNote.cw == null || showContent">
-				<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ i18n.ts.private }})</span>
+				<span v-if="appearNote.isHidden" :class="$style.hiddenContent"><i class="ti ti-lock" aria-hidden="true"></i><span>({{ i18n.ts.private }})</span></span>
 				<EmA v-if="appearNote.replyId" :class="$style.noteReplyTarget" :to="`/notes/${appearNote.replyId}`"><i class="ti ti-arrow-back-up"></i></EmA>
 				<EmMfm
 					v-if="appearNote.text"
@@ -100,11 +100,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<EmTime :time="appearNote.createdAt" mode="detail" colored/>
 				</EmA>
 			</div>
-			<EmReactionsViewer v-if="appearNote.reactionAcceptance !== 'likeOnly'" ref="reactionsViewer" :maxNumber="16" :note="appearNote">
-				<template #more>
-					<EmA :to="`/notes/${appearNote.id}`" :class="[$style.reactionOmitted]">{{ i18n.ts.more }}</EmA>
-				</template>
-			</EmReactionsViewer>
+			<EmReactionsViewer v-if="appearNote.reactionAcceptance !== 'likeOnly'" ref="reactionsViewer" :note="appearNote"/>
 			<a :href="`/notes/${appearNote.id}`" target="_blank" rel="noopener" :class="[$style.noteFooterButton, $style.footerButtonLink]" class="_button">
 				<i class="ti ti-arrow-back-up"></i>
 			</a>
@@ -114,7 +110,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</a>
 			<a :href="`/notes/${appearNote.id}`" target="_blank" rel="noopener" :class="[$style.noteFooterButton, $style.footerButtonLink]" class="_button">
 				<i v-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
-				<i v-else class="ti ti-plus"></i>
+				<i v-else class="ti ti-mood-happy"></i>
 				<p v-if="(appearNote.reactionAcceptance === 'likeOnly') && appearNote.reactionCount > 0" :class="$style.noteFooterButtonCount">{{ (appearNote.reactionCount) }}</p>
 			</a>
 			<a :href="`/notes/${appearNote.id}`" target="_blank" rel="noopener" :class="[$style.noteFooterButton, $style.footerButtonLink]" class="_button">
@@ -141,8 +137,8 @@ import EmAvatar from '@/components/EmAvatar.vue';
 import EmTime from '@/components/EmTime.vue';
 import EmUserName from '@/components/EmUserName.vue';
 import EmAcct from '@/components/EmAcct.vue';
-import { userPage } from '@/utils.js';
-import { notePage } from '@/utils.js';
+import { userPage } from '@@/js/user.js';
+import { notePage } from '@@/js/note.js';
 import { i18n } from '@/i18n.js';
 import { DI } from '@/di.js';
 import { shouldCollapsed } from '@@/js/collapsed.js';
@@ -281,7 +277,7 @@ const collapsed = ref(appearNote.value.cw == null && isLong);
 	padding: 4px 6px;
 	font-size: 80%;
 	line-height: 1;
-	border: solid 0.5px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: 4px;
 }
 
@@ -314,6 +310,27 @@ const collapsed = ref(appearNote.value.cw == null && isLong);
 	overflow-wrap: break-word;
 }
 
+.hiddenContent {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 68px;
+	margin: 4px 0;
+	padding: 16px 18px;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-panelHighlight);
+	color: var(--MI_THEME-accent);
+	font-size: 0.92em;
+	font-weight: 500;
+	line-height: 1.5;
+	box-sizing: border-box;
+
+	> i {
+		flex: 0 0 auto;
+		font-size: 1.15em;
+	}
+}
+
 .cw {
 	cursor: default;
 	display: block;
@@ -331,13 +348,6 @@ const collapsed = ref(appearNote.value.cw == null && isLong);
 	margin-left: 4px;
 	font-style: oblique;
 	color: var(--MI_THEME-renote);
-}
-
-.reactionOmitted {
-	display: inline-block;
-	margin-left: 8px;
-	opacity: .8;
-	font-size: 95%;
 }
 
 .poll {

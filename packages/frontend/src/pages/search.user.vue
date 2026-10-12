@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkRadios>
 	</div>
 
-	<MkUserList v-if="paginator" :key="`searchUsers:${key}`" :paginator="paginator"/>
+	<MkUserList v-if="paginator" :key="`searchUsers:${key}`" :paginator="paginator" pageEmpty/>
 </div>
 </template>
 

@@ -6,10 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader contentCard>
 	<div class="_pageBody">
-		<div v-if="initializing">
-			<MkLoading/>
-		</div>
-		<MkError v-else-if="error" @retry="initialize"/>
+		<div v-if="initializing" aria-busy="true"></div>
+		<MkError v-else-if="error" page @retry="initialize"/>
 		<div v-else-if="message">
 			<XMessage :message="message" :isSearchResult="true"/>
 		</div>

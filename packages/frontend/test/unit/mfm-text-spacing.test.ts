@@ -9,6 +9,7 @@ import * as mfm from 'mfm-js';
 import Mfm from '@/components/global/MkMfm.js';
 import { spaceMfmText } from '@/utility/mfm-text-spacing.js';
 
+vi.mock('@/router.js', () => ({ useRouter: vi.fn() }));
 vi.mock('@/components/global/MkEmoji.vue', () => ({ default: { props: ['emoji'], template: '<img :alt="emoji"/>' } }));
 vi.mock('@/components/global/MkCustomEmoji.vue', () => ({ default: { props: ['name'], template: '<img :alt="name"/>' } }));
 vi.mock('@/components/MkLink.vue', () => ({ default: { props: ['url'], template: '<a :href="url"><slot/></a>' } }));

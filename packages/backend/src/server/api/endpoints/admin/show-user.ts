@@ -11,6 +11,7 @@ import { RoleService } from '@/core/RoleService.js';
 import { RoleEntityService } from '@/core/entities/RoleEntityService.js';
 import { IdService } from '@/core/IdService.js';
 import { notificationRecieveConfig } from '@/models/json-schema/user.js';
+import { WalletService } from '@/core/WalletService.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -23,7 +24,7 @@ export const meta = {
 		type: 'object',
 		nullable: false, optional: false,
 		properties: {
-			checkinPoints: { type: 'integer', optional: false, nullable: false },
+			checkinPoints: { type: 'number', optional: false, nullable: false },
 			checkinMakeupCards: { type: 'integer', optional: false, nullable: false },
 			email: {
 				type: 'string',
@@ -208,6 +209,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private roleService: RoleService,
 		private roleEntityService: RoleEntityService,
 		private idService: IdService,
+		private walletService: WalletService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const [user, profile] = await Promise.all([
@@ -231,9 +233,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const roleAssigns = await this.roleService.getUserAssigns(user.id);
 			const roles = await this.roleService.getUserRoles(user.id);
+			const wallet = await this.walletService.show(user.id);
 
 			return {
-				checkinPoints: profile.checkinPoints,
+				checkinPoints: wallet.balance,
 				checkinMakeupCards: profile.checkinMakeupCards,
 				email: profile.email,
 				emailVerified: profile.emailVerified,

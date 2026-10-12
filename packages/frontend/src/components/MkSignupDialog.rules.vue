@@ -4,22 +4,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
+<div :class="$style.root">
 	<div :class="$style.banner">
-		<i class="ti ti-checklist"></i>
+		<i class="ti ti-checklist" aria-hidden="true"></i>
+		<div :class="$style.introduction">
+			<span>{{ i18n.ts.pleaseConfirmBelowBeforeSignup }}</span>
+			<strong>{{ i18n.ts.beSureToReadThisAsItIsImportant }}</strong>
+		</div>
 	</div>
 	<div class="_spacer _spacerCard">
-		<div class="_gaps_m">
-			<div v-if="instance.disableRegistration || instance.federation !== 'all'" class="_gaps_s">
-				<MkInfo v-if="instance.disableRegistration" warn>{{ i18n.ts.invitationRequiredToRegister }}</MkInfo>
-				<MkInfo v-if="instance.federation === 'specified'" warn>{{ i18n.ts.federationSpecified }}</MkInfo>
-				<MkInfo v-else-if="instance.federation === 'none'" warn>{{ i18n.ts.federationDisabled }}</MkInfo>
-			</div>
-
-			<div style="text-align: center;">
-				<div>{{ i18n.ts.pleaseConfirmBelowBeforeSignup }}</div>
-				<div style="font-weight: bold; margin-top: 0.5em;">{{ i18n.ts.beSureToReadThisAsItIsImportant }}</div>
-			</div>
+		<div :class="$style.sections">
+			<MkInfo v-if="instance.disableRegistration" warn>{{ i18n.ts.invitationRequiredToRegister }}</MkInfo>
 
 			<MkFolder v-if="availableServerRules" :defaultOpen="true">
 				<template #label>{{ i18n.ts.serverRules }}</template>
@@ -29,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<li v-for="item in instance.serverRules" :class="$style.rule"><div :class="$style.ruleText" v-html="item"></div></li>
 				</ol>
 
-				<MkSwitch :modelValue="agreeServerRules" style="margin-top: 16px;" @update:modelValue="updateAgreeServerRules">{{ i18n.ts.agree }}</MkSwitch>
+				<MkSwitch :modelValue="agreeServerRules" :class="$style.agree" @update:modelValue="updateAgreeServerRules">{{ i18n.ts.agree }}</MkSwitch>
 			</MkFolder>
 
 			<MkFolder v-if="availableTos || availablePrivacyPolicy" :defaultOpen="true">
@@ -40,19 +35,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="availablePrivacyPolicy"><a :href="instance.privacyPolicyUrl ?? undefined" class="_link" target="_blank">{{ i18n.ts.privacyPolicy }} <i class="ti ti-external-link"></i></a></div>
 				</div>
 
-				<MkSwitch :modelValue="agreeTosAndPrivacyPolicy" style="margin-top: 16px;" @update:modelValue="updateAgreeTosAndPrivacyPolicy">{{ i18n.ts.agree }}</MkSwitch>
+				<MkSwitch :modelValue="agreeTosAndPrivacyPolicy" :class="$style.agree" @update:modelValue="updateAgreeTosAndPrivacyPolicy">{{ i18n.ts.agree }}</MkSwitch>
 			</MkFolder>
 
 			<MkFolder :defaultOpen="true">
 				<template #label>{{ i18n.ts.basicNotesBeforeCreateAccount }}</template>
 				<template #suffix><i v-if="agreeNote" class="ti ti-check" style="color: var(--MI_THEME-success)"></i></template>
 
-				<a href="https://misskey-hub.net/docs/for-users/onboarding/warning/" class="_link" target="_blank">{{ i18n.ts.basicNotesBeforeCreateAccount }} <i class="ti ti-external-link"></i></a>
+				<a href="https://misskey-hub.net/docs/for-users/onboarding/warning/" class="_link" target="_blank" :aria-label="i18n.ts.basicNotesBeforeCreateAccount">{{ i18n.ts.basicNotesBeforeCreateAccount }} <i class="ti ti-external-link"></i></a>
 
-				<MkSwitch :modelValue="agreeNote" style="margin-top: 16px;" data-testid="signup-rules-notes-agree" @update:modelValue="updateAgreeNote">{{ i18n.ts.agree }}</MkSwitch>
+				<MkSwitch :modelValue="agreeNote" :class="$style.agree" data-testid="signup-rules-notes-agree" @update:modelValue="updateAgreeNote">{{ i18n.ts.agree }}</MkSwitch>
 			</MkFolder>
 
-			<div v-if="!agreed" style="text-align: center;">{{ i18n.ts.pleaseAgreeAllToContinue }}</div>
+			<div v-if="!agreed" :class="$style.continueHint">{{ i18n.ts.pleaseAgreeAllToContinue }}</div>
 
 			<div class="_buttonsCenter">
 				<MkButton inline rounded @click="emit('cancel')">{{ i18n.ts.cancel }}</MkButton>
@@ -148,12 +143,49 @@ async function updateAgreeNote(v: boolean) {
 </script>
 
 <style lang="scss" module>
+.root {
+	--MI-cardPadding: 14px;
+}
+
 .banner {
-	padding: 16px;
-	text-align: center;
-	font-size: 26px;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 12px var(--MI-cardPadding);
+	font-size: 0.9em;
+	line-height: 1.5;
 	background-color: var(--MI_THEME-accentedBg);
 	color: var(--MI_THEME-accent);
+
+	> i {
+		flex-shrink: 0;
+		margin-top: 2px;
+		font-size: 18px;
+	}
+}
+
+.introduction {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.sections {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.agree {
+	margin-top: 10px;
+}
+
+.continueHint {
+	text-align: center;
+	font-size: 0.85em;
+	line-height: 1.5;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .rules {
@@ -175,12 +207,12 @@ async function updateAgreeNote(v: boolean) {
 		top: calc(var(--MI-stickyTop, 0px) + 8px);
 		counter-increment: item;
 		content: counter(item);
-		width: 32px;
-		height: 32px;
-		line-height: 32px;
+		width: 24px;
+		height: 24px;
+		line-height: 24px;
 		background-color: var(--MI_THEME-accentedBg);
 		color: var(--MI_THEME-accent);
-		font-size: 13px;
+		font-size: 12px;
 		font-weight: bold;
 		align-items: center;
 		justify-content: center;
@@ -189,6 +221,6 @@ async function updateAgreeNote(v: boolean) {
 }
 
 .ruleText {
-	padding-top: 6px;
+	padding-top: 2px;
 }
 </style>

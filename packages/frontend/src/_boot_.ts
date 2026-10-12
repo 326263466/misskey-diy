@@ -7,9 +7,9 @@
 import 'vite/modulepreload-polyfill';
 
 if (import.meta.env.DEV) {
-	await import('@tabler/icons-webfont/dist/tabler-icons.scss');
+	await import('virtual:tabler-icons.css');
 } else {
-	await import('icons-subsetter/built/tabler-icons-frontend.css');
+	await import('icons-subsetter/built/tabler-icons.css');
 }
 
 import '@/style.scss';

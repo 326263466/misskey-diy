@@ -350,9 +350,14 @@ export async function getAccountMenu(opts: {
 	if (opts.withExtraOperation) {
 		menuItems.push({
 			type: 'link',
+			icon: 'ti ti-user',
 			text: i18n.ts.profile,
 			to: `/@${$i.username}`,
-			avatar: $i,
+		}, {
+			type: 'link',
+			icon: 'ti ti-wallet',
+			text: i18n.ts._wallet.title,
+			to: '/wallet',
 		}, {
 			type: 'link',
 			icon: 'ti ti-settings',
@@ -407,7 +412,7 @@ export async function getAccountMenu(opts: {
 			type: 'divider',
 		}, {
 			type: 'button',
-			icon: 'ti ti-power',
+			icon: 'ti ti-logout',
 			text: i18n.ts.logout,
 			action: async () => {
 				const { canceled } = await confirm({

@@ -35,6 +35,11 @@ const user = {
 
 let source: HTMLButtonElement;
 
+async function clickOutside(target: HTMLElement, options: MouseEventInit = {}) {
+	await fireEvent.pointerDown(target, { button: 0, ...options });
+	await fireEvent.click(target, options);
+}
+
 async function renderPopup(interactive?: boolean, profile = user) {
 	const close = vi.fn();
 	const view = render(MkUserPopup, {
@@ -109,7 +114,7 @@ describe('user popup interaction mode', () => {
 		expect(snapshot.description).toBe('Old bio');
 	});
 
-	test('preserves hover events, Escape and focus by default, but closes on outside clicks', async () => {
+	test('preserves hover events and focus, and supports Escape and outside clicks by default', async () => {
 		const view = await renderPopup();
 		const parentKeydown = vi.fn();
 		view.container.addEventListener('keydown', parentKeydown);
@@ -123,10 +128,11 @@ describe('user popup interaction mode', () => {
 
 		expect(view.emitted().mouseover).toHaveLength(1);
 		expect(view.emitted().mouseleave).toHaveLength(1);
-		expect(parentKeydown).toHaveBeenCalledTimes(1);
-		expect(view.close).not.toHaveBeenCalled();
+		expect(parentKeydown).not.toHaveBeenCalled();
+		expect(view.close).toHaveBeenCalledOnce();
+		view.close.mockClear();
 
-		await fireEvent.pointerDown(window.document.body);
+		await clickOutside(window.document.body);
 		expect(view.close).toHaveBeenCalledOnce();
 	});
 
@@ -152,7 +158,7 @@ describe('user popup interaction mode', () => {
 		await fireEvent.click(source);
 		expect(view.close).not.toHaveBeenCalled();
 
-		await fireEvent.pointerDown(window.document.body);
+		await clickOutside(window.document.body);
 		expect(view.close).toHaveBeenCalledTimes(1);
 	});
 
@@ -184,7 +190,7 @@ describe('user popup interaction mode', () => {
 		closeMenu();
 		await nextTick();
 		expect(mocks.cleanupMenu).toHaveBeenCalledTimes(1);
-		await fireEvent.pointerDown(window.document.body);
+		await clickOutside(window.document.body);
 		expect(view.close).toHaveBeenCalledTimes(1);
 	});
 
@@ -202,7 +208,7 @@ describe('user popup interaction mode', () => {
 		backdrop.classList.add('_modalBg');
 		view.container.appendChild(backdrop);
 
-		await fireEvent.pointerDown(backdrop, { clientX, clientY });
+		await clickOutside(backdrop, { clientX, clientY });
 		expect(view.close).not.toHaveBeenCalled();
 		closeMenu();
 		await nextTick();
@@ -219,7 +225,7 @@ describe('user popup interaction mode', () => {
 		backdrop.classList.add('_modalBg');
 		view.container.appendChild(backdrop);
 
-		await fireEvent.pointerDown(backdrop, { clientX: 199, clientY: 150 });
+		await clickOutside(backdrop, { clientX: 199, clientY: 150 });
 		expect(view.close).toHaveBeenCalledOnce();
 	});
 
@@ -234,7 +240,7 @@ describe('user popup interaction mode', () => {
 		menu.appendChild(item);
 		view.container.appendChild(menu);
 
-		await fireEvent.pointerDown(item, { clientX: 550, clientY: 150 });
+		await clickOutside(item, { clientX: 550, clientY: 150 });
 		expect(view.close).not.toHaveBeenCalled();
 		expect(mocks.cleanupMenu).not.toHaveBeenCalled();
 	});
@@ -317,7 +323,7 @@ describe('user popup interaction mode', () => {
 	test('removes document interaction listeners and disconnects observation on unmount', async () => {
 		const view = await renderPopup(true);
 		view.unmount();
-		await fireEvent.pointerDown(window.document.body);
+		await clickOutside(window.document.body);
 		const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
 		window.document.body.dispatchEvent(event);
 

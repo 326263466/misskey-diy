@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_pageBody">
+<div class="_pageBody" data-image-fade="off">
 	<div :class="$style.root" class="_gaps _panel _panelPadding">
 		<div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
 			<span>({{ i18n.ts._reversi.black }})</span>
@@ -16,17 +16,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<div style="overflow: clip; line-height: 28px;">
 			<div v-if="!iAmPlayer && !game.isEnded && turnUser">
-				<Mfm :key="'turn:' + turnUser.id" :text="i18n.tsx._reversi.turnOf({ name: turnUser.name ?? turnUser.username })" :plain="true" :customEmojis="turnUser.emojis"/>
+				<I18n :key="'turn:' + turnUser.id" :src="i18n.ts._reversi.turnOf" tag="span">
+					<template #name><MkUserName :user="turnUser" :nowrap="false"/></template>
+				</I18n>
 				<MkEllipsis/>
 			</div>
 			<div v-if="(logPos !== game.logs.length) && turnUser">
-				<Mfm :key="'past-turn-of:' + turnUser.id" :text="i18n.tsx._reversi.pastTurnOf({ name: turnUser.name ?? turnUser.username })" :plain="true" :customEmojis="turnUser.emojis"/>
+				<I18n :key="'past-turn-of:' + turnUser.id" :src="i18n.ts._reversi.pastTurnOf" tag="span">
+					<template #name><MkUserName :user="turnUser" :nowrap="false"/></template>
+				</I18n>
 			</div>
 			<div v-if="iAmPlayer && !game.isEnded && !isMyTurn">{{ i18n.ts._reversi.opponentTurn }}<MkEllipsis/><span style="margin-left: 1em; color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.tsx.remainingN({ n: opTurnTimerRmain }) }})</span></div>
 			<div v-if="iAmPlayer && !game.isEnded && isMyTurn"><span style="display: inline-block; font-weight: bold; animation: global-tada 1s linear infinite both;">{{ i18n.ts._reversi.myTurn }}</span><span style="margin-left: 1em; color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.tsx.remainingN({ n: myTurnTimerRmain }) }})</span></div>
 			<div v-if="game.isEnded && logPos == game.logs.length">
 				<template v-if="game.winner">
-					<Mfm :key="'won'" :text="i18n.tsx._reversi.won({ name: game.winner.name ?? game.winner.username })" :plain="true" :customEmojis="game.winner.emojis"/>
+					<I18n :key="'won'" :src="i18n.ts._reversi.won" tag="span">
+						<template #name><MkUserName :user="game.winner" :nowrap="false"/></template>
+					</I18n>
 					<span v-if="game.surrenderedUserId != null"> ({{ i18n.ts._reversi.surrendered }})</span>
 					<span v-if="game.timeoutUserId != null"> ({{ i18n.ts._reversi.timeout }})</span>
 				</template>
@@ -155,7 +161,7 @@ import { deepClone } from '@/utility/clone.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import * as sound from '@/utility/sound.js';
 import * as os from '@/os.js';
 import { confetti } from '@/utility/confetti.js';
@@ -596,7 +602,7 @@ $gap: 4px;
 	transition: border 0.25s ease, opacity 0.25s ease;
 
 	&.boardCell_empty {
-		border: solid 2px var(--MI_THEME-divider);
+		border: solid 2px var(--MI_THEME-divider); // divider-exempt: game board cell
 	}
 
 	&.boardCell_empty.boardCell_can {
@@ -605,7 +611,7 @@ $gap: 4px;
 	}
 
 	&.boardCell_empty.boardCell_myTurn {
-		border-color: var(--MI_THEME-divider);
+		border-color: var(--MI_THEME-divider); // divider-exempt: game board cell
 		opacity: 1;
 
 		&.boardCell_can {
@@ -623,7 +629,7 @@ $gap: 4px;
 	}
 
 	&.boardCell_isEnded {
-		border-color: var(--MI_THEME-divider);
+		border-color: var(--MI_THEME-divider); // divider-exempt: game board cell
 	}
 
 	&.boardCell_none {

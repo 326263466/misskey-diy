@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true" :loading="loading">
 	<div class="_pageBody">
 		<div v-if="tab === 'explore'" class="_gaps">
 			<MkFoldableSection>
@@ -25,15 +25,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkFoldableSection>
 		</div>
 		<div v-else-if="tab === 'liked'">
-			<MkPagination v-slot="{items}" :paginator="likedPostsPaginator">
+			<MkPagination v-slot="{items}" :paginator="likedPostsPaginator" pageEmpty>
 				<div :class="$style.items">
 					<MkGalleryPostPreview v-for="like in items" :key="like.id" :post="like.post" class="post"/>
 				</div>
 			</MkPagination>
 		</div>
 		<div v-else-if="tab === 'my'">
-			<MkA to="/gallery/new" class="_link _panel _panelPadding" style="display: block; margin-bottom: var(--MI-pageGap);"><i class="ti ti-plus"></i> {{ i18n.ts.postToGallery }}</MkA>
-			<MkPagination v-slot="{items}" :paginator="myPostsPaginator">
+			<MkA to="/gallery/new" class="_link" style="display: block; margin-bottom: var(--MI-pageGap);"><i class="ti ti-plus"></i> {{ i18n.ts.postToGallery }}</MkA>
+			<MkPagination v-slot="{items}" :paginator="myPostsPaginator" pageEmpty>
 				<div :class="$style.items">
 					<MkGalleryPostPreview v-for="post in items" :key="post.id" :post="post" class="post"/>
 				</div>
@@ -74,6 +74,7 @@ const myPostsPaginator = markRaw(new Paginator('i/gallery/posts', {
 const likedPostsPaginator = markRaw(new Paginator('i/gallery/likes', {
 	limit: 5,
 }));
+const loading = computed(() => tab.value === 'my' ? myPostsPaginator.fetching.value : tab.value === 'liked' ? likedPostsPaginator.fetching.value : recentPostsPaginator.fetching.value || popularPostsPaginator.fetching.value);
 
 watch(() => props.tag, () => {
 	if (tagsRef.value) tagsRef.value.tags.toggleContent(props.tag == null);

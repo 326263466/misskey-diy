@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialogEl"
+	:closeOnBackdrop="false"
 	:width="800"
 	:height="500"
 	:scroll="false"
@@ -15,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@closed="emit('closed')"
 >
 	<template #header>{{ i18n.ts.cropImage }}</template>
-	<div class="mk-cropper-dialog" :style="`--vw: 100%; --vh: 100%;`">
+	<div class="mk-cropper-dialog" data-image-fade="off" :style="`--vw: 100%; --vh: 100%;`">
 		<Transition name="fade">
 			<div v-if="loading" class="loading">
 				<MkLoading/>

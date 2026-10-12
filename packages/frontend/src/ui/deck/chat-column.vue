@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <XColumn :column="column" :isStacked="isStacked">
-	<template #header><i class="ti ti-message-dots" style="margin-right: 8px;"></i>{{ column.name || i18n.ts.chat }}</template>
+	<template #header><i class="ti ti-message-circle" style="margin-right: 8px;"></i><Mfm :text="column.name || i18n.ts.chat" :plain="true" :nowrap="true"/></template>
 
 	<div style="padding: 8px;" class="_gaps">
 		<MkInfo v-if="$i.policies.chatAvailability === 'readonly'">{{ i18n.ts._chat.chatIsReadOnlyForThisAccountOrServer }}</MkInfo>

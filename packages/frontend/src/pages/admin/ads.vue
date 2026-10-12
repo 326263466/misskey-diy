@@ -10,8 +10,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #label>{{ i18n.ts.state }}</template>
 		</MkSelect>
 
-		<MkLoading v-if="loading"/>
-		<MkError v-else-if="error" @retry="refresh"/>
+		<MkLoading v-if="loading" page/>
+		<MkError v-else-if="error" page @retry="refresh"/>
+		<MkResult v-else-if="ads.length === 0" type="empty" page/>
 		<div v-else>
 			<div v-for="ad in ads" class="_gaps_m" :class="$style.ad">
 				<MkAd v-if="ad.url" :key="ad.id" :specify="ad"/>
@@ -286,7 +287,7 @@ definePage(() => ({
 
 .ad {
 	padding-block: var(--MI-cardPadding);
-	border-top: 1px solid var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 
 	&:not(:last-child) {
 		margin-bottom: var(--MI-margin);

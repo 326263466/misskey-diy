@@ -9,12 +9,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.mainIcon"/>
 		<div :class="$style.mainFg">
 			<h1 :class="$style.mainTitle">
-				<!-- 背景色によってはロゴが見えなくなるのでとりあえず無効に -->
-				<!-- <img class="logo" v-if="instance.logoImageUrl" :src="instance.logoImageUrl"><span v-else class="text">{{ instanceName }}</span> -->
 				<MkA to="/">{{ instanceName }}</MkA>
 			</h1>
 			<div :class="$style.mainAbout">
-				<!-- eslint-disable-next-line vue/no-v-html -->
 				<div style="color: var(--MI_THEME-fgTransparentWeak);" v-html="instance.description || i18n.ts.headlineMisskey"></div>
 			</div>
 			<div v-if="instance.disableRegistration" :class="$style.mainWarn" class="_gaps_s">
@@ -92,6 +89,8 @@ function signup() {
 </script>
 
 <style lang="scss" module>
+@use '@/styles/card-header.scss';
+
 .root {
 	position: relative;
 	display: flex;
@@ -177,8 +176,9 @@ function signup() {
 }
 
 .tlHeader {
-	padding: 12px 16px;
-	border-bottom: solid 1px var(--MI_THEME-divider);
+	@include card-header.title;
+	padding-inline: 16px;
+	border-bottom: var(--MI-divider);
 }
 
 .tlBody {

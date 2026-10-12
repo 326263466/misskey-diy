@@ -27,7 +27,7 @@ vi.mock('@@/js/interval.js', () => ({ createVisibilityAwareInterval: mocks.inter
 
 type PartialNote = Misskey.entities.NotesShowPartialBulkResponse[number];
 const serverNotes = new Map<string, PartialNote>();
-const poll = mocks.interval.mock.calls[0][0] as () => void;
+const poll = () => (mocks.interval.mock.calls.at(-1)![0] as () => void)();
 
 function makeNote(id: string, overrides: Partial<Misskey.entities.Note> = {}): Misskey.entities.Note & PartialNote {
 	return {
@@ -39,6 +39,7 @@ function makeNote(id: string, overrides: Partial<Misskey.entities.Note> = {}): M
 		reactionAcceptance: null,
 		likeCount: 0, isLiked: false, likeUsers: [],
 		...overrides,
+		myReactions: overrides.myReactions ?? [],
 	};
 }
 
@@ -60,6 +61,7 @@ describe('note deletion capture', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
 		vi.clearAllMocks();
+		mocks.interval.mockReturnValue(() => {});
 		serverNotes.clear();
 		mocks.store.s.realtimeMode = true;
 		mocks.api.mockImplementation(async (_endpoint: string, { noteIds }: { noteIds: string[] }) =>
@@ -71,6 +73,53 @@ describe('note deletion capture', () => {
 		await vi.runOnlyPendingTimersAsync();
 		vi.useRealTimers();
 		vi.restoreAllMocks();
+	});
+
+	test('同一用户的不同表情独立计数与去重，撤回只移除指定项', () => {
+		const captured = captureNote(makeNote('multi-reactions', { myReactions: ['😀'], reactions: { '😀': 1 }, reactionCount: 1 }));
+		for (const reaction of ['🎉', '👍', '🎉', '👍']) {
+			noteEvents.emit('reacted:multi-reactions', { userId: 'self', reaction });
+		}
+		expect(captured.$note.myReactions).toEqual(['😀', '🎉', '👍']);
+		expect(captured.$note.reactionCount).toBe(3);
+		for (const reaction of ['😀', '🎉', '😀', '🎉']) {
+			noteEvents.emit('unreacted:multi-reactions', { userId: 'self', reaction });
+		}
+		expect(captured.$note.myReactions).toEqual(['👍']);
+		expect(captured.$note.reactions).toEqual({ '👍': 1 });
+		expect(captured.$note.reactionCount).toBe(1);
+	});
+
+	test('其他用户的不同表情独立撤回，重复事件不减去其他回应', () => {
+		const captured = captureNote(makeNote('other-reactions'));
+		for (const reaction of ['😀', '🎉', '😀', '🎉']) {
+			noteEvents.emit('reacted:other-reactions', { userId: 'other', reaction });
+		}
+		expect(captured.$note.reactionCount).toBe(2);
+		for (const reaction of ['😀', '🎉', '😀', '🎉']) {
+			noteEvents.emit('unreacted:other-reactions', { userId: 'other', reaction });
+		}
+		expect(captured.$note.reactions).toEqual({});
+		expect(captured.$note.reactionCount).toBe(0);
+		expect(captured.$note.myReactions).toEqual([]);
+	});
+
+	test('服务器快照同步自己的回应数组，撤回后的重复事件不会再减计数', async () => {
+		const source = makeNote('reaction-snapshot', { myReactions: ['😀'], reactions: { '😀': 2 }, reactionCount: 2 });
+		const captured = captureNote(source);
+		expect(captured.$note.myReactions).toEqual(['😀']);
+		await vi.advanceTimersByTimeAsync(50);
+		noteEvents.emit('unreacted:reaction-snapshot', { userId: 'self', reaction: '😀' });
+		serverNotes.set(source.id, { ...source, myReactions: [], reactions: { '😀': 1 } });
+		await vi.advanceTimersByTimeAsync(50);
+		noteEvents.emit('unreacted:reaction-snapshot', { userId: 'self', reaction: '😀' });
+		expect(captured.$note.myReactions).toEqual([]);
+		expect(captured.$note.reactions).toEqual({ '😀': 1 });
+		expect(captured.$note.reactionCount).toBe(1);
+		serverNotes.set(source.id, { ...source, myReactions: ['😀', '🎉'], reactions: { '😀': 2, '🎉': 1 } });
+		poll();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(captured.$note.myReactions).toEqual(['😀', '🎉']);
 	});
 
 	test('counts own replies and deep descendants once in every ancestor using repliesCount', async () => {
@@ -123,7 +172,7 @@ describe('note deletion capture', () => {
 	});
 
 	test('like state changes never modify reactions and stale polls cannot replace a saved like', async () => {
-		const source = makeNote('liked-note', { reactions: { heart: 7 }, reactionCount: 7, myReaction: 'heart' });
+		const source = makeNote('liked-note', { reactions: { heart: 7 }, reactionCount: 7, myReactions: ['❤'] });
 		const captured = captureNote(source);
 		let finish!: (notes: PartialNote[]) => void;
 		mocks.api.mockImplementationOnce(() => new Promise<PartialNote[]>(resolve => { finish = resolve; }));
@@ -136,7 +185,6 @@ describe('note deletion capture', () => {
 		expect(captured.$note.likeCount).toBe(1);
 		expect(captured.$note.isLiked).toBe(true);
 		expect(captured.$note.reactionCount).toBe(7);
-		expect(captured.$note.myReaction).toBe('heart');
 	});
 
 	test('ignores likes for another note', async () => {

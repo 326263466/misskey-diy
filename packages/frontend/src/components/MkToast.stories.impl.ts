@@ -47,6 +47,22 @@ export const Success = {
 	...Default,
 	args: {
 		message: i18n.ts.saved,
-		success: true,
+		status: 'success',
+	},
+} satisfies StoryObj<typeof MkToast>;
+
+export const Warning = {
+	...Default,
+	args: {
+		message: i18n.ts.somethingHappened,
+		status: 'warning',
+	},
+} satisfies StoryObj<typeof MkToast>;
+
+export const Error = {
+	...Default,
+	args: {
+		message: i18n.ts.somethingHappened,
+		status: 'error',
 	},
 } satisfies StoryObj<typeof MkToast>;

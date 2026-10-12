@@ -109,7 +109,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div class="_gaps_s" :class="$style.donation">
 						<div><b>{{ i18n.ts._serverSetupWizard.donationRequest }}</b></div>
 						<div>{{ i18n.ts._serverSetupWizard._donationRequest.text1 }}<br>{{ i18n.ts._serverSetupWizard._donationRequest.text2 }}<br>{{ i18n.ts._serverSetupWizard._donationRequest.text3 }}</div>
-						<MkLink target="_blank" url="https://misskey-hub.net/docs/donate/" style="margin: 0 auto;">{{ i18n.ts.learnMore }}</MkLink>
+						<MkLink target="_blank" url="https://misskey-hub.net/docs/donate/" class="_textAction" style="margin: 0 auto;">{{ i18n.ts.learnMore }}</MkLink>
 					</div>
 					<div class="_buttonsCenter">
 						<MkButton gradate large rounded data-testid="next" style="margin: 0 auto;" @click="finish">

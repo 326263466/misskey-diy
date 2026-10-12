@@ -27,7 +27,7 @@ function renderDialog(scheduled = false) {
 			directives: { tooltip: () => {}, panel: () => {} },
 			stubs: {
 				MkModalWindow: { emits: ['click', 'close', 'closed', 'esc'], template: '<div><header><slot name="header"/><slot name="headerActions"/></header><slot/></div>' },
-				MkTime: true, I18n: true, Mfm: true, MkAcct: true,
+				MkTime: true, I18n: true, Mfm: true, MkAcct: true, MkUserName: true,
 				MkError: { template: '<button @click="$emit(\'retry\')">Retry</button>' },
 				MkLoading: { template: '<div data-testid="loading-spinner"/>' },
 				MkResult: { props: ['text'], template: '<div data-testid="empty-result">{{ text }}</div>' },

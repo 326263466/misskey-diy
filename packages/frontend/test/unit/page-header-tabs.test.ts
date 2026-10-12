@@ -19,10 +19,12 @@ const tabs: Tab[] = [
 const variants = [
 	{
 		name: 'page header tabs',
-		render: (tab = 'recommended', items = tabs) => render(PageHeaderTabs, { props: { tab, tabs: items } }),
+		clickOnSelection: false,
+		render: (tab = 'recommended', items = tabs) => render(PageHeaderTabs, { props: { tab, tabs: items }, global: { directives: { tooltip: {} } } }),
 	},
 	{
 		name: 'shared tabs',
+		clickOnSelection: true,
 		render: (tab = 'recommended', items = tabs) => render(MkTabs, {
 			props: { tab, tabs: items },
 			global: { directives: { tooltip: {} } },
@@ -32,7 +34,7 @@ const variants = [
 
 afterEach(cleanup);
 
-describe.each(variants)('$name activation', ({ render: renderTabs }) => {
+describe.each(variants)('$name activation', ({ render: renderTabs, clickOnSelection }) => {
 	test('emits one selection for a primary mouse activation and keeps current-tab click actions', async () => {
 		const view = renderTabs();
 		const following = view.getByRole('button', { name: 'Following' });
@@ -43,7 +45,7 @@ describe.each(variants)('$name activation', ({ render: renderTabs }) => {
 		await fireEvent.mouseDown(following, { button: 0 });
 		await fireEvent.click(following);
 		expect(view.emitted()['update:tab']).toEqual([['following']]);
-		expect(view.emitted().tabClick).toEqual([['following'], ['following']]);
+		expect(view.emitted().tabClick).toEqual(clickOnSelection ? [['following'], ['following']] : [['following']]);
 	});
 
 	test.each([1, 2])('does not switch tabs on mouse button %i', async button => {
@@ -57,7 +59,7 @@ describe.each(variants)('$name activation', ({ render: renderTabs }) => {
 		const view = renderTabs();
 		await fireEvent.click(view.getByRole('button', { name: 'Following' }), { detail: 0 });
 		expect(view.emitted()['update:tab']).toEqual([['following']]);
-		expect(view.emitted().tabClick).toEqual([['following']]);
+		expect(view.emitted().tabClick).toEqual(clickOnSelection ? [['following']] : undefined);
 	});
 
 	test('runs a tab action only on click, preserving its event and preventing bubbling', async () => {
@@ -75,7 +77,7 @@ describe.each(variants)('$name activation', ({ render: renderTabs }) => {
 		expect(event.defaultPrevented).toBe(true);
 		expect(parentClick).not.toHaveBeenCalled();
 		expect(view.emitted()['update:tab']).toEqual([['following']]);
-		expect(view.emitted().tabClick).toEqual([['following']]);
+		expect(view.emitted().tabClick).toEqual(clickOnSelection ? [['following']] : undefined);
 	});
 
 	test('accepts consecutive selections without adding updates for the current tab', async () => {
@@ -86,6 +88,6 @@ describe.each(variants)('$name activation', ({ render: renderTabs }) => {
 		}
 		await fireEvent.click(view.getByRole('button', { name: 'Following' }));
 		expect(view.emitted()['update:tab']).toEqual([['following'], ['recommended'], ['following']]);
-		expect(view.emitted().tabClick).toEqual([['following'], ['recommended'], ['following'], ['following']]);
+		expect(view.emitted().tabClick).toEqual(clickOnSelection ? [['following'], ['recommended'], ['following'], ['following']] : [['following']]);
 	});
 });

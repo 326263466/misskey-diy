@@ -12,25 +12,41 @@ SPDX-License-Identifier: AGPL-3.0-only
 		aria-modal="true"
 		:aria-labelledby="messageId"
 		tabindex="-1"
+		@mouseenter="pauseCountdown"
+		@mouseleave="resumeCountdown"
 	>
-		<i class="ti" :class="[$style.icon, success ? 'ti-check' : 'ti-info-circle']" aria-hidden="true"></i>
+		<span :class="$style.icon" aria-hidden="true">
+			<MkSystemIcon :type="systemIconType" :class="$style.iconInner"/>
+		</span>
 		<div :id="messageId" class="_selectable" :class="$style.message">{{ message }}</div>
 	</div>
 </MkModal>
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, useId, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, useId, useTemplateRef } from 'vue';
 import MkModal from '@/components/MkModal.vue';
+import MkSystemIcon from '@/components/global/MkSystemIcon.vue';
 
-defineProps<{
+const props = withDefaults(defineProps<{
 	message: string;
-	success?: boolean;
-}>();
+	status?: 'info' | 'success' | 'warning' | 'error';
+}>(), {
+	status: 'info',
+});
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
 }>();
+
+const systemIconType = computed(() => {
+	switch (props.status) {
+		case 'success': return 'success' as const;
+		case 'warning': return 'warn' as const;
+		case 'error': return 'error' as const;
+		default: return 'info' as const;
+	}
+});
 
 const modal = useTemplateRef('modal');
 const container = useTemplateRef('container');
@@ -38,17 +54,33 @@ const messageId = useId();
 const returnFocusTo = window.document.activeElement instanceof HTMLElement ? window.document.activeElement : null;
 let timeout: number | undefined;
 let closing = false;
+let remaining = 2000;
+let countdownStartedAt = 0;
+
+function pauseCountdown() {
+	if (timeout == null || closing) return;
+	remaining = Math.max(0, remaining - (performance.now() - countdownStartedAt));
+	window.clearTimeout(timeout);
+	timeout = undefined;
+}
+
+function resumeCountdown() {
+	if (closing || timeout != null) return;
+	countdownStartedAt = performance.now();
+	timeout = window.setTimeout(dismiss, remaining);
+}
 
 function dismiss() {
 	if (closing) return;
 	closing = true;
 	window.clearTimeout(timeout);
+	timeout = undefined;
 	modal.value?.close();
 }
 
 onMounted(() => {
 	container.value?.focus({ preventScroll: true });
-	timeout = window.setTimeout(dismiss, 3000);
+	if (!container.value?.matches(':hover')) resumeCountdown();
 });
 
 onBeforeUnmount(() => {
@@ -79,10 +111,14 @@ onBeforeUnmount(() => {
 }
 
 .icon {
+	display: block;
 	flex-shrink: 0;
-	font-size: 32px;
-	line-height: 1;
-	color: var(--MI_THEME-accent);
+	width: 40px;
+}
+
+.iconInner {
+	display: block;
+	width: 100%;
 }
 
 .message {

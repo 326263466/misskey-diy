@@ -4,13 +4,13 @@
  */
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { createApp, defineComponent, h, nextTick, unref } from 'vue';
 import * as mfm from 'mfm-js';
 import type { App, Component, VNode } from 'vue';
 import type * as Misskey from 'misskey-js';
 import '@/style.scss';
-import '@tabler/icons-webfont/dist/tabler-icons.css';
+import 'virtual:tabler-icons.css';
 import MkPostForm from '@/components/MkPostForm.vue';
 import MkNotePreview from '@/components/MkNotePreview.vue';
 import { i18n } from '@/i18n.js';
@@ -18,7 +18,7 @@ import { updateDeviceKind } from '@/utility/device-kind.js';
 import { hotkeyDirective } from '@/directives/hotkey.js';
 
 const mocks = vi.hoisted(() => ({
-	misskeyApi: vi.fn(), popup: vi.fn(), apiWithDialog: vi.fn(),
+	misskeyApi: vi.fn(), popup: vi.fn(), apiWithDialog: vi.fn(), confirm: vi.fn(), toast: vi.fn(),
 	hashtags: '#前端开发 #设计', withHashtags: true,
 }));
 vi.hoisted(() => {
@@ -26,12 +26,12 @@ vi.hoisted(() => {
 	vi.stubGlobal('_VERSION_', 'test');
 	vi.stubGlobal('_DEV_', false);
 });
-vi.mock('misskey-js', () => ({ acct: { toString: (user: { username: string; host?: string }) => `${user.username}${user.host ? `@${user.host}` : ''}` } }));
+vi.mock('misskey-js', async importOriginal => ({ ...await importOriginal<typeof import('misskey-js')>(), acct: { toString: (user: { username: string; host?: string }) => `${user.username}${user.host ? `@${user.host}` : ''}` } }));
 vi.mock('insert-text-at-cursor', () => ({ default: vi.fn() }));
-vi.mock('@/events.js', () => ({ globalEvents: { on: vi.fn(), off: vi.fn(), emit: vi.fn() } }));
+vi.mock('@/events.js', () => ({ globalEvents: { on: vi.fn(), off: vi.fn(), emit: vi.fn() }, useGlobalEvent: vi.fn() }));
 vi.mock('@/os.js', () => ({
 	claimZIndex: () => 1000, popup: mocks.popup, apiWithDialog: mocks.apiWithDialog,
-	confirm: vi.fn(async () => ({ canceled: false })), popupMenu: vi.fn(),
+	confirm: mocks.confirm, toast: mocks.toast, popupMenu: vi.fn(), popupAsyncWithDialog: vi.fn(),
 }));
 vi.mock('@@/js/config.js', () => ({
 	host: 'example.com', hostname: 'example.com', url: 'https://example.com',
@@ -77,6 +77,7 @@ vi.mock('@/utility/mfm-function-picker.js', () => ({ mfmFunctionPicker: vi.fn() 
 vi.mock('@/utility/tour.js', () => ({ startTour: vi.fn() }));
 vi.mock('@/tips.js', () => ({ closeTip: vi.fn() }));
 vi.mock('@/utility/focus-trap.js', () => ({ focusTrap: () => ({ release: () => {} }) }));
+vi.mock('@/components/global/MkA.vue', () => ({ default: { template: '<a><slot/></a>' } }));
 vi.mock('@/components/MkNoteSimple.vue', () => ({ default: { render: () => null } }));
 vi.mock('@/components/MkPostFormAttaches.vue', () => ({ default: { render: () => null } }));
 vi.mock('@/components/MkUploaderItems.vue', () => ({ default: { render: () => null } }));
@@ -159,6 +160,7 @@ beforeEach(() => {
 	mocks.hashtags = `#前端开发 #设计 #${longTopic}`;
 	mocks.withHashtags = true;
 	mocks.misskeyApi.mockResolvedValue([]);
+	mocks.confirm.mockResolvedValue({ canceled: false });
 	mocks.popup.mockImplementation((component: Component, props: Record<string, unknown>, events: Record<string, (...args: unknown[]) => void>) => {
 		const host = document.createElement('div');
 		document.body.append(host);
@@ -183,6 +185,29 @@ afterEach(async () => {
 	document.body.style.cssText = '';
 	updateDeviceKind(null);
 	await settle();
+});
+
+test('频道与字数浮层不遮挡正文输入，频道按钮仍打开选择器', async () => {
+	const host = await mount(() => h(MkPostForm, { fixed: true, initialText: body }), 900, 'light');
+	const textarea = page.getByTestId('post-form-text').element() as HTMLTextAreaElement;
+	const channelButton = page.getByTestId('post-form-channel');
+	const row = channelButton.element().parentElement!;
+	const counter = textarea.parentElement!.querySelector<HTMLElement>('._inputCounter')!;
+	(channelButton.element() as HTMLButtonElement).focus();
+	await page.elementLocator(row).click({ force: true, position: { x: row.clientWidth / 2, y: row.clientHeight / 2 } });
+	expect(document.activeElement).toBe(textarea);
+	await userEvent.keyboard('abc');
+	expect(textarea.value).toBe(`${body}abc`);
+	textarea.blur();
+	await page.elementLocator(counter).click({ force: true });
+	expect(document.activeElement).toBe(textarea);
+	expect(mocks.popup).not.toHaveBeenCalled();
+	await channelButton.click();
+	const dialog = page.getByRole('dialog', { name: i18n.ts.selectChannel, exact: true });
+	await expect.element(dialog).toBeVisible();
+	const search = page.getByRole('textbox', { name: i18n.ts._channelPicker.searchPlaceholder }).element();
+	await expect.poll(() => document.activeElement).toBe(search);
+	expect(host.contains(document.activeElement)).toBe(false);
 });
 
 test.each([
@@ -343,4 +368,41 @@ test('reopening an ordinary composer starts clean despite previous local draft a
 	first.remove();
 	const reopened = await mount(() => h(MkPostForm, { fixed: true }), 390, 'light');
 	assertFresh(reopened);
+});
+
+test.each([
+	{ width: 900, theme: 'light' as const },
+	{ width: 320, theme: 'dark' as const },
+])('attached red packet has no wrapper padding and an accessible corner removal at $width px', async ({ width, theme }) => {
+	const packet = {
+		id: 'packet', senderId: 'self', kind: 'group', audience: 'public', mode: 'random',
+		coverId: 'classic', coverFileId: null, coverUrl: null, message: '祝你好运',
+		status: 'active', totalCoins: 10, count: 5, remainingCoins: 10, remainingCount: 5,
+		startsAt: null, expiresAt: '2099-01-01T00:00:00.000Z', serverTime: '2026-10-03T00:00:00.000Z', claimedCoins: null,
+	} as Misskey.entities.RedPacketsCreateResponse;
+	mocks.misskeyApi.mockImplementation(async (endpoint: string) => endpoint === 'red-packets/show' ? packet : []);
+	const host = await mount(() => h(MkPostForm, { fixed: true, initialText: body, initialRedPacket: packet }), width, theme);
+	const attachment = page.getByTestId('post-form-red-packet').element() as HTMLElement;
+	const cover = attachment.querySelector<HTMLElement>('[data-red-packet-cover]')!;
+	const remove = page.getByRole('button', { name: i18n.ts.remove, exact: true });
+	const attachmentBox = attachment.getBoundingClientRect();
+	const coverBox = cover.getBoundingClientRect();
+	const removeBox = remove.element().getBoundingClientRect();
+	expect(getComputedStyle(attachment).padding).toBe('0px');
+	expect(coverBox.left).toBe(attachmentBox.left);
+	expect(coverBox.right).toBe(attachmentBox.right);
+	expect(coverBox.height).toBe(attachmentBox.height);
+	expect(removeBox.top - coverBox.top).toBe(8);
+	expect(coverBox.right - removeBox.right).toBe(8);
+	expect(remove.element().textContent).toBe('');
+	expect(attachment.textContent).not.toContain(i18n.ts._redPacket.createdDescription);
+	assertNoOverflow(host);
+	await page.screenshot({ element: host, path: `../e2e/artifacts/component-browser/post-form-red-packet-${theme}-${width}.png` });
+	mocks.confirm.mockResolvedValueOnce({ canceled: true });
+	await remove.click();
+	await settle();
+	expect(mocks.misskeyApi.mock.calls.some(([endpoint]) => endpoint === 'red-packets/cancel')).toBe(false);
+	await remove.click();
+	await expect.element(page.getByTestId('post-form-red-packet')).not.toBeInTheDocument();
+	expect(mocks.misskeyApi).toHaveBeenCalledWith('red-packets/cancel', { redPacketId: packet.id });
 });

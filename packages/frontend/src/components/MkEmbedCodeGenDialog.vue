@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialogEl"
+	headerIcon="ti ti-code"
 	:width="1000"
 	:height="600"
 	:scroll="false"
@@ -13,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@close="cancel()"
 	@closed="emit('closed')"
 >
-	<template #header><i class="ti ti-code"></i> {{ i18n.ts._embedCodeGen.title }}</template>
+	<template #header>{{ i18n.ts._embedCodeGen.title }}</template>
 
 	<div :class="$style.embedCodeGenRoot">
 		<Transition
@@ -73,7 +74,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div :class="$style.embedCodeGenResultDescription">{{ i18n.ts._embedCodeGen.codeGeneratedDescription }}</div>
 					</div>
 					<div class="_gaps_s">
-						<MkCode :code="result" lang="html" :forceShow="true" :copyButton="false" :class="$style.embedCodeGenResultCode"/>
+						<MkCode :code="result" lang="html" :copyButton="false" :class="$style.embedCodeGenResultCode"/>
 						<MkButton :class="$style.embedCodeGenResultButtons" rounded primary @click="doCopy"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</MkButton>
 					</div>
 					<MkButton :class="$style.embedCodeGenResultButtons" rounded transparent @click="close">{{ i18n.ts.close }}</MkButton>

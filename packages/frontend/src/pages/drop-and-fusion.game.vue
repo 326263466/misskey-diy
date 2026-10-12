@@ -4,12 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_pageBody">
+<div class="_pageBody" data-image-fade="off">
 	<div :class="$style.root">
 		<div v-if="!gameLoaded" :class="$style.loadingScreen">
 			<div>{{ i18n.ts.loading }}<MkEllipsis/></div>
 		</div>
-		<!-- ↓に対してTransitionコンポーネントを使うと何故かkeyを指定していてもキャッシュが効かず様々なコンポーネントが都度再評価されてパフォーマンスが低下する -->
 		<div v-show="gameLoaded" class="_gaps_s">
 			<div v-if="readyGo === 'ready'" :class="$style.readyGo_bg">
 			</div>
@@ -69,7 +68,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-show="combo > 1" :class="$style.combo" :style="{ fontSize: `${100 + ((comboPrev - 2) * 15)}%` }">{{ i18n.tsx._bubbleGame.chain({ count: comboPrev }) }}</div>
 				</Transition>
 				<div v-if="!isGameOver && !replaying && readyGo !== 'ready'" :class="$style.dropperContainer" :style="{ left: dropperX + 'px' }">
-					<!--<img v-if="currentPick" src="/client-assets/drop-and-fusion/dropper.png" :class="$style.dropper" :style="{ left: dropperX + 'px' }"/>-->
 					<Transition
 						:enterActiveClass="$style.transition_picked_enterActive"
 						:leaveActiveClass="$style.transition_picked_leaveActive"

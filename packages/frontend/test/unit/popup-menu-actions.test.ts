@@ -6,11 +6,14 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/vue';
 import { nextTick } from 'vue';
-import { popupMenu, popups } from '@/os.js';
+import { contextMenu, popupMenu, popups } from '@/os.js';
+import { prefer } from '@/preferences.js';
+import { focusParent } from '@/utility/focus.js';
 import { hotkeyDirective } from '@/directives/hotkey.js';
 
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: vi.fn() }));
-vi.mock('@/preferences.js', () => ({ prefer: { s: {} } }));
+vi.mock('@/preferences.js', () => ({ prefer: { s: { contextMenu: 'app' } } }));
+vi.mock('@/utility/focus.js', () => ({ focusParent: vi.fn() }));
 vi.mock('@/utility/please-login.js', () => ({ pleaseLogin: vi.fn() }));
 vi.mock('@/utility/show-moved-dialog.js', () => ({ showMovedDialog: vi.fn() }));
 vi.mock('@/utility/touch.js', () => ({ isTouchUsing: false, lastPointerType: 'mouse' }));
@@ -44,6 +47,8 @@ function renderPopups() {
 
 beforeEach(() => {
 	popups.value = [];
+	prefer.s.contextMenu = 'app';
+	vi.mocked(focusParent).mockClear();
 	anchor = window.document.createElement('button');
 	window.document.body.appendChild(anchor);
 });
@@ -101,5 +106,62 @@ describe('popup menu action lifecycle', () => {
 		await fireEvent.click(view.getByRole('button', { name: 'Finish transition' }));
 		await closed;
 		expect(onAction).not.toHaveBeenCalled();
+	});
+});
+
+function contextEvent(shiftKey = false): PointerEvent {
+	return { currentTarget: anchor, target: anchor, shiftKey, preventDefault: vi.fn() } as unknown as PointerEvent;
+}
+
+describe('context menu replacement', () => {
+	test('replaces the existing menu, settles its caller and restores focus only when the new menu closes', async () => {
+		const firstCompleted = vi.fn();
+		const first = contextMenu([{ text: 'First', action: vi.fn() }], contextEvent()).then(firstCompleted);
+		await nextTick();
+		const old = popups.value[0];
+		const second = contextMenu([{ text: 'Second', action: vi.fn() }], contextEvent());
+		await first;
+		await nextTick();
+		expect(firstCompleted).toHaveBeenCalledOnce();
+		expect(popups.value).toHaveLength(1);
+		expect(popups.value[0].props.items[0].text).toBe('Second');
+		expect(focusParent).not.toHaveBeenCalled();
+		old.events.closed();
+		await nextTick();
+		expect(popups.value).toHaveLength(1);
+		expect(focusParent).not.toHaveBeenCalled();
+		popups.value[0].events.closed();
+		await second;
+		await nextTick();
+		expect(popups.value).toHaveLength(0);
+		expect(focusParent).toHaveBeenCalledExactlyOnceWith(anchor, true, false);
+	});
+
+	test('keeps only the last menu when several opens are queued in the same tick', async () => {
+		const first = contextMenu([{ text: 'First', action: vi.fn() }], contextEvent());
+		const second = contextMenu([{ text: 'Second', action: vi.fn() }], contextEvent());
+		const third = contextMenu([{ text: 'Third', action: vi.fn() }], contextEvent());
+		await Promise.all([first, second]);
+		await nextTick();
+		expect(popups.value).toHaveLength(1);
+		expect(popups.value[0].props.items[0].text).toBe('Third');
+		expect(focusParent).not.toHaveBeenCalled();
+		popups.value[0].events.closed(false);
+		await third;
+		await nextTick();
+		expect(focusParent).not.toHaveBeenCalled();
+	});
+
+	test.each(['native', 'appWithShift'] as const)('closes the previous app menu when the next right click uses %s', async mode => {
+		const closed = contextMenu([{ text: 'First', action: vi.fn() }], contextEvent());
+		await nextTick();
+		prefer.s.contextMenu = mode;
+		const event = contextEvent();
+		await contextMenu([{ text: 'Second', action: vi.fn() }], event);
+		await closed;
+		await nextTick();
+		expect(popups.value).toHaveLength(0);
+		expect(event.preventDefault).not.toHaveBeenCalled();
+		expect(focusParent).not.toHaveBeenCalled();
 	});
 });

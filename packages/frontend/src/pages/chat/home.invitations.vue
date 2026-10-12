@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div v-if="invitations.length > 0" class="_gaps_s">
 		<MkFolder v-for="invitation in invitations" :key="invitation.id" :defaultOpen="true">
 			<template #icon><i class="ti ti-users-group"></i></template>
-			<template #label>{{ invitation.room.name }}</template>
+			<template #label><Mfm :text="invitation.room.name" :plain="true" :nowrap="true" :author="invitation.room.owner"/></template>
 			<template #suffix><MkTime :time="invitation.createdAt"/></template>
 			<template #footer>
 				<div class="_buttons">
@@ -17,18 +17,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</template>
 
-			<div :class="$style.invitationBody">
-				<MkAvatar :user="invitation.room.owner" :class="$style.invitationBodyAvatar" link/>
-				<div style="flex: 1;" class="_gaps_s">
-					<MkUserName :user="invitation.room.owner"/>
-					<hr>
-					<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ invitation.room.description === '' ? i18n.ts.noDescription : invitation.room.description }}</div>
+				<div :class="$style.invitationBody">
+					<div class="_gaps_s">
+						<div style="color: var(--MI_THEME-fgTransparentWeak);"><Mfm v-if="invitation.room.description" :text="invitation.room.description" :plain="true" :author="invitation.room.owner"/><template v-else>{{ i18n.ts.noDescription }}</template></div>
+					</div>
 				</div>
-			</div>
 		</MkFolder>
 	</div>
-	<MkResult v-if="!fetching && invitations.length == 0" type="empty" :text="i18n.ts._chat.noInvitations"/>
-	<MkLoading v-if="fetching"/>
+	<MkResult v-if="!fetching && invitations.length === 0" type="empty" :text="i18n.ts._chat.noInvitations" page/>
 </div>
 </template>
 
@@ -85,11 +81,5 @@ onMounted(() => {
 .invitationBody {
 	display: flex;
 	align-items: center;
-}
-
-.invitationBodyAvatar {
-	margin-right: 12px;
-	width: 45px;
-	height: 45px;
 }
 </style>

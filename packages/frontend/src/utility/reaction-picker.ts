@@ -11,10 +11,7 @@ import { prefer } from '@/preferences.js';
 
 class ReactionPicker {
 	private reactionsRef = ref<string[]>([]);
-
-	constructor() {
-		// nop
-	}
+	private activePicker: { anchorElement: HTMLElement | null; close: () => void } | null = null;
 
 	public init() {
 		watch([prefer.r.emojiPaletteForReaction, prefer.r.emojiPalettes], ([newId, newPalettes]) => {
@@ -30,11 +27,31 @@ class ReactionPicker {
 		onChosen?: (reaction: string) => void,
 		onClosed?: () => void,
 	) {
+		if (this.activePicker) {
+			const sameAnchor = this.activePicker.anchorElement === anchorElement;
+			this.activePicker.close();
+			if (sameAnchor) return;
+		}
+
 		const anchorRef = shallowRef(anchorElement);
 		const targetNoteRef = ref(targetNote);
+		let dialog: InstanceType<typeof MkEmojiPickerDialog> | null = null;
+		let closing = false;
+		const picker = {
+			anchorElement,
+			close: () => {
+				closing = true;
+				dialog?.close();
+			},
+		};
+		this.activePicker = picker;
 
 		// defineAsyncComponentはiOS等でユーザーアクティベーションが失われてfocusが効かなくなるため使用不可
 		const { dispose } = popup(MkEmojiPickerDialog, {
+			ref: instance => {
+				dialog = instance as InstanceType<typeof MkEmojiPickerDialog> | null;
+				if (closing) dialog?.close();
+			},
 			anchorElement: anchorRef,
 			pinnedEmojis: this.reactionsRef,
 			asReactionPicker: true,
@@ -44,7 +61,10 @@ class ReactionPicker {
 				if (onChosen) onChosen(reaction);
 			},
 			closed: () => {
-				if (onClosed) onClosed();
+				if (this.activePicker === picker) {
+					this.activePicker = null;
+					onClosed?.();
+				}
 				dispose();
 			},
 		});

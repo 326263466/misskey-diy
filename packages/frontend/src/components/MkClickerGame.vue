@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
+<div data-image-fade="off">
 	<div v-if="game.ready" :class="$style.game">
 		<div :class="$style.cps" class="">{{ number(cps) }}cps</div>
 		<div :class="$style.count" class="" data-testid="count"><i class="ti ti-cookie" style="font-size: 70%;"></i> {{ number(cookies) }}</div>

@@ -5,7 +5,6 @@
 
 'use strict';
 
-// ブロックの中に入れないと、定義した変数がブラウザのグローバルスコープに登録されてしまい邪魔なので
 (async () => {
 	window.onerror = (e) => {
 		console.error(e);
@@ -22,15 +21,12 @@
 		return;
 	}
 
-	//#region Detect language
 	const supportedLangs = LANGS;
-	/** @type { string } */
 	let lang = localStorage.getItem('lang');
 	if (lang == null || !supportedLangs.includes(lang)) {
 		lang = 'zh-CN';
 	}
 
-	// for https://github.com/misskey-dev/misskey/issues/10202
 	if (lang == null || lang.toString == null || lang.toString() === 'null') {
 		console.error('invalid lang value detected!!!', typeof lang, lang);
 		lang = 'zh-CN';
@@ -38,9 +34,7 @@
 
 	localStorage.setItem('lang', lang);
 	document.documentElement.lang = 'zh-CN';
-	//#endregion
 
-	//#region Script
 	async function importAppScript() {
 		await import(CLIENT_ENTRY ? `/vite/${CLIENT_ENTRY.replace('scripts', lang)}` : '/vite/src/_boot_.ts')
 			.catch(async e => {
@@ -49,7 +43,6 @@
 			});
 	}
 
-	// タイミングによっては、この時点でDOMの構築が済んでいる場合とそうでない場合とがある
 	if (document.readyState !== 'loading') {
 		importAppScript();
 	} else {
@@ -57,7 +50,6 @@
 			importAppScript();
 		});
 	}
-	//#endregion
 
 	let isSafeMode = (localStorage.getItem('isSafeMode') === 'true');
 
@@ -70,14 +62,12 @@
 		}
 	}
 
-	//#region Theme
 	if (!isSafeMode) {
 		const theme = localStorage.getItem('theme');
 		if (theme) {
 			for (const [k, v] of Object.entries(JSON.parse(theme))) {
 				document.documentElement.style.setProperty(`--MI_THEME-${k}`, v.toString());
 
-				// HTMLの theme-color 適用
 				if (k === 'htmlThemeColor') {
 					for (const tag of document.head.children) {
 						if (tag.tagName === 'META' && tag.getAttribute('name') === 'theme-color') {
@@ -94,7 +84,6 @@
 	if (colorScheme) {
 		document.documentElement.style.setProperty('color-scheme', colorScheme);
 	}
-	//#endregion
 
 	const fontSize = localStorage.getItem('fontSize');
 	if (fontSize) {
@@ -122,13 +111,10 @@
 	}
 
 	async function renderError(code, details) {
-		// Cannot set property 'innerHTML' of null を回避
 		if (document.readyState === 'loading') {
 			await new Promise(resolve => window.addEventListener('DOMContentLoaded', resolve));
 		}
 
-		// A failed operation can leave os.waiting()'s interaction lock on the body.
-		// Replacing its contents does not remove attributes from the body itself.
 		document.body.removeAttribute('inert');
 
 		let messages = null;
@@ -137,7 +123,6 @@
 			messages = JSON.parse(bootloaderLocales);
 		}
 		if (!messages) {
-			// older version of misskey does not store bootloaderLocales, stores locale as a whole
 			const legacyLocale = localStorage.getItem('locale');
 			if (legacyLocale) {
 				const parsed = JSON.parse(legacyLocale);
@@ -237,8 +222,6 @@
 
 		body,
 		html {
-			/* アプリ側の style.scss が html/body に width/height: 100% と overflow: clip を当てているため、
-			   border-box にしないと padding のぶんだけ溢れてスクロールバーが出る */
 			box-sizing: border-box;
 			width: 100%;
 			height: auto;
@@ -261,7 +244,8 @@
 
 		.button-big {
 			background: linear-gradient(90deg, rgb(134, 179, 0), rgb(74, 179, 0));
-			line-height: 50px;
+			padding: 8px 24px;
+			line-height: 1.4;
 		}
 
 		.button-big:hover {
@@ -281,7 +265,7 @@
 			color: #222;
 			font-weight: bold;
 			font-size: 1.2em;
-			padding: 12px;
+			padding: 0;
 		}
 
 		.button-label-small {

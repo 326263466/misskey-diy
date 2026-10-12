@@ -10,7 +10,7 @@ import type { StoryObj } from '@storybook/vue3';
 
 const packet = {
 	id: 'packet-example', senderId: 'author-example', roomId: null, kind: 'group' as const, audience: 'public' as const, coverId: 'classic' as const, mode: 'random' as const, message: '', totalCoins: 100, count: 5,
-	remainingCoins: 100, remainingCount: 5, expiresAt: '2099-01-01T00:00:00.000Z', status: 'active' as const, coverFileId: null, coverUrl: null, claimedCoins: null,
+	remainingCoins: 100, remainingCount: 5, expiresAt: '2099-01-01T00:00:00.000Z', status: 'active' as const, coverFileId: null, coverUrl: null, startsAt: null, serverTime: '2026-10-03T00:00:00.000Z', password: null, claimedCoins: null,
 };
 
 export const Default = {

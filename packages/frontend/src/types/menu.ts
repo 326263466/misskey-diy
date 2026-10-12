@@ -73,6 +73,7 @@ export interface MenuUser extends MenuBase {
 
 export interface MenuSwitch extends TextMenuBase {
 	type: 'switch';
+	tooltip?: Text;
 	ref: Ref<boolean>;
 	disabled?: boolean | Ref<boolean>;
 }

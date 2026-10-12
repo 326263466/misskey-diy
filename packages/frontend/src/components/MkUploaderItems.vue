@@ -20,7 +20,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.itemActionWrapper">
 				<MkButton :iconOnly="true" rounded @click="emit('showMenu', displayItem.item, $event)"><i class="ti ti-dots"></i></MkButton>
 			</div>
-			<div :class="$style.itemThumbnail" :style="{ backgroundImage: `url(${ displayItem.item.thumbnail })` }" @click="onThumbnailClick(displayItem.item, $event)"></div>
+			<div class="_imageContainer" :class="$style.itemThumbnail" @click="onThumbnailClick(displayItem.item, $event)">
+				<img v-if="displayItem.item.thumbnail" class="_imageBackground" :src="displayItem.item.thumbnail" alt="" style="object-fit: contain;"/>
+			</div>
 			<div :class="$style.itemBody">
 				<div>
 					<i v-if="displayItem.item.isSensitive" style="color: var(--MI_THEME-warn); margin-right: 0.5em;" class="ti ti-eye-exclamation"></i>
@@ -198,9 +200,6 @@ async function onThumbnailClick(item: UploaderItem, ev: PointerEvent) {
 	width: 70px;
 	height: 70px;
 	background-color: var(--MI_THEME-bg);
-	background-size: contain;
-	background-position: center;
-	background-repeat: no-repeat;
 	border-radius: 6px;
 }
 

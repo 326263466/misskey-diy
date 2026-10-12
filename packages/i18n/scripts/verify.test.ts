@@ -35,17 +35,17 @@ function runVerifier(locales: Record<string, unknown>, languages: string[] = [])
 
 test('loads the named locales export and checks every language by default', () => {
 	const result = runVerifier({
-		'ja-JP': { greeting: 'こんにちは {name}' },
+		'zh-CN': { greeting: '你好 {name}' },
 		'en-US': { greeting: 'Hello {name}' },
-		'zh-CN': { greeting: '你好' },
+		'ja-JP': { greeting: 'こんにちは' },
 	});
 	assert.equal(result.status, 1);
-	assert.deepEqual(result.errors, [{ type: 'missing_parameter', lang: 'zh-CN', tree: 'greeting', data: { parameter: 'name' } }]);
+	assert.deepEqual(result.errors, [{ type: 'missing_parameter', lang: 'ja-JP', tree: 'greeting', data: { parameter: 'name' } }]);
 });
 
 test('reports missing and unexpected parameters in nested translations', () => {
 	const result = runVerifier({
-		'ja-JP': { greeting: { text: '{name}' } },
+		'zh-CN': { greeting: { text: '{name}' } },
 		'en-US': { greeting: { text: '{user}' } },
 	});
 	assert.equal(result.status, 1);
@@ -57,7 +57,7 @@ test('reports missing and unexpected parameters in nested translations', () => {
 
 test('rejects parameters added to text that has none in the source locale', () => {
 	const result = runVerifier({
-		'ja-JP': { greeting: 'こんにちは' },
+		'zh-CN': { greeting: '你好' },
 		'en-US': { greeting: 'Hello {name}' },
 	});
 	assert.equal(result.status, 1);
@@ -66,9 +66,9 @@ test('rejects parameters added to text that has none in the source locale', () =
 
 test('allows fallback text and repeated or reordered parameters', () => {
 	const result = runVerifier({
-		'ja-JP': { missing: '{fallback}', nested: { missing: '{fallback}', text: '{first} {last}' } },
-		'en-US': { missing: '{fallback}', nested: { missing: '{fallback}', text: '{last} {first} {first}' } },
 		'zh-CN': { missing: '{fallback}', nested: { missing: '{fallback}', text: '{first} {last}' } },
+		'en-US': { missing: '{fallback}', nested: { missing: '{fallback}', text: '{last} {first} {first}' } },
+		'ja-JP': { missing: '{fallback}', nested: { missing: '{fallback}', text: '{first} {last}' } },
 	});
 	assert.equal(result.status, 0);
 	assert.deepEqual(result.errors, []);
@@ -76,16 +76,16 @@ test('allows fallback text and repeated or reordered parameters', () => {
 
 test('rejects keys still missing after applying the fallback chain', () => {
 	const result = runVerifier({
-		'ja-JP': { nested: { text: '{name}' } },
-		'zh-CN': { nested: {} },
-	}, ['zh-CN']);
+		'zh-CN': { nested: { text: '{name}' } },
+		'ja-JP': { nested: {} },
+	}, ['ja-JP']);
 	assert.equal(result.status, 1);
-	assert.deepEqual(result.errors, [{ type: 'missing_key', lang: 'zh-CN', tree: 'nested.text', data: {} }]);
+	assert.deepEqual(result.errors, [{ type: 'missing_key', lang: 'ja-JP', tree: 'nested.text', data: {} }]);
 });
 
 test('reports structural mismatches instead of skipping nested translations', () => {
 	const result = runVerifier({
-		'ja-JP': { nested: { text: '{name}' }, text: '{name}' },
+		'zh-CN': { nested: { text: '{name}' }, text: '{name}' },
 		'en-US': { nested: '{name}', text: { nested: '{name}' } },
 	});
 	assert.equal(result.status, 1);
@@ -97,16 +97,16 @@ test('reports structural mismatches instead of skipping nested translations', ()
 
 test('checks only explicitly requested languages', () => {
 	const result = runVerifier({
-		'ja-JP': { greeting: '{name}' },
+		'zh-CN': { greeting: '{name}' },
 		'en-US': { greeting: 'Hello {name}' },
-		'zh-CN': { greeting: '你好' },
+		'ja-JP': { greeting: 'こんにちは' },
 	}, ['en-US']);
 	assert.equal(result.status, 0);
 	assert.deepEqual(result.errors, []);
 });
 
 test('rejects unknown requested languages instead of silently doing no checks', () => {
-	const result = runVerifier({ 'ja-JP': { greeting: '{name}' } }, ['en-XX']);
+	const result = runVerifier({ 'zh-CN': { greeting: '{name}' } }, ['en-XX']);
 	assert.equal(result.status, 1);
 	assert.deepEqual(result.errors, [{ type: 'unknown_language', lang: 'en-XX', tree: '', data: {} }]);
 });

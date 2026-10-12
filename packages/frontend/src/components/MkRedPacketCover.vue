@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <span :class="[$style.root, { [$style.custom]: imageUrl && !failed }]" data-red-packet-cover>
 	<img v-if="imageUrl && !failed" :src="imageUrl" alt="" :class="$style.image" @error="failed = true">
 	<span :class="$style.pattern" aria-hidden="true"></span>
-	<span :class="$style.seal" aria-hidden="true"><i class="ti ti-gift"></i></span>
+	<span :class="$style.seal" aria-hidden="true"><i class="mi-red-packet"></i></span>
 	<span :class="$style.content"><strong>{{ message || i18n.ts._redPacket.defaultMessage }}</strong><slot></slot></span>
 </span>
 </template>
@@ -29,8 +29,8 @@ watch(() => props.imageUrl, () => { failed.value = false; });
 .root:hover::after { animation: sheen 850ms ease-out; }
 .seal { display: grid; place-items: center; flex: 0 0 54px; height: 54px; border: 1px solid currentColor; border-radius: 50%; box-shadow: 0 0 0 5px color-mix(in srgb, var(--MI-redPacketGold) 12%, transparent); font-size: 26px; transition: transform 220ms ease; }
 .root:hover .seal { transform: rotate(-8deg) scale(1.04); }
-.content { min-width: 0; display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; text-align: start; }
-.content strong { font-size: 1.05em; }
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; text-align: start; }
+.content strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 1.05em; }
 .image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -3; }
 .custom { background: transparent; }
 .custom .pattern { background: linear-gradient(90deg, color-mix(in srgb, var(--MI-redPacketEnd) 90%, transparent), color-mix(in srgb, var(--MI-redPacketEnd) 65%, transparent)); z-index: -2; }

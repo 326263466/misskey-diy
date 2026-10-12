@@ -1,10 +1,10 @@
 ---
 name: working-on-frontend
-description: Use whenever editing or adding code under `packages/frontend/`, Vue SFCs, SCSS Modules, Storybook stories, or frontend-facing UI text in `locales/ja-JP.yml`.
+description: 编辑 packages/frontend/、Vue SFC、SCSS、Storybook 或 locales/zh-CN.yml 中的前端内容时使用。
 ---
 
-# working-on-frontend
+# 前端开发
 
-This is the Codex entrypoint for the canonical Misskey frontend skill.
+这是 Misskey 前端规范入口。
 
-Read and follow [.claude/skills/working-on-frontend/SKILL.md](../../../.claude/skills/working-on-frontend/SKILL.md). Treat that file and its `references/` directory as the source of truth.
+阅读并遵循 [.claude/skills/working-on-frontend/SKILL.md](../../../.claude/skills/working-on-frontend/SKILL.md)，具体 reference 按任务需要读取。

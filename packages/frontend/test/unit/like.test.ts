@@ -16,7 +16,7 @@ vi.mock('@/utility/show-moved-dialog.js', () => ({ showMovedDialog: mocks.showMo
 
 function makeNote(overrides: Partial<Misskey.entities.Note> = {}): Misskey.entities.Note {
 	return {
-		id: 'post', reactions: { '\u2764': 7 }, myReaction: '\u2764', reactionCount: 7,
+		id: 'post', reactions: { '\u2764': 7 }, myReactions: ['\u2764'], reactionCount: 7,
 		...overrides,
 	} as Misskey.entities.Note;
 }

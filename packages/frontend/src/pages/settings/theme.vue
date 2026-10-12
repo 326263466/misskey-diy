@@ -372,7 +372,7 @@ definePage(() => ({
 }));
 </script>
 
-<style module>
+<style lang="scss" module>
 .themeSelect {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
@@ -394,7 +394,7 @@ definePage(() => ({
 	display: block;
 	overflow: clip;
 	box-sizing: border-box;
-	border: 2px solid var(--MI_THEME-divider);
+	border: 2px solid var(--MI_THEME-divider); // divider-exempt: selectable tile outline
 	border-radius: var(--MI-radius);
 }
 
@@ -412,7 +412,7 @@ definePage(() => ({
 	width: calc(100% + 2px);
 	height: auto;
 	margin-left: -1px;
-	border-bottom: 1px solid var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .themeItemCaption {
@@ -420,6 +420,7 @@ definePage(() => ({
 	padding: 8px 12px;
 	text-align: center;
 	font-size: 80%;
+	overflow-wrap: anywhere;
 }
 </style>
 
@@ -643,7 +644,7 @@ definePage(() => ({
 
 	> .sync {
 		padding: 14px 16px;
-		border-top: solid 0.5px var(--MI_THEME-divider);
+		border-top: var(--MI-divider);
 	}
 }
 </style>

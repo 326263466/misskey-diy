@@ -5,8 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div ref="root" :class="['chromatic-ignore', $style.root, { [$style.cover]: cover }]" :title="title ?? ''">
-	<canvas v-show="hide" key="canvas" ref="canvas" :class="$style.canvas" :width="canvasWidth" :height="canvasHeight" :title="title ?? undefined" tabindex="-1"></canvas>
-	<img v-show="!hide" key="img" ref="img" :height="imgHeight ?? undefined" :width="imgWidth ?? undefined" :class="$style.img" :src="src ?? undefined" :title="title ?? undefined" :alt="alt ?? undefined" loading="eager" decoding="async" tabindex="-1"/>
+	<canvas key="canvas" ref="canvas" :class="[$style.canvas, { [$style.transparent]: !hide }]" :width="canvasWidth" :height="canvasHeight" :title="title ?? undefined" tabindex="-1"></canvas>
+	<img key="img" ref="img" data-image-fade="managed" :height="imgHeight ?? undefined" :width="imgWidth ?? undefined" :class="[$style.img, { [$style.concealed]: hide }]" :src="source ?? undefined" :title="title ?? undefined" :alt="alt ?? undefined" loading="eager" decoding="async" tabindex="-1" @error="loaded = false"/>
 </div>
 </template>
 
@@ -48,6 +48,8 @@ const canvasPromise = new Promise<WorkerMultiDispatch | HTMLCanvasElement>(resol
 import { computed, nextTick, onMounted, onUnmounted, shallowRef, watch, ref } from 'vue';
 import { v4 as uuid } from 'uuid';
 import { render } from 'buraha';
+import { waitForImageReveal } from '@@/js/image-fade.js';
+import { useImagePreload } from '@@/js/image-visibility.js';
 
 const props = withDefaults(defineProps<{
 	src?: string | null;
@@ -59,6 +61,7 @@ const props = withDefaults(defineProps<{
 	cover?: boolean;
 	forceBlurhash?: boolean;
 	onlyAvgColor?: boolean; // 軽量化のためにBlurhashを使わずに平均色だけを描画
+	loading?: 'lazy' | 'eager';
 }>(), {
 	src: null,
 	alt: '',
@@ -68,12 +71,15 @@ const props = withDefaults(defineProps<{
 	cover: true,
 	forceBlurhash: false,
 	onlyAvgColor: false,
+	loading: 'lazy',
 });
 
 const viewId = uuid();
 const canvas = shallowRef<HTMLCanvasElement>();
-const root = shallowRef<HTMLDivElement>();
+const root = shallowRef<HTMLDivElement | null>(null);
 const img = shallowRef<HTMLImageElement>();
+const preload = useImagePreload(root, () => props.loading === 'eager');
+const source = computed(() => preload.value ? props.src : null);
 const loaded = ref(false);
 const canvasWidth = ref(64);
 const canvasHeight = ref(64);
@@ -81,20 +87,6 @@ const imgWidth = ref(props.width);
 const imgHeight = ref(props.height);
 const bitmapTmp = ref<CanvasImageSource | undefined>();
 const hide = computed(() => !loaded.value || props.forceBlurhash);
-
-function waitForDecode() {
-	if (props.src != null && props.src !== '') {
-		nextTick()
-			.then(() => img.value?.decode())
-			.then(() => {
-				loaded.value = true;
-			}, error => {
-				console.log('Error occurred during decoding image', img.value, error);
-			});
-	} else {
-		loaded.value = false;
-	}
-}
 
 watch([() => props.width, () => props.height, root], () => {
 	const ratio = props.width / props.height;
@@ -182,8 +174,39 @@ canvasPromise.then(work => {
 	draw();
 });
 
-watch(() => props.src, () => {
-	waitForDecode();
+watch(source, async (currentSource, _previous, onCleanup) => {
+	loaded.value = false;
+	if (!currentSource) return;
+	let active = true;
+	let stopListening: (() => void) | undefined;
+	onCleanup(() => {
+		active = false;
+		stopListening?.();
+	});
+	await nextTick();
+	const element = img.value;
+	if (!active || element == null) return;
+	let decoding = false;
+	const reveal = async () => {
+		if (decoding) return;
+		decoding = true;
+		try {
+			await element.decode();
+		} catch {
+			// decode 可能先于 load 失败；保留 load 回调，让可显示的格式继续揭示。
+		}
+		decoding = false;
+		if (!active || !element.complete || element.naturalWidth === 0) return;
+		if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await waitForImageReveal(element);
+		if (active && source.value === currentSource && img.value === element && element.complete && element.naturalWidth > 0) {
+			loaded.value = true;
+		}
+	};
+	element.addEventListener('load', reveal);
+	stopListening = () => element.removeEventListener('load', reveal);
+	await reveal();
+}, {
+	immediate: true,
 });
 
 watch(() => props.hash, () => {
@@ -195,7 +218,6 @@ onMounted(() => {
 	if (bitmapTmp.value) {
 		drawImage(bitmapTmp.value);
 	}
-	waitForDecode();
 });
 
 onUnmounted(() => {
@@ -226,13 +248,31 @@ onUnmounted(() => {
 	display: block;
 	width: 100%;
 	height: 100%;
+	transition: opacity 400ms ease;
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
 }
 
 .canvas {
+	position: absolute;
+	inset: 0;
 	object-fit: contain;
+	pointer-events: none;
 }
 
 .img {
 	object-fit: contain;
+}
+
+.transparent,
+.concealed {
+	opacity: 0;
+}
+
+.concealed {
+	// 更换源或遮住敏感内容时立即隐藏旧图，不等待淡出。
+	visibility: hidden;
 }
 </style>

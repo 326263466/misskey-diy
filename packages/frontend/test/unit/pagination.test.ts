@@ -5,8 +5,9 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, render, waitFor } from '@testing-library/vue';
-import { h } from 'vue';
+import { computed, h, nextTick, ref, shallowReactive } from 'vue';
 import MkPagination from '@/components/MkPagination.vue';
+import MkResult from '@/components/global/MkResult.vue';
 import { Paginator } from '@/utility/paginator.js';
 import { appearDirective } from '@/directives/appear.js';
 import { prefer } from '@/preferences.js';
@@ -14,6 +15,7 @@ import { prefer } from '@/preferences.js';
 const mocks = vi.hoisted(() => ({ api: vi.fn() }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/os.js', () => ({ contextMenu: vi.fn() }));
+vi.mock('@/instance.js', () => ({ instance: {} }));
 vi.mock('@/components/MkPullToRefresh.vue', () => ({ default: { template: '<div><slot/></div>' } }));
 vi.mock('@/components/MkPaginationControl.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/preferences.js', async () => {
@@ -28,14 +30,25 @@ function rows(count: number, start = 100) {
 }
 
 function renderPagination(paginator: Paginator<'notes/timeline'>, props = {}) {
-	return render(MkPagination, {
-		props: { paginator, ...props },
-		slots: { default: ({ items }: { items: { id: string }[] }) => items.map(item => h('article', { key: item.id }, item.id)) },
+	const currentProps = shallowReactive({ paginator, ...props });
+	// VTU 会把包含 ref 的初始 prop 单独保存，setProps 无法覆盖它；用父组件模拟真实切换。
+	const view = render({
+		render: () => h(MkPagination, { ...currentProps }, {
+			default: ({ items }: { items: { id: string }[] }) => items.map(item => h('article', { key: item.id }, item.id)),
+		}),
+	}, {
 		global: {
-			stubs: { MkLoading: { template: '<div role="status"/>' }, MkResult: true, MkError: true },
+			stubs: { transition: false, MkLoading: { template: '<div role="status"/>' }, MkResult: true, MkError: true },
 			directives: { appear: appearDirective },
 		},
 	});
+	return {
+		...view,
+		async rerender(updated: Partial<typeof currentProps>) {
+			Object.assign(currentProps, updated);
+			await nextTick();
+		},
+	};
 }
 
 function intersect(visible = true) {
@@ -45,6 +58,7 @@ function intersect(visible = true) {
 }
 
 beforeEach(() => {
+	prefer.s.animation = false;
 	mocks.api.mockReset().mockResolvedValue([]);
 	vi.stubGlobal('IntersectionObserver', class {
 		private target?: Element;
@@ -143,15 +157,95 @@ describe('分页边界', () => {
 });
 
 describe('自动加载', () => {
-	test.each([true, false])('loading indicators can be disabled without showing an empty result prematurely: %s', async showLoading => {
+	test('请求过程中不显示空状态文案和操作，刷新时立即隐藏', async () => {
+		const view = render(MkResult, {
+			props: { type: 'empty', loading: true, text: '没有数据' },
+			slots: { default: '<button>创建第一项</button>' },
+			global: { stubs: { MkLoading: { template: '<div role="status"/>' }, MkSystemIcon: true } },
+		});
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.queryByText('没有数据')).toBeNull();
+		expect(view.queryByRole('button', { name: '创建第一项' })).toBeNull();
+
+		await view.rerender({ loading: false });
+		expect(view.queryByRole('status')).toBeNull();
+		expect(view.getByText('没有数据')).toBeTruthy();
+		expect(view.getByRole('button', { name: '创建第一项' })).toBeTruthy();
+
+		await view.rerender({ loading: true });
+		expect(view.getByRole('status')).toBeTruthy();
+		expect(view.queryByText('没有数据')).toBeNull();
+		expect(view.queryByRole('button', { name: '创建第一项' })).toBeNull();
+	});
+
+	test('切换分页器加载新标签，返回已加载标签保留结果', async () => {
+		mocks.api.mockResolvedValueOnce(rows(2)).mockResolvedValueOnce(rows(1, 80));
+		const first = new Paginator('notes/timeline', { canFetchDetection: 'limit' });
+		const second = new Paginator('notes/timeline', { canFetchDetection: 'limit' });
+		const view = renderPagination(first);
+		await waitFor(() => expect(view.container.querySelectorAll('article')).toHaveLength(2));
+		await view.rerender({ paginator: second });
+		await waitFor(() => expect(view.getByText('0080')).toBeTruthy());
+		expect(view.queryByText('0100')).toBeNull();
+		await view.rerender({ paginator: first });
+		await waitFor(() => expect(view.getByText('0100')).toBeTruthy());
+		expect(view.queryByText('0080')).toBeNull();
+		expect(mocks.api).toHaveBeenCalledTimes(2);
+	});
+
+	test('参数监听跟随当前分页器，回到参数已变化的标签重新加载', async () => {
+		const firstWithFiles = ref(false);
+		const secondWithFiles = ref(true);
+		const first = new Paginator('notes/timeline', { computedParams: computed(() => ({ withFiles: firstWithFiles.value })) });
+		const second = new Paginator('notes/timeline', { computedParams: computed(() => ({ withFiles: secondWithFiles.value })) });
+		const view = renderPagination(first);
+		await waitFor(() => expect(first.fetching.value).toBe(false));
+		await view.rerender({ paginator: second });
+		await waitFor(() => expect(second.fetching.value).toBe(false));
+		mocks.api.mockClear();
+		firstWithFiles.value = true;
+		await nextTick();
+		expect(mocks.api).not.toHaveBeenCalled();
+		secondWithFiles.value = false;
+		await waitFor(() => expect(mocks.api).toHaveBeenCalledWith('notes/timeline', expect.objectContaining({ withFiles: false })));
+		expect(mocks.api).toHaveBeenCalledTimes(1);
+		await view.rerender({ paginator: first });
+		await waitFor(() => expect(mocks.api).toHaveBeenLastCalledWith('notes/timeline', expect.objectContaining({ withFiles: true })));
+	});
+
+	test.each([
+		{ showLoading: true, pageEmpty: true, animation: false },
+		{ showLoading: false, pageEmpty: true, animation: false },
+		{ showLoading: true, pageEmpty: false, animation: true },
+		{ showLoading: false, pageEmpty: false, animation: true },
+	])('加载、刷新和切换标签时不提前显示空状态：%o', async ({ showLoading, pageEmpty, animation }) => {
+		prefer.s.animation = animation;
 		let finish!: (value: ReturnType<typeof rows>) => void;
 		mocks.api.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-		const view = renderPagination(new Paginator('notes/timeline', {}), { showLoading });
+		const paginator = new Paginator('notes/timeline', { canFetchDetection: 'limit' });
+		const view = renderPagination(paginator, { showLoading, pageEmpty });
 		expect(view.queryByRole('status') != null).toBe(showLoading);
 		expect(view.container.querySelector('mk-result-stub')).toBeNull();
 		finish([]);
 		await waitFor(() => expect(view.container.querySelector('mk-result-stub')).not.toBeNull());
 		expect(view.queryByRole('status')).toBeNull();
+
+		mocks.api.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+		const reload = paginator.reload();
+		await nextTick();
+		expect(view.queryByRole('status') != null).toBe(showLoading);
+		expect(view.container.querySelector('mk-result-stub')).toBeNull();
+		finish(rows(1));
+		await reload;
+		await waitFor(() => expect(view.container.querySelectorAll('article')).toHaveLength(1));
+		expect(view.container.querySelector('mk-result-stub')).toBeNull();
+
+		mocks.api.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+		await view.rerender({ paginator: new Paginator('notes/timeline', { canFetchDetection: 'limit' }) });
+		expect(view.queryByRole('status') != null).toBe(showLoading);
+		expect(view.container.querySelector('mk-result-stub')).toBeNull();
+		finish([]);
+		await waitFor(() => expect(view.container.querySelector('mk-result-stub')).not.toBeNull());
 	});
 
 	test('silent pagination keeps existing rows and still appends the next page', async () => {

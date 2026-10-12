@@ -70,6 +70,9 @@ export interface MainEventTypes {
 	unreadNotification: Packed<'Notification'>;
 	unreadAntenna: MiAntenna;
 	newChatMessage: Packed<'ChatMessage'>;
+	chatReadState: { hasUnreadChatMessages: boolean };
+	chatRoomLeft: { roomId: string };
+	chatHistoryUpdated: { messageId: string; userId?: string; roomId?: string; deleted?: boolean };
 	readAllAnnouncements: undefined;
 	myTokenRegenerated: undefined;
 	signin: {
@@ -180,8 +183,10 @@ export interface AdminEventTypes {
 
 export interface ChatEventTypes {
 	membersChanged: null;
+	roomUpdated: null;
 	message: Packed<'ChatMessageLite'>;
 	deleted: Packed<'ChatMessageLite'>['id'];
+	edited: Packed<'ChatMessageLite'>;
 	react: {
 		reaction: string;
 		user?: Packed<'UserLite'>;

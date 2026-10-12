@@ -19,14 +19,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:leaveToClass="transitionName === 'swipeAnimationLeft' ? $style.swipeAnimationLeft_leaveTo : $style.swipeAnimationRight_leaveTo"
 		:style="`--swipe: ${pullDistance}px;`"
 	>
-		<div :key="tabModel">
+		<div :key="transitionKey">
 			<slot></slot>
 		</div>
 	</Transition>
 </div>
 </template>
 <script lang="ts" setup>
-import { ref, useTemplateRef, computed, nextTick, watch } from 'vue';
+import { ref, useTemplateRef, computed, nextTick } from 'vue';
 import type { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import { isHorizontalSwipeSwiping as isSwiping } from '@/utility/touch.js';
 import { prefer } from '@/preferences.js';
@@ -43,7 +43,9 @@ const emit = defineEmits<{
 	(ev: 'swiped', newKey: string, direction: 'left' | 'right'): void;
 }>();
 
-const shouldAnimate = computed(() => prefer.r.enableHorizontalSwipe.value || prefer.r.animation.value);
+const shouldAnimate = computed(() => prefer.r.animation.value);
+const transitionKey = ref(0);
+const transitionName = ref<'swipeAnimationLeft' | 'swipeAnimationRight'>('swipeAnimationLeft');
 
 // ▼ しきい値 ▼ //
 
@@ -159,13 +161,11 @@ function touchEnd(event: TouchEvent) {
 	if (Math.abs(distance) > SWIPE_DISTANCE_THRESHOLD) {
 		if (distance > 0) {
 			if (props.tabs[currentTabIndex.value - 1] && !props.tabs[currentTabIndex.value - 1].onClick) {
-				tabModel.value = props.tabs[currentTabIndex.value - 1].key;
-				emit('swiped', props.tabs[currentTabIndex.value - 1].key, 'right');
+				switchBySwipe(props.tabs[currentTabIndex.value - 1].key, 'right');
 			}
 		} else {
 			if (props.tabs[currentTabIndex.value + 1] && !props.tabs[currentTabIndex.value + 1].onClick) {
-				tabModel.value = props.tabs[currentTabIndex.value + 1].key;
-				emit('swiped', props.tabs[currentTabIndex.value + 1].key, 'left');
+				switchBySwipe(props.tabs[currentTabIndex.value + 1].key, 'left');
 			}
 		}
 	}
@@ -177,6 +177,16 @@ function touchEnd(event: TouchEvent) {
 	}, 400);
 
 	swipeDirectionLocked = null; // スワイプ方向をリセット
+}
+
+function switchBySwipe(key: string, direction: 'left' | 'right') {
+	// 只有触摸滑动需要整页切换动画，点击标签时保留内容容器和子组件。
+	if (shouldAnimate.value) {
+		transitionName.value = direction === 'left' ? 'swipeAnimationLeft' : 'swipeAnimationRight';
+		transitionKey.value++;
+	}
+	tabModel.value = key;
+	emit('swiped', key, direction);
 }
 
 /** 横スワイプに関与する可能性のある要素を調べる */
@@ -197,26 +207,11 @@ function hasSomethingToDoWithXSwipe(el: HTMLElement) {
 	}
 }
 
-const transitionName = ref<'swipeAnimationLeft' | 'swipeAnimationRight' | undefined>(undefined);
-
-watch(tabModel, (newTab, oldTab) => {
-	const newIndex = props.tabs.findIndex(tab => tab.key === newTab);
-	const oldIndex = props.tabs.findIndex(tab => tab.key === oldTab);
-
-	if (oldIndex >= 0 && newIndex >= 0 && oldIndex < newIndex) {
-		transitionName.value = 'swipeAnimationLeft';
-	} else {
-		transitionName.value = 'swipeAnimationRight';
-	}
-
-	window.setTimeout(() => {
-		transitionName.value = undefined;
-	}, 400);
-});
 </script>
 
 <style lang="scss" module>
 .transitionRoot {
+	position: relative;
 	touch-action: pan-y pinch-zoom;
 	display: grid;
 	grid-template-columns: 100%;
@@ -232,6 +227,12 @@ watch(tabModel, (newTab, oldTab) => {
 	&.swipeAnimation_enterActive,
 	&.swipeAnimation_leaveActive {
 		transition: transform .3s cubic-bezier(0.65, 0.05, 0.36, 1);
+	}
+
+	// 退场内容不再撑高网格，卡片立即按当前标签的内容确定高度。
+	&.swipeAnimation_leaveActive {
+		position: absolute;
+		inset: 0 0 auto;
 	}
 
 	&.swipeAnimationRight_leaveTo,

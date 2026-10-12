@@ -29,7 +29,7 @@ function skip() {
 
 <style lang="scss" module>
 .root {
-	--height: 24px;
+	--height: 16px;
 	font-size: 0.85em;
 	display: flex;
 	vertical-align: bottom;
@@ -38,7 +38,6 @@ function skip() {
 	height: var(--height);
 	overflow: clip;
 	contain: strict;
-	background: var(--MI_THEME-panel);
 }
 
 .icon {

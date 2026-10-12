@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div class="_gaps">
 	<MkInfo>{{ i18n.ts._fileViewer.thisPageCanBeSeenFromTheAuthor }}</MkInfo>
 
-	<MkPagination :paginator="paginator">
+	<MkPagination :paginator="paginator" pageEmpty>
 		<template #default="{ items }">
 			<XMessage v-for="item in items" :key="item.id" :message="item" :isSearchResult="true"/>
 		</template>

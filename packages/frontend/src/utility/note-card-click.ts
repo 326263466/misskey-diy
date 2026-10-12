@@ -11,12 +11,12 @@ const interactiveSelector = [
 	'[role="option"]', '[role="textbox"]', '[role="combobox"]',
 	'[tabindex]', '[contenteditable]:not([contenteditable="false"])',
 	'[data-note-interactive]', '[data-note-card]', '._button',
-	'._mfm', 'pre', 'code',
+	'pre', 'code',
 ].join(',');
 
 /** Only the card's otherwise inert surface should act as a detail link. */
 export function shouldOpenNote(event: MouseEvent, root: HTMLElement | null | undefined): boolean {
-	if (!root || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.detail > 1) return false;
+	if (!root || event.defaultPrevented || (event.button !== 0 && event.button !== 1) || event.shiftKey || event.altKey || event.detail > 1) return false;
 	const selection = root.ownerDocument.getSelection();
 	if (selection && !selection.isCollapsed) return false;
 

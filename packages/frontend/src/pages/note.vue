@@ -4,14 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideHeader="note != null" displayBackButton>
+<PageWithHeader hideHeader>
 	<div class="_pageBody">
-		<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
+		<Teleport v-if="note && sidebarTarget && active && pageActive" :to="sidebarTarget">
+			<div class="_gaps">
+				<MkUserCardMini :user="getAppearNote(note)?.user ?? note.user" :withChart="false" :cachePath="`/notes/${note.id}`" author/>
+				<MkDetailRecommendations kind="note" :excludeId="getAppearNote(note)?.id ?? note.id"/>
+			</div>
+		</Teleport>
+		<Transition name="" mode="out-in">
 			<div v-if="note" class="_gaps">
-				<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" separateActivity>
-					<template #header>
-						<MkPageHeader :overridePageMetadata="{ title: note.replyId ? i18n.ts.reply : i18n.ts.notes }" embedded displayBackButton/>
-						<MkRemoteCaution v-if="note.user.host != null" :class="$style.remoteCaution" :href="note.url ?? note.uri"/>
+				<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" menuContext="detail" separateActivity :sideActions="!inWindow">
+					<template v-if="note.user.host != null" #header>
+						<MkRemoteCaution :class="$style.remoteCaution" :href="note.url ?? note.uri"/>
 					</template>
 				</MkNoteDetailed>
 				<div v-if="clips && clips.length > 0">
@@ -21,15 +26,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</div>
 			</div>
-			<MkError v-else-if="error" @retry="fetchNote()"/>
-			<div v-else :class="$style.loading"><MkLoading/></div>
+			<MkError v-else-if="error" page @retry="fetchNote()"/>
+			<MkLoading v-else page/>
 		</Transition>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, ref } from 'vue';
+import { computed, inject, onActivated, onDeactivated, watch, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { host } from '@@/js/config.js';
 import MkNoteDetailed from '@/components/MkNoteDetailed.vue';
@@ -39,7 +44,9 @@ import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { dateString } from '@/filters/date.js';
 import MkClipPreview from '@/components/MkClipPreview.vue';
-import { prefer } from '@/preferences.js';
+import MkUserCardMini from '@/components/MkUserCardMini.vue';
+import MkDetailRecommendations from '@/components/MkDetailRecommendations.vue';
+import { DI } from '@/di.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import { getAppearNote } from '@/utility/get-appear-note.js';
 import { serverContext, assertServerContext } from '@/server-context.js';
@@ -47,6 +54,14 @@ import { $i } from '@/i.js';
 
 // contextは非ログイン状態の情報しかないためログイン時は利用できない
 const CTX_NOTE = !$i && assertServerContext(serverContext, 'note') ? serverContext.note : null;
+const inWindow = inject<boolean>('inWindow', false);
+const active = ref(true);
+const pageActive = inject(DI.pageActive, ref(true));
+const detailActionsLoading = inject(DI.detailActionsLoading, ref(true));
+const pageSidebar = inject(DI.pageSidebar, ref(null));
+const sidebarTarget = computed(() => inWindow ? null : pageSidebar.value);
+onActivated(() => { active.value = true; });
+onDeactivated(() => { active.value = false; });
 
 const props = defineProps<{
 	noteId: string;
@@ -65,9 +80,12 @@ const error = ref();
 
 function fetchNote() {
 	note.value = null;
+	error.value = null;
+	if (active.value && pageActive.value) detailActionsLoading.value = true;
 
 	if (CTX_NOTE && CTX_NOTE.id === props.noteId) {
 		note.value = CTX_NOTE;
+		detailActionsLoading.value = false;
 		return;
 	}
 
@@ -96,16 +114,14 @@ function fetchNote() {
 			});
 		}
 		error.value = err;
+	}).finally(() => {
+		if (active.value && pageActive.value) detailActionsLoading.value = false;
 	});
 }
 
 watch(() => props.noteId, fetchNote, {
 	immediate: true,
 });
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 // 回复帖和普通帖用不同措辞，否则浏览器标签页上两者无法区分
 const pageTitle = computed(() => {
@@ -143,11 +159,4 @@ definePage(() => ({
 	margin: 20px 20px 0;
 }
 
-// 加载转圈放在帖子内容区内（卡片将出现的位置）居中显示，页面级只保留这一个加载指示
-.loading {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	min-height: 240px;
-}
 </style>

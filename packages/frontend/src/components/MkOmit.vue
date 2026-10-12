@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div ref="content" :class="[$style.content, { [$style.omitted]: omitted }]">
 	<slot></slot>
 	<button v-if="omitted" :class="$style.fade" class="_button" @click="() => { ignoreOmit = true; omitted = false; }">
-		<span :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
+		<span class="_textAction" :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
 	</button>
 </div>
 </template>

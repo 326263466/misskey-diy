@@ -12,22 +12,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	}]"
 >
 	<MkImgWithBlurhash
-		v-if="isThumbnailAvailable && prefer.s.enableHighQualityImagePlaceholders"
+		v-if="isThumbnailAvailable"
+		:useBlurhash="prefer.s.enableHighQualityImagePlaceholders"
 		:hash="file.blurhash"
 		:src="file.thumbnailUrl"
 		:alt="file.name"
-		:title="title ?? file.name"
+		:title="file.name"
 		:class="$style.thumbnail"
 		:cover="fit !== 'contain'"
 		:forceBlurhash="forceBlurhash"
-	/>
-	<img
-		v-else-if="isThumbnailAvailable && file.thumbnailUrl != null"
-		:src="file.thumbnailUrl"
-		:alt="file.name"
-		:title="title ?? file.name"
-		:class="$style.thumbnail"
-		:style="{ objectFit: fit }"
 	/>
 	<i v-else-if="is === 'image'" class="ti ti-photo" :class="$style.icon"></i>
 	<i v-else-if="is === 'video'" class="ti ti-video" :class="$style.icon"></i>
@@ -51,7 +44,6 @@ import { prefer } from '@/preferences.js';
 const props = defineProps<{
 	file: Misskey.entities.DriveFile;
 	fit: 'cover' | 'contain';
-	title?: string;
 	highlightWhenSensitive?: boolean;
 	forceBlurhash?: boolean;
 	large?: boolean;
@@ -120,7 +112,7 @@ const isThumbnailAvailable = computed(() => {
 	pointer-events: none;
 	margin: auto;
 	font-size: 32px;
-	color: var(--MI_THEME-fgTransparentWeak);
+	color: #777;
 }
 
 .large .icon {

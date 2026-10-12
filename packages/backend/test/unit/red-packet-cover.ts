@@ -39,7 +39,11 @@ test('stores the public image URL and retries without another lookup or debit', 
 	const { service, draft, user, em, wallet } = fixture({ id: 'file', type: 'image/png', isSensitive: false });
 	const result = await service.create(draft, user);
 	expect(result).toMatchObject({ coverFileId: 'file', coverUrl: 'https://example.test/public-cover.png' });
-	expect(await service.create(draft, user)).toEqual(result);
+	const { serverTime: firstTime, ...first } = result;
+	const { serverTime: retryTime, ...retry } = await service.create(draft, user);
+	expect(retry).toEqual(first);
+	expect(Number.isFinite(Date.parse(firstTime))).toBe(true);
+	expect(Number.isFinite(Date.parse(retryTime))).toBe(true);
 	expect(em.findOneBy).toHaveBeenCalledTimes(1);
 	expect(em.query).toHaveBeenCalledWith('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', ['red-packet-cover:file']);
 	expect(wallet.changeBalanceInTransaction).toHaveBeenCalledTimes(1);
@@ -57,13 +61,13 @@ test.each([false, true])('cover cleanup checks server references under the creat
 });
 
 test('the cleanup endpoint waits for the synchronous deletion path before finishing', async () => {
-	const { service, user } = fixture(null);
+	const { user } = fixture(null);
 	let complete!: () => void;
-	const drive = { deleteFile: vi.fn(), deleteFileSync: vi.fn(() => new Promise<void>(resolve => { complete = resolve; })) };
-	const endpoint = new DeleteFileEndpoint({ findOneBy: async () => ({ id: 'file', userId: user.id }) } as never, drive as never, { isModerator: async () => false } as never, {} as never, service);
+	const drive = { deleteFile: vi.fn(), deleteUnusedFile: vi.fn(() => new Promise<void>(resolve => { complete = resolve; })) };
+	const endpoint = new DeleteFileEndpoint({ findOneBy: async () => ({ id: 'file', userId: user.id }) } as never, drive as never, { isModerator: async () => false } as never);
 	let finished = false;
 	const request = endpoint.exec({ fileId: 'file', ifUnusedForRedPacket: true }, user as never, null).then(() => { finished = true; });
-	await vi.waitFor(() => expect(drive.deleteFileSync).toHaveBeenCalledTimes(1));
+	await vi.waitFor(() => expect(drive.deleteUnusedFile).toHaveBeenCalledTimes(1));
 	expect(finished).toBe(false);
 	expect(drive.deleteFile).not.toHaveBeenCalled();
 	complete();
@@ -73,8 +77,10 @@ test('the cleanup endpoint waits for the synchronous deletion path before finish
 
 test('a non-recipient cannot claim a one-to-one packet even with its ID', async () => {
 	const { service, em, user, wallet } = fixture(null);
+	const packet = { id: 'packet', userId: 'sender', kind: 'direct', audience: 'recipients' };
 	Object.assign(em, {
-		findOne: vi.fn().mockResolvedValue({ id: 'packet', userId: 'sender', kind: 'direct', audience: 'recipients' }),
+		findOneBy: vi.fn().mockResolvedValue(packet),
+		findOne: vi.fn().mockResolvedValue(packet),
 		findBy: vi.fn().mockResolvedValue([user, { ...user, id: 'stranger' }]),
 		existsBy: vi.fn().mockResolvedValue(false),
 	});

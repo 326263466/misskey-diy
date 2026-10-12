@@ -19,6 +19,14 @@ export const packedChatRoomMembershipSchema = {
 			type: 'string',
 			optional: false, nullable: false,
 		},
+		role: {
+			type: 'string',
+			optional: false, nullable: false,
+			enum: ['owner', 'administrator', 'member'],
+		},
+		nickname: { type: 'string', optional: false, nullable: false },
+		isSilenced: { type: 'boolean', optional: false, nullable: false },
+		silenceUntil: { type: 'string', format: 'date-time', optional: false, nullable: true },
 		user: {
 			type: 'object',
 			optional: true, nullable: false,

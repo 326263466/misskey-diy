@@ -58,7 +58,7 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		{ icon: 'ti ti-calendar-check', text: i18n.ts._checkin.dailyCheckin, to: '/checkin', active: props.active === 'checkin' },
 		{ icon: 'ti ti-trophy', text: i18n.ts.communityRanking, to: '/community-ranking', active: props.active === 'ranking' },
 		{ icon: 'ti ti-medal', text: i18n.ts.achievements, to: '/my/achievements', active: props.active === 'achievements' },
-		{ icon: 'ti ti-gift', text: i18n.ts._benefits.title, to: '/my/benefits', active: props.active === 'benefits' },
+		{ icon: 'ti ti-gift', text: i18n.ts._benefits.title, to: '/wallet/benefits', active: props.active === 'benefits' },
 	],
 }]);
 </script>

@@ -68,7 +68,8 @@ export function openInstanceMenu(ev: PointerEvent) {
 	const menuItems: MenuItem[] = [];
 
 	menuItems.push({
-		text: instance.name ?? host,
+		// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- 空字符串的实例名也需要回退到 host
+		text: instance.name || host,
 		type: 'label',
 	}, {
 		type: 'link',

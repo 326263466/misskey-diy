@@ -4,13 +4,15 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
 import ms from 'ms';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '@/server/api/error.js';
-import { ChatService } from '@/core/ChatService.js';
+import { ChatService, ChatSendDeniedError } from '@/core/ChatService.js';
 import { redPacketApiErrors, throwRedPacketApiError } from '@/server/api/red-packet-errors.js';
+import { chatInteractionApiErrors, toChatInteractionApiError } from '@/server/api/chat-interaction-errors.js';
 import type { DriveFilesRepository, MiUser } from '@/models/_.js';
 
 export const meta = {
@@ -35,12 +37,12 @@ export const meta = {
 
 	errors: {
 		...redPacketApiErrors,
-		recipientIsYourself: {
-			message: 'You can not send a message to yourself.',
-			code: 'RECIPIENT_IS_YOURSELF',
-			id: '17e2ba79-e22a-4cbc-bf91-d327643f4a7e',
+		invalidPoke: chatInteractionApiErrors.invalidPoke,
+		noSuchReply: {
+			message: 'The original message is unavailable in this conversation.',
+			code: 'NO_SUCH_REPLY',
+			id: '1da48210-4a1f-4f3b-aa71-40c029b0b69c',
 		},
-
 		noSuchUser: {
 			message: 'No such user.',
 			code: 'NO_SUCH_USER',
@@ -64,15 +66,30 @@ export const meta = {
 			code: 'YOU_HAVE_BEEN_BLOCKED',
 			id: 'c15a5199-7422-4968-941a-2a462c478f7d',
 		},
+
+		recipientRejectsChat: {
+			message: 'The recipient does not accept chats from you.',
+			code: 'RECIPIENT_REJECTS_CHAT',
+			id: '6de83adf-6e3f-4896-bf47-9336239aff6b',
+		},
+
+		recipientChatUnavailable: {
+			message: 'The recipient cannot use chat.',
+			code: 'RECIPIENT_CHAT_UNAVAILABLE',
+			id: '746166fa-539b-4f88-9b00-6c7ccd3d9321',
+		},
 	},
 } as const;
 
 export const paramDef = {
 	type: 'object',
 	properties: {
-		text: { type: 'string', nullable: true, maxLength: 2000 },
+		text: { type: 'string', nullable: true, maxLength: CONTENT_LIMITS.chatMessage },
+		replyId: { type: 'string', format: 'misskey:id' },
+		replyType: { type: 'string', enum: ['reply', 'quote'] },
 		fileId: { type: 'string', format: 'misskey:id' },
 		redPacketId: { type: 'string', format: 'misskey:id' },
+		pokeUserId: { type: 'string', format: 'misskey:id' },
 		toUserId: { type: 'string', format: 'misskey:id' },
 	},
 	required: ['toUserId'],
@@ -104,13 +121,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// テキストが無いかつ添付ファイルも無かったらエラー
-			if (ps.text == null && file == null && ps.redPacketId == null) {
+			if (ps.text == null && file == null && ps.redPacketId == null && ps.pokeUserId == null) {
 				throw new ApiError(meta.errors.contentRequired);
-			}
-
-			// Myself
-			if (ps.toUserId === me.id) {
-				throw new ApiError(meta.errors.recipientIsYourself);
 			}
 
 			const toUser = await this.getterService.getUser(ps.toUserId).catch(err => {
@@ -119,10 +131,24 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			});
 
 			return await this.chatService.createMessageToUser(me, toUser, {
+				allowPasswordClaim: token == null,
 				text: ps.text,
+				replyId: ps.replyId,
+				replyType: ps.replyType,
 				file: file,
 				redPacketId: ps.redPacketId,
-			}).catch(throwRedPacketApiError);
+				pokeUserId: ps.pokeUserId,
+			}).catch(error => {
+				const interactionError = toChatInteractionApiError(error);
+				if (interactionError) throw interactionError;
+				if (error instanceof Error && error.message === 'NO_SUCH_REPLY') throw new ApiError(meta.errors.noSuchReply);
+				if (error instanceof ChatSendDeniedError) {
+					if (error.reason === 'scope') throw new ApiError(meta.errors.recipientRejectsChat);
+					if (error.reason === 'unavailable') throw new ApiError(meta.errors.recipientChatUnavailable);
+					if (error.reason === 'blocked') throw new ApiError(meta.errors.youHaveBeenBlocked);
+				}
+				throwRedPacketApiError(error);
+			});
 		});
 	}
 }

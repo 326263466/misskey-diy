@@ -14,7 +14,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		:inert="waiting"
 	>
-		<!-- 1. 外部サーバーへの転送・username入力・パスキー -->
 		<XInput
 			v-if="page === 'input'"
 			key="input"
@@ -26,7 +25,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@passkeyClick="onPasskeyLogin"
 		/>
 
-		<!-- 2. パスワード入力 -->
 		<XPassword
 			v-else-if="page === 'password'"
 			key="password"
@@ -38,7 +36,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@passwordSubmitted="onPasswordSubmitted"
 		/>
 
-		<!-- 3. ワンタイムパスワード -->
 		<XTotp
 			v-else-if="page === 'totp'"
 			key="totp"
@@ -46,7 +43,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@totpSubmitted="onTotpSubmitted"
 		/>
 
-		<!-- 4. パスキー -->
 		<XPasskey
 			v-else-if="page === 'passkey'"
 			key="passkey"

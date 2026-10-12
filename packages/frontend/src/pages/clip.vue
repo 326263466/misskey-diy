@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 
-			<MkNotesTimeline :paginator="paginator" :detail="true" :withControl="false"/>
+			<MkNotesTimeline :paginator="paginator" :detail="true" :withControl="false" pageEmpty/>
 		</div>
 	</div>
 </PageWithHeader>
@@ -192,7 +192,7 @@ definePage(() => ({
 .user {
 	--height: 32px;
 	padding: var(--MI-cardPadding);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	line-height: var(--height);
 }
 

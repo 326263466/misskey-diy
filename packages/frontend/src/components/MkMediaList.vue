@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div v-if="count > 0" :class="$style.container">
 		<div
 			ref="gallery"
+			:style="{ '--MI-mediaAspectRatio': aspectRatio }"
 			:class="[
 				$style.medias,
 				...(prefer.s.showMediaListByGridInWideArea ? [$style.gridInWideArea] : []),
@@ -44,6 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:class="[$style.media, $style.image]"
 					:image="media"
 					:raw="raw"
+					:loading="loading"
 					@mediaClick="onMediaClick(media)"
 				/>
 			</template>
@@ -53,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, onMounted, onUnmounted, useTemplateRef } from 'vue';
+import { computed, markRaw, onUnmounted, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { Content } from '@/components/MkLightbox.item.vue';
 import type { MediaComponentExposes } from '@/types/media-component.js';
@@ -70,6 +72,7 @@ const props = defineProps<{
 	mediaList: Misskey.entities.DriveFile[];
 	user?: Misskey.entities.User | null; // DriveFileのuserはnullになることがある。その場合に使用する所有者情報
 	raw?: boolean;
+	loading?: 'lazy' | 'eager';
 }>();
 
 const gallery = useTemplateRef('gallery');
@@ -93,41 +96,26 @@ const mediaComponents = new Map<string, MediaComponentExposes | null>();
 const count = computed(() => medias.value.previewable.length);
 const markerId = genId();
 
-async function calcAspectRatio() {
-	if (!gallery.value) return;
-
+const aspectRatio = computed(() => {
 	const img = props.mediaList[0];
 
 	if (props.mediaList.length !== 1 || !(img.properties.width && img.properties.height)) {
-		gallery.value.style.aspectRatio = '';
-		return;
+		return undefined;
 	}
 
-	const ratioMax = (ratio: number) => {
-		if (img.properties.width == null || img.properties.height == null) return '';
-		return `${Math.max(ratio, img.properties.width / img.properties.height).toString()} / 1`;
-	};
+	const ratio = img.properties.width / img.properties.height;
+	if (!Number.isFinite(ratio) || ratio <= 0) return undefined;
 
 	switch (prefer.s.mediaListWithOneImageAppearance) {
 		case '16_9':
-			gallery.value.style.aspectRatio = ratioMax(16 / 9);
-			break;
+			return `${Math.max(16 / 9, ratio)} / 1`;
 		case '1_1':
-			gallery.value.style.aspectRatio = ratioMax(1 / 1);
-			break;
+			return `${Math.max(1, ratio)} / 1`;
 		case '2_3':
-			gallery.value.style.aspectRatio = ratioMax(2 / 3);
-			break;
+			return `${Math.max(2 / 3, ratio)} / 1`;
 		default:
-			gallery.value.style.aspectRatio = '';
-			break;
+			return `${ratio} / 1`;
 	}
-}
-
-onMounted(() => {
-	calcAspectRatio();
-
-	if (gallery.value == null) return; // TSを黙らすため
 });
 
 onUnmounted(() => {
@@ -206,6 +194,7 @@ defineExpose({
 
 	&.n1 {
 		grid-template-rows: 1fr;
+		aspect-ratio: var(--MI-mediaAspectRatio, auto);
 
 		// default but fallback (expand)
 		min-height: 64px;
@@ -218,19 +207,19 @@ defineExpose({
 		&.n116_9 {
 			min-height: initial;
 			max-height: initial;
-			aspect-ratio: 16 / 9; // fallback
+			aspect-ratio: var(--MI-mediaAspectRatio, 16 / 9);
 		}
 
 		&.n11_1{
 			min-height: initial;
 			max-height: initial;
-			aspect-ratio: 1 / 1; // fallback
+			aspect-ratio: var(--MI-mediaAspectRatio, 1 / 1);
 		}
 
 		&.n12_3 {
 			min-height: initial;
 			max-height: initial;
-			aspect-ratio: 2 / 3; // fallback
+			aspect-ratio: var(--MI-mediaAspectRatio, 2 / 3);
 		}
 	}
 
@@ -273,10 +262,11 @@ defineExpose({
 .media {
 	overflow: hidden; // clipにするとバグる
 	border-radius: 8px;
+	cursor: pointer;
 }
 
 .image {
-	cursor: pointer;
+	cursor: zoom-in;
 }
 
 @container (min-width: 500px) {

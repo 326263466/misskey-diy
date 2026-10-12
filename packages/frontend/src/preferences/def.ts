@@ -226,7 +226,7 @@ export const PREF_DEF = definePreferences({
 		default: true,
 	},
 	enableQuickAddMfmFunction: {
-		default: false,
+		default: true,
 	},
 	loadRawImages: {
 		default: false,
@@ -346,7 +346,7 @@ export const PREF_DEF = definePreferences({
 		default: hemisphere as 'N' | 'S',
 	},
 	enableSeasonalScreenEffect: {
-		default: false,
+		default: true,
 	},
 	enableHorizontalSwipe: {
 		default: false,

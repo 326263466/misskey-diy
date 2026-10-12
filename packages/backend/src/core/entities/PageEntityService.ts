@@ -14,6 +14,8 @@ import type { MiPage } from '@/models/Page.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
+import { canReadArticle, isArticle } from '@/misc/article-access.js';
+import { getArticleTags } from '@/misc/article-tags.js';
 import { UserEntityService } from './UserEntityService.js';
 import { DriveFileEntityService } from './DriveFileEntityService.js';
 
@@ -33,6 +35,13 @@ export class PageEntityService {
 		private driveFileEntityService: DriveFileEntityService,
 		private idService: IdService,
 	) {
+	}
+
+	@bindThis
+	public async packPinned(src: MiPage['id'], me?: { id: MiUser['id'] } | null): Promise<Packed<'Page'> | null> {
+		const page = await this.pagesRepository.findOneBy({ id: src });
+		if (!page || (isArticle(page) && !await canReadArticle(page, me, this.pagesRepository.manager))) return null;
+		return this.pack(page, me);
 	}
 
 	@bindThis
@@ -99,6 +108,8 @@ export class PageEntityService {
 			title: page.title,
 			name: page.name,
 			summary: page.summary,
+			articleCategoryId: page.articleCategoryId,
+			articleTags: getArticleTags(page.content),
 			hideTitleWhenPinned: page.hideTitleWhenPinned,
 			alignCenter: page.alignCenter,
 			font: page.font,
@@ -107,6 +118,7 @@ export class PageEntityService {
 			eyeCatchingImage: page.eyeCatchingImageId ? await this.driveFileEntityService.pack(page.eyeCatchingImageId) : null,
 			attachedFiles: this.driveFileEntityService.packMany((await Promise.all(attachedFiles)).filter(x => x != null)),
 			likedCount: page.likedCount,
+			articleViews: page.articleViews,
 			isLiked: meId ? await this.pageLikesRepository.exists({ where: { pageId: page.id, userId: meId } }) : undefined,
 		});
 	}

@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</MkPaginationControl>
 
-			<MkPagination :paginator="paginator">
+			<MkPagination :paginator="paginator" pageEmpty>
 				<MkTl :events="timeline" groupBy="d">
 					<template #left="{ event }">
 						<div>

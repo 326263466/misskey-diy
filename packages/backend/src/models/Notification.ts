@@ -108,6 +108,11 @@ export type MiNotification = {
 	type: 'login';
 	id: string;
 	createdAt: string;
+	// 旧通知没有以下字段。
+	ip?: string | null;
+	userAgent?: string | null;
+	newNetwork?: boolean;
+	newDevice?: boolean;
 } | {
 	type: 'createToken';
 	id: string;

@@ -7,6 +7,8 @@ export {
 };
 
 export const permissions = consts.permissions;
+export const CONTENT_LIMITS = consts.CONTENT_LIMITS;
+export const DEFAULT_ARTICLE_TAGS = consts.DEFAULT_ARTICLE_TAGS;
 export const notificationTypes = consts.notificationTypes;
 export const noteVisibilities = consts.noteVisibilities;
 export const mutedNoteReasons = consts.mutedNoteReasons;

@@ -1343,7 +1343,7 @@ onUnmounted(() => {
 
 			.mk_grid_td, .mk_grid_th {
 				&:hover {
-					box-shadow: 0 0 0 1px var(--MI_THEME-divider) inset;
+					box-shadow: 0 0 0 var(--MI-dividerWidth) var(--MI-dividerColor) inset;
 				}
 			}
 		}

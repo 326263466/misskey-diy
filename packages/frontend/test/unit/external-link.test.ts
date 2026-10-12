@@ -15,6 +15,8 @@ import { confirmExternalLink } from '@/utility/external-link.js';
 const mocks = vi.hoisted(() => ({ popup: vi.fn(), dispose: vi.fn(), navigate: vi.fn() }));
 vi.mock('@/os.js', () => ({ popupAsyncWithDialog: mocks.popup }));
 vi.mock('@/components/MkExternalLinkDialog.vue', () => ({ default: {} }));
+vi.mock('@/instance.js', () => ({ instance: { clientOptions: {}, policies: {} } }));
+vi.mock('@/utility/get-note-menu.js', () => ({ getNoteMenu: vi.fn() }));
 vi.mock('@/composables/use-tooltip.js', () => ({ useTooltip: vi.fn() }));
 vi.mock('@/utility/url-preview.js', () => ({ isEnabledUrlPreview: { value: false }, transformPlayerUrl: (url: string) => url }));
 
@@ -99,9 +101,18 @@ describe.each([
 });
 
 describe('external link destination checks', () => {
+	test.each(['click', 'auxclick'])('confirms a delegated %s on nested Markdown link text', type => {
+		const host = document.createElement('div');
+		host.innerHTML = '<a href="https://example.com/markdown"><strong>Link</strong></a>';
+		host.addEventListener(type, confirmExternalLink as unknown as EventListener);
+		const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: type === 'auxclick' ? 1 : 0 });
+		host.querySelector('strong')!.dispatchEvent(event);
+		expect(event.defaultPrevented).toBe(true);
+		expect(mocks.popup).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ url: 'https://example.com/markdown' }), expect.anything());
+	});
 	function anchorFor(url: string): HTMLAnchorElement {
 		const anchor = document.createElement('a');
-		anchor.href = url;
+		try { anchor.href = new URL(url, local).href; } catch { anchor.href = url; }
 		anchor.addEventListener('click', confirmExternalLink);
 		return anchor;
 	}

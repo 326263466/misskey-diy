@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { nextTick, onMounted, onUnmounted, provide, ref, useTemplateRef, watch } from 'vue';
 import MkMenu from './MkMenu.vue';
 import type { MenuItem } from '@/types/menu.js';
-import { calcMenuPosition, MENU_PADDING_Y } from '@/utility/menu-position.js';
+import { calcMenuPosition, MENU_PADDING_Y, SUBMENU_OVERLAP } from '@/utility/menu-position.js';
 
 const props = defineProps<{
 	items: MenuItem[];
@@ -59,6 +59,7 @@ function setPosition() {
 		true,
 		// 首项与父菜单项对齐。
 		-MENU_PADDING_Y,
+		-SUBMENU_OVERLAP,
 	);
 	el.value.style.left = `${position.left - rootRect.left}px`;
 	el.value.style.top = `${position.top - rootRect.top}px`;
@@ -68,12 +69,13 @@ function setPosition() {
 	// 只覆盖菜单之间的空隙，进入其他父菜单项仍会立即关闭子菜单。
 	const childRight = position.left + el.value.offsetWidth;
 	const childBottom = position.top + el.value.offsetHeight;
-	const horizontal = position.left >= rootRect.right || childRight <= rootRect.left;
+	const opensRight = position.left >= rootRect.right - SUBMENU_OVERLAP;
+	const horizontal = opensRight || childRight <= rootRect.left + SUBMENU_OVERLAP;
 	const bridgeLeft = horizontal
-		? position.left >= rootRect.right ? rootRect.right : childRight
+		? opensRight ? rootRect.right : childRight
 		: Math.max(parentRect.left, position.left);
 	const bridgeRight = horizontal
-		? position.left >= rootRect.right ? position.left : rootRect.left
+		? opensRight ? position.left : rootRect.left
 		: Math.min(parentRect.right, childRight);
 	const bridgeTop = horizontal
 		? Math.min(parentRect.top, position.top)

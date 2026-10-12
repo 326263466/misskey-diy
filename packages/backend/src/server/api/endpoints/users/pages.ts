@@ -7,6 +7,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
 import { PageEntityService } from '@/core/entities/PageEntityService.js';
+import { ArticleService } from '@/core/ArticleService.js';
 import type { PagesRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
 
@@ -46,6 +47,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private pagesRepository: PagesRepository,
 
 		private pageEntityService: PageEntityService,
+		private articleService: ArticleService,
 		private queryService: QueryService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
@@ -57,7 +59,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.limit(ps.limit)
 				.getMany();
 
-			return await this.pageEntityService.packMany(pages);
+			return await this.pageEntityService.packMany(await this.articleService.filterAccessiblePages(pages, me), me);
 		});
 	}
 }

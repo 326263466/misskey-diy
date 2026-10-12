@@ -1,0 +1,24 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+// 加载、错误和空状态共用占位尺寸，避免请求完成时卡片跳高。
+@mixin surface {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: var(--MI-margin);
+	box-sizing: border-box;
+	min-height: var(--MI-pageStateMinHeight, 280px);
+	padding: var(--MI-pageStatePadding, var(--MI-cardPadding));
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-cardRadius);
+}
+
+// 加载图示保留相同尺寸，创建按钮不随加载图标替换而移动。
+@mixin icon {
+	width: 65px;
+	height: 65px;
+	margin: 0 auto;
+}

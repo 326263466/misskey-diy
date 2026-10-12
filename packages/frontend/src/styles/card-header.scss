@@ -1,0 +1,23 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+$padding: 6px;
+$compactPadding: 4px;
+
+@mixin label {
+	font-size: 16px;
+	font-weight: normal;
+	line-height: 1.4;
+}
+
+@mixin row {
+	padding-block: $padding;
+}
+
+// 标题独占一行时使用 title；带操作按钮的标题栏分别使用 row 和 label。
+@mixin title {
+	@include row;
+	@include label;
+}

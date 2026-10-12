@@ -30,6 +30,9 @@ export class MiFeedback {
 	@Column('varchar', { length: 10000 })
 	public description: string;
 
+	@Column('varchar', { length: 32, array: true, default: '{}' })
+	public fileIds: string[];
+
 	@Column('varchar', { length: 16 })
 	public category: FeedbackCategory;
 
@@ -38,6 +41,9 @@ export class MiFeedback {
 
 	@Column('varchar', { length: 10000, nullable: true })
 	public response: string | null;
+
+	@Column('varchar', { length: 32, array: true, default: '{}' })
+	public responseFileIds: string[];
 
 	@Column(id())
 	public userId: MiUser['id'];

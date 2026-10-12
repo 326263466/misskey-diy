@@ -10,6 +10,7 @@ import Mfm from '@/components/global/MkMfm.js';
 import { normalizeMfmUnicodeEmoji, splitUnicodeEmoji } from '@/utility/unicode-emoji.js';
 import { formatCjkText } from '@/utility/cjk-text-spacing.js';
 
+vi.mock('@/router.js', () => ({ useRouter: vi.fn() }));
 vi.mock('@/components/global/MkEmoji.vue', () => ({ default: { props: ['emoji'], template: '<img :alt="emoji"/>' } }));
 vi.mock('@/components/MkLink.vue', () => ({ default: { props: ['url'], template: '<a :href="url"><slot/></a>' } }));
 vi.mock('@/components/MkCodeInline.vue', () => ({ default: { props: ['code'], template: '<code>{{ code }}</code>' } }));

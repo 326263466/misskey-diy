@@ -1,35 +1,34 @@
 ---
 name: working-on-backend
-description: Use whenever editing or adding code under `packages/backend/` — including REST API endpoints, NestJS services/modules, TypeORM entities, migrations, and backend tests. Covers NestJS DI patterns, TypeORM entity conventions, endpoint-list registration, meta/paramDef/res, misskey-js regeneration, migration up/down rules, and the `.config/test.yml` prerequisite. Must be consulted before any backend change to avoid CI failures and production incidents. This is NOT waived by having already invoked brainstorming, writing-plans, or any other upstream skill — invoke this at implementation time regardless of what preceded it.
+description: 编辑或新增 packages/backend/ 下的 API、NestJS 服务、TypeORM 实体、迁移、后端测试或 misskey-js 生成物时使用。包含后端实现规范、按风险验证和测试配置要求。
 ---
 
-# working-on-backend
+# 后端开发
 
-`packages/backend/` (Misskey サーバー本体) を編集するとき、最初に参照するスキル。NestJS / TypeORM / API endpoint / migration / backend テストの **手順** と **背景知識** をまとめている。
+编辑 `packages/backend/` 前阅读本 skill。它是任务流程和背景知识的索引，具体规则按需阅读对应 reference；其他 skill 已执行也不能跳过。
 
-SKILL.md 本体は references への索引だけ。具体的な手順や規約は該当ファイルを Read すること (progressive disclosure)。
+## 按任务阅读
 
-**他スキル実行後も免除されない。** `brainstorming` / `writing-plans` / その他アップストリームスキルを先に呼んでいても、`packages/backend/` に触れる実装フェーズに入る時点でこのスキルを呼ぶこと。
+- 新增 REST API：阅读 [新增 API endpoint](references/tasks/adding-api-endpoint.md)
+- 新建数据库迁移：阅读 [创建 migration](references/tasks/creating-migration.md)
 
-## 作業別ワークフロー (tasks)
+## 常用参考
 
-タスク単位の完結したチェックリスト + チェックポイント。新しい何かを足すときに開く。
+- NestJS 依赖注入：[nestjs-di](references/knowledge/nestjs-di.md)
+- TypeORM 实体：[typeorm-patterns](references/knowledge/typeorm-patterns.md)
+- API `meta` / `paramDef` / `res`：[api-meta-paramdef](references/knowledge/api-meta-paramdef.md)
+- `endpoint-list.ts` 接线：[endpoint-list](references/knowledge/endpoint-list.md)
+- 后端测试前提和 helper：[backend-testing](references/knowledge/backend-testing.md)
 
-- 新規 REST API endpoint を追加する → [references/tasks/adding-api-endpoint.md](references/tasks/adding-api-endpoint.md)
-- DB migration を作成する (TypeORM CLI / 手書きどちらも) → [references/tasks/creating-migration.md](references/tasks/creating-migration.md)
+## 验证
 
-## 共通知識 (knowledge)
+按 [AGENTS.md 第 19 条](../../../AGENTS.md#测试与执行效率) 选择最轻验证层：先复用已有测试，普通小功能没有合适覆盖时做定向功能验证，不因新增 endpoint 自动新增 e2e 或测试文件。权限、资金、数据写入、并发、复杂状态或已知逻辑故障缺少覆盖时，补最小回归用例；验证通过后停止。
 
-タスクに紐付かない参照リファレンス。複数のタスクから引かれる規約・背景説明。
+- 修改 `meta` / `paramDef` / `res`：运行 `pnpm build-misskey-js-with-types`
+- 修改实体或迁移：运行 `pnpm --filter backend check-migrations`
+- 最后从 package root 对本任务变更文件运行 `eslint --quiet`
+- 直接运行后端测试前确认 `.config/test.yml` 存在；相关命令见 [backend-testing](references/knowledge/backend-testing.md)
 
-- NestJS DI / module 登録 / `@Injectable` パターン → [references/knowledge/nestjs-di.md](references/knowledge/nestjs-di.md)
-- TypeORM entity / `@Column` / `@Index` パターン (難ケース込み) → [references/knowledge/typeorm-patterns.md](references/knowledge/typeorm-patterns.md)
-- API endpoint の `meta` / `paramDef` / `res` 完全早見表 + 落とし穴集 → [references/knowledge/api-meta-paramdef.md](references/knowledge/api-meta-paramdef.md)
-- `endpoint-list.ts` への登録方法 (★ 漏れると 404) → [references/knowledge/endpoint-list.md](references/knowledge/endpoint-list.md)
-- backend テストの前提 (`.config/test.yml`) と書き方 / e2e ヘルパー一覧 → [references/knowledge/backend-testing.md](references/knowledge/backend-testing.md)
+API reviewer 也按风险选择：新增 endpoint，或修改 API 元数据、认证权限、错误定义、`endpoint-list.ts` 接线时，启动 [misskey-api-reviewer](../../agents/misskey-api-reviewer.md)。服务内部委托、只改测试或机械型修正不启动专用 reviewer。
 
-## 必ず最後に通る場所
-
-backend の変更を commit / PR にする前に、必ず [shipping-misskey-change](../shipping-misskey-change/SKILL.md) の最終チェックリストに従う。
-
-API endpoint を追加・変更したなら、その出口で [misskey-api-reviewer](../../agents/misskey-api-reviewer.md) agent (この skill の規約を review-mode から機械チェックする専門 reviewer) を Task で起動すると、endpoint-list 登録漏れや misskey-js 再生成漏れを取りこぼしにくい。
+交付前必须阅读 [shipping-misskey-change](../shipping-misskey-change/SKILL.md)。

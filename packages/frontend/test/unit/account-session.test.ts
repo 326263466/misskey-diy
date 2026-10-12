@@ -199,6 +199,27 @@ describe('session recovery from ordinary API requests', () => {
 		expect(mocks.reload).not.toHaveBeenCalled();
 		expect(mocks.alert).not.toHaveBeenCalled();
 	});
+
+	test('aborts a public GET request without invalidating the account or leaving it pending', async () => {
+		const { misskeyApiGet, pendingApiRequestsCount } = await import('@/utility/misskey-api.js');
+		const controller = new AbortController();
+		const error = new DOMException('Canceled', 'AbortError');
+		const fetch = vi.fn((_url: string, options: RequestInit) => new Promise<Response>((_resolve, reject) => {
+			options.signal?.addEventListener('abort', () => reject(error), { once: true });
+		}));
+		vi.stubGlobal('fetch', fetch);
+		const request = misskeyApiGet('notes/featured', { limit: 10 }, controller.signal);
+		expect(fetch).toHaveBeenCalledWith('https://example.test/api/notes/featured?limit=10', expect.objectContaining({
+			method: 'GET', credentials: 'omit', cache: 'default', signal: controller.signal,
+		}));
+		expect(pendingApiRequestsCount.value).toBe(1);
+		const rejection = expect(request).rejects.toBe(error);
+		controller.abort();
+		await rejection;
+		expect(pendingApiRequestsCount.value).toBe(0);
+		expect(mocks.reload).not.toHaveBeenCalled();
+		expect(mocks.alert).not.toHaveBeenCalled();
+	});
 });
 
 afterEach(() => {

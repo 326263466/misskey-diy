@@ -10,18 +10,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 	<template #default>
 		<div class="_gaps" :class="$style.main">
-			<component :is="loadingHandler.component.value" v-if="loadingHandler.showing.value"/>
-			<template v-else>
-				<div v-if="gridItems.length === 0" style="text-align: center">
-					{{ i18n.ts._customEmojisManager._local._list.emojisNothing }}
-				</div>
-
-				<template v-else>
-					<div :class="$style.grid">
-						<MkGrid :data="gridItems" :settings="setupGrid()" @event="onGridEvent"/>
-					</div>
-				</template>
-			</template>
+			<MkLoading v-if="!initialized || loadingHandler.showing.value" page/>
+			<MkError v-else-if="loadError" page @retry="refreshCustomEmojis"/>
+			<MkResult v-else-if="gridItems.length === 0" type="empty" :text="i18n.ts._customEmojisManager._local._list.emojisNothing" page/>
+			<div v-else :class="$style.grid">
+				<MkGrid :data="gridItems" :settings="setupGrid()" @event="onGridEvent"/>
+			</div>
 		</div>
 	</template>
 
@@ -272,6 +266,9 @@ function setupGrid(): GridSetting {
 }
 
 const loadingHandler = useLoading();
+const initialized = ref(false);
+const loadError = ref(false);
+let loadRequestId = 0;
 
 const customEmojis = ref<Misskey.entities.EmojiDetailedAdmin[]>([]);
 const allPages = ref<number>(0);
@@ -460,6 +457,7 @@ function onGridCellValueChange(event: GridCellValueChangeEvent) {
 }
 
 async function refreshCustomEmojis() {
+	const requestId = ++loadRequestId;
 	const limit = searchQuery.value.limit;
 
 	const query: Misskey.entities.V2AdminEmojiListRequest['query'] = {
@@ -480,19 +478,27 @@ async function refreshCustomEmojis() {
 		currentPage.value = 1;
 	}
 
-	const result = await loadingHandler.scope(() => misskeyApi('v2/admin/emoji/list', {
-		query: query,
-		limit: limit,
-		page: currentPage.value,
-		sortKeys: sortOrders.value.map(({ key, direction }) => `${direction}${key}` as any),
-	}));
+	loadError.value = false;
+	await loadingHandler.scope(async () => {
+		try {
+			const result = await misskeyApi('v2/admin/emoji/list', {
+				query: query,
+				limit: limit,
+				page: currentPage.value,
+				sortKeys: sortOrders.value.map(({ key, direction }) => `${direction}${key}` as any),
+			});
+			if (requestId !== loadRequestId) return;
 
-	customEmojis.value = result.emojis;
-	allPages.value = result.allPages;
-
-	previousQuery.value = JSON.stringify(query);
-
-	refreshGridItems();
+			customEmojis.value = result.emojis;
+			allPages.value = result.allPages;
+			previousQuery.value = JSON.stringify(query);
+			refreshGridItems();
+		} catch {
+			if (requestId === loadRequestId) loadError.value = true;
+		} finally {
+			if (requestId === loadRequestId) initialized.value = true;
+		}
+	});
 }
 
 function refreshGridItems() {
@@ -610,20 +616,20 @@ const headerActions = computed<PageHeaderItem[]>(() => [{
 }
 
 .main {
-	height: calc(100vh - var(--MI-stickyTop) - var(--MI-stickyBottom));
+	max-height: calc(100dvh - var(--MI-stickyTop) - var(--MI-stickyBottom));
 	overflow: auto;
 }
 
 .grid {
 	width: max-content;
-	border-bottom: 1px solid var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .footer {
 	background-color: var(--MI_THEME-bg);
 
 	padding: var(--MI-margin);
-	border-top: 1px solid var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
@@ -654,7 +660,7 @@ const headerActions = computed<PageHeaderItem[]>(() => [{
 
 .divider {
 	margin: 8px 0;
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 
 </style>

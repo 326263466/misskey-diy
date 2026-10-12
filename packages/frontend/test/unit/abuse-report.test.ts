@@ -191,14 +191,14 @@ describe('admin abuse report details', () => {
 		expect(view.queryByText('Edited content')).toBeNull();
 	});
 
-	test('uses the server Boost snapshot instead of the text embedded in the report comment', async () => {
+	test('uses the server content snapshot instead of the text embedded in the report comment', async () => {
 		const view = renderReport(makeReport({
-			comment: `${i18n.ts._abuseReport._reasons.spam}\nBoost: Reporter supplied text\nNote: ${instanceUrl}/notes/note1\n-----\n`,
-			snapshot: makeSnapshot({ type: 'boost', content: 'Saved Boost text' }),
+			comment: `${i18n.ts._abuseReport._reasons.spam}\ncontent: Reporter supplied text\nNote: ${instanceUrl}/notes/note1\n-----\n`,
+			snapshot: makeSnapshot({ type: 'note', content: 'Saved content text' }),
 		}));
 		await openReport(view);
 		expect(mocks.api).not.toHaveBeenCalled();
-		expect(view.getByText('Saved Boost text')).toBeTruthy();
+		expect(view.getByText('Saved content text')).toBeTruthy();
 		expect(view.getByText(new RegExp('Reporter supplied text'))).toBeTruthy();
 	});
 

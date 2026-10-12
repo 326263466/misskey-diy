@@ -9,6 +9,7 @@ import type { UsersRepository, PagesRepository } from '@/models/_.js';
 import type { MiPage } from '@/models/Page.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { PageEntityService } from '@/core/entities/PageEntityService.js';
+import { ArticleService } from '@/core/ArticleService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../error.js';
 
@@ -62,6 +63,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private pagesRepository: PagesRepository,
 
 		private pageEntityService: PageEntityService,
+		private articleService: ArticleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			let page: MiPage | null = null;
@@ -83,6 +85,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (page == null) {
 				throw new ApiError(meta.errors.noSuchPage);
+			}
+			if (ArticleService.isArticle(page)) {
+				await this.articleService.getArticle(page.id, me).catch(error => {
+					if (error instanceof ArticleService.NoSuchArticleError) throw new ApiError(meta.errors.noSuchPage);
+					throw error;
+				});
 			}
 
 			return await this.pageEntityService.pack(page, me);

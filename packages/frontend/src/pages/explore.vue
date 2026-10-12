@@ -4,34 +4,40 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" :contentCard="tab !== 'featured'" :tabs="narrow ? headerTabs : []" :swipable="true">
 	<div v-if="tab === 'featured'" data-page-body>
 		<XFeatured/>
 	</div>
-	<div v-else-if="tab === 'users'" data-page-body>
-		<XUsers/>
-	</div>
-	<div v-else-if="tab === 'roles'" data-page-body>
-		<XRoles/>
-	</div>
+	<XUsers v-else-if="tab === 'users'"/>
+	<XRoles v-else-if="tab === 'roles'"/>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, ref, useTemplateRef } from 'vue';
+import { computed, inject, ref } from 'vue';
 import XFeatured from './explore.featured.vue';
 import XUsers from './explore.users.vue';
 import XRoles from './explore.roles.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
+import { useRouter } from '@/router.js';
+import { DI } from '@/di.js';
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
 	initialTab?: string;
-}>(), {
-	initialTab: 'featured',
-});
+}>();
 
-const tab = ref(props.initialTab);
+const router = useRouter();
+// 不在左侧菜单布局内使用时保留顶部标签
+const narrow = inject(DI.pageNavigationNarrow, ref(true));
+
+const tab = computed<'featured' | 'users' | 'roles'>({
+	get: () => props.initialTab === 'users' || props.initialTab === 'roles' ? props.initialTab : 'featured',
+	set: (value) => {
+		if (value === 'featured') router.push('/explore');
+		else router.push('/explore/:initialTab?', { params: { initialTab: value } });
+	},
+});
 
 const headerTabs = computed(() => [{
 	key: 'featured',

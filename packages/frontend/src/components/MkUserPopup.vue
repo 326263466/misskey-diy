@@ -25,7 +25,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	>
 		<MkError v-if="error" @retry="fetchUser()"/>
 		<div v-else-if="user != null">
-			<div :class="$style.banner" :style="user.bannerUrl ? { backgroundImage: `url(${prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl})` } : ''">
+			<div class="_imageContainer" :class="$style.banner">
+				<img v-if="user.bannerUrl" class="_imageBackground" :src="prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl" alt=""/>
 				<span v-if="$i && $i.id != user.id && user.isFollowed" :class="$style.followed">{{ i18n.ts.followsYou }}</span>
 			</div>
 			<svg viewBox="0 0 128 128" :class="$style.avatarBack">
@@ -60,7 +61,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkA>
 			</div>
 			<MkFollowButton v-if="$i && user.id != $i.id" :user="user" :class="$style.follow" mini @update:user="sourceUser = $event"/>
-			<button v-tooltip="i18n.ts.more" class="_button" :class="[$style.menu, $style.glass]" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots"></i></button>
+			<button v-tooltip="i18n.ts.more" class="_button _iconButton" :class="[$style.menu, $style.glass]" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots"></i></button>
 		</div>
 		<div v-else>
 			<MkLoading/>
@@ -74,7 +75,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 
 import * as Misskey from 'misskey-js';
 import MkFollowButton from '@/components/MkFollowButton.vue';
 import MkUserWork from '@/components/MkUserWork.vue';
-import { userName, userPage } from '@/filters/user.js';
+import { userName, userPage } from '@@/js/user.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { calcPopupPosition } from '@/utility/popup-position.js';
@@ -88,14 +89,17 @@ import { getStaticImageUrl } from '@/utility/media-proxy.js';
 import { useUserStatistics } from '@/composables/use-user-statistics.js';
 import { useUserStatisticsVisibility } from '@/composables/use-user-statistics-visibility.js';
 import { useUserProfile } from '@/composables/use-user-profile.js';
+import { usePopupDismissal } from '@/composables/use-popup-dismissal.js';
 
 const props = withDefaults(defineProps<{
 	showing: boolean;
 	q: string | Misskey.entities.UserDetailed;
 	source: HTMLElement;
 	interactive?: boolean;
+	closeOnBackdrop?: boolean;
 }>(), {
 	interactive: false,
+	closeOnBackdrop: true,
 });
 
 const emit = defineEmits<{
@@ -174,8 +178,8 @@ function setPosition() {
 	origin.value = result.transformOrigin;
 }
 
-function onOutsidePointer(event: PointerEvent) {
-	if (!props.showing) return;
+function onOutsideClick(event: MouseEvent) {
+	if (!props.showing || !props.closeOnBackdrop) return;
 	const target = event.target as Node | null;
 	if (rootEl.value?.contains(target) || props.source.contains(target)) {
 		if (menuShown) keepOpenAfterMenu = true;
@@ -197,13 +201,18 @@ function onOutsidePointer(event: PointerEvent) {
 	emit('close');
 }
 
-function onKeydown(event: KeyboardEvent) {
-	if (!props.interactive || !props.showing || menuShown || event.key !== 'Escape') return;
-	event.preventDefault();
-	event.stopPropagation();
-	props.source.focus({ preventScroll: true });
-	emit('close');
-}
+usePopupDismissal({
+	element: () => rootEl.value,
+	isShowing: () => props.showing,
+	useHistory: () => props.interactive,
+	onEscape: () => {
+		if (menuShown) return false;
+		if (props.interactive) props.source.focus({ preventScroll: true });
+		emit('close');
+		return true;
+	},
+	onClickOutside: onOutsideClick,
+});
 
 // 卡片内容是异步填充的，高度会变，需要重新判断上下翻转
 const ro = new ResizeObserver(() => {
@@ -217,9 +226,6 @@ onMounted(() => {
 	setPosition();
 	window.addEventListener('resize', setPosition);
 	window.addEventListener('scroll', setPosition, true);
-	// 两条打开路径都要能被外部点击关掉；Escape 只对可交互（点击打开）的卡片有意义
-	window.document.addEventListener('pointerdown', onOutsidePointer);
-	if (props.interactive) window.document.addEventListener('keydown', onKeydown, true);
 	nextTick(() => {
 		setPosition();
 		if (props.interactive) rootEl.value?.focus({ preventScroll: true });
@@ -228,8 +234,6 @@ onMounted(() => {
 
 onUnmounted(() => {
 	ro.disconnect();
-	window.document.removeEventListener('pointerdown', onOutsidePointer);
-	window.document.removeEventListener('keydown', onKeydown, true);
 	window.removeEventListener('resize', setPosition);
 	window.removeEventListener('scroll', setPosition, true);
 });
@@ -256,8 +260,6 @@ onUnmounted(() => {
 .banner {
 	height: 78px;
 	background-color: rgba(0, 0, 0, 0.1);
-	background-size: cover;
-	background-position: center;
 }
 
 .followed {

@@ -3,14 +3,19 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { CONTENT_LIMITS } from 'misskey-js';
 import { i18n } from '@/i18n.js';
+import { isCoinAmount, toCoinUnits } from '@/utility/coins.js';
+
+export const RED_PACKET_MESSAGE_MAX_LENGTH = CONTENT_LIMITS.redPacketGreeting;
 
 export type RedPacketDraft = {
-	kind: 'direct' | 'group' | 'tip';
+	kind: 'direct' | 'group';
 	audience: 'public' | 'recipients' | 'room';
 	roomId?: string;
 	recipientIds: string[];
 	mode: 'equal' | 'random';
+	password?: string | null;
 	coverId: 'classic' | 'lucky' | 'sunset';
 	coverFileId?: string | null;
 	coverUrl?: string | null;
@@ -18,6 +23,8 @@ export type RedPacketDraft = {
 	count: number;
 	message: string;
 	expiresInHours: number;
+	/** 仅保留旧版本待确认请求的数据，供按 requestId 恢复。 */
+	startsAt?: string;
 	requestId: string;
 };
 
@@ -26,33 +33,39 @@ export function createRedPacketDraft(kind: RedPacketDraft['kind'] = 'group', rec
 	return { kind, roomId, audience: roomId ? 'room' : recipients.length > 0 || kind !== 'group' ? 'recipients' : 'public', recipientIds: recipients, coverId: 'classic', mode: kind === 'group' ? 'random' : 'equal', totalCoins: 10, count: kind === 'group' ? Math.min(5, recipients.length || 5) : 1, message: '', expiresInHours: 24, requestId: crypto.randomUUID() };
 }
 
-export function redPacketValidation(draft: RedPacketDraft, balance?: number | null): string | null {
-	if (!['direct', 'group', 'tip'].includes(draft.kind) || !Array.isArray(draft.recipientIds) || draft.recipientIds.some(id => typeof id !== 'string' || !id)) return i18n.ts._redPacket.invalidDraft;
+export function redPacketValidation(draft: RedPacketDraft, balance?: number | null, options: { recovering?: boolean } = {}): string | null {
+	if (!['direct', 'group'].includes(draft.kind) || !Array.isArray(draft.recipientIds) || draft.recipientIds.some(id => typeof id !== 'string' || !id)) return i18n.ts._redPacket.invalidDraft;
 	if (!['public', 'recipients', 'room'].includes(draft.audience) || (draft.audience === 'recipients' && draft.recipientIds.length === 0) || (draft.audience === 'public' && (draft.kind !== 'group' || draft.recipientIds.length > 0))) return i18n.ts._redPacket.invalidDraft;
 	if ((draft.audience === 'room' && (draft.kind !== 'group' || !draft.roomId || draft.recipientIds.length > 0)) || (draft.audience !== 'room' && draft.roomId != null)) return i18n.ts._redPacket.invalidDraft;
-	if (draft.kind !== 'group' && (draft.recipientIds.length !== 1 || draft.count !== 1 || draft.mode !== 'equal')) return i18n.ts._redPacket.invalidDraft;
+	if (draft.kind !== 'group' && (draft.recipientIds.length !== 1 || draft.count !== 1 || (draft.password == null && draft.mode !== 'equal'))) return i18n.ts._redPacket.invalidDraft;
+	const passwordLimit = options.recovering ? 32 : CONTENT_LIMITS.redPacketPassword;
+	if (draft.password != null && (typeof draft.password !== 'string' || draft.password.trim().length === 0 || Array.from(draft.password.trim()).length > passwordLimit || draft.audience === 'public' || draft.mode !== 'random' || (draft.audience === 'recipients' && draft.recipientIds.length !== 1))) return i18n.ts._redPacket.passwordInvalid;
 	if (!Number.isSafeInteger(draft.count) || draft.count < 1 || draft.count > 100) return i18n.ts._redPacket.invalidCount;
 	if (draft.audience === 'recipients' && draft.count > new Set(draft.recipientIds).size) return i18n.ts._redPacket.tooManyRecipients;
-	if (!Number.isSafeInteger(draft.totalCoins) || draft.totalCoins < draft.count || draft.totalCoins > 1000000) return i18n.ts._redPacket.invalidCoins;
-	if (draft.mode === 'equal' && draft.totalCoins % draft.count !== 0) return i18n.ts._redPacket.equalNotDivisible;
+	if (!isCoinAmount(draft.totalCoins) || draft.totalCoins < 1 || draft.totalCoins > 1000 || toCoinUnits(draft.totalCoins) < draft.count) return i18n.ts._redPacket.invalidCoins;
+	if (draft.mode === 'equal' && toCoinUnits(draft.totalCoins) % draft.count !== 0) return i18n.ts._redPacket.equalNotDivisible;
 	if (draft.mode !== 'equal' && draft.mode !== 'random') return i18n.ts._redPacket.invalidDraft;
-	if (![1, 6, 24].includes(draft.expiresInHours) || typeof draft.message !== 'string' || Array.from(draft.message).length > 100) return i18n.ts._redPacket.invalidDraft;
+	if (!Number.isSafeInteger(draft.expiresInHours) || draft.expiresInHours < 1 || draft.expiresInHours > 24 ||
+		(draft.startsAt == null ? draft.expiresInHours !== 24 : !Number.isFinite(Date.parse(draft.startsAt))) ||
+		typeof draft.message !== 'string' || Array.from(draft.message).length > RED_PACKET_MESSAGE_MAX_LENGTH) return i18n.ts._redPacket.invalidDraft;
 	if (!['classic', 'lucky', 'sunset'].includes(draft.coverId)) return i18n.ts._redPacket.invalidDraft;
 	if (typeof draft.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draft.requestId)) return i18n.ts._redPacket.invalidDraft;
 	if (balance != null && draft.totalCoins > balance) return i18n.ts._redPacket.insufficientCoins;
 	return null;
 }
 
-export function redPacketError(error: unknown): string {
+/** 红包/钱包错误转提示文案；未识别的错误码用 fallback，供消息发送等场景传入各自的兜底文案。 */
+export function redPacketError(error: unknown, fallback: string = i18n.ts._redPacket.operationFailed): string {
 	const code = (error as { code?: string } | null)?.code;
 	switch (code) {
+		case 'RED_PACKET_PASSWORD_REQUIRED': return i18n.ts._redPacket.passwordRequired;
+		case 'RED_PACKET_NOT_STARTED': return i18n.ts._redPacket.scheduled;
 		case 'INSUFFICIENT_WALLET_BALANCE':
 		case 'INSUFFICIENT_BALANCE':
 		case 'INSUFFICIENT_COINS': return i18n.ts._redPacket.insufficientCoins;
 		case 'RED_PACKET_EXPIRED': return i18n.ts._redPacket.expired;
 		case 'RED_PACKET_EXHAUSTED': return i18n.ts._redPacket.exhausted;
 		case 'RED_PACKET_CANCELLED': return i18n.ts._redPacket.cancelled;
-		case 'CANNOT_CLAIM_OWN_RED_PACKET': return i18n.ts._redPacket.ownPacket;
 		case 'ALREADY_CLAIMED': return i18n.ts._redPacket.alreadyClaimed;
 		case 'NO_SUCH_NOTE':
 		case 'NO_SUCH_RED_PACKET': return i18n.ts._redPacket.unavailable;
@@ -67,7 +80,7 @@ export function redPacketError(error: unknown): string {
 		case 'RED_PACKET_NOT_ALLOWED':
 		case 'RED_PACKET_ACCESS_DENIED':
 		case 'ACCOUNT_SUSPENDED': return i18n.ts._redPacket.notAllowed;
-		default: return i18n.ts._redPacket.operationFailed;
+		default: return fallback;
 	}
 }
 

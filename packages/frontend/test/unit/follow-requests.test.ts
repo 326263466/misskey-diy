@@ -20,7 +20,7 @@ vi.mock('@/os.js', () => ({ apiWithDialog: mocks.api, confirm: mocks.confirm }))
 vi.mock('@/i.js', () => ({ $i: mocks.account }));
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
 vi.mock('@/utility/paginator.js', () => ({
-	Paginator: class { reload = mocks.reload; },
+	Paginator: class { reload = mocks.reload; fetching = { value: false }; },
 }));
 vi.mock('@/components/MkPagination.vue', async () => {
 	const { defineComponent, h } = await import('vue');

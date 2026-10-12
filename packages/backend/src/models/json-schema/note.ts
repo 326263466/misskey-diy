@@ -286,9 +286,10 @@ export const packedNoteSchema = {
 			optional: true, nullable: false,
 		},
 
-		myReaction: {
-			type: 'string',
-			optional: true, nullable: true,
+		myReactions: {
+			type: 'array',
+			optional: true, nullable: false,
+			items: { type: 'string' },
 		},
 
 		isFavorited: {

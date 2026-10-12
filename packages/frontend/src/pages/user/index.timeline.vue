@@ -22,8 +22,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkPaginationControl>
 		</div>
 	</template>
-	<MkNotesTimeline v-if="tab === 'featured'" :noGap="true" :paginator="featuredPaginator" :pullToRefresh="false" :withControl="false" :class="$style.tl"/>
-	<MkNotesTimeline v-else :noGap="true" :paginator="notesPaginator" :pullToRefresh="false" :withControl="false" :class="$style.tl"/>
+	<MkNotesTimeline v-if="tab === 'featured'" :noGap="true" :paginator="featuredPaginator" :pullToRefresh="false" :withControl="false" :class="$style.tl" pageEmpty/>
+	<MkNotesTimeline v-else :noGap="true" :paginator="notesPaginator" :pullToRefresh="false" :withControl="false" :class="$style.tl" pageEmpty/>
 </MkStickyContainer>
 </template>
 

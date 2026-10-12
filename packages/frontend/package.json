@@ -52,6 +52,7 @@
 		"is-file-animated": "1.0.2",
 		"json5": "2.2.3",
 		"matter-js": "0.20.0",
+		"md-editor-v3": "7.0.0",
 		"mediabunny": "1.55.4",
 		"mfm-js": "0.26.0",
 		"misskey-bubble-game": "workspace:*",

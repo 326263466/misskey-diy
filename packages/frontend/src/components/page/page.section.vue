@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			'h4': h === 4,
 		}"
 	>
-		{{ block.title }}
+		<Mfm :text="block.title" :plain="true" :author="page.user"/>
 	</component>
 
 	<div class="_gaps">

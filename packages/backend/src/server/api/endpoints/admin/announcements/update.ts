@@ -4,6 +4,8 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { AnnouncementsRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
@@ -18,6 +20,7 @@ export const meta = {
 	kind: 'write:admin:announcements',
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: '5a3c6297-42b8-4c6f-afc2-8d07d25e7dc4' },
 		noSuchAnnouncement: {
 			message: 'No such announcement.',
 			code: 'NO_SUCH_ANNOUNCEMENT',
@@ -55,6 +58,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const announcement = await this.announcementsRepository.findOneBy({ id: ps.id });
 
 			if (announcement == null) throw new ApiError(meta.errors.noSuchAnnouncement);
+			if (isContentTooLong(ps.title, CONTENT_LIMITS.announcementTitle, announcement.title) ||
+				isContentTooLong(ps.text, CONTENT_LIMITS.announcementText, announcement.text)) {
+				throw new ApiError(meta.errors.contentTooLong);
+			}
 
 			await this.announcementService.update(announcement, {
 				updatedAt: new Date(),

@@ -5,43 +5,61 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div ref="rootEl" :class="$style.root">
-	<button :class="$style.item" class="_button" @click="drawerMenuShowing = true">
+	<button :class="$style.item" class="_button" :aria-label="i18n.ts.menu" @click="drawerMenuShowing = true">
 		<div :class="$style.itemInner">
-			<i :class="$style.itemIcon" class="ti ti-menu-2"></i><span v-if="menuIndicated" :class="$style.itemIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
+			<span :class="$style.itemIcon">
+				<i class="ti ti-menu-2" aria-hidden="true"></i>
+				<span v-if="menuIndicated" :class="$style.itemIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
+			</span>
 		</div>
+		<span :class="$style.itemText">{{ i18n.ts.menu }}</span>
 	</button>
 
 	<button :class="$style.item" class="_button" @click="mainRouter.push('/')">
 		<div :class="$style.itemInner">
-			<i :class="$style.itemIcon" class="ti ti-home"></i>
+			<span :class="$style.itemIcon"><i class="ti ti-home" aria-hidden="true"></i></span>
 		</div>
+		<span :class="$style.itemText">{{ i18n.ts.home }}</span>
+	</button>
+	<button :class="$style.item" class="_button" @click="mainRouter.push('/timeline')">
+		<div :class="$style.itemInner">
+			<span :class="$style.itemIcon"><i class="ti ti-messages" aria-hidden="true"></i></span>
+		</div>
+		<span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 	</button>
 
 	<button :class="[$style.item, $style.post]" class="_button" @click="os.post()">
 		<div :class="$style.itemInner">
-			<i :class="$style.itemIcon" class="ti ti-plus"></i>
+			<span :class="$style.itemIcon"><i class="ti ti-plus" aria-hidden="true"></i></span>
 		</div>
+		<span :class="$style.itemText">{{ i18n.ts._postForm.post }}</span>
 	</button>
 
-	<button v-if="$i" :class="$style.item" class="_button" :aria-label="i18n.ts.notifications" @click="mainRouter.push('/my/notifications')">
+	<button v-if="$i && $i.policies.chatAvailability !== 'unavailable'" :class="$style.item" class="_button" :aria-label="i18n.ts.chat" @click="openChat ? openChat() : mainRouter.push('/chat')">
 		<div :class="$style.itemInner">
-			<i :class="$style.itemIcon" class="ti ti-bell"></i>
-			<span v-if="$i?.hasUnreadNotification" :class="$style.itemIndicator" class="_blink">
-				<span class="_indicateCounter" :class="$style.itemIndicateValueIcon">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
+			<span :class="$style.itemIcon">
+				<i class="ti ti-message-circle" aria-hidden="true"></i>
+				<span v-if="$i.hasUnreadChatMessages" :class="$style.itemIndicator">
+					<i class="_indicatorCircle"></i>
+				</span>
 			</span>
 		</div>
+		<span :class="$style.itemText">{{ i18n.ts.chat }}</span>
 	</button>
 	<button v-else :class="$style.item" class="_button" :aria-label="i18n.ts.search" @click="mainRouter.push('/search')">
-		<div :class="$style.itemInner"><i :class="$style.itemIcon" class="ti ti-search"></i></div>
+		<div :class="$style.itemInner"><span :class="$style.itemIcon"><i class="ti ti-search" aria-hidden="true"></i></span></div>
+		<span :class="$style.itemText">{{ i18n.ts.search }}</span>
 	</button>
 
 	<button v-if="$i" :class="$style.item" class="_button" :aria-label="i18n.ts.widgets" @click="widgetsShowing = true">
 		<div :class="$style.itemInner">
-			<i :class="$style.itemIcon" class="ti ti-apps"></i>
+			<span :class="$style.itemIcon"><i class="ti ti-apps" aria-hidden="true"></i></span>
 		</div>
+		<span :class="$style.itemText">{{ i18n.ts.widgets }}</span>
 	</button>
 	<button v-else :class="$style.item" class="_button" :aria-label="i18n.ts.login" @click="pleaseLogin({ message: '' })">
-		<div :class="$style.itemInner"><i :class="$style.itemIcon" class="ti ti-login-2"></i></div>
+		<div :class="$style.itemInner"><span :class="$style.itemIcon"><i class="ti ti-login-2" aria-hidden="true"></i></span></div>
+		<span :class="$style.itemText">{{ i18n.ts.login }}</span>
 	</button>
 </div>
 </template>
@@ -58,11 +76,15 @@ import { pleaseLogin } from '@/utility/please-login.js';
 const drawerMenuShowing = defineModel<boolean>('drawerMenuShowing');
 const widgetsShowing = defineModel<boolean>('widgetsShowing');
 
+defineProps<{
+	openChat?: () => void;
+}>();
+
 const rootEl = useTemplateRef('rootEl');
 
 const menuIndicated = computed(() => {
 	for (const def in navbarItemDef) {
-		if (def === 'notifications') continue; // 通知は下にボタンとして表示されてるから
+		if (def === 'chat') continue; // 聊天未读已在底部入口显示。
 		if (navbarItemDef[def].indicated) return true;
 	}
 	return false;
@@ -89,24 +111,21 @@ watch(rootEl, () => {
 	z-index: 1;
 	padding-bottom: env(safe-area-inset-bottom, 0px);
 	display: grid;
-	grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
 	width: 100%;
 	box-sizing: border-box;
 	background: var(--MI_THEME-navBg);
 	color: var(--MI_THEME-navFg);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 
 .item {
-	padding: 12px 0;
-
-	&:first-child {
-		padding-left: 12px;
-	}
-
-	&:last-child {
-		padding-right: 12px;
-	}
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+	padding: 6px 0;
 
 	&.post {
 		.itemInner {
@@ -131,7 +150,9 @@ watch(rootEl, () => {
 	width: 100%;
 	max-width: 42px;
 	margin: auto;
-	align-content: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	border-radius: 100%;
 
 	&:hover {
@@ -144,21 +165,30 @@ watch(rootEl, () => {
 }
 
 .itemIcon {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.28em;
+	height: 1.28em;
 	font-size: 15px;
+}
+
+.itemText {
+	max-width: 100%;
+	font-size: 1em;
+	line-height: 1.35;
+	white-space: nowrap;
 }
 
 .itemIndicator {
 	position: absolute;
-	bottom: -4px;
-	left: 0;
-	right: 0;
+	top: -4px;
+	left: 50%;
+	transform-origin: top left;
 	color: var(--MI_THEME-indicator);
 	font-size: 10px;
 	pointer-events: none;
 
-	&:has(.itemIndicateValueIcon) {
-		animation: none;
-		font-size: 8px;
-	}
 }
 </style>

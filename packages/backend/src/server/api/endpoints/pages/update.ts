@@ -4,14 +4,16 @@
  */
 
 import ms from 'ms';
+import { contentTooLongError } from '@/misc/content-limits.js';
 import { Inject, Injectable } from '@nestjs/common';
 import type { DriveFilesRepository, MiDriveFile } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../error.js';
-import { pageNameSchema } from '@/models/Page.js';
+import { articleCategoryIdSchema, pageNameSchema } from '@/models/Page.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { PageService } from '@/core/PageService.js';
+import { articleTagsSchema, invalidArticleTagsErrorId } from '@/misc/article-tags.js';
 
 export const meta = {
 	tags: ['pages'],
@@ -28,6 +30,17 @@ export const meta = {
 	},
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: 'e011ab9b-143b-4f73-a94d-a354f4c601bf' },
+		invalidArticleTags: {
+			message: 'Article tags must contain at most three distinct configured tags of up to 10 characters. Existing longer tags may be preserved unchanged.',
+			code: 'INVALID_ARTICLE_TAGS',
+			id: '4239b97e-9a0f-4290-80e4-49b082f5195a',
+		},
+		noSuchArticleCategory: {
+			message: 'No such article category.',
+			code: 'NO_SUCH_ARTICLE_CATEGORY',
+			id: '8219d70b-8cd7-4f4d-a37e-7a32fb9afa79',
+		},
 		noSuchPage: {
 			message: 'No such page.',
 			code: 'NO_SUCH_PAGE',
@@ -54,6 +67,8 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
+		articleCategoryId: { ...articleCategoryIdSchema, nullable: true },
+		articleTags: articleTagsSchema,
 		pageId: { type: 'string', format: 'misskey:id' },
 		title: { type: 'string' },
 		name: { ...pageNameSchema, minLength: 1 },
@@ -101,6 +116,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				});
 			} catch (err) {
 				if (err instanceof IdentifiableError) {
+					if (err.id === contentTooLongError.id) throw new ApiError(meta.errors.contentTooLong);
+					if (err.id === invalidArticleTagsErrorId) throw new ApiError(meta.errors.invalidArticleTags);
+					if (err.id === '8500efe3-a63d-402d-889d-52845f6a2b55') throw new ApiError(meta.errors.noSuchArticleCategory);
 					if (err.id === '66aefd3c-fdb2-4a71-85ae-cc18bea85d3f') throw new ApiError(meta.errors.noSuchPage);
 					if (err.id === 'd0017699-8256-46f1-aed4-bc03bed73616') throw new ApiError(meta.errors.accessDenied);
 					if (err.id === 'd05bfe24-24b6-4ea2-a3ec-87cc9bf4daa4') throw new ApiError(meta.errors.nameAlreadyExists);

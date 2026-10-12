@@ -7,7 +7,7 @@ import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
 import { claimAchievement } from './achievements.js';
 import type { Ref, ShallowRef } from 'vue';
-import type { MenuItem } from '@/types/menu.js';
+import type { MenuButton, MenuItem } from '@/types/menu.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
@@ -27,6 +27,7 @@ import { globalEvents } from '@/events.js';
 import { noteEvents } from '@/composables/use-note-capture.js';
 import { editNote } from '@/utility/edit-note.js';
 import { copyNoteLink, shareNote } from '@/utility/share-note.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
 const isInBrowserTranslationAvailable = (
 	'LanguageDetector' in window &&
@@ -48,59 +49,40 @@ export async function getNoteClipMenu(props: {
 	const appearNote = getAppearNote(props.note) ?? props.note;
 
 	const clips = await clipsCache.fetch();
+
+	function updateClipCount(clipId: string, delta: number) {
+		clipsCache.set(clips.map(clip => clip.id === clipId ? {
+			...clip,
+			notesCount: Math.max(0, (clip.notesCount ?? 0) + delta),
+		} : clip));
+	}
+
 	const menu: MenuItem[] = [...clips.map(clip => ({
 		text: getClipName(clip),
-		action: () => {
-			claimAchievement('noteClipped1');
-			os.promiseDialog(
-				misskeyApi('clips/add-note', { clipId: clip.id, noteId: appearNote.id }),
-				null,
-				async (err) => {
-					if (err.id === '734806c4-542c-463a-9311-15c512803965') {
-						const confirm = await os.confirm({
-							type: 'warning',
-							text: i18n.tsx.confirmToUnclipAlreadyClippedNote({ name: clip.name }),
-						});
-						if (!confirm.canceled) {
-							os.apiWithDialog('clips/remove-note', { clipId: clip.id, noteId: appearNote.id }).then(() => {
-								clipsCache.set(clips.map(c => {
-									if (c.id === clip.id) {
-										return {
-											...c,
-											notesCount: Math.max(0, ((c.notesCount ?? 0) - 1)),
-										};
-									} else {
-										return c;
-									}
-								}));
-							});
-						}
-					} else if (err.id === 'f0dba960-ff73-4615-8df4-d6ac5d9dc118') {
-						os.alert({
-							type: 'error',
-							text: i18n.ts.clipNoteLimitExceeded,
-						});
-					} else {
-						os.alert({
-							type: 'error',
-							text: err.message + '\n' + err.id,
-						});
-					}
-				},
-			).then(() => {
-				clipsCache.set(clips.map(c => {
-					if (c.id === clip.id) {
-						return {
-							...c,
-							notesCount: (c.notesCount ?? 0) + 1,
-						};
-					} else {
-						return c;
-					}
-				}));
-			});
+		action: async () => {
+			try {
+				await misskeyApi('clips/add-note', { clipId: clip.id, noteId: appearNote.id });
+				claimAchievement('noteClipped1');
+				updateClipCount(clip.id, 1);
+			} catch (error) {
+				if (isAccountSessionErrorHandled(error)) return;
+				const err = error as Misskey.api.APIError;
+				if (err.id === '734806c4-542c-463a-9311-15c512803965') {
+					const { canceled } = await os.confirm({
+						type: 'warning',
+						text: i18n.tsx.confirmToUnclipAlreadyClippedNote({ name: clip.name }),
+					});
+					if (canceled) return;
+					try {
+						await os.apiWithDialog('clips/remove-note', { clipId: clip.id, noteId: appearNote.id });
+						updateClipCount(clip.id, -1);
+					} catch { /* API 错误已提示，不更新收藏夹计数。 */ }
+				} else {
+					os.toast(err.id === 'f0dba960-ff73-4615-8df4-d6ac5d9dc118' ? i18n.ts.clipNoteLimitExceeded : i18n.ts.somethingHappened, 'error');
+				}
+			}
 		},
-	})), { type: 'divider' }, {
+	})), ...(clips.length ? [{ type: 'divider' } as const] : []), {
 		icon: 'ti ti-plus',
 		text: i18n.ts.createNew,
 		action: async () => {
@@ -125,19 +107,19 @@ export async function getNoteClipMenu(props: {
 			});
 			if (canceled) return;
 
-			const clip = await os.apiWithDialog('clips/create', result);
-
-			clipsCache.delete();
-
-			claimAchievement('noteClipped1');
-			os.apiWithDialog('clips/add-note', { clipId: clip.id, noteId: appearNote.id });
+			try {
+				const clip = await os.apiWithDialog('clips/create', result);
+				clipsCache.delete();
+				await os.apiWithDialog('clips/add-note', { clipId: clip.id, noteId: appearNote.id });
+				claimAchievement('noteClipped1');
+			} catch { /* API 错误已提示，失败时不报告收藏成功。 */ }
 		},
 	}];
 
 	return menu;
 }
 
-export function getAbuseNoteMenu(note: Misskey.entities.Note, text: string): MenuItem {
+export function getAbuseNoteMenu(note: Misskey.entities.Note, text: string): MenuButton {
 	return {
 		icon: 'ti ti-exclamation-circle',
 		text,
@@ -177,6 +159,7 @@ function getNoteEmbedCodeMenu(note: Misskey.entities.Note, text: string): MenuIt
 
 export function getNoteMenu(props: {
 	note: Misskey.entities.Note;
+	menuContext?: 'list' | 'detail';
 	translation: Ref<Misskey.entities.NotesTranslateResponse | null>;
 	translating: Ref<boolean>;
 	currentClip?: Misskey.entities.Clip | null;
@@ -196,18 +179,16 @@ export function getNoteMenu(props: {
 			const currentUser = $i;
 			if (currentUser == null) return;
 
-			misskeyApi('notes/delete', {
+			os.apiWithDialog('notes/delete', {
 				noteId: appearNote.id,
 			}).then(() => {
 				const renoteId = appearNote.renoteId != null && appearNote.renote?.userId !== appearNote.userId
 					? appearNote.renoteId
 					: null;
 				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId, renoteId, appearNote.userId === currentUser.id ? 'author' : 'community');
-			});
-
-			if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === currentUser.id) {
-				claimAchievement('noteDeletedWithin1min');
-			}
+				os.toast(i18n.ts.deleteSucceeded, 'success');
+				if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === currentUser.id) claimAchievement('noteDeletedWithin1min');
+			}).catch(() => {});
 		});
 	}
 
@@ -275,7 +256,7 @@ export function getNoteMenu(props: {
 	}
 
 	async function translate(): Promise<void> {
-		if (props.translation.value != null) return;
+		if (props.translation.value != null || props.translating.value) return;
 
 		let text = appearNote.text ?? '';
 		if (appearNote.cw != null) {
@@ -312,17 +293,23 @@ export function getNoteMenu(props: {
 					sourceLang: langResult[0]?.detectedLanguage ?? 'unknown',
 					text: translated,
 				};
+			} catch (error) {
+				if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
 			} finally {
 				props.translating.value = false;
 			}
 		} else if ($i?.policies.canUseTranslator && instance.translatorAvailable) {
 			props.translating.value = true;
-			const res = await misskeyApi('notes/translate', {
-				noteId: appearNote.id,
-				targetLang: miLocalStorage.getItem('lang') ?? navigator.language,
-			});
-			props.translating.value = false;
-			props.translation.value = res;
+			try {
+				props.translation.value = await os.apiWithDialog('notes/translate', {
+					noteId: appearNote.id,
+					targetLang: miLocalStorage.getItem('lang') ?? navigator.language,
+				});
+			} catch {
+				// API 错误已提示，结束加载以便重试。
+			} finally {
+				props.translating.value = false;
+			}
 		}
 	}
 
@@ -396,6 +383,19 @@ export function getNoteMenu(props: {
 			text: i18n.ts.favorite,
 			action: () => toggleFavorite(true),
 		}));
+
+		if (props.menuContext === 'detail' && appearNote.user.host == null && appearNote.userId !== $i.id && !appearNote.isHidden) {
+			menuItems.push({
+				icon: 'ti ti-heart-handshake',
+				text: i18n.ts._tip.title,
+				action: async () => {
+					const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkTipDialog.vue').then(module => module.default), {
+						recipient: appearNote.user,
+						target: { type: 'note', id: appearNote.id },
+					}, { closed: () => dispose() });
+				},
+			});
+		}
 
 		menuItems.push({
 			type: 'parent',
@@ -624,16 +624,19 @@ export function getRenoteMenu(props: {
 				}
 
 				if (!props.mock) {
-					misskeyApi('notes/create', {
+					return os.apiWithDialog('notes/create', {
 						renoteId: appearNote.id,
 						channelId: appearNote.channelId,
 					}).then((res) => {
-						os.toast(i18n.ts.renoted);
+						os.success(i18n.ts.renoted);
 						globalEvents.emit('notePosted', res.createdNote);
-					});
+					}).catch(() => {});
 				}
+				return undefined;
 			},
-		}, {
+		},
+		// 频道允许向外部引用时统一走下方“引用”，表单不再携带频道；仅频道禁止外转时才必须留在频道内
+		...(appearNote.channel.allowRenoteToExternal ? [] : [{
 			text: i18n.ts.inChannelQuote,
 			icon: 'ti ti-quote',
 			action: () => {
@@ -644,7 +647,7 @@ export function getRenoteMenu(props: {
 					});
 				}
 			},
-		}]);
+		}])]);
 	}
 
 	if (!appearNote.channel || appearNote.channel.allowRenoteToExternal) {
@@ -672,15 +675,16 @@ export function getRenoteMenu(props: {
 				}
 
 				if (!props.mock) {
-					misskeyApi('notes/create', {
+					return os.apiWithDialog('notes/create', {
 						localOnly,
 						visibility,
 						renoteId: appearNote.id,
 					}).then((res) => {
-						os.toast(i18n.ts.renoted);
+						os.success(i18n.ts.renoted);
 						globalEvents.emit('notePosted', res.createdNote);
-					});
+					}).catch(() => {});
 				}
+				return undefined;
 			},
 		}, ...(props.mock ? [] : [{
 			text: i18n.ts.quote,
@@ -715,14 +719,15 @@ export function getRenoteMenu(props: {
 						}
 
 						if (!props.mock) {
-							misskeyApi('notes/create', {
+							return os.apiWithDialog('notes/create', {
 								renoteId: appearNote.id,
 								channelId: channel.id,
 							}).then((res) => {
-								os.toast(i18n.tsx.renotedToX({ name: channel.name }));
+								os.success(i18n.tsx.renotedToX({ name: channel.name }));
 								globalEvents.emit('notePosted', res.createdNote);
-							});
+							}).catch(() => {});
 						}
+						return undefined;
 					},
 				}));
 			},

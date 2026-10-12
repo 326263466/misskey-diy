@@ -18,11 +18,6 @@ vi.mock('@/components/MkButton.vue', () => ({ default: {
 	props: ['active'],
 	template: '<button type="button" :aria-pressed="active"><slot/></button>',
 } }));
-vi.mock('@/components/MkSelect.vue', () => ({ default: {
-	props: ['modelValue', 'items', 'small'],
-	emits: ['update:modelValue'],
-	template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>',
-} }));
 
 function createPaginator(options: { order?: 'newest' | 'oldest'; date?: number | null; search?: string | null; canSearch?: boolean } = {}) {
 	return markRaw({
@@ -103,7 +98,8 @@ describe('pagination controls', () => {
 		const view = renderControls(paginator);
 		await nextTick();
 
-		expect(view.getByRole('combobox')).toHaveProperty('value', 'oldest');
+		expect(view.getByRole('button', { name: i18n.ts._order.oldest })).toBeTruthy();
+		expect(view.queryByRole('combobox')).toBeNull();
 		expect(view.getByRole('button', { name: `${i18n.ts.dateAndTime}: 2026-09-01` }).getAttribute('aria-pressed')).toBe('true');
 		expect(view.getByRole('button', { name: `${i18n.ts.search}: existing query` }).getAttribute('aria-pressed')).toBe('true');
 		expect(view.getByRole('button', { name: i18n.ts.clear })).toBeTruthy();
@@ -119,13 +115,13 @@ describe('pagination controls', () => {
 		const view = renderControls(first);
 		await view.switchPaginator(second);
 
-		expect(view.getByRole('combobox')).toHaveProperty('value', 'newest');
+		expect(view.getByRole('button', { name: i18n.ts._order.newest })).toBeTruthy();
 		expect(view.getByRole('button', { name: i18n.ts.dateAndTime }).getAttribute('aria-pressed')).toBe('false');
 		expect(view.getByRole('button', { name: i18n.ts.search }).getAttribute('aria-pressed')).toBe('false');
 		expect(view.queryByRole('button', { name: i18n.ts.clear })).toBeNull();
 
 		await view.switchPaginator(first);
-		expect(view.getByRole('combobox')).toHaveProperty('value', 'oldest');
+		expect(view.getByRole('button', { name: i18n.ts._order.oldest })).toBeTruthy();
 		expect(view.getByRole('button', { name: `${i18n.ts.dateAndTime}: 2026-09-01` })).toBeTruthy();
 		expect(view.getByRole('button', { name: `${i18n.ts.search}: first query` })).toBeTruthy();
 		expect(first.reload).not.toHaveBeenCalled();
@@ -136,20 +132,24 @@ describe('pagination controls', () => {
 		const first = createPaginator();
 		const second = createPaginator({ order: 'oldest' });
 		const view = renderControls(first);
-		await fireEvent.update(view.getByRole('combobox'), 'oldest');
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts._order.newest }));
 		expect(first.order.value).toBe('oldest');
 		expect(first.initialDirection).toBe('newer');
 		expect(first.reload).toHaveBeenCalledTimes(1);
-		await fireEvent.change(view.getByRole('combobox'));
-		expect(first.reload).toHaveBeenCalledTimes(1);
+		expect(view.getByRole('button', { name: i18n.ts._order.oldest })).toBeTruthy();
+		expect(mocks.popup).not.toHaveBeenCalled();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts._order.oldest }));
+		expect(first.order.value).toBe('newest');
+		expect(first.initialDirection).toBe('older');
+		expect(first.reload).toHaveBeenCalledTimes(2);
 
 		await view.switchPaginator(second);
-		await fireEvent.update(view.getByRole('combobox'), 'newest');
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts._order.oldest }));
 		expect(second.order.value).toBe('newest');
 		expect(second.initialDirection).toBe('older');
 		expect(second.reload).toHaveBeenCalledTimes(1);
-		expect(first.order.value).toBe('oldest');
-		expect(first.reload).toHaveBeenCalledTimes(1);
+		expect(first.order.value).toBe('newest');
+		expect(first.reload).toHaveBeenCalledTimes(2);
 	});
 
 	test('opens dates in a dialog, preserves cancellation, and applies then clears a date', async () => {
@@ -271,7 +271,8 @@ describe('pagination controls', () => {
 		const tabs = within(view.getByRole('navigation', { name: 'List tabs' }));
 		expect(tabs.getByRole('button', { name: 'Following' })).toBeTruthy();
 		expect(tabs.getByRole('button', { name: 'Followers' })).toBeTruthy();
-		expect(view.getAllByRole('combobox')).toHaveLength(1);
+		expect(view.queryByRole('combobox')).toBeNull();
+		expect(view.getAllByRole('button', { name: i18n.ts._order.newest })).toHaveLength(1);
 		expect(view.getAllByRole('button', { name: i18n.ts.search })).toHaveLength(1);
 		expect(view.getAllByRole('button', { name: i18n.ts.dateAndTime })).toHaveLength(1);
 		expect(view.getAllByRole('button', { name: i18n.ts.reload })).toHaveLength(1);

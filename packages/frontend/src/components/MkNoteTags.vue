@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		@keydown.enter.stop
 	>
 		<i class="ti ti-device-tv" aria-hidden="true"></i>
-		<span :class="$style.channelName">{{ channel.name }}</span>
+		<span :class="$style.channelName"><Mfm :text="channel.name" :plain="true" :nowrap="true"/></span>
 	</MkA>
 	<MkA
 		v-for="tag in tags"

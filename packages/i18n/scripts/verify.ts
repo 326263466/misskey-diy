@@ -58,7 +58,7 @@ function verify(expected: LocaleRecord, actual: LocaleRecord, lang: string, trac
 	}
 }
 
-// 检查回退后的文案是否完整，不再要求某一译文独自覆盖日文源的全部键。
+// 检查回退后的文案是否完整，不再要求某一译文独自覆盖简中源的全部键。
 function requireComplete(expected: LocaleRecord, actual: LocaleRecord, lang: string, trace?: string): void {
 	for (const key in expected) {
 		const path = trace ? `${trace}.${key}` : key;
@@ -74,15 +74,17 @@ function requireComplete(expected: LocaleRecord, actual: LocaleRecord, lang: str
 
 // index.tsはtsのまま動かすことを想定していない（ビルド成果物を外部に公開する）.
 // よってビルド後のものを検証する
-const { locales } = await import('../built/index.js');
-const { 'ja-JP': original } = locales;
+const { locales, rawLocaleSources } = await import('../built/index.js');
+const sourceLanguage = 'zh-CN';
+// 运行时的简中叠加了英语回退层，会混入上游已删除的旧键，因此以源文件本身为基准。
+const original = rawLocaleSources?.[sourceLanguage] ?? locales[sourceLanguage];
 
-if (!Object.prototype.hasOwnProperty.call(locales, 'ja-JP')) {
-	throw new Error('Source locale ja-JP is missing');
+if (!Object.prototype.hasOwnProperty.call(locales, sourceLanguage)) {
+	throw new Error(`Source locale ${sourceLanguage} is missing`);
 }
 
 const requestedLanguages = process.argv.slice(2);
-const languages = requestedLanguages.length > 0 ? requestedLanguages : Object.keys(locales).filter(lang => lang !== 'ja-JP');
+const languages = requestedLanguages.length > 0 ? requestedLanguages : Object.keys(locales).filter(lang => lang !== sourceLanguage);
 
 for (const lang of languages) {
 	if (!Object.prototype.hasOwnProperty.call(locales, lang)) {

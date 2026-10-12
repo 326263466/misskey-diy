@@ -4,22 +4,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="[$style.iconFrame, $style[`iconFrame_${badge.frame}`]]" aria-hidden="true">
+<div ref="root" :class="[$style.iconFrame, $style[`iconFrame_${badge.frame}`]]" aria-hidden="true">
 	<div :class="$style.iconInner" :style="{ background: badge.bg ?? '' }">
-		<img :class="$style.iconImg" :src="badge.img" alt="">
+		<img :class="$style.iconImg" :src="preload ? badge.img : undefined" alt="" decoding="async">
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, useTemplateRef } from 'vue';
 import { ACHIEVEMENT_BADGES } from '@/utility/achievements.js';
+import { useImagePreload } from '@/composables/use-image-preload.js';
 
 const props = defineProps<{
 	name: keyof typeof ACHIEVEMENT_BADGES;
 }>();
 
 const badge = computed(() => ACHIEVEMENT_BADGES[props.name]);
+const root = useTemplateRef('root');
+const preload = useImagePreload(root, () => false);
 </script>
 
 <style lang="scss" module>

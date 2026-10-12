@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_pageBody">
-	<MkPagination v-slot="{items}" :paginator="paginator">
+	<MkPagination v-slot="{items}" :paginator="paginator" pageEmpty>
 		<div class="_gaps">
 			<div v-for="item in items" :key="item.id" class="_panel">
 				<MkNote :key="item.id" :note="item.note"/>

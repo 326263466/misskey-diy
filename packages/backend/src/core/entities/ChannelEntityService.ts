@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { In } from 'typeorm';
+import { In, type SelectQueryBuilder } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type {
 	ChannelFavoritesRepository,
@@ -20,6 +20,7 @@ import type { MiUser } from '@/models/User.js';
 import type { MiChannel } from '@/models/Channel.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
+import { QueryService } from '@/core/QueryService.js';
 import { DriveFileEntityService } from './DriveFileEntityService.js';
 import { NoteEntityService } from './NoteEntityService.js';
 
@@ -41,6 +42,7 @@ export class ChannelEntityService {
 		private noteEntityService: NoteEntityService,
 		private driveFileEntityService: DriveFileEntityService,
 		private idService: IdService,
+		private queryService: QueryService,
 	) {
 	}
 
@@ -129,8 +131,29 @@ export class ChannelEntityService {
 
 			...(detailed ? {
 				pinnedNotes: (await this.noteEntityService.packMany(pinnedNotes, me)).sort((a, b) => channel.pinnedNoteIds.indexOf(a.id) - channel.pinnedNoteIds.indexOf(b.id)),
+				participantsCount: await this.countParticipants(channel.id),
 			} : {}),
 		};
+	}
+
+	// 计数与列表共用筛选，避免删除占位或用户状态造成口径差异。
+	@bindThis
+	public makeParticipantsQuery(channelId: MiChannel['id']): SelectQueryBuilder<MiNote> {
+		const query = this.notesRepository.createQueryBuilder('note')
+			.innerJoin('note.user', 'user')
+			.where('note.channelId = :channelId', { channelId })
+			.andWhere('user.isSuspended = FALSE')
+			.andWhere('user.isDeleted = FALSE');
+		this.queryService.generateDeletedReplyQuery(query);
+		return query;
+	}
+
+	@bindThis
+	public async countParticipants(channelId: MiChannel['id']): Promise<number> {
+		const row = await this.makeParticipantsQuery(channelId)
+			.select('COUNT(DISTINCT note.userId)', 'count')
+			.getRawOne<{ count: string }>();
+		return Number(row?.count ?? 0);
 	}
 
 	@bindThis

@@ -66,7 +66,7 @@ import MkInput from '@/components/MkInput.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkDisableSection from '@/components/MkDisableSection.vue';
 import * as os from '@/os.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
+import { misskeyApiWithToast } from '@/utility/misskey-api-with-toast.js';
 import { ensureSignin } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
@@ -77,20 +77,20 @@ const $i = ensureSignin();
 const emailAddress = ref($i.email ?? '');
 
 function onChangeReceiveAnnouncementEmail(v: boolean) {
-	misskeyApi('i/update', {
+	misskeyApiWithToast('i/update', {
 		receiveAnnouncementEmail: v,
-	});
+	}).catch(() => {});
 }
 
 async function saveEmailAddress() {
 	const auth = await os.authenticateDialog();
 	if (auth.canceled) return;
 
-	os.apiWithDialog('i/update-email', {
+	await os.apiWithDialog('i/update-email', {
 		password: auth.result.password,
 		token: auth.result.token,
 		email: emailAddress.value,
-	});
+	}).then(() => os.toast(i18n.ts.saved, 'success')).catch(() => {});
 }
 
 const emailNotification_mention = ref($i.emailNotificationTypes.includes('mention'));
@@ -100,7 +100,7 @@ const emailNotification_follow = ref($i.emailNotificationTypes.includes('follow'
 const emailNotification_receiveFollowRequest = ref($i.emailNotificationTypes.includes('receiveFollowRequest'));
 
 const saveNotificationSettings = () => {
-	misskeyApi('i/update', {
+	misskeyApiWithToast('i/update', {
 		emailNotificationTypes: [
 			...[emailNotification_mention.value ? 'mention' : null],
 			...[emailNotification_reply.value ? 'reply' : null],
@@ -108,7 +108,7 @@ const saveNotificationSettings = () => {
 			...[emailNotification_follow.value ? 'follow' : null],
 			...[emailNotification_receiveFollowRequest.value ? 'receiveFollowRequest' : null],
 		].filter(x => x != null),
-	});
+	}).catch(() => {});
 };
 
 watch([emailNotification_mention, emailNotification_reply, emailNotification_quote, emailNotification_follow, emailNotification_receiveFollowRequest], () => {

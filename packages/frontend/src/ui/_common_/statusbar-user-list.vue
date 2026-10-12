@@ -25,7 +25,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</Transition>
 	</template>
 	<template v-else-if="display === 'oneByOne'">
-		<!-- TODO -->
 	</template>
 </span>
 </template>
@@ -37,7 +36,7 @@ import { useInterval } from '@@/js/use-interval.js';
 import MkMarqueeText from '@/components/MkMarqueeText.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { getNoteSummary } from '@/utility/get-note-summary.js';
-import { notePage } from '@/filters/note.js';
+import { notePage } from '@@/js/note.js';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
 
 const props = defineProps<{

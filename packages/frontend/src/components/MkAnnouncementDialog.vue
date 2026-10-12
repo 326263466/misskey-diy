@@ -4,16 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModal ref="modal" :zPriority="'middle'" :preferType="'dialog'" @closed="emit('closed')" @click="onBgClick">
+<MkModal ref="modal" :zPriority="'middle'" :preferType="'dialog'" :closeOnBackdrop="hasReachedBottom && !announcement.needConfirmationToRead" @click="ok" @closed="emit('closed')">
 	<div ref="rootEl" :class="$style.root" @scroll.passive="checkReachedBottom">
 		<div :class="$style.header">
-			<span :class="$style.icon">
-				<i v-if="announcement.icon === 'info'" class="ti ti-info-circle"></i>
-				<i v-else-if="announcement.icon === 'warning'" class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);"></i>
-				<i v-else-if="announcement.icon === 'error'" class="ti ti-circle-x" style="color: var(--MI_THEME-error);"></i>
-				<i v-else-if="announcement.icon === 'success'" class="ti ti-check" style="color: var(--MI_THEME-success);"></i>
-			</span>
-			<span :class="$style.title">{{ announcement.title }}</span>
+			<i v-if="announcement.icon === 'info'" :class="$style.icon" class="ti ti-info-circle" aria-hidden="true"></i>
+			<i v-else-if="announcement.icon === 'warning'" :class="$style.icon" class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);" aria-hidden="true"></i>
+			<i v-else-if="announcement.icon === 'error'" :class="$style.icon" class="ti ti-circle-x" style="color: var(--MI_THEME-error);" aria-hidden="true"></i>
+			<i v-else-if="announcement.icon === 'success'" :class="$style.icon" class="ti ti-check" style="color: var(--MI_THEME-success);" aria-hidden="true"></i>
+			<span :class="$style.title"><Mfm :text="announcement.title" :plain="true"/></span>
 		</div>
 		<div :class="$style.text"><Mfm :text="announcement.text"/></div>
 		<div :class="$style.footer">
@@ -67,21 +65,6 @@ async function ok() {
 	});
 }
 
-function onBgClick() {
-	rootEl.value?.animate([{
-		offset: 0,
-		transform: 'scale(1)',
-	}, {
-		offset: 0.5,
-		transform: 'scale(1.1)',
-	}, {
-		offset: 1,
-		transform: 'scale(1)',
-	}], {
-		duration: 100,
-	});
-}
-
 const hasReachedBottom = ref(false);
 const resizeObserver = new ResizeObserver(checkReachedBottom);
 
@@ -101,6 +84,8 @@ onUnmounted(() => resizeObserver.disconnect());
 </script>
 
 <style lang="scss" module>
+@use '@/styles/window-header.scss' as window-header;
+
 .root {
 	margin: auto;
 	position: relative;
@@ -116,14 +101,17 @@ onUnmounted(() => resizeObserver.disconnect());
 }
 
 .header {
+	@include window-header.title;
 	font-size: 120%;
 }
 
 .icon {
-	margin-right: 0.5em;
+	@include window-header.icon;
 }
 
 .title {
+	min-width: 0;
+	overflow-wrap: anywhere;
 	font-weight: bold;
 }
 
@@ -137,7 +125,7 @@ onUnmounted(() => resizeObserver.disconnect());
 	left: 0;
 	backdrop-filter: var(--MI-blur, blur(15px));
 	background: var(--MI_THEME-panel);
-	border-top: 1px solid var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	margin: 0 calc(-1 * var(--MI-cardPadding));
 	padding: var(--MI-cardPadding);
 }

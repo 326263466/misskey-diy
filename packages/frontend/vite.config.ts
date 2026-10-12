@@ -16,7 +16,9 @@ import pluginJson5 from './lib/vite-plugin-json5.js';
 import type { Options as SearchIndexOptions } from './lib/vite-plugin-create-search-index.js';
 import pluginCreateSearchIndex from './lib/vite-plugin-create-search-index.js';
 import pluginWatchLocales from './lib/vite-plugin-watch-locales.js';
+import { imageTemplateOptions } from './lib/image-template.js';
 import { pluginRemoveUnrefI18n } from '../frontend-builder/rollup-plugin-remove-unref-i18n.js';
+import { pluginTablerIcons } from '../frontend-builder/vite-plugin-tabler-icons.js';
 import { Features } from 'lightningcss';
 
 const url = process.env.NODE_ENV === 'development' ? (loadYaml(await fsp.readFile('../../.config/default.yml', 'utf-8')) as any).url : null;
@@ -115,7 +117,7 @@ export function toBase62(n: number): string {
 	return result;
 }
 
-export function getConfig(): UserConfig {
+export function getConfig({ deferImages = true }: { deferImages?: boolean } = {}): UserConfig {
 	const localesHash = toBase62(hash(JSON.stringify(locales)));
 
 	return {
@@ -142,9 +144,10 @@ export function getConfig(): UserConfig {
 		},
 
 		plugins: [
+			pluginTablerIcons(),
 			pluginWatchLocales(),
 			...searchIndexes.map(options => pluginCreateSearchIndex(options)),
-			pluginVue(),
+			pluginVue(deferImages ? { template: imageTemplateOptions } : {}),
 			pluginRemoveUnrefI18n(),
 			pluginUnwindCssModuleClassName(),
 			pluginJson5(),

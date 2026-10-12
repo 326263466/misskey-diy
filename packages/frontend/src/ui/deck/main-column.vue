@@ -13,8 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<template #header>
 		<template v-if="pageMetadata">
-			<i :class="pageMetadata.icon"></i>
-			{{ pageMetadata.title }}
+			<i :class="pageMetadata.icon"></i> <Mfm v-if="pageMetadata.title" :text="pageMetadata.title" :plain="true" :nowrap="true" :author="pageMetadata.avatar ?? undefined" :emojiUrls="pageMetadata.avatar?.emojis"/>
 		</template>
 	</template>
 

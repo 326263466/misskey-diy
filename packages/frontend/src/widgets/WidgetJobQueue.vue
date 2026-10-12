@@ -181,7 +181,7 @@ defineExpose<WidgetComponentExpose>({
 		padding: var(--MI-cardPadding, 18px);
 
 		&:not(:first-child) {
-			border-top: solid 0.5px var(--MI_THEME-divider);
+			border-top: var(--MI-divider);
 		}
 
 		> .label {

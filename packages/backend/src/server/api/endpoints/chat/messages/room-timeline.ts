@@ -46,6 +46,8 @@ export const paramDef = {
 		sinceDate: { type: 'integer' },
 		untilDate: { type: 'integer' },
 		roomId: { type: 'string', format: 'misskey:id' },
+		markAsRead: { type: 'boolean', default: true },
+		readUntilId: { type: 'string', format: 'misskey:id' },
 	},
 	required: ['roomId'],
 } as const;
@@ -72,9 +74,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.noSuchRoom);
 			}
 
+			const readUntilId = ps.markAsRead ? ps.readUntilId ?? await this.chatService.getUnreadLastMessageId(me.id, 'room', room.id) : null;
 			const messages = await this.chatService.roomTimeline(room.id, ps.limit, sinceId, untilId);
-
-			this.chatService.readRoomChatMessage(me.id, room.id);
+			await this.chatService.clearManualUnread(me.id, { roomId: room.id });
+			if (ps.markAsRead) await this.chatService.readRoomChatMessage(me.id, room.id, readUntilId);
 
 			return await this.chatEntityService.packMessagesLiteForRoom(messages);
 		});

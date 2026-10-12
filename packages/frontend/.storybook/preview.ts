@@ -8,10 +8,13 @@ import { addons } from '@storybook/preview-api';
 import { type Preview, setup } from '@storybook/vue3';
 import isChromatic from 'chromatic/isChromatic';
 import { initialize, mswLoader } from 'msw-storybook-addon';
+import { watch } from 'vue';
+import { initializeImageFade } from '@@/js/image-fade.js';
 import { userDetailed } from './fakes.js';
 import { commonHandlers, onUnhandledRequest } from './mocks.js';
 import themes from './themes.js';
 import '../src/style.scss';
+import 'virtual:tabler-icons.css';
 
 const appInitialized = Symbol();
 
@@ -69,6 +72,12 @@ queueMicrotask(() => {
 		import('../src/preferences.js'),
 		import('../src/os.js'),
 	]).then(([{ default: components }, { default: directives }, { default: widgets }, { applyTheme }, { prefer }, os]) => {
+		const imageFade = initializeImageFade({ animationsEnabled: () => prefer.s.animation });
+		const stopImageFadeWatch = watch(prefer.r.animation, () => imageFade.refresh());
+		import.meta.hot?.dispose(() => {
+			stopImageFadeWatch();
+			imageFade.disconnect();
+		});
 		setup((app) => {
 			moduleInitialized = true;
 			if (app[appInitialized]) {
@@ -97,13 +106,13 @@ const preview = {
 				const channel = addons.getChannel();
 				const resetIndexedDBPromise = globalThis.indexedDB?.databases
 					? indexedDB.databases().then((r) => {
-							for (var i = 0; i < r.length; i++) {
+							for (let i = 0; i < r.length; i++) {
 								indexedDB.deleteDatabase(r[i].name!);
 							}
 						}).catch(() => {})
 					: Promise.resolve();
 				const resetDefaultStorePromise = import('../src/store').then(({ store }) => {
-					// @ts-expect-error
+						// @ts-expect-error Storybook 需要调用未公开在 Store 类型中的初始化方法。
 					store.init();
 				}).catch(() => {});
 				Promise.all([resetIndexedDBPromise, resetDefaultStorePromise]).then(() => {

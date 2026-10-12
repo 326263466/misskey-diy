@@ -44,6 +44,11 @@ export const meta = {
 			code: 'TOO_MANY_ANTENNAS',
 			id: '600917d4-a4cb-4cc5-8ba8-7ac8ea3c7779',
 		},
+		invalidFileFormat: {
+			message: 'Invalid file format. The file must contain valid JSON.',
+			code: 'INVALID_FILE_FORMAT',
+			id: 'fb9b5a5a-9e0e-4e6a-9f7d-3c2e1a8f9b5a',
+		},
 	},
 } as const;
 
@@ -77,7 +82,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> {
 			const file = await this.driveFilesRepository.findOneBy({ id: ps.fileId, userId: me.id });
 			if (file === null) throw new ApiError(meta.errors.noSuchFile);
 			if (file.size === 0) throw new ApiError(meta.errors.emptyFile);
-			const antennas: (_Antenna & { userListAccts: string[] | null })[] = JSON.parse(await this.downloadService.downloadTextFile(file.url));
+
+			let antennas: (_Antenna & { userListAccts: string[] | null })[];
+			try {
+				const fileContent = await this.downloadService.downloadTextFile(file.url);
+				antennas = JSON.parse(fileContent);
+			} catch (error) {
+				throw new ApiError(meta.errors.invalidFileFormat);
+			}
+
 			const currentAntennasCount = await this.antennasRepository.countBy({ userId: me.id });
 			if (currentAntennasCount + antennas.length >= (await this.roleService.getUserPolicies(me.id)).antennaLimit) {
 				throw new ApiError(meta.errors.tooManyAntennas);

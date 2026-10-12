@@ -14,7 +14,7 @@
 1. 設計    : エンドポイントの種類を決める (read/write × 認証要否 × 権限)
 2. 実装    : meta / paramDef / クラス本体を書く (SPDX ヘッダー付き)
 3. 配線    : endpoint-list.ts に登録 (★ 忘れると 404)
-4. 検証    : e2e テスト + lint + misskey-js 再生成
+4. 验证    : 按风险选择已有测试；必要时补最小用例，最后定向 lint；API schema 变更重新生成 misskey-js
 ```
 
 ---
@@ -200,11 +200,13 @@ export * as '<category>/<name>' from './endpoints/<category>/<name>.js';
 
 ## 4. 検証フェーズ
 
-### 4.1 e2e テスト
+### 4.1 按风险选择测试
+
+先确认已有测试能否覆盖本次行为。权限、资金、持久化、并发和错误分支缺少覆盖时，补最小必要用例；需要验证 HTTP 接线或数据库行为时选择 e2e。简单委托逻辑已有对应覆盖时运行相关测试即可，无合适测试且新增收益低时说明原因。不要把“新增 e2e 文件”当作 endpoint 的交付条件。
 
 [packages/backend/test/e2e/](../../../../../packages/backend/test/e2e/) の構造は **機能カテゴリごとのファイル分け** (`note.ts` / `users.ts` / `timelines.ts` / `drive.ts` / `clips.ts` / `oauth.ts` 等)。
 
-- 既存のカテゴリファイルがあるなら、そこに `describe('<人間可読ラベル>', () => { test('正常系', ...) })` で追加
+- 确需新增用例且已有分类文件时，在其中追加最小用例
 - どのファイルにも合わないなら `test/e2e/endpoints.ts` に追加
 - `describe` 名は **人間可読 OK**
 
@@ -227,18 +229,19 @@ describe('<人間可読ラベル>', () => {
 実行 (前提: `.config/test.yml` — [knowledge/backend-testing.md](../knowledge/backend-testing.md) §前提 参照):
 
 ```bash
-pnpm --filter backend test:e2e
+pnpm --filter backend test:e2e --run test/e2e/<area>.ts
 ```
+
+将 `<area>` 换成实际文件，可一次传入多个相关路径，避免逐文件重复构建。定向验证通过后不例行运行整套 e2e。
 
 ### 4.2 lint / typecheck
 
 ```bash
-# 個別ファイルを高速にチェック
-pnpm exec eslint --fix packages/backend/src/server/api/endpoints/<category>/<name>.ts
-pnpm --filter backend typecheck      # tsc --noEmit (backend のみ)
+# 类型有变化时按需运行
+pnpm --filter backend typecheck
 
-# 一括 (PR 提出前)
-pnpm --filter backend lint
+# 最后从 package root 检查本任务变更文件，可传入多个路径
+pnpm --filter backend exec eslint --quiet src/server/api/endpoints/<category>/<name>.ts
 ```
 
 ### 4.3 misskey-js 再生成 (★必須)

@@ -5,12 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="[$style.root, { [$style.contentVisibilityAuto]: contentVisibilityAuto }]">
-	<div :class="$style.head">
+	<div :class="[$style.head, prefer.s.useStickyIcons ? $style.useSticky : null]">
 		<div v-if="notification.type === 'system'" :class="[$style.icon, $style.systemIcon]"><i class="ti ti-shield-check" aria-hidden="true"></i></div>
 		<MkAvatar v-else-if="['pollEnded', 'note'].includes(notification.type) && 'note' in notification" :class="$style.icon" :user="notification.note.user" link preview/>
 		<MkAvatar v-else-if="['roleAssigned', 'achievementEarned', 'exportCompleted', 'login', 'createToken', 'scheduledNotePosted', 'scheduledNotePostFailed'].includes(notification.type)" :class="$style.icon" :user="$i" link preview/>
 		<div v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'" :class="[$style.icon, $style.icon_reactionGroupHeart]"><i class="ti ti-heart" style="line-height: 1;"></i></div>
-		<div v-else-if="notification.type === 'reaction:grouped'" :class="[$style.icon, $style.icon_reactionGroup]"><i class="ti ti-plus" style="line-height: 1;"></i></div>
+		<div v-else-if="notification.type === 'reaction:grouped'" :class="[$style.icon, $style.icon_reactionGroup]"><i class="ti ti-mood-happy" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'renote:grouped'" :class="[$style.icon, $style.icon_renoteGroup]"><i class="ti ti-repeat" style="line-height: 1;"></i></div>
 		<MkAvatar v-else-if="'user' in notification" :class="$style.icon" :user="notification.user" link preview/>
 		<img v-else-if="'icon' in notification && notification.icon != null" :class="[$style.icon, $style.icon_app]" :src="notification.icon" alt=""/>
@@ -48,15 +48,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'exportCompleted'" class="ti ti-archive"></i>
 			<i v-else-if="notification.type === 'login'" class="ti ti-login-2"></i>
 			<i v-else-if="notification.type === 'createToken'" class="ti ti-key"></i>
-			<i v-else-if="notification.type === 'chatRoomInvitationReceived'" class="ti ti-message-dots"></i>
+			<i v-else-if="notification.type === 'chatRoomInvitationReceived'" class="ti ti-message-circle"></i>
 			<template v-else-if="notification.type === 'roleAssigned'">
-				<img v-if="notification.role.iconUrl" style="height: 1.3em; vertical-align: -22%;" :src="notification.role.iconUrl" alt=""/>
+				<img v-if="notification.role.iconUrl" style="height: 1.3em; vertical-align: -0.275em;" :src="notification.role.iconUrl" alt=""/>
 				<i v-else class="ti ti-badges"></i>
 			</template>
 			<MkReactionIcon
 				v-else-if="notification.type === 'reaction'"
 				:withTooltip="true"
-				:allowTextBoost="true"
 				:reaction="notification.reaction.replace(/^:(\w+):$/, ':$1@.:')"
 				:noStyle="true"
 				style="width: 100%; height: 100% !important; object-fit: contain;"
@@ -102,7 +101,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</template>
 				<template v-else>
 					<p>{{ i18n.ts._welcome.notificationBody }}</p>
-					<MkA class="_link" to="/my/notifications#system">{{ i18n.ts._welcome.readGuide }} <i class="ti ti-arrow-right" aria-hidden="true"></i></MkA>
+					<MkA class="_link" to="/my/notifications/system">{{ i18n.ts._welcome.readGuide }} <i class="ti ti-arrow-right" aria-hidden="true"></i></MkA>
 				</template>
 			</div>
 			<MkA v-else-if="notification.type === 'reaction' || notification.type === 'reaction:grouped'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
@@ -138,16 +137,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i class="ti ti-quote" :class="$style.quote"></i>
 			</MkA>
 			<div v-else-if="notification.type === 'roleAssigned'" :class="$style.text">
-				{{ notification.role.name }}
+				<Mfm :text="notification.role.name" :plain="true" :nowrap="true"/>
 			</div>
 			<div v-else-if="notification.type === 'chatRoomInvitationReceived'" :class="$style.text">
-				{{ notification.invitation.room.name }}
+				<Mfm :text="notification.invitation.room.name" :plain="true" :nowrap="true"/>
 			</div>
 			<MkA v-else-if="notification.type === 'achievementEarned'" :class="$style.text" to="/my/achievements">
 				{{ i18n.ts._achievements._types[`_${notification.achievement}`].title }}
 			</MkA>
 			<MkA v-else-if="notification.type === 'exportCompleted'" :class="$style.text" :to="`/my/drive/file/${notification.fileId}`">
 				{{ i18n.ts.showFile }}
+			</MkA>
+			<MkA v-else-if="isSigninAlert(notification)" :class="$style.text" to="/settings/security">
+				{{ formatSigninAlertSummary(notification) }}
 			</MkA>
 			<MkA v-else-if="notification.type === 'createToken'" :class="$style.text" to="/settings/apps">
 				<Mfm :text="i18n.tsx._notification.createTokenDescription({ text: i18n.ts.manageAccessTokens })"/>
@@ -181,7 +183,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div :class="$style.reactionsItemReaction">
 						<MkReactionIcon
 							:withTooltip="true"
-							:allowTextBoost="true"
 							:reaction="reaction.reaction.replace(/^:(\w+):$/, ':$1@.:')"
 							:noStyle="true"
 							style="width: 100%; height: 100% !important; object-fit: contain;"
@@ -206,12 +207,14 @@ import { host } from '@@/js/config.js';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
 import MkButton from '@/components/MkButton.vue';
 import { getNoteSummary } from '@/utility/get-note-summary.js';
-import { notePage } from '@/filters/note.js';
-import { userPage } from '@/filters/user.js';
+import { formatSigninAlertSummary, isSigninAlert } from '@/utility/signin-alert.js';
+import { notePage } from '@@/js/note.js';
+import { userPage } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { ensureSignin } from '@/i.js';
 import { instance } from '@/instance.js';
+import { prefer } from '@/preferences.js';
 
 const $i = ensureSignin();
 
@@ -286,12 +289,16 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 }
 
 .head {
-	position: sticky;
-	top: 0;
+	position: relative;
 	flex-shrink: 0;
 	width: 42px;
 	height: 42px;
 	margin-right: 8px;
+
+	&.useSticky {
+		position: sticky;
+		top: 0;
+	}
 }
 
 .icon {
@@ -359,7 +366,7 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 .systemNote {
 	width: 100%;
 	padding-top: var(--MI-marginHalf);
-	border-top: 1px solid var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	color: var(--MI_THEME-fgTransparent);
 }
 

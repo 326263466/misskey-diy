@@ -26,12 +26,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			}"
 		>
 			<img :src="chosen.imageUrl" :class="$style.img">
-			<button class="_button" :class="$style.i" @click.prevent.stop="toggleMenu"><i :class="$style.iIcon" class="ti ti-info-circle"></i></button>
+			<button class="_button _iconButton" :class="$style.i" @click.prevent.stop="toggleMenu"><i :class="$style.iIcon" class="ti ti-info-circle"></i></button>
 		</component>
 	</div>
 	<div v-else :class="$style.menu">
 		<div>{{ i18n.tsx._ad.adsBy({ host }) }}</div>
-		<!--<MkButton class="button" primary>{{ i18n.ts._ad.like }}</MkButton>-->
 		<MkButton v-if="chosen.ratio !== 0" :class="$style.menuButton" @click="reduceFrequency">{{ i18n.ts._ad.reduceFrequencyOfThisAd }}</MkButton>
 		<button class="_textButton" @click="toggleMenu">{{ i18n.ts._ad.back }}</button>
 	</div>
@@ -196,7 +195,7 @@ function reduceFrequency(): void {
 	margin: 0 auto;
 	max-width: 400px;
 	background: var(--MI_THEME-panel);
-	border: solid 1px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 }
 
 .menuButton {

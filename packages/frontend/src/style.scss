@@ -6,26 +6,54 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-@use '../../frontend-shared/styles/refresh-icon.scss';
+@use '../../frontend-shared/styles/emoji.scss';
+@use '../../frontend-shared/styles/tabler-icons.scss';
 @use '../../frontend-shared/styles/scrollbar.scss';
+@use '../../frontend-shared/styles/image-fade.scss';
+@use './styles/red-packet-icon.scss';
+@use './styles/window-header.scss';
 
 :root {
-	--MI-radius: 8px;
-	--MI-cardRadius: 4px;
+	--MI-radius: 6px;
+	--MI-cardRadius: var(--MI-radius);
 	--MI-cardPadding: 18px;
+	--MI-userBannerBg: #4c5e6d;
 	--MI-marginFull: 16px;
 	--MI-marginHalf: 10px;
 
 	--MI-margin: var(--MI-marginFull);
 	--MI-pageGap: 18px;
-	--MI-pageWidth: 1200px;
+	--MI-contentHeaderGap: 20px;
+	--MI-pageWidth: 1000px;
 	--MI-navigationPageWidth: 1040px;
 	--MI-pageNavigationWidth: 220px;
+
+	// 全站统一分割线：颜色、粗细只在这里定义，组件一律用 var(--MI-divider) 等变量，scripts/check-divider-style.mjs 会拦截自定义写法。
+	--MI-dividerWidth: 0.8px;
+	--MI-dividerColor: color-mix(in srgb, var(--MI_THEME-divider) 30%, transparent);
+	--MI-divider: var(--MI-dividerWidth) solid var(--MI-dividerColor);
 
 	// Classic red packets keep their red and gold identity in every theme.
 	--MI-redPacketStart: #c93632;
 	--MI-redPacketEnd: #b52a29;
 	--MI-redPacketGold: #ffe2ad;
+	--MI-redPacketShade: #6c1919;
+	--MI-redPacketAmount: #b08a41;
+	--MI-redPacketEnvelope: #fa5848;
+	--MI-redPacketSeal: #efd69b;
+	--MI-redPacketSealInk: #49483f;
+
+	// 奖牌保留金银铜的金属色，舞台底色仍与当前主题混合。
+	--MI-rankingGold: #c99a3f;
+	--MI-rankingSilver: #8a9bb1;
+	--MI-rankingBronze: #b77c55;
+
+	// 打赏档位使用固定色系，组件再与当前主题的背景和文字混合。
+	--MI-tipBlue: #3b82f6;
+	--MI-tipGreen: #16a085;
+	--MI-tipPurple: #a855f7;
+	--MI-tipGold: #d79c28;
+	--MI-tipRed: #e05c65;
 
 	// Presence colors stay recognizable independently of the selected accent color.
 	--MI-statusOnline: #22e58a;
@@ -153,7 +181,7 @@ body,
 }
 
 body {
-	/* NOTE: htmlにも overflow: clip を設定したいところだが、設定すると何故か少なくともChromeで html が main thread scrolling になりパフォーマンスが(多分)落ちる */
+	// NOTE: htmlにも overflow: clip を設定したいところだが、設定すると何故か少なくともChromeで html が main thread scrolling になりパフォーマンスが(多分)落ちる
 	overflow: clip;
 }
 
@@ -181,6 +209,10 @@ textarea, input {
 	-webkit-user-select: text;
 }
 
+textarea {
+	resize: none;
+}
+
 optgroup, option {
 	background: var(--MI_THEME-panel);
 	color: var(--MI_THEME-fg);
@@ -190,8 +222,8 @@ hr {
 	margin: 0;
 	border: none;
 	border-radius: 999px;
-	height: 1px;
-	background: var(--MI_THEME-divider);
+	height: var(--MI-dividerWidth);
+	background: var(--MI-dividerColor);
 }
 
 rt {
@@ -232,20 +264,6 @@ progress {
 	}
 }
 
-.ti {
-	width: 1.28em;
-	vertical-align: -12%;
-
-	&::before {
-		font-size: 128%;
-	}
-}
-
-.ti-fw {
-	display: inline-block;
-	text-align: center;
-}
-
 ._tabUnderline {
 	position: relative;
 
@@ -273,19 +291,19 @@ progress {
 	}
 }
 
-/* TODO: 引数は現在CSS変数経由で受け取っているが、将来的にはattr()を使った方が綺麗そう */
+// TODO: 引数は現在CSS変数経由で受け取っているが、将来的にはattr()を使った方が綺麗そう
 ._spacer {
 	width: 100%;
 	max-width: min(var(--MI_SPACER-w, 100%), calc(100% - (var(--MI_SPACER-max, 24px) * 2)));
 
-	/* marginを使って余白を表現すると、margin特有の親突き抜け仕様などが厄介になってくるので上下はpaddingを使う */
+	// marginを使って余白を表現すると、margin特有の親突き抜け仕様などが厄介になってくるので上下はpaddingを使う
 	padding: var(--MI_SPACER-max, 24px) 0;
 	margin: 0 auto;
 
 	box-sizing: border-box;
 	container-type: inline-size;
 
-	/* 子に継承させない */
+	// 子に継承させない
 	--MI_SPACER-w: initial;
 	--MI_SPACER-min: initial;
 	--MI_SPACER-max: initial;
@@ -305,8 +323,8 @@ progress {
 
 // カードやダイアログの本文は画面幅によらず共通の内余白を使う。
 ._spacer._spacerCard {
-	--MI-formGroupInset: var(--MI-cardPadding);
-	--MI-formGroupRadius: 0px;
+	--MI-formGroupInset: 0px;
+	--MI-formGroupRadius: initial;
 	max-width: min(var(--MI_SPACER-w, 100%), calc(100% - (var(--MI-cardPadding, 18px) * 2)));
 	padding: var(--MI-cardPadding, 18px) 0;
 }
@@ -334,6 +352,9 @@ progress {
 	contain: strict;
 	overflow: auto;
 	overscroll-behavior: contain;
+	// 折叠/展开等内容高度变化会翻转滚动条的有无，内容宽度随之跳变，
+	// 让 450px 的容器查询来回命中、头像和字号反复切换，因此始终预留滚动条槽位
+	scrollbar-gutter: stable;
 }
 
 ._pageLayout {
@@ -410,12 +431,10 @@ progress {
 	overflow-y: scroll;
 	overscroll-behavior: contain;
 
-	/*
-	理屈は知らないけど、ここでbackgroundを設定しておかないと
-	スクロールコンテナーが少なくともChromeにおいて
-	main thread scrolling になってしまい、パフォーマンスが(多分)落ちる。
-	backgroundが透明だと裏側を描画しないといけなくなるとかそういう理由かもしれない
-	*/
+	// 理屈は知らないけど、ここでbackgroundを設定しておかないと
+	// スクロールコンテナーが少なくともChromeにおいて
+	// main thread scrolling になってしまい、パフォーマンスが(多分)落ちる。
+	// backgroundが透明だと裏側を描画しないといけなくなるとかそういう理由かもしれない
 	background: var(--MI_THEME-bg);
 }
 
@@ -502,12 +521,17 @@ progress {
 	-webkit-tap-highlight-color: transparent;
 	font-size: 1em;
 	font-family: inherit;
+	font-weight: normal !important;
 	line-height: inherit;
 	max-width: 100%;
 
 	&:disabled {
 		cursor: default;
 	}
+}
+
+._iconButton {
+	@include window-header.iconHover;
 }
 
 ._buttonPrimary {
@@ -551,14 +575,70 @@ progress {
 		outline-offset: 2px;
 	}
 
-	&:not(:disabled):hover {
-		text-decoration: underline;
+}
+
+// 文字操作用装饰箭头反馈，普通正文链接和用户名不参与。
+@mixin text-action-arrow-motion {
+	display: inline-block;
+	flex-shrink: 0;
+	animation: var(--MI-textActionAnimation, none);
+
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
 	}
 }
 
+@keyframes global-text-action-arrow {
+	0%, 100% { translate: 0 0; }
+	50% { translate: 3px 0; }
+}
+
+._textButton,
+._textAction,
+._link:has(> :is(.ti-arrow-right, .ti-chevron-right)),
+a:has(> :is(.ti-arrow-right, .ti-chevron-right)) {
+	--MI-textActionAnimation: none;
+	font-weight: normal;
+	text-decoration: none !important;
+
+	&:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+		--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
+	}
+
+	// 已有尾箭头复用原元素；图标按钮不增加额外内容。
+	&:not(._textButtonIcon):not(:has(> :is(.ti-arrow-right, .ti-chevron-right)))::after {
+		@include text-action-arrow-motion;
+		content: '';
+		width: 1em;
+		height: 1em;
+		margin-inline-start: .35em;
+		vertical-align: -.125em;
+		background: currentColor;
+		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14m-7-7 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
+	}
+
+	> :is(.ti-arrow-right, .ti-chevron-right) { @include text-action-arrow-motion; }
+}
+
+._textButtonIcon {
+	--MI-iconScale: 1.28;
+}
+
+._textAction > .ti-external-link { display: none; }
+
+// 展开按钮的文字槽以及 MkButton 链接型已有的尾箭头沿用同样反馈。
+._button:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) ._textAction {
+	--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
+}
+
+._button > div > :is(.ti-arrow-right, .ti-chevron-right) { @include text-action-arrow-motion; }
+._button:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) > div > :is(.ti-arrow-right, .ti-chevron-right) {
+	--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
+}
+
 ._panelPadding {
-	--MI-formGroupInset: var(--MI-cardPadding);
-	--MI-formGroupRadius: 0px;
+	--MI-formGroupInset: 0px;
+	--MI-formGroupRadius: initial;
 	box-sizing: border-box;
 	min-width: 0;
 	padding: var(--MI-cardPadding);
@@ -575,8 +655,8 @@ progress {
 	}
 }
 
-// 掘金风格的可见卡片；只对明确添加此类的外层容器生效
-._juejinCard {
+// 统一卡片圆角；只对明确添加此类的外层容器生效
+._card {
 	border-radius: var(--MI-cardRadius) !important;
 }
 
@@ -621,7 +701,7 @@ progress {
 	padding: 10px;
 	box-sizing: border-box;
 	text-align: center;
-	border: solid 0.5px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: var(--MI-radius);
 
 	&:active {
@@ -860,19 +940,26 @@ html[data-color-scheme=dark] ._woodenFrame {
 	font-size: var(--mfm-zoom-size);
 
 	.mfm-x2, .mfm-x3, .mfm-x4 {
-		/* only half effective */
+		// only half effective
 		font-size: calc(var(--mfm-zoom-size) / 2 + 50%);
 
 		.mfm-x2, .mfm-x3, .mfm-x4 {
-			/* disabled */
+			// disabled
 			font-size: 100%;
 		}
 	}
 }
 
-._mfm_rainbow_fallback_ {
-	background-image: linear-gradient(to right, rgb(255, 0, 0) 0%, rgb(255, 165, 0) 17%, rgb(255, 255, 0) 33%, rgb(0, 255, 0) 50%, rgb(0, 255, 255) 67%, rgb(0, 0, 255) 83%, rgb(255, 0, 255) 100%);
-	-webkit-background-clip: text;
+._mfmRainbow {
+	// 先为文字提供彩色底色；只旋转色相无法改变黑白文字。明度跟随主题，避免亮色主题中的浅黄字失去对比。
+	background-image: linear-gradient(to right,
+		oklch(from var(--MI_THEME-fg) clamp(0.45, l, 0.78) 0.18 25),
+		oklch(from var(--MI_THEME-fg) clamp(0.45, l, 0.78) 0.18 65),
+		oklch(from var(--MI_THEME-fg) clamp(0.45, l, 0.78) 0.18 100),
+		oklch(from var(--MI_THEME-fg) clamp(0.45, l, 0.78) 0.18 145),
+		oklch(from var(--MI_THEME-fg) clamp(0.45, l, 0.78) 0.18 210),
+		oklch(from var(--MI_THEME-fg) clamp(0.45, l, 0.78) 0.18 275),
+		oklch(from var(--MI_THEME-fg) clamp(0.45, l, 0.78) 0.18 325));
 	background-clip: text;
 	color: transparent;
 }
@@ -973,10 +1060,29 @@ html[data-color-scheme=dark] ._woodenFrame {
 }
 
 @keyframes mfm-rainbow {
-	0% { filter: hue-rotate(0deg) contrast(150%) saturate(150%); }
-	100% { filter: hue-rotate(360deg) contrast(150%) saturate(150%); }
+	0% { filter: hue-rotate(0deg); }
+	100% { filter: hue-rotate(360deg); }
 }
 
+
+// 字数水印叠在输入区内，不占布局，也不拦截输入与选择。
+._inputCounter {
+	position: absolute;
+	inset-inline-end: 12px;
+	bottom: 8px;
+	z-index: 2;
+	font-size: 12px;
+	line-height: 1.5;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	color: var(--MI_THEME-fgTransparentWeak);
+	pointer-events: none;
+	user-select: none;
+}
+
+._inputCounterOver {
+	color: var(--MI_THEME-error);
+}
 
 // Text entry uses its existing border for focus, without a second outer ring.
 input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='button'], [type='submit'], [type='reset']):focus,
@@ -986,7 +1092,8 @@ textarea:focus {
 	border-color: var(--MI_THEME-accent);
 }
 
-:has(> input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']):focus, > textarea:focus) {
+// 清除输入框容器的聚焦环时，保留弹层自身的阴影。
+:not(._popup, ._shadow):has(> input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']):focus, > textarea:focus) {
 	outline: none !important;
 	box-shadow: none !important;
 }

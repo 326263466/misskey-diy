@@ -12,10 +12,10 @@ import NotificationToast from '@/ui/_common_/notification.vue';
 import { globalEvents } from '@/events.js';
 import { i18n } from '@/i18n.js';
 
-const mocks = vi.hoisted(() => ({ navigate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ navigate: vi.fn(), confirm: vi.fn() }));
 
 vi.mock('@/i.js', () => ({ $i: { id: 'current-user' } }));
-vi.mock('@/os.js', () => ({ popups: [] }));
+vi.mock('@/os.js', () => ({ popups: [], confirm: mocks.confirm }));
 vi.mock('@/store.js', () => ({ store: { s: { realtimeMode: false } } }));
 vi.mock('@/stream.js', () => ({ useStream: vi.fn() }));
 vi.mock('@/utility/sound.js', () => ({ playMisskeySfx: vi.fn() }));
@@ -193,5 +193,49 @@ describe('notification toast dismissal', () => {
 		expect(vi.getTimerCount()).toBe(0);
 		await vi.advanceTimersByTimeAsync(10_000);
 		expect(close).toHaveBeenCalledTimes(action === 'manual close' ? 1 : 0);
+	});
+});
+
+describe('suspicious sign-in alert', () => {
+	let visibility: DocumentVisibilityState = 'visible';
+
+	function emitSigninAlert(id: string) {
+		globalEvents.emit('clientNotification', {
+			id, type: 'login', header: 'Sign-in alert', createdAt: new Date().toISOString(),
+			ip: '198.51.100.7', userAgent: null, newNetwork: true, newDevice: false,
+		} as Misskey.entities.Notification);
+	}
+
+	beforeEach(() => {
+		visibility = 'visible';
+		mocks.confirm.mockReset().mockResolvedValue({ canceled: true });
+		vi.spyOn(window.document, 'visibilityState', 'get').mockImplementation(() => visibility);
+	});
+
+	afterEach(() => {
+		cleanup();
+		globalEvents.removeAllListeners('clientNotification');
+		vi.restoreAllMocks();
+	});
+
+	test('shows a dialog instead of a toast, and only once for the same sign-in across tabs', async () => {
+		const view = render(Common);
+		emitSigninAlert('alert-once');
+		emitSigninAlert('alert-once');
+		await nextTick();
+		expect(mocks.confirm).toHaveBeenCalledOnce();
+		expect(mocks.confirm.mock.calls[0][0]).toMatchObject({ type: 'warning' });
+		expect(view.queryByRole('link', { name: 'Sign-in alert' })).toBeNull();
+	});
+
+	test('waits until a hidden tab becomes visible before showing the dialog', async () => {
+		render(Common);
+		visibility = 'hidden';
+		emitSigninAlert('alert-hidden');
+		await nextTick();
+		expect(mocks.confirm).not.toHaveBeenCalled();
+		visibility = 'visible';
+		window.document.dispatchEvent(new Event('visibilitychange'));
+		expect(mocks.confirm).toHaveBeenCalledOnce();
 	});
 });

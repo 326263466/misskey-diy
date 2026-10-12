@@ -4,10 +4,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<time :title="absolute" :class="{ [$style.old1]: colored && (ago > 60 * 60 * 24 * 90), [$style.old2]: colored && (ago > 60 * 60 * 24 * 180) }">
-	<template v-if="invalid">{{ i18n.ts._ago.invalid }}</template>
+<time :title="expandOnHover ? undefined : absolute" :tabindex="expandOnHover ? 0 : undefined" :class="{ [$style.expandable]: expandOnHover, [$style.old1]: colored && (ago > 60 * 60 * 24 * 90), [$style.old2]: colored && (ago > 60 * 60 * 24 * 180) }">
+	<template v-if="expandOnHover"><span :class="$style.relative">{{ relative }}</span><span :class="$style.absolute">{{ absolute }}</span></template>
+	<template v-else-if="invalid">{{ i18n.ts._ago.invalid }}</template>
 	<template v-else-if="mode === 'relative'">{{ relative }}</template>
 	<template v-else-if="mode === 'absolute'">{{ absolute }}</template>
+	<template v-else-if="mode === 'date'">{{ date }}</template>
 	<template v-else-if="mode === 'detail'">{{ absolute }} ({{ relative }})</template>
 </time>
 </template>
@@ -16,36 +18,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 import isChromatic from 'chromatic/isChromatic';
 import { computed } from 'vue';
 import { i18n } from '@/i18n.js';
-import { dateTimeFormat } from '@@/js/intl-const.js';
-import { useLowresTime } from '@/composables/use-lowres-time.js';
+import { dateOnlyFormat, dateTimeFormat } from '@@/js/intl-const.js';
+import { parseTime, formatRelativeTime } from '@@/js/relative-time.js';
+import { useLowresTime } from '@@/js/use-lowres-time.js';
 
 const props = withDefaults(defineProps<{
 	time: Date | string | number | null;
 	origin?: Date | null;
-	mode?: 'relative' | 'absolute' | 'detail';
+	mode?: 'relative' | 'absolute' | 'detail' | 'date';
 	colored?: boolean;
+	expandOnHover?: boolean;
 }>(), {
 	origin: isChromatic() ? () => new Date('2023-04-01T00:00:00Z') : null,
 	mode: 'relative',
 });
 
-function getDateSafe(n: Date | string | number) {
-	try {
-		if (n instanceof Date) {
-			return n;
-		}
-		return new Date(n);
-	} catch (err) {
-		return {
-			getTime: () => NaN,
-		};
-	}
-}
-
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
-const _time = props.time == null ? NaN : getDateSafe(props.time).getTime();
+const _time = parseTime(props.time);
 const invalid = Number.isNaN(_time);
 const absolute = !invalid ? dateTimeFormat.format(_time) : i18n.ts._ago.invalid;
+const date = !invalid ? dateOnlyFormat.format(_time) : i18n.ts._ago.invalid;
+
+// 10秒ごとの再計算のたびに作り直さないよう、インスタンスごとに一度だけ作る
+const relativeTimeLocale = {
+	ago: i18n.tsx._ago,
+	timeIn: i18n.tsx._timeIn,
+	justNow: i18n.ts._ago.justNow,
+};
 
 const actualNow = useLowresTime();
 const now = computed(() => (props.origin ? props.origin.getTime() : actualNow.value));
@@ -54,30 +53,27 @@ const now = computed(() => (props.origin ? props.origin.getTime() : actualNow.va
 const ago = computed(() => (now.value - _time) / 1000/*ms*/);
 
 const relative = computed<string>(() => {
-	if (props.mode === 'absolute') return ''; // absoluteではrelativeを使わないので計算しない
+	if (props.mode === 'absolute' || props.mode === 'date') return ''; // 绝对时间和日期不需要计算相对时间。
 	if (invalid) return i18n.ts._ago.invalid;
 
-	return (
-		ago.value >= 31536000 ? i18n.tsx._ago.yearsAgo({ n: Math.round(ago.value / 31536000).toString() }) :
-		ago.value >= 2592000 ? i18n.tsx._ago.monthsAgo({ n: Math.round(ago.value / 2592000).toString() }) :
-		ago.value >= 604800 ? i18n.tsx._ago.weeksAgo({ n: Math.round(ago.value / 604800).toString() }) :
-		ago.value >= 86400 ? i18n.tsx._ago.daysAgo({ n: Math.round(ago.value / 86400).toString() }) :
-		ago.value >= 3600 ? i18n.tsx._ago.hoursAgo({ n: Math.round(ago.value / 3600).toString() }) :
-		ago.value >= 60 ? i18n.tsx._ago.minutesAgo({ n: (~~(ago.value / 60)).toString() }) :
-		ago.value >= 10 ? i18n.tsx._ago.secondsAgo({ n: (~~(ago.value % 60)).toString() }) :
-		ago.value >= -3 ? i18n.ts._ago.justNow :
-		ago.value < -31536000 ? i18n.tsx._timeIn.years({ n: Math.round(-ago.value / 31536000).toString() }) :
-		ago.value < -2592000 ? i18n.tsx._timeIn.months({ n: Math.round(-ago.value / 2592000).toString() }) :
-		ago.value < -604800 ? i18n.tsx._timeIn.weeks({ n: Math.round(-ago.value / 604800).toString() }) :
-		ago.value < -86400 ? i18n.tsx._timeIn.days({ n: Math.round(-ago.value / 86400).toString() }) :
-		ago.value < -3600 ? i18n.tsx._timeIn.hours({ n: Math.round(-ago.value / 3600).toString() }) :
-		ago.value < -60 ? i18n.tsx._timeIn.minutes({ n: (~~(-ago.value / 60)).toString() }) :
-		i18n.tsx._timeIn.seconds({ n: (~~(-ago.value % 60)).toString() })
-	);
+	return formatRelativeTime(ago.value, relativeTimeLocale);
 });
 </script>
 
 <style lang="scss" module>
+.expandable {
+	display: inline-grid;
+	white-space: nowrap;
+	> span { grid-area: 1 / 1; transition: opacity 120ms ease, visibility 120ms; }
+	.absolute { visibility: hidden; opacity: 0; }
+	&:hover, &:focus-visible {
+		// 鼠标短暂划过时不切换，停留后再显示完整时间。
+		> span { transition-delay: 600ms; }
+		.relative { visibility: hidden; opacity: 0; }
+		.absolute { visibility: visible; opacity: 1; }
+	}
+}
+@media (prefers-reduced-motion: reduce) { .expandable > span { transition: none; transform: none; } }
 .old1 {
 	color: var(--MI_THEME-warn);
 }

@@ -7,13 +7,16 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/vue';
 import { defineComponent, h, nextTick, ref } from 'vue';
 import * as mfm from 'mfm-js';
+import { CONTENT_LIMITS } from 'misskey-js';
 import type * as Misskey from 'misskey-js';
+import { url } from '@@/js/config.js';
 import MkPostForm from '@/components/MkPostForm.vue';
 import MkPostFormDialog from '@/components/MkPostFormDialog.vue';
 import { globalEvents } from '@/events.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import type { PostFormProps } from '@/types/post-form.js';
+import { markAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
 const mocks = vi.hoisted(() => ({
 	confirm: vi.fn(), apiWithDialog: vi.fn(), misskeyApi: vi.fn(), popupMenu: vi.fn(), select: vi.fn(),
@@ -21,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 	incNotesCount: vi.fn(), claimAchievement: vi.fn(), getPluginHandlers: vi.fn(() => []),
 	emojiPicker: vi.fn(),
 	globalHashtags: '#default', globalWithHashtags: true,
-	globalPreview: false, popup: vi.fn(), getAccountMenu: vi.fn(), alert: vi.fn(),
+	globalPreview: false, popup: vi.fn(), getAccounts: vi.fn(), getAccountMenu: vi.fn(), alert: vi.fn(), toast: vi.fn(),
 }));
 vi.mock('@/os.js', () => mocks);
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.misskeyApi }));
@@ -46,7 +49,7 @@ vi.mock('@/preferences.js', async () => {
 	} };
 });
 vi.mock('@/instance.js', () => ({ instance: { maxNoteTextLength: 3000 } }));
-vi.mock('@/accounts.js', () => ({ getAccounts: vi.fn(), getAccountMenu: mocks.getAccountMenu }));
+vi.mock('@/accounts.js', () => ({ getAccounts: mocks.getAccounts, getAccountMenu: mocks.getAccountMenu }));
 vi.mock('@/plugin.js', () => ({ getPluginHandlers: mocks.getPluginHandlers }));
 vi.mock('@/utility/autocomplete.js', () => ({ Autocomplete: class { detach() {} } }));
 vi.mock('@/utility/achievements.js', () => ({ claimAchievement: mocks.claimAchievement }));
@@ -124,24 +127,42 @@ async function renderEdit(note = makeNote()) {
 	}), { global: globalOptions });
 	await nextTick();
 	await nextTick();
-	return { ...view, form: form.value!, textarea: view.getByTestId('post-form-text') as HTMLTextAreaElement };
+	return { ...view, form: form.value!, textarea: view.container.querySelector('[data-testid="post-form-text"]') as HTMLTextAreaElement };
 }
 
 describe('post composer editing', () => {
+	let originalStorage: Storage;
 	beforeEach(() => {
 		vi.clearAllMocks();
-		localStorage.clear();
+		originalStorage = localStorage;
+		const storage: Record<string, string> = {};
+		vi.stubGlobal('localStorage', new Proxy({
+			getItem: (key: string) => storage[key] ?? null,
+			setItem: (key: string, value: string) => { storage[key] = value; },
+			removeItem: (key: string) => { delete storage[key]; },
+			clear: () => { for (const key of Object.keys(storage)) delete storage[key]; },
+		}, {
+			ownKeys: () => Object.keys(storage),
+			getOwnPropertyDescriptor: (target, key) => Reflect.getOwnPropertyDescriptor(target, key) ?? { configurable: true, enumerable: true },
+		}));
 		prefer.s.emojiStyle = 'twemoji';
 		mocks.globalPreview = false;
 		mocks.getAccountMenu.mockResolvedValue([]);
+		mocks.getAccounts.mockResolvedValue([]);
 		mocks.popup.mockReturnValue({ dispose: vi.fn() });
 		mocks.confirm.mockResolvedValue({ canceled: false });
 		mocks.misskeyApi.mockResolvedValue([]);
-		mocks.apiWithDialog.mockImplementation(async (_endpoint, data) => ({ ...makeNote(), ...data, tags: ['changed'], files: [] }));
+		mocks.apiWithDialog.mockImplementation(async (endpoint, data) => {
+			const result = { ...makeNote(), ...data, tags: ['changed'], files: [] };
+			if (endpoint === 'notes/drafts/create') return { createdDraft: result };
+			if (endpoint === 'notes/drafts/update') return { updatedDraft: { ...result, id: data.draftId } };
+			return result;
+		});
 	});
 	afterEach(() => {
 		cleanup();
 		vi.restoreAllMocks();
+		vi.stubGlobal('localStorage', originalStorage);
 	});
 
 	test('loads text, warning, attachments and settings without making an untouched edit dirty', async () => {
@@ -353,7 +374,7 @@ describe('post composer editing', () => {
 			text: 'Changed #changed #topic', cw: note.cw, tags: ['changed'], emojis: {},
 			files: [], fileIds: ['file-a', 'file-b'], reactionAcceptance: 'nonSensitiveOnly',
 		});
-		expect(mocks.misskeyApi).not.toHaveBeenCalled();
+		expect(mocks.misskeyApi.mock.calls.filter(([endpoint]) => endpoint === 'notes/create')).toHaveLength(0);
 		expect(mocks.getPluginHandlers).not.toHaveBeenCalledWith('note_post_interruptor');
 		expect(mocks.incNotesCount).not.toHaveBeenCalled();
 		expect(mocks.claimAchievement).not.toHaveBeenCalled();
@@ -408,13 +429,13 @@ describe('post composer editing', () => {
 	test('fixes audience, account, publishing and poll controls while allowing reaction setting edits', async () => {
 		const reply = makeNote({ id: 'parent', userId: 'other' });
 		const view = await renderEdit(makeNote({ replyId: reply.id, reply, isPublishedReply: false }));
-		expect((view.getByTestId('post-form-publish-reply') as HTMLInputElement).disabled).toBe(true);
 		for (const icon of ['.ti-lock', '.ti-rocket-off', '.ti-chart-arrows']) {
 			expect((view.container.querySelector(icon)!.closest('button') as HTMLButtonElement).disabled).toBe(true);
 		}
 		expect((view.container.querySelector('img')!.closest('button') as HTMLButtonElement).disabled).toBe(true);
 		await fireEvent.click(view.container.querySelector('.ti-dots')!.parentElement!);
 		const menu = mocks.popupMenu.mock.calls[0][0];
+		expect(menu.find((item: { text?: string }) => item.text === i18n.ts._postForm.onlyDiscussUnderPost).disabled.value).toBe(true);
 		expect(menu.some((item: { text?: string }) => item.text === i18n.ts._drafts.saveToDraft)).toBe(false);
 		expect(menu.some((item: { icon?: string }) => item.icon === 'ti ti-calendar-time')).toBe(false);
 		mocks.select.mockResolvedValue({ canceled: false, result: 'likeOnly' });
@@ -461,12 +482,42 @@ describe('post composer editing', () => {
 		await fireEvent.update(first.getByRole('combobox', { name: i18n.ts.hashtags }), '#DraftTopic');
 		first.unmount();
 		const restored = await renderEdit(note);
-		expect(restored.textarea.value).toBe('Unfinished edit');
+		await waitFor(() => expect(restored.textarea.value).toBe('Unfinished edit'));
 		expect((restored.getByRole('combobox', { name: i18n.ts.hashtags }) as HTMLInputElement).value).toBe('#DraftTopic');
 		restored.unmount();
 		const latest = await renderEdit({ ...note, text: 'Newer server content' });
 		expect(latest.textarea.value).toBe('Newer server content');
 		expect(JSON.parse(localStorage.getItem('drafts')!)['note:self'].data.text).toBe('Ordinary draft');
+	});
+
+	test('保留同时编辑窗口各自的正文和附件保护 ID', async () => {
+		const note = makeNote();
+		const first = await renderEdit(note);
+		await fireEvent.update(first.textarea, 'First window');
+		const second = await renderEdit(note);
+		await waitFor(() => expect(second.textarea.value).toBe('First window'));
+		await fireEvent.update(second.textarea, 'Second window');
+		await fireEvent.update(first.textarea, 'First window updated');
+		const drafts = Object.keys(localStorage).filter(key => key.startsWith('misskey:editDraft:self:edited-note:')).map(key => JSON.parse(localStorage.getItem(key)!));
+		expect(drafts.map(draft => draft.data.text).sort()).toEqual(['First window updated', 'Second window']);
+		expect(new Set(drafts.map(draft => draft.fileProtectionId)).size).toBe(2);
+	});
+
+	test.each(['读取', '写入'])('兼容草稿缓存%s失败仍保存独立快照并登记附件', async (failure) => {
+		const view = await renderEdit();
+		if (failure === '读取') localStorage.setItem('drafts', '{invalid');
+		const setItem = localStorage.setItem.bind(localStorage);
+		vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+			if (key === 'drafts') throw new Error('quota');
+			setItem(key, value);
+		});
+		await fireEvent.update(view.textarea, 'Keep the independent draft');
+		await waitFor(() => expect(mocks.misskeyApi).toHaveBeenCalledWith('drive/files/draft', expect.objectContaining({ text: expect.stringContaining('Keep the independent draft') }), undefined));
+		const request = mocks.misskeyApi.mock.calls.find(call => call[0] === 'drive/files/draft' && call[1].text.includes('Keep the independent draft'))![1];
+		expect(JSON.parse(localStorage.getItem(`misskey:editDraft:self:edited-note:${request.draftId}`)!).data.text).toBe('Keep the independent draft');
+		view.unmount();
+		const restored = await renderEdit();
+		await waitFor(() => expect(restored.textarea.value).toBe('Keep the independent draft'));
 	});
 
 	test('prevents duplicate saves and closing while the original note is being updated', async () => {
@@ -497,16 +548,124 @@ describe('post composer editing', () => {
 		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
 	});
 
-	async function renderNew(props: PostFormProps & { fixed?: boolean } = {}) {
+	async function renderNew(props: PostFormProps & { fixed?: boolean; commentMode?: boolean } = {}) {
 		const form = ref<InstanceType<typeof MkPostForm>>();
 		const view = render(defineComponent({
 			setup: () => () => h(MkPostForm, { ...props, ref: form, autofocus: false }),
 		}), { global: globalOptions });
 		await nextTick();
 		await nextTick();
-		const scoped = within(view.container);
+		const scoped = within(view.container as HTMLElement);
 		return { ...view, ...scoped, form: form.value!, textarea: scoped.getByTestId('post-form-text') as HTMLTextAreaElement };
 	}
+
+	test('连续发表评论时保留指定可见回复的全部收件人', async () => {
+		const author = { id: 'author', username: 'author', host: null } as Misskey.entities.UserDetailed;
+		const recipient = { id: 'recipient', username: 'recipient', host: null } as Misskey.entities.UserDetailed;
+		const reply = makeNote({ id: 'private-parent', userId: author.id, user: author, visibility: 'specified', visibleUserIds: ['self', author.id, recipient.id], cw: null });
+		mocks.misskeyApi.mockImplementation(async (endpoint, params) => {
+			if (endpoint === 'users/show') return params.userIds ? [recipient] : author;
+			return { createdNote: makeNote() };
+		});
+		const view = await renderNew({ reply, fixed: true, commentMode: true });
+		const submit = view.getByTestId('post-form-submit');
+		for (const text of ['第一条评论', '第二条评论']) {
+			await fireEvent.update(view.textarea, text);
+			await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false));
+			await fireEvent.click(submit);
+			await waitFor(() => expect(view.textarea.value).toBe(''));
+		}
+		const requests = mocks.misskeyApi.mock.calls.filter(([endpoint]) => endpoint === 'notes/create').map(([, request]) => request);
+		expect(requests).toHaveLength(2);
+		for (const request of requests) {
+			expect(request).toMatchObject({ replyId: reply.id, visibility: 'specified' });
+			expect(request.visibleUserIds.toSorted()).toEqual([author.id, recipient.id]);
+		}
+	});
+
+	test('评论粘贴本站帖子链接时保留文字，不打开引用确认', async () => {
+		const view = await renderNew({ reply: makeNote(), fixed: true, commentMode: true });
+		const paste = new Event('paste', { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, 'clipboardData', { value: { items: [], getData: () => `${url}/notes/other-note` } });
+		view.textarea.dispatchEvent(paste);
+		await nextTick();
+		expect(paste.defaultPrevented).toBe(false);
+		expect(mocks.confirm).not.toHaveBeenCalled();
+	});
+
+	test.each([
+		{ error: new Error('Offline'), message: 'Offline' },
+		{ error: { message: 'Rejected', id: 'request-id' }, message: 'Rejected\nrequest-id' },
+		{ error: null, message: i18n.ts.somethingHappened },
+	])('keeps a failed new post editable and reports useful error text ($message)', async ({ error, message }) => {
+		const view = await renderNew({ initialText: 'Unsent post', initialFiles: [makeNote().files![0]] });
+		mocks.misskeyApi.mockRejectedValueOnce(error);
+		await fireEvent.click(view.getByTestId('post-form-submit'));
+		await waitFor(() => expect(mocks.toast).toHaveBeenCalledExactlyOnceWith(message, 'error'));
+		expect(mocks.alert).not.toHaveBeenCalled();
+		expect(view.textarea.value).toBe('Unsent post');
+		expect(view.getByText('First attachment')).toBeTruthy();
+		expect((view.getByTestId('post-form-submit') as HTMLButtonElement).disabled).toBe(false);
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.other }));
+		await mocks.popupMenu.mock.calls.at(-1)![0].find((item: { text?: string }) => item.text === i18n.ts._drafts.saveToDraft).action();
+		expect(mocks.apiWithDialog).toHaveBeenCalledWith('notes/drafts/create', expect.objectContaining({ text: 'Unsent post', fileIds: ['file-a'] }));
+	});
+
+	test('keeps the post editable without repeating a handled session failure', async () => {
+		const error = { code: 'AUTHENTICATION_FAILED' };
+		markAccountSessionErrorHandled(error);
+		mocks.misskeyApi.mockRejectedValueOnce(error);
+		const view = await renderNew({ initialText: 'Unsent post' });
+		await fireEvent.click(view.getByTestId('post-form-submit'));
+		await waitFor(() => expect(mocks.misskeyApi).toHaveBeenCalledWith('notes/create', expect.anything(), undefined));
+		await nextTick();
+		expect((view.getByTestId('post-form-submit') as HTMLButtonElement).disabled).toBe(false);
+		expect(view.textarea.value).toBe('Unsent post');
+		expect(mocks.toast).not.toHaveBeenCalled();
+		expect(mocks.alert).not.toHaveBeenCalled();
+	});
+
+	test('reports a missing alternate account token and leaves the form available', async () => {
+		const view = await renderNew({ initialText: 'Unsent post' });
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.account }));
+		mocks.getAccountMenu.mock.calls.at(-1)![0].onChoose({ id: 'alternate', username: 'alternate', host: null });
+		await nextTick();
+		await fireEvent.click(view.getByTestId('post-form-submit'));
+		await waitFor(() => expect(mocks.toast).toHaveBeenCalledExactlyOnceWith(i18n.ts._postForm.accountTokenMissing, 'error'));
+		expect(mocks.misskeyApi).not.toHaveBeenCalledWith('notes/create', expect.anything(), expect.anything());
+		expect(view.textarea.value).toBe('Unsent post');
+		expect((view.getByTestId('post-form-submit') as HTMLButtonElement).disabled).toBe(false);
+		expect(mocks.alert).not.toHaveBeenCalled();
+	});
+
+	test('reports an empty server draft without opening a dialog', async () => {
+		const view = await renderNew();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.other }));
+		await mocks.popupMenu.mock.calls.at(-1)![0].find((item: { text?: string }) => item.text === i18n.ts._drafts.saveToDraft).action();
+		expect(mocks.toast).toHaveBeenCalledExactlyOnceWith(i18n.ts._drafts.cannotCreateDraft, 'error');
+		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
+		expect(mocks.alert).not.toHaveBeenCalled();
+	});
+
+	test('rejects a draft from another channel without overwriting the current text', async () => {
+		const view = await renderNew({ channel: { id: 'channel-a', name: 'Channel A' } as Misskey.entities.Channel, initialText: 'Current text' });
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.account }));
+		mocks.popupMenu.mock.calls.at(-1)![0].find((item: { text?: string }) => item.text === i18n.ts._drafts.listDrafts).action();
+		await mocks.popup.mock.calls.at(-1)![2].restore({ channelId: 'channel-b', text: 'Other draft' });
+		expect(mocks.toast).toHaveBeenCalledExactlyOnceWith(i18n.ts._channelPicker.draftChannelMismatch, 'info');
+		expect(view.textarea.value).toBe('Current text');
+		expect(mocks.alert).not.toHaveBeenCalled();
+	});
+
+	test('调用场景动态改变字数上限，超限时禁用提交并按 Unicode 字符计数', async () => {
+		const view = await renderNew({ maxTextLength: 3, initialText: '😀😀😀' });
+		const submit = view.getByTestId('post-form-submit') as HTMLButtonElement;
+		expect(submit.disabled).toBe(false);
+		await fireEvent.update(view.textarea, '😀😀😀😀');
+		expect(submit.disabled).toBe(true);
+		await view.rerender({ maxTextLength: 4 });
+		expect(submit.disabled).toBe(false);
+	});
 
 	test('lets each composer configure its initial rows without limiting or sharing the draft text', async () => {
 		const ordinary = await renderNew();
@@ -645,7 +804,7 @@ describe('post composer editing', () => {
 		await fireEvent.update(topics, '#Only');
 		expect(view.textarea.value).toBe('');
 		expect(submit.disabled).toBe(false);
-		await fireEvent.update(view.textarea, 'a'.repeat(2995));
+		await fireEvent.update(view.textarea, 'a'.repeat(CONTENT_LIMITS.noteText - 5));
 		await fireEvent.update(topics, '#tag');
 		expect(submit.disabled).toBe(false);
 		await fireEvent.update(topics, '#tags');
@@ -692,6 +851,31 @@ describe('post composer editing', () => {
 		expect(topics.value).toBe('');
 		expect(topics.getAttribute('data-enabled')).toBe('false');
 		expect(view.getByRole('button', { name: i18n.ts.useCw }).getAttribute('aria-pressed')).toBe('false');
+	});
+
+	test('saves unchanged oversized server draft text and warning while blocking publication and new oversized text', async () => {
+		const view = await renderNew();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.account }));
+		mocks.popupMenu.mock.calls.at(-1)![0].find((item: { text?: string }) => item.text === i18n.ts._drafts.listDrafts).action();
+		const text = '😀'.repeat(CONTENT_LIMITS.noteText + 1);
+		const cw = '界'.repeat(CONTENT_LIMITS.noteCw + 1);
+		await mocks.popup.mock.calls.at(-1)![2].restore({
+			id: 'legacy-draft', text, cw, hashtag: '', visibility: 'public', localOnly: false, reactionAcceptance: null,
+			files: [{ id: 'old-file', name: 'Old attachment', properties: {} }],
+		});
+		await nextTick();
+		expect((view.getByTestId('post-form-submit') as HTMLButtonElement).disabled).toBe(true);
+		await fireEvent.click(view.getByRole('button', { name: 'Old attachment' }));
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.other }));
+		const save = mocks.popupMenu.mock.calls.at(-1)![0].find((item: { text?: string }) => item.text === i18n.ts._drafts.saveToDraft).action;
+		await save();
+		expect(mocks.apiWithDialog).toHaveBeenCalledWith('notes/drafts/update', expect.objectContaining({ draftId: 'legacy-draft', text, cw, fileIds: [] }));
+		mocks.apiWithDialog.mockClear();
+		await fireEvent.update(view.textarea, `${text}改`);
+		await save();
+		expect(mocks.apiWithDialog).not.toHaveBeenCalled();
+		expect(mocks.toast).toHaveBeenCalledWith(i18n.ts._drafts.cannotCreateDraft, 'error');
+		expect(view.textarea.value).toBe(`${text}改`);
 	});
 
 	const channel = { id: 'channel-a', name: 'Community channel', color: '#86b300', isSensitive: false, allowRenoteToExternal: true, userId: 'owner', isArchived: false } as Misskey.entities.Channel;
@@ -767,14 +951,10 @@ describe('post composer editing', () => {
 		for (const props of [{ reply: note }, { renote: note }, { editingNote: note }, { channel }]) {
 			const view = await renderNew(props);
 			expect(view.queryByTestId('post-form-channel')).toBeNull();
-			if ('editingNote' in props) {
-				expect(view.container.querySelector<HTMLElement>('[class*="colorBar"]')?.style.getPropertyValue('--MI-channelColor')).toBe(channel.color);
-			}
 			expect(view.queryByRole('button', { name: i18n.ts._channelPicker.noChannel })).toBeNull();
 			view.unmount();
 		}
-		const fixed = await renderNew({ channel: { ...channel, color: '#000' }, initialText: 'Channel post' });
-		expect(fixed.container.querySelector<HTMLElement>('[class*="colorBar"]')?.style.getPropertyValue('--MI-channelColor')).toBe('#000');
+		const fixed = await renderNew({ channel, initialText: 'Channel post' });
 		fixed.form.clear();
 		await nextTick();
 		expect(fixed.getAllByText(channel.name).length).toBeGreaterThan(0);
@@ -829,7 +1009,8 @@ describe('post composer editing', () => {
 		await fireEvent.click(view.getByRole('button', { name: i18n.ts.account }));
 		mocks.popupMenu.mock.calls.at(-1)![0].find((item: { text?: string }) => item.text === i18n.ts._drafts.listDrafts).action();
 		await mocks.popup.mock.calls.at(-1)![2].restore({ id: 'private-draft', text: 'Private content', channelId: null, visibility: 'specified' });
-		expect(mocks.alert).toHaveBeenCalledWith({ type: 'info', text: i18n.ts._channelPicker.draftChannelMismatch });
+		expect(mocks.toast).toHaveBeenCalledWith(i18n.ts._channelPicker.draftChannelMismatch, 'info');
+		expect(mocks.alert).not.toHaveBeenCalled();
 		expect(view.textarea.value).toBe('Current text');
 	});
 
@@ -847,7 +1028,7 @@ describe('post composer editing', () => {
 	});
 
 	test('retries a created packet in the open composer without automatically saving a draft', async () => {
-		const packet = { id: 'packet', senderId: 'sender', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 10, remainingCount: 2, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', claimedCoins: null };
+		const packet = { id: 'packet', senderId: 'sender', roomId: null, coverFileId: null, coverUrl: null, startsAt: null, serverTime: '2026-10-03T00:00:00.000Z', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 10, remainingCount: 2, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', password: null, claimedCoins: null };
 		const sent: unknown[] = [];
 		mocks.misskeyApi.mockImplementation(async (endpoint: string, data: unknown) => {
 			if (endpoint === 'red-packets/show') return packet;
@@ -864,39 +1045,39 @@ describe('post composer editing', () => {
 		handlers.created(packet);
 		await nextTick();
 		await fireEvent.click(first.getByTestId('post-form-submit'));
-		await waitFor(() => expect(mocks.alert).toHaveBeenCalled());
+		await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith(expect.any(String), 'error'));
 		expect(sent[0]).toEqual(expect.objectContaining({ text: null, localOnly: true, redPacketId: 'packet' }));
 		expect(sent[0]).not.toHaveProperty('redPacket');
 		expect(mocks.misskeyApi.mock.calls.some(([endpoint]) => endpoint === 'red-packets/create' || endpoint === 'i/wallet')).toBe(false);
 		expect(localStorage.getItem('drafts')).toBeNull();
-		expect(first.getByText(i18n.ts._redPacket.createdDescription)).toBeTruthy();
+		expect(first.getByTestId('post-form-red-packet')).toBeTruthy();
 		await waitFor(() => expect(first.getByTestId('post-form-submit').hasAttribute('disabled')).toBe(false));
 		await fireEvent.click(first.getByTestId('post-form-submit'));
 		await waitFor(() => expect(sent).toHaveLength(2));
 		expect(sent[1]).toEqual(sent[0]);
-		await waitFor(() => expect(first.queryByText(i18n.ts._redPacket.createdDescription)).toBeNull());
+		await waitFor(() => expect(first.queryByTestId('post-form-red-packet')).toBeNull());
 		expect(localStorage.getItem('drafts')).toBeNull();
 	});
 
-	test('removes only the attachment without refunding the issued packet', async () => {
+	test('the corner removal confirms and cancels the issued packet', async () => {
 		const view = await renderNew();
 		await fireEvent.click(view.getByRole('button', { name: i18n.ts._redPacket.title }));
-		mocks.popup.mock.calls.at(-1)![2].created({ id: 'packet', senderId: 'sender', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 10, remainingCount: 2, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', claimedCoins: null });
+		mocks.popup.mock.calls.at(-1)![2].created({ id: 'packet', senderId: 'sender', roomId: null, coverFileId: null, coverUrl: null, startsAt: null, serverTime: '2026-10-03T00:00:00.000Z', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 10, remainingCount: 2, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', password: null, claimedCoins: null });
 		await nextTick();
 		await fireEvent.click(view.getByRole('button', { name: i18n.ts.remove }));
-		await waitFor(() => expect(view.queryByText(i18n.ts._redPacket.createdDescription)).toBeNull());
-		expect(mocks.misskeyApi).not.toHaveBeenCalledWith('red-packets/cancel', expect.anything());
-		expect(view.queryByText(i18n.ts._redPacket.createdDescription)).toBeNull();
+		await waitFor(() => expect(view.queryByTestId('post-form-red-packet')).toBeNull());
+		expect(mocks.confirm).toHaveBeenCalledWith({ type: 'warning', text: i18n.ts._redPacket.cancelCreated });
+		expect(mocks.misskeyApi).toHaveBeenCalledWith('red-packets/cancel', { redPacketId: 'packet' });
 	});
 
 	test('editing a packet-only note never sends a new red packet or debits the wallet', async () => {
-		const note = makeNote({ text: null, cw: null, files: [], fileIds: [], redPacket: { id: 'packet', senderId: 'sender', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 5, remainingCount: 1, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', claimedCoins: null } });
+		const note = makeNote({ text: null, cw: null, files: [], fileIds: [], redPacket: { id: 'packet', senderId: 'sender', roomId: null, coverFileId: null, coverUrl: null, startsAt: null, serverTime: '2026-10-03T00:00:00.000Z', kind: 'group', audience: 'public', coverId: 'classic', mode: 'equal', message: '', totalCoins: 10, count: 2, remainingCoins: 5, remainingCount: 1, status: 'active', expiresAt: '2099-01-01T00:00:00.000Z', password: null, claimedCoins: null } });
 		const view = await renderEdit(note);
 		expect((view.getByRole('button', { name: i18n.ts._redPacket.title }) as HTMLButtonElement).disabled).toBe(true);
 		await fireEvent.click(view.getByTestId('post-form-submit'));
 		await waitFor(() => expect(mocks.apiWithDialog).toHaveBeenCalledOnce());
 		expect(mocks.apiWithDialog.mock.calls[0][0]).toBe('notes/update');
 		expect(mocks.apiWithDialog.mock.calls[0][1]).not.toHaveProperty('redPacket');
-		expect(mocks.misskeyApi).not.toHaveBeenCalled();
+		expect(mocks.misskeyApi.mock.calls.filter(([endpoint]) => ['notes/create', 'red-packets/create'].includes(endpoint))).toHaveLength(0);
 	});
 });

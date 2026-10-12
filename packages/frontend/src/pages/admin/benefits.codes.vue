@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</section>
 	<div v-if="createdCode" ref="createdResult" class="_gaps_s" :class="$style.created" role="status" tabindex="-1">
 		<strong><i class="ti ti-circle-check" aria-hidden="true"></i> {{ i18n.ts._benefits.codeCreated }}</strong>
-		<span>{{ createdCode.name }}</span>
+		<span><Mfm :text="createdCode.name" :plain="true"/></span>
 		<div :class="$style.toolbar"><code class="_selectable" :class="$style.code">{{ createdCode.code }}</code><MkButton small @click="copyCode(createdCode)">{{ i18n.ts.copy }}</MkButton></div>
 		<p :class="$style.description">{{ i18n.ts._benefits.redemptionDescription }}</p>
 	</div>
@@ -38,7 +38,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<thead><tr><th scope="col">{{ i18n.ts._benefits.codeName }}</th><th scope="col">{{ i18n.ts._benefits.code }}</th><th scope="col">{{ i18n.ts._benefits.cardsPerClaim }}</th><th scope="col">{{ i18n.ts._benefits.codeClaims }}</th><th scope="col">{{ i18n.ts.state }}</th><th scope="col">{{ i18n.ts.expirationDate }}</th><th scope="col">{{ i18n.ts.operations }}</th></tr></thead>
 				<tbody>
 					<tr v-for="entry in codes" :key="entry.id" :data-testid="`benefit-code-${entry.id}`">
-						<td :class="$style.name">{{ entry.name }}</td>
+						<td :class="$style.name"><Mfm :text="entry.name" :plain="true"/></td>
 						<td><div :class="$style.toolbar"><code class="_selectable" :class="$style.code">{{ entry.code }}</code><MkButton small @click="copyCode(entry)">{{ i18n.ts.copy }}</MkButton></div></td>
 						<td>{{ entry.amount.toLocaleString() }}</td>
 						<td><div class="_gaps_s"><button type="button" class="_textButton" :aria-label="i18n.tsx._benefits.claimsTitle({ name: entry.name })" :aria-expanded="selectedCode?.id === entry.id" @click="selectClaims(entry, $event)">{{ entry.redemptions.toLocaleString() }} / {{ entry.maxRedemptions.toLocaleString() }}</button><progress :class="$style.progress" :value="entry.redemptions" :max="entry.maxRedemptions" :aria-label="i18n.ts._benefits.codeClaims"></progress><span :class="$style.description">{{ i18n.tsx._benefits.claimsRemaining({ count: Math.max(0, entry.maxRedemptions - entry.redemptions).toLocaleString() }) }}</span></div></td>
@@ -56,7 +56,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</section>
 	<section v-if="selectedCode" class="_panel _gaps" :class="$style.section" :aria-label="i18n.tsx._benefits.claimsTitle({ name: selectedCode.name })">
-		<div :class="$style.heading"><h2 ref="claimsHeading" tabindex="-1">{{ i18n.tsx._benefits.claimsTitle({ name: selectedCode.name }) }}</h2><div :class="$style.toolbar"><MkButton small :disabled="claimsLoading" @click="loadClaims">{{ i18n.ts.reload }}</MkButton><MkButton small @click="closeClaims">{{ i18n.ts.close }}</MkButton></div></div>
+		<div :class="$style.heading"><h2 ref="claimsHeading" tabindex="-1"><I18n :src="i18n.ts._benefits.claimsTitle" tag="span"><template #name><Mfm :text="selectedCode.name" :plain="true"/></template></I18n></h2><div :class="$style.toolbar"><MkButton small :disabled="claimsLoading" @click="loadClaims">{{ i18n.ts.reload }}</MkButton><MkButton small @click="closeClaims">{{ i18n.ts.close }}</MkButton></div></div>
 		<MkLoading v-if="claimsLoading"/>
 		<div v-else-if="claimsError" class="_gaps_s" role="alert"><MkInfo warn>{{ i18n.ts._benefits.claimsLoadFailed }}</MkInfo><MkButton @click="loadClaims">{{ i18n.ts.retry }}</MkButton></div>
 		<p v-else-if="claims.length === 0" :class="$style.description">{{ i18n.ts._benefits.claimsEmpty }}</p>
@@ -196,7 +196,7 @@ async function createCode() {
 async function copyCode(entry: RedemptionCode) {
 	try {
 		await navigator.clipboard.writeText(entry.code);
-		if (active) os.toast(i18n.ts.copiedToClipboard);
+		if (active) os.success(i18n.ts.copiedToClipboard);
 	} catch {
 		if (active) void os.alert({ type: 'error', text: i18n.ts._benefits.copyFailed });
 	}
@@ -326,7 +326,7 @@ onUnmounted(() => { active = false; codesRequest++; claimsRequest++; window.clea
 .tableScroll { min-width: 0; max-width: 100%; overflow-x: auto; }
 .table {
 	width: 100%; min-width: 700px; border-collapse: collapse; font-size: .85em; text-align: left;
-	th, td { padding: var(--MI-margin); border-bottom: 1px solid var(--MI_THEME-divider); }
+	th, td { padding: var(--MI-margin); border-bottom: var(--MI-divider); }
 	th { white-space: nowrap; color: var(--MI_THEME-fgTransparentWeak); font-weight: normal; }
 	td { font-variant-numeric: tabular-nums; }
 }

@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { onMounted, onBeforeUnmount, useTemplateRef, ref } from 'vue';
 import MkMenu from './MkMenu.vue';
 import type { MenuItem } from '@/types/menu.js';
-import { elementContains } from '@/utility/element-contains.js';
+import { usePopupDismissal } from '@/composables/use-popup-dismissal.js';
 import { calcMenuPosition } from '@/utility/menu-position.js';
 import { prefer } from '@/preferences.js';
 import * as os from '@/os.js';
@@ -31,19 +31,34 @@ import * as os from '@/os.js';
 defineOptions({ inheritAttrs: false });
 const fullscreenTarget = window.document.fullscreenElement;
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	items: MenuItem[];
 	ev: PointerEvent;
-}>();
+	closeOnBackdrop?: boolean;
+}>(), {
+	closeOnBackdrop: true,
+});
 
 const emit = defineEmits<{
-	(ev: 'closed'): void;
+	(ev: 'closed', restoreFocus?: boolean): void;
 }>();
 
 const rootEl = useTemplateRef('rootEl');
 const guardInitialPointer = ref(false);
 
 const zIndex = ref<number>(os.claimZIndex('high'));
+
+usePopupDismissal({
+	element: () => rootEl.value,
+	isShowing: () => true,
+	onEscape: () => emit('closed'),
+	onClickOutside: () => {
+		if (props.closeOnBackdrop) emit('closed');
+	},
+	onContextMenuOutside: () => {
+		if (props.closeOnBackdrop) emit('closed', false);
+	},
+});
 
 function align() {
 	if (rootEl.value == null) return;
@@ -71,19 +86,13 @@ onMounted(() => {
 	align();
 	if (rootEl.value) alignObserver.observe(rootEl.value);
 	window.addEventListener('resize', align, { passive: true });
-	window.document.body.addEventListener('mousedown', onMousedown);
 });
 
 onBeforeUnmount(() => {
 	window.document.removeEventListener('fullscreenchange', onFullscreenChange);
 	alignObserver.disconnect();
 	window.removeEventListener('resize', align);
-	window.document.body.removeEventListener('mousedown', onMousedown);
 });
-
-function onMousedown(evt: MouseEvent) {
-	if (!elementContains(rootEl.value, evt.target as Element) && (rootEl.value !== evt.target)) emit('closed');
-}
 </script>
 
 <style lang="scss" module>

@@ -40,7 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							/>
 						</div>
 						<div :class="$style.pageBannerTitle" class="_gaps_s">
-							<h1>{{ page.title || page.name }}</h1>
+							<h1><Mfm :text="page.title || page.name" :plain="true"/></h1>
 							<div :class="$style.pageBannerTitleSub">
 								<div v-if="page.user" :class="$style.pageBannerTitleUser">
 									<MkAvatar :user="page.user" :class="$style.avatar" indicator link preview/> <MkA :to="`/@${username}`"><MkUserName :user="page.user" :nowrap="false"/></MkA>
@@ -73,7 +73,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<MkUserName :user="page.user" :class="$style.name"/>
 							<MkAcct :user="page.user" :class="$style.acct"/>
 						</MkA>
-						<!--<MkFollowButton v-if="!$i || $i.id != page.user.id" :user="page.user!" :inline="true" :transparent="false" :full="true" :class="$style.follow"/>-->
 					</div>
 					<div :class="$style.pageDate">
 						<div><i class="ti ti-clock"></i> {{ i18n.ts.createdAt }}: <MkTime :time="page.createdAt" mode="detail"/></div>
@@ -451,7 +450,7 @@ definePage(() => ({
 	display: flex;
 	align-items: center;
 
-	border-top: 1px solid var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	padding-top: 1.5rem;
 	margin-bottom: 1.5rem;
 
@@ -466,7 +465,7 @@ definePage(() => ({
 	display: flex;
 	align-items: center;
 
-	border-top: 1px solid var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	padding-top: 1.5rem;
 	margin-bottom: 1.5rem;
 

@@ -51,7 +51,7 @@ $height: 2ex;
 	border-radius: 4px 0 0 4px;
 	overflow: clip;
 	color: #fff;
-	text-shadow: /* .866 ≈ sin(60deg) */
+	text-shadow: // .866 ≈ sin(60deg)
 		1px 0 1px #000,
 		.866px .5px 1px #000,
 		.5px .866px 1px #000,

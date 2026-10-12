@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div>
-	<div v-if="achievements" class="_gaps_s" :class="{ [$style.card]: card }">
+	<div class="_gaps_s" :class="{ [$style.card]: card }">
 		<div ref="toolbarEl" :class="[$style.toolbar, { [$style.scrolled]: scrolled }]">
 			<component :is="card ? 'h1' : 'div'" :class="$style.count">
 				<i class="ti ti-medal" aria-hidden="true"></i>
@@ -24,12 +24,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				>{{ option.label }}</button>
 			</div>
 		</div>
-		<MkResult v-if="items.length === 0" type="empty"/>
+		<MkResult v-if="items.length === 0" type="empty" :page="card" :loading="achievements === null"/>
 		<div v-else :class="$style.root">
 			<div
 				v-for="item in items"
 				:key="item.name"
-				class="_panel _juejinCard"
+				class="_panel _card"
 				:class="[$style.achievement, { [$style.locked]: item.unlockedAt == null }]"
 				:role="isClickHere(item) ? 'button' : undefined"
 				:tabindex="isClickHere(item) ? 0 : undefined"
@@ -52,9 +52,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 		</div>
-	</div>
-	<div v-else>
-		<MkLoading/>
 	</div>
 </div>
 </template>
@@ -211,7 +208,7 @@ onMounted(() => {
 .sort {
 	display: flex;
 	margin-left: auto;
-	border: solid 1px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: var(--MI-radius);
 	overflow: clip;
 }
@@ -221,7 +218,7 @@ onMounted(() => {
 	line-height: 1.6;
 
 	&:not(:first-child) {
-		border-left: solid 1px var(--MI_THEME-divider);
+		border-left: var(--MI-divider);
 	}
 
 	&.sortSelected {
@@ -232,9 +229,8 @@ onMounted(() => {
 
 .root {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, min(380px, 100%));
+	grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
 	grid-gap: 12px;
-	place-content: center;
 }
 
 .achievement {

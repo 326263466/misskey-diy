@@ -87,7 +87,7 @@ function showMenu(ev: PointerEvent, contextmenu?: boolean) {
 		margin-left: 12px;
 		font-size: 12px;
 		padding-left: 8px;
-		border-left: solid 1px var(--MI_THEME-divider);
+		border-left: var(--MI-divider);
 
 		&:hover {
 			.buttons {

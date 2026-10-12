@@ -15,7 +15,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 </div>
 <div v-else-if="note != null" ref="rootEl" :class="[$style.root, { [$style.children]: depth > 1 }]">
 	<div :class="[$style.main, { [$style.mainWithReplies]: hasVisibleReplies }]">
-		<div v-if="note.channel && !deleted" :class="$style.colorBar" :style="{ '--MI-channelColor': channelColor(note.channel.color) }"></div>
 		<MkAvatar :class="$style.avatar" :user="note.user" link preview/>
 		<div :class="$style.body">
 			<p v-if="deleted" :class="$style.deletedContent" role="status">{{ getDeletedText(deletedBy, true) }}</p>
@@ -33,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSubNoteContent :class="$style.text" :note="note" :omitMentionOf="omitMentionOf" :relocateTags="true"/>
 				</div>
 			</div>
-			<MkReactionsViewer v-if="!deleted && captured && captured.reactionCount > 0" :noteId="note.id" :reactions="captured.reactions" :reactionEmojis="captured.reactionEmojis" :myReaction="captured.myReaction"/>
+			<MkReactionsViewer v-if="!deleted && captured && captured.reactionCount > 0" :noteId="note.id" :reactions="captured.reactions" :reactionEmojis="captured.reactionEmojis" :myReactions="captured.myReactions"/>
 			<MkNoteTags v-if="!deleted && (note.cw == null || showContent)" :class="$style.tags" :tags="topics.tags" :channel="note.channel"/>
 			<footer v-if="!deleted" :class="$style.footer">
 				<button v-tooltip="captured?.isLiked ? i18n.ts.unlike : i18n.ts.like" type="button" class="_button" :class="[$style.action, { [$style.liked]: captured?.isLiked }]" :aria-label="captured?.isLiked ? i18n.ts.unlike : i18n.ts.like" :aria-pressed="captured?.isLiked ?? false" :disabled="liking" @click="toggleLike">
@@ -63,7 +62,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { channelColor } from '@/utility/channel-color.js';
 import { computed, inject, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
@@ -73,7 +71,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { createFlatNoteRepliesLoader } from '@/utility/flat-note-replies.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import { checkWordMute } from '@/utility/check-word-mute.js';
 import { useNoteCapture, useNoteCaptureVisibility } from '@/composables/use-note-capture.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
@@ -230,7 +228,6 @@ if (hasMoreReplies.value) void loadReplies();
 </script>
 
 <style lang="scss" module>
-@use "../styles/channel-accent.scss";
 .root {
 	--avatarSize: 40px;
 	--columnGap: 8px;
@@ -264,17 +261,7 @@ if (hasMoreReplies.value) void loadReplies();
 	top: var(--avatarSize);
 	bottom: calc(-1 * var(--replyGap));
 	width: var(--threadLineWidth);
-	background: var(--MI_THEME-divider);
-	pointer-events: none;
-}
-
-.colorBar {
-	@include channel-accent.bar;
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	left: 0;
-	width: 3px;
+	background: var(--MI_THEME-divider); // divider-exempt: thread connector line
 	pointer-events: none;
 }
 
@@ -376,7 +363,7 @@ if (hasMoreReplies.value) void loadReplies();
 		width: calc(var(--avatarSize) + var(--columnGap) + var(--threadLineWidth) / 2);
 		height: calc(10px + (var(--avatarSize) + var(--threadLineWidth)) / 2);
 		border-left: solid var(--threadLineWidth) transparent;
-		border-bottom: solid var(--threadLineWidth) var(--MI_THEME-divider);
+		border-bottom: solid var(--threadLineWidth) var(--MI_THEME-divider); // divider-exempt: thread connector line
 		border-bottom-left-radius: 8px;
 		pointer-events: none;
 	}
@@ -389,7 +376,7 @@ if (hasMoreReplies.value) void loadReplies();
 		top: 0;
 		bottom: calc(-1 * var(--replyGap));
 		width: var(--threadLineWidth);
-		background: var(--MI_THEME-divider);
+		background: var(--MI_THEME-divider); // divider-exempt: thread connector line
 		pointer-events: none;
 	}
 
@@ -406,7 +393,7 @@ if (hasMoreReplies.value) void loadReplies();
 	}
 
 	&:not(.replyWithSibling)::before {
-		border-left-color: var(--MI_THEME-divider);
+		border-left-color: var(--MI_THEME-divider); // divider-exempt: thread connector line
 		clip-path: inset(calc(100% - 8px) 0 0 0);
 	}
 }
@@ -423,7 +410,7 @@ if (hasMoreReplies.value) void loadReplies();
 .muted {
 	text-align: center;
 	padding: 8px !important;
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	margin: 8px 8px 0 8px;
 	border-radius: 8px;
 }

@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModalWindow ref="dialogEl" :width="560" :height="700" autoHeight @click="close" @close="close" @esc="close" @closed="emit('closed')">
-	<template #header><i class="ti ti-share" aria-hidden="true"></i> {{ i18n.ts.share }}</template>
+<MkModalWindow ref="dialogEl" headerIcon="ti ti-share" :width="400" :height="700" autoHeight @close="close" @esc="close" @closed="emit('closed')">
+	<template #header>{{ i18n.ts.share }}</template>
 	<div :class="[$style.content, { [$style.motion]: prefer.s.animation }]">
 		<div :class="$style.preview">
 			<div :class="$style.title" :title="title">{{ title }}</div>
@@ -67,7 +67,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<div :class="$style.qrBody">
 							<div v-show="!qrFailed" :class="$style.qrVisual">
-								<div v-if="qrBusy" :class="$style.qrLoading" role="status"><i class="ti ti-loader-2" aria-hidden="true"></i><span>{{ i18n.ts.loading }}</span></div>
+								<div v-if="qrBusy" :class="$style.qrLoading" role="status" aria-busy="true"><span>{{ i18n.ts.loading }}</span></div>
 								<div v-show="qrCode" ref="qrEl" :class="$style.qr" role="img" :aria-label="i18n.ts._share.qrCode"></div>
 							</div>
 							<div v-if="qrFailed" :class="$style.qrError">
@@ -96,6 +96,7 @@ import MkButton from '@/components/MkButton.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
+import { deviceKind } from '@/utility/device-kind.js';
 import { canShareWithSystem, copyShareLink, copyShareText, getShareText, getShareUrl, shareWithSystem } from '@/utility/share.js';
 
 const props = defineProps<{
@@ -132,7 +133,8 @@ const sharing = ref(false);
 const status = ref('');
 const previewText = computed(() => props.restricted ? undefined : props.text);
 const shareData = computed<ShareData>(() => ({ title: props.title, text: previewText.value, url: props.url }));
-const canShare = computed(() => canShareWithSystem(shareData.value));
+// 桌面端的系统分享面板内容贫瘠且与已列出的平台重复，仅移动端保留原生分享
+const canShare = computed(() => deviceKind !== 'desktop' && canShareWithSystem(shareData.value));
 const platformDefinitions = [
 	{ id: 'qq', icon: 'ti-brand-qq', color: '#12b7f5' },
 	{ id: 'qzone', icon: 'ti-star-filled', color: '#f6b900' },
@@ -362,7 +364,7 @@ async function saveQr(): Promise<void> {
 	gap: 4px;
 	min-width: 0;
 	padding: 4px;
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: var(--MI-radius);
 	background: var(--MI_THEME-panel);
 
@@ -402,17 +404,19 @@ async function saveQr(): Promise<void> {
 
 .platforms {
 	display: grid;
-	grid-template-columns: repeat(8, minmax(0, 1fr));
-	gap: 12px 6px;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px 4px;
 }
 
 .platform {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	justify-content: center;
 	gap: 6px;
 	min-width: 0;
-	padding: 4px 0;
+	padding: 8px 4px;
+	box-sizing: border-box;
 	border-radius: var(--MI-radius);
 	color: var(--MI_THEME-fg);
 	text-decoration: none;
@@ -446,8 +450,10 @@ async function saveQr(): Promise<void> {
 }
 
 .platformLabel {
+	display: block;
 	max-width: 100%;
 	font-size: 0.8em;
+	line-height: 1.4;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -458,7 +464,7 @@ async function saveQr(): Promise<void> {
 	grid-template-columns: repeat(auto-fit, minmax(min(100px, 100%), 1fr));
 	gap: 4px;
 	padding: 4px;
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: var(--MI-radius);
 	background: var(--MI_THEME-panel);
 }
@@ -521,7 +527,7 @@ async function saveQr(): Promise<void> {
 }
 
 .qrSection {
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: var(--MI-radius);
 	background: var(--MI_THEME-panel);
 	overflow: hidden;
@@ -533,7 +539,7 @@ async function saveQr(): Promise<void> {
 	align-items: center;
 	gap: 8px;
 	padding: 8px var(--MI-cardPadding);
-	border-bottom: 1px solid var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .qrHeading {
@@ -576,7 +582,7 @@ async function saveQr(): Promise<void> {
 	width: 160px;
 	aspect-ratio: 1;
 	box-sizing: border-box;
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: calc(var(--MI-radius) - 4px);
 	background: var(--MI_THEME-bg);
 	overflow: hidden;
@@ -590,9 +596,6 @@ async function saveQr(): Promise<void> {
 	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 0.85em;
 
-	> i {
-		font-size: 24px;
-	}
 }
 
 .qrError {
@@ -662,7 +665,6 @@ async function saveQr(): Promise<void> {
 		}
 
 		.platform:hover .platformIcon {
-			transform: translateY(-2px);
 			box-shadow: 0 5px 12px color-mix(in srgb, var(--share-brand-color) 25%, transparent);
 		}
 
@@ -675,9 +677,6 @@ async function saveQr(): Promise<void> {
 			transform: scale(0.97);
 		}
 
-		.qrLoading > i {
-			animation: qrSpin 800ms linear infinite;
-		}
 	}
 
 	.revealActive {
@@ -687,10 +686,6 @@ async function saveQr(): Promise<void> {
 	.revealHidden {
 		grid-template-rows: 0fr;
 	}
-}
-
-@keyframes qrSpin {
-	to { transform: rotate(360deg); }
 }
 
 @media (max-width: 400px) {

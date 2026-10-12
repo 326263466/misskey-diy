@@ -6,6 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PagesRepository, PageLikesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
+import { ArticleService } from '@/core/ArticleService.js';
 import { DI } from '@/di-symbols.js';
 import { ApiError } from '../../error.js';
 
@@ -49,11 +50,20 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		@Inject(DI.pageLikesRepository)
 		private pageLikesRepository: PageLikesRepository,
+		private articleService: ArticleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const page = await this.pagesRepository.findOneBy({ id: ps.pageId });
 			if (page == null) {
 				throw new ApiError(meta.errors.noSuchPage);
+			}
+			if (ArticleService.isArticle(page)) {
+				await this.articleService.setLiked(page.id, me, false, true).catch(error => {
+					if (error instanceof ArticleService.NoSuchArticleError) throw new ApiError(meta.errors.noSuchPage);
+					if (error instanceof ArticleService.NotLikedError) throw new ApiError(meta.errors.notLiked);
+					throw error;
+				});
+				return;
 			}
 
 			const exist = await this.pageLikesRepository.findOneBy({

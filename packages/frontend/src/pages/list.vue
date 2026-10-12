@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div v-if="error != null" class="_pageBody">
-		<MkResult type="error"/>
+		<MkResult type="error" page/>
 	</div>
 	<div v-else-if="list" class="_pageBody">
 		<div v-if="list" :class="$style.members">
@@ -23,6 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkButton v-if="!list.isLiked" v-tooltip="i18n.ts.like" inline :class="$style.button" asLike @click="like()"><i class="ti ti-heart"></i><span v-if="1 > 0" class="count">{{ list.likedCount }}</span></MkButton>
 		<MkButton inline @click="create()"><i class="ti ti-download" :class="$style.import"></i>{{ i18n.ts.import }}</MkButton>
 	</div>
+	<div v-else class="_pageBody"><MkLoading page/></div>
 </PageWithHeader>
 </template>
 
@@ -31,7 +32,7 @@ import { watch, computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
 import MkButton from '@/components/MkButton.vue';

@@ -4,15 +4,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkCommunityHub active="checkin">
-	<section class="_panel _juejinCard" :class="$style.panel" :aria-busy="loading || posting">
+<PageWithHeader class="_standalonePage" hideHeader>
+<div class="_pageBody" :class="$style.root">
+	<section class="_panel _card" :class="$style.panel" :aria-busy="loading || posting">
 		<header :class="$style.header">
 			<h1>{{ i18n.ts._checkin.dailyCheckin }}</h1>
 			<button class="_textButton" @click="showRules"><i class="ti ti-help-circle" aria-hidden="true"></i> {{ i18n.ts._checkin.rules }}</button>
 		</header>
 		<div :class="$style.body">
 			<div v-if="error" role="alert" :class="$style.error">{{ error }} <button v-if="!posting" class="_textButton" @click="retry">{{ i18n.ts.retry }}</button></div>
-			<p v-if="notice" role="status" :class="$style.notice">{{ notice }}</p>
 			<div :class="$style.dashboard">
 				<div :class="$style.calendarColumn">
 					<MkLoading v-if="!status && loading"/>
@@ -85,7 +85,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 	</section>
-	<section v-if="status" class="_panel _juejinCard" :class="$style.achievements">
+	<section v-if="status" class="_panel _card" :class="$style.achievements">
 		<header :class="$style.header"><h2>{{ i18n.ts._checkin.checkinAchievements }}</h2><MkA to="/my/achievements" class="_link">{{ i18n.ts._checkin.allAchievements }} <i class="ti ti-chevron-right" aria-hidden="true"></i></MkA></header>
 		<div :class="$style.milestones">
 			<article v-for="milestone in milestones" :key="milestone.name" :class="[$style.milestone, { [$style.unlocked]: earned.has(milestone.name) }]">
@@ -99,14 +99,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</article>
 		</div>
 	</section>
-</MkCommunityHub>
+</div>
+</PageWithHeader>
 </template>
 
 <script lang="ts" setup>
 import { computed, defineAsyncComponent, inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import type { entities } from 'misskey-js';
 import { versatileLang } from '@@/js/intl-const.js';
-import MkCommunityHub from '@/components/MkCommunityHub.vue';
 import MkAchievementBadge from '@/components/MkAchievementBadge.vue';
 import { publishCheckinStatus, useCheckinStatus } from '@/composables/use-checkin-status.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -132,7 +132,6 @@ const pendingOperation = ref<'checkin' | 'makeup' | 'exchange' | null>(null);
 const exchangeRequestId = ref<string>();
 const error = ref('');
 const retryExchange = ref(false);
-const notice = ref('');
 const { status: sharedStatus } = useCheckinStatus({ refresh: false });
 let publishing = false;
 let refreshAfterLoad = false;
@@ -293,15 +292,12 @@ async function checkIn() {
 	pendingOperation.value = 'checkin';
 	error.value = '';
 	retryExchange.value = false;
-	notice.value = '';
 	const sequence = ++request;
 	const requestedAt = new Date();
 	try {
 		const result = await misskeyApi('i/checkin', {});
 		if (sequence !== request) return;
 		applyMutationStatus(result, requestedAt);
-		notice.value = result.earnedPoints > 0 ? i18n.tsx._checkin.rewardReceived({ n: result.earnedPoints }) : i18n.ts._checkin.alreadyCheckedIn;
-		if (result.earnedMakeupCards > 0) notice.value += ` ${i18n.tsx._checkin.cardRewardReceived({ n: result.earnedMakeupCards })}`;
 		if (result.newlyCheckedIn) lastReward = { date: result.today, points: result.earnedPoints, cards: result.earnedMakeupCards };
 		showSuccess(result);
 		lastRequestedMonth = undefined;
@@ -328,13 +324,13 @@ async function makeUp(date: string) {
 		if (canceled || sequence !== request) return;
 		error.value = '';
 		retryExchange.value = false;
-		notice.value = '';
 		const requestedAt = new Date();
 		const result = await misskeyApi('i/checkin-makeup', { date });
 		if (sequence !== request) return;
 		applyMutationStatus(result, requestedAt);
-		notice.value = result.newlyCheckedIn ? i18n.tsx._checkin.makeupSuccess({ date }) : i18n.ts._checkin.alreadyMadeUp;
-		if (result.earnedMakeupCards > 0) notice.value += ` ${i18n.tsx._checkin.cardRewardReceived({ n: result.earnedMakeupCards })}`;
+		let message = result.newlyCheckedIn ? i18n.tsx._checkin.makeupSuccess({ date }) : i18n.ts._checkin.alreadyMadeUp;
+		if (result.earnedMakeupCards > 0) message += ` ${i18n.tsx._checkin.cardRewardReceived({ n: result.earnedMakeupCards })}`;
+		os.toast(message, 'success');
 	} catch (cause) {
 		if (sequence !== request) return;
 		const code = (cause as { code?: string } | null)?.code;
@@ -377,7 +373,6 @@ async function exchangeCard(fromMakeup = false) {
 		});
 		if (canceled || sequence !== request) return;
 		error.value = '';
-		notice.value = '';
 		exchangeRequestId.value ??= crypto.randomUUID();
 		const result = await misskeyApi('i/checkin-exchange', { requestId: exchangeRequestId.value });
 		if (sequence !== request) return;
@@ -387,7 +382,7 @@ async function exchangeCard(fromMakeup = false) {
 		pendingBroadcast = true;
 		refreshAfterLoad = true;
 		status.value = { ...status.value, points: result.points, makeupCards: result.makeupCards, makeupCardExchangeAvailable: false };
-		notice.value = i18n.ts._checkin.cardExchangeSuccess;
+		os.toast(i18n.ts._checkin.cardExchangeSuccess, 'success');
 	} catch (cause) {
 		if (sequence !== request) return;
 		const code = (cause as { code?: string } | null)?.code;
@@ -465,18 +460,20 @@ onUnmounted(() => {
 	window.document.removeEventListener('visibilitychange', refresh);
 });
 
-definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-check', needWideArea: true }));
+definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-check' }));
 </script>
 
 <style lang="scss" module>
 @use "../styles/community.scss";
 @use "../styles/page-header.scss";
+@use '@/styles/card-header.scss';
 
+.root { max-width: var(--MI-pageWidth); margin-inline: auto; }
 .panel, .achievements { overflow: hidden; }
 .panel { container-type: inline-size; }
 // パネル自身が角丸と overflow: clip を持つので、ヘッダー側は角丸なしで上端に密着させる
-.header { @include page-header.surface; --MI-pageHeaderRadius: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: var(--height); padding: 0 var(--MI-cardPadding); }
-.header h1, .header h2 { margin: 0; font-size: 1em; }
+.header { @include page-header.surface; @include card-header.row; --MI-pageHeaderRadius: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-inline: var(--MI-cardPadding); }
+.header h1, .header h2 { @include card-header.label; margin: 0; }
 .body { padding: var(--MI-cardPadding); }
 .dashboard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 27%); align-items: start; gap: 28px; }
 .calendarColumn, .actionColumn { min-width: 0; }
@@ -486,7 +483,6 @@ definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-
 .checkin:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 3px; }
 .checkin:disabled { opacity: .65; cursor: default; }
 .error { @include community.error; }
-.notice { margin: 0 0 12px; color: var(--MI_THEME-accent); line-height: 1.7; }
 .rewards { padding: var(--MI-cardPadding); border-radius: calc(var(--MI-radius) / 2); background: var(--MI_THEME-accentedBg); }
 .rewards p { margin: 12px 0 0; font-size: .8em; line-height: 1.6; color: var(--MI_THEME-fgTransparentWeak); }
 .rewards .rewardHint { margin: 0 0 16px; color: var(--MI_THEME-accent); font-weight: bold; }
@@ -540,7 +536,7 @@ definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-
 .predictedReward { background: transparent; border: 1px dashed color-mix(in srgb, var(--MI_THEME-warn) 55%, transparent); }
 .day.completed { --dayColor: var(--MI_THEME-accent); background: color-mix(in srgb, var(--MI_THEME-accent) 9%, var(--MI_THEME-panel)); }
 .day.madeUp { --dayColor: var(--MI_THEME-warn); background: color-mix(in srgb, var(--MI_THEME-warn) 8%, var(--MI_THEME-panel)); }
-.day.missed { border-color: var(--MI_THEME-divider); border-style: dashed; }
+.day.missed { border-color: var(--MI-dividerColor); border-style: dashed; }
 .day.expired, .day.unavailable { background: transparent; }
 .day.expired .dayNumber, .day.unavailable .dayNumber, .day.future .dayNumber { color: var(--MI_THEME-fgTransparentWeak); }
 .day.today { border-color: var(--MI_THEME-link); box-shadow: 0 0 0 2px color-mix(in srgb, var(--MI_THEME-link) 12%, transparent); }
@@ -564,8 +560,8 @@ definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-
 .todayDate { color: var(--MI_THEME-fgTransparentWeak); font-size: .8em; line-height: 1.5; }
 .achievements { margin-top: 20px; }
 .milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: var(--MI-cardPadding); }
-.milestone { display: flex; align-items: center; gap: 14px; padding: var(--MI-cardPadding); border: 1px solid var(--MI_THEME-divider); border-radius: var(--MI-radius); }
-.milestone.unlocked { border-color: color-mix(in srgb, var(--MI_THEME-accent) 30%, var(--MI_THEME-divider)); background: color-mix(in srgb, var(--MI_THEME-accent) 4%, var(--MI_THEME-panel)); }
+.milestone { display: flex; align-items: center; gap: 14px; padding: var(--MI-cardPadding); border: var(--MI-divider); border-radius: var(--MI-radius); }
+.milestone.unlocked { border-color: color-mix(in srgb, var(--MI_THEME-accent) 30%, var(--MI-dividerColor)); background: color-mix(in srgb, var(--MI_THEME-accent) 4%, var(--MI_THEME-panel)); }
 .medal { flex-shrink: 0; }
 .milestoneBody { min-width: 0; flex: 1; }
 .milestone h3 { font-size: .9em; margin: 0; }

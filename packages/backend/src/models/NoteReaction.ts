@@ -9,7 +9,7 @@ import { MiUser } from './User.js';
 import { MiNote } from './Note.js';
 
 @Entity('note_reaction')
-@Index(['userId', 'noteId'], { unique: true })
+@Index('IDX_note_reaction_user_note_reaction', ['userId', 'noteId', 'reaction'], { unique: true })
 export class MiNoteReaction {
 	@PrimaryColumn(id())
 	public id: string;
@@ -40,4 +40,7 @@ export class MiNoteReaction {
 		length: 260,
 	})
 	public reaction: string;
+
+	@Column('text', { nullable: true })
+	public sourceReaction: string | null;
 }

@@ -4,7 +4,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<!-- durationは子Itemコンポーネントがフェードイン/アウトするdurationと合わせる -->
 <Transition
 	:enterActiveClass="prefer.s.animation ? $style.transition_root_enterActive : ''"
 	:leaveActiveClass="prefer.s.animation ? $style.transition_root_leaveActive : ''"
@@ -14,8 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	appear
 	@afterLeave="onAfterLeave"
 >
-	<!-- v-ifを使うとfalseになったとき(transitionが行われている間)子コンポーネントの更新が停止するのか子コンポーネントがアニメーションされなくなる -->
-	<div v-show="showing" ref="rootEl" v-hotkey.global="keymap" :class="[$style.root, { [$style.animated]: prefer.s.animation, [$style.instantBackdrop]: ['video', 'audio'].includes(contents[currentIndex]?.type ?? '') }]" :style="{ zIndex }">
+	<div v-show="showing" ref="rootEl" v-hotkey.global="keymap" :class="$style.root" :style="{ zIndex }">
 		<div :class="[$style.bg]" class="_modalBg"></div>
 		<div ref="mainEl" :class="$style.main">
 			<div
@@ -38,13 +36,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 						@prev="onPrev"
 						@next="onNext"
 						@cancelHorizontalSwipe="onCancelHorizontalSwipe"
-						@expandedChange="expanded = $event"
 					/>
 				</div>
 			</div>
 
-			<button v-if="!expanded && !isTouchUsing && (currentIndex > 0 || navigationFeedback === 'prev')" type="button" class="_button" :class="[$style.prevButton, { [$style.feedback]: navigationFeedback === 'prev', [$style.pressed]: navigationFeedback === 'prev' && navigationPressed }]" :disabled="currentIndex === 0" :aria-label="i18n.ts.goBack" @click="onPrev"><span :class="$style.buttonIcon"><i class="ti ti-arrow-left" aria-hidden="true"></i></span></button>
-			<button v-if="!expanded && !isTouchUsing && (currentIndex < contents.length - 1 || navigationFeedback === 'next')" type="button" class="_button" :class="[$style.nextButton, { [$style.feedback]: navigationFeedback === 'next', [$style.pressed]: navigationFeedback === 'next' && navigationPressed }]" :disabled="currentIndex === contents.length - 1" :aria-label="i18n.ts.next" @click="onNext"><span :class="$style.buttonIcon"><i class="ti ti-arrow-right" aria-hidden="true"></i></span></button>
+			<button v-if="!isTouchUsing && currentIndex > 0" class="_button" :class="[$style.prevButton]" @click="onPrev"><div :class="$style.buttonIcon"><i class="ti ti-arrow-left"></i></div></button>
+			<button v-if="!isTouchUsing && currentIndex < contents.length - 1" class="_button" :class="[$style.nextButton]" @click="onNext"><div :class="$style.buttonIcon"><i class="ti ti-arrow-right"></i></div></button>
 		</div>
 	</div>
 </Transition>
@@ -57,10 +54,10 @@ import XItem from './MkLightbox.item.vue';
 import type { Content } from './MkLightbox.item.vue';
 import type { Keymap } from '@/utility/hotkey.js';
 import * as os from '@/os.js';
-import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { isTouchUsing } from '@/utility/touch.js';
 import { focusTrap } from '@/utility/focus-trap.js';
+import { usePopupDismissal } from '@/composables/use-popup-dismissal.js';
 
 const props = withDefaults(defineProps<{
 	defaultIndex?: number;
@@ -78,7 +75,6 @@ const rootEl = useTemplateRef('rootEl');
 const activatedIndexes = ref(new Set<number>());
 const items = new Map<number, InstanceType<typeof XItem> | null>();
 const currentIndex = ref(props.defaultIndex ?? 0);
-const expanded = ref(false);
 
 const pixelatedZoom = ref(false);
 
@@ -116,9 +112,7 @@ let currentScrollLeft = contentsOffset.value;
 
 function onResize() {
 	screenWidth.value = window.innerWidth;
-	enableSlideTransition.value = false;
-	currentScrollLeft = currentIndex.value * -screenWidth.value;
-	contentsOffset.value = currentScrollLeft;
+	scrollToCurrentIndex();
 }
 
 window.addEventListener('resize', onResize, { passive: true });
@@ -150,9 +144,6 @@ function scrollToCurrentIndex() {
 /** ギャラリーそのものを閉じるための内部処理（閉じる処理を書く場合は `close` か、item内では `closeThis` を使う） */
 function closeGallery() {
 	showing.value = false;
-	if (window.location.hash === '#pswp') {
-		window.history.back();
-	}
 }
 
 function close() {
@@ -164,6 +155,12 @@ function close() {
 	}
 }
 
+usePopupDismissal({
+	element: () => rootEl.value,
+	isShowing: () => showing.value,
+	onEscape: close,
+});
+
 function onSlideTransitionFinished(ev: TransitionEvent) {
 	if (ev.propertyName !== 'translate') return;
 	enableSlideTransition.value = false;
@@ -173,36 +170,15 @@ function onCancelHorizontalSwipe() {
 	scrollToCurrentIndex();
 }
 
-const navigationFeedback = ref<'prev' | 'next' | null>(null);
-const navigationPressed = ref(false);
-let navigationFeedbackTimer: number | null = null;
-
-function showNavigationFeedback(direction: 'prev' | 'next') {
-	if (navigationFeedbackTimer != null) window.clearTimeout(navigationFeedbackTimer);
-	navigationFeedback.value = direction;
-	navigationPressed.value = true;
-	navigationFeedbackTimer = window.setTimeout(() => {
-		navigationPressed.value = false;
-		navigationFeedbackTimer = window.setTimeout(() => {
-			navigationFeedback.value = null;
-			navigationFeedbackTimer = null;
-		}, 200);
-	}, 160);
-}
-
 function onNext() {
-	if (expanded.value) return;
 	if (currentIndex.value < props.contents.length - 1) {
-		showNavigationFeedback('next');
 		currentIndex.value++;
 	}
 	scrollToCurrentIndex();
 }
 
 function onPrev() {
-	if (expanded.value) return;
 	if (currentIndex.value > 0) {
-		showNavigationFeedback('prev');
 		currentIndex.value--;
 	}
 	scrollToCurrentIndex();
@@ -213,17 +189,15 @@ function onItemClose() {
 }
 
 function onAfterLeave() {
+	restoreSourceElements();
+	emit('closed');
+}
+
+function restoreSourceElements() {
 	for (const content of props.contents) {
 		if (content.sourceElement != null) {
 			content.sourceElement.style.visibility = '';
 		}
-	}
-	emit('closed');
-}
-
-function onPopState() {
-	if (showing.value) {
-		close();
 	}
 }
 
@@ -243,18 +217,9 @@ onMounted(() => {
 			releaseFocusTrap = null;
 		}
 	}, { immediate: true });
-
-	window.history.pushState(null, '', '#pswp');
-	window.addEventListener('popstate', onPopState);
 });
 
 const keymap = {
-	'esc': () => {
-		const currentItem = items.get(currentIndex.value);
-		if (currentItem?.menuShowing) return;
-		if (currentItem?.exitFullscreen()) return;
-		close();
-	},
 	'arrowleft': {
 		allowRepeat: true,
 		callback: () => onPrev(),
@@ -266,15 +231,11 @@ const keymap = {
 } as const satisfies Keymap;
 
 onBeforeUnmount(() => {
-	if (navigationFeedbackTimer != null) window.clearTimeout(navigationFeedbackTimer);
 	releaseFocusTrap?.();
 	releaseFocusTrap = null;
-	for (const content of props.contents) {
-		if (content.sourceElement != null) content.sourceElement.style.visibility = '';
-	}
+	restoreSourceElements();
 	items.clear();
 	window.removeEventListener('resize', onResize);
-	window.removeEventListener('popstate', onPopState);
 });
 
 defineExpose({
@@ -295,14 +256,6 @@ defineExpose({
 	> .bg {
 		opacity: 0;
 	}
-}
-
-.instantBackdrop.transition_root_enterFrom > .bg {
-	opacity: 1;
-}
-
-.instantBackdrop.transition_root_enterActive > .bg {
-	transition: none;
 }
 
 .root {
@@ -347,19 +300,16 @@ defineExpose({
 .prevButton,
 .nextButton {
 	position: absolute;
-	top: 50%;
+	top: 0;
 	width: 70px;
-	height: 70px;
-	transform: translateY(-50%);
+	height: 100%;
 	display: grid;
 	place-items: center;
 }
 .prevButton {
-	--hoverOffset: -4px;
 	left: 0;
 }
 .nextButton {
-	--hoverOffset: 4px;
 	right: 0;
 }
 
@@ -371,47 +321,5 @@ defineExpose({
 	background-color: rgba(0, 0, 0, 0.3);
 	border-radius: 100%;
 	color: #fff;
-	scale: 1;
-	translate: 0;
-}
-
-.prevButton:hover .buttonIcon,
-.nextButton:hover .buttonIcon,
-.prevButton:focus-visible .buttonIcon,
-.nextButton:focus-visible .buttonIcon,
-.feedback .buttonIcon {
-	background-color: rgba(0, 0, 0, 0.5);
-}
-
-.pressed .buttonIcon {
-	background-color: color-mix(in srgb, var(--MI_THEME-fg) 65%, transparent);
-}
-
-.prevButton:focus-visible,
-.nextButton:focus-visible {
-	outline: none;
-
-	.buttonIcon {
-		outline: 2px solid var(--MI_THEME-focus);
-		outline-offset: 3px;
-	}
-}
-
-.animated {
-	.buttonIcon {
-		transition: scale 160ms ease-out, translate 160ms ease-out, background-color 160ms ease;
-	}
-
-	.prevButton:is(:hover, :focus-visible, .feedback) .buttonIcon,
-	.nextButton:is(:hover, :focus-visible, .feedback) .buttonIcon {
-		scale: 1.12;
-		translate: var(--hoverOffset) 0;
-	}
-
-	.prevButton:is(:active, .pressed) .buttonIcon,
-	.nextButton:is(:active, .pressed) .buttonIcon {
-		scale: 0.94;
-		translate: 0;
-	}
 }
 </style>

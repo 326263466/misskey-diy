@@ -10,12 +10,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i class="ti ti-user"></i>
 		</div>
 
-		<!-- ログイン画面メッセージ -->
 		<MkInfo v-if="message">
 			{{ message }}
 		</MkInfo>
 
-		<!-- 外部サーバーへの転送 -->
 		<div v-if="openOnRemote" class="_gaps_m">
 			<div class="_gaps_s">
 				<MkButton type="button" rounded primary style="margin: 0 auto;" @click="openRemote(openOnRemote)">
@@ -30,7 +28,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 
-		<!-- username入力 -->
 		<form class="_gaps_s" @submit.prevent="emit('usernameSubmitted', username)">
 			<MkInput v-model="username" :placeholder="i18n.ts.username" type="text" pattern="^[a-zA-Z0-9_]+$" :spellcheck="false" autocomplete="username webauthn" autofocus required data-testid="signin-username">
 				<template #prefix>@</template>
@@ -39,7 +36,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkButton type="submit" large primary rounded style="margin: 0 auto;" data-testid="signin-page-input-continue">{{ i18n.ts.continue }} <i class="ti ti-arrow-right"></i></MkButton>
 		</form>
 
-		<!-- パスワードレスログイン -->
 		<div :class="$style.orHr">
 			<p :class="$style.orMsg">{{ i18n.ts.or }}</p>
 		</div>
@@ -189,8 +185,8 @@ async function specifyHostAndOpenRemote(options: OpenOnRemoteOptions): Promise<v
 	position: relative;
 	margin: .4em auto;
 	width: 100%;
-	height: 1px;
-	background: var(--MI_THEME-divider);
+	height: var(--MI-dividerWidth);
+	background: var(--MI-dividerColor);
 }
 
 .orMsg {

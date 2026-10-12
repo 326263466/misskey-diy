@@ -52,7 +52,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:leaveToClass="prefer.s.animation ? $style.transition_widgetsDrawer_leaveTo : ''"
 >
 	<div v-if="widgetsShowing" :class="$style.widgetsDrawer">
-		<button class="_button" :class="$style.widgetsCloseButton" @click="widgetsShowing = false"><i class="ti ti-x"></i></button>
+		<button class="_button _iconButton" :class="$style.widgetsCloseButton" @click="widgetsShowing = false"><i class="ti ti-x"></i></button>
 		<XWidgets/>
 	</div>
 </Transition>
@@ -117,6 +117,7 @@ import { unisonReload } from '@/utility/unison-reload.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { pendingApiRequestsCount } from '@/utility/misskey-api.js';
 import * as sound from '@/utility/sound.js';
+import { isSigninAlert, showSigninAlert } from '@/utility/signin-alert.js';
 import { $i } from '@/i.js';
 import { useStream } from '@/stream.js';
 import { i18n } from '@/i18n.js';
@@ -163,9 +164,14 @@ function onNotification(notification: Misskey.entities.Notification, isClient = 
 			}
 		}
 
-		notifications.value.unshift(notification);
-		window.setTimeout(trimNotifications, 500);
+		if (!isSigninAlert(notification)) {
+			notifications.value.unshift(notification);
+			window.setTimeout(trimNotifications, 500);
+		}
 	}
+
+	// 可疑登录改用弹窗提醒，不再重复显示浮动通知。
+	if (isSigninAlert(notification)) showSigninAlert(notification);
 
 	sound.playMisskeySfx('notification');
 }

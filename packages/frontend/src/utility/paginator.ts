@@ -198,7 +198,7 @@ export class Paginator<
 
 		// 部分接口会提前返回少量结果，额外确认一条，避免误报下一页或漏掉后续内容。
 		const ids = items.map(item => item.id).sort();
-		const nextItems = await misskeyApi<T[]>(this.endpoint, {
+		const nextRequest = {
 			...data,
 			limit: 1,
 			allowPartial: false,
@@ -207,16 +207,17 @@ export class Paginator<
 			sinceDate: undefined,
 			untilDate: undefined,
 			...(this.offsetMode ? { offset: ((data as { offset?: number }).offset ?? 0) + items.length } : direction === 'older' ? { untilId: ids[0] } : { sinceId: ids.at(-1) }),
-		}).catch(() => null);
+		} as E['req'];
+		const nextItems = await misskeyApi<T[], Endpoint, E['req']>(this.endpoint, nextRequest).catch(() => null) as T[] | null;
 		return nextItems == null || nextItems.length > 0;
 	}
 
 	public async init(): Promise<void> {
 		const requestId = ++this.requestId;
+		this.fetching.value = true;
 		this.items.value = [];
 		this.aheadQueue = [];
 		this.queuedAheadItemsCount.value = 0;
-		this.fetching.value = true;
 		this.fetchingOlder.value = false;
 		this.fetchingNewer.value = false;
 		this.canFetchOlder.value = false;
@@ -291,7 +292,7 @@ export class Paginator<
 			}),
 		};
 
-		const apiRes = (await misskeyApi<T[]>(this.endpoint, data).catch(_ => {
+		const apiRes = (await misskeyApi<T[], Endpoint, E['req']>(this.endpoint, data).catch(_ => {
 			return null;
 		})) as T[] | null;
 
@@ -337,7 +338,7 @@ export class Paginator<
 			}),
 		};
 
-		const apiRes = (await misskeyApi<T[]>(this.endpoint, data).catch(_ => {
+		const apiRes = (await misskeyApi<T[], Endpoint, E['req']>(this.endpoint, data).catch(_ => {
 			return null;
 		})) as T[] | null;
 

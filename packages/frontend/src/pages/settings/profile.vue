@@ -6,8 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <SearchMarker path="/settings/profile" :label="i18n.ts.profile" :keywords="['profile']" icon="ti ti-user">
 	<div class="_gaps_m" :class="$style.profile">
-		<div class="_panel">
-			<div :class="$style.banner" :style="{ backgroundImage: $i.bannerUrl ? `url(${ $i.bannerUrl })` : '' }">
+		<div class="_panel" :class="$style.profileHeader">
+			<div class="_imageContainer" :class="$style.banner">
+				<img v-if="$i.bannerUrl" class="_imageBackground" :src="$i.bannerUrl" alt=""/>
 				<div :class="$style.bannerEdit">
 					<SearchMarker :keywords="['banner', 'change']">
 						<MkButton primary rounded @click="changeBanner"><SearchLabel>{{ i18n.ts._profile.changeBanner }}</SearchLabel></MkButton>
@@ -26,14 +27,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 
 		<SearchMarker :keywords="['name']">
-			<MkInput v-model="profile.name" :placeholder="$i.username" manualSave :mfmAutocomplete="['emoji']">
+			<MkInput v-model="profile.name" :counterMaxLength="50" :placeholder="$i.username" manualSave :mfmAutocomplete="['emoji']">
 				<template #label><SearchLabel>{{ i18n.ts._profile.name }}</SearchLabel></template>
 				<template #caption>{{ i18n.ts._profile.nameDescription }}</template>
 			</MkInput>
 		</SearchMarker>
 
 		<SearchMarker :keywords="['description', 'bio']">
-			<MkTextarea v-model="profile.description" :max="500" manualSave mfmAutocomplete :mfmPreview="true" :class="$style.descriptionTextarea">
+			<MkTextarea v-model="profile.description" :counterMaxLength="Misskey.CONTENT_LIMITS.profileDescription" manualSave mfmAutocomplete :rows="2">
 				<template #label><SearchLabel>{{ i18n.ts._profile.description }}</SearchLabel></template>
 				<template #caption>{{ i18n.ts._profile.youCanIncludeHashtags }}</template>
 			</MkTextarea>
@@ -41,13 +42,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<div :class="$style.fieldPair">
 			<SearchMarker :keywords="['location', 'locale']">
-				<MkInput v-model="profile.location" manualSave>
+				<MkInput v-model="profile.location" :counterMaxLength="50" manualSave>
 					<template #label><SearchLabel>{{ i18n.ts.location }}</SearchLabel></template>
 					<template #prefix><i class="ti ti-map-pin"></i></template>
 				</MkInput>
 			</SearchMarker>
 			<SearchMarker :keywords="['birthday', 'birthdate', 'age']">
-				<MkInput v-model="profile.birthday" type="date" manualSave>
+				<MkInput v-model="profile.birthday" type="date" :max="birthdayMax" manualSave>
 					<template #label><SearchLabel>{{ i18n.ts.birthday }}</SearchLabel></template>
 					<template #prefix><i class="ti ti-cake"></i></template>
 				</MkInput>
@@ -56,13 +57,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<div :class="$style.fieldPair">
 			<SearchMarker :keywords="['company', 'work', 'organization']">
-				<MkInput v-model="professionalProfile.company" :placeholder="i18n.ts._profile.companyPlaceholder" :maxLength="128" autocomplete="organization" :saveOnLeave="value => saveProfessionalField('company', value)">
+				<MkInput v-model="profile.company" :placeholder="i18n.ts._profile.companyPlaceholder" :counterMaxLength="128" autocomplete="organization" manualSave>
 					<template #label><SearchLabel>{{ i18n.ts._profile.company }}</SearchLabel></template>
 					<template #prefix><i class="ti ti-building" aria-hidden="true"></i></template>
 				</MkInput>
 			</SearchMarker>
 			<SearchMarker :keywords="['job', 'title', 'work']">
-				<MkInput v-model="professionalProfile.jobTitle" :placeholder="i18n.ts._profile.jobTitlePlaceholder" :maxLength="128" autocomplete="organization-title" :saveOnLeave="value => saveProfessionalField('jobTitle', value)">
+				<MkInput v-model="profile.jobTitle" :placeholder="i18n.ts._profile.jobTitlePlaceholder" :counterMaxLength="128" autocomplete="organization-title" manualSave>
 					<template #label><SearchLabel>{{ i18n.ts._profile.jobTitle }}</SearchLabel></template>
 					<template #prefix><i class="ti ti-briefcase" aria-hidden="true"></i></template>
 				</MkInput>
@@ -82,7 +83,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label><SearchLabel>{{ i18n.ts._profile.metadataEdit }}</SearchLabel></template>
 					<template #footer>
 						<div class="_buttons">
-							<MkButton primary @click="saveFields"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
+							<MkButton primary :disabled="!validFields" @click="saveFields"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 							<MkButton :disabled="fields.length >= 16" @click="addField"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
 							<MkButton v-if="!fieldEditMode" :disabled="fields.length <= 1" danger @click="fieldEditMode = !fieldEditMode"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 							<MkButton v-else @click="fieldEditMode = !fieldEditMode"><i class="ti ti-arrows-sort"></i> {{ i18n.ts.rearrange }}</MkButton>
@@ -100,13 +101,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 						>
 							<template #default="{ item, dragStart }">
 								<div v-panel :class="$style.fieldDragItem">
-									<button v-if="!fieldEditMode" class="_button" :class="$style.dragItemHandle" tabindex="-1" :draggable="true" @dragstart.stop="dragStart"><i class="ti ti-menu"></i></button>
+							<button v-if="!fieldEditMode" class="_button _iconButton" :class="$style.dragItemHandle" tabindex="-1" :draggable="true" @dragstart.stop="dragStart"><i class="ti ti-menu"></i></button>
 									<button v-if="fieldEditMode" :disabled="fields.length <= 1" class="_button" :class="$style.dragItemRemove" @click="deleteField(item.id)"><i class="ti ti-x"></i></button>
 									<div :class="$style.dragItemForm">
 										<FormSplit :minWidth="200">
-											<MkInput v-model="item.name" small :mfmAutocomplete="['emoji']" :placeholder="i18n.ts._profile.metadataLabel">
+											<MkInput v-model="item.name" :counterMaxLength="Misskey.CONTENT_LIMITS.profileFieldName" small :mfmAutocomplete="['emoji']" :placeholder="i18n.ts._profile.metadataLabel">
 											</MkInput>
-											<MkInput v-model="item.value" small mfmAutocomplete :placeholder="i18n.ts._profile.metadataContent">
+											<MkInput v-model="item.value" :counterMaxLength="Misskey.CONTENT_LIMITS.profileFieldValue" small mfmAutocomplete :placeholder="i18n.ts._profile.metadataContent">
 											</MkInput>
 										</FormSplit>
 									</div>
@@ -120,7 +121,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</SearchMarker>
 
 		<SearchMarker :keywords="['follow', 'message']">
-			<MkInput v-model="profile.followedMessage" :max="200" manualSave :mfmAutocomplete="['emoji']">
+			<MkInput v-model="profile.followedMessage" :counterMaxLength="256" manualSave :mfmAutocomplete="['emoji']">
 				<template #label><SearchLabel>{{ i18n.ts._profile.followedMessage }}</SearchLabel></template>
 				<template #caption>
 					<div><SearchText>{{ i18n.ts._profile.followedMessageDescription }}</SearchText></div>
@@ -181,6 +182,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, defineAsyncComponent, reactive, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
+import { useLowresTime } from '@@/js/use-lowres-time.js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
@@ -203,8 +205,13 @@ import MkInfo from '@/components/MkInfo.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import { genId } from '@/utility/id.js';
 import { enqueueProfileSave } from '@/utility/profile-save.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
+import { formatTimeString } from '@/utility/format-time-string.js';
 
 const $i = ensureSignin();
+const currentTime = useLowresTime();
+const birthdayMax = computed(() => formatTimeString(new Date(currentTime.value), 'yyyy-MM-dd'));
 
 function showQr(): void {
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserQrDialog.vue')), { user: $i }, {
@@ -224,27 +231,46 @@ const profile = reactive({
 	followedMessage: $i.followedMessage,
 	location: $i.location,
 	birthday: $i.birthday,
+	company: $i.company ?? null,
+	jobTitle: $i.jobTitle ?? null,
 	lang: assertVaildLang($i.lang) ? $i.lang : null,
 	isBot: $i.isBot ?? false,
 	isCat: $i.isCat ?? false,
 });
 
-const professionalProfile = reactive({
-	company: $i.company ?? null,
-	jobTitle: $i.jobTitle ?? null,
-});
-
-function saveProfessionalField(field: 'company' | 'jobTitle', value: string): Promise<void> {
-	const normalizedValue = value.trim() || null;
-	return enqueueProfileSave(async () => {
-		const user = await os.apiWithDialog('i/update', { [field]: normalizedValue });
-		updateCurrentAccountPartial({ [field]: user[field] });
-	});
+async function updateProfile(patch: Misskey.entities.IUpdateRequest) {
+	try {
+		const user = await misskeyApi('i/update', patch);
+		os.toast(i18n.ts.saved, 'success');
+		return user;
+	} catch (error) {
+		if (!isAccountSessionErrorHandled(error)) {
+			const messages: Record<string, string> = {
+				'0b3f9f6a-2f4d-4b1f-9fb4-49d3a2fd7191': i18n.ts.yourNameContainsProhibitedWordsDescription,
+				'75aedb19-2afd-4e6d-87fc-67941256fa60': i18n.ts._profile.bannerImageOnly,
+			};
+			os.toast(messages[(error as { id?: string }).id ?? ''] ?? i18n.ts.somethingHappened, 'error');
+		}
+		throw error;
+	}
 }
 
 // Watch scalar fields separately: an untouched form snapshot must never be sent.
+const profileTextLimits: Partial<Record<keyof typeof profile, number>> = {
+	name: 50,
+	description: Misskey.CONTENT_LIMITS.profileDescription,
+	followedMessage: 256,
+	location: 50,
+	company: 128,
+	jobTitle: 128,
+};
 for (const field of Object.keys(profile) as (keyof typeof profile)[]) {
 	watch(() => profile[field], value => {
+		const limit = profileTextLimits[field];
+		if (typeof value === 'string' && limit != null && Array.from(value).length > limit) {
+			os.toast(i18n.tsx.inputTooLong({ limit }), 'error');
+			return;
+		}
 		// Empty optional strings are cleared with null.
 		const normalizedValue = value === '' || value == null ? null : value;
 		save({ [field]: normalizedValue });
@@ -253,6 +279,12 @@ for (const field of Object.keys(profile) as (keyof typeof profile)[]) {
 
 const fields = ref($i.fields.map(field => ({ id: genId(), name: field.name, value: field.value })) ?? []);
 const fieldEditMode = ref(false);
+const validFields = computed(() => fields.value.every(field => {
+	if (field.name.trim() === '' || field.value.trim() === '') return true;
+	const existing = $i.fields.find(original => original.name === field.name.trim());
+	return (existing != null || Array.from(field.name.trim()).length <= Misskey.CONTENT_LIMITS.profileFieldName) &&
+		(existing?.value === field.value.trim() || Array.from(field.value.trim()).length <= Misskey.CONTENT_LIMITS.profileFieldValue);
+}));
 
 function addField() {
 	fields.value.push({
@@ -271,21 +303,17 @@ function deleteField(itemId: string) {
 }
 
 function saveFields() {
-	const update = fields.value.filter(field => field.name !== '' && field.value !== '').map(field => ({ name: field.name, value: field.value }));
+	if (!validFields.value) return;
+	const update = fields.value.filter(field => field.name.trim() !== '' && field.value.trim() !== '').map(field => ({ name: field.name.trim(), value: field.value.trim() }));
 	enqueueProfileSave(async () => {
-		const user = await os.apiWithDialog('i/update', { fields: update });
+		const user = await updateProfile({ fields: update });
 		updateCurrentAccountPartial({ fields: user.fields, verifiedLinks: user.verifiedLinks });
 	}).catch(() => {});
 }
 
 function save(patch: Misskey.entities.IUpdateRequest) {
 	enqueueProfileSave(async () => {
-		const user = await os.apiWithDialog('i/update', patch, undefined, {
-			'0b3f9f6a-2f4d-4b1f-9fb4-49d3a2fd7191': {
-				title: i18n.ts.yourNameContainsProhibitedWords,
-				text: i18n.ts.yourNameContainsProhibitedWordsDescription,
-			},
-		});
+		const user = await updateProfile(patch);
 		updateCurrentAccountPartial(Object.fromEntries(Object.keys(patch).map(field => [field, user[field as keyof typeof user]])));
 	}).catch(() => {});
 	claimAchievement('profileFilled');
@@ -298,17 +326,17 @@ function save(patch: Misskey.entities.IUpdateRequest) {
 }
 
 function changeAvatar(ev: PointerEvent) {
-	async function done(driveFile: Misskey.entities.DriveFile) {
+	async function done(driveFile: Misskey.entities.DriveFile | null) {
 		await enqueueProfileSave(async () => {
-			const i = await os.apiWithDialog('i/update', {
-				avatarId: driveFile.id,
+			const i = await updateProfile({
+				avatarId: driveFile?.id ?? null,
 			});
 			updateCurrentAccountPartial({
 				avatarId: i.avatarId,
 				avatarUrl: i.avatarUrl,
 				avatarBlurhash: i.avatarBlurhash,
 			});
-			claimAchievement('profileFilled');
+			if (driveFile) claimAchievement('profileFilled');
 		});
 	}
 
@@ -348,14 +376,26 @@ function changeAvatar(ev: PointerEvent) {
 				done(files[0]);
 			});
 		},
+	}, {
+		text: i18n.ts.resetToDefaultValue,
+		icon: 'ti ti-restore',
+		disabled: $i.avatarId == null,
+		action: () => done(null),
 	}], ev.currentTarget ?? ev.target);
 }
 
 function changeBanner(ev: PointerEvent) {
-	async function done(driveFile: Misskey.entities.DriveFile) {
+	function checkImage(file: { type: string }): boolean {
+		if (file.type.startsWith('image/')) return true;
+		os.toast(i18n.ts._profile.bannerImageOnly, 'error');
+		return false;
+	}
+
+	async function done(driveFile: Misskey.entities.DriveFile | null) {
+		if (driveFile && !checkImage(driveFile)) return;
 		await enqueueProfileSave(async () => {
-			const i = await os.apiWithDialog('i/update', {
-				bannerId: driveFile.id,
+			const i = await updateProfile({
+				bannerId: driveFile === null ? null : driveFile.id,
 			});
 			updateCurrentAccountPartial({
 				bannerId: i.bannerId,
@@ -374,6 +414,7 @@ function changeBanner(ev: PointerEvent) {
 		action: async () => {
 			const files = await os.chooseFileFromPc({ multiple: false });
 			const file = files[0];
+			if (!file || (file.type && !checkImage(file))) return;
 
 			let originalOrCropped = file;
 
@@ -391,16 +432,19 @@ function changeBanner(ev: PointerEvent) {
 			}
 
 			const driveFile = (await os.launchUploader([originalOrCropped], { multiple: false }))[0];
-			done(driveFile);
+			if (driveFile) await done(driveFile).catch(() => {});
 		},
 	}, {
 		text: i18n.ts.fromDrive,
 		icon: 'ti ti-cloud',
-		action: () => {
-			chooseDriveFile({ multiple: false }).then(files => {
-				done(files[0]);
-			});
-		},
+		action: () => chooseDriveFile({ multiple: false }).then(async files => {
+			if (files[0]) await done(files[0]);
+		}).catch(() => {}),
+	}, {
+		text: i18n.ts.resetToDefaultValue,
+		icon: 'ti ti-restore',
+		disabled: $i.bannerId == null,
+		action: () => done(null).catch(() => {}),
 	}], ev.currentTarget ?? ev.target);
 }
 
@@ -415,15 +459,14 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
-// 个人简介编辑区默认 2 行高度 (2 × 行高 1.35em + 上下内边距 24px)
-.descriptionTextarea {
-	:deep(.textarea) {
-		min-height: calc(2 * 1.35em + 24px);
-	}
-}
-
 .profile {
 	container-type: inline-size;
+}
+
+.profileHeader {
+	margin-top: calc(-1 * var(--MI-pageContentPadding, var(--MI-cardPadding)));
+	margin-inline: calc(-1 * var(--MI-pageContentPadding, var(--MI-cardPadding)));
+	border-radius: 0;
 }
 
 .fieldPair {
@@ -444,9 +487,8 @@ definePage(() => ({
 .banner {
 	position: relative;
 	height: 130px;
-	background-size: cover;
-	background-position: center;
-	border-bottom: solid 1px var(--MI_THEME-divider);
+	background-color: var(--MI-userBannerBg);
+	border-bottom: var(--MI-divider);
 	overflow: clip;
 }
 
@@ -479,7 +521,7 @@ definePage(() => ({
 	align-items: flex-end;
 	border-radius: 6px;
 
-	/* (drag button) 32px + (drag button margin) 8px + (input width) 200px * 2 + (input gap) 12px = 452px */
+	// (drag button) 32px + (drag button margin) 8px + (input width) 200px * 2 + (input gap) 12px = 452px
 	@container (max-width: 452px) {
 		align-items: center;
 	}

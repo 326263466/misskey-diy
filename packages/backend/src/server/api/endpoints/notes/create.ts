@@ -6,6 +6,8 @@
 import ms from 'ms';
 import { Injectable } from '@nestjs/common';
 import { MAX_NOTE_TEXT_LENGTH } from '@/const.js';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError } from '@/misc/content-limits.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
@@ -40,6 +42,7 @@ export const meta = {
 	},
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: 'da52b4fa-a47f-4f31-a2e5-784571fc5de1' },
 		...redPacketApiErrors,
 		redPacketNotAllowed: { message: 'This account or access token cannot send red packets.', code: 'RED_PACKET_NOT_ALLOWED', id: '9dd9076d-d86c-46bc-b446-ae86743a0ba1' },
 		noSuchRenoteTarget: {
@@ -135,7 +138,7 @@ export const paramDef = {
 		visibleUserIds: { type: 'array', uniqueItems: true, items: {
 			type: 'string', format: 'misskey:id',
 		} },
-		cw: { type: 'string', nullable: true, minLength: 1, maxLength: 100 },
+		cw: { type: 'string', nullable: true, minLength: 1, maxLength: CONTENT_LIMITS.noteCw },
 		localOnly: { type: 'boolean', default: false },
 		reactionAcceptance: { type: 'string', nullable: true, enum: [null, 'likeOnly', 'likeOnlyForRemote', 'nonSensitiveOnly', 'nonSensitiveOnlyForLocalLikeOnlyForRemote'], default: null },
 		noExtractMentions: { type: 'boolean', default: false },
@@ -259,6 +262,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			} catch (err) {
 				// TODO: 他のErrorもここでキャッチしてエラーメッセージを当てるようにしたい
 				if (err instanceof IdentifiableError) {
+					if (err.id === contentTooLongError.id) throw new ApiError(meta.errors.contentTooLong);
 					if (err.id === '689ee33f-f97c-479a-ac49-1b9f8140af99') {
 						throw new ApiError(meta.errors.containsProhibitedWords);
 					} else if (err.id === '9f466dab-c856-48cd-9e65-ff90ff750580') {

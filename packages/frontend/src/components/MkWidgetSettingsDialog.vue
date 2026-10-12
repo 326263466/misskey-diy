@@ -6,14 +6,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	headerIcon="ti ti-icons"
+	:closeOnBackdrop="false"
 	:width="1000"
 	:height="600"
 	:scroll="false"
 	@close="cancel()"
 	@closed="emit('closed')"
-	@click="cancel()"
 >
-	<template #header><i class="ti ti-icons"></i> {{ widgetName === 'chat' ? i18n.ts.chat : (i18n.ts._widgets[widgetName] ?? widgetName) }}</template>
+	<template #header>{{ widgetName === 'chat' ? i18n.ts.chat : (i18n.ts._widgets[widgetName] ?? widgetName) }}</template>
 
 	<MkPreviewWithControls>
 		<template #preview>

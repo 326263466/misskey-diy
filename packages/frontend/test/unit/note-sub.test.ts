@@ -151,7 +151,7 @@ describe('comment actions', () => {
 	});
 
 	test('toggles independent likes without replacing an existing reaction', async () => {
-		const note = makeNote('liked-comment', { reactions: { '\u2764': 7 }, reactionCount: 7, myReaction: '\u2764' });
+		const note = makeNote('liked-comment', { reactions: { '\u2764': 7 }, reactionCount: 7, myReactions: ['\u2764'] });
 		const view = renderComment(note);
 		const like = view.getByRole('button', { name: i18n.ts.like });
 		const reactions = view.getByTestId('reactions').textContent;
@@ -169,7 +169,7 @@ describe('comment actions', () => {
 		expect(mocks.apiWithDialog).toHaveBeenLastCalledWith('notes/likes/delete', { noteId: 'liked-comment' });
 		expect(view.getByTestId('reactions').textContent).toBe(reactions);
 		expect(note.reactionCount).toBe(7);
-		expect(note.myReaction).toBe('\u2764');
+		expect(note.myReactions).toEqual(['\u2764']);
 	});
 
 	test('adds descendants once and shows edits without losing their children or likes', async () => {

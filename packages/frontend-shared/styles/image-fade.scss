@@ -1,0 +1,24 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+._imageFadePending {
+	opacity: 0 !important;
+}
+
+:where(._imageContainer) {
+	position: relative;
+	isolation: isolate;
+}
+
+:where(._imageBackground) {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: inherit;
+	pointer-events: none;
+	z-index: -1;
+}

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModalWindow ref="dialogEl" :width="440" :height="560" :autoHeight="true" @close="close" @click="close" @esc="close" @closed="emit('closed')">
+<MkModalWindow ref="dialogEl" :width="440" :height="560" :autoHeight="true" @close="close" @esc="close" @closed="emit('closed')">
 	<template #header>{{ count == null ? i18n.ts._likes.title : i18n.tsx._likes.titleWithCount({ n: count }) }}</template>
 	<div :class="$style.content">
 		<MkPagination :paginator="paginator" :pullToRefresh="false">
@@ -36,7 +36,7 @@ import { markRaw, useTemplateRef } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import { Paginator } from '@/utility/paginator.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkPagination from '@/components/MkPagination.vue';
@@ -50,7 +50,7 @@ const emit = defineEmits<{ (event: 'closed'): void }>();
 const dialogEl = useTemplateRef('dialogEl');
 const paginator = markRaw(new Paginator('notes/likes', { limit: 20, params: { noteId: props.noteId } }));
 
-// 掘金那一行副标题是「一句话简介」，取个人简介首行，空的才退回 @handle
+// 副标题显示个人简介首行，空的才退回 @handle
 function descriptionOf(user: Misskey.entities.UserDetailed): string {
 	return user.description?.split('\n').find(line => line.trim() !== '')?.trim() ?? '';
 }
@@ -67,7 +67,7 @@ function close(): void { dialogEl.value?.close(); }
 	gap: 12px;
 	min-width: 0;
 	padding: 12px 0;
-	border-bottom: 1px solid var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 	&:last-child { border-bottom: 0; }
 	&:hover .name { color: var(--MI_THEME-link); }
 }

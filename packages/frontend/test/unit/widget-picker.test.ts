@@ -16,6 +16,7 @@ vi.mock('@/instance.js', async () => ({ instance: (await import('vue')).reactive
 vi.mock('@/components/MkModal.vue', async () => {
 	const { defineComponent, h } = await import('vue');
 	return { default: defineComponent({
+		emits: ['closed', 'click', 'esc', 'opened'],
 		setup(_props, { emit, slots, expose }) {
 			expose({ close() { emit('closed'); } });
 			return () => h('div', slots.default?.());
@@ -60,6 +61,18 @@ describe('widget picker', () => {
 		expect(view.emitted().closed).toHaveLength(1);
 	});
 
+	test('keeps the manager open for consecutive additions and shows updated selections', async () => {
+		const view = render(MkWidgetPicker, { props: { widgets: ['clock', 'memo'], selectedWidgets: [] } });
+		await fireEvent.click(view.container.querySelector('[data-widget="clock"]')!);
+		await view.rerender({ selectedWidgets: [{ name: 'clock', id: 'new-clock', data: {} }] });
+		expect(view.container.querySelector('[data-selected-widget="new-clock"]')).not.toBeNull();
+		await fireEvent.click(view.container.querySelector('[data-widget="memo"]')!);
+		expect(view.emitted().choose).toEqual([['clock'], ['memo']]);
+		expect(view.emitted().closed).toBeUndefined();
+		await fireEvent.click(view.container.querySelector('footer button:last-child')!);
+		expect(view.emitted().closed).toHaveLength(1);
+	});
+
 	test('Escape from search closes the picker only after IME composition finishes', async () => {
 		const view = render(MkWidgetPicker, { props: { widgets } });
 		await fireEvent.keyDown(view.getByRole('textbox'), { key: 'Escape', isComposing: true });
@@ -80,18 +93,25 @@ describe('direct widget editing', () => {
 		expect(os.popup).not.toHaveBeenCalled();
 	});
 
-	test('opens immediately when editing starts, adds once and exits when closed', async () => {
+	test('opens immediately when editing starts, adds repeatedly and exits when closed', async () => {
 		const view = render(MkWidgets, { props: { widgets: [], edit: false } });
 		await view.rerender({ edit: true });
 		expect(view.container.querySelector('header')).toBeNull();
 		expect(os.popup).toHaveBeenCalledTimes(1);
 		const events = popup.mock.calls[0][2]!;
 		events.choose!('memo');
-		events.choose!('memo');
-		expect(view.emitted().addWidget).toEqual([[{ name: 'memo', id: expect.any(String), data: {} }]]);
+		events.choose!('clock');
+		expect(view.emitted().addWidget).toEqual([
+			[{ name: 'memo', id: expect.any(String), data: {} }],
+			[{ name: 'clock', id: expect.any(String), data: {} }],
+		]);
+		const addedWidgets = view.emitted().addWidget as Array<[{ id: string; name: string; data: Record<string, unknown> }]>;
+		expect(new Set(addedWidgets.map(args => args[0].id)).size).toBe(2);
 		events.closed!();
 		expect(view.emitted().exit).toHaveLength(1);
 		expect(dispose).toHaveBeenCalledTimes(1);
+		events.choose!('memo');
+		expect(view.emitted().addWidget).toHaveLength(2);
 	});
 
 	test('filters federation options and rejects unavailable selections', () => {

@@ -4,15 +4,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkCommunityHub active="achievements">
-	<MkAchievements :key="refreshKey" :user="$i" card :withLocked="false"/>
-</MkCommunityHub>
+<PageWithHeader class="_standalonePage" hideHeader>
+	<div class="_pageBody">
+		<MkAchievements :key="refreshKey" :user="$i" card :withLocked="false"/>
+	</div>
+</PageWithHeader>
 </template>
 
 <script lang="ts" setup>
 import { inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import MkAchievements from '@/components/MkAchievements.vue';
-import MkCommunityHub from '@/components/MkCommunityHub.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { ensureSignin } from '@/i.js';
@@ -56,7 +57,5 @@ onDeactivated(() => {
 definePage(() => ({
 	title: i18n.ts.achievements,
 	icon: 'ti ti-medal',
-	needWideArea: true,
 }));
 </script>
-

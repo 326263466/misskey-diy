@@ -13,7 +13,7 @@ import { describe, beforeAll, test, expect, vi } from 'vitest';
 import { Blob } from 'node-fetch';
 import { api, castAsError, createAppToken, initTestDb, post, randomString, role, signup, simpleGet, uploadFile } from '../utils.js';
 import type * as misskey from 'misskey-js';
-import { MiUser, MiUserCheckin, MiUserProfile } from '@/models/_.js';
+import { MiUser, MiUserCheckin, MiUserProfile, MiWallet } from '@/models/_.js';
 import { IdService } from '@/core/IdService.js';
 import { checkinDate, previousCheckinDate } from '@/core/CheckinService.js';
 import { loadConfig } from '@/config.js';
@@ -87,6 +87,7 @@ describe('Endpoints', () => {
 			try {
 				await db.getRepository(MiUser).insert({ ...oldUser, username: 'checkin-http', usernameLower: 'checkin-http' });
 				await db.getRepository(MiUserProfile).insert({ userId: oldUser.id });
+				await db.getRepository(MiWallet).insert({ userId: oldUser.id, balance: 0, reservedBalance: 0 });
 			} finally {
 				await db.destroy();
 			}
@@ -140,7 +141,8 @@ describe('Endpoints', () => {
 			const today = checkinDate(new Date());
 			try {
 				await db.getRepository(MiUser).insert({ ...oldUser, username: 'checkin-rewards', usernameLower: 'checkin-rewards' });
-				await db.getRepository(MiUserProfile).insert({ userId: oldUser.id, checkinPoints: 59, checkinFirstRewardClaimed: true });
+				await db.getRepository(MiUserProfile).insert({ userId: oldUser.id, checkinFirstRewardClaimed: true });
+				await db.getRepository(MiWallet).insert({ userId: oldUser.id, balance: 59, reservedBalance: 0 });
 				await db.getRepository(MiUserCheckin).insert(Array.from({ length: 29 }, (_, index) => ({
 					userId: oldUser.id,
 					date: new Date(new Date(`${today}T00:00:00Z`).getTime() - (30 - index) * 86400000).toISOString().slice(0, 10),
@@ -381,7 +383,7 @@ describe('Endpoints', () => {
 				reaction: '🚀',
 			}, alice);
 
-			assert.strictEqual(res.status, 204);
+			assert.strictEqual(res.status, 200);
 
 			const resNote = await api('notes/show', {
 				noteId: bobPost.id,
@@ -399,10 +401,10 @@ describe('Endpoints', () => {
 				reaction: '🚀',
 			}, alice);
 
-			assert.strictEqual(res.status, 204);
+			assert.strictEqual(res.status, 200);
 		});
 
-		test('二重にリアクションすると上書きされる', async () => {
+		test('添加不同表情会保留已有回应', async () => {
 			const bobPost = await post(bob, { text: 'hi' });
 
 			await api('notes/reactions/create', {
@@ -415,14 +417,15 @@ describe('Endpoints', () => {
 				reaction: '🚀',
 			}, alice);
 
-			assert.strictEqual(res.status, 204);
+			assert.strictEqual(res.status, 200);
 
 			const resNote = await api('notes/show', {
 				noteId: bobPost.id,
 			}, alice);
 
 			assert.strictEqual(resNote.status, 200);
-			assert.deepStrictEqual(resNote.body.reactions, { '🚀': 1 });
+			assert.deepStrictEqual(resNote.body.reactions, { '🥰': 1, '🚀': 1 });
+			assert.deepStrictEqual(resNote.body.myReactions, ['🥰', '🚀']);
 		});
 
 		test('存在しない投稿にはリアクションできない', async () => {
@@ -443,17 +446,17 @@ describe('Endpoints', () => {
 				reaction: '🚀',
 			}, alice);
 
-			assert.strictEqual(res.status, 204);
+			assert.strictEqual(res.status, 200);
 
 			const renote = await api('notes/show', { noteId: carolRenote.id }, alice);
 			assert.strictEqual(renote.status, 200);
 			assert.deepStrictEqual(renote.body.reactions, { '🚀': 1 });
-			assert.strictEqual(renote.body.myReaction, '🚀');
+			assert.deepStrictEqual(renote.body.myReactions, ['🚀']);
 
 			const original = await api('notes/show', { noteId: bobNote.id }, alice);
 			assert.strictEqual(original.status, 200);
 			assert.deepStrictEqual(original.body.reactions, {});
-			assert.strictEqual(original.body.myReaction, undefined);
+			assert.deepStrictEqual(original.body.myReactions, []);
 
 			const userNotes = await api('users/notes', { userId: carol.id }, alice);
 			assert.strictEqual(userNotes.status, 200);
@@ -461,15 +464,15 @@ describe('Endpoints', () => {
 			assert.ok(packedRenote);
 			assert.strictEqual(packedRenote.userId, carol.id);
 			assert.deepStrictEqual(packedRenote.reactions, { '🚀': 1 });
-			assert.strictEqual(packedRenote.myReaction, '🚀');
-			assert.strictEqual(packedRenote.renote?.myReaction, undefined);
+			assert.deepStrictEqual(packedRenote.myReactions, ['🚀']);
+			assert.deepStrictEqual(packedRenote.renote?.myReactions, []);
 
-			const undo = await api('notes/reactions/delete', { noteId: carolRenote.id }, alice);
+			const undo = await api('notes/reactions/delete', { noteId: carolRenote.id, reaction: '🚀' }, alice);
 			assert.strictEqual(undo.status, 204);
 			const unreactedRenote = await api('notes/show', { noteId: carolRenote.id }, alice);
 			assert.strictEqual(unreactedRenote.status, 200);
 			assert.deepStrictEqual(unreactedRenote.body.reactions, {});
-			assert.strictEqual(unreactedRenote.body.myReaction, undefined);
+			assert.deepStrictEqual(unreactedRenote.body.myReactions, []);
 		});
 
 		test('引用にリアクションできる', async () => {
@@ -481,7 +484,7 @@ describe('Endpoints', () => {
 				reaction: '🚀',
 			}, alice);
 
-			assert.strictEqual(res.status, 204);
+			assert.strictEqual(res.status, 200);
 		});
 
 		test('空文字列のリアクションは\u2764にフォールバックされる', async () => {
@@ -492,7 +495,7 @@ describe('Endpoints', () => {
 				reaction: '',
 			}, alice);
 
-			assert.strictEqual(res.status, 204);
+			assert.strictEqual(res.status, 200);
 
 			const reaction = await api('notes/reactions', {
 				noteId: bobNote.id,
@@ -510,7 +513,7 @@ describe('Endpoints', () => {
 				reaction: 'Hello!',
 			}, alice);
 
-			assert.strictEqual(res.status, 204);
+			assert.strictEqual(res.status, 200);
 
 			const reaction = await api('notes/reactions', {
 				noteId: bobNote.id,

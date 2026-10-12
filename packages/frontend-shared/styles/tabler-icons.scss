@@ -1,0 +1,54 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+// 在父元素计算文字中线，避免图标自己的字号改变对齐位置。
+@property --MI-inlineTextCenter {
+	syntax: '<length>';
+	inherits: true;
+	initial-value: 0px;
+}
+
+:where(:has(> .ti, > .mi-red-packet)) {
+	// 与原版普通表情（高 1.25em，下沉 0.25em）的中心一致。
+	--MI-inlineTextCenter: 0.375em;
+}
+
+.ti {
+	font-size: 1em;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: calc(1em * var(--MI-iconScale, 1.28));
+	height: calc(1em * var(--MI-iconScale, 1.28));
+	line-height: 1;
+	vertical-align: calc(var(--MI-inlineTextCenter) - 0.5em * var(--MI-iconScale, 1.28));
+
+	&::before {
+		content: '';
+		display: block;
+		width: 100%;
+		height: 100%;
+		mask-position: center;
+		mask-size: contain;
+		mask-repeat: no-repeat;
+	}
+}
+
+// 只转动关闭符号，按钮的圆形悬停背景保持不动。
+:where(button, [role="button"]) > .ti-x::before {
+	transition: rotate var(--MI-iconCloseTransitionDuration, 200ms) ease;
+}
+
+:where(button, [role="button"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) > .ti-x::before {
+	rotate: var(--MI-iconCloseHoverRotation, 90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:where(button, [role="button"]) > .ti-x::before {
+		transition: none;
+		rotate: none !important;
+	}
+}

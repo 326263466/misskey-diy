@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
+import { defineAsyncComponent } from 'vue';
 import * as Misskey from 'misskey-js';
 import XText from './page.text.vue';
 import XSection from './page.section.vue';
@@ -16,9 +16,12 @@ import XImage from './page.image.vue';
 import XNote from './page.note.vue';
 import XDynamic from './page.dynamic.vue';
 
+const XMarkdown = defineAsyncComponent(() => import('./page.markdown.vue'));
+
 function getComponent(type: string) {
 	switch (type) {
 		case 'text': return XText;
+		case 'markdown': return XMarkdown;
 		case 'section': return XSection;
 		case 'image': return XImage;
 		case 'note': return XNote;

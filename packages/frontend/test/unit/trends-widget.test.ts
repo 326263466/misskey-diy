@@ -10,7 +10,7 @@ import type { Ref } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { useInterval } from '@@/js/use-interval.js';
 import WidgetTrends from '@/widgets/WidgetTrends.vue';
-import { useLowresTime } from '@/composables/use-lowres-time.js';
+import { useLowresTime } from '@@/js/use-lowres-time.js';
 import { mergeTrendsWithCache } from '@/utility/trends-cache.js';
 import type { TrendsSnapshot } from '@/utility/trends-cache.js';
 import { i18n } from '@/i18n.js';
@@ -35,7 +35,7 @@ vi.mock('@/utility/trends-cache.js', async importOriginal => ({
 	readTrendsCache: mocks.readCache,
 	saveTrendsCache: mocks.saveCache,
 }));
-vi.mock('@/composables/use-lowres-time.js', async () => {
+vi.mock('@@/js/use-lowres-time.js', async () => {
 	const { ref } = await import('vue');
 	const now = ref(0);
 	return { useLowresTime: () => now };
@@ -109,11 +109,11 @@ describe('trends widget', () => {
 		const response = Promise.withResolvers<Stats>();
 		mocks.api.mockReturnValue(response.promise);
 		const view = renderWidget();
-		expect(view.getByTestId('loading')).toBeTruthy();
+		expect(view.container.querySelector('[aria-busy="true"]')).not.toBeNull();
 		vi.mocked(Date.now).mockReturnValue(initialTime + 1_000);
 		response.resolve([stat('Fresh')]);
 		await waitFor(() => expect(view.getByRole('link', { name: /^#Fresh/ })).toBeTruthy());
-		expect(view.queryByTestId('loading')).toBeNull();
+		expect(view.container.querySelector('[aria-busy="true"]')).toBeNull();
 	});
 
 	test('keeps cached topics visible when a refresh arrives between clock ticks', async () => {

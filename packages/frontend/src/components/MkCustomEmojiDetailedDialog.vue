@@ -102,7 +102,7 @@ function cancel() {
   word-break: break-all;
   padding: 3px 10px;
   background-color: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05));
-  border: solid 1px var(--MI_THEME-divider);
+  border: var(--MI-divider);
   border-radius: var(--MI-radius);
 }
 </style>

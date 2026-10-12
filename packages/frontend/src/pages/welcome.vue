@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageTimeline v-if="openGuestAccess"/>
+<PageArticles v-if="openGuestAccess"/>
 <div v-else-if="instance">
 	<XSetup v-if="instance.requireSetup"/>
 	<XEntranceClassic v-else-if="(instance.clientOptions.entrancePageStyle ?? 'classic') === 'classic'"/>
@@ -19,7 +19,7 @@ import { instanceName } from '@@/js/config.js';
 import XSetup from './welcome.setup.vue';
 import XEntranceClassic from './welcome.entrance.classic.vue';
 import XEntranceSimple from './welcome.entrance.simple.vue';
-import PageTimeline from './timeline.vue';
+import PageArticles from './articles/index.vue';
 import { fetchInstance, instance as serverInstance } from '@/instance.js';
 import { definePage } from '@/page.js';
 

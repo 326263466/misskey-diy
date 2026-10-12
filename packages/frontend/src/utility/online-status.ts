@@ -9,19 +9,27 @@ import type { MenuItem } from '@/types/menu.js';
 import { updateCurrentAccountPartial } from '@/accounts.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
-import { apiWithDialog, popup } from '@/os.js';
+import { popup, toast } from '@/os.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import type { CustomStatus } from '@/utility/status-icons.js';
 import type { AutoReplyStatus } from '@/utility/status-auto-reply.js';
 
 async function updateStatus(params: Misskey.entities.IUpdateRequest): Promise<void> {
-	const user = await apiWithDialog('i/update', params);
-	updateCurrentAccountPartial({
-		hideOnlineStatus: user.hideOnlineStatus,
-		onlineStatusOverride: user.onlineStatusOverride,
-		onlineStatus: user.onlineStatus,
-		customStatus: user.customStatus,
-		onlineStatusAutoReplies: user.onlineStatusAutoReplies,
-	});
+	try {
+		const user = await misskeyApi('i/update', params);
+		updateCurrentAccountPartial({
+			hideOnlineStatus: user.hideOnlineStatus,
+			onlineStatusOverride: user.onlineStatusOverride,
+			onlineStatus: user.onlineStatus,
+			customStatus: user.customStatus,
+			onlineStatusAutoReplies: user.onlineStatusAutoReplies,
+		});
+		toast(i18n.ts.saved, 'success');
+	} catch (error) {
+		if (!isAccountSessionErrorHandled(error)) toast(i18n.ts.somethingHappened, 'error');
+		throw error;
+	}
 }
 
 export function saveCustomStatus(customStatus: CustomStatus | null): Promise<void> {

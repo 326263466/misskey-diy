@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModalWindow ref="dialogEl" :width="380" :height="620" autoHeight @close="close" @click="close" @esc="close" @closed="emit('closed')">
+<MkModalWindow ref="dialogEl" :closeOnBackdrop="false" :width="380" :height="620" autoHeight @close="close" @esc="close" @closed="emit('closed')">
 	<template #header>
 		<span :class="$style.status">
 			<MkStatusIcon :status="status" :class="$style.statusIcon" plain/>
@@ -34,10 +34,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div v-if="selection === 'custom'" class="_gaps_s">
 			<label :for="textId">{{ i18n.ts._onlineStatus.autoReplyContent }}</label>
-			<textarea :id="textId" ref="textEl" v-model="text" :class="$style.input" :disabled="saving" :aria-describedby="hintId" :aria-invalid="length > AUTO_REPLY_TEXT_LIMIT" :placeholder="i18n.ts._onlineStatus.autoReplyPlaceholder" rows="3"></textarea>
+			<div :class="$style.inputArea">
+				<textarea :id="textId" ref="textEl" v-model="text" :class="$style.input" :disabled="saving" :aria-describedby="`${hintId} ${hintId}-count`" :aria-invalid="length > AUTO_REPLY_TEXT_LIMIT" :placeholder="i18n.ts._onlineStatus.autoReplyPlaceholder" rows="3"></textarea>
+				<span :id="`${hintId}-count`" class="_inputCounter" :class="{ _inputCounterOver: length > AUTO_REPLY_TEXT_LIMIT }">{{ length }} / {{ AUTO_REPLY_TEXT_LIMIT }}</span>
+			</div>
 			<div :id="hintId" :class="[$style.hint, { [$style.error]: length > AUTO_REPLY_TEXT_LIMIT }]">
 				<span>{{ i18n.tsx._onlineStatus.autoReplyLimit({ max: AUTO_REPLY_TEXT_LIMIT }) }}</span>
-				<span>{{ length }} / {{ AUTO_REPLY_TEXT_LIMIT }}</span>
 			</div>
 		</div>
 	</form>
@@ -140,8 +142,6 @@ async function submit(): Promise<void> {
 		saving.value = false;
 		await nextTick();
 		focusInput();
-	} finally {
-		saving.value = false;
 	}
 }
 </script>
@@ -219,6 +219,10 @@ async function submit(): Promise<void> {
 	font-size: 0.85em;
 	color: var(--MI_THEME-fg);
 	transition: transform 0.15s;
+}
+
+.inputArea {
+	position: relative;
 }
 
 .input {

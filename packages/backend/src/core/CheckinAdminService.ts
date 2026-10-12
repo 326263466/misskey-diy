@@ -39,11 +39,12 @@ const sourceTotals = `
 		SELECT "userId", SUM("cardsGranted") AS cards FROM user_checkin_exchange GROUP BY "userId"
 	), balances AS (
 		SELECT u.id AS "userId", COALESCE(g.cards, 0) AS "grantedCards", COALESCE(c.cards, 0) AS "usedCards",
-			COALESCE(e.cards, 0) AS "exchangedCards", p."checkinMakeupCards" AS "availableCards", p."checkinPoints" AS points
+			COALESCE(e.cards, 0) AS "exchangedCards", p."checkinMakeupCards" AS "availableCards", COALESCE(w.balance, 0)::numeric AS points
 		FROM "user" u INNER JOIN user_profile p ON p."userId" = u.id
+			LEFT JOIN wallet w ON w."userId" = u.id
 		LEFT JOIN grants g ON g."userId" = u.id LEFT JOIN uses c ON c."userId" = u.id LEFT JOIN exchanges e ON e."userId" = u.id
 		WHERE u.host IS NULL AND ($1::varchar IS NULL OR u.id = $1)
-			AND ($1::varchar IS NOT NULL OR g.cards > 0 OR c.cards > 0 OR e.cards > 0 OR p."checkinMakeupCards" > 0 OR p."checkinPoints" > 0)
+			AND ($1::varchar IS NOT NULL OR g.cards > 0 OR c.cards > 0 OR e.cards > 0 OR p."checkinMakeupCards" > 0 OR COALESCE(w.balance, 0) > 0)
 	)
 `;
 
@@ -148,7 +149,7 @@ export class CheckinAdminService {
 				const user = users.get(row.userId);
 				return user ? [{
 					user, grantedCards: Number(row.grantedCards), usedCards: Number(row.usedCards), exchangedCards: Number(row.exchangedCards),
-					availableCards: row.availableCards, points: row.points,
+					availableCards: row.availableCards, points: Number(row.points),
 				}] : [];
 			}),
 		};

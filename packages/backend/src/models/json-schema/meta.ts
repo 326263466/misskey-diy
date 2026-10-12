@@ -3,10 +3,24 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+export const packedArticleCategoriesSchema = {
+	type: 'array',
+	optional: false, nullable: false,
+	items: {
+		type: 'object',
+		optional: false, nullable: false,
+		properties: {
+			id: { type: 'string', optional: false, nullable: false },
+			name: { type: 'string', optional: false, nullable: false },
+		},
+	},
+} as const;
+
 export const packedMetaLiteSchema = {
 	type: 'object',
 	optional: false, nullable: false,
 	properties: {
+		articleCategories: packedArticleCategoriesSchema,
 		maintainerName: {
 			type: 'string',
 			optional: false, nullable: true,

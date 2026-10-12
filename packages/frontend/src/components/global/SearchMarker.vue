@@ -94,24 +94,21 @@ onBeforeUnmount(dispose);
 	&::after {
 		content: '';
 		position: absolute;
-		top: -8px;
-		left: -8px;
-		width: calc(100% + 16px);
-		height: calc(100% + 16px);
-		border-radius: 6px;
-		animation: blink 1s 3.5;
+		inset: -2px;
+		border: 2px solid transparent;
+		animation: inAppSearchHighlight 2s ease-in-out;
 		pointer-events: none;
 	}
 }
 
-@keyframes blink {
+@keyframes inAppSearchHighlight {
 	0%, 100% {
-		background: color(from var(--MI_THEME-accent) srgb r g b / 0.1);
-		border: 1px solid color(from var(--MI_THEME-accent) srgb r g b / 0.75);
+		opacity: 0;
+		border-color: transparent;
 	}
 	50% {
-		background: transparent;
-		border: 1px solid transparent;
+		opacity: 1;
+		border-color: var(--MI_THEME-accent);
 	}
 }
 </style>

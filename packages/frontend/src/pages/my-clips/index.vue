@@ -4,26 +4,35 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" contentCard :tabs="headerTabs" :swipable="true" :loading="currentPaginator.fetching.value">
 	<template v-if="tab === 'my' || tab === 'favorites'" #header-actions>
-		<MkPaginationControl :key="tab" :paginator="tab === 'my' ? paginator : favoritesPaginator" compact/>
+		<MkPaginationControl :paginator="currentPaginator" compact/>
 	</template>
 	<div class="_pageBody _gaps">
 		<MkTip k="clips">
 			{{ i18n.ts._clip.tip }}
 		</MkTip>
-		<div v-if="tab === 'my'" class="_gaps">
-			<MkButton primary rounded class="add" @click="create"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
-
-			<MkPagination v-slot="{ items }" :paginator="paginator" class="_gaps">
-				<MkClipPreview v-for="item in items" :key="item.id" :clip="item" :noUserInfo="true"/>
-			</MkPagination>
-		</div>
-		<div v-else-if="tab === 'favorites'">
-			<MkPagination v-slot="{ items }" :paginator="favoritesPaginator" class="_gaps">
-				<MkClipPreview v-for="item in items" :key="item.id" :clip="item" :noUserInfo="true"/>
-			</MkPagination>
-		</div>
+		<MkPagination :paginator="currentPaginator" class="_gaps" pageEmpty>
+			<template #loading>
+				<MkLoading page>
+					<MkButton v-if="tab === 'my'" primary rounded style="margin: 0 auto;" @click="create"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
+				</MkLoading>
+			</template>
+			<template #error="{ retry }">
+				<MkError page @retry="retry">
+					<MkButton v-if="tab === 'my'" primary rounded style="margin: 0 auto;" @click="create"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
+				</MkError>
+			</template>
+			<template #empty="{ fetching }">
+				<MkResult type="empty" page :loading="fetching">
+					<MkButton v-if="tab === 'my'" primary rounded style="margin: 0 auto;" @click="create"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
+				</MkResult>
+			</template>
+			<template #default="{ items }">
+				<MkButton v-if="tab === 'my'" primary rounded @click="create"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
+				<MkClipPreview v-for="item in items" :key="item.id" :clip="item" :noUserInfo="tab === 'my'"/>
+			</template>
+		</MkPagination>
 	</div>
 </PageWithHeader>
 </template>
@@ -49,6 +58,7 @@ const favoritesPaginator = markRaw(new Paginator('clips/my-favorites', {
 	// ページネーションに対応していない
 	noPaging: true,
 }));
+const currentPaginator = computed(() => tab.value === 'favorites' ? favoritesPaginator : paginator);
 
 async function create() {
 	const { canceled, result } = await os.form(i18n.ts.createNewClip, {
@@ -72,7 +82,7 @@ async function create() {
 
 	if (canceled) return;
 
-	os.apiWithDialog('clips/create', result);
+	await os.apiWithDialog('clips/create', result);
 
 	clipsCache.delete();
 

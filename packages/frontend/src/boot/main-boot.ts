@@ -31,6 +31,7 @@ import { initializeAccountReconnectSync } from '@/utility/account-reconnect-sync
 import { unisonReload } from '@/utility/unison-reload.js';
 import { isBirthday } from '@/utility/is-birthday.js';
 import { initializeUserStatisticsSync } from '@/composables/use-user-statistics.js';
+import { resumeDraftFileProtection } from '@/utility/draft-file-protection.js';
 
 export async function mainBoot() {
 	const { isClientUpdated, lastVersion } = await common(async () => {
@@ -66,6 +67,7 @@ export async function mainBoot() {
 	reactionPicker.init();
 	emojiPicker.init();
 	initializeUserStatisticsSync();
+	if ($i) resumeDraftFileProtection($i);
 
 	if (isClientUpdated && $i) {
 		const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkUpdated.vue')), {}, {
@@ -287,13 +289,6 @@ export async function mainBoot() {
 			}
 		}
 
-		const modifiedVersionMustProminentlyOfferInAgplV3Section13Read = miLocalStorage.getItem('modifiedVersionMustProminentlyOfferInAgplV3Section13Read');
-		if (modifiedVersionMustProminentlyOfferInAgplV3Section13Read !== 'true' && instance.repositoryUrl !== 'https://github.com/misskey-dev/misskey') {
-			const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkSourceCodeAvailablePopup.vue')), {}, {
-				closed: () => dispose(),
-			});
-		}
-
 		if (store.s.realtimeMode) {
 			const stream = useStream();
 			initializeAccountReconnectSync(stream, () => refreshCurrentAccount({ throwOnError: true }));
@@ -357,6 +352,9 @@ export async function mainBoot() {
 			main.on('newChatMessage', () => {
 				updateCurrentAccountPartial({ hasUnreadChatMessages: true });
 				if ($i?.onlineStatusOverride !== 'doNotDisturb') sound.playMisskeySfx('chatMessage');
+			});
+			main.on('chatReadState', state => {
+				updateCurrentAccountPartial({ hasUnreadChatMessages: state.hasUnreadChatMessages });
 			});
 
 			main.on('readAllAnnouncements', () => {

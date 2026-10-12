@@ -51,6 +51,9 @@ export type Channels = {
 			notificationFlushed: () => void;
 			unreadAntenna: (payload: Antenna) => void;
 			newChatMessage: (payload: ChatMessage) => void;
+			chatReadState: (payload: { hasUnreadChatMessages: boolean }) => void;
+			chatRoomLeft: (payload: { roomId: string }) => void;
+			chatHistoryUpdated: (payload: { messageId: string; userId?: string; roomId?: string; deleted?: boolean }) => void;
 			readAllAnnouncements: () => void;
 			myTokenRegenerated: () => void;
 			signin: (payload: Signin) => void;
@@ -247,8 +250,10 @@ export type Channels = {
 			otherId: string;
 		};
 		events: {
+			unreadCount: (payload: { count: number; firstMessageId: string | null; lastMessageId: string | null; throughId: string }) => void;
 			message: (payload: ChatMessageLite) => void;
 			deleted: (payload: ChatMessageLite['id']) => void;
+			edited: (payload: ChatMessageLite) => void;
 			react: (payload: {
 				reaction: string;
 				user?: UserLite;
@@ -263,6 +268,7 @@ export type Channels = {
 		receives: {
 			read: {
 				id: ChatMessageLite['id'];
+				count?: boolean;
 			};
 		};
 	};
@@ -271,9 +277,13 @@ export type Channels = {
 			roomId: string;
 		};
 		events: {
+			unreadCount: (payload: { count: number; firstMessageId: string | null; lastMessageId: string | null; throughId: string }) => void;
 			membersChanged: () => void;
+			accessRevoked: () => void;
+			roomUpdated: () => void;
 			message: (payload: ChatMessageLite) => void;
 			deleted: (payload: ChatMessageLite['id']) => void;
+			edited: (payload: ChatMessageLite) => void;
 			react: (payload: {
 				reaction: string;
 				user?: UserLite;
@@ -288,6 +298,7 @@ export type Channels = {
 		receives: {
 			read: {
 				id: ChatMessageLite['id'];
+				count?: boolean;
 			};
 		};
 	};

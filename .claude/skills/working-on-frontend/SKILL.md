@@ -1,36 +1,35 @@
 ---
 name: working-on-frontend
-description: Use whenever editing or adding code under `packages/frontend/`, or editing `locales/ja-JP.yml` for frontend-facing UI text — including Vue 3 SFCs (`Mk*` components), i18n keys (`i18n.ts.<key>` / `i18n.tsx.<key>()`), SCSS Modules, theme/CSS variables, `os.*` UI helpers, and Storybook stories. Covers `<script setup lang="ts">` conventions, type-only defineProps, `ja-JP.yml`-only locale editing (other locale yml files are Crowdin-managed and must not be edited), and accessibility. Must be consulted before any frontend or UI-locale change to avoid CI failures, lost translations, and reviewer pushback. This is NOT waived by having already invoked brainstorming, writing-plans, or any other upstream skill — invoke this at implementation time regardless of what preceded it.
+description: 编辑或新增 packages/frontend/、Vue SFC、SCSS、Storybook 或 locales/zh-CN.yml 中的前端文案时使用。包含前端实现规范、可访问性和按风险验证。
 ---
 
-# working-on-frontend
+# 前端开发
 
-`packages/frontend/` (Misskey Web クライアント) を編集するとき、最初に参照するスキル。Vue 3 SFC / SCSS Modules / i18n / `os.*` / Storybook / アクセシビリティの **手順** と **背景知識** をまとめている。
+编辑 `packages/frontend/` 前阅读本 skill。它是任务流程和背景知识的索引，具体规则按需阅读对应 reference；其他 skill 已执行也不能跳过。
 
-SKILL.md 本体は references への索引だけ。具体的な手順や規約は該当ファイルを Read すること (progressive disclosure)。
+## 按任务阅读
 
-**他スキル実行後も免除されない。** `brainstorming` / `writing-plans` / その他アップストリームスキルを先に呼んでいても、`packages/frontend/` に触れる実装フェーズに入る時点でこのスキルを呼ぶこと。
+- 新增或大幅修改 `Mk*` 组件：阅读 [新增 Mk 组件](references/tasks/adding-mk-component.md)
+- 新增或修改 i18n key：阅读 [新增 i18n key](references/tasks/adding-i18n-key.md)
 
-## 作業別ワークフロー (tasks)
+## 常用参考
 
-タスク単位の完結したチェックリスト。新しい何かを足すときに開く。
+- Vue SFC 约定：[component-conventions](references/knowledge/component-conventions.md)
+- i18n 用法：[i18n-usage](references/knowledge/i18n-usage.md)
+- SCSS 模块和主题变量：[scss-modules](references/knowledge/scss-modules.md)
+- UI helper：[os-api](references/knowledge/os-api.md)
+- Storybook：[storybook](references/knowledge/storybook.md)
+- 前端测试：[frontend-testing](references/knowledge/frontend-testing.md)
 
-- 新規 / 既存 `Mk*` Vue コンポーネントを追加・改修する → [references/tasks/adding-mk-component.md](references/tasks/adding-mk-component.md)
-- i18n キーを追加・改修する (`locales/ja-JP.yml` 編集) → [references/tasks/adding-i18n-key.md](references/tasks/adding-i18n-key.md)
+## 验证
 
-## 共通知識 (knowledge)
+按 [AGENTS.md 第 19 条](../../../AGENTS.md#测试与执行效率) 选择最轻验证层：先复用已有测试，普通小功能没有合适覆盖时做定向功能验证，不因改动 `.vue` 自动新增测试或浏览器测试。权限、资金、数据写入、并发、复杂状态或已知逻辑故障缺少覆盖时，补最小回归用例；真实浏览器特有的焦点、滚动、布局边界和媒体交互才使用 browser 测试；验证通过后停止。
 
-タスクに紐付かない参照リファレンス。SFC を **編集する** 場面 (新規追加でなくても) で踏みうる規約。
+- 类型行为变化：按需运行 `pnpm --filter frontend typecheck`
+- 有适用行为覆盖：定向运行 `pnpm --filter frontend test test/unit/<file>.test.ts`
+- 需要真实浏览器行为：定向运行 `pnpm --filter frontend test:browser test/browser/<file>.test.ts`
+- 最后从 package root 对本任务变更文件运行 `eslint --quiet`
 
-- `<script setup>` / type-only `defineProps` / `defineEmits` / generic SFC / v-model 連動など SFC 規約 → [references/knowledge/component-conventions.md](references/knowledge/component-conventions.md)
-- `i18n.ts.<key>` / `i18n.tsx.<key>(...)` の使い分け / HTML タグ埋め込み / 動的キー切替 / 既存キーのリネーム手順 → [references/knowledge/i18n-usage.md](references/knowledge/i18n-usage.md)
-- SCSS Modules / `--MI_THEME-*` `--MI-*` CSS 変数 / グローバル utility class (`_button` 等) → [references/knowledge/scss-modules.md](references/knowledge/scss-modules.md)
-- `os.alert` / `os.confirm` / `os.popup` 等 UI ヘルパー (ブラウザ標準 `alert()` 直呼びは禁止) → [references/knowledge/os-api.md](references/knowledge/os-api.md)
-- `*.stories.impl.ts` 併設規則 + 複数 story / argTypes / layout / action パターン → [references/knowledge/storybook.md](references/knowledge/storybook.md)
-- frontend Vitest / Playwright E2E の書き方と前提 → [references/knowledge/frontend-testing.md](references/knowledge/frontend-testing.md)
+组件 reviewer 也按风险选择：新增共享组件、路由或双列布局、复杂 i18n / a11y / SCSS 变更时，启动 [vue-component-reviewer](../../agents/vue-component-reviewer.md)。局部文案、纯样式微调和简单接线不启动专用 reviewer。
 
-## 必ず最後に通る場所
-
-frontend の変更を commit / PR にする前に、必ず [shipping-misskey-change](../shipping-misskey-change/SKILL.md) の最終チェックリストに従う。
-
-`.vue` を追加・変更したなら、その出口で [vue-component-reviewer](../../agents/vue-component-reviewer.md) agent (この skill の規約を review-mode から機械チェックする専門 reviewer) を Task で起動すると、命名・i18n・SCSS 変数・a11y・Storybook 併設の逸脱を取りこぼしにくい。
+交付前必须阅读 [shipping-misskey-change](../shipping-misskey-change/SKILL.md)。

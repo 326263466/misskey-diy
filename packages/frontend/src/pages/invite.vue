@@ -6,15 +6,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader contentCard>
 	<div v-if="!instance.disableRegistration || !($i && ($i.isAdmin || $i.policies.canInvite))" class="_pageBody">
-		<MkResult type="empty"/>
+		<MkResult type="empty" page/>
 	</div>
 	<div v-else class="_pageBody">
 		<div class="_gaps_m" style="text-align: center;">
 			<div v-if="resetCycle && inviteLimit">{{ i18n.tsx.inviteLimitResetCycle({ time: resetCycle, limit: inviteLimit }) }}</div>
 			<MkButton inline primary rounded :disabled="currentInviteLimit !== null && currentInviteLimit <= 0" @click="create"><i class="ti ti-user-plus"></i> {{ i18n.ts.createInviteCode }}</MkButton>
-			<div v-if="currentInviteLimit !== null">{{ i18n.tsx.createLimitRemaining({ limit: currentInviteLimit }) }}</div>
+			<div :class="$style.remaining">
+				<template v-if="currentInviteLimit !== null">{{ i18n.tsx.createLimitRemaining({ limit: currentInviteLimit }) }}</template>
+			</div>
 
-			<MkPagination :paginator="paginator">
+			<MkPagination :paginator="paginator" pageEmpty>
 				<template #default="{ items }">
 					<div class="_gaps_s">
 						<MkInviteCode v-for="item in items" :key="item.id" :invite="item" :onDeleted="deleted"/>
@@ -86,3 +88,9 @@ definePage(() => ({
 	icon: 'ti ti-user-plus',
 }));
 </script>
+
+<style lang="scss" module>
+.remaining {
+	min-height: 1lh;
+}
+</style>

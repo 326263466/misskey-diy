@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="headerTab" contentCard :tabs="headerTabs">
-	<XGridLocalComponent v-if="headerTab === 'local'" :class="$style.local"/>
+	<XGridLocalComponent v-if="headerTab === 'local'"/>
 	<XGridRemoteComponent v-else-if="headerTab === 'remote'"/>
 	<XRegisterComponent v-else-if="headerTab === 'register'"/>
 </PageWithHeader>
@@ -40,10 +40,3 @@ definePage(computed(() => ({
 	needWideArea: true,
 })));
 </script>
-
-<style lang="css" module>
-.local {
-	height: calc(100dvh - var(--MI-stickyTop) - var(--MI-stickyBottom));
-	overflow: clip;
-}
-</style>

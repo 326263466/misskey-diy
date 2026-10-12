@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</template>
 				<template v-else>
 					<div class="_panel">
-						<div style="display: flex; align-items: center; padding: 16px; border-bottom: solid 1px var(--MI_THEME-divider);">
+						<div style="display: flex; align-items: center; padding: 16px; border-bottom: var(--MI-divider);">
 							<div>{{ mapName }}</div>
 							<MkButton style="margin-left: auto;" @click="chooseMap">{{ i18n.ts._reversi.chooseBoard }}</MkButton>
 						</div>
@@ -338,7 +338,7 @@ onUnmounted(() => {
 	display: grid;
 	place-items: center;
 	background: transparent;
-	border: solid 2px var(--MI_THEME-divider);
+	border: solid 2px var(--MI_THEME-divider); // divider-exempt: game board cell
 	border-radius: 6px;
 	overflow: clip;
 	cursor: pointer;
@@ -351,6 +351,6 @@ onUnmounted(() => {
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 </style>

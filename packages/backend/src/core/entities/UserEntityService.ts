@@ -555,7 +555,7 @@ export class UserEntityService implements OnModuleInit {
 					detail: true,
 				}),
 				pinnedPageId: profile!.pinnedPageId,
-				pinnedPage: profile!.pinnedPageId ? this.pageEntityService.pack(profile!.pinnedPageId, me) : null,
+				pinnedPage: profile!.pinnedPageId ? this.pageEntityService.packPinned(profile!.pinnedPageId, me) : null,
 				publicReactions: this.isLocalUser(user) ? profile!.publicReactions : false, // https://github.com/misskey-dev/misskey/issues/12964
 				followersVisibility: profile!.followersVisibility,
 				followingVisibility: profile!.followingVisibility,
@@ -595,6 +595,8 @@ export class UserEntityService implements OnModuleInit {
 				autoSensitive: profile!.autoSensitive,
 				carefulBot: profile!.carefulBot,
 				autoAcceptFollowed: profile!.autoAcceptFollowed,
+				followApprovalLocalSeconds: profile!.followApprovalLocalSeconds,
+				followApprovalRemoteSeconds: profile!.followApprovalRemoteSeconds,
 				noCrawle: profile!.noCrawle,
 				preventAiLearning: profile!.preventAiLearning,
 				isExplorable: user.isExplorable,

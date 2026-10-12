@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
 
 <style lang="scss" module>
 .root {
-	--c: var(--MI_THEME-divider);
+	--c: var(--MI_THEME-divider); // divider-exempt: decorative pattern
 
 	&.accented {
 		--c: var(--MI_THEME-accent);

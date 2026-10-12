@@ -109,6 +109,8 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+@use '@/styles/card-header.scss';
+
 .fadeEnterActive,
 .fadeLeaveActive {
 	transition: opacity 0.125s ease;
@@ -119,7 +121,7 @@ definePage(() => ({
 }
 
 .announcement {
-	padding: var(--MI-cardPadding);
+	padding: 0 var(--MI-cardPadding) var(--MI-cardPadding);
 }
 
 .forYou {
@@ -132,9 +134,7 @@ definePage(() => ({
 }
 
 .header {
-	margin-bottom: 16px;
-	font-weight: bold;
-	font-size: 120%;
+	@include card-header.title;
 }
 
 .content {

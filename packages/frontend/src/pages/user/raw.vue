@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 
-			<div :class="[$style.inset, $style.kvList]">
+			<div :class="$style.kvList">
 				<MkKeyValue :copy="user.id" oneline>
 					<template #key>ID</template>
 					<template #value><span class="_monospace">{{ user.id }}</span></template>
@@ -33,9 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<FormSection>
 				<template #label>{{ i18n.ts.rawData }}</template>
-				<div :class="$style.inset">
-					<MkObjectView tall :value="user"></MkObjectView>
-				</div>
+				<MkObjectView tall :value="user"></MkObjectView>
 			</FormSection>
 		</div>
 	</div>
@@ -45,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed } from 'vue';
 import * as Misskey from 'misskey-js';
-import { acct } from '@/filters/user.js';
+import { acct } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
 import MkKeyValue from '@/components/MkKeyValue.vue';
 import FormSection from '@/components/form/section.vue';
@@ -65,17 +63,10 @@ const suspended = computed(() => props.user.isSuspended ?? false);
 	padding: var(--MI-cardPadding);
 }
 
-.inset {
-	padding: var(--MI-cardPadding);
-	background: var(--MI_THEME-panel);
-	border: 1px solid var(--MI_THEME-divider);
-	border-radius: var(--MI-cardRadius);
-}
-
 .kvList {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 1em;
 }
 
 .userMInfoRoot {

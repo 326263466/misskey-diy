@@ -4,11 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :loading="tab === 'remote' ? remotePaginator.fetching.value : paginator.fetching.value">
 	<div class="_pageBody">
 		<div class="ogwlenmc">
 			<div v-if="tab === 'local'" class="local">
-				<MkInput v-model="query" :debounce="true" type="search" autocapitalize="off">
+				<MkInput v-model="query" type="search" autocapitalize="off">
 					<template #prefix><i class="ti ti-search"></i></template>
 					<template #label>{{ i18n.ts.search }}</template>
 				</MkInput>
@@ -24,8 +24,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkButton inline @click="setLicenseBulk">{{ i18n.ts._customEmojisManager.setLicense }}</MkButton>
 					<MkButton inline danger @click="delBulk">{{ i18n.ts.delete }}</MkButton>
 				</div>
-				<MkPagination ref="emojisPaginationComponent" :paginator="paginator">
-					<template #empty><span>{{ i18n.ts.noCustomEmojis }}</span></template>
+				<MkPagination ref="emojisPaginationComponent" :paginator="paginator" pageEmpty>
+					<template #empty="{ fetching }"><MkResult type="empty" :text="i18n.ts.noCustomEmojis" page :loading="fetching"/></template>
 					<template #default="{items}">
 						<div class="ldhfsamy">
 							<button v-for="emoji in items" :key="emoji.id" class="emoji _panel _button" :class="{ selected: selectedEmojis.includes(emoji.id) }" @click="selectMode ? toggleSelect(emoji) : edit(emoji)">
@@ -42,16 +42,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div v-else-if="tab === 'remote'" class="remote">
 				<FormSplit>
-					<MkInput v-model="queryRemote" :debounce="true" type="search" autocapitalize="off">
+					<MkInput v-model="queryRemote" type="search" autocapitalize="off">
 						<template #prefix><i class="ti ti-search"></i></template>
 						<template #label>{{ i18n.ts.search }}</template>
 					</MkInput>
-					<MkInput v-model="host" :debounce="true">
+					<MkInput v-model="host">
 						<template #label>{{ i18n.ts.host }}</template>
 					</MkInput>
 				</FormSplit>
-				<MkPagination :paginator="remotePaginator">
-					<template #empty><span>{{ i18n.ts.noCustomEmojis }}</span></template>
+				<MkPagination :paginator="remotePaginator" pageEmpty>
+					<template #empty="{ fetching }"><MkResult type="empty" :text="i18n.ts.noCustomEmojis" page :loading="fetching"/></template>
 					<template #default="{items}">
 						<div class="ldhfsamy">
 							<div v-for="emoji in items" :key="emoji.id" class="emoji _panel _button" @click="remoteMenu(emoji as RemoteEmoji, $event)">
@@ -87,11 +87,15 @@ import { i18n } from '@/i18n.js';
 import { iAmAdmin } from '@/i.js';
 import { definePage } from '@/page.js';
 import { Paginator } from '@/utility/paginator.js';
+import { useSearchQuery } from '@/composables/use-search-query.js';
 
 const tab = ref('local');
 const query = ref<string | null>(null);
 const queryRemote = ref<string | null>(null);
 const host = ref<string | null>(null);
+const localQuery = useSearchQuery(query);
+const remoteQuery = useSearchQuery(queryRemote);
+const remoteHost = useSearchQuery(host);
 const selectMode = ref(false);
 const selectedEmojis = ref<string[]>([]);
 
@@ -100,15 +104,15 @@ type RemoteEmoji = Misskey.entities.AdminEmojiListRemoteResponse[number] & { hos
 const paginator = markRaw(new Paginator('admin/emoji/list', {
 	limit: 30,
 	computedParams: computed(() => ({
-		query: (query.value && query.value !== '') ? query.value : null,
+		query: localQuery.value || null,
 	})),
 }));
 
 const remotePaginator = markRaw(new Paginator('admin/emoji/list-remote', {
 	limit: 30,
 	computedParams: computed(() => ({
-		query: (queryRemote.value && queryRemote.value !== '') ? queryRemote.value : null,
-		host: (host.value && host.value !== '') ? host.value : null,
+		query: remoteQuery.value || null,
+		host: remoteHost.value || null,
 	})),
 }));
 

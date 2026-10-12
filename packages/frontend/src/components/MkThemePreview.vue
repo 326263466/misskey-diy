@@ -73,7 +73,7 @@ const themeVariables = ref<{
 	mention: 'var(--MI_THEME-mention)',
 	hashtag: 'var(--MI_THEME-hashtag)',
 	link: 'var(--MI_THEME-link)',
-	divider: 'var(--MI_THEME-divider)',
+	divider: 'var(--MI_THEME-divider)', /* divider-exempt: raw theme color preview */
 	accent: 'var(--MI_THEME-accent)',
 	accentedBg: 'var(--MI_THEME-accentedBg)',
 	navBg: 'var(--MI_THEME-navBg)',
@@ -102,7 +102,7 @@ watch(() => props.theme, (theme) => {
 		mention: compiled.mention ?? 'var(--MI_THEME-mention)',
 		hashtag: compiled.hashtag ?? 'var(--MI_THEME-hashtag)',
 		link: compiled.link ?? 'var(--MI_THEME-link)',
-		divider: compiled.divider ?? 'var(--MI_THEME-divider)',
+		divider: compiled.divider ?? 'var(--MI_THEME-divider)', /* divider-exempt: raw theme color preview */
 		accent: compiled.accent ?? 'var(--MI_THEME-accent)',
 		accentedBg: compiled.accentedBg ?? 'var(--MI_THEME-accentedBg)',
 		navBg: compiled.navBg ?? 'var(--MI_THEME-navBg)',

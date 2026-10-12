@@ -37,7 +37,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #footer>
 					<div class="_buttons">
 						<MkButton rounded @click="promoteAllJobs"><i class="ti ti-player-track-next"></i> {{ i18n.ts._queue.promoteAllJobs }}</MkButton>
-						<!-- <MkButton rounded @click="createJob"><i class="ti ti-plus"></i> Add job</MkButton> -->
 						<MkButton v-if="queueInfo.isPaused" rounded @click="resumeQueue"><i class="ti ti-player-play"></i> {{ i18n.ts._queue.resumeQueue }}</MkButton>
 						<MkButton v-else rounded danger @click="pauseQueue"><i class="ti ti-player-pause"></i> {{ i18n.ts._queue.pauseQueue }}</MkButton>
 						<MkButton rounded danger @click="clearQueue"><i class="ti ti-trash"></i> {{ i18n.ts._queue.emptyQueue }}</MkButton>

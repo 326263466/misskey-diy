@@ -9,7 +9,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	tabindex="0"
 	:class="[
 		$style.root,
-		prefer.s.animation && $style.animated,
 		(video.isSensitive && prefer.s.highlightSensitiveMedia) && $style.sensitive,
 	]"
 	@contextmenu.stop="onContextmenu"
@@ -22,16 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</button>
 
-	<div
-		v-else
-		role="button"
-		tabindex="0"
-		:aria-label="i18n.ts._mediaControls.play"
-		:class="$style.videoRoot"
-		@click="emit('mediaClick', $event)"
-		@keydown.enter.prevent="emit('mediaClick', $event)"
-		@keydown.space.prevent="emit('mediaClick', $event)"
-	>
+	<div v-else :class="$style.videoRoot" @click="emit('mediaClick', $event)">
 		<img
 			v-if="video.thumbnailUrl"
 			:class="$style.video"
@@ -48,17 +38,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</video>
 		<div :class="$style.playIconWrapper">
 			<div :class="$style.playIcon">
-				<MkMediaPlayIcon/>
+				<i class="ti ti-player-play"></i>
 			</div>
 		</div>
-		<button :class="[$style.menu, $style.menuBottom]" class="_button" :aria-label="i18n.ts.menu" @click.stop="showMenu" @keydown.stop><i class="ti ti-dots" style="vertical-align: middle;" aria-hidden="true"></i></button>
-		<button :class="[$style.menu, $style.menuTop]" class="_button" :aria-label="i18n.ts.hide" @click.stop="hide = true" @keydown.stop><i class="ti ti-eye-off" style="vertical-align: middle;" aria-hidden="true"></i></button>
+		<button :class="[$style.menu, $style.menuBottom]" class="_button _iconButton" @click.stop="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
+		<button :class="[$style.menu, $style.menuTop]" class="_button _iconButton" @click.stop="hide = true"><i class="ti ti-eye-off" aria-hidden="true"></i></button>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import MkMediaPlayIcon from '@/components/MkMediaPlayIcon.vue';
 import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { MediaComponentExposes } from '@/types/media-component.js';
@@ -74,7 +63,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-	(event: 'mediaClick', ev: PointerEvent | KeyboardEvent): void;
+	(event: 'mediaClick', ev: PointerEvent): void;
 }>();
 
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
@@ -109,6 +98,12 @@ defineExpose<MediaComponentExposes>({
 
 	&:focus-visible {
 		outline: none;
+	}
+
+	&:hover {
+		.playIcon {
+			scale: 1.2;
+		}
 	}
 }
 
@@ -145,12 +140,11 @@ defineExpose<MediaComponentExposes>({
 
 .hiddenTextWrapper {
 	text-align: center;
-	font-size: 1em;
+	font-size: 0.8em;
 	color: #fff;
 }
 
 .videoRoot {
-	cursor: pointer;
 	background: #000;
 	position: relative;
 	width: 100%;
@@ -178,30 +172,14 @@ defineExpose<MediaComponentExposes>({
 .playIcon {
 	display: grid;
 	place-items: center;
-	--MI-mediaPlaySize: clamp(28px, 12cqw, 44px);
-	width: var(--MI-mediaPlaySize);
-	height: var(--MI-mediaPlaySize);
-	border-radius: 0;
-	font-size: var(--MI-mediaPlaySize);
-	background: none;
-	color: var(--MI_THEME-accent);
-	cursor: pointer;
+	width: 50px;
+	height: 50px;
+	border-radius: 100%;
+	font-size: 120%;
+	background: var(--MI_THEME-accent);
+	color: var(--MI_THEME-fgOnAccent);
 	scale: 1;
-}
-
-.animated {
-	.playIcon > span {
-		transition: scale 160ms ease-out;
-	}
-
-	.videoRoot:is(:hover, :focus-visible) .playIcon > span {
-		--MI-mediaPlayHover: 1;
-		scale: 1.12;
-	}
-
-	.videoRoot:active .playIcon > span {
-		scale: 0.94;
-	}
+	transition: scale 100ms ease;
 }
 
 .menu {

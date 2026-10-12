@@ -1,4 +1,6 @@
-# Backend テストの前提と書き方
+# 后端测试前提和写法
+
+代理在交接和验证记录中统一使用简体中文。命令、路径、代码和已有测试名称保持原样。
 
 Misskey backend のテスト構成、`.config/test.yml` の前提、e2e テストのヘルパー関数集を 1 つにまとめたページ。
 
@@ -32,11 +34,17 @@ cp .github/misskey/test.yml .config/test.yml
 
 ## テスト種別と実行コマンド
 
+先按 [AGENTS.md](../../../../../AGENTS.md#测试与执行效率) 判断风险，再选择相关文件。已有覆盖充分时不新增测试；必要检查通过后停止，不例行追加全包测试、覆盖率或构建。
+
 | 種別 | 設定ファイル | 実行コマンド |
 | --- | --- | --- |
-| Unit | `packages/backend/vitest.config.unit.ts` | `pnpm --filter backend test` |
-| E2E (HTTP / DB) | `packages/backend/vitest.config.e2e.ts` | `pnpm --filter backend test:e2e` |
-| Federation | `packages/backend/vitest.config.fed.ts` | `pnpm --filter backend test:fed` |
+| Unit | `packages/backend/vitest.config.unit.ts` | `pnpm --filter backend test --run test/unit/<file>.ts` |
+| E2E (HTTP / DB，按需) | `packages/backend/vitest.config.e2e.ts` | `pnpm --filter backend test:e2e --run test/e2e/<file>.ts` |
+| Federation（按需） | `packages/backend/vitest.config.fed.ts` | `pnpm --filter backend test:fed --run test-federation/test/<file>.test.ts` |
+
+将 `<file>` 换成实际文件，可一次传入多个路径或用 `-t` 筛选用例。省略路径会运行整套测试。`test` 和 `test:e2e` 会先构建，因此将同类相关文件合并到一次调用中。
+
+只改测试且本次会话已确认对应构建产物和测试配置是最新的，才可直接运行 runner，避免重复构建。例如 unit：`pnpm --filter backend exec cross-env NODE_ENV=test vitest --run --config vitest.config.unit.ts test/unit/<file>.ts`。源码、依赖、构建模式或配置变动后仍须使用正常脚本，不能用陈旧产物验证。不要省略 `NODE_ENV=test` 或使用开发数据库。
 
 - 配置: `packages/backend/test/` 配下
 - カバレッジ: `pnpm --filter backend test-and-coverage`
@@ -64,9 +72,9 @@ block.ts / mute.ts / antennas.ts / clips.ts / move.ts / nodeinfo.ts / ...
 
 ### 判断ルール
 
-1. 自分の追加するエンドポイントが既存カテゴリファイル (`note.ts`, `users.ts` 等) に所属するなら、そこに `describe('...', () => { test(...) })` を追加
-2. どのカテゴリにも収まらないなら `endpoints.ts` に追加
-3. テストケースが多くなり (>200 行)、独立性が高い場合のみ新ファイル化
+1. 先检查现有覆盖。仅在权限、资金、持久化、并发或错误分支等关键行为缺少覆盖时补最小用例；不因新增 endpoint 就机械新增 e2e。
+2. 需要补用例时优先放入既有分类文件（如 `note.ts`、`users.ts`）；没有合适分类再考虑 `endpoints.ts`。
+3. 只有独立行为需要单独组织时才新建文件，不以行数作为新增目标。临时诊断测试放在发现范围之外，交付前清理。
 
 `describe` のラベル名は **人間可読** で OK (`describe('Note', ...)`, `describe('管理者操作', ...)` のような形式)。`<category>/<name>` 形式である必要はない。
 

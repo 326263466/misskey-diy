@@ -6,18 +6,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody _gaps_m">
-		<MkInput v-model="title">
+		<MkInput v-model="title" :counterMaxLength="Misskey.CONTENT_LIMITS.galleryTitle">
 			<template #label>{{ i18n.ts.title }}</template>
 		</MkInput>
 
-		<MkTextarea v-model="description" :max="500">
+		<MkTextarea v-model="description" :counterMaxLength="Misskey.CONTENT_LIMITS.galleryDescription">
 			<template #label>{{ i18n.ts.description }}</template>
 		</MkTextarea>
 
 		<div class="_gaps_s">
-			<div v-for="file in files" :key="file.id" class="wqugxsfx" :style="{ backgroundImage: file ? `url(${ file.thumbnailUrl })` : '' }">
+			<div v-for="file in files" :key="file.id" class="wqugxsfx _imageContainer">
+				<img v-if="file.thumbnailUrl" class="_imageBackground" :src="file.thumbnailUrl" alt="" style="object-fit: contain;"/>
 				<div class="name">{{ file.name }}</div>
-				<button v-tooltip="i18n.ts.remove" class="remove _button" @click="remove(file)"><i class="ti ti-x"></i></button>
+				<button v-tooltip="i18n.ts.remove" class="remove _button _iconButton" @click="remove(file)"><i class="ti ti-x"></i></button>
 			</div>
 			<MkButton primary @click="chooseFile"><i class="ti ti-plus"></i> {{ i18n.ts.attachFile }}</MkButton>
 		</div>
@@ -25,8 +26,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkSwitch v-model="isSensitive">{{ i18n.ts.markAsSensitive }}</MkSwitch>
 
 		<div class="_buttons">
-			<MkButton v-if="props.post != null" primary @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
-			<MkButton v-else primary @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.publish }}</MkButton>
+			<MkButton v-if="props.post != null" primary :disabled="!validContent" @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
+			<MkButton v-else primary :disabled="!validContent" @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.publish }}</MkButton>
 
 			<MkButton v-if="props.post != null" danger @click="del"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
 		</div>
@@ -57,6 +58,9 @@ const files = ref(props.post?.files ?? []);
 const description = ref(props.post?.description ?? null);
 const title = ref(props.post?.title ?? '');
 const isSensitive = ref(props.post?.isSensitive ?? false);
+const validContent = computed(() => title.value.trim() !== '' &&
+	(title.value === props.post?.title || Array.from(title.value).length <= Misskey.CONTENT_LIMITS.galleryTitle) &&
+	(description.value === props.post?.description || Array.from(description.value ?? '').length <= Misskey.CONTENT_LIMITS.galleryDescription));
 
 function chooseFile(evt: MouseEvent) {
 	selectFile({
@@ -72,6 +76,7 @@ function remove(file: NonNullable<Misskey.entities.GalleryPost['files']>[number]
 }
 
 async function save() {
+	if (!validContent.value) return;
 	if (props.post != null) {
 		await os.apiWithDialog('gallery/posts/update', {
 			postId: props.post.id,
@@ -121,9 +126,6 @@ const headerTabs = computed(() => []);
 <style lang="scss" scoped>
 .wqugxsfx {
 	height: 200px;
-	background-size: contain;
-	background-position: center;
-	background-repeat: no-repeat;
 	position: relative;
 
 	> .name {

@@ -7,9 +7,9 @@
 import 'vite/modulepreload-polyfill';
 
 if (import.meta.env.DEV) {
-	await import('@tabler/icons-webfont/dist/tabler-icons.scss');
+	await import('virtual:tabler-icons.css');
 } else {
-	await import('icons-subsetter/built/tabler-icons-frontendEmbed.css');
+	await import('icons-subsetter/built/tabler-icons.css');
 }
 
 import '@/style.scss';
@@ -18,6 +18,7 @@ import defaultLightTheme from '@@/themes/l-light.json5';
 import defaultDarkTheme from '@@/themes/d-dark.json5';
 import { MediaProxy } from '@@/js/media-proxy.js';
 import { storeBootloaderErrors } from '@@/js/store-boot-errors';
+import { initializeImageFade } from '@@/js/image-fade.js';
 import { applyTheme, assertIsTheme } from '@/theme.js';
 import { fetchCustomEmojis } from '@/custom-emojis.js';
 import { DI } from '@/di.js';
@@ -31,6 +32,9 @@ import { i18n } from '@/i18n.js';
 import type { Theme } from '@@/js/theme.js';
 
 console.log('Misskey Embed');
+
+const imageFade = initializeImageFade({ animationsEnabled: () => true });
+import.meta.hot?.dispose(() => imageFade.disconnect());
 
 //#region Embedパラメータの取得・パース
 const params = new URLSearchParams(window.location.search);

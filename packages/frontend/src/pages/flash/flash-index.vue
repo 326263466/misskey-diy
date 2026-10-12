@@ -4,60 +4,34 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true" :loading="paginator?.fetching.value ?? false">
 	<template v-if="tab === 'liked'" #header-actions>
 		<MkPaginationControl :paginator="likedFlashsPaginator" compact/>
 	</template>
-	<div class="_pageBody">
+	<div class="_pageBody _gaps">
 		<div v-if="tab === 'search'">
 			<div class="_gaps">
-				<div class="_panel _panelPadding" :class="$style.searchRow">
+				<div :class="$style.searchRow">
 					<MkInput v-model="searchQuery" :class="$style.searchInput" :large="true" type="search">
 						<template #prefix><i class="ti ti-search"></i></template>
 					</MkInput>
 					<MkButton large primary gradate rounded @click="search">{{ i18n.ts.search }}</MkButton>
 				</div>
-				<MkPagination v-if="searchPaginator" v-slot="{items}" :key="searchKey" :paginator="searchPaginator">
-					<div class="_gaps_s">
-						<MkFlashPreview v-for="flash in items" :key="flash.id" :flash="flash"/>
-					</div>
-				</MkPagination>
 			</div>
 		</div>
 
-		<div v-else-if="tab === 'featured'">
-			<MkPagination v-slot="{items}" :paginator="featuredFlashsPaginator">
-				<div class="_gaps_s">
-					<MkFlashPreview v-for="flash in items" :key="flash.id" :flash="flash"/>
-				</div>
-			</MkPagination>
-		</div>
-
-		<div v-else-if="tab === 'my'">
-			<div class="_gaps">
-				<MkButton gradate rounded style="margin: 0 auto;" @click="create()"><i class="ti ti-plus"></i></MkButton>
-				<MkPagination v-slot="{items}" :paginator="myFlashsPaginator">
-					<div class="_gaps_s">
-						<MkFlashPreview v-for="flash in items" :key="flash.id" :flash="flash"/>
-					</div>
-				</MkPagination>
+		<MkButton v-if="tab === 'my'" gradate rounded style="margin: 0 auto;" @click="create()"><i class="ti ti-plus"></i></MkButton>
+		<MkPagination v-if="paginator" v-slot="{items}" :paginator="paginator" pageEmpty>
+			<div class="_gaps_s">
+				<MkFlashPreview v-for="flash in items.map(item => 'flash' in item ? item.flash : item)" :key="flash.id" :flash="flash"/>
 			</div>
-		</div>
-
-		<div v-else-if="tab === 'liked'">
-			<MkPagination v-slot="{items}" :paginator="likedFlashsPaginator">
-				<div class="_gaps_s">
-					<MkFlashPreview v-for="like in items" :key="like.flash.id" :flash="like.flash"/>
-				</div>
-			</MkPagination>
-		</div>
+		</MkPagination>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
 import { computed, markRaw, ref, shallowRef } from 'vue';
-import type { IPaginator } from '@/utility/paginator.js';
 import MkFlashPreview from '@/components/MkFlashPreview.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import MkPaginationControl from '@/components/MkPaginationControl.vue';
@@ -74,7 +48,6 @@ const tab = ref('featured');
 
 const searchQuery = ref('');
 const searchPaginator = shallowRef<Paginator<'flash/search'> | null>(null);
-const searchKey = ref(0);
 
 const featuredFlashsPaginator = markRaw(new Paginator('flash/featured', {
 	limit: 5,
@@ -88,6 +61,12 @@ const likedFlashsPaginator = markRaw(new Paginator('flash/my-likes', {
 	canSearch: true,
 	searchParamName: 'search',
 }));
+const paginator = computed(() => {
+	if (tab.value === 'search') return searchPaginator.value;
+	if (tab.value === 'my') return myFlashsPaginator;
+	if (tab.value === 'liked') return likedFlashsPaginator;
+	return featuredFlashsPaginator;
+});
 
 function create() {
 	router.push('/play/new');
@@ -103,8 +82,6 @@ function search() {
 			query: searchQuery.value,
 		},
 	}));
-
-	searchKey.value++;
 }
 
 const headerActions = computed(() => [{

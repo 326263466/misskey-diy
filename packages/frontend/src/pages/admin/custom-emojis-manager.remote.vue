@@ -104,35 +104,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<XRegisterLogs :logs="requestLogs"/>
 			</MkFolder>
 
-			<component :is="loadingHandler.component.value" v-if="loadingHandler.showing.value"/>
+			<MkLoading v-if="!initialized || loadingHandler.showing.value" page/>
+			<MkError v-else-if="loadError" page @retry="refreshCustomEmojis"/>
+			<MkResult v-else-if="gridItems.length === 0" type="empty" :text="i18n.ts._customEmojisManager._local._list.emojisNothing" page/>
 			<template v-else>
-				<div v-if="gridItems.length === 0" style="text-align: center">
-					{{ i18n.ts._customEmojisManager._local._list.emojisNothing }}
+				<div :class="$style.gridArea">
+					<MkGrid :data="gridItems" :settings="setupGrid()" @event="onGridEvent"/>
 				</div>
 
-				<template v-else>
-					<div v-if="gridItems.length > 0" :class="$style.gridArea">
-						<MkGrid :data="gridItems" :settings="setupGrid()" @event="onGridEvent"/>
+				<div :class="$style.footer">
+					<div>
 					</div>
 
-					<div :class="$style.footer">
-						<div>
-							<!-- レイアウト調整用のスペース -->
-						</div>
-
-						<div :class="$style.center">
-							<MkPagingButtons :current="currentPage" :max="allPages" :buttonCount="5" @pageChanged="onPageChanged"/>
-						</div>
-
-						<div :class="$style.right">
-							<MkButton primary @click="onImportClicked">
-								{{
-									i18n.ts._customEmojisManager._remote.importEmojisButton
-								}} ({{ checkedItemsCount }})
-							</MkButton>
-						</div>
+					<div :class="$style.center">
+						<MkPagingButtons :current="currentPage" :max="allPages" :buttonCount="5" @pageChanged="onPageChanged"/>
 					</div>
-				</template>
+
+					<div :class="$style.right">
+						<MkButton primary @click="onImportClicked">
+							{{
+								i18n.ts._customEmojisManager._remote.importEmojisButton
+							}} ({{ checkedItemsCount }})
+						</MkButton>
+					</div>
+				</div>
 			</template>
 		</div>
 	</template>
@@ -249,6 +244,9 @@ function setupGrid(): GridSetting {
 }
 
 const loadingHandler = useLoading();
+const initialized = ref(false);
+const loadError = ref(false);
+let loadRequestId = 0;
 
 const customEmojis = ref<Misskey.entities.EmojiDetailedAdmin[]>([]);
 const allPages = ref<number>(0);
@@ -355,6 +353,7 @@ async function importEmojis(targets: GridItem[]) {
 }
 
 async function refreshCustomEmojis() {
+	const requestId = ++loadRequestId;
 	const query: Misskey.entities.V2AdminEmojiListRequest['query'] = {
 		name: emptyStrToUndefined(queryName.value),
 		host: emptyStrToUndefined(queryHost.value),
@@ -368,24 +367,34 @@ async function refreshCustomEmojis() {
 		currentPage.value = 1;
 	}
 
-	const result = await loadingHandler.scope(() => misskeyApi('v2/admin/emoji/list', {
-		limit: queryLimit.value,
-		query: query,
-		page: currentPage.value,
-		sortKeys: sortOrders.value.map(({ key, direction }) => `${direction}${key}`) as never[],
-	}));
+	loadError.value = false;
+	await loadingHandler.scope(async () => {
+		try {
+			const result = await misskeyApi('v2/admin/emoji/list', {
+				limit: queryLimit.value,
+				query: query,
+				page: currentPage.value,
+				sortKeys: sortOrders.value.map(({ key, direction }) => `${direction}${key}`) as never[],
+			});
+			if (requestId !== loadRequestId) return;
 
-	customEmojis.value = result.emojis;
-	allPages.value = result.allPages;
-	previousQuery.value = JSON.stringify(query);
-	gridItems.value = customEmojis.value.map(it => ({
-		checked: false,
-		id: it.id,
-		url: it.publicUrl,
-		name: it.name,
-		license: it.license,
-		host: it.host!,
-	}));
+			customEmojis.value = result.emojis;
+			allPages.value = result.allPages;
+			previousQuery.value = JSON.stringify(query);
+			gridItems.value = customEmojis.value.map(it => ({
+				checked: false,
+				id: it.id,
+				url: it.publicUrl,
+				name: it.name,
+				license: it.license,
+				host: it.host!,
+			}));
+		} catch {
+			if (requestId === loadRequestId) loadError.value = true;
+		} finally {
+			if (requestId === loadRequestId) initialized.value = true;
+		}
+	});
 }
 
 onMounted(async () => {

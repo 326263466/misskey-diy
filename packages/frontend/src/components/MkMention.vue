@@ -44,8 +44,10 @@ const avatarUrl = computed(() => {
 
 <style lang="scss" module>
 .root {
-	display: inline-block;
-	padding: 4px 8px 4px 4px;
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+	padding: 2px 8px 2px 2px;
 	border-radius: 999px;
 	color: var(--MI_THEME-mention);
 	background: color(from var(--MI_THEME-mention) srgb r g b / 0.1);
@@ -57,11 +59,10 @@ const avatarUrl = computed(() => {
 }
 
 .icon {
-	width: 1.5em;
-	height: 1.5em;
+	width: 1.4em;
+	height: 1.4em;
 	object-fit: cover;
-	margin: 0 0.2em 0 0;
-	vertical-align: bottom;
+	margin: 0 0.25em 0 0;
 	border-radius: 100%;
 }
 

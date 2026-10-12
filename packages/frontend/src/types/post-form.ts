@@ -24,6 +24,7 @@ export interface PostFormProps {
 	initialRedPacket?: Misskey.entities.RedPacketsCreateResponse;
 	/** Initial body rows; omitted keeps the existing composer size. Content can grow beyond this. */
 	initialRows?: number;
+	maxTextLength?: number;
 	initialHashtags?: string[];
 	initialCw?: string;
 	initialVisibility?: (typeof Misskey.noteVisibilities)[number];

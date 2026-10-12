@@ -22,13 +22,15 @@ const props = defineProps<{
 }>();
 
 const glyph = computed(() => {
+	// 彩色状态使用自身图形，避免再次套用通用图标的 SVG 蒙版。
+	if (props.plain && ['away', 'busy', 'doNotDisturb', 'invisible'].includes(props.status)) return '';
 	switch (props.status) {
 		case 'online': return 'ti ti-circle-filled';
 		case 'active': return props.plain ? 'ti ti-circle-filled' : 'ti ti-circle-dot';
-		case 'away': return props.plain ? 'ti ti-clock' : 'ti ti-moon';
+		case 'away': return 'ti ti-moon';
 		case 'busy': return 'ti ti-minus';
 		case 'doNotDisturb': return 'ti ti-ban';
-		case 'invisible': return props.plain ? 'ti ti-equal' : 'ti ti-eye-off';
+		case 'invisible': return 'ti ti-eye-off';
 		case 'offline': return 'ti ti-circle';
 		default: return 'ti ti-dots';
 	}

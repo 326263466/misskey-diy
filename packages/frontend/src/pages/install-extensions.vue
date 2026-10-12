@@ -18,7 +18,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkKeyValue>
 							<template #key>{{ i18n.ts._externalResourceInstaller._vendorInfo.hashVerify }}</template>
 							<template #value>
-								<!-- この画面が出ている時点でハッシュの検証には成功している -->
 								<i class="ti ti-check" style="color: var(--MI_THEME-accent)"></i>
 							</template>
 						</MkKeyValue>

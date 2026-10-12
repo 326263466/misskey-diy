@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
+<div data-image-fade="off">
 	<span v-if="!available">{{ i18n.ts.loading }}<MkEllipsis/></span>
 	<div v-if="props.provider == 'mcaptcha'">
 		<iframe

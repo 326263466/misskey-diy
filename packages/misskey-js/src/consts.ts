@@ -16,6 +16,40 @@ import type {
 	ChatRoom,
 } from './autogen/models.js';
 
+// 产品输入上限按 Unicode 码点计数，与 API 的 maxLength 保持一致。
+export const CONTENT_LIMITS = {
+	noteText: 2000,
+	commentText: 500,
+	noteCw: 100,
+	articleTitle: 100,
+	articleSummary: 200,
+	articleText: 50000,
+	articleTag: 10,
+	articleCategory: 10,
+	galleryTitle: 100,
+	galleryDescription: 500,
+	announcementTitle: 100,
+	announcementText: 2000,
+	feedbackTitle: 80,
+	feedbackText: 1000,
+	chatMessage: 2000,
+	profileDescription: 500,
+	profileFieldName: 50,
+	profileFieldValue: 1024,
+	channelName: 50,
+	channelDescription: 500,
+	chatRoomName: 50,
+	chatRoomDescription: 500,
+	transferMemo: 200,
+	redPacketGreeting: 18,
+	redPacketPassword: 18,
+} as const;
+
+export const DEFAULT_ARTICLE_TAGS = [
+	'nsfw', '树洞', '纯水', '功能测试', '版本发布', 'bug反馈', '公益推广', '快问快答',
+	'技术', '生活', '开发', '前端', '后端', '设计', '随笔', '开源', '数据库', 'javascript', 'typescript', 'vue',
+] as const;
+
 export const notificationTypes = [
 	'note',
 	'follow',

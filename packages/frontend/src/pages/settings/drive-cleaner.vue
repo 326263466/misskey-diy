@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template #label>{{ i18n.ts.sort }}</template>
 	</MkSelect>
 	<div v-if="!fetching">
-		<MkPagination v-slot="{items}" :paginator="paginator">
+		<MkPagination v-slot="{items}" :paginator="paginator" pageEmpty>
 			<div class="_gaps">
 				<div
 					v-for="file in items" :key="file.id"
@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkPagination>
 	</div>
 	<div v-else>
-		<MkLoading/>
+		<MkLoading page/>
 	</div>
 </div>
 </template>

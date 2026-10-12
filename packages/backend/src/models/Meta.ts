@@ -7,6 +7,19 @@ import { Entity, Column, PrimaryColumn, ManyToOne } from 'typeorm';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 
+export const DEFAULT_ARTICLE_CATEGORIES = [
+	{ id: 'wrong-place', name: '错误地方' },
+	{ id: 'technology', name: '技术交流' },
+	{ id: 'resources', name: '资源分享' },
+	{ id: 'benefits', name: '福利放送' },
+	{ id: 'questions', name: '求助问答' },
+	{ id: 'thoughts', name: '深度思考' },
+	{ id: 'promotion', name: '我要推广' },
+	{ id: 'governance', name: '社区治理' },
+	{ id: 'announcements', name: '社区公告' },
+	{ id: 'flood-control', name: '大禹治水' },
+];
+
 @Entity('meta')
 export class MiMeta {
 	@PrimaryColumn({
@@ -575,6 +588,14 @@ export class MiMeta {
 		default: '{}',
 	})
 	public serverRules: string[];
+
+	@Column('jsonb', {
+		default: DEFAULT_ARTICLE_CATEGORIES,
+	})
+	public articleCategories: { id: string; name: string }[];
+
+	@Column('varchar', { length: 100, array: true, default: '{}' })
+	public articleTags: string[];
 
 	@Column('varchar', {
 		length: 8192,

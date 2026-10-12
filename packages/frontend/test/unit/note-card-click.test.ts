@@ -33,6 +33,12 @@ describe('note card navigation', () => {
 		expect(navigate).toHaveBeenCalledOnce();
 	});
 
+	test('opens the card from plain formatted body text', () => {
+		const { root, navigate } = card('<span class="_mfm">Text <strong>with formatting</strong></span>');
+		click(root.querySelector('strong')!);
+		expect(navigate).toHaveBeenCalledOnce();
+	});
+
 	test.each([
 		'<a href="/users/example"><span>Profile</span></a>',
 		'<a><span>Poll results</span></a>',
@@ -46,9 +52,11 @@ describe('note card navigation', () => {
 		'<span tabindex="0">Focusable</span>',
 		'<div contenteditable="true"><span>Editor</span></div>',
 		'<div data-note-interactive><ul><li>Poll</li></ul></div>',
+		'<footer data-note-interactive><span><i class="ti ti-chart-bar"></i></span></footer>',
+		'<footer data-note-interactive><span><span>128</span></span></footer>',
+		'<footer data-note-interactive><div></div></footer>',
 		'<div data-note-card><p>Nested note</p></div>',
 		'<details><summary>Expand</summary></details>',
-		'<span class="_mfm">Text <strong>with formatting</strong></span>',
 		'<pre><code>const value = 1;</code></pre>',
 		'<code>inline code</code>',
 	])('preserves existing interactive content: %s', html => {
@@ -77,7 +85,13 @@ describe('note card navigation', () => {
 		expect(navigate).not.toHaveBeenCalled();
 	});
 
-	test.each([{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }, { button: 2 }, { detail: 2 }])('ignores modified and nonprimary clicks: %j', options => {
+	test.each([{ ctrlKey: true }, { metaKey: true }, { button: 1 }])('allows a separate detail tab from the inert surface: %j', options => {
+		const { root, navigate } = card('Text');
+		click(root, options);
+		expect(navigate).toHaveBeenCalledOnce();
+	});
+
+	test.each([{ shiftKey: true }, { altKey: true }, { button: 2 }, { detail: 2 }])('ignores other modified and nonprimary clicks: %j', options => {
 		const { root, navigate } = card('Text');
 		click(root, options);
 		expect(navigate).not.toHaveBeenCalled();

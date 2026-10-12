@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div ref="prefixEl" :class="$style.prefix"><slot name="prefix"></slot></div>
 		<input
 			ref="inputEl"
-			v-model="v"
+			v-model="displayValue"
 			v-adaptive-border
 			:class="$style.inputCore"
 			:type="pickerType ? 'text' : type"
@@ -19,6 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:readonly="readonly || pickerType != null"
 			:aria-label="pickerType && !$slots.label ? i18n.ts._datePicker.title : undefined"
 			:aria-expanded="pickerType ? pickerOpen : undefined"
+			:aria-haspopup="pickerType ? 'dialog' : undefined"
 			:placeholder="placeholder"
 			:aria-labelledby="$slots.label ? `${id}-label` : undefined"
 			:maxlength="maxLength"
@@ -40,12 +41,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@input="onInput"
 		>
 		<MkEmojiInputOverlay v-if="emojiOverlay" :inputElement="inputEl" :text="typeof v === 'string' ? v : null"/>
+		<span v-if="counterLimit != null" class="_inputCounter" :class="[$style.counter, { _inputCounterOver: textLength > counterLimit }]">{{ textLength }} / {{ counterLimit }}</span>
 		<datalist v-if="datalist" :id="id">
 			<option v-for="data in datalist" :key="data" :value="data"></option>
 		</datalist>
-		<div ref="suffixEl" :class="$style.suffix"><slot name="suffix"></slot><button v-if="pickerType" type="button" class="_button" :disabled="disabled || readonly" :aria-label="i18n.ts._datePicker.title" :aria-expanded="pickerOpen" @click="pickerOpen ? closePicker() : openPicker()"><i class="ti ti-calendar" aria-hidden="true"></i></button></div>
+		<div ref="suffixEl" :class="$style.suffix"><slot name="suffix"></slot><button v-if="pickerType" type="button" class="_button _iconButton" :disabled="disabled || readonly" :aria-label="i18n.ts._datePicker.title" :aria-expanded="pickerOpen" @click="pickerOpen ? closePicker() : openPicker()"><i class="ti ti-calendar" aria-hidden="true"></i></button></div>
 	</div>
-	<MkDatePicker v-if="pickerType && pickerOpen && !disabled && !readonly" :modelValue="String(v ?? '')" :type="pickerType" :min="min" :max="max" :step="step" @update:modelValue="selectDate" @close="closePicker"/>
+	<Teleport to="body">
+		<MkModal v-if="pickerType && pickerOpen" ref="pickerModal" v-slot="{ maxHeight }" :anchorElement="inputEl" :returnFocusTo="inputEl" preferType="popup" align="left" transparentBg hasInteractionWithOtherFocusTrappedEls @click="closePicker" @esc="closePicker" @closed="onPickerClosed">
+			<MkDatePicker class="_popup _shadow" :class="$style.pickerPanel" :style="{ maxHeight: maxHeight != null ? `${maxHeight}px` : undefined }" role="dialog" aria-modal="true" :modelValue="String(v ?? '')" :type="pickerType" :min="min" :max="max" :step="step" @update:modelValue="selectDate" @close="closePicker"/>
+		</MkModal>
+	</Teleport>
 	<div :class="$style.caption"><slot name="caption"></slot></div>
 
 	<MkButton v-if="manualSave && !saveOnLeave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
@@ -61,16 +67,20 @@ type ModelValueType<T extends SupportedTypes> =
 </script>
 
 <script lang="ts" setup generic="T extends SupportedTypes = 'text'">
-import { onMounted, onUnmounted, nextTick, ref, useTemplateRef, watch, computed, toRefs } from 'vue';
+import { onMounted, onUnmounted, nextTick, ref, useTemplateRef, watch, computed, toRefs, defineAsyncComponent } from 'vue';
 import { throttle, debounce } from 'throttle-debounce';
 import type { InputHTMLAttributes } from 'vue';
 import type { SuggestionType } from '@/utility/autocomplete.js';
 import MkButton from '@/components/MkButton.vue';
 import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
 import MkDatePicker from '@/components/MkDatePicker.vue';
+import { versatileLang } from '@@/js/intl-const.js';
 import { i18n } from '@/i18n.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
 import { genId } from '@/utility/id.js';
+
+// 弹层间接依赖输入组件，延迟加载避免初始化时形成循环依赖。
+const MkModal = defineAsyncComponent(() => import('@/components/MkModal.vue').then(module => module.default));
 
 const props = defineProps<{
 	modelValue: ModelValueType<T> | null;
@@ -91,6 +101,7 @@ const props = defineProps<{
 	min?: InputHTMLAttributes['min'];
 	max?: InputHTMLAttributes['max'];
 	maxLength?: number;
+	counterMaxLength?: number;
 	inline?: boolean;
 	debounce?: boolean | number;
 	throttle?: boolean | number;
@@ -110,24 +121,54 @@ const emit = defineEmits<{
 
 const { modelValue } = toRefs(props);
 const v = ref<ModelValueType<T> | null>(modelValue.value);
+const textLength = computed(() => Array.from(String(v.value ?? '')).length);
+const counterLimit = computed(() => {
+	const limit = props.counterMaxLength ?? props.maxLength;
+	return ['text', 'password', 'email', 'url', 'tel', 'search'].includes(props.type ?? 'text')
+		&& limit != null && Number.isInteger(limit) && limit >= 0 ? limit : null;
+});
 const id = genId();
 const focused = ref(false);
 const pickerOpen = ref(false);
+const pickerModal = useTemplateRef('pickerModal');
 const pickerType = computed(() => props.type === 'date' ? 'date' : props.type === 'datetime-local' ? 'datetime-local' : props.type === 'time' ? 'time' : null);
+const displayValue = computed({
+	get: () => {
+		if (!pickerType.value || !v.value) return v.value;
+		const raw = String(v.value);
+		const date = new Date(pickerType.value === 'date' ? `${raw}T12:00:00` : pickerType.value === 'time' ? `2000-01-01T${raw}` : raw);
+		if (!Number.isFinite(date.getTime())) return raw;
+		return new Intl.DateTimeFormat(versatileLang, {
+			...(pickerType.value !== 'time' ? { year: 'numeric', month: '2-digit', day: '2-digit' } as const : {}),
+			...(pickerType.value !== 'date' ? { hour: '2-digit', minute: '2-digit', ...(raw.split('T').at(-1)?.split(':').length === 3 ? { second: '2-digit' } as const : {}) } as const : {}),
+		}).format(date);
+	},
+	set: value => { if (!pickerType.value) v.value = value as ModelValueType<T> | null; },
+});
 
 function openPicker() {
 	if (pickerType.value && !props.disabled && !props.readonly) pickerOpen.value = true;
 }
 
 function closePicker() {
+	if (pickerModal.value) pickerModal.value.close();
+	else onPickerClosed();
+}
+
+function onPickerClosed() {
 	pickerOpen.value = false;
 	focus();
 }
 
 function selectDate(value: string) {
+	if (props.disabled || props.readonly) return;
 	v.value = value as ModelValueType<T>;
 	onInput(new InputEvent('input'));
 }
+
+watch(() => props.disabled || props.readonly, locked => {
+	if (locked && pickerOpen.value) closePicker();
+});
 
 const changed = ref(false);
 const composing = ref(false);
@@ -257,7 +298,7 @@ watch(v, () => {
 	}
 
 	invalid.value = inputEl.value?.validity.badInput ?? true;
-});
+}, { flush: 'sync' });
 
 watch([changed, invalid], ([newChanged, newInvalid]) => {
 	emit('savingStateChange', newChanged, newInvalid);
@@ -298,6 +339,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+	throttledUpdated.cancel();
+	debouncedUpdated.cancel();
 	paddingObserver?.disconnect();
 	paddingObserver = null;
 
@@ -312,6 +355,12 @@ defineExpose({
 </script>
 
 <style lang="scss" module>
+.pickerPanel {
+	width: min(296px, calc(100vw - 32px));
+	margin: 0;
+	overflow: auto;
+}
+
 .label {
 	font-size: 0.85em;
 	padding: 0 0 8px 0;
@@ -384,6 +433,14 @@ defineExpose({
 		border-color: var(--MI_THEME-accent) !important;
 		outline: none;
 	}
+}
+
+.counter {
+	max-width: calc(100% - 24px);
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	text-align: right;
 }
 
 .prefix,

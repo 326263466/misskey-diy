@@ -168,6 +168,19 @@ export class MiDriveFile {
 	})
 	public maybePorn: boolean;
 
+	@Column('boolean', { default: false })
+	public isManaged: boolean;
+
+	@Column('boolean', { default: true })
+	public isPinned: boolean;
+
+	@Index('IDX_drive_file_cleanup_at')
+	@Column('timestamp with time zone', { nullable: true })
+	public cleanupAt: Date | null;
+
+	@Column('timestamp with time zone', { nullable: true })
+	public deletingAt: Date | null;
+
 	/**
 	 * 外部の(信頼されていない)URLへの直リンクか否か
 	 */

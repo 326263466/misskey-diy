@@ -25,6 +25,8 @@ import { CheckinRedemptionService } from '@/core/CheckinRedemptionService.js';
 import { MiCheckinRedemptionCode } from '@/models/CheckinRedemptionCode.js';
 import { MiCheckinRedemptionClaim } from '@/models/CheckinRedemptionClaim.js';
 import { MiModerationLog } from '@/models/ModerationLog.js';
+import { WalletService } from '@/core/WalletService.js';
+import { MiWallet } from '@/models/Wallet.js';
 
 describe('check-in database persistence', () => {
 	let db: DataSource;
@@ -41,8 +43,13 @@ describe('check-in database persistence', () => {
 		const id = `checkin-test-${String(serial++).padStart(6, '0')}`;
 		await db.getRepository(MiUser).insert({ id, username: id, usernameLower: id, ...overrides });
 		await db.getRepository(MiUserProfile).insert({ userId: id });
+		await db.getRepository(MiWallet).insert({ userId: id, balance: 0, reservedBalance: 0 });
 		userIds.push(id);
 		return db.getRepository(MiUser).findOneByOrFail({ id });
+	}
+
+	async function setPoints(userId: string, points: number): Promise<void> {
+		await db.getRepository(MiWallet).update({ userId }, { balance: points, reservedBalance: 0 });
 	}
 
 	async function seedStreak(userId: string, start: string, days: number, rewardConsumed = false): Promise<void> {
@@ -61,8 +68,8 @@ describe('check-in database persistence', () => {
 		moderationLog = new ModerationLogService(db.getRepository(MiModerationLog) as never, new IdService({ id: 'aidx' } as never));
 		service = new CheckinService(db, db.getRepository(MiUserCheckin) as never, db.getRepository(MiUserProfile) as never, achievements, {
 			packMany: async (ids: string[]) => ids.map(id => ({ id })),
-		} as never, { parse: () => ({ date: registeredAt }), gen: new IdService({ id: 'aidx' } as never).gen } as never, moderationLog);
-		redemptions = new CheckinRedemptionService(db, service, new IdService({ id: 'aidx' } as never), { packMany: async (users: MiUser[]) => users.map(user => ({ id: user.id })) } as never);
+		} as never, { parse: () => ({ date: registeredAt }), gen: new IdService({ id: 'aidx' } as never).gen } as never, moderationLog, new WalletService(db, new IdService({ id: 'aidx' } as never)));
+		redemptions = new CheckinRedemptionService(db, service, new WalletService(db, new IdService({ id: 'aidx' } as never)), new IdService({ id: 'aidx' } as never), { packMany: async (users: MiUser[]) => users.map(user => ({ id: user.id })) } as never);
 	});
 	beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }).setSystemTime(new Date('2026-09-28T04:00:00Z')); notification.createNotification.mockClear(); registeredAt = new Date('2024-02-28T16:00:00Z'); });
 	afterEach(async () => {
@@ -215,7 +222,8 @@ describe('check-in database persistence', () => {
 
 	test('legacy and exchange cards cannot be reclaimed, and historical balances are consumed before new grants', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 1, checkinPoints: 60 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 1 });
+		await setPoints(me.id, 60);
 		await service.grantCards(me.id, 1, me);
 		await service.exchange(me.id, randomUUID());
 		const batches = await db.getRepository(MiUserCheckinCardBatch).find({ where: { userId: me.id }, order: { createdAt: 'ASC', id: 'ASC' } });
@@ -344,7 +352,7 @@ describe('check-in database persistence', () => {
 	test('does not revive the reward progress of an expired historical streak', async () => {
 		const me = await user();
 		await db.getRepository(MiUserCheckin).insert(Array.from({ length: 7 }, (_, index) => ({ userId: me.id, date: `2026-09-${index + 10}`, createdAt: new Date(), isMakeup: false, totalDays: index + 1, consecutiveDays: index + 1 })));
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 7 });
+		await setPoints(me.id, 7);
 		expect(await service.getStatus(me.id)).toMatchObject({ makeupCards: 0, makeupCardProgress: 0 });
 		expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCards: 0, makeupCardProgress: 1 });
 	});
@@ -421,7 +429,8 @@ describe('check-in database persistence', () => {
 		const me = await user();
 		const continuing = await user();
 		await seedStreak(continuing.id, '2026-08-02', 59);
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 777, checkinMakeupCards: 9 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 9 });
+		await setPoints(me.id, 777);
 		const lengths = [29, 30, 31, 59, 60];
 		let start = new Date('2025-01-01T00:00:00Z');
 		for (const days of lengths) {
@@ -447,7 +456,8 @@ describe('check-in database persistence', () => {
 				offset += days;
 			}
 			expect(migrated.map(({ rewardConsumed: _consumed, ...record }) => record)).toEqual(original.map(({ rewardConsumed: _consumed, ...record }) => record));
-			expect(await runner.manager.findOneByOrFail(MiUserProfile, { userId: me.id })).toMatchObject({ checkinPoints: 777, checkinMakeupCards: 9 });
+			expect(await runner.manager.findOneByOrFail(MiUserProfile, { userId: me.id })).toMatchObject({ checkinMakeupCards: 9 });
+			expect(await runner.manager.findOneByOrFail(MiWallet, { userId: me.id })).toMatchObject({ balance: 777 });
 			await migration.down(runner);
 			expect(await runner.hasColumn('user_checkin', 'rewardConsumed')).toBe(false);
 			expect(await runner.query('SELECT COUNT(*)::integer AS count FROM user_checkin WHERE "userId" = $1', [me.id])).toEqual([{ count: lengths.reduce((sum, length) => sum + length, 0) }]);
@@ -502,7 +512,7 @@ describe('check-in database persistence', () => {
 
 	test('monthly exchange quota changes at Shanghai midnight and old retries do not consume the new month', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 180 });
+		await setPoints(me.id, 180);
 		vi.setSystemTime(new Date('2026-09-30T15:59:59.999Z'));
 		const requestId = randomUUID();
 		await service.exchange(me.id, requestId);
@@ -529,7 +539,7 @@ describe('check-in database persistence', () => {
 
 	test('exchanges points once for concurrent retries and returns current balances for a later retry', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 120 });
+		await setPoints(me.id, 120);
 		const requestId = randomUUID();
 		const results = await Promise.all(Array.from({ length: 16 }, () => service.exchange(me.id, requestId)));
 		expect(results.filter(result => result.exchanged)).toHaveLength(1);
@@ -543,7 +553,7 @@ describe('check-in database persistence', () => {
 
 	test('different concurrent exchanges cannot exceed the monthly quota', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 120 });
+		await setPoints(me.id, 120);
 		const results = await Promise.allSettled([service.exchange(me.id, randomUUID()), service.exchange(me.id, randomUUID())]);
 		expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
 		expect(results.find(result => result.status === 'rejected')).toMatchObject({ reason: expect.any(CheckinService.MonthlyExchangeLimitError) });
@@ -553,14 +563,15 @@ describe('check-in database persistence', () => {
 
 	test('exchange, actual check-in, makeup and administrator grants preserve all balance changes', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 60, checkinMakeupCards: 1 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 1 });
+		await setPoints(me.id, 60);
 		await Promise.all([service.exchange(me.id, randomUUID()), service.checkin(me.id), service.makeup(me.id, '2026-09-27'), service.grantCards(me.id, 1, me)]);
 		expect(await service.getStatus(me.id)).toMatchObject({ points: 1, makeupCards: 2, totalDays: 2, makeupCardProgress: 1 });
 	});
 
 	test('a failed ledger insertion rolls back both exchanged balances and lets the same request retry', async () => {
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 60 });
+		await setPoints(me.id, 60);
 		await db.query(`CREATE FUNCTION checkin_exchange_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test exchange failure'; END $$`);
 		await db.query(`CREATE TRIGGER checkin_exchange_fail BEFORE INSERT ON user_checkin_exchange FOR EACH ROW EXECUTE FUNCTION checkin_exchange_fail()`);
 		const requestId = randomUUID();
@@ -581,10 +592,11 @@ describe('check-in database persistence', () => {
 			await expect(service.exchange(invalid.id, randomUUID())).rejects.toBeInstanceOf(CheckinService.NotAllowedError);
 		}
 		const me = await user();
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 59 });
+		await setPoints(me.id, 59);
 		await expect(service.exchange(me.id, randomUUID())).rejects.toBeInstanceOf(CheckinService.InsufficientPointsError);
 		expect(await service.getStatus(me.id)).toMatchObject({ points: 59, makeupCards: 0, makeupCardExchangeAvailable: true });
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinPoints: 60, checkinMakeupCards: 3 });
+		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 3 });
+		await setPoints(me.id, 60);
 		await expect(service.exchange(me.id, randomUUID())).rejects.toBeInstanceOf(CheckinService.CardLimitError);
 		expect(await service.getStatus(me.id)).toMatchObject({ points: 60, makeupCards: 3 });
 	});

@@ -3,14 +3,15 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { CONTENT_LIMITS } from 'misskey-js';
 import UpdateEndpoint from '@/server/api/endpoints/i/update.js';
 import { getUserOnlineStatus } from '@/misc/user-online-status.js';
 import type { MiLocalUser } from '@/models/User.js';
 
 function createFixture(hideOnlineStatus = false) {
 	const user = { id: 'alice', username: 'alice', name: null, isLocked: false, hideOnlineStatus, onlineStatusOverride: 'online', onlineStatusAutoReplies: {}, customStatus: null, lastActiveDate: new Date() } as MiLocalUser;
-	const profile = { description: null, followedMessage: null, company: null as string | null, jobTitle: null as string | null, fields: [{ name: 'Website', value: 'https://example.test' }], verifiedLinks: ['https://example.test'] };
+	const profile = { description: null, followedMessage: null, company: null as string | null, jobTitle: null as string | null, birthday: null as string | null, fields: [{ name: 'Website', value: 'https://example.test' }], verifiedLinks: ['https://example.test'] };
 	const users = {
 		findOneByOrFail: vi.fn(async () => ({ ...user })),
 		update: vi.fn(async (_id, updates) => Object.assign(user, updates)),
@@ -65,6 +66,22 @@ function createFixture(hideOnlineStatus = false) {
 }
 
 describe('i/update professional profile', () => {
+	test('按码点限制简介和资料字段，并允许原有超限内容保持不变', async () => {
+		const fixture = createFixture();
+		const description = '😀'.repeat(CONTENT_LIMITS.profileDescription);
+		await fixture.exec({ description });
+		expect(fixture.profile.description).toBe(description);
+		await expect(fixture.exec({ description: `${description}a` })).rejects.toMatchObject({ code: 'CONTENT_TOO_LONG' });
+		const fields = [{ name: '名'.repeat(CONTENT_LIMITS.profileFieldName), value: '😀'.repeat(CONTENT_LIMITS.profileFieldValue) }];
+		await fixture.exec({ fields });
+		expect(fixture.profile.fields).toEqual(fields);
+		await expect(fixture.exec({ fields: [{ ...fields[0], name: `${fields[0].name}a` }] })).rejects.toMatchObject({ code: 'CONTENT_TOO_LONG' });
+		await expect(fixture.exec({ fields: [{ ...fields[0], value: `${fields[0].value}a` }] })).rejects.toMatchObject({ code: 'CONTENT_TOO_LONG' });
+		Object.assign(fixture.profile, { description: '旧'.repeat(1000), fields: [{ name: '名'.repeat(60), value: '旧'.repeat(1200) }] });
+		await fixture.exec({ description: fixture.profile.description, fields: fixture.profile.fields, company: '新公司' });
+		expect(fixture.profile).toMatchObject({ description: '旧'.repeat(1000), company: '新公司', fields: [{ name: '名'.repeat(60), value: '旧'.repeat(1200) }] });
+	});
+
 	test('trims company and job title while preserving the existing custom profile fields', async () => {
 		const fixture = createFixture();
 		const fields = [...fixture.profile.fields];
@@ -110,6 +127,41 @@ describe('i/update professional profile', () => {
 		expect(fixture.profile).toMatchObject({ company: 'Example', jobTitle: 'Designer' });
 		expect(fixture.profiles.update.mock.calls[0][1]).not.toHaveProperty('company');
 		expect(fixture.profiles.update.mock.calls[0][1]).not.toHaveProperty('jobTitle');
+	});
+});
+
+describe('i/update birthday', () => {
+	beforeEach(() => {
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(new Date(2026, 9, 7, 0, 0, 0));
+	});
+	afterEach(() => { vi.useRealTimers(); });
+
+	test.each(['2026-10-08', '9999-12-31', '2025-02-29', '1900-02-29', '2000-04-31', '0000-00-00', '2000-13-01', '2000-01-00'])('拒绝非法或未来生日 %s，且不写入资料或其他账户字段', async birthday => {
+		const fixture = createFixture();
+		fixture.profile.birthday = '2000-02-29';
+		await expect(fixture.exec({ birthday, name: 'Changed', onlineStatusOverride: 'busy' })).rejects.toMatchObject({ code: 'INVALID_PARAM', info: { param: '#/properties/birthday' } });
+		expect(fixture.profile.birthday).toBe('2000-02-29');
+		expect(fixture.profiles.update).not.toHaveBeenCalled();
+		expect(fixture.users.update).not.toHaveBeenCalled();
+		expect(fixture.users.createQueryBuilder).not.toHaveBeenCalled();
+	});
+
+	test.each(['2026-10-07', '2000-02-29', '0000-01-01', null])('允许今天、历史有效日期和清空生日：%s', async birthday => {
+		const fixture = createFixture();
+		fixture.profile.birthday = '1990-01-01';
+		await fixture.exec({ birthday });
+		expect(fixture.profile.birthday).toBe(birthday);
+		expect(fixture.profiles.update).toHaveBeenCalledWith('alice', expect.objectContaining({ birthday }));
+	});
+
+	test('生日上限随服务器本地午夜切换，不把同一天的生日判为未来', async () => {
+		const fixture = createFixture();
+		vi.setSystemTime(new Date(2026, 9, 6, 23, 59, 59));
+		await expect(fixture.exec({ birthday: '2026-10-07' })).rejects.toMatchObject({ code: 'INVALID_PARAM' });
+		vi.setSystemTime(new Date(2026, 9, 7, 0, 0, 0));
+		await fixture.exec({ birthday: '2026-10-07' });
+		expect(fixture.profile.birthday).toBe('2026-10-07');
 	});
 });
 

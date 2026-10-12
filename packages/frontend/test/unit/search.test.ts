@@ -5,17 +5,21 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/vue';
-import { h, nextTick, reactive, Suspense } from 'vue';
+import { effectScope, h, nextTick, reactive, ref, Suspense } from 'vue';
 import type { Component } from 'vue';
 import Search from '@/pages/search.vue';
 import NoteSearch from '@/pages/search.note.vue';
 import UserSearch from '@/pages/search.user.vue';
+import ChatSearch from '@/pages/chat/room.search.vue';
+import ChatPanel from '@/pages/chat/room.panel.vue';
 import { i18n } from '@/i18n.js';
 import type { IPaginator } from '@/utility/paginator.js';
+import { useSearchQuery } from '@/composables/use-search-query.js';
 
 const mocks = vi.hoisted(() => ({
 	api: vi.fn(), popupMenu: vi.fn(), confirm: vi.fn(), lookup: vi.fn(), selectUser: vi.fn(),
 	push: vi.fn(), pushByPath: vi.fn(),
+	closeModal: vi.fn(),
 	permissions: { notesSearchAvailable: true, usersSearchAvailable: true },
 }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
@@ -42,6 +46,16 @@ vi.mock('@/components/MkFoldableSection.vue', () => ({ default: {
 	template: '<section><header><slot name="header"/></header><slot/></section>',
 } }));
 vi.mock('@/components/MkUserCardMini.vue', () => ({ default: { template: '<div/>' } }));
+vi.mock('@/pages/chat/room.info.vue', () => ({ default: {
+	props: ['room'],
+	emits: ['updated', 'close'],
+	template: '<div><button @click="$emit(\'updated\', room)">更新群状态</button><button @click="$emit(\'close\')">完成群修改</button></div>',
+} }));
+vi.mock('@/components/MkModalWindow.vue', () => ({ default: {
+	emits: ['closed'],
+	setup() { return { close: mocks.closeModal }; },
+	template: '<div><slot/><button @click="$emit(\'closed\')">完成关闭</button></div>',
+} }));
 vi.mock('@/components/MkInfo.vue', () => ({ default: { template: '<div><slot/></div>' } }));
 vi.mock('@/components/MkNotesTimeline.vue', () => ({ default: {
 	props: ['paginator', 'withControl'],
@@ -97,12 +111,64 @@ beforeEach(() => {
 	mocks.selectUser.mockResolvedValue({ id: 'selected-user', username: 'selected', host: null });
 });
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	vi.useRealTimers();
+});
 
 const cases = [
 	{ type: 'note', component: NoteSearch, endpoint: 'notes/search' },
 	{ type: 'user', component: UserSearch, endpoint: 'users/search' },
 ];
+
+test('delays only remote search parameters and restores cleared results immediately', () => {
+	vi.useFakeTimers();
+	const scope = effectScope();
+	const input = ref('');
+	const query = scope.run(() => useSearchQuery(input))!;
+	input.value = '中';
+	expect(input.value).toBe('中');
+	expect(query.value).toBe('');
+	vi.advanceTimersByTime(200);
+	input.value = '中文';
+	vi.advanceTimersByTime(200);
+	expect(query.value).toBe('');
+	vi.advanceTimersByTime(50);
+	expect(query.value).toBe('中文');
+	input.value = '中文搜索';
+	input.value = '';
+	expect(query.value).toBe('');
+	vi.advanceTimersByTime(250);
+	expect(query.value).toBe('');
+	scope.stop();
+});
+
+test('cancels delayed search parameters when the view is disposed', () => {
+	vi.useFakeTimers();
+	const scope = effectScope();
+	const input = ref<string | null>(null);
+	const query = scope.run(() => useSearchQuery(input))!;
+	input.value = 'unmounted';
+	scope.stop();
+	vi.advanceTimersByTime(250);
+	expect(query.value).toBeNull();
+});
+
+test('keeps user results visible while the note tab resolves its user filter', async () => {
+	const selectedUser = Promise.withResolvers<{ id: string; username: string; host: null }>();
+	mocks.api.mockImplementation((endpoint: string) => endpoint === 'users/show' ? selectedUser.promise : Promise.resolve([]));
+	const view = await renderSearch(Search, { query: 'keyword', type: 'user', userId: 'alice' });
+	const users = view.getByTestId('user-results');
+
+	await fireEvent.click(view.getByRole('button', { name: i18n.ts.notes }));
+	await waitFor(() => expect(mocks.api).toHaveBeenCalledWith('users/show', { userId: 'alice' }));
+	expect(view.getByTestId('user-results')).toBe(users);
+	expect(view.queryByTestId('note-results')).toBeNull();
+
+	selectedUser.resolve({ id: 'alice', username: 'alice', host: null });
+	await waitFor(() => expect(view.getByTestId('note-results')).toBeTruthy());
+	expect(view.queryByTestId('user-results')).toBeNull();
+});
 
 describe.each(cases)('$type 搜索提交', ({ type, component, endpoint }) => {
 	test('带关键词进入结果页立即加载一次，展示关键词而非二次搜索入口', async () => {
@@ -354,9 +420,139 @@ test('更改排序字段或方向时替换旧结果并重置分页', async () =>
 });
 
 async function chooseSort(view: ReturnType<typeof render>, label: string, value: string) {
-	await fireEvent.click(view.getByRole('button', { name: label, exact: true }));
+	await fireEvent.click(view.getByRole('button', { name: label }));
 	const text = ({ time: i18n.ts._search.sortByTime, popularity: i18n.ts._search.sortByPopularity, desc: i18n.ts.descendingOrder, asc: i18n.ts.ascendingOrder } as Record<string, string>)[value];
 	mocks.popupMenu.mock.lastCall![0].find((item: { text: string }) => item.text === text).action();
 	mocks.popupMenu.mock.lastCall![2].onClosing();
 	await nextTick();
 }
+
+const chatSearchStubs = {
+	MkAvatar: { template: '<span/>' },
+	MkUserName: { props: ['user'], template: '<span>{{ user.name || user.username }}</span>' },
+	MkTime: { props: ['time'], template: '<time>{{ time }}</time>' },
+	Mfm: { props: ['text'], template: '<span>{{ text }}</span>' },
+	MkLoading: { template: '<div role="status">加载中</div>' },
+	MkResult: { props: ['type'], template: '<div role="status">{{ type }}</div>' },
+	MkError: { emits: ['retry'], template: '<button @click="$emit(\'retry\')">重试</button>' },
+};
+
+function chatMessage(id: string, text = id) {
+	return {
+		id,
+		text,
+		createdAt: '2026-10-05T00:00:00Z',
+		fromUser: { id: 'sender', username: 'sender', name: '发送者', emojis: {} },
+	};
+}
+
+function deferredChatSearch() {
+	let resolve!: (messages: ReturnType<typeof chatMessage>[]) => void;
+	const promise = new Promise<ReturnType<typeof chatMessage>[]>(done => { resolve = done; });
+	return { promise, resolve };
+}
+
+describe('聊天实时搜索', () => {
+	beforeEach(() => { vi.useFakeTimers(); });
+
+	test('输入停顿后搜索最新关键词，回车立即执行且不重复提交', async () => {
+		const view = render(ChatSearch, { props: { roomId: 'room' }, global: { stubs: chatSearchStubs } });
+		const input = view.getByRole('searchbox');
+		expect(mocks.api).not.toHaveBeenCalled();
+		await fireEvent.update(input, 'first');
+		await vi.advanceTimersByTimeAsync(100);
+		await fireEvent.update(input, '  latest  ');
+		await vi.advanceTimersByTimeAsync(149);
+		expect(mocks.api).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		expect(mocks.api).toHaveBeenCalledExactlyOnceWith('chat/messages/search', { query: 'latest', roomId: 'room', userId: undefined, limit: 50 }, undefined, expect.any(AbortSignal));
+		await fireEvent.update(input, 'immediate');
+		await fireEvent.keyDown(input, { key: 'Enter' });
+		expect(mocks.api).toHaveBeenCalledTimes(2);
+		expect(mocks.api).toHaveBeenLastCalledWith('chat/messages/search', expect.objectContaining({ query: 'immediate' }), undefined, expect.any(AbortSignal));
+		await vi.advanceTimersByTimeAsync(300);
+		expect(mocks.api).toHaveBeenCalledTimes(2);
+	});
+
+	test('变更关键词立即取消旧请求，延迟返回的旧结果不能覆盖新结果', async () => {
+		const oldSearch = deferredChatSearch();
+		mocks.api.mockReturnValueOnce(oldSearch.promise).mockResolvedValueOnce([chatMessage('new-result')]);
+		const view = render(ChatSearch, { props: { userId: 'user' }, global: { stubs: chatSearchStubs } });
+		await fireEvent.update(view.getByRole('searchbox'), 'old');
+		await vi.advanceTimersByTimeAsync(300);
+		const oldSignal = mocks.api.mock.calls[0][3] as AbortSignal;
+		await fireEvent.update(view.getByRole('searchbox'), 'new');
+		expect(oldSignal.aborted).toBe(true);
+		await vi.advanceTimersByTimeAsync(300);
+		expect(view.getByText('new-result')).toBeTruthy();
+		oldSearch.resolve([chatMessage('old-result')]);
+		await vi.advanceTimersByTimeAsync(0);
+		expect(view.queryByText('old-result')).toBeNull();
+		expect(view.getByText('new-result')).toBeTruthy();
+		expect(mocks.api).toHaveBeenLastCalledWith('chat/messages/search', { query: 'new', userId: 'user', roomId: undefined, limit: 50 }, undefined, expect.any(AbortSignal));
+	});
+
+	test('清空输入移除结果并取消在途请求，空白和回车都不发请求', async () => {
+		const pendingSearch = deferredChatSearch();
+		mocks.api.mockResolvedValueOnce([chatMessage('visible-result')]).mockReturnValueOnce(pendingSearch.promise);
+		const view = render(ChatSearch, { props: { roomId: 'room' }, global: { stubs: chatSearchStubs } });
+		const input = view.getByRole('searchbox');
+		await fireEvent.update(input, 'visible');
+		await vi.advanceTimersByTimeAsync(300);
+		expect(view.getByText('visible-result')).toBeTruthy();
+		await fireEvent.update(input, '');
+		expect(view.queryByText('visible-result')).toBeNull();
+		await fireEvent.update(input, 'pending');
+		await vi.advanceTimersByTimeAsync(300);
+		const signal = mocks.api.mock.calls[1][3] as AbortSignal;
+		await fireEvent.update(input, '   ');
+		expect(signal.aborted).toBe(true);
+		await fireEvent.keyDown(input, { key: 'Enter' });
+		pendingSearch.resolve([chatMessage('late-result')]);
+		await vi.advanceTimersByTimeAsync(300);
+		expect(mocks.api).toHaveBeenCalledTimes(2);
+		expect(view.queryByText('late-result')).toBeNull();
+		expect(view.queryByRole('region', { name: i18n.ts.searchResult })).toBeNull();
+	});
+
+	test('请求失败可按当前关键词重试', async () => {
+		mocks.api.mockRejectedValueOnce(new Error('search failed')).mockResolvedValueOnce([chatMessage('retried-result')]);
+		const view = render(ChatSearch, { props: { roomId: 'room' }, global: { stubs: chatSearchStubs } });
+		await fireEvent.update(view.getByRole('searchbox'), 'retry');
+		await vi.advanceTimersByTimeAsync(300);
+		await fireEvent.click(view.getByRole('button', { name: '重试' }));
+		await vi.advanceTimersByTimeAsync(0);
+		expect(mocks.api).toHaveBeenCalledTimes(2);
+		expect(view.getByText('retried-result')).toBeTruthy();
+		expect(view.queryByRole('button', { name: '重试' })).toBeNull();
+	});
+
+	test('群状态更新不关闭弹窗，完成修改后关闭且等待动画结束再清理', async () => {
+		const currentRoom = { id: 'room', ownerId: 'self', name: 'Group' };
+		const view = render(ChatPanel, { props: { panel: 'info', room: currentRoom as never } });
+		await fireEvent.click(view.getByRole('button', { name: '更新群状态' }));
+		expect(view.emitted('updated')).toEqual([[currentRoom]]);
+		expect(mocks.closeModal).not.toHaveBeenCalled();
+		await fireEvent.click(view.getByRole('button', { name: '完成群修改' }));
+		expect(mocks.closeModal).toHaveBeenCalledTimes(1);
+		expect(view.emitted('closed')).toBeUndefined();
+		await fireEvent.click(view.getByRole('button', { name: '完成关闭' }));
+		expect(view.emitted('closed')).toEqual([[]]);
+	});
+
+	test('点击摘要先关闭弹层，关闭动画结束后依次传递消息 ID 和关闭事件', async () => {
+		mocks.api.mockResolvedValue([chatMessage('selected-message', '命中的摘要')]);
+		const events: string[] = [];
+		const view = render(ChatPanel, {
+			props: { panel: 'search', roomId: 'room', onSelect: (id: string) => events.push(id), onClosed: () => events.push('closed') },
+			global: { stubs: chatSearchStubs },
+		});
+		await fireEvent.update(view.getByRole('searchbox'), 'keyword');
+		await vi.advanceTimersByTimeAsync(300);
+		await fireEvent.click(view.getByRole('button', { name: /命中的摘要/ }));
+		expect(mocks.closeModal).toHaveBeenCalledTimes(1);
+		expect(events).toEqual([]);
+		await fireEvent.click(view.getByRole('button', { name: '完成关闭' }));
+		expect(events).toEqual(['selected-message', 'closed']);
+	});
+});

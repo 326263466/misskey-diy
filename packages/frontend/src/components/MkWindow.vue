@@ -13,15 +13,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@afterLeave="emit('closed')"
 >
 	<div v-if="showing" ref="rootEl" :class="[$style.root, { [$style.maximized]: maximized }]">
-		<div :class="$style.body" class="_shadow" @pointerdown="onBodyPointerDown" @keydown="onKeydown">
+		<div :class="$style.body" class="_shadow" data-popup-boundary @pointerdown="onBodyPointerDown">
 			<div :class="[$style.header, { [$style.mini]: mini }]" @contextmenu.prevent.stop="onContextmenu">
 				<span :class="$style.headerLeft">
 					<template v-if="!minimized">
 						<button v-for="button in buttonsLeft" v-tooltip="button.title" class="_button" :class="[$style.headerButton, { [$style.highlighted]: button.highlighted }]" :aria-label="button.title" @click="button.onClick"><i :class="button.icon"></i></button>
 					</template>
 				</span>
-				<span :class="$style.headerTitle" @pointerdown.prevent="onHeaderPointerdown">
-					<slot name="header"></slot>
+				<span :class="$style.headerTitle" data-testid="window-title" @pointerdown.prevent="onHeaderPointerdown">
+					<i v-if="headerIcon" :class="[$style.titleIcon, headerIcon]" aria-hidden="true"></i>
+					<span :class="$style.titleLabel"><slot name="header"></slot></span>
 				</span>
 				<span :class="$style.headerRight">
 					<template v-if="!minimized">
@@ -54,6 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, provide, useTemplateRef, ref } from 'vue';
+import { usePopupDismissal } from '@/composables/use-popup-dismissal.js';
 import type { MenuItem } from '@/types/menu.js';
 import { elementContains } from '@/utility/element-contains.js';
 import * as os from '@/os.js';
@@ -106,10 +108,13 @@ function capturePointer(evt: PointerEvent) {
 }
 
 const props = withDefaults(defineProps<{
+	headerIcon?: string;
 	initialWidth?: number | null;
 	initialHeight?: number | null;
 	canResize?: boolean;
 	closeButton?: boolean;
+	/** 是否允许点击空白关闭，不影响 Esc 和关闭按钮。 */
+	closeOnBackdrop?: boolean;
 	mini?: boolean;
 	front?: boolean;
 	contextmenu?: MenuItem[] | null;
@@ -120,6 +125,7 @@ const props = withDefaults(defineProps<{
 	initialHeight: null,
 	canResize: false,
 	closeButton: true,
+	closeOnBackdrop: true,
 	mini: false,
 	front: false,
 	contextmenu: null,
@@ -153,13 +159,14 @@ function close() {
 	showing.value = false;
 }
 
-function onKeydown(evt: KeyboardEvent) {
-	if (evt.which === 27) { // Esc
-		evt.preventDefault();
-		evt.stopPropagation();
-		close();
-	}
-}
+usePopupDismissal({
+	element: () => rootEl.value,
+	isShowing: () => showing.value,
+	onEscape: close,
+	onClickOutside: () => {
+		if (props.closeOnBackdrop) close();
+	},
+});
 
 function onContextmenu(ev: PointerEvent) {
 	if (props.contextmenu) {
@@ -518,6 +525,8 @@ defineExpose({
 </script>
 
 <style lang="scss" module>
+@use '@/styles/window-header.scss' as window-header;
+
 .transition_window_enterActive,
 .transition_window_leaveActive {
 	transition: opacity 0.2s, transform 0.2s !important;
@@ -567,7 +576,7 @@ defineExpose({
 	background: var(--MI_THEME-windowHeader);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
-	//border-bottom: solid 1px var(--MI_THEME-divider);
+	//border-bottom: var(--MI-divider);
 	font-size: 90%;
 	font-weight: bold;
 
@@ -577,6 +586,7 @@ defineExpose({
 }
 
 .headerButton {
+	@include window-header.control;
 	height: var(--height);
 	width: var(--height);
 
@@ -590,26 +600,34 @@ defineExpose({
 }
 
 .headerLeft {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
 	margin-right: 16px;
 }
 
 .headerRight {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
 	min-width: 16px;
 }
 
 .headerTitle {
+	@include window-header.title;
 	flex: 1;
 	position: relative;
-	line-height: var(--height);
-	white-space: nowrap;
 	overflow: hidden;
-	text-overflow: ellipsis;
 	cursor: move;
 	touch-action: none;
+}
 
-	> i {
-		vertical-align: middle;
-	}
+.titleIcon {
+	@include window-header.icon;
+}
+
+.titleLabel {
+	@include window-header.label;
 }
 
 .content {

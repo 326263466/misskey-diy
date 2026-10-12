@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkButton :disabled="forwarded || moderating" :wait="forwarding" primary @click="forward"><i class="ti ti-corner-up-right"></i> {{ forwarded ? i18n.ts._abuseUserReport.forwarded : i18n.ts._abuseUserReport.forward }}</MkButton>
 				<div v-tooltip:dialog="i18n.ts._abuseUserReport.forwardDescription" class="_button _help"><i class="ti ti-help-circle"></i></div>
 			</template>
-			<button class="_button" :class="$style.more" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
+			<button class="_button _iconButton" :class="$style.more" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
 		</div>
 	</template>
 

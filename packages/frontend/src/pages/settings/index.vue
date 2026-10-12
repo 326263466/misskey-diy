@@ -44,7 +44,7 @@ import { store } from '@/store.js';
 import { genSearchIndexes } from '@/utility/inapp-search.js';
 import { enableStoragePersistence, getStoragePersistenceStatusRef, storagePersistenceSupported, skipStoragePersistence } from '@/utility/storage.js';
 import { signout } from '@/signout.js';
-import { useScrollPositionKeeper } from '@/composables/use-scroll-position-keeper.js';
+import { useScrollToTop } from '@/composables/use-scroll-to-top.js';
 
 const router = useRouter();
 // Keep this layout's route while asynchronous setup finishes after navigation.
@@ -63,7 +63,7 @@ const indexInfo = {
 };
 const INFO = ref<PageMetadata>(indexInfo);
 const el = useTemplateRef('el');
-useScrollPositionKeeper(el);
+useScrollToTop(el);
 const childInfo = ref<null | PageMetadata>(null);
 
 const NARROW_THRESHOLD = 600;
@@ -106,11 +106,6 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.security,
 		to: '/settings/security',
 		active: currentPage.value?.route.name === 'security',
-	}, {
-		icon: 'ti ti-wallet',
-		text: i18n.ts._wallet.title,
-		to: '/settings/wallet',
-		active: currentPage.value?.route.name === 'wallet',
 	}],
 }, {
 	items: [{
@@ -183,7 +178,7 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		},
 	}, {
 		type: 'button',
-		icon: 'ti ti-power',
+		icon: 'ti ti-logout',
 		text: i18n.ts.logout,
 		action: async () => {
 			const { canceled } = await os.confirm({

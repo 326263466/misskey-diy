@@ -10,6 +10,7 @@ import { Nirax } from '@/lib/nirax.js';
 import { ROUTE_DEF } from '@/router.definition.js';
 import { analytics } from '@/analytics.js';
 import { DI } from '@/di.js';
+import { navigateAfterPopupHistory, pushPageHistory, replacePageHistory } from '@/utility/popup-history.js';
 
 export type Router = Nirax<typeof ROUTE_DEF>;
 
@@ -24,19 +25,19 @@ window.addEventListener('popstate', (event) => {
 });
 
 mainRouter.addListener('push', ctx => {
-	window.history.pushState({ }, '', ctx.fullPath);
+	pushPageHistory(ctx.fullPath);
 });
 
 mainRouter.addListener('replace', ctx => {
-	window.history.replaceState({ }, '', ctx.fullPath);
+	replacePageHistory(ctx.fullPath);
 });
 
 mainRouter.addListener('forceReplace', ctx => {
-	window.location.replace(ctx.fullPath);
+	navigateAfterPopupHistory(() => window.location.replace(ctx.fullPath));
 });
 
 mainRouter.addListener('forcePush', ctx => {
-	window.location.href = ctx.fullPath;
+	navigateAfterPopupHistory(() => { window.location.href = ctx.fullPath; });
 });
 
 mainRouter.addListener('change', ctx => {

@@ -4,6 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import ms from 'ms';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { ChannelsRepository } from '@/models/_.js';
 import { ChannelEntityService } from '@/core/entities/ChannelEntityService.js';
@@ -14,6 +15,11 @@ export const meta = {
 	tags: ['channels'],
 
 	requireCredential: false,
+
+	limit: {
+		duration: ms('1min'),
+		max: 30,
+	},
 
 	res: {
 		type: 'object',

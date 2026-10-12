@@ -14,11 +14,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 			title: image.name,
 			class: $style.imageContainer,
 			href: image.url,
-			style: 'cursor: pointer;'
+			style: 'cursor: zoom-in;'
 		}"
 	>
 		<MkImgWithBlurhash
-			v-if="prefer.s.enableHighQualityImagePlaceholders"
+			v-if="prefer.s.enableHighQualityImagePlaceholders || !hide"
+			:useBlurhash="prefer.s.enableHighQualityImagePlaceholders"
 			:hash="image.blurhash"
 			:src="(prefer.s.dataSaver.media && hide) ? null : url"
 			:forceBlurhash="hide"
@@ -30,23 +31,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:style="hide ? 'filter: brightness(0.7);' : null"
 			:class="$style.image"
 			:marker="marker"
+			:loading="loading"
 			@error="onImageError"
 		/>
 		<div
-			v-else-if="hide"
+			v-else
 			:title="image.comment || image.name"
 			:style="hide ? 'background: #888;' : null"
 			:class="$style.image"
 		></div>
-		<img
-			v-else
-			:src="url"
-			:alt="image.comment || image.name"
-			:title="image.comment || image.name"
-			:class="$style.image"
-			:data-marker="marker"
-			@error="onImageError"
-		/>
 	</component>
 	<template v-if="hide">
 		<div :class="$style.hiddenText">
@@ -63,8 +56,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-if="image.comment" :class="$style.indicator">ALT</div>
 			<div v-if="image.isSensitive" :class="$style.indicator" style="color: var(--MI_THEME-warn);" :title="i18n.ts.sensitive"><i class="ti ti-eye-exclamation"></i></div>
 		</div>
-		<button :class="[$style.menu, $style.menuBottom]" class="_button" @click.stop="showMenu"><i class="ti ti-dots" style="vertical-align: middle;" aria-hidden="true"></i></button>
-		<button :class="[$style.menu, $style.menuTop]" class="_button" @click.stop="hide = true"><i class="ti ti-eye-off" style="vertical-align: middle;" aria-hidden="true"></i></button>
+		<button :class="[$style.menu, $style.menuBottom]" class="_button _iconButton" @click.stop="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
+		<button :class="[$style.menu, $style.menuTop]" class="_button _iconButton" @click.stop="hide = true"><i class="ti ti-eye-off" aria-hidden="true"></i></button>
 	</template>
 </div>
 </template>
@@ -89,6 +82,7 @@ const props = withDefaults(defineProps<{
 	disableImageLink?: boolean;
 	controls?: boolean;
 	marker?: string;
+	loading?: 'lazy' | 'eager';
 }>(), {
 	cover: false,
 	disableImageLink: false,
@@ -111,6 +105,7 @@ const failedPreviewUrl = ref<string | null>(null);
 const url = computed(() => failedPreviewUrl.value === previewUrl.value ? props.image.url : previewUrl.value);
 
 function onImageError() {
+	if (prefer.s.disableShowingAnimatedImages && !props.raw && !prefer.s.loadRawImages) return;
 	failedPreviewUrl.value = previewUrl.value;
 }
 
@@ -194,7 +189,7 @@ defineExpose<MediaComponentExposes>({
 .hiddenTextWrapper {
 	display: table-cell;
 	text-align: center;
-	font-size: 1em;
+	font-size: 0.8em;
 	color: #fff;
 }
 
@@ -261,7 +256,7 @@ html[data-color-scheme=light] .visible {
 }
 
 .indicator {
-	/* Hardcode to black because either --MI_THEME-bg or --MI_THEME-fg makes it hard to read in dark/light mode */
+	// Hardcode to black because either --MI_THEME-bg or --MI_THEME-fg makes it hard to read in dark/light mode
 	background-color: black;
 	border-radius: 6px;
 	color: hsl(from var(--MI_THEME-accent) h s calc(l + 10));

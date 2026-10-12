@@ -19,7 +19,7 @@ export const checkinStatusSchema = {
 		checkedInDates: { type: 'array', optional: false, nullable: false, items: { type: 'string', optional: false, nullable: false } },
 		makeupDates: { type: 'array', optional: false, nullable: false, items: { type: 'string', optional: false, nullable: false } },
 		registeredDate: { type: 'string', optional: false, nullable: false },
-		points: { type: 'integer', optional: false, nullable: false },
+		points: { type: 'number', optional: false, nullable: false },
 		makeupCards: { type: 'integer', optional: false, nullable: false },
 		makeupCardProgress: { type: 'integer', optional: false, nullable: false },
 		makeupCardTarget: { type: 'integer', optional: false, nullable: false },
@@ -48,7 +48,7 @@ export const checkinResultSchema = {
 		...checkinStatusSchema.properties,
 		newlyCheckedIn: { type: 'boolean', optional: false, nullable: false },
 		earnedAchievements: { type: 'array', optional: false, nullable: false, items: { type: 'string', enum: CHECKIN_ACHIEVEMENT_TYPES, optional: false, nullable: false } },
-		earnedPoints: { type: 'integer', optional: false, nullable: false },
+		earnedPoints: { type: 'number', optional: false, nullable: false },
 		earnedMakeupCards: { type: 'integer', optional: false, nullable: false },
 	},
 } as const;

@@ -4,29 +4,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkPagination :paginator="paginator" :direction="direction" :autoLoad="autoLoad" :pullToRefresh="pullToRefresh" :withControl="withControl">
-	<template #empty><MkResult type="empty" :text="i18n.ts.noNotes"/></template>
+<MkPagination :paginator="paginator" :direction="direction" :autoLoad="autoLoad" :pullToRefresh="pullToRefresh" :withControl="withControl" :pageEmpty="pageEmpty">
+	<template #empty="{ fetching }"><MkResult type="empty" :text="i18n.ts.noNotes" :page="pageEmpty" :loading="fetching"/></template>
 
 	<template #default="{ items: notes }">
-		<div :class="[$style.root, { [$style.noGap]: noGap, '_gaps': !noGap }, noGap ? '_juejinCard' : null]">
+		<div :class="[$style.root, { [$style.noGap]: noGap, '_gaps': !noGap }, noGap ? '_card' : null]">
 			<template v-for="(note, i) in notes" :key="note.id">
 				<div
 					v-if="i > 0 && isSeparatorNeeded(paginator.items.value[i - 1].createdAt, note.createdAt)"
 					:data-scroll-anchor="note.id"
 					:class="[{ '_gaps': !noGap }, { [$style.lastNoteItem]: i === notes.length - 1 }]"
 				>
-					<MkNote :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_juejinCard' : null]" :note="note" :withHardMute="true"/>
+					<MkNote :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_card' : null]" :note="note" :withHardMute="true"/>
 					<div v-if="note._shouldInsertAd_" :class="$style.ad">
 						<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
 					</div>
 				</div>
 				<div v-else-if="note._shouldInsertAd_" :class="[{ '_gaps': !noGap }, { [$style.lastNoteItem]: i === notes.length - 1 }]" :data-scroll-anchor="note.id">
-					<MkNote :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_juejinCard' : null]" :note="note" :withHardMute="true"/>
+					<MkNote :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_card' : null]" :note="note" :withHardMute="true"/>
 					<div :class="$style.ad">
 						<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
 					</div>
 				</div>
-				<MkNote v-else :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_juejinCard' : null]" :note="note" :withHardMute="true" :data-scroll-anchor="note.id"/>
+				<MkNote v-else :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_card' : null]" :note="note" :withHardMute="true" :data-scroll-anchor="note.id"/>
 			</template>
 		</div>
 	</template>
@@ -51,6 +51,7 @@ const props = withDefaults(defineProps<MkPaginationOptions & {
 	direction: 'down',
 	pullToRefresh: true,
 	withControl: true,
+	pageEmpty: false,
 });
 
 useGlobalEvent('noteDeleted', (noteId) => {
@@ -72,9 +73,12 @@ defineExpose({
 
 	&.noGap {
 		background: var(--MI_THEME-panel);
+		border-radius: var(--MI-cardRadius);
+		overflow: clip;
 
 		.note {
-			border-bottom: solid 0.5px var(--MI_THEME-divider);
+			border-radius: 0;
+			border-bottom: var(--MI-divider);
 		}
 
 		.lastNote {
@@ -89,7 +93,7 @@ defineExpose({
 			padding: 8px;
 			background-size: auto auto;
 			background-image: repeating-linear-gradient(45deg, transparent, transparent 8px, var(--MI_THEME-bg) 8px, var(--MI_THEME-bg) 14px);
-			border-bottom: solid 0.5px var(--MI_THEME-divider);
+			border-bottom: var(--MI-divider);
 		}
 	}
 
@@ -98,7 +102,7 @@ defineExpose({
 
 		.note {
 			background: var(--MI_THEME-panel);
-			border-radius: var(--MI-radius);
+			border-radius: var(--MI-cardRadius);
 		}
 	}
 }

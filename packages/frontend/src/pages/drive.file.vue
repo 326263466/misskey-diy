@@ -24,19 +24,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import MkSwiper from '@/components/MkSwiper.vue';
+import { useRouter } from '@/router.js';
 
 const props = defineProps<{
 	fileId: string;
+	initialTab?: string;
 }>();
 
 const XFileInfo = defineAsyncComponent(() => import('./drive.file.info.vue'));
 const XNotes = defineAsyncComponent(() => import('./drive.file.notes.vue'));
 
-const tab = ref('info');
+const router = useRouter();
+const tab = computed({
+	get: () => props.initialTab === 'notes' ? props.initialTab : 'info',
+	set: (value: string) => {
+		router.push('/my/drive/file/:fileId', {
+			params: { fileId: props.fileId },
+			query: value === 'info' ? {} : { tab: value },
+		});
+	},
+});
 
 const headerActions = computed(() => []);
 

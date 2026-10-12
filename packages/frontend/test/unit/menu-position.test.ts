@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { calcDropdownPosition, calcMenuPosition, MENU_GAP, MENU_PADDING_Y } from '@/utility/menu-position.js';
+import { calcDropdownPosition, calcMenuPosition, MENU_GAP, MENU_PADDING_Y, SUBMENU_OVERLAP } from '@/utility/menu-position.js';
 
 const viewport = { width: 1000, height: 800 };
 
@@ -55,20 +55,20 @@ describe('shared menu positioning', () => {
 
 	test('opens a submenu beside the parent row, flipping left near the right edge', () => {
 		const size = { width: 200, height: 300 };
-		expect(calcMenuPosition(size, { left: 100, right: 300, top: 200, bottom: 230 }, viewport, true, -MENU_PADDING_Y)).toMatchObject({ left: 308, top: 192 });
-		expect(calcMenuPosition(size, { left: 750, right: 950, top: 200, bottom: 230 }, viewport, true, -MENU_PADDING_Y)).toMatchObject({ left: 542, top: 192 });
-		expect(calcMenuPosition(size, { left: 750, right: 950, top: 700, bottom: 730 }, viewport, true, -MENU_PADDING_Y)).toMatchObject({ left: 542, top: 484 });
+		expect(calcMenuPosition(size, { left: 100, right: 300, top: 200, bottom: 230 }, viewport, true, -MENU_PADDING_Y, -SUBMENU_OVERLAP)).toMatchObject({ left: 296, top: 192 });
+		expect(calcMenuPosition(size, { left: 750, right: 950, top: 200, bottom: 230 }, viewport, true, -MENU_PADDING_Y, -SUBMENU_OVERLAP)).toMatchObject({ left: 554, top: 192 });
+		expect(calcMenuPosition(size, { left: 750, right: 950, top: 700, bottom: 730 }, viewport, true, -MENU_PADDING_Y, -SUBMENU_OVERLAP)).toMatchObject({ left: 554, top: 484 });
 	});
 
 	test('offsets a submenu by the menu padding so its first row lines up with the parent row', () => {
 		const anchor = { left: 100, right: 300, top: 200, bottom: 230 };
-		const position = calcMenuPosition({ width: 200, height: 300 }, anchor, viewport, true, -MENU_PADDING_Y);
+		const position = calcMenuPosition({ width: 200, height: 300 }, anchor, viewport, true, -MENU_PADDING_Y, -SUBMENU_OVERLAP);
 		expect(anchor.top - position.top).toBe(MENU_PADDING_Y);
 	});
 
 	test('keeps an 8px gap when a submenu falls back above its parent row', () => {
 		const anchor = { left: 200, right: 400, top: 700, bottom: 730 };
-		const position = calcMenuPosition({ width: 200, height: 100 }, anchor, { width: 600, height: 800 }, true, -MENU_PADDING_Y);
+		const position = calcMenuPosition({ width: 210, height: 100 }, anchor, { width: 600, height: 800 }, true, -MENU_PADDING_Y, -SUBMENU_OVERLAP);
 		expect(position).toMatchObject({ left: 200, top: 592, overlapsAnchor: false });
 		expect(anchor.top - (position.top + 100)).toBe(MENU_GAP);
 	});
@@ -94,7 +94,7 @@ describe('trigger-anchored menu placement', () => {
 			top: 120,
 			side: 'bottom',
 			align: 'start',
-			maxHeight: 664,
+			maxHeight: null,
 			transformOrigin: '65px 0px',
 			overlapsAnchor: false,
 		});
@@ -110,7 +110,7 @@ describe('trigger-anchored menu placement', () => {
 			top: 596,
 			side: 'top',
 			align: 'start',
-			maxHeight: 676,
+			maxHeight: null,
 			transformOrigin: '65px 96px',
 			overlapsAnchor: false,
 		});
@@ -143,7 +143,7 @@ describe('trigger-anchored menu placement', () => {
 		);
 		expect(position).toMatchObject({ left: 432, top: 84, side: 'right', align: 'start' });
 		// 侧向方位放得下完整高度，不需要滚动条
-		expect(position.maxHeight).toBeGreaterThanOrEqual(300);
+		expect(position.maxHeight).toBeNull();
 	});
 
 	test('stays vertical when no side is wide enough for the menu', () => {
@@ -153,7 +153,7 @@ describe('trigger-anchored menu placement', () => {
 			{ left: 300, right: 340, top: 300, bottom: 340 },
 			{ width: 600, height: 800 },
 		);
-		expect(position).toMatchObject({ left: 184, top: 348, side: 'bottom', maxHeight: 436 });
+		expect(position).toMatchObject({ left: 184, top: 16, side: 'bottom', maxHeight: 768, overlapsAnchor: true });
 	});
 
 	test.each([
@@ -180,10 +180,35 @@ describe('trigger-anchored menu placement', () => {
 });
 
 describe('select dropdown positioning', () => {
+	test('prefers flipping above inside the container over opening below outside it', () => {
+		const anchor = { left: 300, right: 430, top: 400, bottom: 440 };
+		const boundary = { left: 200, right: 600, top: 100, bottom: 500 };
+		const position = calcDropdownPosition({ width: 130, height: 200 }, anchor, viewport, { allowSideFlip: false, boundary });
+		expect(position).toMatchObject({ left: 300, top: 192, side: 'top', maxHeight: null, overlapsAnchor: false });
+		expect(position.top).toBeGreaterThanOrEqual(boundary.top);
+		expect(position.top + 200).toBeLessThanOrEqual(boundary.bottom);
+	});
+
+	test('falls back to the viewport when the container is tall enough but neither side fits', () => {
+		const anchor = { left: 300, right: 430, top: 280, bottom: 320 };
+		const boundary = { left: 200, right: 600, top: 100, bottom: 500 };
+		const position = calcDropdownPosition({ width: 130, height: 250 }, anchor, viewport, { allowSideFlip: false, boundary });
+		expect(position).toMatchObject({ left: 300, top: 328, side: 'bottom', maxHeight: null, overlapsAnchor: false });
+		expect(position.top + 250).toBeGreaterThan(boundary.bottom);
+	});
+
+	test('shows the full menu when it fits the viewport but neither side of the input', () => {
+		const size = { width: 130, height: 600 };
+		const position = calcDropdownPosition(size, { left: 740, right: 870, top: 350, bottom: 390 }, viewport, { allowSideFlip: false });
+		expect(position).toMatchObject({ maxHeight: null, overlapsAnchor: true });
+		expect(position.top).toBeGreaterThanOrEqual(16);
+		expect(position.top + size.height).toBeLessThanOrEqual(viewport.height - 16);
+	});
+
 	test.each([
-		{ top: 250, bottom: 290, expectedTop: 298, side: 'bottom', maxHeight: 486, originY: 0 },
-		{ top: 500, bottom: 540, expectedTop: 16, side: 'top', maxHeight: 476, originY: 476 },
-	])('limits a tall menu to the larger side of the input at $top', ({ top, bottom, expectedTop, side, maxHeight, originY }) => {
+		{ top: 250, bottom: 290, side: 'bottom', originY: 254 },
+		{ top: 500, bottom: 540, side: 'top', originY: 504 },
+	])('limits an oversized menu to the full viewport at $top', ({ top, bottom, side, originY }) => {
 		expect(calcDropdownPosition(
 			{ width: 130, height: 900 },
 			{ left: 740, right: 870, top, bottom },
@@ -191,12 +216,12 @@ describe('select dropdown positioning', () => {
 			{ allowSideFlip: false },
 		)).toEqual({
 			left: 740,
-			top: expectedTop,
+			top: 16,
 			side,
 			align: 'start',
-			maxHeight,
+			maxHeight: 768,
 			transformOrigin: `65px ${originY}px`,
-			overlapsAnchor: false,
+			overlapsAnchor: true,
 		});
 	});
 
@@ -218,9 +243,9 @@ describe('select dropdown positioning', () => {
 		const size = { width: 130, height: 600 };
 		const anchor = { left: 740, right: 870, top: 150, bottom: 190 };
 		expect(calcDropdownPosition(size, anchor, { width: 1000, height: 400 }, { allowSideFlip: false }))
-			.toMatchObject({ left: 740, top: 198, maxHeight: 186 });
+			.toMatchObject({ left: 740, top: 16, maxHeight: 368 });
 		expect(calcDropdownPosition(size, anchor, { width: 1000, height: 1000 }, { allowSideFlip: false }))
-			.toMatchObject({ left: 740, top: 198, maxHeight: 786 });
+			.toMatchObject({ left: 740, top: 198, maxHeight: null });
 	});
 
 	test.each([
@@ -232,24 +257,24 @@ describe('select dropdown positioning', () => {
 			{ left: 740, right: 870, top, bottom },
 			viewport,
 			{ allowSideFlip: false },
-		)).toMatchObject({ left: 740, top: expectedTop, maxHeight: 768, overlapsAnchor: false });
+		)).toMatchObject({ left: 740, top: expectedTop, maxHeight: null, overlapsAnchor: false });
 	});
 
-	test('reports no available height when the input spans the entire viewport', () => {
+	test('uses the viewport height when the input spans the entire viewport', () => {
 		expect(calcDropdownPosition(
 			{ width: 130, height: 96 },
 			{ left: 740, right: 870, top: 0, bottom: 800 },
 			viewport,
 			{ allowSideFlip: false },
-		)).toMatchObject({ left: 740, top: 784, maxHeight: 0, overlapsAnchor: true });
+		)).toMatchObject({ left: 740, top: 688, maxHeight: null, overlapsAnchor: true });
 	});
 
 	test('escapes to the side when a button menu trigger spans the whole viewport', () => {
-		// 同样的锚点，允许侧向翻转的按钮菜单可以完整显示，而不是退化成 maxHeight 0
+		// 允许侧向翻转时优先避开锚点。
 		expect(calcDropdownPosition(
 			{ width: 130, height: 96 },
 			{ left: 740, right: 870, top: 0, bottom: 800 },
 			viewport,
-		)).toMatchObject({ left: 602, side: 'left', maxHeight: 768, overlapsAnchor: false });
+		)).toMatchObject({ left: 602, side: 'left', maxHeight: null, overlapsAnchor: false });
 	});
 });

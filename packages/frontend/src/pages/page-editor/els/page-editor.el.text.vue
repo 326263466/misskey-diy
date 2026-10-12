@@ -4,19 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<!-- eslint-disable vue/no-mutating-props -->
 <XContainer :draggable="true" :dragStartCallback="dragStartCallback" @remove="() => emit('remove')">
 	<template #header><i class="ti ti-align-left"></i> {{ i18n.ts._pages.blocks.text }}</template>
 
 	<section :class="$style.editor">
 		<textarea ref="inputEl" v-model="text" :class="$style.textarea" :aria-label="i18n.ts._pages.blocks.text"></textarea>
 		<MkEmojiInputOverlay :inputElement="inputEl" :text="text"/>
+		<span class="_inputCounter" :class="{ _inputCounterOver: textLength > Misskey.CONTENT_LIMITS.articleText }">{{ textLength }}/{{ Misskey.CONTENT_LIMITS.articleText }}</span>
 	</section>
 </XContainer>
 </template>
 
 <script lang="ts" setup>
-import { watch, ref, useTemplateRef, onMounted, onUnmounted } from 'vue';
+import { computed, watch, ref, useTemplateRef, onMounted, onUnmounted } from 'vue';
 import * as Misskey from 'misskey-js';
 import XContainer from '../page-editor.container.vue';
 import { i18n } from '@/i18n.js';
@@ -36,6 +36,7 @@ const emit = defineEmits<{
 let autocomplete: Autocomplete;
 
 const text = ref(props.modelValue.text ?? '');
+const textLength = computed(() => Array.from(text.value).length);
 const inputEl = useTemplateRef('inputEl');
 
 watch(text, () => {

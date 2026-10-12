@@ -1,10 +1,10 @@
 ---
 name: shipping-misskey-change
-description: Use at every finish moment of a Misskey change, before committing, opening a PR, merging, or handing work back, especially when proportional validation, SPDX, locale safety, migrations, or misskey-js generation may apply.
+description: 在提交、创建 PR、合并或交还 Misskey 变更前使用，按风险执行必要验证和仓库安全检查。
 ---
 
 # shipping-misskey-change
 
-This is the Codex entrypoint for the canonical Misskey pre-ship checklist.
+这是 Misskey 交付前检查入口。
 
-Read and follow [.claude/skills/shipping-misskey-change/SKILL.md](../../../.claude/skills/shipping-misskey-change/SKILL.md). Treat that file and its `references/` directory as the source of truth.
+阅读并遵循 [.claude/skills/shipping-misskey-change/SKILL.md](../../../.claude/skills/shipping-misskey-change/SKILL.md)，具体 reference 按任务需要读取。

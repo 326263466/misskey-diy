@@ -129,14 +129,15 @@ describe('shared user menu QR entry', () => {
 });
 
 describe('user QR dialog', () => {
-	test.each(['click', 'close', 'esc'])('closes and emits disposal after modal %s', async (event) => {
+	// 背景点击由 MkModalWindow 的 closeOnBackdrop 统一转为 close，这里不再单独绑定 click
+	test.each(['close', 'esc'])('closes and emits disposal after modal %s', async (event) => {
 		const view = render(MkUserQrDialog, {
 			props: { user: remoteUser },
 			global: { stubs: { MkQrShow: { props: ['user'], template: '<span>{{ user.username }}</span>' } } },
 		});
 		expect(view.getByText(i18n.ts._qr.showUser)).toBeTruthy();
 		expect(view.getByText('bob')).toBeTruthy();
-		await fireEvent.click(view.getByRole('button', { name: event, exact: true }));
+		await fireEvent.click(view.getByRole('button', { name: event }));
 		expect(mocks.close).toHaveBeenCalledOnce();
 		expect(view.emitted().closed).toHaveLength(1);
 	});

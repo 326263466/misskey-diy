@@ -34,10 +34,14 @@ import { MiChatMessage } from '@/models/ChatMessage.js';
 import { MiChatRoom } from '@/models/ChatRoom.js';
 import { MiChatRoomInvitation } from '@/models/ChatRoomInvitation.js';
 import { MiChatRoomMembership } from '@/models/ChatRoomMembership.js';
+import { MiChatConversationSetting } from '@/models/ChatConversationSetting.js';
 import { MiClip } from '@/models/Clip.js';
 import { MiClipFavorite } from '@/models/ClipFavorite.js';
 import { MiClipNote } from '@/models/ClipNote.js';
 import { MiDriveFile } from '@/models/DriveFile.js';
+import { MiDriveFileReference } from '@/models/DriveFileReference.js';
+import { MiDriveFileTarget } from '@/models/DriveFileTarget.js';
+import { MiDriveFileDraft } from '@/models/DriveFileDraft.js';
 import { MiDriveFolder } from '@/models/DriveFolder.js';
 import { MiEmoji } from '@/models/Emoji.js';
 import { MiFeedback } from '@/models/Feedback.js';
@@ -45,6 +49,8 @@ import { MiWallet } from '@/models/Wallet.js';
 import { MiWalletTransaction } from '@/models/WalletTransaction.js';
 import { MiWalletSettings } from '@/models/WalletSettings.js';
 import { MiRedPacket } from '@/models/RedPacket.js';
+import { MiTransfer } from '@/models/Transfer.js';
+import { MiTip } from '@/models/Tip.js';
 import { MiRedPacketClaim } from '@/models/RedPacketClaim.js';
 import { MiRedPacketRecipient } from '@/models/RedPacketRecipient.js';
 import { MiFlash } from '@/models/Flash.js';
@@ -56,6 +62,11 @@ import { MiGalleryPost } from '@/models/GalleryPost.js';
 import { MiHashtag } from '@/models/Hashtag.js';
 import { MiInstance } from '@/models/Instance.js';
 import { MiMeta } from '@/models/Meta.js';
+import { MiProduct } from '@/models/Product.js';
+import { MiOrder } from '@/models/Order.js';
+import { MiPaymentSettings } from '@/models/PaymentSettings.js';
+import { MiPlatformAccount } from '@/models/PlatformAccount.js';
+import { MiPlatformTransaction } from '@/models/PlatformTransaction.js';
 import { MiModerationLog } from '@/models/ModerationLog.js';
 import { MiMuting } from '@/models/Muting.js';
 import { MiNote } from '@/models/Note.js';
@@ -66,6 +77,8 @@ import { MiNoteLike } from '@/models/NoteLike.js';
 import { MiNoteThreadMuting } from '@/models/NoteThreadMuting.js';
 import { MiPage } from '@/models/Page.js';
 import { MiPageLike } from '@/models/PageLike.js';
+import { MiArticleComment } from '@/models/ArticleComment.js';
+import { MiArticleFavorite } from '@/models/ArticleFavorite.js';
 import { MiPasswordResetRequest } from '@/models/PasswordResetRequest.js';
 import { MiPoll } from '@/models/Poll.js';
 import { MiPollVote } from '@/models/PollVote.js';
@@ -128,6 +141,9 @@ export {
 	MiClipNote,
 	MiClipFavorite,
 	MiDriveFile,
+	MiDriveFileReference,
+	MiDriveFileTarget,
+	MiDriveFileDraft,
 	MiDriveFolder,
 	MiEmoji,
 	MiFollowing,
@@ -137,6 +153,11 @@ export {
 	MiHashtag,
 	MiInstance,
 	MiMeta,
+	MiProduct,
+	MiOrder,
+	MiPaymentSettings,
+	MiPlatformAccount,
+	MiPlatformTransaction,
 	MiModerationLog,
 	MiMuting,
 	MiRenoteMuting,
@@ -148,6 +169,8 @@ export {
 	MiNoteThreadMuting,
 	MiPage,
 	MiPageLike,
+	MiArticleComment,
+	MiArticleFavorite,
 	MiPasswordResetRequest,
 	MiPoll,
 	MiPollVote,
@@ -182,6 +205,8 @@ export {
 	MiWalletTransaction,
 	MiWalletSettings,
 	MiRedPacket,
+	MiTransfer,
+	MiTip,
 	MiRedPacketClaim,
 	MiRedPacketRecipient,
 	MiFlash,
@@ -190,6 +215,7 @@ export {
 	MiChatMessage,
 	MiChatRoom,
 	MiChatRoomMembership,
+	MiChatConversationSetting,
 	MiChatRoomInvitation,
 	MiChatApproval,
 	MiBubbleGameRecord,
@@ -221,6 +247,9 @@ export type ClipsRepository = Repository<MiClip> & MiRepository<MiClip>;
 export type ClipNotesRepository = Repository<MiClipNote> & MiRepository<MiClipNote>;
 export type ClipFavoritesRepository = Repository<MiClipFavorite> & MiRepository<MiClipFavorite>;
 export type DriveFilesRepository = Repository<MiDriveFile> & MiRepository<MiDriveFile>;
+export type DriveFileReferencesRepository = Repository<MiDriveFileReference> & MiRepository<MiDriveFileReference>;
+export type DriveFileTargetsRepository = Repository<MiDriveFileTarget> & MiRepository<MiDriveFileTarget>;
+export type DriveFileDraftsRepository = Repository<MiDriveFileDraft> & MiRepository<MiDriveFileDraft>;
 export type DriveFoldersRepository = Repository<MiDriveFolder> & MiRepository<MiDriveFolder>;
 export type EmojisRepository = Repository<MiEmoji> & MiRepository<MiEmoji>;
 export type FollowingsRepository = Repository<MiFollowing> & MiRepository<MiFollowing>;

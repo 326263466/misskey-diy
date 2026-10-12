@@ -4,8 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="[$style.root, { [$style.animated]: prefer.s.animation }]">
-	<!-- keyを変えて要素ごと作り直すことで、AudioContextに繋いだ要素を確実に切り離す (onLoadErrorを参照) -->
+<div :class="$style.root">
 	<audio
 		:key="audioElKey"
 		ref="audioEl"
@@ -22,26 +21,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 		data-gallery-click-action="media"
 		:class="$style.visualizer"
 		v-bind="$attrs"
-		@click.stop="emit('click', $event)"
 	></canvas>
-	<div v-if="!isPlaying && playButtonVisible" :class="$style.playIconWrapper">
-		<button
-			type="button"
-			class="_button"
-			:class="$style.playIcon"
-			:aria-label="i18n.ts._mediaControls.play"
-			@pointerdown.stop
-			@touchstart.stop
-			@click.stop="emit('click', $event)"
-		>
-			<MkMediaPlayIcon/>
-		</button>
+	<div v-if="!isPlaying" :class="$style.playIconWrapper">
+		<div :class="$style.playIcon">
+			<i class="ti ti-player-play"></i>
+		</div>
 	</div>
 </div>
 </template>
 
 <script setup lang="ts">
-import MkMediaPlayIcon from '@/components/MkMediaPlayIcon.vue';
 import { useTemplateRef, shallowRef, ref, computed, watch, onBeforeUnmount } from 'vue';
 import * as Misskey from 'misskey-js';
 import tinycolor from 'tinycolor2';
@@ -50,28 +39,20 @@ import { i18n } from '@/i18n.js';
 import { themeManager } from '@/theme.js';
 import { prefer } from '@/preferences.js';
 
-// キャンバスと中央ボタンの click を親へ通知する。外側の空白は親の舞台で扱う。
+// クリック等のフォールスルーはキャンバスに渡す (ルートは全面を覆うので、その外側は背景として扱わせる)
 defineOptions({
 	inheritAttrs: false,
 });
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
 	content: Content;
 	user?: Misskey.entities.User | null; // DriveFileのuserはnullになることがある。その場合に使用する所有者情報
 	isPlaying: boolean;
-	playButtonVisible?: boolean;
 	volume: number;
-	active?: boolean;
-}>(), {
-	active: true,
-	playButtonVisible: true,
-});
+}>();
 
 const emit = defineEmits<{
 	(ev: 'loadedmetadata'): void;
-	(ev: 'click', event: MouseEvent): void;
-	(ev: 'loadError'): void;
-	(ev: 'playbackError', error: unknown): void;
 }>();
 
 const audioEl = useTemplateRef('audioEl');
@@ -323,14 +304,7 @@ function updateRange(range: AnalysisRange, frameMin: number, framePeak: number, 
 }
 //#endregion
 
-let accentColorHue = tinycolor(themeManager.currentCompiledTheme!.accent).toHsl().h;
-
-function updateThemeColor() {
-	accentColorHue = tinycolor(themeManager.currentCompiledTheme!.accent).toHsl().h;
-	draw(0);
-}
-
-themeManager.on('themeChanging', updateThemeColor);
+const accentColorHue = tinycolor(themeManager.currentCompiledTheme!.accent).toHsl().h;
 
 // 読み込みが終わるまでは描画しない (読み込み完了時の描き直しは下のwatchで行う)
 const avatarImage = shallowRef<HTMLImageElement | null>(null);
@@ -376,13 +350,6 @@ const audioElKey = computed(() => `${crossOriginMode.value}\n${props.content.url
 let hasLoadedMetadata = false;
 /** 現在の要素に対して再生が要求されたか */
 let isPlayRequested = false;
-let initializedAudioEl: HTMLAudioElement | null = null;
-
-function cancelPlayback() {
-	isPlayRequested = false;
-	resumeAfterReloadUrl = null;
-	audioEl.value?.pause();
-}
 
 function onLoadedMetadata() {
 	hasLoadedMetadata = true;
@@ -395,13 +362,10 @@ function onLoadError() {
 	// (本当に壊れているファイルなら再試行も失敗し、同じエラー状態に落ち着く)。
 	// ただしメタデータまで読めていたならCORSは通過済みなので、再生中のネットワーク断や
 	// デコード失敗を拾ってフォールバックしてしまわないようにする
-	if (crossOriginMode.value !== 'anonymous' || hasLoadedMetadata) {
-		emit('loadError');
-		return;
-	}
+	if (crossOriginMode.value !== 'anonymous' || hasLoadedMetadata) return;
 
 	// 読み込み前に失敗しているので再生位置は0のまま。再生の要求だけ引き継げばよい
-	resumeAfterReloadUrl = props.active && isPlayRequested ? props.content.url : null;
+	resumeAfterReloadUrl = isPlayRequested ? props.content.url : null;
 	corsFailedUrl.value = props.content.url;
 }
 
@@ -482,7 +446,6 @@ function setupAudioGraph(el: HTMLAudioElement) {
 function init() {
 	const el = audioEl.value;
 	if (el == null) return;
-	initializedAudioEl = el;
 
 	// 前の音源の波形を持ち越さない
 	resetAnalysis();
@@ -510,28 +473,13 @@ function init() {
 	// 再生状態: メディア要素のイベントを唯一の情報源にすることで、このコンポーネント経由でない
 	// 操作 (コントロール・キーボード・OSのメディアキー等) でも波形の描画と同期がとれる
 	on('play', () => {
-		if (!props.active) {
-			cancelPlayback();
-			return;
-		}
 		isPlayRequested = true;
 		resumeAudioCtx();
 	});
 	on('playing', () => setPlaying(true));
 	on('waiting', () => setPlaying(false));
-	on('pause', () => {
-		// 読み込みエラーでブラウザーが停止した場合は CORS 再試行の意図を保つ。
-		// ユーザーの停止は親の cancelPlayback() から同期的にも通知される。
-		if (el.error == null) {
-			isPlayRequested = false;
-			resumeAfterReloadUrl = null;
-		}
-		setPlaying(false);
-	});
-	on('ended', () => {
-		isPlayRequested = false;
-		setPlaying(false);
-	});
+	on('pause', () => setPlaying(false));
+	on('ended', () => setPlaying(false));
 	on('emptied', () => setPlaying(false));
 
 	// 現在の要素の状態を取り込む (コンポーネントの準備前に再生が始まっている場合等)。
@@ -539,14 +487,11 @@ function init() {
 	setPlaying(!el.paused);
 
 	// フォールバックでaudio要素を作り直す前に再生が要求されていたなら、新しい要素で再生し直す
-	if (props.active && resumeAfterReloadUrl === props.content.url) {
+	if (resumeAfterReloadUrl === props.content.url) {
 		resumeAfterReloadUrl = null;
-		isPlayRequested = true;
 		el.play().catch(err => {
-			if (props.active && el === audioEl.value) emit('playbackError', err);
+			if (_DEV_) console.warn('Failed to play media:', err);
 		});
-	} else {
-		resumeAfterReloadUrl = null;
 	}
 
 	// 波形が回らないケース (停止中、またはビジュアライザを描画できない場合) はここで一度だけ描く
@@ -571,8 +516,6 @@ function teardownAudioGraph() {
 function teardown() {
 	abortController?.abort();
 	abortController = null;
-	initializedAudioEl?.pause();
-	initializedAudioEl = null;
 	stopVisualizerTick();
 	teardownAudioGraph();
 	isVisualizerAvailable = true;
@@ -742,19 +685,10 @@ watch(audioEl, () => {
 	init();
 }, { immediate: true });
 
-watch(() => props.active, active => {
-	if (!active) cancelPlayback();
-}, { flush: 'sync' });
-
-onBeforeUnmount(() => {
-	themeManager.off('themeChanging', updateThemeColor);
-	cancelPlayback();
-	teardown();
-});
+onBeforeUnmount(teardown);
 
 defineExpose({
 	audioEl,
-	cancelPlayback,
 });
 </script>
 
@@ -764,8 +698,6 @@ defineExpose({
 	inset: 0;
 	display: grid;
 	place-items: center;
-	// 全領域がクリック（再生/一時停止）の対象なので手型にする
-	cursor: pointer;
 }
 
 .visualizer {
@@ -776,7 +708,6 @@ defineExpose({
 	height: auto;
 	aspect-ratio: 16 / 9;
 	background: var(--MI_THEME-panel);
-	border-radius: 2px;
 }
 
 .playIconWrapper {
@@ -793,37 +724,18 @@ defineExpose({
 .playIcon {
 	display: grid;
 	place-items: center;
-	--MI-mediaPlaySize: 64px;
-	width: var(--MI-mediaPlaySize);
-	height: var(--MI-mediaPlaySize);
-	border-radius: 0;
-	font-size: var(--MI-mediaPlaySize);
-	background: none;
-	color: var(--MI_THEME-accent);
-	pointer-events: auto;
-	cursor: pointer;
+	width: 50px;
+	height: 50px;
+	border-radius: 100%;
+	font-size: 120%;
+	background: var(--MI_THEME-accent);
+	color: var(--MI_THEME-fgOnAccent);
 	scale: 1;
-
-	&:focus-visible {
-		outline: 2px solid var(--MI_THEME-focus);
-		outline-offset: 4px;
-	}
+	transition: scale 100ms ease;
 }
 
-.animated {
-	.playIcon > span {
-		transition: scale 160ms ease-out;
-	}
-
-	.visualizer:hover ~ .playIconWrapper .playIcon > span,
-	.playIcon:is(:hover, :focus-visible) > span {
-		--MI-mediaPlayHover: 1;
-		scale: 1.12;
-	}
-
-	.visualizer:active ~ .playIconWrapper .playIcon > span,
-	.playIcon:active > span {
-		scale: 0.94;
-	}
+// アイコン自体はクリックを受け取らないので、hoverは下のcanvas要素を経由して拾う
+.visualizer:hover ~ .playIconWrapper .playIcon {
+	scale: 1.2;
 }
 </style>

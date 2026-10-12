@@ -7,15 +7,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 <section :class="[$style.root, { [$style.embedded]: embedded }]" :aria-label="i18n.ts._datePicker.title" @keydown.esc.stop.prevent="emit('close')">
 	<template v-if="type !== 'time'">
 		<div :class="$style.navigation">
-			<button type="button" class="_button" :aria-label="i18n.ts._datePicker.previous" @click="movePanel(-1)"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+			<button type="button" class="_button _iconButton" :aria-label="i18n.ts._datePicker.previous" @click="movePanel(-1)"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
 			<button type="button" class="_button" :class="$style.month" :aria-label="i18n.ts._datePicker.chooseMonthYear" @click="panel = panel === 'days' ? 'months' : panel === 'months' ? 'years' : 'days'">{{ panel === 'days' ? monthLabel : panel === 'months' ? visibleMonth.getFullYear() : `${years[0]} – ${years[11]}` }} <i class="ti ti-chevron-down" aria-hidden="true"></i></button>
-			<button type="button" class="_button" :aria-label="i18n.ts._datePicker.next" @click="movePanel(1)"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+			<button type="button" class="_button _iconButton" :aria-label="i18n.ts._datePicker.next" @click="movePanel(1)"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
 		</div>
-		<div v-if="panel === 'months'" :class="$style.choices"><button v-for="(month, index) in months" :key="index" type="button" class="_button" @click="selectMonth(index)">{{ month }}</button></div>
-		<div v-else-if="panel === 'years'" :class="$style.choices"><button v-for="year in years" :key="year" type="button" class="_button" :disabled="year < 1 || year > 9999" @click="selectYear(year)">{{ year }}</button></div>
+		<div v-if="panel === 'months'" :class="$style.choices"><button v-for="(month, index) in months" :key="index" type="button" class="_button" :class="{ [$style.today]: visibleMonth.getFullYear() === now.getFullYear() && index === now.getMonth() }" :aria-current="visibleMonth.getFullYear() === now.getFullYear() && index === now.getMonth() ? 'date' : undefined" @click="selectMonth(index)">{{ month }}</button></div>
+		<div v-else-if="panel === 'years'" :class="$style.choices"><button v-for="year in years" :key="year" type="button" class="_button" :class="{ [$style.today]: year === now.getFullYear() }" :aria-current="year === now.getFullYear() ? 'date' : undefined" :disabled="year < 1 || year > 9999" @click="selectYear(year)">{{ year }}</button></div>
 		<div v-else :class="$style.calendar">
 			<span v-for="(day, index) in weekdays" :key="`weekday-${index}`" :class="$style.weekday">{{ day }}</span>
-			<button v-for="day in days" :key="day.value" type="button" class="_button" :class="{ [$style.outside]: day.outside, [$style.selected]: date === day.value }" :disabled="day.disabled" :aria-label="day.label" :aria-pressed="date === day.value" :aria-current="day.value === today ? 'date' : undefined" @click="pick(day.value)">{{ day.number }}</button>
+			<button v-for="day in days" :key="day.value" type="button" class="_button" :class="{ [$style.outside]: day.outside, [$style.selected]: date === day.value, [$style.today]: day.value === today }" :disabled="day.disabled" :aria-label="day.label" :aria-pressed="date === day.value" :aria-current="day.value === today ? 'date' : undefined" @click="pick(day.value)">{{ day.number }}</button>
 		</div>
 	</template>
 	<div v-if="type !== 'date'" :class="$style.clock">
@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<p v-if="!valid" role="status" :class="$style.error">{{ i18n.ts._datePicker.invalid }}</p>
 	<div :class="$style.actions">
 		<button v-if="!embedded" type="button" class="_textButton" @click="emit('update:modelValue', ''); emit('close')">{{ i18n.ts.clear }}</button>
-		<button v-if="type !== 'time'" type="button" class="_textButton" @click="pick(today); syncMonth()">{{ i18n.ts.today }}</button>
+		<button v-if="type !== 'time'" type="button" class="_textButton" @click="backToToday">{{ i18n.ts.today }}</button>
 		<button v-if="!embedded && type !== 'date'" type="button" class="_button" :class="$style.confirm" :disabled="!valid" @click="confirm">{{ i18n.ts.ok }}</button>
 	</div>
 </section>
@@ -116,6 +116,13 @@ function syncMonth() {
 	if (parsed) visibleMonth.value = parsed;
 }
 
+// 选中今天并回到默认的日历视图，避免停留在年/月选择页
+function backToToday() {
+	pick(today);
+	panel.value = 'days';
+	syncMonth();
+}
+
 function movePanel(offset: number) {
 	const next = new Date(visibleMonth.value);
 	next.setDate(1);
@@ -153,8 +160,8 @@ function confirm() {
 </script>
 
 <style lang="scss" module>
-.root { box-sizing: border-box; width: 100%; max-width: 296px; margin: var(--MI-marginHalf) auto 0; padding: 12px; border: 1px solid var(--MI_THEME-divider); border-radius: var(--MI-radius); background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); font-size: 14px; line-height: 1.4; }
-.embedded { border: 0; padding: 0; margin-top: 0; }
+.root { box-sizing: border-box; width: 100%; max-width: 296px; margin: var(--MI-marginHalf) auto 0; padding: 12px; border-radius: var(--MI-radius); background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); font-size: 14px; line-height: 1.4; }
+.embedded { padding: 0; margin-top: 0; }
 .navigation, .actions, .clock { display: flex; align-items: center; gap: var(--MI-marginHalf); }
 .navigation { justify-content: space-between; }
 .navigation button, .confirm { min-height: 28px; padding: 4px 8px; border-radius: var(--MI-radius); }
@@ -162,7 +169,14 @@ function confirm() {
 .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px 0; }
 .choices button { height: 42px; border-radius: var(--MI-radius); }
 .choices button:hover { background: var(--MI_THEME-accentedBg); }
+// 当前年/月/日用强调色区分；已选中的日子保持实色底样式
+.choices button.today { color: var(--MI_THEME-accent); font-weight: 600; }
+.calendar .today:not(.selected) { color: var(--MI_THEME-accent); font-weight: 600; }
 .direct, .clock label { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: .85em; }
+.clock { flex-wrap: nowrap; }
+.clock label { flex-direction: row; align-items: center; white-space: nowrap; }
+.clock input { width: 3.5em; }
+.actions button { white-space: nowrap; flex-shrink: 0; }
 .direct, .clock, .actions { margin-top: 8px; }
 .root input { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px; border: 1px solid var(--MI_THEME-inputBorder); border-radius: var(--MI-radius); background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); font: inherit; }
 .calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: var(--MI-marginHalf); }
@@ -172,6 +186,6 @@ function confirm() {
 .calendar .selected, .confirm { background: var(--MI_THEME-accent); color: var(--MI_THEME-fgOnAccent); }
 .root button:disabled { opacity: .3; cursor: not-allowed; }
 .root button:focus-visible, .root input:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
-.actions { justify-content: space-between; border-top: 1px solid var(--MI_THEME-divider); padding-top: 8px; }
+.actions { justify-content: space-between; border-top: var(--MI-divider); padding-top: 8px; }
 .error { color: var(--MI_THEME-error); font-size: .85em; }
 </style>

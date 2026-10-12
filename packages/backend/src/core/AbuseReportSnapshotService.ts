@@ -8,10 +8,9 @@ import { In } from 'typeorm';
 import type { EntityManager } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
-import { MiChatMessage, MiChatRoom, MiDriveFile, MiFlash, MiFollowing, MiGalleryPost, MiNote, MiNoteReaction, MiPage, MiPoll, MiUser, MiUserProfile } from '@/models/_.js';
+import { MiChatMessage, MiChatRoom, MiDriveFile, MiFlash, MiFollowing, MiGalleryPost, MiNote, MiPage, MiPoll, MiUser, MiUserProfile } from '@/models/_.js';
 import type { AbuseReportSnapshot } from '@/models/AbuseUserReport.js';
 import { isDeletedReply } from '@/misc/is-reply.js';
-import { normalizeTextReaction, TEXT_REACTION_PREFIX } from '@/misc/reaction.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { ChatService } from '@/core/ChatService.js';
@@ -19,9 +18,8 @@ import { RoleService } from '@/core/RoleService.js';
 import { AbuseReportEvidenceService } from '@/core/AbuseReportEvidenceService.js';
 
 export type AbuseReportTarget = {
-	type: 'user' | 'note' | 'boost' | 'chat' | 'page' | 'gallery' | 'play';
+	type: 'user' | 'note' | 'chat' | 'page' | 'gallery' | 'play';
 	id?: string;
-	reaction?: string;
 };
 
 @Injectable()
@@ -59,35 +57,28 @@ export class AbuseReportSnapshotService {
 		} else {
 			if (target.id == null) throw new Error('INVALID_REPORT_TARGET');
 			switch (target.type) {
-				case 'note':
-				case 'boost': {
+				case 'note': {
 					const note = await manager.getRepository(MiNote).findOneBy({ id: target.id });
 					if (note == null || isDeletedReply(note) || !await this.noteEntityService.isContentVisible(note, reporter)) throw new Error('INVALID_REPORT_TARGET');
 					snapshot.sourceUrl = `${this.config.url}/notes/${note.id}`;
-					if (target.type === 'boost') {
-						const reaction = await manager.getRepository(MiNoteReaction).findOneBy({ noteId: note.id, userId: user.id });
-						if (reaction == null || target.reaction == null || this.normalizeReaction(reaction.reaction) !== this.normalizeReaction(target.reaction)) throw new Error('INVALID_REPORT_TARGET');
-						snapshot.content = reaction.reaction.startsWith(TEXT_REACTION_PREFIX) ? reaction.reaction.slice(TEXT_REACTION_PREFIX.length) : reaction.reaction;
-					} else {
-						if (note.userId !== user.id) throw new Error('INVALID_REPORT_TARGET');
-						const poll = note.hasPoll ? await manager.getRepository(MiPoll).findOneBy({ noteId: note.id }) : null;
-						snapshot.content = [note.cw, note.text, ...(poll?.choices ?? [])].filter(value => value != null && value !== '').join('\n\n');
-						fileIds = [...note.fileIds];
-						let current = note;
-						const visited = new Set([note.id]);
-						while (current.renoteId != null) {
-							if (visited.size >= 8 || visited.has(current.renoteId)) throw new Error('INVALID_REPORT_TARGET');
-							const referenced = await manager.getRepository(MiNote).findOneBy({ id: current.renoteId });
-							if (referenced == null || isDeletedReply(referenced) || !await this.noteEntityService.isContentVisible(referenced, reporter)) throw new Error('INVALID_REPORT_TARGET');
-							const author = await manager.getRepository(MiUser).findOneBy({ id: referenced.userId });
-							if (author == null) throw new Error('INVALID_REPORT_TARGET');
-							const referencedPoll = referenced.hasPoll ? await manager.getRepository(MiPoll).findOneBy({ noteId: referenced.id }) : null;
-							const content = `${this.config.url}/notes/${referenced.id}\n@${author.username}${author.host == null ? '' : `@${author.host}`}\n${[referenced.cw, referenced.text, ...(referencedPoll?.choices ?? [])].filter(value => value != null && value !== '').join('\n\n')}`;
-							snapshot.content = [snapshot.content, content].filter(value => value !== '').join('\n\n');
-							fileIds.push(...referenced.fileIds);
-							visited.add(referenced.id);
-							current = referenced;
-						}
+					if (note.userId !== user.id) throw new Error('INVALID_REPORT_TARGET');
+					const poll = note.hasPoll ? await manager.getRepository(MiPoll).findOneBy({ noteId: note.id }) : null;
+					snapshot.content = [note.cw, note.text, ...(poll?.choices ?? [])].filter(value => value != null && value !== '').join('\n\n');
+					fileIds = [...note.fileIds];
+					let current = note;
+					const visited = new Set([note.id]);
+					while (current.renoteId != null) {
+						if (visited.size >= 8 || visited.has(current.renoteId)) throw new Error('INVALID_REPORT_TARGET');
+						const referenced = await manager.getRepository(MiNote).findOneBy({ id: current.renoteId });
+						if (referenced == null || isDeletedReply(referenced) || !await this.noteEntityService.isContentVisible(referenced, reporter)) throw new Error('INVALID_REPORT_TARGET');
+						const author = await manager.getRepository(MiUser).findOneBy({ id: referenced.userId });
+						if (author == null) throw new Error('INVALID_REPORT_TARGET');
+						const referencedPoll = referenced.hasPoll ? await manager.getRepository(MiPoll).findOneBy({ noteId: referenced.id }) : null;
+						const content = `${this.config.url}/notes/${referenced.id}\n@${author.username}${author.host == null ? '' : `@${author.host}`}\n${[referenced.cw, referenced.text, ...(referencedPoll?.choices ?? [])].filter(value => value != null && value !== '').join('\n\n')}`;
+						snapshot.content = [snapshot.content, content].filter(value => value !== '').join('\n\n');
+						fileIds.push(...referenced.fileIds);
+						visited.add(referenced.id);
+						current = referenced;
 					}
 					break;
 				}
@@ -153,12 +144,6 @@ export class AbuseReportSnapshotService {
 			}
 		}
 		return snapshot;
-	}
-
-	private normalizeReaction(reaction: string): string {
-		if (reaction.startsWith(TEXT_REACTION_PREFIX)) return normalizeTextReaction(reaction) ?? reaction;
-		const normalized = reaction.replace(/@\.:$/, ':');
-		return normalized.includes('\u200d') ? normalized : normalized.replace(/\ufe0f/g, '');
 	}
 
 	private collectPageFiles(blocks: Record<string, unknown>[], fileIds: string[]): void {

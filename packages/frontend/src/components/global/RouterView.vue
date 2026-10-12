@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<component :is="currentPageComponent" :key="key" v-bind="Object.fromEntries(currentPageProps)"/>
 
 			<template #fallback>
-				<MkLoading/>
+				<MkLoading v-if="!hideLoading"/>
 			</template>
 		</Suspense>
 	</KeepAlive>
@@ -18,13 +18,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { inject, nextTick, onMounted, provide, ref, shallowRef, useTemplateRef } from 'vue';
+import { computed, inject, nextTick, onMounted, provide, ref, shallowRef, useTemplateRef } from 'vue';
 import type { Router } from '@/router.js';
 import { prefer } from '@/preferences.js';
 import MkLoadingPage from '@/pages/_loading_.vue';
 import { DI } from '@/di.js';
 import { randomId } from '@/utility/random-id.js';
 import { deepEqual } from '@/utility/deep-equal.js';
+import { isUserOverviewRoute } from '@/pages/user/context.js';
+import { getRouteViewKey } from '@/lib/nirax.js';
 
 const props = defineProps<{
 	router?: Router;
@@ -45,10 +47,11 @@ const currentDepth = inject(DI.routerCurrentDepth, 0);
 provide(DI.routerCurrentDepth, currentDepth + 1);
 
 const current = router.current;
+const hideLoading = computed(() => router.currentRef.value.route.name === 'chat' || isUserOverviewRoute(router.currentRef.value));
 const currentPageComponent = shallowRef('component' in current.route ? current.route.component : MkLoadingPage);
 const currentPageProps = ref(current.props);
 let currentRoutePath = current.route.path;
-const key = ref(router.getCurrentFullPath());
+const key = ref(getRouteViewKey(current));
 
 router.useListener('change', ({ resolved }) => {
 	if (resolved == null || 'redirect' in resolved.route) return;
@@ -56,7 +59,7 @@ router.useListener('change', ({ resolved }) => {
 
 	currentPageComponent.value = resolved.route.component;
 	currentPageProps.value = resolved.props;
-	key.value = router.getCurrentFullPath();
+	key.value = getRouteViewKey(resolved);
 	currentRoutePath = resolved.route.path;
 });
 </script>
@@ -66,11 +69,9 @@ router.useListener('change', ({ resolved }) => {
 	height: 100%;
 	background-color: var(--MI_THEME-bg);
 
-	/**
-	 * FIXME: Safari 26 で contain: layout を指定するとバグるので、hotfixとして _pageContainer の content: strict を上書き
-	 * https://github.com/misskey-dev/misskey/issues/16204#issuecomment-3265404776
-	 * https://bugs.webkit.org/show_bug.cgi?id=297186
-	 */
+	// FIXME: Safari 26 で contain: layout を指定するとバグるので、hotfixとして _pageContainer の content: strict を上書き
+	// https://github.com/misskey-dev/misskey/issues/16204#issuecomment-3265404776
+	// https://bugs.webkit.org/show_bug.cgi?id=297186
 	contain: size style paint !important;
 }
 </style>

@@ -25,7 +25,7 @@ export type AbuseReportEvidenceArchive = {
 export type AbuseReportSnapshot = {
 	version: 1;
 	capturedAt: string;
-	type: 'user' | 'note' | 'boost' | 'chat' | 'page' | 'gallery' | 'play';
+	type: 'user' | 'note' | 'chat' | 'page' | 'gallery' | 'play';
 	sourceUrl: string;
 	user: {
 		id: string;

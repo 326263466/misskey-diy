@@ -14,6 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:aria-describedby="`${id}-value`"
 		:aria-disabled="disabled || readonly"
 		:aria-expanded="opening"
+		:title="currentValueText ?? undefined"
 		aria-haspopup="menu"
 		:class="[$style.input, { [$style.inline]: inline, [$style.disabled]: disabled, [$style.focused]: focused || opening }]"
 		@focus="focused = true"
@@ -34,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@mousedown.prevent="() => {}"
 			@keydown.prevent="() => {}"
 		>
-			<div :id="`${id}-value`" style="pointer-events: none;">{{ currentValueText ?? '' }}</div>
+			<div :id="`${id}-value`" :class="$style.value">{{ currentValueText ?? '' }}</div>
 			<div style="display: none;">
 				<slot></slot>
 			</div>
@@ -300,6 +301,14 @@ function show() {
 	cursor: pointer;
 	pointer-events: none;
 	user-select: none;
+}
+
+.value {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	pointer-events: none;
 }
 
 .prefix,

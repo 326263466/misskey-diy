@@ -134,6 +134,12 @@ type AdminAnnouncementsListResponse = operations['admin___announcements___list']
 type AdminAnnouncementsUpdateRequest = operations['admin___announcements___update']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminArticleTagsUpdateRequest = operations['admin___article-tags___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminArticleTagsUpdateResponse = operations['admin___article-tags___update']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminAvatarDecorationsCreateRequest = operations['admin___avatar-decorations___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -321,6 +327,15 @@ type AdminInviteListResponse = operations['admin___invite___list']['responses'][
 
 // @public (undocumented)
 type AdminMetaResponse = operations['admin___meta']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminPaymentsSettingsResponse = operations['admin___payments___settings']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AdminPaymentsUpdateSettingsRequest = operations['admin___payments___update-settings']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminPaymentsUpdateSettingsResponse = operations['admin___payments___update-settings']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type AdminPromoCreateRequest = operations['admin___promo___create']['requestBody']['content']['application/json'];
@@ -654,6 +669,78 @@ type ApShowRequest = operations['ap___show']['requestBody']['content']['applicat
 type ApShowResponse = operations['ap___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type ArticlesCommentsCreateRequest = operations['articles___comments___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesCommentsCreateResponse = operations['articles___comments___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesCommentsDeleteRequest = operations['articles___comments___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesCommentsRequest = operations['articles___comments']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesCommentsResponse = operations['articles___comments']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesDraftsDeleteRequest = operations['articles___drafts___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesDraftsListRequest = operations['articles___drafts___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesDraftsListResponse = operations['articles___drafts___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesDraftsSaveRequest = operations['articles___drafts___save']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesDraftsSaveResponse = operations['articles___drafts___save']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesDraftsShowRequest = operations['articles___drafts___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesDraftsShowResponse = operations['articles___drafts___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesFavoriteRequest = operations['articles___favorite']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesFavoriteResponse = operations['articles___favorite']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesLikeRequest = operations['articles___like']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesLikeResponse = operations['articles___like']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesListRequest = operations['articles___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesListResponse = operations['articles___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesShowRequest = operations['articles___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesShowResponse = operations['articles___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesStatsRequest = operations['articles___stats']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesStatsResponse = operations['articles___stats']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesTagsRequest = operations['articles___tags']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ArticlesTagsResponse = operations['articles___tags']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AuthAcceptRequest = operations['auth___accept']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -753,6 +840,18 @@ export type Channels = {
             notificationFlushed: () => void;
             unreadAntenna: (payload: Antenna) => void;
             newChatMessage: (payload: ChatMessage) => void;
+            chatReadState: (payload: {
+                hasUnreadChatMessages: boolean;
+            }) => void;
+            chatRoomLeft: (payload: {
+                roomId: string;
+            }) => void;
+            chatHistoryUpdated: (payload: {
+                messageId: string;
+                userId?: string;
+                roomId?: string;
+                deleted?: boolean;
+            }) => void;
             readAllAnnouncements: () => void;
             myTokenRegenerated: () => void;
             signin: (payload: Signin) => void;
@@ -968,8 +1067,15 @@ export type Channels = {
             otherId: string;
         };
         events: {
+            unreadCount: (payload: {
+                count: number;
+                firstMessageId: string | null;
+                lastMessageId: string | null;
+                throughId: string;
+            }) => void;
             message: (payload: ChatMessageLite) => void;
             deleted: (payload: ChatMessageLite['id']) => void;
+            edited: (payload: ChatMessageLite) => void;
             react: (payload: {
                 reaction: string;
                 user?: UserLite;
@@ -984,6 +1090,7 @@ export type Channels = {
         receives: {
             read: {
                 id: ChatMessageLite['id'];
+                count?: boolean;
             };
         };
     };
@@ -992,9 +1099,18 @@ export type Channels = {
             roomId: string;
         };
         events: {
+            unreadCount: (payload: {
+                count: number;
+                firstMessageId: string | null;
+                lastMessageId: string | null;
+                throughId: string;
+            }) => void;
             membersChanged: () => void;
+            accessRevoked: () => void;
+            roomUpdated: () => void;
             message: (payload: ChatMessageLite) => void;
             deleted: (payload: ChatMessageLite['id']) => void;
+            edited: (payload: ChatMessageLite) => void;
             react: (payload: {
                 reaction: string;
                 user?: UserLite;
@@ -1009,6 +1125,7 @@ export type Channels = {
         receives: {
             read: {
                 id: ChatMessageLite['id'];
+                count?: boolean;
             };
         };
     };
@@ -1052,6 +1169,12 @@ type ChannelsOwnedRequest = operations['channels___owned']['requestBody']['conte
 
 // @public (undocumented)
 type ChannelsOwnedResponse = operations['channels___owned']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ChannelsParticipantsRequest = operations['channels___participants']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChannelsParticipantsResponse = operations['channels___participants']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type ChannelsSearchRequest = operations['channels___search']['requestBody']['content']['application/json'];
@@ -1156,6 +1279,15 @@ type ChartsUsersRequest = operations['charts___users']['requestBody']['content']
 type ChartsUsersResponse = operations['charts___users']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type ChatConversationsResponse = operations['chat___conversations']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ChatConversationsUpdateRequest = operations['chat___conversations___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChatConversationsUpdateResponse = operations['chat___conversations___update']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type ChatHistoryRequest = operations['chat___history']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1211,6 +1343,12 @@ type ChatMessagesShowResponse = operations['chat___messages___show']['responses'
 
 // @public (undocumented)
 type ChatMessagesUnreactRequest = operations['chat___messages___unreact']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChatMessagesUpdateRequest = operations['chat___messages___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChatMessagesUpdateResponse = operations['chat___messages___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type ChatMessagesUserTimelineRequest = operations['chat___messages___user-timeline']['requestBody']['content']['application/json'];
@@ -1270,10 +1408,19 @@ type ChatRoomsJoinRequest = operations['chat___rooms___join']['requestBody']['co
 type ChatRoomsLeaveRequest = operations['chat___rooms___leave']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type ChatRoomsMembersDeleteRequest = operations['chat___rooms___members___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
 type ChatRoomsMembersRequest = operations['chat___rooms___members']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type ChatRoomsMembersResponse = operations['chat___rooms___members']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ChatRoomsMembersUpdateRequest = operations['chat___rooms___members___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChatRoomsMembersUpdateResponse = operations['chat___rooms___members___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type ChatRoomsMuteRequest = operations['chat___rooms___mute']['requestBody']['content']['application/json'];
@@ -1283,6 +1430,21 @@ type ChatRoomsOwnedRequest = operations['chat___rooms___owned']['requestBody']['
 
 // @public (undocumented)
 type ChatRoomsOwnedResponse = operations['chat___rooms___owned']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ChatRoomsRequestsAnswerRequest = operations['chat___rooms___requests___answer']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChatRoomsRequestsCreateRequest = operations['chat___rooms___requests___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChatRoomsRequestsCreateResponse = operations['chat___rooms___requests___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ChatRoomsSearchRequest = operations['chat___rooms___search']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChatRoomsSearchResponse = operations['chat___rooms___search']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type ChatRoomsShowRequest = operations['chat___rooms___show']['requestBody']['content']['application/json'];
@@ -1295,6 +1457,12 @@ type ChatRoomsUpdateRequest = operations['chat___rooms___update']['requestBody']
 
 // @public (undocumented)
 type ChatRoomsUpdateResponse = operations['chat___rooms___update']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ChatUnreadRequest = operations['chat___unread']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ChatUnreadResponse = operations['chat___unread']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type CheckinRankingRequest = operations['checkin___ranking']['requestBody']['content']['application/json'];
@@ -1354,7 +1522,39 @@ type ClipsUpdateRequest = operations['clips___update']['requestBody']['content']
 type ClipsUpdateResponse = operations['clips___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+export const CONTENT_LIMITS: {
+    readonly noteText: 2000;
+    readonly commentText: 500;
+    readonly noteCw: 100;
+    readonly articleTitle: 100;
+    readonly articleSummary: 200;
+    readonly articleText: 50000;
+    readonly articleTag: 10;
+    readonly articleCategory: 10;
+    readonly galleryTitle: 100;
+    readonly galleryDescription: 500;
+    readonly announcementTitle: 100;
+    readonly announcementText: 2000;
+    readonly feedbackTitle: 80;
+    readonly feedbackText: 1000;
+    readonly chatMessage: 2000;
+    readonly profileDescription: 500;
+    readonly profileFieldName: 50;
+    readonly profileFieldValue: 1024;
+    readonly channelName: 50;
+    readonly channelDescription: 500;
+    readonly chatRoomName: 50;
+    readonly chatRoomDescription: 500;
+    readonly transferMemo: 200;
+    readonly redPacketGreeting: 18;
+    readonly redPacketPassword: 18;
+};
+
+// @public (undocumented)
 type DateString = string;
+
+// @public (undocumented)
+export const DEFAULT_ARTICLE_TAGS: readonly ["nsfw", "树洞", "纯水", "功能测试", "版本发布", "bug反馈", "公益推广", "快问快答", "技术", "生活", "开发", "前端", "后端", "设计", "随笔", "开源", "数据库", "javascript", "typescript", "vue"];
 
 // @public (undocumented)
 type DriveFile = components['schemas']['DriveFile'];
@@ -1385,6 +1585,9 @@ type DriveFilesCreateResponse = operations['drive___files___create']['responses'
 
 // @public (undocumented)
 type DriveFilesDeleteRequest = operations['drive___files___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type DriveFilesDraftRequest = operations['drive___files___draft']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type DriveFilesFindByHashRequest = operations['drive___files___find-by-hash']['requestBody']['content']['application/json'];
@@ -1421,6 +1624,12 @@ type DriveFilesUpdateResponse = operations['drive___files___update']['responses'
 
 // @public (undocumented)
 type DriveFilesUploadFromUrlRequest = operations['drive___files___upload-from-url']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type DriveFilesUsageRequest = operations['drive___files___usage']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type DriveFilesUsageResponse = operations['drive___files___usage']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type DriveFolder = components['schemas']['DriveFolder'];
@@ -1649,6 +1858,8 @@ declare namespace entities {
         AdminAnnouncementsListRequest,
         AdminAnnouncementsListResponse,
         AdminAnnouncementsUpdateRequest,
+        AdminArticleTagsUpdateRequest,
+        AdminArticleTagsUpdateResponse,
         AdminAvatarDecorationsCreateRequest,
         AdminAvatarDecorationsCreateResponse,
         AdminAvatarDecorationsDeleteRequest,
@@ -1712,6 +1923,9 @@ declare namespace entities {
         AdminInviteListRequest,
         AdminInviteListResponse,
         AdminMetaResponse,
+        AdminPaymentsSettingsResponse,
+        AdminPaymentsUpdateSettingsRequest,
+        AdminPaymentsUpdateSettingsResponse,
         AdminPromoCreateRequest,
         AdminQueueClearRequest,
         AdminQueueDeliverDelayedResponse,
@@ -1806,6 +2020,30 @@ declare namespace entities {
         AppCreateResponse,
         AppShowRequest,
         AppShowResponse,
+        ArticlesCommentsRequest,
+        ArticlesCommentsResponse,
+        ArticlesCommentsCreateRequest,
+        ArticlesCommentsCreateResponse,
+        ArticlesCommentsDeleteRequest,
+        ArticlesDraftsDeleteRequest,
+        ArticlesDraftsListRequest,
+        ArticlesDraftsListResponse,
+        ArticlesDraftsSaveRequest,
+        ArticlesDraftsSaveResponse,
+        ArticlesDraftsShowRequest,
+        ArticlesDraftsShowResponse,
+        ArticlesFavoriteRequest,
+        ArticlesFavoriteResponse,
+        ArticlesLikeRequest,
+        ArticlesLikeResponse,
+        ArticlesListRequest,
+        ArticlesListResponse,
+        ArticlesShowRequest,
+        ArticlesShowResponse,
+        ArticlesStatsRequest,
+        ArticlesStatsResponse,
+        ArticlesTagsRequest,
+        ArticlesTagsResponse,
         AuthAcceptRequest,
         AuthSessionGenerateRequest,
         AuthSessionGenerateResponse,
@@ -1835,6 +2073,8 @@ declare namespace entities {
         ChannelsMyFavoritesResponse,
         ChannelsOwnedRequest,
         ChannelsOwnedResponse,
+        ChannelsParticipantsRequest,
+        ChannelsParticipantsResponse,
         ChannelsSearchRequest,
         ChannelsSearchResponse,
         ChannelsShowRequest,
@@ -1869,6 +2109,9 @@ declare namespace entities {
         ChartsUserReactionsResponse,
         ChartsUsersRequest,
         ChartsUsersResponse,
+        ChatConversationsResponse,
+        ChatConversationsUpdateRequest,
+        ChatConversationsUpdateResponse,
         ChatHistoryRequest,
         ChatHistoryResponse,
         ChatMessagesCreateToRoomRequest,
@@ -1884,6 +2127,8 @@ declare namespace entities {
         ChatMessagesShowRequest,
         ChatMessagesShowResponse,
         ChatMessagesUnreactRequest,
+        ChatMessagesUpdateRequest,
+        ChatMessagesUpdateResponse,
         ChatMessagesUserTimelineRequest,
         ChatMessagesUserTimelineResponse,
         ChatRoomsCreateRequest,
@@ -1902,13 +2147,23 @@ declare namespace entities {
         ChatRoomsLeaveRequest,
         ChatRoomsMembersRequest,
         ChatRoomsMembersResponse,
+        ChatRoomsMembersDeleteRequest,
+        ChatRoomsMembersUpdateRequest,
+        ChatRoomsMembersUpdateResponse,
         ChatRoomsMuteRequest,
         ChatRoomsOwnedRequest,
         ChatRoomsOwnedResponse,
+        ChatRoomsRequestsAnswerRequest,
+        ChatRoomsRequestsCreateRequest,
+        ChatRoomsRequestsCreateResponse,
+        ChatRoomsSearchRequest,
+        ChatRoomsSearchResponse,
         ChatRoomsShowRequest,
         ChatRoomsShowResponse,
         ChatRoomsUpdateRequest,
         ChatRoomsUpdateResponse,
+        ChatUnreadRequest,
+        ChatUnreadResponse,
         CheckinRankingRequest,
         CheckinRankingResponse,
         ClipsAddNoteRequest,
@@ -1939,6 +2194,7 @@ declare namespace entities {
         DriveFilesCreateRequest,
         DriveFilesCreateResponse,
         DriveFilesDeleteRequest,
+        DriveFilesDraftRequest,
         DriveFilesFindRequest,
         DriveFilesFindResponse,
         DriveFilesFindByHashRequest,
@@ -1949,6 +2205,8 @@ declare namespace entities {
         DriveFilesUpdateRequest,
         DriveFilesUpdateResponse,
         DriveFilesUploadFromUrlRequest,
+        DriveFilesUsageRequest,
+        DriveFilesUsageResponse,
         DriveFoldersRequest,
         DriveFoldersResponse,
         DriveFoldersCreateRequest,
@@ -2136,6 +2394,8 @@ declare namespace entities {
         IWalletResponse,
         IWalletExchangeRequest,
         IWalletExchangeResponse,
+        IWalletTipRequest,
+        IWalletTipResponse,
         IWalletTransactionsRequest,
         IWalletTransactionsResponse,
         IWebhooksCreateRequest,
@@ -2204,6 +2464,7 @@ declare namespace entities {
         NotesReactionsRequest,
         NotesReactionsResponse,
         NotesReactionsCreateRequest,
+        NotesReactionsCreateResponse,
         NotesReactionsDeleteRequest,
         NotesRenotesRequest,
         NotesRenotesResponse,
@@ -2232,6 +2493,12 @@ declare namespace entities {
         NotesUserListTimelineResponse,
         NotesViewsRequest,
         NotificationsCreateRequest,
+        OrdersListRequest,
+        OrdersListResponse,
+        OrdersPurchaseRequest,
+        OrdersPurchaseResponse,
+        OrdersShowRequest,
+        OrdersShowResponse,
         PagePushRequest,
         PagesCreateRequest,
         PagesCreateResponse,
@@ -2242,9 +2509,22 @@ declare namespace entities {
         PagesShowResponse,
         PagesUnlikeRequest,
         PagesUpdateRequest,
+        PaymentsSettingsResponse,
         PingResponse,
         PinnedUsersResponse,
+        ProductsCreateRequest,
+        ProductsCreateResponse,
+        ProductsListRequest,
+        ProductsListResponse,
+        ProductsMineRequest,
+        ProductsMineResponse,
+        ProductsShowRequest,
+        ProductsShowResponse,
+        ProductsUpdateRequest,
+        ProductsUpdateResponse,
         PromoReadRequest,
+        RedPacketsCancelRequest,
+        RedPacketsCancelResponse,
         RedPacketsClaimRequest,
         RedPacketsClaimResponse,
         RedPacketsCreateRequest,
@@ -2289,6 +2569,20 @@ declare namespace entities {
         SwUpdateRegistrationResponse,
         TestRequest,
         TestResponse,
+        TipsListRequest,
+        TipsListResponse,
+        TipsSendRequest,
+        TipsSendResponse,
+        TransfersAcceptRequest,
+        TransfersAcceptResponse,
+        TransfersCreateRequest,
+        TransfersCreateResponse,
+        TransfersListRequest,
+        TransfersListResponse,
+        TransfersRefundRequest,
+        TransfersRefundResponse,
+        TransfersShowRequest,
+        TransfersShowResponse,
         UsernameAvailableRequest,
         UsernameAvailableResponse,
         UsersRequest,
@@ -2333,6 +2627,8 @@ declare namespace entities {
         UsersNotesResponse,
         UsersPagesRequest,
         UsersPagesResponse,
+        UsersRankingRequest,
+        UsersRankingResponse,
         UsersReactionsRequest,
         UsersReactionsResponse,
         UsersRecommendationRequest,
@@ -3061,6 +3357,12 @@ type IWalletExchangeResponse = operations['i___wallet___exchange']['responses'][
 type IWalletResponse = operations['i___wallet']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type IWalletTipRequest = operations['i___wallet___tip']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type IWalletTipResponse = operations['i___wallet___tip']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type IWalletTransactionsRequest = operations['i___wallet___transactions']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3308,6 +3610,9 @@ type NotesPollsVoteRequest = operations['notes___polls___vote']['requestBody']['
 type NotesReactionsCreateRequest = operations['notes___reactions___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type NotesReactionsCreateResponse = operations['notes___reactions___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type NotesReactionsDeleteRequest = operations['notes___reactions___delete']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3416,6 +3721,24 @@ export const notificationTypes: readonly ["note", "follow", "mention", "reply", 
 export function nyaize(text: string): string;
 
 // @public (undocumented)
+type OrdersListRequest = operations['orders___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type OrdersListResponse = operations['orders___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type OrdersPurchaseRequest = operations['orders___purchase']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type OrdersPurchaseResponse = operations['orders___purchase']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type OrdersShowRequest = operations['orders___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type OrdersShowResponse = operations['orders___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type Page = components['schemas']['Page'];
 
 // @public (undocumented)
@@ -3473,6 +3796,9 @@ type PartialRolePolicyOverride = Partial<{
 }>;
 
 // @public (undocumented)
+type PaymentsSettingsResponse = operations['payments___settings']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 export const permissions: readonly ["read:account", "write:account", "read:blocks", "write:blocks", "read:drive", "write:drive", "read:favorites", "write:favorites", "read:following", "write:following", "read:messaging", "write:messaging", "read:mutes", "write:mutes", "write:notes", "read:notifications", "write:notifications", "read:reactions", "write:reactions", "write:note-likes", "write:votes", "read:pages", "write:pages", "write:page-likes", "read:page-likes", "read:user-groups", "write:user-groups", "read:channels", "write:channels", "read:gallery", "write:gallery", "read:gallery-likes", "write:gallery-likes", "read:flash", "write:flash", "read:flash-likes", "write:flash-likes", "read:admin:abuse-user-reports", "write:admin:delete-account", "write:admin:delete-all-files-of-a-user", "read:admin:index-stats", "read:admin:table-stats", "read:admin:user-ips", "read:admin:meta", "write:admin:reset-password", "write:admin:resolve-abuse-user-report", "write:admin:send-email", "read:admin:server-info", "read:admin:show-moderation-log", "read:admin:show-user", "write:admin:suspend-user", "write:admin:unset-mfa", "write:admin:unset-user-avatar", "write:admin:unset-user-banner", "write:admin:unsuspend-user", "write:admin:meta", "write:admin:user-note", "write:admin:roles", "read:admin:roles", "write:admin:relays", "read:admin:relays", "write:admin:invite-codes", "read:admin:invite-codes", "write:admin:announcements", "read:admin:announcements", "write:admin:avatar-decorations", "read:admin:avatar-decorations", "write:admin:federation", "write:admin:account", "read:admin:account", "write:admin:emoji", "read:admin:emoji", "write:admin:queue", "read:admin:queue", "write:admin:promo", "write:admin:drive", "read:admin:drive", "write:admin:ad", "read:admin:ad", "write:invite-codes", "read:invite-codes", "write:clip-favorite", "read:clip-favorite", "read:federation", "write:report-abuse", "write:chat", "read:chat"];
 
 // @public (undocumented)
@@ -3480,6 +3806,36 @@ type PingResponse = operations['ping']['responses']['200']['content']['applicati
 
 // @public (undocumented)
 type PinnedUsersResponse = operations['pinned-users']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsCreateRequest = operations['products___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsCreateResponse = operations['products___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsListRequest = operations['products___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsListResponse = operations['products___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsMineRequest = operations['products___mine']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsMineResponse = operations['products___mine']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsShowRequest = operations['products___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsShowResponse = operations['products___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsUpdateRequest = operations['products___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type ProductsUpdateResponse = operations['products___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type PromoReadRequest = operations['promo___read']['requestBody']['content']['application/json'];
@@ -3524,6 +3880,12 @@ type QueueStatsLog = QueueStats[];
 
 // @public (undocumented)
 export const queueTypes: readonly ["system", "endedPollNotification", "postScheduledNote", "deliver", "inbox", "db", "relationship", "objectStorage", "userWebhookDeliver", "systemWebhookDeliver"];
+
+// @public (undocumented)
+type RedPacketsCancelRequest = operations['red-packets___cancel']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RedPacketsCancelResponse = operations['red-packets___cancel']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type RedPacketsClaimRequest = operations['red-packets___claim']['requestBody']['content']['application/json'];
@@ -3858,7 +4220,49 @@ type TestRequest = operations['test']['requestBody']['content']['application/jso
 type TestResponse = operations['test']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type TipsListRequest = operations['tips___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TipsListResponse = operations['tips___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TipsSendRequest = operations['tips___send']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TipsSendResponse = operations['tips___send']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 function toString_2(acct: Acct): string;
+
+// @public (undocumented)
+type TransfersAcceptRequest = operations['transfers___accept']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersAcceptResponse = operations['transfers___accept']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersCreateRequest = operations['transfers___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersCreateResponse = operations['transfers___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersListRequest = operations['transfers___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersListResponse = operations['transfers___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersRefundRequest = operations['transfers___refund']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersRefundResponse = operations['transfers___refund']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersShowRequest = operations['transfers___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TransfersShowResponse = operations['transfers___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type User = components['schemas']['User'];
@@ -4005,6 +4409,12 @@ type UsersPagesRequest = operations['users___pages']['requestBody']['content']['
 type UsersPagesResponse = operations['users___pages']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type UsersRankingRequest = operations['users___ranking']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type UsersRankingResponse = operations['users___ranking']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type UsersReactionsRequest = operations['users___reactions']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -4073,8 +4483,8 @@ type VerifyEmailRequest = operations['verify-email']['requestBody']['content']['
 // Warnings were encountered during analysis:
 //
 // src/streaming.ts:58:3 - (ae-forgotten-export) The symbol "ReconnectingWebSocket" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:226:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:241:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:229:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:244:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

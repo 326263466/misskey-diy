@@ -204,7 +204,7 @@ test.describe('After user setup', () => {
 	});
 
 	test('open note form with hotkey', async ({ page }) => {
-		await page.getByTestId('open-post-form').waitFor({ state: 'visible' });
+		await page.getByTestId('open-publish-menu').waitFor({ state: 'visible' });
 		await page.keyboard.press('KeyN');
 		await page.getByTestId('post-form-text').waitFor({ state: 'visible' });
 		await page.keyboard.press('Escape');

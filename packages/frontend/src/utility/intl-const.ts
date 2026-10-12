@@ -5,7 +5,8 @@
 
 import { lang } from '@@/js/config.js';
 
-export const versatileLang = (lang ?? 'ja-JP').replace('ja-KS', 'ja-JP');
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+export const versatileLang = (lang ?? 'zh-CN').replace('ja-KS', 'ja-JP');
 
 let _dateTimeFormat: Intl.DateTimeFormat;
 try {

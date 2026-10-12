@@ -45,22 +45,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 <div v-else>
 	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="maybeRelativeUrl" rel="nofollow noopener" :target="target" :title="url" @click="confirmExternalLink" @auxclick="confirmExternalLink">
-		<div v-if="thumbnail && !sensitive" :class="$style.thumbnail" :style="prefer.s.dataSaver.urlPreviewThumbnail ? '' : { backgroundImage: `url('${thumbnail}')` }">
+		<div v-if="thumbnail && !sensitive" class="_imageContainer" :class="$style.thumbnail">
+			<img v-if="!prefer.s.dataSaver.urlPreviewThumbnail" class="_imageBackground" :src="thumbnail" alt="" style="object-fit: contain;"/>
 		</div>
 		<article :class="$style.body">
 			<header :class="$style.header">
-				<h1 v-if="unknownUrl" :class="$style.title">{{ url }}</h1>
-				<h1 v-else-if="fetching" :class="$style.title"><MkEllipsis/></h1>
-				<h1 v-else :class="$style.title" :title="title ?? undefined">{{ title }}</h1>
+				<h1 v-if="fetching" :class="$style.title"><MkEllipsis/></h1>
+				<h1 v-else :class="$style.title" :title="title">{{ title }}</h1>
 			</header>
-			<p v-if="unknownUrl" :class="$style.text">{{ i18n.ts.failedToPreviewUrl }}</p>
-			<p v-else-if="fetching" :class="$style.text"><MkEllipsis/></p>
-			<p v-else-if="description?.trim()" :class="$style.text" :title="description">{{ description }}</p>
+			<p v-if="fetching" :class="$style.text"><MkEllipsis/></p>
+			<p v-else :class="$style.text" :title="description">{{ description }}</p>
 			<footer :class="$style.footer">
-				<img v-if="icon" :class="$style.siteIcon" :src="icon"/>
-				<p v-if="unknownUrl" :class="$style.siteName">{{ requestUrl.host }}</p>
-				<p v-else-if="fetching" :class="$style.siteName"><MkEllipsis/></p>
-				<p v-else :class="$style.siteName" :title="sitename ?? requestUrl.host">{{ sitename ?? requestUrl.host }}</p>
+				<img v-if="icon" :class="$style.siteIcon" :src="icon" alt=""/>
+				<p :class="$style.siteName" :title="siteAddress">{{ siteAddress }}</p>
 			</footer>
 		</article>
 	</component>
@@ -115,13 +112,19 @@ const maybeRelativeUrl = maybeMakeRelative(props.url, local);
 const self = maybeRelativeUrl !== props.url;
 const attr = self ? 'to' : 'href';
 const target = self ? null : '_blank';
+const requestUrl = new URL(props.url, window.location.href);
+const siteAddress = requestUrl.host;
 const fetching = ref(true);
 const summalyResult = ref<SummalyResult | null>(null);
-const title = computed(() => summalyResult.value?.title ?? null);
-const description = computed(() => summalyResult.value?.description ?? null);
+const title = computed(() => {
+	const value = summalyResult.value?.title?.trim();
+	// 部分预览服务把地址当作标题，避免在地址行和标题行重复显示。
+	return value && ![props.url, requestUrl.href, siteAddress, summalyResult.value?.url].includes(value)
+		? value : i18n.ts.urlPreviewFallbackTitle;
+});
+const description = computed(() => summalyResult.value?.description?.trim() || i18n.ts.urlPreviewFallbackDescription);
 const thumbnail = computed(() => summalyResult.value?.thumbnail ?? null);
 const icon = computed(() => summalyResult.value?.icon ?? null);
-const sitename = computed(() => summalyResult.value?.sitename ?? null);
 const sensitive = computed(() => summalyResult.value?.sensitive ?? false);
 const player = computed(() => summalyResult.value?.player ?? { url: null, width: null, height: null });
 const playerEnabled = ref(false);
@@ -129,13 +132,11 @@ const tweetId = ref<string | null>(null);
 const tweetExpanded = ref(props.detail);
 const embedId = `embed${Math.random().toString().replace(/\D/, '')}`;
 const tweetHeight = ref(150);
-const unknownUrl = ref(false);
 
 onDeactivated(() => {
 	playerEnabled.value = false;
 });
 
-const requestUrl = new URL(props.url, window.location.href);
 if (!['http:', 'https:'].includes(requestUrl.protocol)) throw new Error('invalid url');
 
 if (requestUrl.hostname === 'twitter.com' || requestUrl.hostname === 'mobile.twitter.com' || requestUrl.hostname === 'x.com' || requestUrl.hostname === 'mobile.x.com') {
@@ -166,21 +167,12 @@ window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLa
 	})
 	.then((info: SummalyResult | null) => {
 		if (disposed) return;
-		if (!info || info.url == null) {
-			fetching.value = false;
-			unknownUrl.value = true;
-			return;
-		}
-
 		fetching.value = false;
-		unknownUrl.value = false;
-
-		summalyResult.value = info;
+		summalyResult.value = info ? { ...info, url: info.url ?? requestUrl.href } : null;
 	})
 	.catch(() => {
 		if (disposed) return;
 		fetching.value = false;
-		unknownUrl.value = true;
 	})
 	.finally(() => {
 		window.clearTimeout(requestTimeout);
@@ -288,9 +280,6 @@ onUnmounted(() => {
 	width: 100px;
 	height: auto;
 	border-radius: calc(var(--MI-radius) / 3);
-	background-position: center;
-	background-size: contain;
-	background-repeat: no-repeat;
 	background-color: var(--MI_THEME-bg);
 	display: flex;
 	justify-content: center;
@@ -336,7 +325,7 @@ onUnmounted(() => {
 }
 
 .siteIcon {
-	display: none;
+	display: inline-block;
 	width: 16px;
 	height: 16px;
 	flex: none;

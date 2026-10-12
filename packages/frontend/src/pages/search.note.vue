@@ -54,7 +54,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-if="instance.federation !== 'none' && searchScope === 'server'" :class="$style.subOptionRoot">
 					<MkInput
 						v-model="hostInput"
-						:debounce="300"
 						:placeholder="i18n.ts._search.serverHostPlaceholder"
 					>
 						<template #label>{{ i18n.ts._search.pleaseEnterServerHost }}</template>
@@ -100,7 +99,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</div>
 							<div>
 								<button
-									class="_button"
+									class="_button _iconButton"
 									:class="$style.userSelectedRemoveButton"
 									:aria-label="i18n.ts.remove"
 									@click="removeUser"
@@ -115,7 +114,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkFoldableSection>
 	</div>
 
-	<MkNotesTimeline v-if="paginator" :key="`searchNotes:${key}`" :paginator="paginator" :withControl="false"/>
+	<MkNotesTimeline v-if="paginator" :key="`searchNotes:${key}`" :paginator="paginator" :withControl="false" pageEmpty/>
 </div>
 </template>
 

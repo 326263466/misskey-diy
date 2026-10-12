@@ -15,7 +15,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 					<div :key="user.id" class="main _panel">
 						<div ref="bannerEl" class="banner-container">
-							<div class="banner" :style="style"></div>
+							<div class="banner">
+								<div v-if="bannerUrl" class="banner-image" :style="{ backgroundImage: `url(${JSON.stringify(bannerUrl)})` }">
+									<img data-image-fade-background :src="bannerUrl" alt="" style="display: none;"/>
+								</div>
+							</div>
 							<div class="fade"></div>
 							<div class="title">
 								<div class="name" :class="$style.nameRow">
@@ -58,8 +62,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div v-if="user.roles.length > 0" class="roles">
 							<span v-for="role in user.roles" :key="role.id" v-tooltip="role.description" class="role" :style="{ '--color': role.color ?? '' }">
 								<MkA v-adaptive-bg :to="`/roles/${role.id}`">
-									<img v-if="role.iconUrl" style="height: 1.3em; vertical-align: -22%;" :src="role.iconUrl"/>
-									{{ role.name }}
+									<img v-if="role.iconUrl" style="height: 1.3em; vertical-align: -0.275em;" :src="role.iconUrl"/>
+									<Mfm :text="role.name" :plain="true" :nowrap="true"/>
 								</MkA>
 							</span>
 						</div>
@@ -67,7 +71,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<MkModerationNote v-model="moderationNote" :save="saveModerationNote"/>
 						</div>
 						<div class="description">
-							<span class="descriptionLabel">{{ i18n.ts._profile.description }}</span>
 							<MkOmit>
 								<Mfm v-if="user.description" :text="user.description" :isNote="false" :author="user" class="_selectable"/>
 								<p v-else class="empty">{{ i18n.ts.noAccountDescription }}</p>
@@ -76,15 +79,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="fields system">
 							<dl v-if="user.location" class="field">
 								<dt class="name"><i class="ti ti-map-pin ti-fw"></i> {{ i18n.ts.location }}</dt>
-								<dd class="value">{{ user.location }}</dd>
+								<dd class="value"><Mfm :text="user.location" :plain="true" :author="user" class="_selectable"/></dd>
 							</dl>
 							<dl v-if="user.company" class="field">
 								<dt class="name"><i class="ti ti-building ti-fw" aria-hidden="true"></i> {{ i18n.ts._profile.company }}</dt>
-								<dd class="value">{{ user.company }}</dd>
+								<dd class="value"><Mfm :text="user.company" :plain="true" :author="user" class="_selectable"/></dd>
 							</dl>
 							<dl v-if="user.jobTitle" class="field">
 								<dt class="name"><i class="ti ti-briefcase ti-fw" aria-hidden="true"></i> {{ i18n.ts._profile.jobTitle }}</dt>
-								<dd class="value">{{ user.jobTitle }}</dd>
+								<dd class="value"><Mfm :text="user.jobTitle" :plain="true" :author="user" class="_selectable"/></dd>
 							</dl>
 							<dl v-if="user.birthday" class="field">
 								<dt class="name"><i class="ti ti-cake ti-fw"></i> {{ i18n.ts.birthday }}</dt>
@@ -108,16 +111,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<div class="status">
 							<MkA :to="userPage(user, 'notes')">
-								<span>{{ i18n.ts.notes }}</span>
 								<b>{{ number(user.notesCount) }}</b>
+								<span>{{ i18n.ts.notes }}</span>
 							</MkA>
 							<MkA v-if="isFollowingVisibleForMe(user)" :to="userPage(user, 'following')">
-								<span>{{ i18n.ts.following }}</span>
 								<b>{{ number(user.followingCount) }}</b>
+								<span>{{ i18n.ts.following }}</span>
 							</MkA>
 							<MkA v-if="isFollowersVisibleForMe(user)" :to="userPage(user, 'followers')">
-								<span>{{ i18n.ts.followers }}</span>
 								<b>{{ number(user.followersCount) }}</b>
+								<span>{{ i18n.ts.followers }}</span>
 							</MkA>
 						</div>
 					</div>
@@ -166,7 +169,7 @@ import MkOmit from '@/components/MkOmit.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import { getUserMenu } from '@/utility/get-user-menu.js';
 import number from '@/filters/number.js';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { $i, iAmModerator } from '@/i.js';
@@ -241,18 +244,8 @@ async function saveModerationNote(value: string) {
 	await os.apiWithDialog('admin/update-user-note', { userId: props.user.id, text: value });
 }
 
-const style = computed(() => {
-	if (props.user.bannerUrl == null) return {};
-	if (prefer.s.disableShowingAnimatedImages) {
-		return {
-			backgroundImage: `url(${ getStaticImageUrl(props.user.bannerUrl) })`,
-		};
-	} else {
-		return {
-			backgroundImage: `url(${ props.user.bannerUrl })`,
-		};
-	};
-});
+const bannerUrl = computed(() => props.user.bannerUrl == null ? null
+	: prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(props.user.bannerUrl) : props.user.bannerUrl);
 
 const age = computed(() => {
 	return props.user.birthday ? calcAge(props.user.birthday) : NaN;
@@ -377,12 +370,17 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 					> .banner {
 						width: 100%;
 						height: 100%;
-						background-size: cover;
-						background-color: #4c5e6d;
-						background-repeat: repeat-y;
-						background-position-x: center;
-						background-position-y: 50%;
-						will-change: background-position-y;
+						background-color: var(--MI-userBannerBg);
+
+						> .banner-image {
+							display: block;
+							width: 100%;
+							height: 100%;
+							background-size: cover;
+							background-repeat: repeat-y;
+							background-position: center;
+							will-change: background-position-y;
+						}
 					}
 
 					> .fade {
@@ -480,7 +478,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 					text-align: center;
 					padding: 50px 8px 16px 8px;
 					font-weight: bold;
-					border-bottom: solid 0.5px var(--MI_THEME-divider);
+					border-bottom: var(--MI-divider);
 
 					> .bottom {
 						color: var(--MI_THEME-fgTransparentWeak);
@@ -526,7 +524,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 					gap: 8px;
 
 					> .role {
-						border: solid 1px var(--color, var(--MI_THEME-divider));
+						border: var(--MI-dividerWidth) solid var(--color, var(--MI-dividerColor));
 						border-radius: 999px;
 						margin-right: 4px;
 						padding: 3px 8px;
@@ -538,79 +536,43 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 				}
 
 				> .description {
-					color: var(--MI_THEME-fgTransparent);
-					// 头像下悬 40px (170+120-250), 信息区从其下方开始
-					// 签名与资料/统计同款圆片: 「签名:内容」, 同高度同格式
-					display: flex;
-					width: fit-content;
-					max-width: 100%;
-					align-items: baseline;
-					gap: 6px;
-					margin: 48px 24px 12px;
-					padding: 6px 12px;
-					// panelHighlight 始终相对卡片偏移一档 (亮色调暗/暗色调亮);
-					// 用 bg 在暗色主题下比卡片更黑, 圆片会变成一个个黑洞
-					background: var(--MI_THEME-panelHighlight);
-					border-radius: 999px;
-					font-size: 0.9em;
-
-					> *:not(.descriptionLabel) {
-						min-width: 0;
-					}
-
-					> .descriptionLabel {
-						flex-shrink: 0;
-						color: var(--MI_THEME-fgTransparentWeak);
-
-						&::after {
-							content: ":";
-						}
-					}
+					padding: 24px 24px 24px 154px;
+					font-size: 0.95em;
 
 					.empty {
 						margin: 0;
-						color: var(--MI_THEME-fgTransparentWeak);
+						opacity: 0.5;
 					}
 				}
 
 				> .fields {
-					color: var(--MI_THEME-fgTransparentWeak);
-					// 资料条目做成「内容宽度」的灰色圆角小片, 横向排列、放不下自动换行,
-					// 灰底只包住内容本身, 避免通栏灰底右侧大片留白
-					display: flex;
-					flex-wrap: wrap;
-					align-items: center;
-					gap: 8px;
-					margin: 0 24px 12px;
-					padding: 0;
+					padding: 24px;
 					font-size: 0.9em;
+					border-top: var(--MI-divider);
 
 					> .field {
-						display: inline-flex;
-						align-items: center;
-						gap: 6px;
+						display: flex;
+						padding: 0;
 						margin: 0;
-						padding: 6px 12px;
-						max-width: 100%;
-						background: var(--MI_THEME-panelHighlight);
-						border-radius: 999px;
+						align-items: center;
+
+						&:not(:last-child) {
+							margin-bottom: 8px;
+						}
 
 						> .name {
-							max-width: 160px;
+							width: 30%;
+							min-width: 0;
 							overflow: hidden;
 							white-space: nowrap;
 							text-overflow: ellipsis;
-							font-weight: normal;
-							color: var(--MI_THEME-fgTransparentWeak);
-
-							&::after {
-								content: ":";
-							}
+							font-weight: bold;
+							text-align: center;
 						}
 
 						> .value {
+							width: 70%;
 							min-width: 0;
-							max-width: 320px;
 							overflow: hidden;
 							white-space: nowrap;
 							text-overflow: ellipsis;
@@ -623,20 +585,15 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 				}
 
 				> .status {
-					color: var(--MI_THEME-fgTransparent);
 					display: flex;
-					flex-wrap: wrap;
-					gap: 8px;
-					margin: 0 24px 24px;
-					padding: 0;
+					padding: 24px;
+					border-top: var(--MI-divider);
 
 					> a {
-						display: inline-flex;
-						align-items: baseline;
-						gap: 6px;
-						padding: 6px 12px;
-						background: var(--MI_THEME-panelHighlight);
-						border-radius: 999px;
+						flex: 1;
+						min-width: 0;
+						text-align: center;
+						overflow-wrap: anywhere;
 
 						&.active {
 							color: var(--MI_THEME-accent);
@@ -644,19 +601,15 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 
 						&:hover {
 							text-decoration: none;
-							background: color-mix(in srgb, var(--MI_THEME-fg) 8%, var(--MI_THEME-panelHighlight));
-						}
-
-						> span {
-							color: var(--MI_THEME-fgTransparentWeak);
-
-							&::after {
-								content: ":";
-							}
 						}
 
 						> b {
-							font-weight: normal;
+							display: block;
+							line-height: 16px;
+						}
+
+						> span {
+							font-size: 70%;
 						}
 					}
 				}
@@ -731,16 +684,16 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 				}
 
 				> .description {
-					margin: 16px 16px 12px;
-					padding: 6px 12px;
+					padding: 16px;
+					text-align: center;
 				}
 
 				> .fields {
-					margin: 0 16px 12px;
+					padding: 16px;
 				}
 
 				> .status {
-					margin: 0 16px 16px;
+					padding: 16px;
 				}
 			}
 
@@ -762,7 +715,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 					view-timeline-inset: var(--bannerParallaxInset, auto);
 					view-timeline-axis: block;
 
-					> .banner {
+					> .banner > .banner-image {
 						animation: bannerParallaxKeyframes linear both;
 						animation-timeline: --bannerParallax;
 						animation-range: cover;
@@ -804,7 +757,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 
 .nameRow {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	gap: 8px;
 	line-height: 1.5;
 }

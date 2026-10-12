@@ -113,6 +113,8 @@ function getCompressionSettings(level: 0 | 1 | 2 | 3) {
 
 export function useUploader(options: {
 	folderId?: string | null;
+	isManaged?: boolean;
+	draftId?: string | (() => string);
 	multiple?: boolean;
 	features?: UploaderFeatures;
 } = {}) {
@@ -512,8 +514,12 @@ export function useUploader(options: {
 			}, {
 				icon: 'ti ti-upload',
 				text: i18n.ts.upload,
-				action: () => {
-					uploadOne(item);
+				action: async () => {
+					try {
+						await uploadOne(item);
+					} catch {
+						os.toast(i18n.ts.somethingHappened, 'error');
+					}
 				},
 			}, {
 				icon: 'ti ti-x',
@@ -555,11 +561,22 @@ export function useUploader(options: {
 	}
 
 	async function uploadOne(item: UploaderItem): Promise<void> {
+		if (item.uploading || item.uploaded || !items.value.includes(item)) return;
 		item.uploadFailed = false;
 		item.uploading = true;
+		let draftId: string | undefined;
+		try {
+			draftId = typeof options.draftId === 'function' ? options.draftId() : options.draftId;
+		} catch {
+			item.uploading = false;
+			item.uploadFailed = true;
+			return;
+		}
 
 		const { filePromise, abort } = uploadFile(item.preprocessedFile ?? item.file, {
 			name: getUploadName(item),
+			isManaged: options.isManaged,
+			draftId,
 			folderId: options.folderId === undefined ? prefer.s.uploadFolder : options.folderId,
 			isSensitive: item.isSensitive ?? false,
 			caption: item.caption ?? null,
@@ -840,4 +857,3 @@ export function useUploader(options: {
 		events,
 	};
 }
-

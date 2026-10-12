@@ -17,7 +17,8 @@ const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
 
 const configDir = resolve(_dirname, '../../../.config');
-const OUTPUT_PATH = resolve(_dirname, '../../../built/.config.json');
+// 测试配置必须独立，避免 SDK 构建覆盖正在运行的测试的数据库目标。
+const OUTPUT_PATH = resolve(_dirname, '../../../built', process.env.NODE_ENV === 'test' ? '.config.test.json' : '.config.json');
 
 // TODO: yamlのパースに失敗したときのエラーハンドリング
 

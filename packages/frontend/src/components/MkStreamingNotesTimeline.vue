@@ -5,12 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <component :is="prefer.s.enablePullToRefresh ? MkPullToRefresh : 'div'" :refresher="() => reloadTimeline()">
-	<MkLoading v-if="paginator.fetching.value"/>
+	<MkLoading v-if="paginator.items.value.length === 0 && fetching" :page="pageEmpty"/>
 
-	<MkError v-else-if="paginator.error.value" @retry="paginator.init()"/>
+	<MkError v-else-if="paginator.error.value && paginator.items.value.length === 0" :page="pageEmpty" @retry="paginator.init()"/>
 
 	<div v-else-if="paginator.items.value.length === 0" key="_empty_">
-		<slot name="empty"><MkResult type="empty" :text="i18n.ts.noNotes"/></slot>
+		<slot name="empty" :fetching="fetching"><MkResult type="empty" :text="i18n.ts.noNotes" :page="pageEmpty"/></slot>
 	</div>
 
 	<div v-else ref="rootEl">
@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<component
 			:is="prefer.s.animation ? TransitionGroup : 'div'"
-			:class="[$style.notes, '_juejinCard']"
+			:class="[$style.notes, '_card']"
 			:enterActiveClass="$style.transition_x_enterActive"
 			:leaveActiveClass="$style.transition_x_leaveActive"
 			:enterFromClass="$style.transition_x_enterFrom"
@@ -85,11 +85,13 @@ const props = withDefaults(defineProps<{
 	withReplies?: boolean;
 	withSensitive?: boolean;
 	onlyFiles?: boolean;
+	pageEmpty?: boolean;
 }>(), {
 	withRenotes: true,
 	withReplies: false,
 	withSensitive: true,
 	onlyFiles: false,
+	pageEmpty: false,
 	sound: false,
 	customSound: null,
 });
@@ -178,6 +180,8 @@ if (props.src === 'antenna') {
 } else {
 	throw new Error('Unrecognized timeline type: ' + props.src);
 }
+
+const fetching = computed(() => paginator.fetching.value || paginator.fetchingOlder.value || paginator.fetchingNewer.value);
 
 onMounted(() => {
 	paginator.init();
@@ -431,7 +435,7 @@ defineExpose({
 
 	&.note,
 	.note {
-		/* Skip Note Rendering有効時、TransitionGroupでnoteを追加するときに一瞬がくっとなる問題を抑制する */
+		// Skip Note Rendering有効時、TransitionGroupでnoteを追加するときに一瞬がくっとなる問題を抑制する
 		content-visibility: visible !important;
 	}
 }
@@ -459,10 +463,14 @@ defineExpose({
 .notes {
 	container-type: inline-size;
 	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-cardRadius);
+	overflow: clip;
 }
 
+.note { border-radius: 0; }
+
 .note:not(:empty):not(.lastNote) {
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .lastNote {
@@ -484,7 +492,7 @@ defineExpose({
 	padding: calc(10px + var(--gapFill)) 0 10px 0;
 }
 
-/* 疑似progressive blur */
+// 疑似progressive blur
 .newBg1, .newBg2 {
 	position: absolute;
 	top: 0;
@@ -497,7 +505,7 @@ defineExpose({
 	height: 100%;
 	-webkit-backdrop-filter: var(--MI-blur, blur(2px));
 	backdrop-filter: var(--MI-blur, blur(2px));
-	mask-image: linear-gradient( /* 疑似Easing Linear Gradients */
+	mask-image: linear-gradient( // 疑似Easing Linear Gradients
 		to top,
 		rgb(0 0 0 / 0%) 0%,
 		rgb(0 0 0 / 4.9%) 7.75%,
@@ -514,7 +522,7 @@ defineExpose({
 	height: 75%;
 	-webkit-backdrop-filter: var(--MI-blur, blur(4px));
 	backdrop-filter: var(--MI-blur, blur(4px));
-	mask-image: linear-gradient( /* 疑似Easing Linear Gradients */
+	mask-image: linear-gradient( // 疑似Easing Linear Gradients
 		to top,
 		rgb(0 0 0 / 0%) 0%,
 		rgb(0 0 0 / 4.9%) 15.5%,
@@ -551,7 +559,7 @@ defineExpose({
 	padding: 8px;
 	background-size: auto auto;
 	background-image: repeating-linear-gradient(45deg, transparent, transparent 8px, var(--MI_THEME-bg) 8px, var(--MI_THEME-bg) 14px);
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 
 	&:empty {
 		display: none;

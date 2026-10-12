@@ -57,7 +57,7 @@ async function grant() {
 		const result = await misskeyApi('admin/checkin/grant-cards', { userId: props.userId, amount: grantedAmount });
 		makeupCards.value = result.makeupCards;
 		emit('granted');
-		os.toast(i18n.tsx._checkin.grantSucceeded({ amount: grantedAmount.toLocaleString() }));
+		os.success(i18n.tsx._checkin.grantSucceeded({ amount: grantedAmount.toLocaleString() }));
 	} catch (error) {
 		const code = (error as { code?: string } | null)?.code;
 		const text = code === 'NO_SUCH_USER' ? i18n.ts.noSuchUser

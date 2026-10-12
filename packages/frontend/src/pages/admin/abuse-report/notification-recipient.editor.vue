@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialogEl"
+	:closeOnBackdrop="false"
 	:width="400"
 	:height="490"
 	:withOkButton="false"
@@ -305,7 +306,7 @@ onMounted(async () => {
 	bottom: 0;
 	left: 0;
 	padding: var(--MI-cardPadding, 18px);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	background: var(--MI_THEME-panel);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));

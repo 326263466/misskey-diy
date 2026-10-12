@@ -6,25 +6,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div>
 	<div :class="$style.label" @click="focus"><slot name="label"></slot></div>
-	<div :class="[$style.codeEditorRoot, { [$style.focused]: focused }]">
-		<div :class="$style.codeEditorScroller">
-			<textarea
-				ref="inputEl"
-				v-model="v"
-				:class="[$style.textarea]"
-				:disabled="disabled"
-				:required="required"
-				:readonly="readonly"
-				autocomplete="off"
-				wrap="off"
-				spellcheck="false"
-				@focus="focused = true"
-				@blur="focused = false"
-				@keydown="onKeydown($event)"
-				@input="onInput"
-			></textarea>
-			<XCode :class="$style.codeEditorHighlighter" :codeEditor="true" :code="v" :lang="lang"/>
+	<div :class="$style.editor">
+		<div :class="[$style.codeEditorRoot, { [$style.focused]: focused }]">
+			<div :class="$style.codeEditorScroller">
+				<textarea
+					ref="inputEl"
+					v-model="v"
+					:class="[$style.textarea]"
+					:disabled="disabled"
+					:required="required"
+					:readonly="readonly"
+					autocomplete="off"
+					wrap="off"
+					spellcheck="false"
+					@focus="focused = true"
+					@blur="focused = false"
+					@keydown="onKeydown($event)"
+					@input="onInput"
+				></textarea>
+				<XCode :class="$style.codeEditorHighlighter" :codeEditor="true" :code="v" :lang="lang"/>
+			</div>
 		</div>
+		<span v-if="!readonly" class="_inputCounter">{{ v.length }}</span>
 	</div>
 	<div :class="$style.caption"><slot name="caption"></slot></div>
 	<MkButton v-if="manualSave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
@@ -151,6 +154,10 @@ watch(v, newValue => {
 
 .save {
 	margin: 8px 0 0 0;
+}
+
+.editor {
+	position: relative;
 }
 
 .codeEditorRoot {

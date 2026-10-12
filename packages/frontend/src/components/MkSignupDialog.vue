@@ -6,8 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
-	:width="500"
-	:height="600"
+	:closeOnBackdrop="false"
+	:width="isAcceptedServerRule ? 500 : 420"
+	:height="isAcceptedServerRule ? 600 : 560"
 	:autoHeight="true"
 	@close="onClose"
 	@closed="emit('closed')"

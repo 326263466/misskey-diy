@@ -70,7 +70,7 @@ async function onClick() {
 	font-weight: bold;
 	color: var(--MI_THEME-fg);
 	background: var(--MI_THEME-panel);
-	border: solid 1px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	padding: 0;
 	height: 31px;
 	font-size: 16px;

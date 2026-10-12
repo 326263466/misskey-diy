@@ -16,13 +16,18 @@ import { i18n } from '@/i18n.js';
 import { publishUserProfileUpdate } from '@/composables/use-user-profile.js';
 import type { Router } from '@/router.js';
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), realMenu: false }));
+const mocks = vi.hoisted(() => ({ api: vi.fn(), realMenu: false, filesSetup: vi.fn(), filesReady: null as Promise<void> | null, account: null as { id: string; username: string; isAdmin: boolean } | null }));
 
-vi.mock('@/i.js', () => ({ $i: null, iAmAdmin: false, iAmModerator: false }));
+vi.mock('@/i.js', () => ({
+	get $i() { return mocks.account; },
+	get iAmAdmin() { return mocks.account?.isAdmin ?? false; },
+	iAmModerator: false,
+	ensureSignin: () => { if (!mocks.account) throw new Error('signin required'); return mocks.account; },
+}));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
 vi.mock('@/server-context.js', () => ({ serverContext: null, assertServerContext: () => false }));
-vi.mock('@/composables/use-scroll-position-keeper.js', () => ({ useScrollPositionKeeper: vi.fn() }));
+vi.mock('@/composables/use-scroll-to-top.js', () => ({ useScrollToTop: vi.fn() }));
 vi.mock('@/composables/use-user-statistics.js', () => ({ useUserStatistics: vi.fn() }));
 vi.mock('@/preferences.js', () => ({ prefer: { s: { animation: false, numberOfPageCache: 4 } } }));
 vi.mock('@/pages/timeline.vue', () => ({ default: { template: '<div data-testid="timeline"/>' } }));
@@ -47,7 +52,7 @@ vi.mock('@/components/MkSuperMenu.vue', async importOriginal => {
 		props: ['def', 'searchIndex'],
 		components: { RealMenu: actual.default },
 		setup: () => ({ router: inject(DI.router), realMenu: mocks.realMenu }),
-		template: '<RealMenu v-if="realMenu" :def="def" :searchIndex="searchIndex"/><div v-else data-testid="profile-menu"><a v-for="item in def[0].items" :key="item.to" :href="item.to" :data-active="item.active" @click.prevent="router.pushByPath(item.to)">{{ item.text }}</a></div>',
+		template: '<RealMenu v-if="realMenu" :def="def" :searchIndex="searchIndex"/><div v-else data-testid="profile-menu"><a v-for="item in def.flatMap(group => group.items)" :key="item.to" :href="item.to" :data-active="item.active" @click.prevent="router.pushByPath(item.to)">{{ item.text }}</a></div>',
 	} };
 });
 vi.mock('@/pages/user/home.vue', () => ({ __esModule: true, default: {
@@ -61,6 +66,10 @@ vi.mock('@/pages/user/notes.vue', () => ({ __esModule: true, default: {
 } }));
 vi.mock('@/pages/user/files.vue', () => ({ __esModule: true, default: {
 	props: ['user'],
+	setup() {
+		mocks.filesSetup();
+		return mocks.filesReady?.then(() => ({}));
+	},
 	template: '<section data-testid="profile-files" :data-user="user.id">{{ user.name }}</section>',
 } }));
 
@@ -104,6 +113,8 @@ let profileWidth = 1100;
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.realMenu = false;
+	mocks.account = null;
+	mocks.filesReady = null;
 	profileWidth = 1100;
 	vi.stubGlobal('innerWidth', 1100);
 	vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => profileWidth);
@@ -121,6 +132,25 @@ afterEach(() => {
 });
 
 describe('profile nested routes', () => {
+	test('keeps the current section visible until an asynchronous destination is ready', async () => {
+		const ready = Promise.withResolvers<void>();
+		mocks.filesReady = ready.promise;
+		const mounted = mountProfile(RouterView);
+		// 首屏先加载异步页面，进入概览后再验证受控的 files 挂起状态。
+		await waitFor(() => expect(mounted.getByTestId('profile-home')).toBeTruthy(), { timeout: 5000 });
+		const home = mounted.getByTestId('profile-home');
+
+		mounted.router.pushByPath('/@alice/files');
+		await waitFor(() => expect(mocks.filesSetup).toHaveBeenCalledTimes(1));
+		expect(mounted.getByTestId('profile-home')).toBe(home);
+		expect(mounted.queryByTestId('profile-files')).toBeNull();
+
+		ready.resolve();
+		await waitFor(() => expect(mounted.getByTestId('profile-files').getAttribute('data-user')).toBe('alice'));
+		expect(mounted.queryByTestId('profile-home')).toBeNull();
+		expect(mounted.errors).not.toHaveBeenCalled();
+	});
+
 	test('searches visible profile sections and opens results by click or keyboard', async () => {
 		mocks.realMenu = true;
 		const mounted = mountProfile(RouterView);
@@ -134,15 +164,15 @@ describe('profile nested routes', () => {
 		expect(mounted.currentProfile()).toBe(parent);
 		expect(parent.querySelector('#profile-files')).not.toBeNull();
 		await fireEvent.update(input, 'notes');
-		await waitFor(() => expect(mounted.getByRole('link', { name: i18n.ts.notes })).toBeTruthy());
 		await fireEvent.keyDown(input, { key: 'ArrowDown' });
 		await fireEvent.keyDown(input, { key: 'Enter' });
 		await waitFor(() => expect(mounted.getByTestId('profile-notes')).toBeTruthy());
 		expect(mounted.router.getCurrentFullPath()).toBe('/@alice/notes#profile-notes');
 		await fireEvent.update(input, 'no-such-profile-section');
-		await waitFor(() => expect(mounted.queryAllByRole('link')).toHaveLength(0));
 		await fireEvent.keyDown(input, { key: 'ArrowDown' });
+		await waitFor(() => expect(mounted.queryAllByRole('link')).toHaveLength(0));
 		await fireEvent.keyDown(input, { key: 'Enter' });
+		expect(mounted.router.getCurrentFullPath()).toBe('/@alice/notes#profile-notes');
 		expect(mounted.errors).not.toHaveBeenCalled();
 		await fireEvent.update(input, '');
 		await waitFor(() => expect(mounted.getByRole('link', { name: i18n.ts.overview })).toBeTruthy());
@@ -186,6 +216,37 @@ describe('profile nested routes', () => {
 		{ name: 'RouterView', view: RouterView },
 		{ name: 'StackingRouterView', view: StackingRouterView },
 	])('$name', ({ view }) => {
+		test('opens personal management without rebuilding the profile sidebar', async () => {
+			mocks.account = { id: 'alice', username: 'alice', isAdmin: false };
+			const mounted = mountProfile(view, '/@alice/management', true);
+			await waitFor(() => expect(mounted.getByRole('heading', { name: i18n.ts._management.title })).toBeTruthy());
+			const parent = mounted.currentProfile();
+			const sidebar = within(parent).getByRole('navigation', { name: i18n.ts.profile });
+			const entry = within(sidebar).getByRole('link', { name: i18n.ts._management.title });
+			expect(entry.getAttribute('href')).toBe('/@alice/management');
+			expect(entry.getAttribute('data-active')).toBe('true');
+			expect(mounted.getByRole('link', { name: i18n.ts._marketplace.publishProduct }).getAttribute('href')).toBe('/products/new');
+			await fireEvent.click(within(sidebar).getByRole('link', { name: i18n.ts.overview }));
+			await waitFor(() => expect(mounted.getByTestId('profile-home')).toBeTruthy());
+			await fireEvent.click(entry);
+			await waitFor(() => expect(mounted.getByRole('heading', { name: i18n.ts._management.title })).toBeTruthy());
+			expect(mounted.currentProfile()).toBe(parent);
+			expect(within(parent).getByRole('navigation', { name: i18n.ts.profile })).toBe(sidebar);
+			expect(mocks.api).toHaveBeenCalledExactlyOnceWith('users/show', { username: 'alice', host: null });
+			expect(mounted.errors).not.toHaveBeenCalled();
+		});
+
+		test.each([false, true])('hides another account management from a direct profile URL (signedIn=%s)', async signedIn => {
+			if (signedIn) mocks.account = { id: 'alice', username: 'alice', isAdmin: true };
+			const mounted = mountProfile(view, '/@bob/management', signedIn);
+			await waitFor(() => expect(mounted.getByTestId('profile-home').getAttribute('data-user')).toBe('bob'));
+			expect(mounted.queryByRole('link', { name: i18n.ts._management.title })).toBeNull();
+			expect(mounted.queryByRole('heading', { name: i18n.ts._management.title })).toBeNull();
+			expect(mounted.queryByRole('link', { name: i18n.ts._marketplace.publishProduct })).toBeNull();
+			expect(mocks.api).toHaveBeenCalledExactlyOnceWith('users/show', { username: 'bob', host: null });
+			expect(mounted.errors).not.toHaveBeenCalled();
+		});
+
 		test('keeps the account layout and menu mounted while navigating between sections', async () => {
 			const mounted = mountProfile(view);
 			await waitFor(() => expect(mounted.getByTestId('profile-home').getAttribute('data-user')).toBe('alice'));

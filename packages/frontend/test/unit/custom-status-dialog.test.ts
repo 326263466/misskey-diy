@@ -41,10 +41,11 @@ vi.mock('@/components/MkButton.vue', async () => {
 });
 
 const savedStatus: CustomStatus = { icon: 'book', text: 'Reading' };
+const componentStubs = { stubs: { Mfm: { props: ['text'], template: '<span>{{ text }}</span>' } } };
 
 async function renderDialog(initialStatus?: CustomStatus | null) {
 	const save = vi.fn<(status: CustomStatus | null) => Promise<void>>().mockResolvedValue(undefined);
-	const view = render(MkCustomStatusDialog, { props: { initialStatus, save } });
+	const view = render(MkCustomStatusDialog, { props: { initialStatus, save }, global: componentStubs });
 	await fireEvent.click(view.getByRole('button', { name: i18n.ts.text }));
 	const saveButton = view.getByRole('button', { name: i18n.ts._onlineStatus.useStatus }) as HTMLButtonElement;
 	return { ...view, save, get input() { return view.getByRole('textbox', { name: i18n.ts.text }) as HTMLInputElement; }, saveButton };
@@ -59,7 +60,7 @@ describe('custom status dialog', () => {
 
 	test('starts with a text button and edits only on request without submitting on Enter or Escape', async () => {
 		const save = vi.fn().mockResolvedValue(undefined);
-		const view = render(MkCustomStatusDialog, { props: { initialStatus: savedStatus, save } });
+		const view = render(MkCustomStatusDialog, { props: { initialStatus: savedStatus, save }, global: componentStubs });
 		expect(view.queryByRole('textbox')).toBeNull();
 		const edit = view.getByRole('button', { name: i18n.ts.text });
 		expect(edit.textContent).toBe('Reading');

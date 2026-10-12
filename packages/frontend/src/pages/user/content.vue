@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<template v-if="user">
+<Suspense v-if="user">
 	<XNotes v-if="page === 'notes'" :user="user"/>
 	<XFiles v-else-if="page === 'files'" :user="user"/>
 	<XActivity v-else-if="page === 'activity'" :user="user"/>
@@ -16,13 +16,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<XFlashs v-else-if="page === 'flashs'" :user="user"/>
 	<XGallery v-else-if="page === 'gallery'" :user="user"/>
 	<XRaw v-else-if="page === 'raw'" :user="user"/>
+	<XManagement v-else-if="page === 'management' && $i?.id === user.id"/>
 	<XHome v-else :user="user" :refreshUser="refreshUser" :singleColumn="true" @showMoreFiles="showMoreFiles"/>
-</template>
+</Suspense>
 </template>
 
 <script lang="ts" setup>
 import { defineAsyncComponent, inject } from 'vue';
 import { userPageContext } from './context.js';
+import { $i } from '@/i.js';
 
 const XHome = defineAsyncComponent(() => import('./home.vue'));
 const XNotes = defineAsyncComponent(() => import('./notes.vue'));
@@ -36,6 +38,7 @@ const XPages = defineAsyncComponent(() => import('./pages.vue'));
 const XFlashs = defineAsyncComponent(() => import('./flashs.vue'));
 const XGallery = defineAsyncComponent(() => import('./gallery.vue'));
 const XRaw = defineAsyncComponent(() => import('./raw.vue'));
+const XManagement = defineAsyncComponent(() => import('./management.vue'));
 
 defineProps<{
 	page?: string;

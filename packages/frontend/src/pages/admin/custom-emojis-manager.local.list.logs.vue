@@ -6,13 +6,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkWindow
 	ref="uiWindow"
+	headerIcon="ti ti-notes"
 	:initialWidth="400"
 	:initialHeight="500"
 	:canResize="true"
 	@closed="emit('closed')"
 >
 	<template #header>
-		<i class="ti ti-notes" style="margin-right: 0.5em;"></i> {{ i18n.ts._customEmojisManager._gridCommon.registrationLogs }}
+		{{ i18n.ts._customEmojisManager._gridCommon.registrationLogs }}
 	</template>
 	<div class="_spacer _spacerCard">
 		<XRegisterLogs :logs="logs"/>

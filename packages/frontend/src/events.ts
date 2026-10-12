@@ -10,6 +10,13 @@ import { onBeforeUnmount } from 'vue';
 export type NoteEditContent = Pick<Misskey.entities.Note, 'text' | 'cw'> & Partial<Pick<Misskey.entities.Note, 'emojis' | 'tags' | 'files' | 'fileIds' | 'reactionAcceptance'>>;
 
 type Events = {
+	redPacketClaimed: (id: string) => void;
+	chatRoomUpdated: (room: Misskey.entities.ChatRoom) => void;
+	chatRoomLeft: (roomId: string) => void;
+	chatConversationStarted: (user: Misskey.entities.UserLite) => void;
+	chatDraftUpdated: () => void;
+	chatPinsUpdated: () => void;
+	chatUnreadChanged: (state: { id: string; count: number; throughId: string | null }) => void;
 	clientNotification: (notification: Misskey.entities.Notification) => void;
 	notePosted: (note: Misskey.entities.Note) => void;
 	likesUpdated: (noteId: Misskey.entities.Note['id'], state: Misskey.entities.LikeState) => void;

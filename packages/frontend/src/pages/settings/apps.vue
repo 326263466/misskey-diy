@@ -5,8 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps_m">
-	<MkPagination :paginator="paginator">
-		<template #empty><MkResult type="empty"/></template>
+	<MkPagination :paginator="paginator" pageEmpty>
 		<template #default="{items}">
 			<div class="_gaps">
 				<MkFolder v-for="token in items" :key="token.id" :defaultOpen="true">
@@ -18,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #caption>{{ token.description }}</template>
 					<template v-if="token.lastUsedAt != null" #suffix><MkTime :time="token.lastUsedAt"/></template>
 					<template #footer>
-						<MkButton danger @click="revoke(token)"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
+						<MkButton danger :wait="revoking.has(token.id)" @click="revoke(token)"><i class="ti ti-trash" aria-hidden="true"></i> {{ i18n.ts.delete }}</MkButton>
 					</template>
 
 					<div class="_gaps_s">
@@ -52,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, computed, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkPagination from '@/components/MkPagination.vue';
-import { misskeyApi } from '@/utility/misskey-api.js';
+import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import MkKeyValue from '@/components/MkKeyValue.vue';
@@ -68,10 +67,17 @@ const paginator = markRaw(new Paginator('i/apps', {
 	},
 }));
 
-function revoke(token: Misskey.entities.IAppsResponse[number]) {
-	misskeyApi('i/revoke-token', { tokenId: token.id }).then(() => {
+const revoking = ref(new Set<string>());
+
+async function revoke(token: Misskey.entities.IAppsResponse[number]) {
+	if (revoking.value.has(token.id)) return;
+	const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts.deleteConfirm });
+	if (canceled || revoking.value.has(token.id)) return;
+	revoking.value.add(token.id);
+	try {
+		await os.apiWithDialog('i/revoke-token', { tokenId: token.id });
 		paginator.reload();
-	});
+	} catch { /* API 错误已提示，保留授权条目以便重试。 */ } finally { revoking.value.delete(token.id); }
 }
 
 const headerActions = computed(() => []);

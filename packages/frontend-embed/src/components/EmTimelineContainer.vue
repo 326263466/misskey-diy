@@ -29,7 +29,7 @@ withDefaults(defineProps<{
 
 .header {
 	flex-shrink: 0;
-	border-bottom: 1px solid var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 }
 
 .body {

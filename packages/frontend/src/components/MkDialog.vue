@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModal ref="modal" :preferType="'dialog'" :zPriority="'high'" @click="done(true)" @closed="emit('closed')" @esc="cancel()">
+<MkModal ref="modal" :preferType="'dialog'" :zPriority="'high'" :closeOnBackdrop="(closeOnBackdrop ?? (!input || !!dateType)) && cancelableByBgClick" @click="cancel()" @closed="emit('closed')" @esc="cancel()">
 	<div :class="[$style.root, { [$style.dateDialog]: dateType }]">
 		<div v-if="icon" :class="$style.icon">
 			<i :class="icon"></i>
@@ -27,11 +27,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-if="progress.label" :class="$style.progressLabel">{{ progress.label }}</span>
 		</div>
 		<MkDatePicker v-if="dateType" :modelValue="String(inputValue ?? '')" :type="dateType" embedded @update:modelValue="inputValue = $event" @validity="dateValid = $event" @close="cancel"/>
-		<MkInput v-else-if="input" v-model="inputValue" autofocus :type="input.type || 'text'" :placeholder="input.placeholder || undefined" :autocomplete="input.autocomplete" @keydown="onInputKeydown">
+		<MkInput v-else-if="input" v-model="inputValue" autofocus :type="input.type || 'text'" :placeholder="input.placeholder || undefined" :autocomplete="input.autocomplete" :counterMaxLength="input.maxLength" @keydown="onInputKeydown">
 			<template v-if="input.type === 'password'" #prefix><i class="ti ti-lock"></i></template>
 			<template #caption>
-				<span v-if="okButtonDisabledReason === 'charactersExceeded'" v-text="i18n.tsx._dialog.charactersExceeded({ current: (inputValue as string)?.length ?? 0, max: input.maxLength ?? 'NaN' })"></span>
-				<span v-else-if="okButtonDisabledReason === 'charactersBelow'" v-text="i18n.tsx._dialog.charactersBelow({ current: (inputValue as string)?.length ?? 0, min: input.minLength ?? 'NaN' })"></span>
+				<span v-if="okButtonDisabledReason === 'charactersExceeded'" v-text="i18n.tsx._dialog.charactersExceeded({ current: Array.from(String(inputValue ?? '')).length, max: input.maxLength ?? 'NaN' })"></span>
+				<span v-else-if="okButtonDisabledReason === 'charactersBelow'" v-text="i18n.tsx._dialog.charactersBelow({ current: Array.from(String(inputValue ?? '')).length, min: input.minLength ?? 'NaN' })"></span>
 			</template>
 		</MkInput>
 		<MkSelect v-if="select" v-model="selectedValue" :items="selectDef" autofocus></MkSelect>
@@ -99,6 +99,7 @@ const props = withDefaults(defineProps<{
 	showOkButton?: boolean;
 	showCancelButton?: boolean;
 	cancelableByBgClick?: boolean;
+	closeOnBackdrop?: boolean;
 	okText?: string;
 	cancelText?: string;
 }>(), {
@@ -106,6 +107,7 @@ const props = withDefaults(defineProps<{
 	showOkButton: true,
 	showCancelButton: false,
 	cancelableByBgClick: true,
+	closeOnBackdrop: undefined,
 });
 
 const emit = defineEmits<{
@@ -123,12 +125,12 @@ const okButtonDisabledReason = computed<null | 'charactersExceeded' | 'character
 	if (dateType.value && !dateValid.value) return 'invalidDate';
 	if (props.input) {
 		if (props.input.minLength) {
-			if (inputValue.value == null || (inputValue.value as string).length < props.input.minLength) {
+			if (inputValue.value == null || Array.from(String(inputValue.value)).length < props.input.minLength) {
 				return 'charactersBelow';
 			}
 		}
 		if (props.input.maxLength) {
-			if (inputValue.value && (inputValue.value as string).length > props.input.maxLength) {
+			if (inputValue.value && Array.from(String(inputValue.value)).length > props.input.maxLength) {
 				return 'charactersExceeded';
 			}
 		}
@@ -168,11 +170,6 @@ function cancel() {
 	done(true);
 }
 
-/*
-function onBgClick() {
-	if (props.cancelableByBgClick) cancel();
-}
-*/
 function onInputKeydown(evt: KeyboardEvent) {
 	if (evt.key === 'Enter' && okButtonDisabledReason.value === null) {
 		evt.preventDefault();

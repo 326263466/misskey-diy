@@ -6,7 +6,12 @@
 process.env.NODE_ENV = 'test';
 
 import { beforeAll, describe, expect, test } from 'vitest';
-import { api, castAsError, createAppToken, role, signup } from '../utils.js';
+import { api, castAsError, createAppToken, initTestDb, role, signup, uploadFile } from '../utils.js';
+import { MiDriveFile } from '@/models/DriveFile.js';
+import { MiFeedback } from '@/models/Feedback.js';
+import { MiDriveFileReference } from '@/models/DriveFileReference.js';
+import { DriveFileLifecycle1791215330183 } from '../../migration/1791215330183-DriveFileLifecycle.js';
+import { CommentFeedbackImages1791547968366 } from '../../migration/1791547968366-CommentFeedbackImages.js';
 import type * as Misskey from 'misskey-js';
 
 // This separate suite exercises feedback authentication, validation and the full public lifecycle.
@@ -18,6 +23,15 @@ describe('Feedback API', () => {
 	let created: Misskey.entities.Feedback;
 
 	beforeAll(async () => {
+		const db = await initTestDb(true);
+		const runner = db.createQueryRunner();
+		try {
+			await new DriveFileLifecycle1791215330183().installTracking(runner);
+			await new CommentFeedbackImages1791547968366().installTracking(runner);
+		} finally {
+			await runner.release();
+			await db.destroy();
+		}
 		admin = await signup({ username: 'feedbackadmin' });
 		alice = await signup({ username: 'feedbackalice' });
 		bob = await signup({ username: 'feedbackbob' });
@@ -33,6 +47,35 @@ describe('Feedback API', () => {
 		const denied = await api('feedback/create', input, { token });
 		expect(denied.status).toBe(403);
 		expect(castAsError(denied.body).error.code).toBe('PERMISSION_DENIED');
+	});
+
+	test('反馈及官方回复图片的持久化、权限和删除边界', async () => {
+		const db = await initTestDb(true);
+		try {
+			const image = (await uploadFile(alice, { isManaged: true })).body!;
+			const input = { title: 'Screenshot', description: '', category: 'bug' as const, fileIds: [image.id] };
+			const feedback = await api('feedback/create', input, alice);
+			expect(feedback.status).toBe(200);
+			expect(feedback.body.files.map(file => file.id)).toEqual([image.id]);
+			expect(castAsError((await api('feedback/create', input, bob)).body).error.code).toBe('INVALID_FILES');
+			const attachment = (await uploadFile(moderator)).body!;
+			const response = await api('feedback/update', { feedbackId: feedback.body.id, response: null, responseFileIds: [attachment.id] }, moderator);
+			expect(response.status).toBe(200);
+			expect(response.body.responseFiles.map(file => file.id)).toEqual([attachment.id]);
+			// 另一名管理员保留已有回复附件时，不要求重新拥有该文件。
+			expect((await api('feedback/update', { feedbackId: feedback.body.id, response: 'Retained', responseFileIds: [attachment.id] }, admin)).status).toBe(200);
+			expect(castAsError((await api('feedback/update', { feedbackId: feedback.body.id, responseFileIds: [image.id] }, moderator)).body).error.code).toBe('INVALID_FILES');
+			const expired = (await uploadFile(moderator)).body!;
+			await db.getRepository(MiDriveFile).delete(expired.id);
+			// 模拟权限校验后文件被删除，数据库引用检查仍必须阻止写入。
+			await expect(db.getRepository(MiFeedback).update(feedback.body.id, { responseFileIds: [expired.id] })).rejects.toMatchObject({ constraint: 'CHK_drive_file_reference_available' });
+			expect((await api('feedback/show', { feedbackId: feedback.body.id })).body.responseFiles.map(file => file.id)).toEqual([attachment.id]);
+			expect(await db.getRepository(MiDriveFileReference).countBy({ sourceType: 'feedback', sourceId: feedback.body.id })).toBe(2);
+			expect((await api('feedback/delete', { feedbackId: feedback.body.id }, alice)).status).toBe(204);
+			expect(await db.getRepository(MiDriveFileReference).countBy({ sourceType: 'feedback', sourceId: feedback.body.id })).toBe(0);
+		} finally {
+			await db.destroy();
+		}
 	});
 
 	test('publishes and reads persisted feedback anonymously', async () => {

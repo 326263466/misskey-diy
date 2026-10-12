@@ -5,6 +5,7 @@
 
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { id } from './util/id.js';
+import { coinColumn } from './util/coin.js';
 import { MiUser } from './User.js';
 import { MiChatRoom } from './ChatRoom.js';
 
@@ -17,13 +18,14 @@ export type RedPacketCoverId = typeof redPacketCoverIds[number];
 @Index('IDX_red_packet_request', ['userId', 'requestId'], { unique: true })
 @Index('IDX_red_packet_user_id', ['userId', 'id'])
 @Index('IDX_red_packet_expiration', ['status', 'expiresAt'])
-@Check('CHK_red_packet_amounts', '"totalCoins" >= count AND "totalCoins" <= 1000000 AND count >= 1 AND count <= 100 AND "remainingCoins" >= 0 AND "remainingCoins" <= "totalCoins" AND "remainingCount" >= 0 AND "remainingCount" <= count')
+@Index('IDX_red_packet_password', ['password'], { where: '"password" IS NOT NULL' })
+@Check('CHK_red_packet_amounts', '"totalCoins" >= 1 AND "totalCoins" >= count * 0.01 AND count >= 1 AND count <= 100 AND "remainingCoins" >= 0 AND "remainingCoins" <= "totalCoins" AND "remainingCount" >= 0 AND "remainingCount" <= count')
 export class MiRedPacket {
 	@PrimaryColumn({ ...id(), primaryKeyConstraintName: 'PK_red_packet' })
 	public id: string;
 
 	@Column('varchar', { length: 8 })
-	public kind: 'direct' | 'group' | 'tip';
+	public kind: 'direct' | 'group';
 
 	@Column('varchar', { length: 16 })
 	public audience: 'public' | 'recipients' | 'room';
@@ -55,6 +57,9 @@ export class MiRedPacket {
 	@Column('varchar', { length: 100 })
 	public message: string;
 
+	@Column('varchar', { length: 64, nullable: true })
+	public password: string | null;
+
 	@Column('varchar', { length: 16, default: 'classic' })
 	public coverId: RedPacketCoverId;
 
@@ -64,13 +69,13 @@ export class MiRedPacket {
 	@Column('varchar', { length: 1024, nullable: true })
 	public coverUrl: string | null;
 
-	@Column('integer')
+	@Column(coinColumn)
 	public totalCoins: number;
 
 	@Column('integer')
 	public count: number;
 
-	@Column('integer')
+	@Column(coinColumn)
 	public remainingCoins: number;
 
 	@Column('integer')
@@ -78,6 +83,9 @@ export class MiRedPacket {
 
 	@Column('integer')
 	public expiresInHours: number;
+
+	@Column('timestamp with time zone', { nullable: true })
+	public startsAt: Date | null;
 
 	@Column('timestamp with time zone')
 	public expiresAt: Date;

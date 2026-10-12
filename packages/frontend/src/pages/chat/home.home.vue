@@ -31,16 +31,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</MkFoldableSection>
 
-	<MkFoldableSection>
+	<MkFoldableSection v-if="!navigationInDock">
 		<template #header>{{ i18n.ts._chat.history }}</template>
 
-		<MkChatHistories/>
+		<MkChatHistories all/>
 	</MkFoldableSection>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { inject, onMounted, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import XMessage from './XMessage.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -54,6 +54,7 @@ import MkInfo from '@/components/MkInfo.vue';
 import MkChatHistories from '@/components/MkChatHistories.vue';
 
 const $i = ensureSignin();
+const navigationInDock = inject('chatNavigationInDock', ref(false));
 
 const searchQuery = ref('');
 const searched = ref(false);
@@ -76,7 +77,7 @@ onMounted(() => {
 <style lang="scss" module>
 .searchResultItem {
 	padding: 12px;
-	border: solid 1px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: 12px;
 }
 </style>

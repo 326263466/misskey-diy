@@ -75,6 +75,7 @@ export const MFM_PARAMS: Record<typeof MFM_TAGS[number], string[]> = {
 	font: ['serif', 'monospace', 'cursive', 'fantasy', 'emoji', 'math'],
 	blur: [],
 	rainbow: ['speed=', 'delay='],
+	sparkle: [],
 	rotate: ['deg='],
 	ruby: [],
 	unixtime: [],

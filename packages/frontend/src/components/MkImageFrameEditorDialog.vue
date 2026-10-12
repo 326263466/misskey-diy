@@ -6,6 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	headerIcon="ti ti-device-ipad-horizontal"
+	:closeOnBackdrop="false"
 	:width="1000"
 	:height="600"
 	:scroll="false"
@@ -14,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@ok="save()"
 	@closed="emit('closed')"
 >
-	<template #header><i class="ti ti-device-ipad-horizontal"></i> {{ i18n.ts._imageFrameEditor.title }}</template>
+	<template #header>{{ i18n.ts._imageFrameEditor.title }}</template>
 
 	<MkPreviewWithControls>
 		<template #preview>
@@ -22,9 +24,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.previewContainer">
 				<div class="_acrylic" :class="$style.previewTitle">{{ i18n.ts.preview }}</div>
 				<div v-if="props.image == null" class="_acrylic" :class="$style.previewControls">
-					<button class="_button" :class="[$style.previewControlsButton, sampleImageType === '3_2' ? $style.active : null]" @click="sampleImageType = '3_2'"><i class="ti ti-crop-landscape"></i></button>
-					<button class="_button" :class="[$style.previewControlsButton, sampleImageType === '2_3' ? $style.active : null]" @click="sampleImageType = '2_3'"><i class="ti ti-crop-portrait"></i></button>
-					<button class="_button" :class="[$style.previewControlsButton]" @click="choiceImage"><i class="ti ti-upload"></i></button>
+					<button class="_button _iconButton" :class="[$style.previewControlsButton, sampleImageType === '3_2' ? $style.active : null]" @click="sampleImageType = '3_2'"><i class="ti ti-crop-landscape"></i></button>
+					<button class="_button _iconButton" :class="[$style.previewControlsButton, sampleImageType === '2_3' ? $style.active : null]" @click="sampleImageType = '2_3'"><i class="ti ti-crop-portrait"></i></button>
+					<button class="_button _iconButton" :class="[$style.previewControlsButton]" @click="choiceImage"><i class="ti ti-upload"></i></button>
 				</div>
 			</div>
 		</template>
@@ -369,10 +371,6 @@ async function save() {
 		preset.name = name || '';
 
 		dialog.value?.close();
-		if (renderer != null) {
-			renderer.destroy();
-			renderer = null;
-		}
 
 		emit('presetOk', {
 			...preset,
@@ -380,10 +378,6 @@ async function save() {
 		});
 	} else {
 		dialog.value?.close();
-		if (renderer != null) {
-			renderer.destroy();
-			renderer = null;
-		}
 
 		emit('ok', params);
 	}

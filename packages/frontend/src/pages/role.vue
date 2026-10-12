@@ -5,19 +5,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :tabs="headerTabs">
-	<div v-if="error != null" class="_pageBody">
-		<MkResult type="error" :text="error"/>
+	<div v-if="loading" class="_pageBody">
+		<MkLoading page/>
+	</div>
+	<div v-else-if="error != null" class="_pageBody">
+		<MkResult type="error" :text="error" page/>
 	</div>
 	<div v-else-if="tab === 'users'" class="_pageBody">
 		<div class="_gaps_s">
-			<div v-if="role?.description" class="_panel _panelPadding">{{ role.description }}</div>
-			<MkUserList v-if="visible" :paginator="usersPaginator" :extractor="(item) => item.user"/>
-			<MkResult v-else-if="!visible" type="empty" :text="i18n.ts.nothing"/>
+			<div v-if="role?.description" class="_panel _panelPadding"><Mfm :text="role.description" :plain="true"/></div>
+			<MkUserList v-if="visible" :paginator="usersPaginator" :extractor="(item) => item.user" pageEmpty/>
+			<MkResult v-else-if="!visible" type="empty" page/>
 		</div>
 	</div>
 	<div v-else-if="tab === 'timeline'" class="_pageBody">
-		<MkStreamingNotesTimeline v-if="visible" ref="timeline" src="role" :role="props.roleId"/>
-		<MkResult v-else-if="!visible" type="empty" :text="i18n.ts.nothing"/>
+		<MkStreamingNotesTimeline v-if="visible" ref="timeline" src="role" :role="props.roleId" pageEmpty/>
+		<MkResult v-else-if="!visible" type="empty" page/>
 	</div>
 </PageWithHeader>
 </template>
@@ -44,20 +47,31 @@ const tab = ref(props.initialTab);
 const role = ref<Misskey.entities.Role | null>(null);
 const error = ref<string | null>(null);
 const visible = ref(false);
+const loading = ref(true);
 
-watch(() => props.roleId, () => {
+watch(() => props.roleId, (roleId, _oldRoleId, onCleanup) => {
+	let active = true;
+	onCleanup(() => { active = false; });
+	loading.value = true;
+	role.value = null;
+	error.value = null;
+	visible.value = false;
+
 	misskeyApi('roles/show', {
-		roleId: props.roleId,
+		roleId,
 	}).then(res => {
+		if (!active) return;
 		role.value = res;
-		error.value = null;
 		visible.value = res.isExplorable && res.isPublic;
 	}).catch((err) => {
+		if (!active) return;
 		if (err.code === 'NO_SUCH_ROLE') {
 			error.value = i18n.ts.roleNotFound;
 		} else {
 			error.value = i18n.ts.somethingHappened;
 		}
+	}).finally(() => {
+		if (active) loading.value = false;
 	});
 }, { immediate: true });
 

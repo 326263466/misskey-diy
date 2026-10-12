@@ -34,6 +34,10 @@ export const meta = {
 					type: 'string',
 					optional: false, nullable: false,
 				},
+				myReactions: {
+					type: 'array', optional: false, nullable: false,
+					items: { type: 'string' },
+				},
 				reactions: {
 					type: 'object',
 					optional: false, nullable: false,

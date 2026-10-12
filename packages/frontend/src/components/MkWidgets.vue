@@ -6,9 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.root" class="_gaps_s">
 	<Suspense v-for="widget in _widgets" :key="widget.id">
-		<component :is="`widget-${widget.name}`" :ref="(el: any) => widgetRefs[widget.id] = el" :class="[$style.widget, '_juejinCard']" :widget="widget" @updateProps="updateWidget(widget.id, $event)" @contextmenu.stop="onContextmenu(widget, $event)"/>
+		<component :is="`widget-${widget.name}`" :ref="(el: any) => widgetRefs[widget.id] = el" :class="[$style.widget, '_card']" :widget="widget" @updateProps="updateWidget(widget.id, $event)" @contextmenu.stop="onContextmenu(widget, $event)"/>
 		<template #fallback>
-			<div :class="$style.loading" class="_panel _juejinCard" aria-busy="true"><MkLoading :colored="false"/></div>
+			<div :class="$style.loading" class="_panel _card" aria-busy="true"><MkLoading :colored="false"/></div>
 		</template>
 	</Suspense>
 </div>
@@ -79,11 +79,10 @@ function openWidgetPicker(): void {
 		widgets: _widgetDefs,
 		selectedWidgets: computed(() => props.widgets),
 		canReset: computed(() => props.canReset),
-		returnFocusTo: document.activeElement instanceof HTMLElement ? document.activeElement : undefined,
+		returnFocusTo: window.document.activeElement instanceof HTMLElement ? window.document.activeElement : undefined,
 	}), {
 		choose: name => {
 			if (!active || !props.edit || props.readOnly || !_widgetDefs.value.includes(name)) return;
-			active = false;
 			emit('addWidget', { name, id: genId(), data: {} });
 		},
 		configure: id => { if (active && props.edit && !props.readOnly) configWidget(id); },

@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-if="store.r.realtimeMode.value" class="ti ti-bolt ti-fw"></i>
 				<i v-else class="ti ti-bolt-off ti-fw"></i>
 			</button>
-			<button v-if="!iconOnly && showWidgetButton" v-tooltip.right="i18n.ts.widgets" class="_button" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
+			<button v-if="!iconOnly && showWidgetButton" v-tooltip.right="i18n.ts.widgets" class="_button _iconButton" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
 				<i class="ti ti-apps ti-fw"></i>
 			</button>
 		</div>
@@ -23,8 +23,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i :class="$style.itemIcon" class="ti ti-trophy ti-fw" style="view-transition-name: navbar-communityRanking;"></i><span :class="$style.itemText">{{ i18n.ts.communityRanking }}</span>
 			</MkA>
 			<div :class="$style.divider"></div>
-			<MkA v-tooltip.right="iconOnly ? i18n.ts.timeline : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.timeline" to="/" exact>
-				<i :class="$style.itemIcon" class="ti ti-home ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
+			<MkA v-tooltip.right="iconOnly ? i18n.ts.home : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.home" to="/" exact>
+				<i :class="$style.itemIcon" class="ti ti-home ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.home }}</span>
+			</MkA>
+			<MkA v-tooltip.right="iconOnly ? i18n.ts.timeline : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.timeline" to="/timeline">
+				<i :class="$style.itemIcon" class="ti ti-messages ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 			</MkA>
 			<template v-for="item in prefer.r.menu.value.filter(item => item !== 'communityRanking')">
 				<div v-if="item === '-'" :class="$style.divider"></div>
@@ -48,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<div :class="$style.divider"></div>
 			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip.right="iconOnly ? i18n.ts.controlPanel : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.controlPanel" to="/admin">
-				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw" style="view-transition-name: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
+				<i :class="$style.itemIcon" class="ti ti-adjustments ti-fw" style="view-transition-name: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
 			</MkA>
 			<button v-tooltip.right="iconOnly ? i18n.ts.more : null" class="_button" :class="$style.item" :aria-label="i18n.ts.more" @click="more">
 				<i :class="$style.itemIcon" class="ti ti-grid-dots ti-fw" style="view-transition-name: navbar-more;"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>
@@ -59,7 +62,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkA>
 		</div>
 		<div :class="$style.bottom">
-			<button v-if="iconOnly && showWidgetButton" v-tooltip.right="i18n.ts.widgets" class="_button" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
+			<button v-if="iconOnly && showWidgetButton" v-tooltip.right="i18n.ts.widgets" class="_button _iconButton" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
 				<i class="ti ti-apps ti-fw"></i>
 			</button>
 			<button v-if="iconOnly" v-tooltip.right="i18n.ts.realtimeMode" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" :aria-label="i18n.ts.realtimeMode" :aria-pressed="store.r.realtimeMode.value" @click="toggleRealtimeMode">
@@ -82,14 +85,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</div>
 	</div>
-
-	<!--
-	<svg viewBox="0 0 16 48" :class="$style.subButtonShape">
-		<g transform="matrix(0.333333,0,0,0.222222,0.000895785,13.3333)">
-			<path d="M23.935,-24C37.223,-24 47.995,-7.842 47.995,12.09C47.995,34.077 47.995,62.07 47.995,84.034C47.995,93.573 45.469,102.721 40.972,109.466C36.475,116.211 30.377,120 24.018,120L23.997,120C10.743,120 -0.003,136.118 -0.003,156C-0.003,156 -0.003,156 -0.003,156L-0.003,-60L-0.003,-59.901C-0.003,-50.379 2.519,-41.248 7.007,-34.515C11.496,-27.782 17.584,-24 23.931,-24C23.932,-24 23.934,-24 23.935,-24Z" style="fill:var(--MI_THEME-navBg);"/>
-		</g>
-	</svg>
-	-->
 
 	<div v-if="!forceIconOnly && prefer.r.showNavbarSubButtons.value" :class="$style.subButtons">
 		<div :class="$style.subButton">
@@ -120,7 +115,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, defineAsyncComponent, ref, unref, watch } from 'vue';
 import { openInstanceMenu, toggleRealtimeMode } from './common.js';
 import * as os from '@/os.js';
-import { navbarItemDef } from '@/navbar.js';
+import { launchPadExcludedItems, navbarItemDef } from '@/navbar.js';
 import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
@@ -129,7 +124,7 @@ import { useRouter } from '@/router.js';
 import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
-import { userName } from '@/filters/user.js';
+import { userName } from '@@/js/user.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 
 const router = useRouter();
@@ -189,6 +184,8 @@ async function more(ev: PointerEvent) {
 	if (!target) return;
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkLaunchPad.vue').then(x => x.default), {
 		anchorElement: target,
+		// 社区排行榜已固定在抽屉顶部
+		excludedItems: [...launchPadExcludedItems, 'communityRanking'],
 	}, {
 		closed: () => dispose(),
 	});
@@ -233,18 +230,18 @@ async function signup() {
 	background: var(--MI_THEME-navBg);
 	contain: strict;
 
-	/* 画面が縦に長い、設置している項目数が少ないなどの環境においても確実にbottomを最下部に表示するため */
+	// 画面が縦に長い、設置している項目数が少ないなどの環境においても確実にbottomを最下部に表示するため
 	display: flex;
 	flex-direction: column;
 
-	direction: rtl; /* スクロールバーを左に表示したいため */
+	direction: rtl; // スクロールバーを左に表示したいため
 }
 
 .top {
 	flex-shrink: 0;
 	direction: ltr;
 
-	/* 疑似progressive blur */
+	// 疑似progressive blur
 	&::before {
 		position: absolute;
 		z-index: -1;
@@ -294,7 +291,7 @@ async function signup() {
 	flex-shrink: 0;
 	direction: ltr;
 
-	/* 疑似progressive blur */
+	// 疑似progressive blur
 	&::before {
 		position: absolute;
 		z-index: -1;
@@ -404,8 +401,8 @@ async function signup() {
 	z-index: 1010;
 	margin-left: -2px;
 	width: 14px;
-	height: 1px;
-	background: var(--MI_THEME-divider);
+	height: var(--MI-dividerWidth);
+	background: var(--MI-dividerColor);
 	pointer-events: none;
 }
 
@@ -546,7 +543,7 @@ async function signup() {
 
 	.divider {
 		margin: 16px 16px;
-		border-top: solid 0.5px var(--MI_THEME-divider);
+		border-top: var(--MI-divider);
 	}
 
 	.item {
@@ -580,6 +577,7 @@ async function signup() {
 			}
 		}
 
+		// 伪元素在悬停和聚焦时也要存在，用来承载焦点轮廓；背景色只用于选中项
 		&:hover, &.active, &:focus {
 			color: var(--MI_THEME-accent);
 
@@ -594,8 +592,11 @@ async function signup() {
 				right: 0;
 				bottom: 1px;
 				border-radius: 999px;
-				background: var(--MI_THEME-accentedBg);
 			}
+		}
+
+		&.active::before {
+			background: var(--MI_THEME-accentedBg);
 		}
 	}
 
@@ -769,7 +770,7 @@ async function signup() {
 	.divider {
 		margin: 8px auto;
 		width: calc(100% - 32px);
-		border-top: solid 0.5px var(--MI_THEME-divider);
+		border-top: var(--MI-divider);
 	}
 
 	.item {
@@ -801,13 +802,16 @@ async function signup() {
 				bottom: 1px;
 				left: 8px;
 				border-radius: var(--MI-radius);
-				background: var(--MI_THEME-accentedBg);
 			}
 
 			> .icon,
 			> .text {
 				opacity: 1;
 			}
+		}
+
+		&.active::before {
+			background: var(--MI_THEME-accentedBg);
 		}
 	}
 

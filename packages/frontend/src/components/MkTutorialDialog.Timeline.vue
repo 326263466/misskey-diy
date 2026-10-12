@@ -37,8 +37,8 @@ import { basicTimelineIconClass, basicTimelineTypes } from '@/timelines.js';
 }
 
 .divider {
-	height: 1px;
-	background: var(--MI_THEME-divider);
+	height: var(--MI-dividerWidth);
+	background: var(--MI-dividerColor);
 }
 
 .image {

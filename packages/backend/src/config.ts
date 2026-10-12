@@ -257,7 +257,7 @@ const compiledConfigFilePathForTest = resolve(projectBuiltDir, '._config_.json')
 
 export const compiledConfigFilePath = fs.existsSync(compiledConfigFilePathForTest)
 	? compiledConfigFilePathForTest
-	: resolve(projectBuiltDir, '.config.json');
+	: resolve(projectBuiltDir, process.env.NODE_ENV === 'test' ? '.config.test.json' : '.config.json');
 
 export function loadConfig(): Config {
 	if (!fs.existsSync(compiledConfigFilePath)) {

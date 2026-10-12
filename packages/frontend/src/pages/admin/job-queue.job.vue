@@ -61,7 +61,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkButton rounded @click="copyRaw()"><i class="ti ti-copy"></i> {{ i18n.ts._queue.copyRaw }}</MkButton>
 			<MkButton rounded @click="refresh()"><i class="ti ti-reload"></i> {{ i18n.ts._queue.refreshView }}</MkButton>
 			<MkButton rounded @click="promoteJob()"><i class="ti ti-player-track-next"></i> {{ i18n.ts._queue.promoteJob }}</MkButton>
-			<!-- <MkButton rounded @click="moveJob"><i class="ti ti-arrow-right"></i> Move to</MkButton> -->
 			<MkButton danger rounded style="margin-left: auto;" @click="removeJob()"><i class="ti ti-trash"></i> {{ i18n.ts._queue.removeJob }}</MkButton>
 		</div>
 	</template>

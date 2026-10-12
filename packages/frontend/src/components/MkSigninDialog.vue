@@ -7,13 +7,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkModal
 	ref="modal"
 	:preferType="'dialog'"
+	:closeOnBackdrop="false"
 	@click="onClose"
+	@esc="onClose"
 	@closed="emit('closed')"
 >
 	<div :class="$style.root">
 		<div :class="$style.header">
-			<div :class="$style.headerText"><i class="ti ti-login-2"></i> {{ i18n.ts.login }}</div>
-			<button :class="$style.closeButton" class="_button" @click="onClose"><i class="ti ti-x"></i></button>
+			<div :class="$style.headerText">
+				<i class="ti ti-login-2" :class="$style.headerIcon" aria-hidden="true"></i>
+				<span :class="$style.headerLabel">{{ i18n.ts.login }}</span>
+			</div>
+			<button :class="$style.closeButton" class="_button" :aria-label="i18n.ts.close" @click="onClose"><i class="ti ti-x" aria-hidden="true"></i></button>
 		</div>
 		<div :class="$style.content">
 			<MkSignin :autoSet="autoSet" :message="message" :openOnRemote="openOnRemote" :initialUsername="initialUsername" @login="onLogin"/>
@@ -62,6 +67,8 @@ function onLogin(res: Misskey.entities.SigninFlowResponse & { finished: true }) 
 </script>
 
 <style lang="scss" module>
+@use '@/styles/window-header.scss' as window-header;
+
 .root {
 	overflow: auto;
 	margin: auto;
@@ -91,15 +98,27 @@ function onLogin(res: Misskey.entities.SigninFlowResponse & { finished: true }) 
 }
 
 .headerText {
+	@include window-header.title;
+	flex: 1;
 	padding: 0 20px;
 	box-sizing: border-box;
 }
 
+.headerIcon {
+	@include window-header.icon;
+}
+
+.headerLabel {
+	@include window-header.label;
+}
+
 .closeButton {
+	@include window-header.control;
 	margin-left: auto;
-	padding: 16px;
+	flex-shrink: 0;
+	width: 50px;
+	height: 50px;
 	font-size: 16px;
-	line-height: 16px;
 }
 
 .content {

@@ -9,6 +9,8 @@ import { nextTick } from 'vue';
 import type { PageMetadata } from '@/page.js';
 import Universal from '@/ui/universal.vue';
 import { mainRouter } from '@/router.js';
+import { readAuthorCard, saveAuthorCard } from '@/utility/author-card-cache.js';
+import type { AuthorCardSnapshot } from '@/utility/author-card-cache.js';
 
 const mocks = vi.hoisted(() => ({
 	receiveMetadata: null as ((getter: () => PageMetadata | null) => void) | null,
@@ -16,8 +18,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/router.js', async () => {
-	const { shallowRef } = await import('vue');
-	return { mainRouter: { currentRoute: shallowRef({ path: '/settings' }), on: vi.fn() } };
+	const { computed, shallowRef } = await import('vue');
+	const currentRoute = shallowRef({ path: '/settings' });
+	return { mainRouter: {
+		currentRoute,
+		currentRef: computed(() => ({ _parsedRoute: { fullPath: currentRoute.value.path } })),
+		on: vi.fn(),
+	} };
 });
 vi.mock('@/page.js', () => ({
 	provideMetadataReceiver: (receiver: typeof mocks.receiveMetadata) => { mocks.receiveMetadata = receiver; },
@@ -31,17 +38,18 @@ vi.mock('@/local-storage.js', () => ({ miLocalStorage: { getItem: () => null } }
 vi.mock('@/theme.js', () => ({ isPreviewMode: false }));
 vi.mock('@/i.js', () => ({ get $i() { return mocks.signedIn ? { id: 'self' } : null; } }));
 vi.mock('@/os.js', () => ({}));
+vi.mock('@/components/MkUserCardMini.vue', () => ({ default: { props: ['user'], template: '<div>{{ user.name }}</div>' } }));
 vi.mock('@/ui/_common_/common.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/ui/_common_/mobile-footer-menu.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/ui/_common_/PreferenceRestore.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/ui/_common_/ReloadSuggestion.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/ui/_common_/ThemePreviewing.vue', () => ({ default: { template: '<div/>' } }));
 vi.mock('@/ui/_common_/titlebar.vue', () => ({ default: { template: '<div/>' } }));
-vi.mock('@/ui/_common_/juejin-header.vue', () => ({
+vi.mock('@/ui/_common_/header.vue', () => ({
 	default: { props: ['dockHidden'], template: '<header data-testid="header" :data-dock-hidden="dockHidden"/>' },
 }));
-vi.mock('@/ui/_common_/juejin-dock.vue', () => ({ default: { template: '<nav/>' } }));
-vi.mock('@/ui/_common_/juejin-floating-actions.vue', () => ({
+vi.mock('@/ui/_common_/dock.vue', () => ({ default: { template: '<nav/>' } }));
+vi.mock('@/ui/_common_/floating-actions.vue', () => ({
 	default: { props: ['content'], template: '<div data-testid="floating-actions"/>' },
 }));
 vi.mock('@/ui/_common_/widgets.vue', () => ({ default: { template: '<aside/>' } }));
@@ -72,6 +80,7 @@ beforeEach(() => {
 	vi.stubGlobal('innerWidth', 1440);
 	mocks.receiveMetadata = null;
 	mocks.signedIn = false;
+	window.sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -81,12 +90,55 @@ afterEach(() => {
 });
 
 describe('desktop navigation page layout', () => {
-	test('uses the final community layout before its parent page loads', async () => {
-		mainRouter.currentRoute.value = { path: '', name: 'community' } as typeof mainRouter.currentRoute.value;
+	test('restores the author on refresh without storing account secrets or mixing accounts and routes', () => {
+		mocks.signedIn = true;
+		const snapshot = {
+			path: '/articles/example', user: { id: 'self', name: 'Cached author', username: 'author', token: 'do-not-store' },
+			bannerUrl: '/banner.png', stats: { articlesCount: 3, articleViewsCount: 8 }, followersCount: 2,
+		} as unknown as AuthorCardSnapshot;
+		saveAuthorCard(snapshot);
+		expect(readAuthorCard(snapshot.path)?.user.name).toBe('Cached author');
+		expect(window.sessionStorage.getItem('author-card:self')).not.toContain('do-not-store');
+		expect(readAuthorCard('/articles/other')).toBeNull();
+		mainRouter.currentRoute.value = { name: 'article', path: snapshot.path } as typeof mainRouter.currentRoute.value;
+		const { view } = renderShell();
+		expect(view.getByText('Cached author')).toBeTruthy();
+		mocks.signedIn = false;
+		expect(readAuthorCard(snapshot.path)).toBeNull();
+		mocks.signedIn = true;
+		vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 11 * 60_000);
+		expect(readAuthorCard(snapshot.path)).toBeNull();
+	});
+
+	test('ignores an unreadable author snapshot', () => {
+		window.sessionStorage.setItem('author-card:guest', '{broken');
+		expect(readAuthorCard('/articles/example')).toBeNull();
+	});
+
+	test.each(['/articles/new', '/articles/edit/:articleId'])('keeps %s in a single column before and after metadata arrives', async path => {
+		setRoute(path);
+		const { view, columns } = renderShell();
+		const initialClasses = columns.className;
+		expect(initialClasses).toContain('articleEditor');
+		expect(initialClasses).toContain('singleColumn');
+		expect(view.container.querySelector('nav')).toBeNull();
+		expect(view.container.querySelector('aside')).toBeNull();
+		expect(view.queryByTestId('header')).toBeNull();
+		await publishMetadata(true);
+		expect(columns.className).toBe(initialClasses);
+		await publishMetadata(false);
+		expect(columns.className).toBe(initialClasses);
+		setRoute('/timeline');
+		await nextTick();
+		expect(view.getByTestId('header')).toBeTruthy();
+	});
+
+	test('uses the wallet navigation layout before its benefits child loads', async () => {
+		setRoute('/wallet');
 		const { view, columns } = renderShell();
 		const initialClasses = columns.className;
 		expect(initialClasses).toContain('navigationLayout');
-		expect(initialClasses).toContain('singleColumn');
+		expect(initialClasses).not.toContain('singleColumn');
 		expect(view.container.querySelector('nav')).toBeNull();
 		expect(view.container.querySelector('aside')).toBeNull();
 		await publishMetadata(true);
@@ -111,7 +163,7 @@ describe('desktop navigation page layout', () => {
 		expect(columns.className).toBe(loadingClasses);
 	});
 
-	test.each(['/settings', '/admin', '/feedback'])('keeps %s at its final width before async metadata arrives', async path => {
+	test.each(['/settings', '/admin', '/wallet', '/feedback'])('keeps %s at its final width before async metadata arrives', async path => {
 		setRoute(path);
 		const { columns } = renderShell();
 		const initialClasses = columns.className;
@@ -143,6 +195,26 @@ describe('desktop navigation page layout', () => {
 		await publishMetadata(false);
 		expect(columns.className).toBe(initialClasses);
 	});
+
+	test('omits the navigation dock on a note detail route before its metadata loads', async () => {
+		setRoute('/settings');
+		const { view, columns } = renderShell();
+		await publishMetadata(true);
+		mainRouter.currentRoute.value = { name: 'note', path: '/notes/:noteId/:initialTab?' } as typeof mainRouter.currentRoute.value;
+		await nextTick();
+		const loadingClasses = columns.className;
+		expect(loadingClasses).not.toContain('wide');
+		expect(view.container.querySelector('nav')).toBeNull();
+		expect(view.container.querySelector('aside')).toBeNull();
+		expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe('true');
+		await publishMetadata(false);
+		expect(columns.className).toBe(loadingClasses);
+		await publishMetadata(true);
+		expect(columns.className).toBe(loadingClasses);
+		setRoute('/timeline');
+		await publishMetadata(false);
+		expect(view.container.querySelector('nav')).not.toBeNull();
+	});
 });
 
 describe('header dock visibility', () => {
@@ -159,7 +231,7 @@ describe('header dock visibility', () => {
 		expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe(String(hidden));
 	});
 
-	test.each(['/@:acct', '/@:acct/following', '/@:acct/followers', '/settings', '/admin'])('reports the hidden dock on %s even at desktop width', path => {
+	test.each(['/@:acct', '/@:acct/following', '/@:acct/followers', '/settings', '/admin', '/wallet'])('reports the hidden dock on %s even at desktop width', path => {
 		setRoute(path);
 		const { view } = renderShell();
 		expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe('true');

@@ -2,9 +2,7 @@
  * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: MIT
  */
-//@ts-check
 (() => {
-	/** @type {NodeListOf<HTMLIFrameElement>} */
 	const els = document.querySelectorAll('iframe[data-misskey-embed-id]');
 
 	window.addEventListener('message', function (event) {

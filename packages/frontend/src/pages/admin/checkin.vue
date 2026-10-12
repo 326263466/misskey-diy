@@ -257,7 +257,7 @@ async function revokeCards(entry: entities.AdminCheckinHistoryResponse['items'][
 		const result = await misskeyApi('admin/checkin/revoke-cards', { batchId: entry.batchId });
 		if (!active) return;
 		if (user.value?.id === entry.userId && info.value) info.value.checkinMakeupCards = result.makeupCards;
-		if (result.revokedCards > 0) os.toast(i18n.tsx._checkin.revokeCardsSucceeded({ amount: result.revokedCards.toLocaleString() }));
+		if (result.revokedCards > 0) os.success(i18n.tsx._checkin.revokeCardsSucceeded({ amount: result.revokedCards.toLocaleString() }));
 		else revokeErrors.value[entry.id] = i18n.ts._checkin.revokeCardsUnavailable;
 		void loadStats();
 		void loadRecords();
@@ -322,7 +322,7 @@ if (!props.embedded) definePage(() => ({ title: i18n.ts._checkin.grantCards, ico
 	grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
 	gap: var(--MI-marginHalf);
 	margin: 0;
-	> div { min-width: 0; padding: var(--MI-cardPadding); background: var(--MI_THEME-panel); border: 1px solid var(--MI_THEME-divider); border-radius: var(--MI-radius); }
+	> div { min-width: 0; padding: var(--MI-cardPadding); background: var(--MI_THEME-panel); border: var(--MI-divider); border-radius: var(--MI-radius); }
 	dt { font-size: .8em; color: var(--MI_THEME-fgTransparentWeak); }
 	dd { margin: var(--MI-marginHalf) 0 0; font-size: 1.7em; font-weight: bold; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 }
@@ -344,7 +344,7 @@ if (!props.embedded) definePage(() => ({ title: i18n.ts._checkin.grantCards, ico
 	border-collapse: collapse;
 	font-size: .85em;
 	text-align: left;
-	th, td { padding: var(--MI-margin); border-bottom: 1px solid var(--MI_THEME-divider); white-space: nowrap; }
+	th, td { padding: var(--MI-margin); border-bottom: var(--MI-divider); white-space: nowrap; }
 	th { color: var(--MI_THEME-fgTransparentWeak); font-weight: normal; }
 	td { font-variant-numeric: tabular-nums; }
 }

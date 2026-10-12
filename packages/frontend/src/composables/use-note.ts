@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import type { Ref } from 'vue';
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import { isLink } from '@@/js/is-link.js';
-import { shouldCollapsed } from '@@/js/collapsed.js';
 import { host } from '@@/js/config.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import type { OpenOnRemoteOptions } from '@/utility/please-login.js';
@@ -29,17 +28,18 @@ import { getPluginHandlers } from '@/plugin.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
-import MkBoostComposer from '@/components/MkBoostComposer.vue';
-import { notePage } from '@/filters/note.js';
+import { reactionPicker } from '@/utility/reaction-picker.js';
+import { notePage } from '@@/js/note.js';
 import type { DI as DIType } from '@/di.js';
 import type { ExtractInjectedType } from '@/types/misc.js';
 import type { MenuItem } from '@/types/menu.js';
 import type { WordMuteResult } from '@/utility/check-word-mute.js';
 import { useNoteContent } from '@/composables/use-note-content.js';
-import { isBoostFull } from '@/utility/boost.js';
 import { useLike } from '@/composables/use-like.js';
 import { useNoteViews } from '@/composables/use-note-views.js';
 import { shareNote } from '@/utility/share-note.js';
+import { getMyReactions, isEmojiReaction, normalizeReaction, REACTION_KIND_LIMIT } from '@/utility/normalize-reaction.js';
+import { playReactionEffect } from '@/utility/reaction-effect.js';
 
 export interface UseNoteProps {
 	note: Misskey.entities.Note;
@@ -59,6 +59,7 @@ export interface UseNoteElements {
 
 export interface UseNoteOptions {
 	inTimeline?: boolean;
+	menuContext?: 'list' | 'detail';
 	tl_withSensitive?: Ref<boolean>;
 	inChannel?: ExtractInjectedType<typeof DIType['inChannel']>;
 	currentClip?: Ref<Misskey.entities.Clip | null> | null;
@@ -136,7 +137,7 @@ export function useNote(
 	// 基本状態
 	const isRenote = Misskey.note.isPureRenote(rawNote);
 	const appearNote = useNoteContent(getAppearNote(rawNote) ?? rawNote);
-	const reactionNote = isRenote ? rawNote : appearNote;
+	const reactionNote = appearNote;
 	const renoteTargetId = isRenote ? rawNote.renoteId : appearNote.id;
 
 	// キャプチャ（ストリーム購読）
@@ -147,16 +148,8 @@ export function useNote(
 		mock: props.mock,
 		active: noteCaptureActive,
 	});
-	const reactionNoteCapture = reactionNote.id === appearNote.id
-		? appearNoteCapture
-		: useNoteCapture({
-			note: reactionNote,
-			parentNote: null,
-			mock: props.mock,
-			active: noteCaptureActive,
-		});
 	const { $note: $appearNote, subscribe: subscribeManuallyToNoteCapture } = appearNoteCapture;
-	const { $note: $reactionNote } = reactionNoteCapture;
+	const $reactionNote = $appearNote;
 	const { liking, toggleLike } = useLike(appearNote.id, $appearNote, { mock: props.mock, disabled: () => appearNote.isDeleted === true });
 
 	// 各種フラグ状態
@@ -182,14 +175,9 @@ export function useNote(
 	const displayedRenoteCount = computed(() => $appearNote.renoteCount + (isRenotedByMe.value && appearNote.userId === $i?.id && $i?.isBot !== true ? 1 : 0));
 	const parsed = computed(() => appearNote.text ? mfm.parse(appearNote.text) : null);
 	const urls = computed(() => parsed.value ? extractUrlFromMfm(parsed.value).filter((url) => appearNote.renote?.url !== url && appearNote.renote?.uri !== url) : null);
-	const isLong = computed(() => shouldCollapsed(appearNote, urls.value ?? []));
-	const collapsed = ref(appearNote.cw == null && isLong.value);
-	watch([isLong, () => appearNote.cw], ([long, cw]) => {
-		if (!long || cw != null) collapsed.value = false;
-	});
 	const canRenote = ['public', 'home'].includes(appearNote.visibility) || (appearNote.visibility === 'followers' && appearNote.userId === $i?.id);
 	const showTicker = (prefer.s.instanceTicker === 'always') || (prefer.s.instanceTicker === 'remote' && appearNote.user.instance);
-	const renoteCollapsed = ref(prefer.s.collapseRenotes && isRenote && (($i && ($i.id === rawNote.userId || $i.id === appearNote.userId)) || ($reactionNote.myReaction != null)));
+	const renoteCollapsed = ref(prefer.s.collapseRenotes && isRenote && (($i && ($i.id === rawNote.userId || $i.id === appearNote.userId)) || (getMyReactions($reactionNote).length > 0)));
 	if (els.viewEl != null) {
 		useNoteViews(els.viewEl, computed(() => appearNote.id), computed(() =>
 			!props.mock && !hideByPlugin && !hardMuted && muted.value === false && !isDeleted.value &&
@@ -271,81 +259,89 @@ export function useNote(
 		});
 	}
 
-	const canBoost = computed(() => $i != null && $reactionNote.myReaction == null && !isBoostFull($reactionNote.reactions));
+	const pendingReactions = new Set<string>();
 
-	const boostOpen = ref(false);
-	let boostDispose: (() => void) | null = null;
-	let boostHoverTimer: number | null = null;
-	let openingBoost = false;
-
-	function cancelHoverReact() {
-		if (boostHoverTimer != null) window.clearTimeout(boostHoverTimer);
-		boostHoverTimer = null;
-	}
-
-	function hoverReact(event: PointerEvent) {
-		if (event.pointerType !== 'mouse' || !$i || boostOpen.value || canBoost.value === false) return;
-		cancelHoverReact();
-		boostHoverTimer = window.setTimeout(() => { void react(undefined, true); }, 250);
-	}
-
-	async function react(createReactionMock?: (reaction: string) => void, fromHover = false) {
-		cancelHoverReact();
-		if (appearNote.isDeleted) return;
-		if (canBoost.value === false) return;
-		if (boostOpen.value) return;
-		if (openingBoost) return;
-		openingBoost = true;
+	async function createReaction(reaction: string, createReactionMock?: (reaction: string) => void) {
+		const normalized = normalizeReaction(reaction);
+		if ($i == null || pendingReactions.has(normalized) || getMyReactions($reactionNote).includes(normalized)) return;
+		const kinds = new Set(Object.entries($reactionNote.reactions)
+			.filter(([key, count]) => count > 0 && isEmojiReaction(key)).map(([key]) => normalizeReaction(key)));
+		if (!kinds.has(normalized) && kinds.size >= REACTION_KIND_LIMIT) {
+			os.toast(i18n.ts._chat.reactionLimit, 'warning');
+			return;
+		}
+		pendingReactions.add(normalized);
+		let acceptedReaction = reaction;
 		try {
-			if (!props.mock && !await pleaseLogin({ openOnRemote: pleaseLoginContext })) return;
-			if (!fromHover) showMovedDialog();
-			boostOpen.value = true;
-			const { dispose } = os.popup(MkBoostComposer, {
-				note: reactionNote,
-				get anchorElement() { return els.reactButton?.value; },
-				boundaryElement: els.rootEl?.value,
-				focusRequested: !fromHover,
-				mock: props.mock,
-			}, {
-				changed: reaction => {
-					if (props.mock && createReactionMock) createReactionMock(reaction ?? $reactionNote.myReaction ?? '');
-				},
-				closed: () => {
-					boostOpen.value = false;
-					boostDispose = null;
-					dispose();
-				},
-			});
-			boostDispose = dispose;
+			if (appearNote.reactionAcceptance !== 'likeOnly' && prefer.s.confirmOnReact) {
+				const { canceled } = await os.confirm({ type: 'question', text: i18n.tsx.reactAreYouSure({ emoji: reaction.replace('@.', '') }) });
+				if (canceled) return;
+			}
+			if (props.mock) {
+				createReactionMock?.(normalized);
+			} else {
+				const result = await misskeyApi('notes/reactions/create', { noteId: reactionNote.id, reaction });
+				acceptedReaction = result.reaction;
+				noteEvents.emit(`reacted:${reactionNote.id}`, { userId: $i.id, reaction: acceptedReaction });
+			}
+			sound.playMisskeySfx('reaction');
+			await nextTick();
+			const target = els.rootEl?.value?.querySelector<HTMLButtonElement>(`[data-reaction="${CSS.escape(normalizeReaction(acceptedReaction))}"]`);
+			playReactionEffect(acceptedReaction, target);
+			if (appearNote.text && appearNote.text.length > 100 && (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 3)) {
+				claimAchievement('reactWithoutRead');
+			}
+		} catch {
+			os.toast(i18n.ts.somethingHappened, 'error');
 		} finally {
-			openingBoost = false;
+			pendingReactions.delete(normalized);
 		}
 	}
 
-	onUnmounted(() => {
-		cancelHoverReact();
-		boostDispose?.();
-	});
+	async function react(createReactionMock?: (reaction: string) => void, anchorElement: HTMLElement | null = els.reactButton?.value ?? null) {
+		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
+		if (!isLoggedIn) return;
+		showMovedDialog();
+		if (appearNote.reactionAcceptance === 'likeOnly') {
+			await createReaction('❤️', createReactionMock);
+		} else {
+			blur();
+			const anchor = anchorElement?.isConnected ? anchorElement : els.reactButton?.value ?? null;
+			reactionPicker.show(anchor, rawNote, reaction => createReaction(reaction, createReactionMock), () => {
+				(anchor?.isConnected ? anchor : els.reactButton?.value ?? els.rootEl?.value)?.focus({ preventScroll: true });
+			});
+		}
+	}
 
 	async function reactViaMfmEmoji(reaction: string) {
 		if (props.mock) return;
 		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
 		if (!isLoggedIn) return;
 		showMovedDialog();
-		sound.playMisskeySfx('reaction');
-		misskeyApi('notes/reactions/create', {
-			noteId: reactionNote.id,
-			reaction: reaction,
-		}).then(() => {
-			noteEvents.emit(`reacted:${reactionNote.id}`, {
-				userId: $i!.id,
-				reaction: reaction,
-			});
-		});
+		await createReaction(reaction);
 	}
 
-	function toggleReact(customMockCallback?: (reaction: string) => void) {
-		void react(customMockCallback);
+	async function undoReact(reaction: string): Promise<void> {
+		if (props.mock || $i == null || pendingReactions.has(reaction)) return;
+		pendingReactions.add(reaction);
+		try {
+			await misskeyApi('notes/reactions/delete', { noteId: appearNote.id, reaction });
+			noteEvents.emit(`unreacted:${appearNote.id}`, { userId: $i.id, reaction });
+		} catch {
+			os.toast(i18n.ts.somethingHappened, 'error');
+		} finally {
+			pendingReactions.delete(reaction);
+		}
+	}
+
+	function toggleReact(customMockCallback?: (reaction: string) => void, anchorElement?: HTMLElement | null) {
+		const heart = getMyReactions($reactionNote).find(reaction => reaction === normalizeReaction('❤️'));
+		if (appearNote.reactionAcceptance === 'likeOnly' && heart) {
+			if (props.mock && customMockCallback) customMockCallback(heart);
+			else void undoReact(heart);
+		} else {
+			void react(customMockCallback, anchorElement);
+		}
 	}
 
 	function onContextmenu(ev: PointerEvent): void {
@@ -384,6 +380,7 @@ export function useNote(
 		} else {
 			const { menu, cleanup } = getNoteMenu({
 				note: isRenote ? { ...rawNote, renote: appearNote } : appearNote,
+				menuContext: options.menuContext,
 				translating,
 				translation,
 				currentClip: currentClip?.value,
@@ -397,6 +394,7 @@ export function useNote(
 		if (props.mock || els.menuButton == null) return;
 		const { menu, cleanup } = getNoteMenu({
 			note: isRenote ? { ...rawNote, renote: appearNote } : appearNote,
+			menuContext: options.menuContext,
 			translating,
 			translation,
 			currentClip: currentClip?.value,
@@ -504,7 +502,6 @@ export function useNote(
 		translation,
 		muted,
 		hardMuted,
-		collapsed,
 		renoteCollapsed,
 		isFavorited,
 		favoriting,
@@ -517,10 +514,8 @@ export function useNote(
 		displayedRenoteCount,
 		parsed,
 		urls,
-		isLong,
 		showTicker,
 		canRenote,
-		canBoost,
 
 		// アクション関数
 		renote,
@@ -530,9 +525,6 @@ export function useNote(
 		react,
 		reactViaMfmEmoji,
 		toggleReact,
-		boostOpen,
-		hoverReact,
-		cancelHoverReact,
 		onContextmenu,
 		showMenu,
 		clip,

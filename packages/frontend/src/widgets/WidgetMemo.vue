@@ -9,7 +9,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ i18n.ts._widgets.memo }}</template>
 
 	<div :class="$style.root">
-		<textarea v-model="text" :style="`height: ${widgetProps.height}px;`" :class="$style.textarea" :placeholder="i18n.ts.memo" :aria-label="i18n.ts.memo" @input="onChange"></textarea>
+		<div :class="$style.input">
+			<textarea v-model="text" :style="`height: ${widgetProps.height}px;`" :class="$style.textarea" :placeholder="i18n.ts.memo" :aria-label="i18n.ts.memo" @input="onChange"></textarea>
+			<span class="_inputCounter">{{ text?.length ?? 0 }}</span>
+		</div>
 		<button :class="$style.save" :disabled="!changed" class="_buttonPrimary" @click="saveMemo">{{ i18n.ts.save }}</button>
 	</div>
 </MkContainer>
@@ -89,6 +92,10 @@ defineExpose<WidgetComponentExpose>({
 	padding-bottom: calc(28px + var(--MI-cardPadding, 18px) * 2);
 }
 
+.input {
+	position: relative;
+}
+
 .textarea {
 	display: block;
 	width: 100%;
@@ -98,7 +105,7 @@ defineExpose<WidgetComponentExpose>({
 	color: var(--MI_THEME-fg);
 	background: transparent;
 	border: none;
-	border-bottom: solid 0.5px var(--MI_THEME-divider);
+	border-bottom: var(--MI-divider);
 	border-radius: 0;
 	box-sizing: border-box;
 	font: inherit;

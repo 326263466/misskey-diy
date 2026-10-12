@@ -6,11 +6,21 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
-import { beforeAll, beforeEach, describe, test, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, test, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { inspect } from 'node:util';
-import { api, post, role, signup, successfulApiCall, uploadFile } from '../utils.js';
+import { api, initTestDb, page, post, role, signup, successfulApiCall, uploadFile } from '../utils.js';
 import type * as misskey from 'misskey-js';
 import { DEFAULT_POLICIES } from '@/core/RoleService.js';
+import { checkinDate } from '@/core/CheckinService.js';
+import { IdService } from '@/core/IdService.js';
+import { loadConfig } from '@/config.js';
+import { MiUser } from '@/models/User.js';
+import { MiUserCheckin } from '@/models/UserCheckin.js';
+import { MiWallet } from '@/models/Wallet.js';
+import { MiNote } from '@/models/Note.js';
+import { MiPage } from '@/models/Page.js';
+import { MiTip } from '@/models/Tip.js';
 
 describe('ユーザー', () => {
 	// エンティティとしてのユーザーを主眼においたテストを記述する
@@ -127,6 +137,8 @@ describe('ユーザー', () => {
 			autoSensitive: user.autoSensitive,
 			carefulBot: user.carefulBot,
 			autoAcceptFollowed: user.autoAcceptFollowed,
+			followApprovalLocalSeconds: user.followApprovalLocalSeconds,
+			followApprovalRemoteSeconds: user.followApprovalRemoteSeconds,
 			noCrawle: user.noCrawle,
 			preventAiLearning: user.preventAiLearning,
 			isExplorable: user.isExplorable,
@@ -369,6 +381,8 @@ describe('ユーザー', () => {
 		assert.strictEqual(response.autoSensitive, false);
 		assert.strictEqual(response.carefulBot, false);
 		assert.strictEqual(response.autoAcceptFollowed, true);
+		assert.strictEqual(response.followApprovalLocalSeconds, null);
+		assert.strictEqual(response.followApprovalRemoteSeconds, null);
 		assert.strictEqual(response.noCrawle, false);
 		assert.strictEqual(response.preventAiLearning, true);
 		assert.strictEqual(response.isExplorable, true);
@@ -661,8 +675,8 @@ describe('ユーザー', () => {
 		{ parameters: () => ({ location: 'x'.repeat(50) }) },
 		{ parameters: () => ({ location: 'x' }) },
 		{ parameters: () => ({ location: 'My location' }) },
-		{ parameters: () => ({ birthday: '0000-00-00' }) },
-		{ parameters: () => ({ birthday: '9999-99-99' }) },
+		{ parameters: () => ({ birthday: '0000-01-01' }) },
+		{ parameters: () => ({ birthday: '2000-02-29' }) },
 		{ parameters: () => ({ lang: 'en-US' as const }) },
 		{ parameters: () => ({ fields: [] }) },
 		{ parameters: () => ({ fields: [{ name: 'x', value: 'x' }] }) },
@@ -1230,5 +1244,142 @@ describe('manual daily check-in', () => {
 		assert.strictEqual(ranking.status, 200);
 		assert.ok(ranking.body.items.every(item => item.user.id !== member.id));
 		assert.strictEqual(ranking.body.myRank, null);
+	});
+});
+
+describe('community user rankings', () => {
+	let db: Awaited<ReturnType<typeof initTestDb>>;
+
+	beforeAll(async () => {
+		db = await initTestDb(true);
+		await signup({ username: 'rankingadmin' });
+	});
+	afterAll(async () => { if (db?.isInitialized) await db.destroy(); });
+
+	test('uses current points, stable unique ranks and viewer filtering without exposing private profile fields', async () => {
+		const first = await signup({ username: 'rankingpointsfirst' });
+		const second = await signup({ username: 'rankingpointssecond' });
+		const hidden = await signup({ username: 'rankingpointshidden' });
+		for (const user of [first, second, hidden]) {
+			await db.getRepository(MiWallet).upsert({ userId: user.id, balance: 1000000, reservedBalance: 0 }, ['userId']);
+		}
+		await db.getRepository(MiUser).update(hidden.id, { isExplorable: false });
+		const sorted = [first.id, second.id].sort();
+		const response = await api('users/ranking', { type: 'points', limit: 1 }, second);
+		assert.strictEqual(response.status, 200);
+		assert.deepStrictEqual(response.body.items.map(item => [item.rank, item.value, item.user.id]), [[1, 1000000, sorted[0]]]);
+		assert.deepStrictEqual(response.body.myRank, { rank: sorted.indexOf(second.id) + 1, value: 1000000 });
+		assert.ok(Number.isFinite(Date.parse(response.body.updatedAt)));
+		const next = await api('users/ranking', { type: 'points', offset: 1, limit: 1 });
+		assert.deepStrictEqual(next.body.items.map(item => [item.rank, item.user.id]), [[2, sorted[1]]]);
+		assert.strictEqual(next.body.myRank, null);
+		assert.ok(!('checkinPoints' in next.body.items[0].user));
+		assert.ok(!('email' in next.body.items[0].user));
+		for (const state of [{ isSuspended: true }, { isDeleted: true }, { host: 'ranking.example' }, { movedToUri: 'https://ranking.example/user' }, { username: 'system.ranking' }]) {
+			await db.getRepository(MiUser).update(hidden.id, { isExplorable: true, isSuspended: false, isDeleted: false, host: null, movedToUri: null, username: hidden.username, ...state });
+			const ranking = await api('users/ranking', { type: 'points' });
+			assert.ok(ranking.body.items.every(item => item.user.id !== hidden.id));
+		}
+		await db.getRepository(MiUser).update(hidden.id, { username: hidden.username, isExplorable: false });
+		assert.strictEqual((await api('users/ranking', { type: 'points' }, hidden)).body.myRank, null);
+		assert.strictEqual((await api('blocking/create', { userId: first.id }, second)).status, 200);
+		assert.ok((await api('users/ranking', { type: 'points' }, first)).body.items.every(item => item.user.id !== second.id));
+		assert.ok((await api('users/ranking', { type: 'points' }, second)).body.items.every(item => item.user.id !== first.id));
+		await api('blocking/delete', { userId: first.id }, second);
+		await api('mute/create', { userId: first.id }, second);
+		assert.ok((await api('users/ranking', { type: 'points' }, second)).body.items.every(item => item.user.id !== first.id));
+		await db.getRepository(MiWallet).upsert({ userId: first.id, balance: 2, reservedBalance: 0 }, ['userId']);
+		assert.strictEqual((await api('users/ranking', { type: 'points' }, first)).body.myRank?.value, 2);
+		assert.strictEqual((await api('users/ranking', { offset: 100 })).status, 400);
+		assert.strictEqual((await api('users/ranking', { limit: 51 })).status, 400);
+	});
+
+	test('counts public posts, quotes, articles and replies while excluding private, deleted and automatically hidden content', async () => {
+		const author = await signup({ username: 'rankingauthor' });
+		const commenter = await signup({ username: 'rankingcommenter' });
+		const note = await post(author, { text: '公开帖子' });
+		const article = await page(author, { name: 'ranking-public', content: [{ type: 'markdown', text: '# 公开文章' }] });
+		await page(author, { name: 'ranking-ordinary' });
+		const privateArticle = await page(author, { name: 'ranking-private', content: [{ type: 'markdown', text: '# 私密文章' }] });
+		await post(commenter, { renoteId: note.id });
+		await post(commenter, { renoteId: note.id, text: '引用正文' });
+		await post(commenter, { replyId: note.id, text: '公开回复' });
+		await post(commenter, { replyId: note.id, text: '私密回复', visibility: 'specified', visibleUserIds: [] });
+		assert.strictEqual((await api('articles/comments/create', { articleId: article.id, text: '公开评论' }, commenter)).status, 200);
+		assert.strictEqual((await api('articles/comments/create', { articleId: privateArticle.id, text: '稍后转为私密' }, commenter)).status, 200);
+		await db.getRepository(MiPage).update(privateArticle.id, { visibility: 'specified', visibleUserIds: [] });
+		const privateParent = await post(author, { text: '稍后转为私密的父帖' });
+		await post(commenter, { replyId: privateParent.id, text: '父帖不可见' });
+		await db.getRepository(MiNote).update(privateParent.id, { visibility: 'specified', visibleUserIds: [] });
+		const deleted = await post(commenter, { replyId: note.id, text: '稍后删除的回复' });
+		await db.getRepository(MiNote).update(deleted.id, { threadId: `reply-hidden:deleted:${note.id}`, deletedBy: 'author' });
+		const posts = await api('users/ranking', { type: 'posts' }, author);
+		assert.strictEqual(posts.status, 200);
+		assert.strictEqual(posts.body.myRank?.value, 2);
+		assert.strictEqual(posts.body.items.find(item => item.user.id === commenter.id)?.value, 1);
+		const replies = await api('users/ranking', { type: 'replies' }, commenter);
+		assert.strictEqual(replies.status, 200);
+		assert.strictEqual(replies.body.myRank?.value, 2);
+		await db.getRepository(MiUser).update(author.id, { makeNotesFollowersOnlyBefore: 0 });
+		assert.strictEqual((await api('users/ranking', { type: 'posts' }, author)).body.myRank?.value, 1);
+		assert.strictEqual((await api('users/ranking', { type: 'replies' }, commenter)).body.myRank?.value, 1);
+		await db.getRepository(MiUser).update(author.id, { makeNotesFollowersOnlyBefore: null });
+		const timed = await signup({ username: 'rankingtime' });
+		const older = await post(timed, { text: '旧帖子' });
+		const oldTime = Math.floor(Date.now() / 1000) * 1000 - 120000;
+		await db.getRepository(MiNote).update(older.id, { id: new IdService(loadConfig()).gen(oldTime) });
+		await post(timed, { text: '新帖子' });
+		for (const hiddenBefore of [oldTime / 1000, -60]) {
+			await db.getRepository(MiUser).update(timed.id, { makeNotesHiddenBefore: hiddenBefore });
+			assert.strictEqual((await api('users/ranking', { type: 'posts' }, timed)).body.myRank?.value, 1);
+		}
+	});
+
+	test('counts check-in records including makeup days and excludes future dates', async () => {
+		const member = await signup({ username: 'rankingcheckin' });
+		const today = checkinDate(new Date());
+		for (const [date, isMakeup] of [['2000-01-01', true], [today, false], ['2199-01-01', false]] as const) {
+			await db.getRepository(MiUserCheckin).insert({ userId: member.id, date, createdAt: new Date(), isMakeup, totalDays: 1, consecutiveDays: 1 });
+		}
+		const response = await api('users/ranking', { type: 'checkin' }, member);
+		assert.strictEqual(response.status, 200);
+		assert.strictEqual(response.body.myRank?.value, 2);
+		await db.getRepository(MiUser).update(member.id, { isExplorable: false });
+		assert.strictEqual((await api('users/ranking', { type: 'checkin' }, member)).body.myRank, null);
+	});
+
+	test('ranks by the number of tips sent to currently visible public content regardless of their amounts', async () => {
+		const sender = await signup({ username: 'rankingtipsender' });
+		const generousSender = await signup({ username: 'rankinglargesender' });
+		const recipient = await signup({ username: 'rankingtiprecipient' });
+		const note = await post(recipient, { text: '公开打赏帖子' });
+		const privateNote = await post(recipient, { text: '私密打赏帖子', visibility: 'specified', visibleUserIds: [] });
+		const article = await page(recipient, { name: 'ranking-tip-article', content: [{ type: 'markdown', text: '# 打赏文章' }] });
+		const records = [
+			{ targetType: 'note', targetId: note.id, amount: 1.25 },
+			{ targetType: 'page', targetId: article.id, amount: 2.5 },
+			{ targetType: 'note', targetId: privateNote.id, amount: 50 },
+			{ targetType: 'note', targetId: '0000000000000000', amount: 100 },
+			{ targetType: null, targetId: null, amount: 200 },
+		] as const;
+		for (const record of records) {
+			await db.getRepository(MiTip).insert({ ...record, id: randomUUID().replaceAll('-', ''), senderId: sender.id, recipientId: recipient.id, requestId: randomUUID(), createdAt: new Date(), message: '不应出现在排行榜中的留言' });
+		}
+		await db.getRepository(MiTip).insert({ id: randomUUID().replaceAll('-', ''), senderId: generousSender.id, recipientId: recipient.id, requestId: randomUUID(), createdAt: new Date(), targetType: 'note', targetId: note.id, amount: 1000 });
+		const result = await api('users/ranking', { type: 'tips' }, sender);
+		assert.strictEqual(result.status, 200);
+		assert.strictEqual(result.body.myRank?.value, 2);
+		const generousRank = result.body.items.find(item => item.user.id === generousSender.id);
+		assert.strictEqual(generousRank?.value, 1);
+		assert.ok(result.body.myRank && generousRank && result.body.myRank.rank < generousRank.rank);
+		assert.ok(!JSON.stringify(result.body).includes('不应出现在排行榜中的留言'));
+		assert.strictEqual((await api('users/ranking', { type: 'tips' })).body.items.find(item => item.user.id === sender.id)?.value, 2);
+		await db.getRepository(MiUser).update(recipient.id, { requireSigninToViewContents: true });
+		assert.ok((await api('users/ranking', { type: 'tips' })).body.items.every(item => item.user.id !== sender.id));
+		assert.strictEqual((await api('users/ranking', { type: 'tips' }, sender)).body.myRank?.value, 2);
+		await db.getRepository(MiUser).update(recipient.id, { makeNotesHiddenBefore: 0 });
+		assert.strictEqual((await api('users/ranking', { type: 'tips' }, sender)).body.myRank?.value, 1);
+		await db.getRepository(MiPage).update(article.id, { visibility: 'specified', visibleUserIds: [] });
+		assert.strictEqual((await api('users/ranking', { type: 'tips' }, sender)).body.myRank, null);
 	});
 });

@@ -45,6 +45,8 @@ import { ApDeliverManagerService } from '@/core/activitypub/ApDeliverManagerServ
 import { RemoteUserResolveService } from '@/core/RemoteUserResolveService.js';
 import { bindThis } from '@/decorators.js';
 import { DB_MAX_NOTE_TEXT_LENGTH } from '@/const.js';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { assertContentLength } from '@/misc/content-limits.js';
 import { RoleService } from '@/core/RoleService.js';
 import { SearchService } from '@/core/SearchService.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
@@ -59,6 +61,8 @@ import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { CacheService } from '@/core/CacheService.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { RedPacketService } from '@/core/RedPacketService.js';
+import { LoggerService } from '@/core/LoggerService.js';
+import type Logger from '@/logger.js';
 
 type NotificationType = 'reply' | 'renote' | 'quote' | 'mention';
 
@@ -198,6 +202,7 @@ type Option = {
 export class NoteCreateService implements OnApplicationShutdown {
 	#shutdownController = new AbortController();
 	private updateNotesCountQueue: CollapsedQueue<MiNote['id'], number>;
+	private logger: Logger;
 
 	constructor(
 		@Inject(DI.config)
@@ -274,7 +279,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 		private utilityService: UtilityService,
 		private userBlockingService: UserBlockingService,
 		private cacheService: CacheService,
+		private loggerService: LoggerService,
 	) {
+		this.logger = this.loggerService.getLogger('note-create');
 		this.updateNotesCountQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseNotesCount, this.performUpdateNotesCount);
 	}
 
@@ -304,6 +311,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 		apEmojis?: string[] | null;
 		publishReply?: boolean;
 	}): Promise<MiNote> {
+		if (user.host == null) {
+			assertContentLength(data.text, data.replyId == null ? CONTENT_LIMITS.noteText : CONTENT_LIMITS.commentText);
+			assertContentLength(data.cw, CONTENT_LIMITS.noteCw);
+		}
 		const visibleUsers = data.visibleUserIds.length > 0 ? await this.usersRepository.findBy({
 			id: In(data.visibleUserIds),
 		}) : [];
@@ -455,6 +466,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 		isBot: MiUser['isBot'];
 		isCat: MiUser['isCat'];
 	}, data: Option, silent = false): Promise<MiNote> {
+		if (user.host == null) {
+			assertContentLength(data.text, data.reply == null ? CONTENT_LIMITS.noteText : CONTENT_LIMITS.commentText);
+			assertContentLength(data.cw, CONTENT_LIMITS.noteCw);
+		}
 		if (data.redPacketId != null) {
 			await this.redPacketService.assertCanReference(data.redPacketId, user.id);
 			const existing = await this.notesRepository.findOneBy({ redPacketId: data.redPacketId, userId: user.id });
@@ -665,7 +680,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				noteId: note.id,
 			});
 			notifyNoteReplied(this.notesRepository, this.globalEventService, note).catch(err => {
-				console.error('Failed to refresh comment totals after posting', err);
+				this.logger.error('Failed to refresh comment totals after posting', { noteId: note.id, error: err });
 			});
 		}
 
@@ -783,7 +798,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				throw err;
 			}
 
-			console.error(e);
+			this.logger.error('Failed to insert note', { userId: user.id, error: e });
 
 			throw e;
 		}

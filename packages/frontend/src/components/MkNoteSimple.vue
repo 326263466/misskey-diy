@@ -4,18 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="note" :class="[$style.root, { [$style.compact]: compact }]">
-	<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null]" :user="note.user" link preview/>
-	<div :class="$style.main">
-		<MkNoteHeader :class="$style.header" :note="note" :mini="true"/>
-		<div>
-			<MkCwButton v-if="note.cw != null" v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll">
-				<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
-			</MkCwButton>
-			<div v-show="note.cw == null || showContent">
-				<MkSubNoteContent :class="[$style.text, { [$style.clamp]: compact }]" :note="note" :relocateTags="true"/>
-				<MkNoteTags :class="$style.tags" :tags="topics.tags" :channel="note.channel"/>
-			</div>
+<div v-if="note" :class="$style.root">
+	<MkNoteHeader :class="$style.header" :note="note" :mini="true">
+		<template #avatar>
+			<MkAvatar :class="$style.avatar" :user="note.user" link preview/>
+		</template>
+	</MkNoteHeader>
+	<div>
+		<MkCwButton v-if="note.cw != null" v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll">
+			<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
+		</MkCwButton>
+		<div v-show="note.cw == null || showContent">
+			<MkSubNoteContent :class="[$style.text, { [$style.clamp]: compact }]" :note="note" :relocateTags="true"/>
+			<MkNoteTags :class="$style.tags" :tags="topics.tags" :channel="note.channel"/>
 		</div>
 	</div>
 </div>
@@ -32,7 +33,6 @@ import MkNoteHeader from '@/components/MkNoteHeader.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
 import { i18n } from '@/i18n.js';
-import { prefer } from '@/preferences.js';
 import { useGlobalEvent } from '@/events.js';
 import MkNoteTags from '@/components/MkNoteTags.vue';
 import { getNoteTopics } from '@/utility/note-topics.js';
@@ -65,34 +65,22 @@ useGlobalEvent('noteEdited', (id, content) => {
 
 <style lang="scss" module>
 .root {
-	display: flex;
 	margin: 0;
 	padding: 0;
 	font-size: 0.95em;
 }
 
+// 头像内联在名字行前，时间与内容块都从卡片内边距处左对齐
+.header {
+	margin-bottom: 2px;
+}
+
 .avatar {
 	flex-shrink: 0;
 	display: block;
-	margin: 0 10px 0 0;
-	width: 34px;
-	height: 34px;
-	border-radius: 8px;
-
-	&.useSticky {
-		position: sticky !important;
-		top: calc(16px + var(--MI-stickyTop, 0px));
-		left: 0;
-	}
-}
-
-.main {
-	flex: 1;
-	min-width: 0;
-}
-
-.header {
-	margin-bottom: 2px;
+	width: 20px;
+	height: 20px;
+	border-radius: 4px;
 }
 
 .text {
@@ -113,38 +101,6 @@ useGlobalEvent('noteEdited', (id, content) => {
 
 .tags {
 	margin-top: 10px;
-}
-
-@container (min-width: 250px) {
-	.avatar {
-		margin: 0 10px 0 0;
-		width: 40px;
-		height: 40px;
-	}
-}
-
-@container (min-width: 350px) {
-	.avatar {
-		margin: 0 10px 0 0;
-		width: 44px;
-		height: 44px;
-	}
-}
-
-@container (min-width: 500px) {
-	.avatar {
-		margin: 0 12px 0 0;
-		width: 48px;
-		height: 48px;
-	}
-}
-
-.compact {
-	.avatar {
-		width: 30px;
-		height: 30px;
-		margin: 0 8px 0 0;
-	}
 }
 
 .deleted {

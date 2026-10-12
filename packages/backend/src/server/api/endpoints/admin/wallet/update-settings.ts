@@ -19,8 +19,10 @@ export const paramDef = {
 	properties: {
 		exchangeEnabled: { type: 'boolean' },
 		exchangeRate: { type: 'integer', minimum: 1, maximum: WALLET_MAX_EXCHANGE_RATE },
+		pointsPerCoin: { type: 'integer', minimum: 1, maximum: WALLET_MAX_EXCHANGE_RATE },
 	},
-	required: ['exchangeEnabled', 'exchangeRate'],
+	required: ['exchangeEnabled'],
+	oneOf: [{ required: ['exchangeRate'] }, { required: ['pointsPerCoin'] }],
 } as const;
 
 @Injectable()

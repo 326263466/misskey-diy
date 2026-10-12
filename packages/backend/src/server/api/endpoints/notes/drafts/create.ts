@@ -8,6 +8,8 @@ import ms from 'ms';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteDraftService } from '@/core/NoteDraftService.js';
 import { MAX_NOTE_TEXT_LENGTH } from '@/const.js';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError } from '@/misc/content-limits.js';
 import { ApiError } from '@/server/api/error.js';
 import { NoteDraftEntityService } from '@/core/entities/NoteDraftEntityService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
@@ -34,6 +36,7 @@ export const meta = {
 	},
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: '276f959f-0112-4980-a6bc-b63a5799c6e2' },
 		noSuchRenoteTarget: {
 			message: 'No such renote target.',
 			code: 'NO_SUCH_RENOTE_TARGET',
@@ -162,7 +165,7 @@ export const paramDef = {
 		visibleUserIds: { type: 'array', uniqueItems: true, items: {
 			type: 'string', format: 'misskey:id',
 		} },
-		cw: { type: 'string', nullable: true, minLength: 1, maxLength: 100 },
+		cw: { type: 'string', nullable: true, minLength: 1, maxLength: CONTENT_LIMITS.noteCw },
 		hashtag: { type: 'string', nullable: true, maxLength: 200 },
 		localOnly: { type: 'boolean', default: false },
 		reactionAcceptance: { type: 'string', nullable: true, enum: [null, 'likeOnly', 'likeOnlyForRemote', 'nonSensitiveOnly', 'nonSensitiveOnlyForLocalLikeOnlyForRemote'], default: null },
@@ -236,6 +239,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				isActuallyScheduled: ps.isActuallyScheduled,
 			}, ps.publishReply).catch((err) => {
 				if (err instanceof IdentifiableError) {
+					if (err.id === contentTooLongError.id) throw new ApiError(meta.errors.contentTooLong);
 					switch (err.id) {
 						case '9ee33bbe-fde3-4c71-9b51-e50492c6b9c8':
 							throw new ApiError(meta.errors.tooManyDrafts);

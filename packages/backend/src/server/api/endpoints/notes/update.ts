@@ -25,7 +25,9 @@ import { extractCustomEmojisFromMfm } from '@/misc/extract-custom-emojis-from-mf
 import { extractHashtags } from '@/misc/extract-hashtags.js';
 import { normalizeForSearch } from '@/misc/normalize-for-search.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
-import { MAX_NOTE_TEXT_LENGTH } from '@/const.js';
+import { DB_MAX_NOTE_TEXT_LENGTH } from '@/const.js';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
 import { DI } from '@/di-symbols.js';
 import type { DriveFilesRepository, NotesRepository, PollsRepository, UsersRepository } from '@/models/_.js';
 import type { MiNote } from '@/models/Note.js';
@@ -43,6 +45,7 @@ export const meta = {
 		max: 300,
 	},
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: '9cb367b8-8b88-496d-b47e-bf097ec0eaff' },
 		noSuchNote: {
 			message: 'No such note.',
 			code: 'NO_SUCH_NOTE',
@@ -109,16 +112,16 @@ export const paramDef = {
 			type: 'string',
 			nullable: true,
 			minLength: 1,
-			maxLength: MAX_NOTE_TEXT_LENGTH,
+			maxLength: DB_MAX_NOTE_TEXT_LENGTH,
 			pattern: '[^\\s]+',
 		},
-		cw: { type: 'string', nullable: true, minLength: 1, maxLength: 100 },
+		cw: { type: 'string', nullable: true, minLength: 1, maxLength: 512 },
 		fileIds: fileIdsSchema,
 		reactionAcceptance: reactionAcceptanceSchema,
 		expected: {
 			type: 'object',
 			properties: {
-				text: { type: 'string', nullable: true, maxLength: MAX_NOTE_TEXT_LENGTH },
+				text: { type: 'string', nullable: true, maxLength: DB_MAX_NOTE_TEXT_LENGTH },
 				cw: { type: 'string', nullable: true, maxLength: 512 },
 				fileIds: fileIdsSchema,
 				reactionAcceptance: reactionAcceptanceSchema,
@@ -171,6 +174,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (note.userId !== me.id || note.userHost !== null || (isRenote(note) && !isQuote(note))) {
 				throw new ApiError(meta.errors.accessDenied);
+			}
+			if (isContentTooLong(ps.text, note.replyId == null ? CONTENT_LIMITS.noteText : CONTENT_LIMITS.commentText, note.text) ||
+				isContentTooLong(ps.cw, CONTENT_LIMITS.noteCw, note.cw)) {
+				throw new ApiError(meta.errors.contentTooLong);
 			}
 
 			if (ps.expected != null && (

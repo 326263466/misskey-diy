@@ -66,7 +66,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<template #label><SearchLabel>{{ i18n.ts.enable }}</SearchLabel><span v-if="fttForm.modifiedStates.enableFanoutTimeline" class="_modified">{{ i18n.ts.modified }}</span></template>
 									<template #caption>
 										<div><SearchText>{{ i18n.ts._serverSettings.fanoutTimelineDescription }}</SearchText></div>
-										<div><MkLink target="_blank" url="https://misskey-hub.net/docs/for-admin/features/ftt/">{{ i18n.ts.details }}</MkLink></div>
+										<div><MkLink target="_blank" url="https://misskey-hub.net/docs/for-admin/features/ftt/" class="_textAction">{{ i18n.ts.details }}</MkLink></div>
 									</template>
 								</MkSwitch>
 							</SearchMarker>
@@ -110,7 +110,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<SearchMarker>
 					<MkFolder :defaultOpen="true">
 						<template #icon><SearchIcon><i class="ti ti-bolt"></i></SearchIcon></template>
-						<template #label><SearchLabel>Misskey® Reactions Boost Technology™ (RBT)</SearchLabel></template>
+						<template #label><SearchLabel>{{ i18n.ts._serverSettings.reactionsBuffering }}</SearchLabel></template>
 						<template v-if="rbtForm.savedState.enableReactionsBuffering" #suffix>{{ i18n.ts.enabled }}</template>
 						<template v-else #suffix>{{ i18n.ts.disabled }}</template>
 						<template v-if="rbtForm.modified.value" #footer>

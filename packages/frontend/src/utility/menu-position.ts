@@ -9,6 +9,9 @@
  */
 export const MENU_GAP = 8;
 
+/** 子菜单略微覆盖父菜单边缘。 */
+export const SUBMENU_OVERLAP = 4;
+
 /**
  * 浮层与视口边缘之间的最小距离。
  * 对应 Floating UI 的 `shift({ padding })` / Radix 的 `collisionPadding`。
@@ -38,14 +41,15 @@ export function calcMenuPosition(
 	viewport: Viewport,
 	preferSide = false,
 	sideOffsetY = 0,
+	sideGap = MENU_GAP,
 ): { left: number; top: number; transformOrigin: string; overlapsAnchor: boolean } {
 	const { width, height } = size;
 	const rightEdge = viewport.width - VIEWPORT_MARGIN;
 	const bottomEdge = viewport.height - VIEWPORT_MARGIN;
 	const clampX = (x: number) => Math.max(0, Math.min(x, rightEdge - width));
 	const clampY = (y: number) => Math.max(0, Math.min(y, bottomEdge - height));
-	const right = anchor.right + MENU_GAP;
-	const left = anchor.left - width - MENU_GAP;
+	const right = anchor.right + sideGap;
+	const left = anchor.left - width - sideGap;
 	const below = anchor.bottom + MENU_GAP;
 	const above = anchor.top - height - MENU_GAP;
 
@@ -66,8 +70,8 @@ export function calcMenuPosition(
 		pos.left >= 0 && pos.top >= 0 && pos.left + width <= viewport.width && pos.top + height <= viewport.height
 	)) ?? { left: clampX(right), top: clampY(below) };
 
-	const originX = position.left >= anchor.right ? anchor.right
-		: position.left + width <= anchor.left ? anchor.left
+	const originX = position.left >= anchor.right + Math.min(0, sideGap) ? anchor.right
+		: position.left + width <= anchor.left - Math.min(0, sideGap) ? anchor.left
 		: (anchor.left + anchor.right) / 2;
 	const originY = position.top >= anchor.bottom ? anchor.bottom
 		: position.top + height <= anchor.top ? anchor.top
@@ -88,15 +92,17 @@ export function calcMenuPosition(
  * - offset：默认挂在锚点下方并与其起始边对齐（`bottom-start`，同 Radix 的下拉默认值），间距 {@link MENU_GAP}
  * - flip：主轴放不下才整体换方位，顺序为下 → 上 → 右 → 左
  * - shift：交叉轴先换对齐边（start ⇄ end），两边都溢出才夹进视口
- * - size：以上都放不下时才给出 maxHeight 让菜单内部滚动
+ * - size：各侧都放不下时允许沿主轴移入视口，超过视口高度才限高滚动
  *
- * 换方位先于压缩高度，所以只有菜单在任何方位都装不进视口时才会出现滚动条。
+ * 容器内无法避开锚点完整展示时退回视口，只有超过整个视口可用高度才会出现滚动条。
  */
 export function calcDropdownPosition(
 	size: Size,
 	anchor: Rect,
 	viewport: Viewport,
 	options: {
+		/** 优先在容器内完整展示；锚点周围放不下时退回视口。 */
+		boundary?: Rect;
 		/** 是否允许翻到锚点左右两侧。宽度跟随锚点的 select 类下拉应关掉，甩到侧面很怪 */
 		allowSideFlip?: boolean;
 		/** 书写方向。RTL 下 `start` 对齐的是锚点右边缘 */
@@ -111,7 +117,7 @@ export function calcDropdownPosition(
 	top: number;
 	side: MenuSide;
 	align: MenuAlign;
-	/** 菜单全高装不进所选方位时的内部滚动上限；装得下时为 null（不设限） */
+	/** 菜单超过视口可用高度时的内部滚动上限；装得下时为 null（不设限） */
 	maxHeight: number | null;
 	transformOrigin: string;
 	overlapsAnchor: boolean;
@@ -119,6 +125,24 @@ export function calcDropdownPosition(
 	const gap = options.anchorGap ?? MENU_GAP;
 	const collisionPadding = options.collisionPadding ?? VIEWPORT_MARGIN;
 	const rtl = options.rtl ?? false;
+	if (options.boundary) {
+		const left = Math.max(0, options.boundary.left);
+		const top = Math.max(0, options.boundary.top);
+		const right = Math.min(viewport.width, options.boundary.right);
+		const bottom = Math.min(viewport.height, options.boundary.bottom);
+		if (right - left >= size.width + collisionPadding * 2 && bottom - top >= size.height + collisionPadding * 2) {
+			const position = calcDropdownPosition(
+				size,
+				{ left: anchor.left - left, right: anchor.right - left, top: anchor.top - top, bottom: anchor.bottom - top },
+				{ width: right - left, height: bottom - top },
+				{ ...options, boundary: undefined },
+			);
+			// 容器总高度足够不代表锚点周围放得下，不能为了留在容器里提前滚动或覆盖输入框。
+			if (position.maxHeight == null && !position.overlapsAnchor) {
+				return { ...position, left: position.left + left, top: position.top + top };
+			}
+		}
+	}
 
 	// 视口比边距本身还小时按半宽/半高退让，避免上下界反向
 	const minX = Math.min(collisionPadding, viewport.width / 2);
@@ -152,7 +176,8 @@ export function calcDropdownPosition(
 	const side = sides.find(mainFits)
 		?? sides.reduce((best, s) => (availableHeight(s) > availableHeight(best) ? s : best));
 
-	const heightCap = availableHeight(side);
+	// 各侧都放不下时允许沿主轴移入视口，只有整片可视区域也装不下才滚动。
+	const heightCap = mainFits(side) ? availableHeight(side) : boundaryHeight;
 	const height = Math.min(size.height, heightCap);
 	// 装得下就不设限，只有放不下才给出限高让菜单内部滚动
 	const maxHeight = size.height <= heightCap ? null : heightCap;

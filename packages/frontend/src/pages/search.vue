@@ -5,23 +5,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="true">
-	<div v-if="tab === 'note'" class="_pageBody">
-		<div v-if="notesSearchAvailable || ignoreNotesSearchAvailable">
-			<XNote v-bind="props" :query="query" @search="query = $event"/>
+	<Suspense>
+		<div v-if="tab === 'note'" class="_pageBody">
+			<div v-if="notesSearchAvailable || ignoreNotesSearchAvailable">
+				<XNote v-bind="props" :query="query" @search="query = $event"/>
+			</div>
+			<div v-else>
+				<MkInfo warn>{{ i18n.ts.notesSearchNotAvailable }}</MkInfo>
+			</div>
 		</div>
-		<div v-else>
-			<MkInfo warn>{{ i18n.ts.notesSearchNotAvailable }}</MkInfo>
-		</div>
-	</div>
 
-	<div v-else-if="tab === 'user'" class="_pageBody">
-		<div v-if="usersSearchAvailable">
-			<XUser v-bind="props" :query="query" @search="query = $event"/>
+		<div v-else-if="tab === 'user'" class="_pageBody">
+			<div v-if="usersSearchAvailable">
+				<XUser v-bind="props" :query="query" @search="query = $event"/>
+			</div>
+			<div v-else>
+				<MkInfo warn>{{ i18n.ts.usersSearchNotAvailable }}</MkInfo>
+			</div>
 		</div>
-		<div v-else>
-			<MkInfo warn>{{ i18n.ts.usersSearchNotAvailable }}</MkInfo>
-		</div>
-	</div>
+	</Suspense>
 </PageWithHeader>
 </template>
 

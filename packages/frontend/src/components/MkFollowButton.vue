@@ -6,15 +6,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <button
 	ref="rootEl"
-	v-tooltip="buttonLabel"
+	v-tooltip="textOnly ? null : buttonLabel"
 	class="_button"
-	:class="[$style.root, { [$style.active]: isFollowing || hasPendingFollowRequestFromYou, [$style.full]: full, [$style.large]: large }]"
+	:class="[$style.root, { [$style.active]: !textOnly && (isFollowing || hasPendingFollowRequestFromYou), [$style.full]: full, [$style.large]: large, [$style.textOnly]: textOnly }]"
+	:data-state="hasPendingFollowRequestFromYou ? 'pending' : isFollowing ? 'following' : 'follow'"
 	:aria-label="buttonLabel"
 	:aria-busy="wait"
 	:disabled="wait"
 	@click="onClick"
 >
-	<template v-if="hasPendingFollowRequestFromYou">
+	<!-- 已关注和已申请时悬停切换为撤销文案，提示再次点击的结果。 -->
+	<span v-if="textOnly" :class="[$style.labels, { [$style.swappable]: isFollowing || hasPendingFollowRequestFromYou }]">
+		<span :class="$style.label">{{ hasPendingFollowRequestFromYou ? i18n.ts.followRequestSent : isFollowing ? i18n.ts.youFollowing : user.isLocked ? i18n.ts.followRequest : i18n.ts.follow }}</span>
+		<span v-if="isFollowing || hasPendingFollowRequestFromYou" :class="$style.hoverLabel" aria-hidden="true">{{ hasPendingFollowRequestFromYou ? i18n.ts.cancelFollowRequest : i18n.ts.unfollow }}</span>
+	</span>
+	<template v-else-if="hasPendingFollowRequestFromYou">
 		<span v-if="full" :class="$style.text">{{ i18n.ts.followRequestPending }}</span><i class="ti ti-hourglass-empty"></i>
 	</template>
 	<template v-else-if="isFollowing">
@@ -48,9 +54,11 @@ const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed,
 	full?: boolean,
 	large?: boolean,
+	textOnly?: boolean,
 }>(), {
 	full: false,
 	large: false,
+	textOnly: false,
 });
 
 const emit = defineEmits<{
@@ -241,5 +249,24 @@ onBeforeUnmount(() => {
 
 .text {
 	margin-right: 6px;
+}
+
+.labels {
+	display: inline-grid;
+	min-width: 0;
+
+	> span {
+		grid-area: 1 / 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+.hoverLabel { visibility: hidden; }
+
+.textOnly:not(:disabled):is(:hover, :focus-visible) .swappable {
+	> .label { visibility: hidden; }
+	> .hoverLabel { visibility: visible; }
 }
 </style>

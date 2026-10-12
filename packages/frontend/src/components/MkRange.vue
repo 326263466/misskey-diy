@@ -5,12 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="timctyfi" :class="{ disabled, easing }">
-	<div class="label">
+	<div :id="labelId" class="label">
 		<slot name="label"></slot>
 	</div>
 	<div v-adaptive-border class="body" :class="{ 'disabled': disabled }">
 		<slot name="prefix"></slot>
-		<div ref="containerEl" class="container">
+		<div ref="containerEl" class="container" @mousedown="onMousedown($event, false)" @touchstart="onMousedown($event, false)">
 			<div class="track">
 				<div class="highlight right" :style="{ width: rightTrackWidth, left: rightTrackPosition }">
 					<div class="shine right"></div>
@@ -25,10 +25,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div
 				ref="thumbEl"
 				class="thumb"
+				role="slider"
+				:tabindex="disabled ? -1 : 0"
+				:aria-labelledby="labelId"
+				:aria-valuemin="min"
+				:aria-valuemax="max"
+				:aria-valuenow="finalValue"
+				:aria-valuetext="textConverter(finalValue)"
+				:aria-disabled="disabled"
 				:style="{ left: thumbPosition + 'px' }"
+				@keydown="onKeydown"
 				@mouseenter.passive="onMouseenter"
-				@mousedown="onMousedown"
-				@touchstart="onMousedown"
+				@mousedown.stop="onMousedown"
+				@touchstart.stop="onMousedown"
 			>
 				<div class="thumbInner"></div>
 			</div>
@@ -42,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, onMounted, onUnmounted, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue';
 import { isTouchUsing } from '@/utility/touch.js';
 import * as os from '@/os.js';
 
@@ -70,6 +79,8 @@ const emit = defineEmits<{
 
 const containerEl = useTemplateRef('containerEl');
 const thumbEl = useTemplateRef('thumbEl');
+const labelId = useId();
+let stopDragging: (() => void) | undefined;
 
 const maxRatio = computed(() => Math.abs(props.max) / (props.max + Math.abs(Math.min(0, props.min))));
 const minRatio = computed(() => Math.abs(Math.min(0, props.min)) / (props.max + Math.abs(Math.min(0, props.min))));
@@ -152,6 +163,7 @@ const tooltipForDragShowing = ref(false);
 const tooltipForHoverShowing = ref(false);
 
 onBeforeUnmount(() => {
+	stopDragging?.();
 	// 何らかの問題で表示されっぱなしでもコンポーネントを離れたら消えるように
 	tooltipForDragShowing.value = false;
 	tooltipForHoverShowing.value = false;
@@ -179,8 +191,27 @@ function onMouseenter() {
 
 let lastClickTime: number | null = null;
 
-function onMousedown(ev: MouseEvent | TouchEvent) {
+function onKeydown(ev: KeyboardEvent) {
+	if (props.disabled) return;
+	const step = props.step || (props.max - props.min) / 100;
+	let value = finalValue.value;
+	switch (ev.key) {
+		case 'ArrowLeft': case 'ArrowDown': value -= step; break;
+		case 'ArrowRight': case 'ArrowUp': value += step; break;
+		case 'Home': value = props.min; break;
+		case 'End': value = props.max; break;
+		default: return;
+	}
+	ev.preventDefault();
+	rawValue.value = calcRawValue(Math.min(props.max, Math.max(props.min, value)));
+	emit('update:modelValue', finalValue.value);
+	emit('dragEnded', finalValue.value);
+}
+
+function onMousedown(ev: MouseEvent | TouchEvent, fromThumb = true) {
 	if (props.disabled) return; // Prevent interaction if disabled
+	if ('button' in ev && ev.button !== 0) return;
+	stopDragging?.();
 
 	ev.preventDefault();
 
@@ -207,7 +238,8 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 		let beforeValue = finalValue.value;
 		const containerRect = containerEl.value!.getBoundingClientRect();
 		const pointerX = 'touches' in ev && ev.touches.length > 0 ? ev.touches[0].clientX : 'clientX' in ev ? ev.clientX : 0;
-		const pointerPositionOnContainer = pointerX - (containerRect.left + (thumbWidth / 2));
+		const scale = containerRect.width / containerEl.value!.offsetWidth;
+		const pointerPositionOnContainer = (pointerX - containerRect.left) / scale - thumbWidth / 2;
 		rawValue.value = Math.min(1, Math.max(0, pointerPositionOnContainer / (containerEl.value!.offsetWidth - thumbWidth)));
 
 		if (props.continuousUpdate && beforeValue !== finalValue.value) {
@@ -217,13 +249,19 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 
 	let beforeValue = finalValue.value;
 
-	const onMouseup = () => {
-		window.document.head.removeChild(style);
+	const cleanup = () => {
+		style.remove();
 		tooltipForDragShowing.value = false;
 		window.removeEventListener('mousemove', onDrag);
 		window.removeEventListener('touchmove', onDrag);
 		window.removeEventListener('mouseup', onMouseup);
 		window.removeEventListener('touchend', onMouseup);
+		window.removeEventListener('touchcancel', onMouseup);
+		stopDragging = undefined;
+	};
+	stopDragging = cleanup;
+	const onMouseup = () => {
+		cleanup();
 
 		// 値が変わってたら通知
 		if (beforeValue !== finalValue.value) {
@@ -236,6 +274,12 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 	window.addEventListener('touchmove', onDrag);
 	window.addEventListener('mouseup', onMouseup, { once: true });
 	window.addEventListener('touchend', onMouseup, { once: true });
+	window.addEventListener('touchcancel', onMouseup, { once: true });
+
+	if (!fromThumb) {
+		onDrag(ev);
+		return;
+	}
 
 	if (lastClickTime == null) {
 		lastClickTime = Date.now();
@@ -290,8 +334,8 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 		justify-content: center;
 		gap: 8px;
 		padding: 0px 4px;
-		background: var(--MI_THEME-panel);
-		border: solid 1px var(--MI_THEME-panel);
+		background: var(--MI_THEME-bg);
+		border: solid 1px var(--MI_THEME-inputBorder);
 		border-radius: 6px;
 
 		&.disabled {
@@ -364,7 +408,7 @@ function onMousedown(ev: MouseEvent | TouchEvent) {
 					width: $tickWidth;
 					height: 3px;
 					margin-left: - math.div($tickWidth, 2);
-					background: var(--MI_THEME-divider);
+					background: var(--MI_THEME-divider); // divider-exempt: slider tick mark
 					border-radius: 999px;
 				}
 			}

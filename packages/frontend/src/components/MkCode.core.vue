@@ -62,10 +62,16 @@ watch(() => props.lang, async (to, _from, onCleanup) => {
 </script>
 
 <style module lang="scss">
+.codeBlockRoot:not(.codeEditor) {
+	min-width: 0;
+	overflow: clip;
+}
+
 .codeBlockRoot :global(.shiki) {
-	overflow: auto;
+	overflow: visible;
 	white-space: pre;
 	overflow-wrap: anywhere;
+	min-width: max-content;
 	font-family: Consolas, Monaco, Andale Mono, Ubuntu Mono, monospace;
 
 	color: var(--shiki-fallback);
@@ -84,7 +90,7 @@ watch(() => props.lang, async (to, _from, onCleanup) => {
 	padding: 1em;
 	margin: 0;
 	border-radius: 8px;
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	background-color: var(--shiki-fallback-bg);
 }
 

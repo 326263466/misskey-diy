@@ -394,7 +394,7 @@ $cellHeight: 28px;
 	width: 18px;
 	height: 18px;
 	background: var(--MI_THEME-panel);
-	border: solid 2px var(--MI_THEME-divider);
+	border: solid 2px var(--MI_THEME-divider); // divider-exempt: checkbox control outline
 	border-radius: 4px;
 	box-sizing: border-box;
 

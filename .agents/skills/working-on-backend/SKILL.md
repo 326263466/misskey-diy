@@ -1,10 +1,10 @@
 ---
 name: working-on-backend
-description: Use whenever editing or adding code under `packages/backend/`, including REST API endpoints, NestJS services/modules, TypeORM entities, migrations, backend tests, misskey-js generation, or backend validation commands.
+description: 编辑 packages/backend/ 下的后端代码、API、实体、迁移或测试时使用。
 ---
 
-# working-on-backend
+# 后端开发
 
-This is the Codex entrypoint for the canonical Misskey backend skill.
+这是 Misskey 后端规范入口。
 
-Read and follow [.claude/skills/working-on-backend/SKILL.md](../../../.claude/skills/working-on-backend/SKILL.md). Treat that file and its `references/` directory as the source of truth.
+阅读并遵循 [.claude/skills/working-on-backend/SKILL.md](../../../.claude/skills/working-on-backend/SKILL.md)，具体 reference 按任务需要读取。

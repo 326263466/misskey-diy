@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
-import { apiWithDialog, popups, promiseDialog } from '@/os.js';
+import { apiWithDialog, popups, promiseDialog, selectUser } from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { markAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
@@ -28,6 +28,25 @@ describe('API dialog feedback', () => {
 		popups.value = [];
 	});
 
+	test('keeps the original single-user result and resolves cancelable selection without a user', async () => {
+		const user = { id: 'selected' } as never;
+		const single = selectUser({ localOnly: true });
+		expect(popups.value[0].props).toEqual({ localOnly: true });
+		popups.value[0].events.ok(user);
+		await expect(single).resolves.toBe(user);
+		popups.value[0].events.closed();
+		await nextTick();
+		const controller = new AbortController();
+		const canceled = selectUser({ title: '邀请用户', localOnly: true, excludeUserIds: ['existing'], signal: controller.signal });
+		expect(popups.value[0].props).toEqual({ title: '邀请用户', localOnly: true, excludeUserIds: ['existing'] });
+		popups.value[0].events.cancel();
+		popups.value[0].events.ok(user);
+		await expect(canceled).resolves.toBeNull();
+		popups.value[0].events.closed();
+		await nextTick();
+		expect(popups.value).toEqual([]);
+	});
+
 	test.each(['notes/show', 'notes/likes/create', 'notes/likes/delete'] as const)('does not open a blank dialog before or after %s', async endpoint => {
 		let finish!: (value: unknown) => void;
 		const request = new Promise(resolve => { finish = resolve; });
@@ -41,13 +60,34 @@ describe('API dialog feedback', () => {
 		expect(popups.value).toEqual([]);
 	});
 
+	test('aborting a user selection removes the popup and resolves cancellation', async () => {
+		const controller = new AbortController();
+		const selected = selectUser({ title: '邀请用户', signal: controller.signal });
+		const events = popups.value[0].events;
+		controller.abort();
+		events.ok({ id: 'too-late' } as never);
+		await expect(selected).resolves.toBeNull();
+		await nextTick();
+		expect(popups.value).toEqual([]);
+		await expect(selectUser({ signal: controller.signal })).resolves.toBeNull();
+		expect(popups.value).toEqual([]);
+	});
+
+	test('closing a cancelable selection releases the pending caller', async () => {
+		const selected = selectUser({ signal: new AbortController().signal });
+		popups.value[0].events.closed();
+		await expect(selected).resolves.toBeNull();
+		await nextTick();
+		expect(popups.value).toEqual([]);
+	});
+
 	test('preserves error messages and rejects the request without a waiting popup', async () => {
 		const error = { code: 'RATE_LIMIT_EXCEEDED', id: 'limited', message: 'Too many requests' };
 		mocks.api.mockRejectedValue(error);
 		await expect(apiWithDialog('notes/show', { noteId: 'note' })).rejects.toBe(error);
 		await nextTick();
 		expect(popups.value).toHaveLength(1);
-		expect(popups.value[0].props).toMatchObject({ type: 'error', title: i18n.ts.cannotPerformTemporary, text: i18n.ts.cannotPerformTemporaryDescription });
+		expect(popups.value[0].props).toMatchObject({ status: 'error', message: `${i18n.ts.cannotPerformTemporary}\n${i18n.ts.cannotPerformTemporaryDescription}` });
 	});
 
 	test('shows network failures even when they have no API error code', async () => {
@@ -56,7 +96,7 @@ describe('API dialog feedback', () => {
 		await expect(apiWithDialog('notes/show', { noteId: 'note' })).rejects.toBe(error);
 		await nextTick();
 		expect(popups.value).toHaveLength(1);
-		expect(popups.value[0].props).toMatchObject({ type: 'error', text: 'Failed to fetch' });
+		expect(popups.value[0].props).toMatchObject({ status: 'error', message: 'Failed to fetch' });
 	});
 
 	test('does not duplicate an authentication error already handled by session recovery', async () => {
@@ -74,7 +114,7 @@ describe('API dialog feedback', () => {
 		await expect(apiWithDialog('notes/show', { noteId: 'note' }, 'other-token')).rejects.toBe(error);
 		await nextTick();
 		expect(popups.value).toHaveLength(1);
-		expect(popups.value[0].props.text).toContain('Invalid token');
+		expect(popups.value[0].props).toMatchObject({ status: 'error', message: 'Invalid token\nrevoked' });
 	});
 
 	test('closes an explicit progress dialog without duplicating the session alert', async () => {
@@ -93,7 +133,7 @@ describe('API dialog feedback', () => {
 		mocks.api.mockRejectedValue(error);
 		await expect(apiWithDialog('notes/show', { noteId: 'note' }, undefined, { denied: { title: 'Permission', text: 'This post is unavailable.' } })).rejects.toBe(error);
 		await nextTick();
-		expect(popups.value[0].props).toMatchObject({ title: 'Permission', text: 'This post is unavailable.' });
+		expect(popups.value[0].props).toMatchObject({ status: 'error', message: 'Permission\nThis post is unavailable.' });
 	});
 
 	test('displays an explicit progress message and closes it on completion', async () => {

@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	:closeOnBackdrop="false"
 	:width="400"
 	:height="450"
 	:withOkButton="true"
@@ -17,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ i18n.ts.describeFile }}</template>
 	<div class="_spacer _spacerCard">
 		<MkDriveFileThumbnail v-if="file" :file="file" fit="contain" style="height: 100px; margin-bottom: 16px;"/>
-		<MkTextarea v-model="caption" autofocus :placeholder="i18n.ts.inputNewDescription">
+	<MkTextarea v-model="caption" :counterMaxLength="512" autofocus :placeholder="i18n.ts.inputNewDescription">
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
 	</div>

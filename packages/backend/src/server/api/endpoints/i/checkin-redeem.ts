@@ -26,7 +26,7 @@ export const meta = {
 			newlyRedeemed: { type: 'boolean', optional: false, nullable: false },
 			amount: { type: 'integer', optional: false, nullable: false },
 			makeupCards: { type: 'integer', optional: false, nullable: false },
-			points: { type: 'integer', optional: false, nullable: false },
+			points: { type: 'number', optional: false, nullable: false },
 		},
 	},
 } as const;

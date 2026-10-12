@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_gaps">
 	<div :class="$style.filters">
-		<MkInput v-model="host" :debounce="true" :class="$style.host">
+		<MkInput v-model="host" :class="$style.host">
 			<template #prefix><i class="ti ti-search"></i></template>
 			<template #label>{{ i18n.ts.host }}</template>
 		</MkInput>
@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkSelect>
 	</div>
 
-	<MkPagination v-slot="{items}" ref="instances" :key="host + state" :paginator="paginator">
+	<MkPagination v-slot="{items}" ref="instances" :paginator="paginator" pageEmpty>
 		<div :class="$style.items">
 			<MkA v-for="instance in items" :key="instance.id" v-tooltip.mfm="`${i18n.ts.state}: ${getStatus(instance)}`" :class="$style.item" :to="`/instance-info/${instance.host}`">
 				<MkInstanceCardMini :instance="instance"/>
@@ -38,8 +38,10 @@ import MkInstanceCardMini from '@/components/MkInstanceCardMini.vue';
 import { i18n } from '@/i18n.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 import { Paginator } from '@/utility/paginator.js';
+import { useSearchQuery } from '@/composables/use-search-query.js';
 
 const host = ref('');
+const searchHost = useSearchQuery(host);
 const {
 	model: state,
 	def: stateDef,
@@ -81,7 +83,7 @@ const paginator = markRaw(new Paginator('federation/instances', {
 	offsetMode: true,
 	computedParams: computed(() => ({
 		sort: sort.value,
-		host: host.value !== '' ? host.value : null,
+		host: searchHost.value !== '' ? searchHost.value : null,
 		...(
 			state.value === 'federating' ? { federating: true, suspended: false, blocked: false } :
 			state.value === 'subscribing' ? { subscribing: true, suspended: false, blocked: false } :

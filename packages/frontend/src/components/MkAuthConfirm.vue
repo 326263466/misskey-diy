@@ -319,7 +319,7 @@ defineExpose({
 
 .icon {
 	border-radius: 50%;
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	background-color: #fff;
 	object-fit: contain;
 }
@@ -347,7 +347,7 @@ defineExpose({
 
 .permissionRoot {
 	padding-block: var(--MI-cardPadding);
-	border-block: 1px solid var(--MI_THEME-divider);
+	border-block: var(--MI-divider);
 }
 
 .permissionListWrapper {
@@ -372,7 +372,7 @@ defineExpose({
 
 .accountSelectorList {
 	border-radius: var(--MI-radius);
-	border: 1px solid var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	overflow: hidden;
 	overflow: clip;
 }

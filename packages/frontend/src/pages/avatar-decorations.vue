@@ -4,9 +4,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody">
-		<div class="_gaps">
+		<MkLoading v-if="loading" page/>
+		<MkError v-else-if="error" page @retry="load"/>
+		<MkResult v-else-if="Object.keys(groupedDecorations).length === 0" type="empty" page/>
+		<div v-else class="_gaps">
 			<MkFoldableSection v-for="category in Object.keys(groupedDecorations)" :key="category" :expanded="true">
 				<template #header>{{ category || i18n.ts.other }}</template>
 				<div :class="$style.decorations">
@@ -42,11 +45,19 @@ const $i = ensureSignin();
 
 const avatarDecorations = ref<Misskey.entities.AdminAvatarDecorationsListResponse>([]);
 const groupedDecorations = computed(() => groupAvatarDecorations(avatarDecorations.value));
+const loading = ref(true);
+const error = ref(false);
 
-function load() {
-	misskeyApi('admin/avatar-decorations/list').then(_avatarDecorations => {
-		avatarDecorations.value = _avatarDecorations;
-	});
+async function load() {
+	loading.value = true;
+	error.value = false;
+	try {
+		avatarDecorations.value = await misskeyApi('admin/avatar-decorations/list');
+	} catch {
+		error.value = true;
+	} finally {
+		loading.value = false;
+	}
 }
 
 load();

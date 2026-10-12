@@ -5,42 +5,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div style="position: relative;">
-	<component :is="preview ? 'div' : 'MkA'" :to="preview ? undefined : `/channels/${channel.id}`" class="eftoefju _panel" @click="!preview && updateLastReadedAt()">
-		<div class="banner" :style="bannerStyle">
-			<div class="fade"></div>
-			<div class="name"><i class="ti ti-device-tv"></i> {{ channel.name }} <span v-if="channel.isArchived" class="archivedLabel"><i class="ti ti-archive"></i> {{ i18n.ts.archived }}</span></div>
-			<div v-if="channel.isSensitive" class="sensitiveIndicator">{{ i18n.ts.sensitive }}</div>
-			<div class="status">
-				<div>
-					<i class="ti ti-users ti-fw"></i>
-					<I18n :src="i18n.ts._channel.usersCount" tag="span" style="margin-left: 4px;">
-						<template #n>
-							<b>{{ channel.usersCount }}</b>
-						</template>
-					</I18n>
-				</div>
-				<div>
-					<i class="ti ti-pencil ti-fw"></i>
-					<I18n :src="i18n.ts._channel.notesCount" tag="span" style="margin-left: 4px;">
-						<template #n>
-							<b>{{ channel.notesCount }}</b>
-						</template>
-					</I18n>
-				</div>
-				<div v-if="$i != null && $i.id === channel.userId" style="color: var(--MI_THEME-warn)">
-					<i class="ti ti-user-star ti-fw"></i>
-					<span style="margin-left: 4px;">{{ i18n.ts.youAreAdmin }}</span>
-				</div>
+	<component :is="preview ? 'div' : 'MkA'" :to="preview ? undefined : `/channels/${channel.id}`" class="eftoefju" @click="!preview && updateLastReadedAt()">
+		<div class="thumb">
+			<img v-if="channel.bannerUrl" :src="channel.bannerUrl" alt=""/>
+			<i v-else class="ti ti-device-tv" aria-hidden="true"></i>
+		</div>
+		<div class="body">
+			<div class="name">
+				<span class="nameText"><Mfm :text="channel.name" :plain="true" :nowrap="true"/></span>
+				<span v-if="channel.isSensitive" class="chip warn">{{ i18n.ts.sensitive }}</span>
+				<span v-if="channel.isArchived" class="chip"><i class="ti ti-archive"></i>{{ i18n.ts.archived }}</span>
+				<span v-if="$i != null && $i.id === channel.userId" class="chip admin" :title="i18n.ts.youAreAdmin"><i class="ti ti-user-star"></i></span>
+			</div>
+			<p v-if="channel.description" class="description" :title="channel.description"><Mfm :text="channel.description" :plain="true"/></p>
+			<div class="meta">
+				<span><i class="ti ti-users" aria-hidden="true"></i>{{ i18n.tsx._channel.usersCount({ n: channel.usersCount }) }}</span>
+				<span><i class="ti ti-pencil" aria-hidden="true"></i>{{ i18n.tsx._channel.notesCount({ n: channel.notesCount }) }}</span>
+				<span v-if="channel.lastNotedAt" class="updatedAt"><MkTime :time="channel.lastNotedAt"/></span>
 			</div>
 		</div>
-		<article v-if="channel.description">
-			<p :title="channel.description">{{ channel.description.length > 85 ? channel.description.slice(0, 85) + '…' : channel.description }}</p>
-		</article>
-		<footer>
-			<span v-if="channel.lastNotedAt">
-				{{ i18n.ts.updatedAt }}: <MkTime :time="channel.lastNotedAt"/>
-			</span>
-		</footer>
 	</component>
 	<div
 		v-if="!preview && channel.lastNotedAt && (channel.isFavorited || channel.isFollowing) && (!lastReadedAt || Date.parse(channel.lastNotedAt) > lastReadedAt)"
@@ -50,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
@@ -75,34 +58,23 @@ const updateLastReadedAt = () => {
 	lastReadedAt.value = props.channel.lastNotedAt ? Date.parse(props.channel.lastNotedAt) : Date.now();
 };
 
-const bannerStyle = computed(() => {
-	if (props.channel.bannerUrl) {
-		return { backgroundImage: `url(${props.channel.bannerUrl})` };
-	} else {
-		return {};
-	}
-});
 </script>
 
 <style lang="scss" scoped>
-@use "@/styles/channel-banner.scss" as channelBanner;
-
-.archivedLabel {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	margin-left: 8px;
-	font-size: 0.75em;
-}
-
+// 主流论坛范式的频道行：小缩略图 + 标题/描述/元信息，密度优先。
 .eftoefju {
-	display: block;
-	position: relative;
-	overflow: hidden;
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
 	width: 100%;
+	padding: 12px 16px;
+	box-sizing: border-box;
+	position: relative;
+	transition: background 0.15s;
 
 	&:hover {
 		text-decoration: none;
+		background: var(--MI_THEME-panelHighlight);
 	}
 
 	&:focus-within {
@@ -111,119 +83,103 @@ const bannerStyle = computed(() => {
 		&::after {
 			content: '';
 			position: absolute;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
+			inset: 0;
 			border-radius: inherit;
 			pointer-events: none;
 			box-shadow: inset 0 0 0 2px var(--MI_THEME-focus);
 		}
 	}
+}
 
-	> .banner {
-		@include channelBanner.surface;
-		position: relative;
+.thumb {
+	flex-shrink: 0;
+	width: 56px;
+	height: 56px;
+	border-radius: calc(var(--MI-radius) / 2);
+	overflow: hidden;
+	display: grid;
+	place-items: center;
+	// 未设置横幅图时以中性渐变兜底
+	background-image: linear-gradient(135deg, var(--MI_THEME-accentedBg), var(--MI_THEME-panelHighlight));
+
+	> img {
 		width: 100%;
-		height: 200px;
-
-		> .fade {
-			position: absolute;
-			bottom: 0;
-			left: 0;
-			width: 100%;
-			height: 64px;
-			background: linear-gradient(0deg, var(--MI_THEME-panel), color(from var(--MI_THEME-panel) srgb r g b / 0));
-		}
-
-		> .name {
-			position: absolute;
-			top: 16px;
-			left: 16px;
-			max-width: calc(100% - 32px);
-			padding: 12px 16px;
-			box-sizing: border-box;
-			background: rgba(0, 0, 0, 0.7);
-			color: #fff;
-			font-size: 1.2em;
-		}
-
-		> .status {
-			position: absolute;
-			z-index: 1;
-			bottom: 16px;
-			right: 16px;
-			padding: 8px 12px;
-			font-size: 80%;
-			background: rgba(0, 0, 0, 0.7);
-			border-radius: 6px;
-			color: #fff;
-		}
-
-		> .sensitiveIndicator {
-			position: absolute;
-			z-index: 1;
-			bottom: 16px;
-			left: 16px;
-			background: rgba(0, 0, 0, 0.7);
-			color: var(--MI_THEME-warn);
-			border-radius: 6px;
-			font-weight: bold;
-			font-size: 1em;
-			padding: 4px 7px;
-		}
+		height: 100%;
+		object-fit: cover;
 	}
 
-	> article {
-		padding: var(--MI-cardPadding);
-		color: var(--MI_THEME-fgTransparent);
+	> i {
+		font-size: 20px;
+		color: #fff;
+		text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+	}
+}
 
-		> p {
-			margin: 0;
-			font-size: 1em;
-		}
+.body {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.name {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	font-weight: 700;
+	line-height: 1.4;
+
+	> .nameText {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+.chip {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 1px 7px;
+	border-radius: 999px;
+	font-size: 0.72em;
+	font-weight: 600;
+	color: var(--MI_THEME-fgTransparent);
+	background: var(--MI_THEME-panelHighlight);
+
+	&.warn {
+		color: var(--MI_THEME-warn);
 	}
 
-	> footer {
-		padding: var(--MI-cardPadding);
-		border-top: solid 0.5px var(--MI_THEME-divider);
-
-		> span {
-			color: var(--MI_THEME-fgTransparentWeak);
-			font-size: 0.9em;
-		}
+	&.admin {
+		color: var(--MI_THEME-warn);
 	}
+}
 
-	@media (max-width: 550px) {
-		font-size: 0.9em;
+.description {
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.9em;
+	color: var(--MI_THEME-fgTransparent);
+}
 
-		> .banner {
-			height: 80px;
+.meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 12px;
+	font-size: 0.82em;
+	color: var(--MI_THEME-fgTransparentWeak);
 
-			> .status {
-				display: none;
-			}
-		}
-
-		> article {
-			padding: 12px;
-		}
-
-		> footer {
-			display: none;
-		}
-	}
-
-	@media (max-width: 500px) {
-		font-size: 0.8em;
-
-		> .banner {
-			height: 70px;
-		}
-
-		> article {
-			padding: 8px;
-		}
+	> span {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 	}
 }
 

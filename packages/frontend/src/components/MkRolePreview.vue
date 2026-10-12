@@ -10,11 +10,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<i v-else class="ti ti-lock" :class="$style.icon" style="color: var(--MI_THEME-warn)"></i>
 	</template>
 
-	<div class="_panel" :class="$style.body">
+	<div ref="body" class="_panel" :class="$style.body">
 		<div :class="$style.bodyTitle">
 			<span :class="$style.bodyIcon">
 				<template v-if="role.iconUrl">
-					<img :class="$style.bodyBadge" :src="role.iconUrl"/>
+					<img :class="$style.bodyBadge" :src="preload ? role.iconUrl : undefined" alt="" decoding="async"/>
 				</template>
 				<template v-else>
 					<i v-if="role.isAdministrator" class="ti ti-crown" style="color: var(--MI_THEME-accent);"></i>
@@ -22,21 +22,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<i v-else class="ti ti-user" style="color: var(--MI_THEME-fgTransparentWeak);"></i>
 				</template>
 			</span>
-			<span :class="$style.bodyName">{{ role.name }}</span>
+			<span :class="$style.bodyName"><Mfm :text="role.name" :plain="true" :nowrap="true"/></span>
 			<template v-if="detailed && 'target' in role && 'usersCount' in role">
 				<span v-if="role.target === 'manual'" :class="$style.bodyUsers">{{ i18n.tsx.nUsers({ n: role.usersCount }) }}</span>
 				<span v-else-if="role.target === 'conditional'" :class="$style.bodyUsers">{{ i18n.tsx.nUsers({ n: '?' }) }}</span>
 			</template>
 		</div>
-		<div :class="$style.bodyDescription">{{ role.description }}</div>
+		<div :class="$style.bodyDescription"><Mfm :text="role.description" :plain="true" :nowrap="true"/></div>
 	</div>
 </MkA>
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
+import { computed, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
+import { useImagePreload } from '@/composables/use-image-preload.js';
 
 const props = withDefaults(defineProps<{
 	role: Misskey.entities.Role | Misskey.entities.IResponse['roles'][number];
@@ -45,6 +46,10 @@ const props = withDefaults(defineProps<{
 }>(), {
 	detailed: true,
 });
+
+const body = useTemplateRef('body');
+const iconRoot = computed(() => props.role.iconUrl ? body.value : null);
+const preload = useImagePreload(iconRoot, () => false);
 </script>
 
 <style lang="scss" module>
@@ -70,11 +75,12 @@ const props = withDefaults(defineProps<{
 
 .bodyIcon {
 	margin-right: 8px;
+	min-width: 1.3em;
 }
 
 .bodyBadge {
 	height: 1.3em;
-	vertical-align: -20%;
+	vertical-align: -0.275em;
 }
 
 .bodyName {

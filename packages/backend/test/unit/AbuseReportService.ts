@@ -205,7 +205,7 @@ describe('AbuseReportService transactions', () => {
 		const changed = { ...payload };
 		if (field === 'comment') changed.comment = 'Different explanation';
 		if (field === 'reason') changed.reason = 'spam';
-		if (field === 'target') changed.target = { type: 'boost', id: 'note', reaction: 'text:Different target' };
+		if (field === 'target') changed.target = { type: 'note', id: 'another-note' };
 		if (field === 'targetUserId') changed.targetUserId = 'someoneelse';
 		capture.mockClear();
 		await expect(service.hasSubmittedReport(changed)).rejects.toThrow('REPORT_REQUEST_CONFLICT');

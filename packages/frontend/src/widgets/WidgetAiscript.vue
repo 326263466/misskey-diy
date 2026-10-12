@@ -9,7 +9,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ i18n.ts._widgets.aiscript }}</template>
 
 	<div class="uylguesu _monospace">
-		<textarea v-model="widgetProps.script" placeholder="(1 + 1)"></textarea>
+		<div class="input">
+			<textarea v-model="widgetProps.script" placeholder="(1 + 1)"></textarea>
+			<span class="_inputCounter">{{ widgetProps.script.length }}</span>
+		</div>
 		<button class="_buttonPrimary" @click="run">{{ i18n.ts._aiscript.run }}</button>
 		<div class="logs">
 			<div v-for="log in logs" :key="log.id" class="log" :class="log.type">{{ log.text }}</div>
@@ -125,7 +128,11 @@ defineExpose<WidgetComponentExpose>({
 .uylguesu {
 	text-align: right;
 
-	> textarea {
+	> .input {
+		position: relative;
+	}
+
+	> .input > textarea {
 		display: block;
 		width: 100%;
 		max-width: 100%;
@@ -134,7 +141,7 @@ defineExpose<WidgetComponentExpose>({
 		color: var(--MI_THEME-fg);
 		background: transparent;
 		border: none;
-		border-bottom: solid 0.5px var(--MI_THEME-divider);
+		border-bottom: var(--MI-divider);
 		border-radius: 0;
 		box-sizing: border-box;
 		font: inherit;
@@ -159,7 +166,7 @@ defineExpose<WidgetComponentExpose>({
 	}
 
 	> .logs {
-		border-top: solid 0.5px var(--MI_THEME-divider);
+		border-top: var(--MI-divider);
 		text-align: left;
 		padding: var(--MI-cardPadding, 18px);
 

@@ -5,6 +5,9 @@
 
 import { defineAsyncComponent } from 'vue';
 import type { App } from 'vue';
+import WidgetClock from './WidgetClock.vue';
+import WidgetCalendar from './WidgetCalendar.vue';
+import WidgetTrends from './WidgetTrends.vue';
 
 export default function(app: App) {
 	app.component('WidgetProfile', defineAsyncComponent(() => import('./WidgetProfile.vue')));
@@ -15,11 +18,11 @@ export default function(app: App) {
 	app.component('WidgetCountdown', defineAsyncComponent(() => import('./WidgetCountdown.vue')));
 	app.component('WidgetNotifications', defineAsyncComponent(() => import('./WidgetNotifications.vue')));
 	app.component('WidgetTimeline', defineAsyncComponent(() => import('./WidgetTimeline.vue')));
-	app.component('WidgetCalendar', defineAsyncComponent(() => import('./WidgetCalendar.vue')));
+	app.component('WidgetCalendar', WidgetCalendar);
 	app.component('WidgetRss', defineAsyncComponent(() => import('./WidgetRss.vue')));
 	app.component('WidgetRssTicker', defineAsyncComponent(() => import('./WidgetRssTicker.vue')));
-	app.component('WidgetTrends', defineAsyncComponent(() => import('./WidgetTrends.vue')));
-	app.component('WidgetClock', defineAsyncComponent(() => import('./WidgetClock.vue')));
+	app.component('WidgetTrends', WidgetTrends);
+	app.component('WidgetClock', WidgetClock);
 	app.component('WidgetActivity', defineAsyncComponent(() => import('./WidgetActivity.vue')));
 	app.component('WidgetPhotos', defineAsyncComponent(() => import('./WidgetPhotos.vue')));
 	app.component('WidgetDigitalClock', defineAsyncComponent(() => import('./WidgetDigitalClock.vue')));

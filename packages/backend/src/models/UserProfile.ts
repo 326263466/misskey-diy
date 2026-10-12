@@ -23,6 +23,7 @@ export class MiUserProfile {
 	@JoinColumn()
 	public user: MiUser | null;
 
+	/** @deprecated Kept for migration compatibility; Wallet.balance is the points authority. */
 	@Column('integer', { default: 0 })
 	public checkinPoints: number;
 
@@ -191,6 +192,12 @@ export class MiUserProfile {
 		default: false,
 	})
 	public autoAcceptFollowed: boolean;
+
+	@Column('integer', { nullable: true })
+	public followApprovalLocalSeconds: number | null;
+
+	@Column('integer', { nullable: true })
+	public followApprovalRemoteSeconds: number | null;
 
 	@Column('boolean', {
 		default: false,

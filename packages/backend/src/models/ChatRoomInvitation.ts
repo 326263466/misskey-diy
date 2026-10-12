@@ -26,6 +26,13 @@ export class MiChatRoomInvitation {
 	@JoinColumn()
 	public user: MiUser | null;
 
+	@Column({ ...id(), nullable: true })
+	public inviterId: MiUser['id'] | null;
+
+	@ManyToOne(() => MiUser, { onDelete: 'SET NULL' })
+	@JoinColumn({ foreignKeyConstraintName: 'FK_chat_room_invitation_inviter' })
+	public inviter: MiUser | null;
+
 	@Index()
 	@Column({
 		...id(),
@@ -42,4 +49,10 @@ export class MiChatRoomInvitation {
 		default: false,
 	})
 	public ignored: boolean;
+
+	@Column('boolean', { default: false })
+	public isRequest: boolean;
+
+	@Column('varchar', { length: 500, nullable: true })
+	public requestMessage: string | null;
 }

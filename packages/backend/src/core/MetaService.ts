@@ -4,18 +4,26 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import * as Redis from 'ioredis';
+import { CONTENT_LIMITS, DEFAULT_ARTICLE_TAGS } from 'misskey-js';
 import { DI } from '@/di-symbols.js';
-import { MiMeta } from '@/models/Meta.js';
+import { DEFAULT_ARTICLE_CATEGORIES, MiMeta } from '@/models/Meta.js';
+import { MiHashtag } from '@/models/Hashtag.js';
+import { MiPage } from '@/models/Page.js';
+import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { bindThis } from '@/decorators.js';
 import type { GlobalEvents } from '@/core/GlobalEventService.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
 import type { OnApplicationShutdown } from '@nestjs/common';
+import type { EntityManager } from 'typeorm';
 
 @Injectable()
 export class MetaService implements OnApplicationShutdown {
+	public static InvalidArticleCategoriesError = class extends Error {};
+	public static InvalidArticleTagsError = class extends Error {};
+
 	private cache: MiMeta | undefined;
 	private intervalId: NodeJS.Timeout;
 
@@ -26,6 +34,7 @@ export class MetaService implements OnApplicationShutdown {
 		@Inject(DI.db)
 		private db: DataSource,
 
+		private idService: IdService,
 		private featuredService: FeaturedService,
 		private globalEventService: GlobalEventService,
 	) {
@@ -81,16 +90,15 @@ export class MetaService implements OnApplicationShutdown {
 				this.cache = meta;
 				return meta;
 			} else {
-				// metaが空のときfetchMetaが同時に呼ばれるとここが同時に呼ばれてしまうことがあるのでフェイルセーフなupsertを使う
-				const saved = await transactionalEntityManager
-					.upsert(
-						MiMeta,
-						{
-							id: 'x',
-						},
-						['id'],
-					)
-					.then((x) => transactionalEntityManager.findOneByOrFail(MiMeta, x.identifiers[0]));
+				// 并发初始化时保留另一请求已写入的配置。
+				await transactionalEntityManager.createQueryBuilder()
+					.insert()
+					.into(MiMeta)
+					.values({ id: 'x', articleCategories: DEFAULT_ARTICLE_CATEGORIES, articleTags: [...DEFAULT_ARTICLE_TAGS] })
+					.orIgnore()
+					.execute();
+				await this.initializeArticleTags(transactionalEntityManager);
+				const saved = await transactionalEntityManager.findOneByOrFail(MiMeta, { id: 'x' });
 
 				this.cache = saved;
 				return saved;
@@ -99,25 +107,74 @@ export class MetaService implements OnApplicationShutdown {
 	}
 
 	@bindThis
+	private async initializeArticleTags(manager: EntityManager): Promise<void> {
+		await manager.createQueryBuilder()
+			.insert()
+			.into(MiHashtag)
+			.values(DEFAULT_ARTICLE_TAGS.map(name => ({ id: this.idService.gen(), name })))
+			.orIgnore()
+			.execute();
+	}
+
+	@bindThis
+	public async updateArticleTags(update: (tags: readonly string[]) => string[]): Promise<{ before: MiMeta; after: MiMeta }> {
+		await this.fetch();
+		const result = await this.db.transaction(async manager => {
+			const before = await manager.findOneOrFail(MiMeta, {
+				where: {},
+				order: { id: 'DESC' },
+				lock: { mode: 'pessimistic_write' },
+			});
+			// 每次只改锁定后读到的当前列表，避免其他管理员的修改被旧页面覆盖。
+			const articleTags = update(before.articleTags);
+			await manager.update(MiMeta, before.id, { articleTags });
+			return { before, after: { ...before, articleTags } };
+		});
+
+		this.cache = result.after;
+		this.globalEventService.publishInternalEvent('metaUpdated', result);
+		return result;
+	}
+
+	@bindThis
 	public async update(data: Partial<MiMeta>): Promise<MiMeta> {
 		let before: MiMeta | undefined;
 
 		const updated = await this.db.transaction(async transactionalEntityManager => {
-			const metas = await transactionalEntityManager.find(MiMeta, {
+			before = await transactionalEntityManager.findOne(MiMeta, {
+				where: {},
 				order: {
 					id: 'DESC',
 				},
-			});
+				lock: data.articleCategories || data.articleTags ? { mode: 'pessimistic_write' } : undefined,
+			}) ?? undefined;
 
-			before = metas[0];
+			// 与锁定后的数据库原值比较，允许保留历史名称，但不能新增或改成超限值。
+			if (data.articleCategories?.some(category => Array.from(category.name).length > CONTENT_LIMITS.articleCategory
+				&& !before?.articleCategories.some(previous => previous.id === category.id && previous.name === category.name))) {
+				throw new MetaService.InvalidArticleCategoriesError();
+			}
+			if (data.articleTags?.some(tag => Array.from(tag).length > CONTENT_LIMITS.articleTag && !before?.articleTags.includes(tag))) {
+				throw new MetaService.InvalidArticleTagsError();
+			}
 
 			if (before) {
+				if (data.articleCategories) {
+					const categoryIds = new Set(data.articleCategories.map(category => category.id));
+					const removedIds = before.articleCategories.filter(category => !categoryIds.has(category.id)).map(category => category.id);
+					if (removedIds.length > 0) {
+						await transactionalEntityManager.update(MiPage, { articleCategoryId: In(removedIds) }, { articleCategoryId: null });
+					}
+				}
 				await transactionalEntityManager.update(MiMeta, before.id, data);
 			} else {
 				await transactionalEntityManager.save(MiMeta, {
+					articleCategories: DEFAULT_ARTICLE_CATEGORIES,
+					articleTags: [...DEFAULT_ARTICLE_TAGS],
 					...data,
 					id: 'x',
 				});
+				await this.initializeArticleTags(transactionalEntityManager);
 			}
 
 			const afters = await transactionalEntityManager.find(MiMeta, {

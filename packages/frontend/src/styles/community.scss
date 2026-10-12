@@ -16,3 +16,172 @@
 		font: inherit;
 	}
 }
+
+// 帖子列表和详情共用内容间距及操作栏，头像排列由组件自身决定。
+@mixin noteBody {
+	// 相邻内容块之间统一 4px，块首不叠加自身上边距
+	.content {
+		> * + *:not(:empty) {
+			margin-top: 4px;
+		}
+
+		> .quote {
+			margin-top: 2px;
+		}
+	}
+
+	.translation {
+		border: var(--MI-divider);
+		border-radius: var(--MI-radius);
+		padding: 12px;
+		margin-top: 4px;
+	}
+
+	.urlPreview + .urlPreview {
+		margin-top: 4px;
+	}
+
+	.quoteNote {
+		padding: 12px;
+		border: dashed 1px var(--MI_THEME-renote);
+		border-radius: 8px;
+		overflow: clip;
+	}
+
+	// 话题标签与点赞者同行，行高锁定 24px，点赞出现/消失不改变卡片高度
+	.tagsAndLikeRow {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 24px;
+		margin-top: 12px;
+
+		&:empty {
+			display: none;
+		}
+	}
+
+	.footer {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 12px;
+		align-items: center;
+		min-height: 20px;
+		margin-top: 12px;
+	}
+
+	.footerButtonSlot {
+		flex: 1 1 0;
+		min-width: max-content;
+	}
+
+	.footerIconActions {
+		display: flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.footerButton {
+		--MI-noteActionColor: var(--MI_THEME-accent);
+		position: relative;
+		flex: 0 0 auto;
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 10px;
+		width: max-content;
+		min-width: max-content;
+		box-sizing: border-box;
+		min-height: 20px;
+		margin: 0;
+		padding: 0;
+		color: var(--MI_THEME-fgTransparentWeak);
+
+		&,
+		&:disabled {
+			cursor: pointer;
+		}
+
+		> i {
+			flex: 0 0 auto;
+			position: relative;
+			isolation: isolate;
+			width: 1.28em;
+			height: 1.28em;
+			line-height: 1.28em;
+			text-align: center;
+
+			&::after {
+				content: '';
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				width: calc(100% + 16px);
+				height: calc(100% + 16px);
+				transform: translate(-50%, -50%);
+				z-index: -1;
+				border-radius: 9999px;
+				background: transparent;
+			}
+		}
+
+		&:is(:hover, :focus-visible) {
+			color: var(--MI-noteActionColor);
+
+			> i::after {
+				background: color-mix(in srgb, var(--MI-noteActionColor) 10%, transparent);
+			}
+		}
+
+		&:focus-visible {
+			outline: none;
+
+			> i::after {
+				box-shadow: 0 0 0 2px var(--MI_THEME-focus);
+			}
+		}
+
+		&.footerButtonWithCount {
+			> i::after {
+				content: none;
+			}
+
+			&:focus-visible {
+				outline: 2px solid var(--MI_THEME-focus);
+				outline-offset: 4px;
+			}
+		}
+	}
+
+	.footerAnimated {
+		.footerButton {
+			transition: color 200ms ease;
+
+			> i::after {
+				transition: background-color 200ms ease, box-shadow 200ms ease;
+			}
+		}
+	}
+
+	.renoteButton {
+		--MI-noteActionColor: var(--MI_THEME-renote);
+	}
+
+	.likeButton {
+		--MI-noteActionColor: var(--MI_THEME-love);
+	}
+
+	.renoted {
+		color: var(--MI_THEME-renote);
+	}
+
+	.footerButtonCount {
+		margin: 0;
+		font-size: 12px;
+		white-space: nowrap;
+		pointer-events: none;
+	}
+
+}

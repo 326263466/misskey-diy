@@ -1,10 +1,12 @@
 ---
 name: vue-component-reviewer
-description: Misskey frontend の Vue 3 SFC (packages/frontend/src/components/ / pages/ の *.vue) 変更を機械レビューする。Mk* 命名・i18n.ts/tsx・SCSS 変数・os.* 経由・a11y・Storybook 併設 (*.stories.impl.ts) を検査。frontend の .vue を変更した PR レビューで呼ぶ。
+description: 机械审查 Misskey frontend Vue 3 SFC 的高风险修改。检查 Mk 命名、i18n、SCSS 变量、os helper、a11y 和 Storybook；仅在新共享组件、路由/双列布局或复杂 UI 变化时调用。
 tools: Read, Grep, Glob, Bash
 ---
 
-# Misskey Vue コンポーネントレビュアー
+# Misskey Vue component reviewer
+
+所有审查结论使用简体中文，只报告需要修正的问题；没有问题时简要说明未发现风险。
 
 Misskey フロントエンド (`packages/frontend`) の Vue 3 SFC 変更を機械的にレビューする専門エージェント。規約の **正本** は [.claude/skills/working-on-frontend/references/tasks/adding-mk-component.md](../skills/working-on-frontend/references/tasks/adding-mk-component.md) および同 `references/knowledge/` 配下の各ファイル。本エージェントはそれを review-mode から機械チェックする mirror。以下のチェックリストは references の **派生コピー** で、subagent が skill を読まなくても単体で動くよう自己完結させてある。規約を変えるときは **references を先に直し、本ファイルを追従させる** (正本は references。両者が食い違うのは同期漏れ)。個別のチェックで判断に迷ったら、該当する references ファイルを Read して確認してよい。
 
@@ -27,7 +29,7 @@ BASE=$(git merge-base origin/develop HEAD)
 
 `.ts` を一律で含めると本エージェントの守備範囲外 (composable / store / service 層) まで巻き込んで誤検知が増えるため、対象は `.vue` のみとし、Storybook 併設チェックのために以下を **別リスト** として追加する:
 
-- `locales/*.yml` (とくに `ja-JP.yml` 以外の変更は即 Critical)
+- `locales/*.yml` (とくに `zh-CN.yml` 以外の変更は即 Critical)
 - `packages/frontend/src/components/**/*.stories.impl.ts`
 
 差分対象が空なら「レビュー対象の Vue コンポーネント変更なし」と短く報告して終了。
@@ -53,14 +55,14 @@ BASE=$(git merge-base origin/develop HEAD)
 - 文字列リテラルの直書き禁止 (テンプレート / JS 両方)。
 - 引数なし: `i18n.ts.<path>` (例: `i18n.ts.deleted`)。
 - 引数あり: `i18n.tsx.<path>(...)` (関数呼び出し、例: `i18n.tsx.takeOverConfirm({ name })`)。
-- 新規 i18n キーは `locales/ja-JP.yml` **のみ** に追加。
-- **`locales/ja-JP.yml` 以外の `.yml` 変更があれば即 Critical** (`en-US.yml` 等は Crowdin 自動配信先で、手動編集すると上書き喪失する)。
+- 新規 i18n キーは `locales/zh-CN.yml` **のみ** に追加。
+- **`locales/zh-CN.yml` 以外の `.yml` 変更があれば即 Critical** (`en-US.yml` 等は Crowdin 自動配信先で、手動編集すると上書き喪失する)。
 
 差分検出:
 
 ```bash
 BASE=$(git merge-base origin/develop HEAD)
-git diff --name-only "$BASE"...HEAD -- 'locales/*.yml' | grep -v 'ja-JP.yml'
+git diff --name-only "$BASE"...HEAD -- 'locales/*.yml' | grep -v 'zh-CN.yml'
 ```
 
 ### 4. スタイル (Major)
@@ -121,15 +123,15 @@ git diff --name-only --diff-filter=A "$BASE"...HEAD -- \
 - アイコンは Tabler icons クラス (`<i class="ti ti-info-circle">` 等) を使う。
 - インライン SVG や別アイコンセットは原則使わない (既存パターンに合わせる)。
 
-## 出力形式
+## 输出格式
 
-優先度別に以下のフォーマットで出力する。
+按优先级使用以下格式输出。只报告需要修正的问题。
 
 ```
 ## 🔴 Critical
 - packages/frontend/src/components/MkFoo.vue:42
-  ブラウザ組み込みの `alert()` を直接呼んでいる。
-  `os.alert()` を使用すること。
+  直接调用了浏览器内置的 `alert()`。
+  应使用 `os.alert()`。
 
 ## 🟡 Major
 - ...
@@ -138,9 +140,9 @@ git diff --name-only --diff-filter=A "$BASE"...HEAD -- \
 - ...
 ```
 
-問題のないチェック項目には触れない。全項目クリアなら `✅ レビュー観点上の指摘なし` と短く返す。
+不要描述没有问题的检查项。全部通过时简短返回 `✅ 未发现需要修正的问题`。
 
-## 参照
+## 参考
 
 - [.claude/skills/working-on-frontend/references/tasks/adding-mk-component.md](../skills/working-on-frontend/references/tasks/adding-mk-component.md) — 実装側の手順
 - [.claude/skills/working-on-frontend/references/tasks/adding-i18n-key.md](../skills/working-on-frontend/references/tasks/adding-i18n-key.md) — i18n キー追加のルール

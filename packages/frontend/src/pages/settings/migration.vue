@@ -115,6 +115,7 @@ async function save(): Promise<void> {
 		alsoKnownAs,
 	});
 	$i.alsoKnownAs = i.alsoKnownAs;
+	os.toast(i18n.ts.saved, 'success');
 	init();
 }
 

@@ -26,7 +26,7 @@ vi.mock('@/router.js', async () => {
 	return { useRouter: () => inject(DI.router) };
 });
 vi.mock('@/server-context.js', () => ({ serverContext: null, assertServerContext: () => false }));
-vi.mock('@/composables/use-scroll-position-keeper.js', () => ({ useScrollPositionKeeper: vi.fn() }));
+vi.mock('@/composables/use-scroll-to-top.js', () => ({ useScrollToTop: vi.fn() }));
 vi.mock('@/composables/use-user-statistics.js', () => ({ useUserStatistics: vi.fn() }));
 vi.mock('@/composables/use-user-statistics-visibility.js', () => ({ useUserStatisticsVisibility: vi.fn() }));
 vi.mock('@/components/MkFollowButton.vue', () => ({ default: { template: '<button/>' } }));

@@ -32,29 +32,26 @@ class SwLang {
 	}
 
 	private async _fetch(): Promise<I18n<Locale>> {
-		// Service Workerは何度も起動しそのたびにlocaleを読み込むので、CacheStorageを使う
+		// 优先拉取最新文案，断网时再回退到当前版本的缓存。
 		const localeUrl = `/assets/locales/${await this.lang}.${_VERSION_}.json`;
-		let localeRes = await caches.match(localeUrl);
+		let localeRes: Response | undefined;
+		const controller = new AbortController();
+		const timeout = globalThis.setTimeout(() => {
+			controller.abort('locale-fetch-timeout');
+		}, FETCH_TIMEOUT_MS);
 
-		// _DEV_がtrueの場合は常に最新化
-		if (!localeRes || _DEV_) {
-			const controller = new AbortController();
-			const timeout = globalThis.setTimeout(() => {
-				controller.abort('locale-fetch-timeout');
-			}, FETCH_TIMEOUT_MS);
-
-			try {
-				localeRes = await fetch(localeUrl, { signal: controller.signal });
-
-				const clone = localeRes.clone();
-				if (!clone.clone().ok) throw new Error('locale fetching error');
-
-				caches.open(this.cacheName).then(cache => cache.put(localeUrl, clone));
-			} finally {
-				globalThis.clearTimeout(timeout);
-			}
+		try {
+			localeRes = await fetch(localeUrl, { signal: controller.signal, cache: 'no-store' });
+			if (!localeRes.ok) throw new Error('locale fetching error');
+			const clone = localeRes.clone();
+			caches.open(this.cacheName).then(cache => cache.put(localeUrl, clone));
+		} catch {
+			localeRes = await caches.match(localeUrl);
+		} finally {
+			globalThis.clearTimeout(timeout);
 		}
 
+		if (!localeRes) throw new Error('locale unavailable');
 		return new I18n<Locale>(await localeRes.json());
 	}
 }

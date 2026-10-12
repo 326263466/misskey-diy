@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="display?.status === 'custom'" :class="$style.root">{{ display.text }}</div>
+<div v-if="display?.status === 'custom'" :class="$style.root"><Mfm :text="display.text" :plain="true" :nowrap="true" :author="user"/></div>
 </template>
 
 <script lang="ts" setup>

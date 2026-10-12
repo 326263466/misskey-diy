@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<i v-else class="ti ti-device-tv" aria-hidden="true"></i>
 					</span>
 					<span :class="$style.optionText">
-						<span :class="$style.name" :title="channel.name">{{ channel.name }}</span>
+						<span :class="$style.name" :title="channel.name"><Mfm :text="channel.name" :plain="true" :nowrap="true"/></span>
 						<span :class="$style.metadata">{{ i18n.tsx._channel.usersCount({ n: channel.usersCount }) }} · {{ i18n.tsx._channel.notesCount({ n: channel.notesCount }) }}</span>
 					</span>
 					<i v-if="channel.id === selectedId" class="ti ti-check" aria-hidden="true"></i>
@@ -209,7 +209,6 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timer);
 	width: min(328px, calc(100vw - 32px));
 	height: 380px;
 	max-height: min(500px, 75dvh);
-	border: 1px solid var(--MI_THEME-divider);
 	background: var(--MI_THEME-popup);
 	color: var(--MI_THEME-fg);
 	overflow: hidden;
@@ -219,11 +218,11 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timer);
 .title { display: flex; align-items: center; gap: 6px; font-size: .85em; font-weight: 700; }
 .close { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: var(--MI-channelPicker-muted); }
 .searchArea { flex-shrink: 0; padding: 6px 12px 10px; }
-.searchBox { display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--MI_THEME-divider); border-radius: 6px; background: color-mix(in srgb, var(--MI_THEME-fg) 4%, var(--MI_THEME-popup)); color: var(--MI-channelPicker-muted); }
+.searchBox { display: flex; align-items: center; gap: 6px; padding: 0 8px; border: var(--MI-divider); border-radius: 6px; background: color-mix(in srgb, var(--MI_THEME-fg) 4%, var(--MI_THEME-popup)); color: var(--MI-channelPicker-muted); }
 .searchBox:focus-within { border-color: var(--MI_THEME-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--MI_THEME-accent) 12%, transparent); }
 .input { min-width: 0; flex: 1; height: 34px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--MI_THEME-fg); font: inherit; font-size: .9em; }
 .input::placeholder { color: var(--MI-channelPicker-muted); }
-.body { display: flex; flex: 1; min-height: 0; overflow: hidden; border-top: 1px solid var(--MI_THEME-divider); }
+.body { display: flex; flex: 1; min-height: 0; overflow: hidden; border-top: var(--MI-divider); }
 .categories { display: flex; flex-direction: column; flex-shrink: 0; box-sizing: border-box; width: 80px; padding: 4px; gap: 2px; background: color-mix(in srgb, var(--MI_THEME-fg) 3%, var(--MI_THEME-popup)); overflow-y: auto; }
 .category { display: grid; place-items: center; flex-shrink: 0; min-height: 40px; padding: 6px; border-radius: 6px; text-align: center; font-size: .8em; line-height: 1.4; overflow-wrap: anywhere; }
 .active { color: var(--MI_THEME-accent); background: var(--MI-channelPicker-selected); font-weight: 700; }
@@ -241,9 +240,9 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timer);
 .loading { padding: 24px; }
 .message { margin: 12px 8px; color: var(--MI-channelPicker-muted); font-size: .85em; line-height: 1.5; }
 .loadMore { display: block; width: 100%; min-height: 40px; border-radius: 8px; color: var(--MI_THEME-accent); font-size: .85em; }
-.footer { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 10px 12px; border-top: 1px solid var(--MI_THEME-divider); }
+.footer { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 10px 12px; border-top: var(--MI-divider); }
 .description { flex: 1; min-width: 0; margin: 0; color: var(--MI-channelPicker-muted); font-size: .7em; line-height: 1.5; overflow-wrap: anywhere; }
-.clear { flex-shrink: 0; max-width: 45%; min-height: 34px; padding: 6px 8px; border: 1px solid var(--MI_THEME-divider); border-radius: 6px; color: var(--MI_THEME-accent); font-size: .8em; overflow-wrap: anywhere; }
+.clear { flex-shrink: 0; max-width: 45%; min-height: 34px; padding: 6px 8px; border: var(--MI-divider); border-radius: 6px; color: var(--MI_THEME-accent); font-size: .8em; overflow-wrap: anywhere; }
 @media (max-width: 480px) {
 	.categories { width: 68px; }
 }

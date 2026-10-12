@@ -9,7 +9,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:width="400"
 	:height="550"
 	:withOkButton="false"
-	@click="dialog?.close()"
 	@close="dialog?.close()"
 	@closed="emit('closed')"
 	@esc="dialog?.close()"

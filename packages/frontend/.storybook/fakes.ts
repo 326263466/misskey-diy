@@ -53,6 +53,7 @@ export function chatMessage(room = false, id = 'somechatmessageid', text = 'Hell
 		createdAt: '2016-12-28T22:49:51.000Z',
 		fromUserId: fromUser.id,
 		fromUser,
+		editedAt: null,
 		text,
 		isAutoReply: false,
 		isRead: false,
@@ -76,8 +77,19 @@ export function chatRoom(id = 'somechatroomid', name = 'Some Chat Room'): entiti
 		owner,
 		name,
 		description: 'A chat room for testing',
+		myRole: 'member',
+		announcement: '',
+		ownerNickname: '',
+		myNickname: '',
+		myIsSilenced: false,
+		mySilenceUntil: null,
+		joinPolicy: 'invitation',
+		joinRequestPending: false,
 		memberCount: 1,
 		isMuted: false,
+		mutedUntil: null,
+		isSilenced: false,
+		silenceUntil: null,
 	};
 }
 
@@ -240,7 +252,7 @@ export function note(id = 'somenoteid'): entities.Note {
 		reactionAcceptance: 'nonSensitiveOnly',
 		reactionEmojis: {},
 		reactions: {},
-		myReaction: null,
+		myReactions: [],
 		reactionCount: 0,
 		renoteCount: 0,
 		repliesCount: 0,
@@ -266,6 +278,8 @@ export function userLite(id = 'someuserid', username = 'miskist', host: entities
 export function userDetailed(id = 'someuserid', username = 'miskist', host: entities.UserDetailed['host'] = 'misskey-hub.net', name: entities.UserDetailed['name'] = 'Misskey User'): entities.UserDetailed {
 	return {
 		...userLite(id, username, host, name),
+		company: null,
+		jobTitle: null,
 		bannerBlurhash: 'eQA^IW^-MH8w9tE8I=S^o{$*R4RikXtSxutRozjEnNR.RQadoyozog',
 		bannerUrl: 'https://github.com/misskey-dev/misskey/blob/master/packages/frontend/assets/fedi.jpg?raw=true',
 		birthday: '2014-06-20',

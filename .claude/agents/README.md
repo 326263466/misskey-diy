@@ -1,32 +1,26 @@
-# `.claude/agents/` — プロジェクト固有のサブエージェント
+# `.claude/agents/` — 项目专用子代理
 
-Misskey の特定領域に特化したレビュー / 調査エージェントを `.claude/agents/<name>.md` 形式で配置する。
+项目专用审查和调查代理放在 `.claude/agents/<name>.md`。所有代理输出和交接信息使用简体中文；命令、路径、代码和已有测试名称保持原样。
 
-frontmatter (`name` + `description` + `tools`) は、Claude が **自動でエージェントを呼び出すか判断する** 唯一の手がかりになる。`description` は **起動判断に効くドメイン・パス・ファイル種別・固有チェックに絞って簡潔に** 書く (動詞 + 対象 + トリガー条件)。本文 checklist 項目を網羅的に列挙するのではなく、他の reviewer と区別できる高シグナル語を選ぶ。
+## 角色分工
 
-実装済エージェントの一覧は本ファイルでは管理しない (腐敗するため)。各 `<name>.md` の frontmatter が自己説明として機能する。
+- `misskey-api-reviewer`：只做 Misskey API 的机械检查，例如 endpoint-list 接线、misskey-js 生成物、meta/paramDef/UUID。
+- `vue-component-reviewer`：只做 Vue SFC 的 Misskey 约定检查，例如 Mk 命名、i18n、SCSS、os helper、a11y 和 Storybook。
+- `working-on-*` skill：实现过程中的自检和参考资料。
+- 通用代码质量或设计审查交给通用 reviewer，不重复执行本目录的机械检查。
 
-## 他のレビュー手段との使い分け
+## 调用原则
 
-レビュー面を増やしすぎないよう、役割を分ける:
+- reviewer 按风险调用，不因每个 `.vue` 或每个 endpoint 的小改动自动启动。
+- API 的新 endpoint、API 元数据、认证权限、错误定义或 endpoint-list 接线变化，调用 API reviewer。
+- 新共享组件、路由或双列布局、复杂 i18n / a11y / SCSS 变化，调用 Vue reviewer。
+- 局部文案、纯样式、简单接线、服务内部委托和只改测试不调用专用 reviewer。
+- 先确认变更范围；没有目标文件时直接报告无审查对象并结束。
+- 多代理协作时由一个代理汇总验证结果，其他代理复用结果，不重复运行相同检查。
 
-- **この `.claude/agents/` の 2 つ**: backend endpoint / Vue SFC の **Misskey 固有・機械的チェック** (endpoint-list 登録漏れ・misskey-js 再生成漏れ・ja-JP.yml 限定・Storybook 併設 等)。
-  別コンテキストで差分を機械走査する価値がある領域に限定する
-- **`pr-review-toolkit` プラグイン (code-reviewer / silent-failure-hunter 等)**: 言語非依存の一般的なコード品質・バグ・設計レビュー。Misskey 固有規約は見ない
-- **`working-on-*` skill の checklist**: コードを **書いている最中** の自己チェック (レビュー専用ではなく実装ガイド)
+## 代理文件要求
 
-Misskey 固有規約の機械チェックは本 agent、一般品質は pr-review-toolkit、実装中ガイドは skill、と棲み分ける。
-
-## 構成方針
-
-- `tools` は **編集権限なし** (Edit/Write を渡さない) に絞り、PR baseline (`git merge-base origin/develop HEAD`) との差分から自動的にレビュー対象を抽出する設計
-- 差分抽出は `git merge-base origin/develop HEAD` を baseline にする (PR / ブランチ全体を見るため)。`git diff HEAD` 単体は **未コミット差分しか取れず、コミット済の PR では空になって誤判定する** ので使わない
-- `description` は呼び出し判断の手がかりであると同時に、(呼ばれなくても) Task ツール起動のたびに常時ロードされる。**他で代替できない高シグナルなトリガー語に絞って簡潔に** 書く (汎用 reviewer と被る語や冗長な列挙は context-budget 上の overhead になるだけで発見性に寄与しない)。健全性は [/harness-audit](../commands/harness-audit.md) / [context-budget skill](../skills/context-budget/SKILL.md) で確認できる
-- 規約の **正本は `.claude/skills/*/references/` 側**。agent の checklist はその **派生コピー** (subagent が skill を読まなくても動くよう自己完結させる)。規約を変えるときは references を先に直し agent を追従させる ── 両者の食い違いは同期漏れなので references を正とする
-
-## 新規エージェントを追加する場合
-
-- `.claude/agents/<name>.md` に YAML frontmatter (`name` / `description` / `tools`) と本文 Markdown を書く
-- `description` は呼び出し判断に使われるため、対象ドメイン・主要チェック項目・トリガー条件を挙げる。ただし常時ロードされるので **高シグナル語に絞って簡潔に** (構成方針の該当項目を参照)
-- レビュー専門なら `tools: Read, Grep, Glob, Bash` に絞る (Edit/Write を渡さない)。**`Bash` は任意のシェルコマンドを実行できる強力な権限である点に注意**: レビュー用途では `git diff` / `git ls-files` / `grep` / `sed` 等の **読み取り系コマンドに限定して使う** こと。書き込み・削除・ネットワーク送信を伴う操作は本文中の例示・指示に含めないこと (エージェント本文がガードレールになる)
-- 主要参照ファイルへのリンクは、各エージェント markdown からの相対パスで貼る (`../../packages/backend/...` のような形)。絶対パスは contributor のホームディレクトリ依存になるので使わない
+- frontmatter 至少包含 `name`、`description` 和只读 `tools`；reviewer 不授予 Edit/Write。
+- `description` 只保留高信号的路径、文件类型和触发条件，避免冗长内容增加上下文开销。
+- 审查代理只使用读取类命令获取 baseline 和差异；不得修改文件、删除内容或向外部服务发送信息。
+- 详细规范以 `.claude/skills/*/references/` 为正本；代理中的清单只是便于独立运行的副本。修改规则时先更新 reference，再同步代理清单。

@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import { DI } from '@/di-symbols.js';
 import { ChatService } from '@/core/ChatService.js';
 import { ChatEntityService } from '@/core/entities/ChatEntityService.js';
-import { ApiError } from '@/server/api/error.js';
 
 export const meta = {
 	tags: ['chat'],
@@ -35,7 +33,10 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
+		offset: { type: 'integer', minimum: 0, default: 0 },
 		room: { type: 'boolean', default: false },
+		userId: { type: 'string', format: 'misskey:id' },
+		roomId: { type: 'string', format: 'misskey:id' },
 	},
 } as const;
 
@@ -48,7 +49,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me) => {
 			await this.chatService.checkChatAvailability(me.id, 'read');
 
-			const history = ps.room ? await this.chatService.roomHistory(me.id, ps.limit) : await this.chatService.userHistory(me.id, ps.limit);
+			const history = ps.room ? await this.chatService.roomHistory(me.id, ps.limit, ps.offset, ps.roomId) : await this.chatService.userHistory(me.id, ps.limit, ps.offset, ps.userId);
 
 			const packedMessages = await this.chatEntityService.packMessagesDetailed(history, me);
 

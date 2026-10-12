@@ -5,6 +5,8 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { In } from 'typeorm';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { assertContentLength } from '@/misc/content-limits.js';
 import { DI } from '@/di-symbols.js';
 import type { MiNoteDraft, NoteDraftsRepository, MiNote, MiDriveFile, MiChannel, UsersRepository, DriveFilesRepository, NotesRepository, BlockingsRepository, ChannelsRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
@@ -62,6 +64,8 @@ export class NoteDraftService {
 
 	@bindThis
 	public async create(me: MiLocalUser, data: NoteDraftOptions, publishReply = false): Promise<MiNoteDraft> {
+		assertContentLength(data.text, data.replyId == null ? CONTENT_LIMITS.noteText : CONTENT_LIMITS.commentText);
+		assertContentLength(data.cw, CONTENT_LIMITS.noteCw);
 		//#region check draft limit
 		const policies = await this.roleService.getUserPolicies(me.id);
 
@@ -111,6 +115,12 @@ export class NoteDraftService {
 		if (draft == null) {
 			throw new IdentifiableError('49cd6b9d-848e-41ee-b0b9-adaca711a6b1', 'No such note draft');
 		}
+
+		const replyId = data.replyId === undefined ? draft.replyId : data.replyId;
+		const replyChanged = replyId !== draft.replyId;
+		assertContentLength(data.text === undefined && replyChanged ? draft.text : data.text,
+			replyId == null ? CONTENT_LIMITS.noteText : CONTENT_LIMITS.commentText, replyChanged ? undefined : draft.text);
+		assertContentLength(data.cw, CONTENT_LIMITS.noteCw, draft.cw);
 
 		//#region check draft limit
 		const policies = await this.roleService.getUserPolicies(me.id);

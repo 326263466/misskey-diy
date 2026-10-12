@@ -28,12 +28,16 @@ import { AchievementService } from './AchievementService.js';
 import { CheckinService } from './CheckinService.js';
 import { CheckinAdminService } from './CheckinAdminService.js';
 import { CheckinRedemptionService } from './CheckinRedemptionService.js';
+import { ShopModule } from '@/core/shop/ShopModule.js';
+import { IdModule } from './IdModule.js';
 import { AvatarDecorationService } from './AvatarDecorationService.js';
 import { CaptchaService } from './CaptchaService.js';
 import { CustomEmojiService } from './CustomEmojiService.js';
 import { DeleteAccountService } from './DeleteAccountService.js';
 import { DownloadService } from './DownloadService.js';
 import { DriveService } from './DriveService.js';
+import { DriveFileUsageService } from './DriveFileUsageService.js';
+import { DriveFileLifecycleService } from './DriveFileLifecycleService.js';
 import { EmailService } from './EmailService.js';
 import { FederatedInstanceService } from './FederatedInstanceService.js';
 import { FetchInstanceMetadataService } from './FetchInstanceMetadataService.js';
@@ -59,7 +63,11 @@ import { ReactionService } from './ReactionService.js';
 import { NoteLikeService } from './NoteLikeService.js';
 import { ReactionsBufferingService } from './ReactionsBufferingService.js';
 import { RedPacketService } from './RedPacketService.js';
-import { WalletService } from './WalletService.js';
+import { ChatRedPacketService } from './ChatRedPacketService.js';
+import { TransferService } from './TransferService.js';
+import { WalletModule } from './wallet/WalletModule.js';
+import { TipService } from './TipService.js';
+import { ContentTipService } from './ContentTipService.js';
 import { RelayService } from './RelayService.js';
 import { RoleService } from './RoleService.js';
 import { S3Service } from './S3Service.js';
@@ -85,9 +93,12 @@ import { FeaturedService } from './FeaturedService.js';
 import { FanoutTimelineService } from './FanoutTimelineService.js';
 import { ChannelFollowingService } from './ChannelFollowingService.js';
 import { ChatService } from './ChatService.js';
+import { ChatConversationService } from './ChatConversationService.js';
 import { RegistryApiService } from './RegistryApiService.js';
 import { ReversiService } from './ReversiService.js';
 import { PageService } from './PageService.js';
+import { ArticleService } from './ArticleService.js';
+import { ArticleDraftService } from './ArticleDraftService.js';
 
 import { ChartLoggerService } from './chart/ChartLoggerService.js';
 import FederationChart from './chart/charts/federation.js';
@@ -211,6 +222,10 @@ const $ReactionService: Provider = { provide: 'ReactionService', useExisting: Re
 const $NoteLikeService: Provider = { provide: 'NoteLikeService', useExisting: NoteLikeService };
 const $ReactionsBufferingService: Provider = { provide: 'ReactionsBufferingService', useExisting: ReactionsBufferingService };
 const $RedPacketService: Provider = { provide: 'RedPacketService', useExisting: RedPacketService };
+const $ChatRedPacketService: Provider = { provide: 'ChatRedPacketService', useExisting: ChatRedPacketService };
+const $TransferService: Provider = { provide: 'TransferService', useExisting: TransferService };
+const $TipService: Provider = { provide: 'TipService', useExisting: TipService };
+const $ContentTipService: Provider = { provide: 'ContentTipService', useExisting: ContentTipService };
 const $RelayService: Provider = { provide: 'RelayService', useExisting: RelayService };
 const $RoleService: Provider = { provide: 'RoleService', useExisting: RoleService };
 const $S3Service: Provider = { provide: 'S3Service', useExisting: S3Service };
@@ -245,6 +260,7 @@ const $ChatService: Provider = { provide: 'ChatService', useExisting: ChatServic
 const $RegistryApiService: Provider = { provide: 'RegistryApiService', useExisting: RegistryApiService };
 const $ReversiService: Provider = { provide: 'ReversiService', useExisting: ReversiService };
 const $PageService: Provider = { provide: 'PageService', useExisting: PageService };
+const $ArticleService: Provider = { provide: 'ArticleService', useExisting: ArticleService };
 
 const $ChartLoggerService: Provider = { provide: 'ChartLoggerService', useExisting: ChartLoggerService };
 const $FederationChart: Provider = { provide: 'FederationChart', useExisting: FederationChart };
@@ -324,6 +340,9 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 @Module({
 	imports: [
 		QueueModule,
+		IdModule,
+		WalletModule,
+		ShopModule,
 	],
 	providers: [
 		LoggerService,
@@ -346,13 +365,14 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		DeleteAccountService,
 		DownloadService,
 		DriveService,
+		DriveFileUsageService,
+		DriveFileLifecycleService,
 		EmailService,
 		FederatedInstanceService,
 		FetchInstanceMetadataService,
 		GlobalEventService,
 		HashtagService,
 		HttpRequestService,
-		IdService,
 		ImageProcessingService,
 		InternalStorageService,
 		MetaService,
@@ -371,7 +391,10 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		NoteLikeService,
 		ReactionsBufferingService,
 		RedPacketService,
-		WalletService,
+		ChatRedPacketService,
+		TransferService,
+		TipService,
+		ContentTipService,
 		RelayService,
 		RoleService,
 		S3Service,
@@ -404,9 +427,12 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		ChannelFollowingService,
 		ChannelMutingService,
 		ChatService,
+		ChatConversationService,
 		RegistryApiService,
 		ReversiService,
 		PageService,
+		ArticleService,
+		ArticleDraftService,
 
 		ChartLoggerService,
 		FederationChart,
@@ -529,6 +555,10 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$NoteLikeService,
 		$ReactionsBufferingService,
 		$RedPacketService,
+		$ChatRedPacketService,
+		$TransferService,
+		$TipService,
+		$ContentTipService,
 		$RelayService,
 		$RoleService,
 		$S3Service,
@@ -563,6 +593,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$RegistryApiService,
 		$ReversiService,
 		$PageService,
+		$ArticleService,
 
 		$ChartLoggerService,
 		$FederationChart,
@@ -641,6 +672,9 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		//#endregion
 	],
 	exports: [
+		IdModule,
+		WalletModule,
+		ShopModule,
 		QueueModule,
 		LoggerService,
 		AbuseReportService,
@@ -662,13 +696,14 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		DeleteAccountService,
 		DownloadService,
 		DriveService,
+		DriveFileUsageService,
+		DriveFileLifecycleService,
 		EmailService,
 		FederatedInstanceService,
 		FetchInstanceMetadataService,
 		GlobalEventService,
 		HashtagService,
 		HttpRequestService,
-		IdService,
 		ImageProcessingService,
 		InternalStorageService,
 		MetaService,
@@ -687,7 +722,10 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		NoteLikeService,
 		ReactionsBufferingService,
 		RedPacketService,
-		WalletService,
+		ChatRedPacketService,
+		TransferService,
+		TipService,
+		ContentTipService,
 		RelayService,
 		RoleService,
 		S3Service,
@@ -720,9 +758,12 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		ChannelFollowingService,
 		ChannelMutingService,
 		ChatService,
+		ChatConversationService,
 		RegistryApiService,
 		ReversiService,
 		PageService,
+		ArticleService,
+		ArticleDraftService,
 
 		FederationChart,
 		NotesChart,
@@ -844,6 +885,10 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$NoteLikeService,
 		$ReactionsBufferingService,
 		$RedPacketService,
+		$ChatRedPacketService,
+		$TransferService,
+		$TipService,
+		$ContentTipService,
 		$RelayService,
 		$RoleService,
 		$S3Service,
@@ -877,6 +922,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$RegistryApiService,
 		$ReversiService,
 		$PageService,
+		$ArticleService,
 
 		$FederationChart,
 		$NotesChart,

@@ -6,13 +6,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkWindow
 	ref="uiWindow"
+	headerIcon="ti ti-search"
 	:initialWidth="400"
 	:initialHeight="500"
 	:canResize="true"
 	@closed="emit('closed')"
 >
 	<template #header>
-		<i class="ti ti-search" style="margin-right: 0.5em;"></i> {{ i18n.ts.search }}
+		{{ i18n.ts.search }}
 	</template>
 	<div :class="$style.root">
 		<div class="_spacer _spacerCard">

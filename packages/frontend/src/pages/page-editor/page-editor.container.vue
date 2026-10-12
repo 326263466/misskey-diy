@@ -9,13 +9,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="title"><slot name="header"></slot></div>
 		<div class="buttons">
 			<slot name="func"></slot>
-			<button v-if="removable" class="_button" @click="remove()">
+			<button v-if="removable" class="_button _iconButton" @click="remove()">
 				<i class="ti ti-trash"></i>
 			</button>
-			<button v-if="draggable" class="drag-handle _button" tabindex="-1" :draggable="true" @dragstart.stop="dragStartCallback">
+			<button v-if="draggable" class="drag-handle _button _iconButton" tabindex="-1" :draggable="true" @dragstart.stop="dragStartCallback">
 				<i class="ti ti-menu-2"></i>
 			</button>
-			<button type="button" class="_button" :aria-label="i18n.ts.details" :aria-expanded="showBody" :aria-controls="bodyId" @click="toggleContent(!showBody)">
+			<button type="button" class="_button _iconButton" :aria-label="i18n.ts.details" :aria-expanded="showBody" :aria-controls="bodyId" @click="toggleContent(!showBody)">
 				<template v-if="showBody"><i class="ti ti-chevron-up"></i></template>
 				<template v-else><i class="ti ti-chevron-down"></i></template>
 			</button>
@@ -63,6 +63,8 @@ function remove() {
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/card-header.scss';
+
 .vertical-enter-active,
 .vertical-leave-active {
 	overflow: clip;
@@ -78,7 +80,7 @@ function remove() {
 	position: relative;
 	overflow: hidden;
 	background: var(--MI_THEME-panel);
-	border: solid 2px var(--MI_THEME-divider);
+	border: solid 2px var(--MI_THEME-divider); // divider-exempt: editor block with state-colored border
 	border-radius: 8px;
 
 	&:hover {
@@ -94,16 +96,17 @@ function remove() {
 	}
 
 	> header {
+		display: flex;
 		background: var(--MI_THEME-panelHighlight);
 		color: var(--MI_THEME-fg);
 
 		> .title {
+			@include card-header.title;
+			flex: 1;
+			min-width: 0;
 			z-index: 1;
 			margin: 0;
-			padding: 0 var(--MI-cardPadding);
-			line-height: 42px;
-			font-size: 0.9em;
-			font-weight: bold;
+			padding-inline: var(--MI-cardPadding);
 			box-shadow: 0 1px rgba(#000, 0.07);
 
 			> i {
@@ -116,16 +119,15 @@ function remove() {
 		}
 
 		> .buttons {
-			position: absolute;
+			display: flex;
+			flex-shrink: 0;
 			z-index: 2;
-			top: 0;
-			right: 0;
 
 			> button {
 				padding: 0;
 				width: 42px;
 				font-size: 0.9em;
-				line-height: 42px;
+				line-height: 1;
 			}
 
 			.drag-handle {

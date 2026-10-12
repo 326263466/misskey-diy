@@ -8,7 +8,7 @@
 	base: 'light',
 
 	props: {
-		// 掘金的品牌蓝、浅灰页面背景与白色卡片。
+		// 品牌蓝、浅灰页面背景与白色卡片。
 		accent: '#1e80ff',
 		accentHover: '#1171ee',
 		accentActive: '#0060dd',
@@ -17,7 +17,7 @@
 		hashtag: '@accent',
 		badge: '@accent',
 		chartAccent: '@accent',
-		bg: '#f2f3f5',
+		bg: '#f5f6f7',
 		fg: '#252933',
 		fgHighlighted: '@fg',
 		fgTransparent: '#515767',
@@ -39,8 +39,8 @@
 		folderHeaderBg: '#f7f8fa',
 		folderHeaderHoverBg: '#e4e6eb',
 		dateLabelFg: '#8a919f',
-		scrollbarHandle: '#c2c8d1',
-		scrollbarHandleHover: '#8a919f',
+		scrollbarHandle: 'rgba(134, 144, 156, 0.25)',
+		scrollbarHandleHover: 'rgba(134, 144, 156, 0.6)',
 		modalBg: 'rgba(0, 0, 0, 0.4)',
 		infoBg: '@accentedBg',
 		infoFg: '@accent',

@@ -483,6 +483,6 @@ definePage(() => ({
 .footer {
 	backdrop-filter: var(--MI-blur, blur(15px));
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
-	border-top: solid .5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 </style>

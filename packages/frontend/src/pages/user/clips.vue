@@ -6,10 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_pageBody">
 	<div>
-		<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard>
+		<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard pageEmpty>
 			<MkA v-for="item in items" :key="item.id" :to="`/clips/${item.id}`" :class="$style.item" class="_panel">
-				<b>{{ item.name }}</b>
-				<div v-if="item.description" :class="$style.description">{{ item.description }}</div>
+				<b><Mfm :text="item.name" :plain="true" :nowrap="true"/></b>
+				<div v-if="item.description" :class="$style.description"><Mfm :text="item.description" :plain="true" :nowrap="true"/></div>
 			</MkA>
 		</MkPagination>
 	</div>
@@ -44,6 +44,6 @@ const paginator = markRaw(new Paginator('users/clips', {
 	color: var(--MI_THEME-fgTransparentWeak);
 	margin-top: 8px;
 	padding-top: 8px;
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 }
 </style>

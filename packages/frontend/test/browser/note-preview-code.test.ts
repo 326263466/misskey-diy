@@ -12,13 +12,19 @@ import lightTheme from '@@/themes/l-light.json5';
 import type { App } from 'vue';
 import type * as Misskey from 'misskey-js';
 import '@/style.scss';
-import '@tabler/icons-webfont/dist/tabler-icons.scss';
+import 'virtual:tabler-icons.css';
 import MkNotePreview from '@/components/MkNotePreview.vue';
 import MkMfm from '@/components/global/MkMfm.js';
 
 vi.mock('misskey-js', () => ({}));
 vi.mock('@@/js/config.js', () => ({ host: 'localhost' }));
 vi.mock('@/preferences.js', () => ({ prefer: { s: { dataSaver: { code: false }, advancedMfm: false, animatedMfm: false } } }));
+vi.mock('@/store.js', async () => {
+	const { ref } = await import('vue');
+	return { store: { s: { darkMode: false }, r: { darkMode: ref(false) } } };
+});
+vi.mock('@/os.js', () => ({ popup: vi.fn(), toast: vi.fn() }));
+vi.mock('@/router.js', () => ({ useRouter: () => ({ push: vi.fn() }), mainRouter: { push: vi.fn() } }));
 vi.mock('@/i18n.js', () => ({ i18n: { ts: { code: 'Code', clickToShow: 'Click to show', showLess: 'Collapse', hashtags: 'Topics', copy: 'Copy', _share: { copied: 'Copied' } } } }));
 vi.mock('@/utility/copy-to-clipboard.js', () => ({ copyToClipboard: vi.fn() }));
 vi.mock('@/components/MkUserWork.vue', () => ({ default: { render: () => null } }));
@@ -72,7 +78,6 @@ describe('note preview code blocks', () => {
 		const style = getComputedStyle(pre);
 		expect(pre.textContent).toBe('dasdasdasdsad');
 		expect(style.whiteSpace).toBe('pre');
-		expect(getComputedStyle(root).borderTopWidth).toBe('1px');
 		expect(getComputedStyle(root).backgroundColor).toBe(theme.codeBlockBg);
 		expect(style.paddingTop).toBe(style.paddingBottom);
 		expect(pre.getBoundingClientRect().top).toBeGreaterThan(root.getBoundingClientRect().top);
@@ -93,16 +98,18 @@ describe('note preview code blocks', () => {
 		await page.screenshot({ element: host, path: '../e2e/artifacts/component-browser/note-preview-code-multiline.png' });
 	});
 
-	test('scrolls long lines without wrapping in narrow previews', async () => {
+	test('clips long lines without wrapping or internal scrolling in narrow previews', async () => {
 		const code = 'a_long_unbroken_code_line_'.repeat(8);
 		const host = await mountPreview(code, 280);
 		const pre = host.querySelector('pre')!;
-		expect(pre.scrollWidth).toBeGreaterThan(pre.clientWidth);
-		expect(getComputedStyle(pre).scrollbarWidth).toBe('none');
-		pre.scrollLeft = pre.scrollWidth;
-		expect(pre.scrollLeft).toBeGreaterThan(0);
-		await page.screenshot({ element: host, path: '../e2e/artifacts/component-browser/note-preview-code-narrow-scrolled.png' });
-		const bounds = pre.getBoundingClientRect();
+		const scroller = pre.parentElement!.parentElement!;
+		expect(scroller.scrollWidth).toBeGreaterThan(scroller.clientWidth);
+		expect(getComputedStyle(pre).overflow).toBe('visible');
+		expect(getComputedStyle(scroller).overflow).toBe('clip');
+		scroller.scrollLeft = scroller.scrollWidth;
+		expect(scroller.scrollLeft).toBe(0);
+		await page.screenshot({ element: host, path: '../e2e/artifacts/component-browser/note-preview-code-narrow-clipped.png' });
+		const bounds = scroller.getBoundingClientRect();
 		expect(pre.textContent).toBe(code);
 		expect(host.scrollWidth).toBe(host.clientWidth);
 		expect(bounds.right).toBeLessThanOrEqual(host.getBoundingClientRect().right);

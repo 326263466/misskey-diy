@@ -163,7 +163,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<SearchMarker :keywords="['pinned', 'list']">
 								<MkFolder>
 									<template #label><SearchLabel>{{ i18n.ts.pinnedList }}</SearchLabel></template>
-									<!-- 複数ピン止め管理できるようにしたいけどめんどいので一旦ひとつのみ -->
 									<MkButton v-if="prefer.r.pinnedUserLists.value.length === 0" @click="setPinnedList()">{{ i18n.ts.add }}</MkButton>
 									<MkButton v-else danger @click="removePinnedList()"><i class="ti ti-trash"></i> {{ i18n.ts.remove }}</MkButton>
 								</MkFolder>
@@ -433,7 +432,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<SearchMarker v-slot="slotProps" :keywords="['chat', 'messaging']">
 					<MkFolder :defaultOpen="slotProps.isParentOfTarget">
 						<template #label><SearchLabel>{{ i18n.ts.chat }}</SearchLabel></template>
-						<template #icon><SearchIcon><i class="ti ti-message-dots"></i></SearchIcon></template>
+						<template #icon><SearchIcon><i class="ti ti-message-circle"></i></SearchIcon></template>
 
 						<div class="_gaps_s">
 							<SearchMarker :keywords="['show', 'sender', 'name']">
@@ -664,11 +663,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</MkPreferenceContainer>
 						</SearchMarker>
 
-						<SearchMarker :keywords="['sticky']">
+						<SearchMarker :keywords="['avatar', 'icon', 'sticky', 'scroll']">
 							<MkPreferenceContainer k="useStickyIcons">
 								<MkSwitch v-model="useStickyIcons">
 									<template #label><SearchLabel>{{ i18n.ts._settings.useStickyIcons }}</SearchLabel></template>
-									<template #caption><SearchText>{{ i18n.ts.turnOffToImprovePerformance }}</SearchText></template>
+									<template #caption><SearchText>{{ i18n.ts._settings.useStickyIconsDescription }}</SearchText></template>
 								</MkSwitch>
 							</MkPreferenceContainer>
 						</SearchMarker>

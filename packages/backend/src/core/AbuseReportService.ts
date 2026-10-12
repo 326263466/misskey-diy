@@ -130,7 +130,8 @@ export class AbuseReportService {
 	}
 
 	private requestFingerprint(param: AbuseReportRequest): string {
-		return createHash('sha256').update(JSON.stringify([param.targetUserId, param.target.type, param.target.id ?? null, param.target.reaction ?? null, param.reason, param.comment])).digest('hex');
+		// 保留原有数组位置，使旧举报重试仍能匹配请求摘要。
+		return createHash('sha256').update(JSON.stringify([param.targetUserId, param.target.type, param.target.id ?? null, null, param.reason, param.comment])).digest('hex');
 	}
 
 	/**

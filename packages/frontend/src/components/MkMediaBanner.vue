@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="$style.root">
 	<div v-if="hide" :class="$style.sensitive" @click="reveal">
-		<span style="font-size: 1.6em;"><i class="ti ti-alert-triangle"></i></span>
+		<span :class="$style.icon"><i class="ti ti-alert-triangle"></i></span>
 		<b>{{ i18n.ts.sensitive }}</b>
 		<span>{{ i18n.ts.clickToShow }}</span>
 	</div>
@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:title="media.name"
 		:download="media.name"
 	>
-		<span style="font-size: 1.6em;"><i class="ti ti-download"></i></span>
+		<span :class="$style.icon"><i class="ti ti-download"></i></span>
 		<b>{{ media.name }}</b>
 	</a>
 </div>
@@ -61,11 +61,21 @@ async function reveal() {
 }
 
 .download {
+	gap: 0.25em;
 }
 
 .sensitive {
 	background: #111;
 	color: #fff;
+}
+
+.icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	font-size: 1.6em;
+	line-height: 1;
 }
 
 .audio {

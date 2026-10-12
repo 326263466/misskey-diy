@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.stream">
 				<MkNoteMediaGrid v-for="note in notes" :note="note"/>
 			</div>
-			<MkButton rounded full @click="emit('showMore')">{{ i18n.ts.showMore }} <i class="ti ti-arrow-right"></i></MkButton>
+			<MkButton rounded full @click="emit('showMore')">{{ i18n.ts.showMore }} <i class="ti ti-arrow-right" aria-hidden="true"></i></MkButton>
 		</div>
 		<p v-if="!fetching && notes.length == 0">{{ i18n.ts.nothing }}</p>
 	</div>

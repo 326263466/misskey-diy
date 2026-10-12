@@ -34,7 +34,7 @@ export async function copyNoteLink(note: Misskey.entities.Note): Promise<void> {
 	// Unlike sharing displayed content, copying a renote link must retain its own ID.
 	const data = getShareData(note);
 	if (await copyShareLink(data.url)) {
-		os.toast(i18n.ts.copiedToClipboard);
+		os.success(i18n.ts.copiedToClipboard);
 	} else {
 		// Keep a selectable link available even when browser clipboard access fails.
 		openShareDialog(data);

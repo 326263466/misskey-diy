@@ -6,8 +6,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-@use '../../frontend-shared/styles/refresh-icon.scss';
+@use '../../frontend-shared/styles/emoji.scss';
+@use '../../frontend-shared/styles/tabler-icons.scss';
 @use '../../frontend-shared/styles/scrollbar.scss';
+@use '../../frontend-shared/styles/image-fade.scss';
 
 :root {
 	--MI-radius: 12px;
@@ -15,6 +17,11 @@
 	--MI-marginHalf: 10px;
 
 	--MI-margin: var(--MI-marginFull);
+
+	// 全站统一分割线：颜色、粗细只在这里定义，组件一律用 var(--MI-divider) 等变量，scripts/check-divider-style.mjs 会拦截自定义写法。
+	--MI-dividerWidth: 0.8px;
+	--MI-dividerColor: color-mix(in srgb, var(--MI_THEME-divider) 30%, transparent);
+	--MI-divider: var(--MI-dividerWidth) solid var(--MI-dividerColor);
 }
 
 html {
@@ -76,21 +83,6 @@ rt {
 	&:hover {
 		text-decoration: none;
 	}
-}
-
-.ti {
-	width: 1.28em;
-	vertical-align: -12%;
-	line-height: 1em;
-
-	&::before {
-		font-size: 128%;
-	}
-}
-
-.ti-fw {
-	display: inline-block;
-	text-align: center;
 }
 
 ._nowrap {
@@ -240,7 +232,7 @@ rt {
 	padding: 10px;
 	box-sizing: border-box;
 	text-align: center;
-	border: solid 0.5px var(--MI_THEME-divider);
+	border: var(--MI-divider);
 	border-radius: var(--MI-radius);
 
 	&:active {
@@ -305,11 +297,11 @@ rt {
 	font-size: var(--mfm-zoom-size);
 
 	.mfm-x2, .mfm-x3, .mfm-x4 {
-		/* only half effective */
+		// only half effective
 		font-size: calc(var(--mfm-zoom-size) / 2 + 50%);
 
 		.mfm-x2, .mfm-x3, .mfm-x4 {
-			/* disabled */
+			// disabled
 			font-size: 100%;
 		}
 	}

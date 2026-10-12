@@ -33,6 +33,8 @@ export function uploadFile(file: File | Blob, options: {
 	name?: string;
 	folderId?: string | null;
 	isSensitive?: boolean;
+	isManaged?: boolean;
+	draftId?: string;
 	caption?: string | null;
 	onProgress?: (ctx: { total: number; loaded: number; }) => void;
 } = {}): UploadReturnType {
@@ -74,6 +76,8 @@ export function uploadFile(file: File | Blob, options: {
 		}, { once: true });
 
 		xhr.open('POST', apiUrl + '/drive/files/create', true);
+		xhr.onerror = () => reject(new Error('Upload failed because of a network error'));
+		xhr.ontimeout = () => reject(new Error('Upload timed out'));
 		xhr.onload = ((ev: ProgressEvent<XMLHttpRequest>) => {
 			if (xhr.status !== 200 || ev.target == null || ev.target.response == null) {
 				if (xhr.status === 413) {
@@ -143,6 +147,8 @@ export function uploadFile(file: File | Blob, options: {
 		formData.append('file', file);
 		formData.append('name', options.name ?? (file instanceof File ? file.name : 'untitled'));
 		formData.append('isSensitive', options.isSensitive ? 'true' : 'false');
+		if (options.isManaged) formData.append('isManaged', 'true');
+		if (options.isManaged && options.draftId) formData.append('draftId', options.draftId);
 		if (options.caption != null) formData.append('comment', options.caption);
 		if (options.folderId) formData.append('folderId', options.folderId);
 
@@ -162,6 +168,8 @@ export function chooseFileFromPcAndUpload(
 		multiple?: boolean;
 		features?: UploaderFeatures;
 		folderId?: string | null;
+		isManaged?: boolean;
+		draftId?: string;
 	} = {},
 ): Promise<Misskey.entities.DriveFile[]> {
 	return new Promise((res, rej) => {
@@ -169,6 +177,8 @@ export function chooseFileFromPcAndUpload(
 			if (files.length === 0) return;
 			os.launchUploader(files, {
 				folderId: options.folderId,
+				isManaged: options.isManaged,
+				draftId: options.draftId,
 				features: options.features,
 			}).then(driveFiles => {
 				res(driveFiles);
@@ -229,7 +239,7 @@ export function chooseFileFromUrl(): Promise<Misskey.entities.DriveFile> {
 	});
 }
 
-function select(anchorElement: HTMLElement | EventTarget | null, label: string | null, multiple: boolean, features?: UploaderFeatures): Promise<Misskey.entities.DriveFile[]> {
+function select(anchorElement: HTMLElement | EventTarget | null, label: string | null, multiple: boolean, features?: UploaderFeatures, isManaged?: boolean, draftId?: string): Promise<Misskey.entities.DriveFile[]> {
 	return new Promise((res, rej) => {
 		os.popupMenu([label ? {
 			text: label,
@@ -237,7 +247,7 @@ function select(anchorElement: HTMLElement | EventTarget | null, label: string |
 		} : null, {
 			text: i18n.ts.upload,
 			icon: 'ti ti-upload',
-			action: () => chooseFileFromPcAndUpload({ multiple, features }).then(files => res(files)),
+			action: () => chooseFileFromPcAndUpload({ multiple, features, isManaged, draftId }).then(files => res(files)),
 		}, {
 			text: i18n.ts.fromDrive,
 			icon: 'ti ti-cloud',
@@ -255,13 +265,15 @@ type SelectFileOptions<M extends boolean> = {
 	multiple: M;
 	label?: string | null;
 	features?: UploaderFeatures;
+	isManaged?: boolean;
+	draftId?: string;
 };
 
 export async function selectFile<
 	M extends boolean,
 	MR extends M extends true ? Misskey.entities.DriveFile[] : Misskey.entities.DriveFile,
 >(opts: SelectFileOptions<M>): Promise<MR> {
-	const files = await select(opts.anchorElement, opts.label ?? null, opts.multiple ?? false, opts.features);
+	const files = await select(opts.anchorElement, opts.label ?? null, opts.multiple ?? false, opts.features, opts.isManaged, opts.draftId);
 	return opts.multiple ? (files as MR) : (files[0]! as MR);
 }
 

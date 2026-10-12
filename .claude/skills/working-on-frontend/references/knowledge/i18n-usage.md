@@ -28,7 +28,7 @@
 
   YAML 側に `{name}` 形式のプレースホルダが含まれているキーは **`i18n.tsx`** からしか呼べない。誤って `i18n.ts.unfollowConfirm` と書くと値がフォーマット前の関数になってそのまま表示される。
 
-- **既存キーの再利用が第一**。新キー追加が必要に見えても、まず `locales/ja-JP.yml` を grep して `deleteAreYouSure({ x })` のような汎用キー (`x` プレースホルダ) が転用可能でないか確認する。新キー追加は [tasks/adding-i18n-key.md](../tasks/adding-i18n-key.md)。他言語ファイルは Crowdin の自動配信先なので絶対に手で触らない
+- **既存キーの再利用が第一**。新キー追加が必要に見えても、まず `locales/zh-CN.yml` を grep して `deleteAreYouSure({ x })` のような汎用キー (`x` プレースホルダ) が転用可能でないか確認する。新キー追加は [tasks/adding-i18n-key.md](../tasks/adding-i18n-key.md)。他言語ファイルは Crowdin の自動配信先なので絶対に手で触らない
 
 ```vue
 <script lang="ts" setup>
@@ -60,14 +60,14 @@ async function onDelete() {
 
 ### HTML タグ埋め込み
 
-ja-JP.yml の値に `<b>` / `<br>` / `<strong>` を含めて、表示側で v-html や `<Mfm>` で描画するパターンが多用されている。
+zh-CN.yml の値に `<b>` / `<br>` / `<strong>` を含めて、表示側で v-html や `<Mfm>` で描画するパターンが多用されている。
 
 ```yaml
-# locales/ja-JP.yml
-poweredByMisskeyDescription: "{name}は、オープンソースのプラットフォーム<b>Misskey</b>のサーバーのひとつです。"
+# locales/zh-CN.yml
+poweredByMisskeyDescription: "{name} 是开源平台 <b>Misskey</b> 的服务器之一。"
 
-# locales/ja-JP.yml (改行 + br)
-driveAboutTip: "ドライブでは、過去に...<br>\nノートに添付する際に再利用したり...<br>\n<b>ファイルを削除すると...</b><br>\n..."
+# locales/zh-CN.yml (改行 + br)
+driveAboutTip: "网盘可管理、复用或预先上传文件，也可用文件夹整理。<br>\n<b>删除文件后，帖子、页面、头像等使用它的地方将无法显示该文件。</b>"
 ```
 
 参照側:
@@ -153,24 +153,24 @@ i18n.tsx.iHaveReadXCarefullyAndAgree({ x: i18n.ts.serverRules })
 
 ## Crowdin 安全策 (既存キーのリネーム / 復旧)
 
-ja-JP.yml 以外の locales/*.yml は **Crowdin の自動配信先**。手動編集や source 側の不用意な操作で他言語の翻訳資産が失われる。
+zh-CN.yml 以外の locales/*.yml は **Crowdin の自動配信先**。手動編集や source 側の不用意な操作で他言語の翻訳資産が失われる。
 
 ### 同期メカニズム
 
 [crowdin.yml](../../../../../crowdin.yml):
 ```yaml
 files:
-  - source: /locales/ja-JP.yml
+  - source: /locales/zh-CN.yml
     translation: /locales/%locale%.yml
     update_option: update_as_unapproved
 ```
 
-- `ja-JP.yml` = **source**。これだけが翻訳元
-- `en-US.yml` / `fr-FR.yml` ほか `ja-JP.yml` 以外の全 locale = **translation**。Crowdin が自動 PR で更新する
+- `zh-CN.yml` = **source**。これだけが翻訳元
+- `en-US.yml` / `fr-FR.yml` ほか `zh-CN.yml` 以外の全 locale = **translation**。Crowdin が自動 PR で更新する
 - 翻訳済みキーの **source 文字列が変わると** `update_as_unapproved` 設定により翻訳が "unapproved" 状態に戻る (= レビュー再要求)
 - **キー名自体が変わる** と Crowdin は別キー扱いし、旧キーの翻訳は孤立 → 同期で削除される
 
-根拠: [locales/README.md](../../../../../locales/README.md) "DO NOT edit locale files except `ja-JP.yml`."
+根拠: [locales/README.md](../../../../../locales/README.md) "DO NOT edit locale files except `zh-CN.yml`."
 
 ### 既存キーをリネームしたい時 (3 段階)
 
@@ -178,45 +178,45 @@ files:
 
 #### Step 1: 新キー追加 (PR A)
 
-旧キーを残したまま、新キー (同等の意味の日本語) を ja-JP.yml に追加する。
+旧キーを残したまま、新キー (同等の意味の簡体字中国語) を zh-CN.yml に追加する。
 
 ```yaml
 # 旧キー (まだ残す)
 _settings:
-  theme: "テーマ"
+  theme: "主题"
 # 新キー (追加)
-  appearance: "外観"
+  appearance: "外观"
 ```
 
 参照箇所も新キーに移行 (frontend の全 grep + 置換)。
 
 #### Step 2: マージ → Crowdin 翻訳が来るのを待つ
 
-Crowdin の自動 PR で他言語にも `appearance` が追加され、翻訳が入る。`update_option: update_as_unapproved` のため、初回は unapproved 状態。プロジェクト管理者が approve するまで本番には載らない (フォールバックで日本語が出る)。
+Crowdin の自動 PR で他言語にも `appearance` が追加され、翻訳が入る。`update_option: update_as_unapproved` のため、初回は unapproved 状態。プロジェクト管理者が approve するまで本番には載らない (フォールバックで英語または簡体字中国語が出る)。
 
 通常は数日〜数週間。急ぐ場合は Crowdin プロジェクト管理者に依頼。
 
 #### Step 3: 旧キー削除 (PR B)
 
-新キーの翻訳が十分埋まった後、別 PR で旧キー (`theme`) を ja-JP.yml から削除。次の Crowdin 同期で他言語からも消える。
+新キーの翻訳が十分埋まった後、別 PR で旧キー (`theme`) を zh-CN.yml から削除。次の Crowdin 同期で他言語からも消える。
 
 ### 単純リネームをやってしまったら
 
 ```bash
 # git diff で他言語 yml が変更されていないか必ず確認 (出力が空なら OK)
-git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'
+git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/zh-CN\.yml$'
 ```
 
-`grep -v 'ja-JP.yml'` を diff 本文に当てる書き方は、ja-JP.yml 単体の変更でも追加行 (`+`) が素通りして必ず非空になるため使わない。**ファイル名にだけ grep を当てる** こと。
+`grep -v 'zh-CN.yml'` を diff 本文に当てる書き方は、zh-CN.yml 単体の変更でも追加行 (`+`) が素通りして必ず非空になるため使わない。**ファイル名にだけ grep を当てる** こと。
 
 - **他言語 yml が変更されていたら即 revert**:
   ```bash
   git restore --source=develop -- locales/en-US.yml locales/<lang>.yml
   ```
 
-- ja-JP.yml だけで旧キー削除 + 新キー追加してしまった場合は、PR を分割するか、上記 3 段階に組み直す。**マージ前なら間に合う**
+- zh-CN.yml だけで旧キー削除 + 新キー追加してしまった場合は、PR を分割するか、上記 3 段階に組み直す。**マージ前なら間に合う**
 
-### ja-JP.yml 以外を触ってしまったら
+### zh-CN.yml 以外を触ってしまったら
 
 ```bash
 # 最も安全な復旧: develop 側の中身に戻す
@@ -225,7 +225,7 @@ git restore --source=develop -- locales/en-US.yml
 git checkout HEAD -- locales/zh-CN.yml
 ```
 
-PR 化前なら何度でもやり直せる。**マージしてしまうと Crowdin 側との整合性が崩れて手動回復が必要** になるので、PR レビュー段階で必ず `locales/*.yml` (ja-JP 以外) の diff がゼロであることを確認する。
+PR 化前なら何度でもやり直せる。**マージしてしまうと Crowdin 側との整合性が崩れて手動回復が必要** になるので、PR レビュー段階で必ず `locales/*.yml` (zh-CN 以外) の diff がゼロであることを確認する。
 
 ## トラブルシュート
 
@@ -240,7 +240,7 @@ packages/frontend/src/components/MkXxx.vue
   Property 'newKey' does not exist on type 'Locale'.
 ```
 
-**原因**: ja-JP.yml にキーは追加したが、`packages/i18n` の型生成 (`autogen/locale.ts`) が再生成されていない。
+**原因**: zh-CN.yml にキーは追加したが、`packages/i18n` の型生成 (`autogen/locale.ts`) が再生成されていない。
 
 **対処**:
 
@@ -277,9 +277,9 @@ i18n.tsx.save({...})
 
 **症状**: 開発モードのコンソールに出る。
 
-**原因**: dev mode の Proxy が ja-JP.yml に存在しないキーへのアクセスを検知 ([packages/frontend-shared/js/i18n.ts](../../../../../packages/frontend-shared/js/i18n.ts) の dev 用 Proxy)。
+**原因**: dev mode の Proxy が zh-CN.yml に存在しないキーへのアクセスを検知 ([packages/frontend-shared/js/i18n.ts](../../../../../packages/frontend-shared/js/i18n.ts) の dev 用 Proxy)。
 
-**対処**: ja-JP.yml に該当キーを追加するか、参照側のタイポを直す。
+**対処**: zh-CN.yml に該当キーを追加するか、参照側のタイポを直す。
 
 ### 実行時警告: `Missing locale parameters: <param> at <key>`
 
@@ -304,20 +304,20 @@ i18n.tsx.save({...})
 
 ```yaml
 # OK: HTML タグを含む
-poweredByMisskeyDescription: "{name}は、...プラットフォーム<b>Misskey</b>のサーバーのひとつです。"
+poweredByMisskeyDescription: "{name} 是开源平台 <b>Misskey</b> 的服务器之一。"
 
 # OK: コロン・シングルクォート・角括弧を含む URL 説明
-objectStorageBaseUrlDesc: "参照に使用するURL。CDNやProxyを使用している場合はそのURL、S3: 'https://<bucket>.s3.amazonaws.com'、GCS等: 'https://storage.googleapis.com/<bucket>'。"
+objectStorageBaseUrlDesc: "引用时使用的 URL。使用 CDN 或代理时填写其 URL，S3: 'https://<bucket>.s3.amazonaws.com'，GCS 等: 'https://storage.googleapis.com/<bucket>'。"
 
 # OK: 改行をリテラルで埋め込む
-driveAboutTip: "ドライブでは、過去にアップロードしたファイルの...<br>\nノートに添付する際に..."
+driveAboutTip: "网盘可管理、复用或预先上传文件...<br>\n<b>删除文件后...</b>"
 ```
 
 YAML の block scalar (`|` / `>`) も使えるが、HTML タグ + プレースホルダ混在では **ダブルクォート + `\n` エスケープ** の方が安定する。
 
 ### キー名衝突: `_lang_` を上書きしてしまう
 
-**症状**: 各言語ファイルの先頭にある `_lang_` (例: ja-JP は `"日本語"`) を別用途で使おうとして上書き。
+**症状**: 各言語ファイルの先頭にある `_lang_` (例: zh-CN は `"中文(简体)"`) を別用途で使おうとして上書き。
 
 **原因**: `_lang_` は **言語自身の表記** に予約されている ([packages/i18n/src/autogen/locale.ts](../../../../../packages/i18n/src/autogen/locale.ts) の先頭キー)。
 
@@ -325,7 +325,7 @@ YAML の block scalar (`|` / `>`) も使えるが、HTML タグ + プレース�
 
 ### frontend で diff を当てても変わらない
 
-**症状**: ja-JP.yml を変更したが画面に反映されない。
+**症状**: zh-CN.yml を変更したが画面に反映されない。
 
 **原因**:
 
@@ -373,20 +373,20 @@ const text = files.length === 1
 各 yml ファイルの **トップレベル先頭** に置かれ、その言語自身の表記名を持つ。
 
 ```yaml
-# locales/ja-JP.yml (トップレベル先頭)
-_lang_: "日本語"
+# locales/zh-CN.yml (トップレベル先頭)
+_lang_: "中文(简体)"
 ```
 
 UI の言語切替プルダウンなどで参照される。**新規キーには使わない**。
 
 ### Storybook での挙動
 
-Storybook 環境はバンドラが別物なので、本番の i18n パッケージをそのままは使わない。代わりに [packages/frontend/.storybook/preload-locale.ts](../../../../../packages/frontend/.storybook/preload-locale.ts) がビルド時に **ja-JP の locale だけを JSON にダンプして同居 `locale.ts` を生成** する。
+Storybook 環境はバンドラが別物なので、本番の i18n パッケージをそのままは使わない。代わりに [packages/frontend/.storybook/preload-locale.ts](../../../../../packages/frontend/.storybook/preload-locale.ts) がビルド時に **zh-CN の locale だけを JSON にダンプして同居 `locale.ts` を生成** する。
 
 つまり Storybook では:
 
-- **ja-JP の文字列だけが見える** (他言語の検証はできない)
-- ja-JP.yml にキーを追加した直後に Storybook を起動しても、`preload-locale.ts` 実行前なら反映されない。Storybook を再起動するか、`packages/i18n` を一度 build する
+- **zh-CN の文字列だけが見える** (他言語の検証はできない)
+- zh-CN.yml にキーを追加した直後に Storybook を起動しても、`preload-locale.ts` 実行前なら反映されない。Storybook を再起動するか、`packages/i18n` を一度 build する
 - stories からの呼び方は通常通り: `i18n.tsx._dialog.charactersBelow({ current: 0, min: 2 })`
 
 ### backend での i18n 直接参照は基本無し

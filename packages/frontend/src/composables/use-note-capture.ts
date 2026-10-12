@@ -15,6 +15,7 @@ import { store } from '@/store.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
+import { getMyReactions, normalizeReaction } from '@/utility/normalize-reaction.js';
 
 export const noteEvents = new EventEmitter<{
 	[ev: `statsUpdated:${string}`]: () => void;
@@ -27,7 +28,7 @@ export const noteEvents = new EventEmitter<{
 	[ev: `unrenoted:${string}`]: (ctx: { noteId: Misskey.entities.Note['id']; }) => void;
 }>();
 
-type PartialNoteData = Pick<Misskey.entities.Note, 'reactions' | 'reactionEmojis' | 'repliesCount' | 'renoteCount' | 'viewsCount' | 'favoritesCount' | 'isFavorited'> & Misskey.entities.LikeState;
+type PartialNoteData = Pick<Misskey.entities.Note, 'reactions' | 'reactionEmojis' | 'myReactions' | 'repliesCount' | 'renoteCount' | 'viewsCount' | 'favoritesCount' | 'isFavorited'> & Misskey.entities.LikeState;
 type PartialNoteFetchData = { requestId: number; } & (
 	(PartialNoteData & { deleted: false; }) | { deleted: true; deletedBy?: Misskey.entities.Note['deletedBy']; }
 );
@@ -212,6 +213,7 @@ const pollingQueue = new Map<string, {
 }>();
 
 function pollingEnqueue(note: Pick<Misskey.entities.Note, 'id' | 'createdAt'>) {
+	ensurePollingTimer();
 	if (pollingQueue.has(note.id)) {
 		const data = pollingQueue.get(note.id)!;
 		pollingQueue.set(note.id, {
@@ -238,16 +240,16 @@ function pollingDequeue(note: Pick<Misskey.entities.Note, 'id' | 'createdAt'>) {
 			referenceCount: data.referenceCount - 1,
 		});
 	}
+	if (pollingQueue.size === 0) {
+		stopPollingTimer?.();
+		stopPollingTimer = null;
+	}
 }
 
 const CAPTURE_MAX = 30;
 const REFRESH_BATCH_DELAY = 50;
 const MIN_POLLING_INTERVAL = 1000 * 10;
-const POLLING_INTERVAL =
-	prefer.s.pollingInterval === 1 ? MIN_POLLING_INTERVAL * 1.5 * 1.5 :
-	prefer.s.pollingInterval === 2 ? MIN_POLLING_INTERVAL * 1.5 :
-	prefer.s.pollingInterval === 3 ? MIN_POLLING_INTERVAL :
-	MIN_POLLING_INTERVAL;
+let stopPollingTimer: (() => void) | null = null;
 const pendingRefreshNoteIds = new Set<Misskey.entities.Note['id']>();
 let pendingRefreshTimer: number | null = null;
 let nextFetchRequestId = 0;
@@ -279,6 +281,7 @@ function fetchPartialNotes(noteIds: Misskey.entities.Note['id'][]): void {
 				likeUsers: item.likeUsers,
 				reactions: item.reactions,
 				reactionEmojis: item.reactionEmojis,
+				myReactions: item.myReactions,
 				repliesCount: item.repliesCount,
 				renoteCount: item.renoteCount,
 				viewsCount: item.viewsCount,
@@ -309,15 +312,20 @@ function requestNoteRefresh(noteId: Misskey.entities.Note['id']): void {
 	pendingRefreshTimer = window.setTimeout(flushPendingRefreshes, REFRESH_BATCH_DELAY);
 }
 
-// 所有统计共用批量校准，补齐丢失的推送；不可见时由订阅和计时器共同暂停。
-createVisibilityAwareInterval(() => {
-	const ids = [...pollingQueue.entries()]
-		.sort(([, a], [, b]) => a.lastFetchRequestId - b.lastFetchRequestId)
-		.map(([id]) => id)
-		.slice(0, CAPTURE_MAX);
+function ensurePollingTimer() {
+	if (stopPollingTimer) return;
+	// 首次订阅后再读取偏好，避免媒体组件的循环依赖在应用启动时访问未初始化的 prefer。
+	const interval = prefer.s.pollingInterval === 1 ? MIN_POLLING_INTERVAL * 1.5 * 1.5
+		: prefer.s.pollingInterval === 2 ? MIN_POLLING_INTERVAL * 1.5 : MIN_POLLING_INTERVAL;
+	stopPollingTimer = createVisibilityAwareInterval(() => {
+		const ids = [...pollingQueue.entries()]
+			.sort(([, a], [, b]) => a.lastFetchRequestId - b.lastFetchRequestId)
+			.map(([id]) => id)
+			.slice(0, CAPTURE_MAX);
 
-	fetchPartialNotes(ids);
-}, POLLING_INTERVAL);
+		fetchPartialNotes(ids);
+	}, interval);
+}
 
 function pollingSubscribe(props: {
 	note: Pick<Misskey.entities.Note, 'id' | 'createdAt'>;
@@ -436,13 +444,11 @@ export type ReactiveNoteData = {
 	reactions: Misskey.entities.Note['reactions'];
 	reactionCount: Misskey.entities.Note['reactionCount'];
 	reactionEmojis: Misskey.entities.Note['reactionEmojis'];
-	myReaction: Misskey.entities.Note['myReaction'];
+	myReactions: string[];
 	repliesCount: Misskey.entities.Note['repliesCount'];
 	renoteCount: Misskey.entities.Note['renoteCount'];
 	pollChoices: NonNullable<Misskey.entities.Note['poll']>['choices'];
 };
-
-const noReaction = Symbol();
 
 export function useNoteCapture(props: {
 	note: Misskey.entities.Note;
@@ -473,7 +479,7 @@ export function useNoteCapture(props: {
 		likeUsers: note.likeUsers ?? [],
 		reactions: Object.entries(note.reactions).reduce((acc, [name, count]) => {
 			// Normalize reactions
-			const normalizedName = name.replace(/^:(\w+):$/, ':$1@.:');
+			const normalizedName = normalizeReaction(name);
 			if (acc[normalizedName] == null) {
 				acc[normalizedName] = count;
 			} else {
@@ -483,7 +489,7 @@ export function useNoteCapture(props: {
 		}, {} as Misskey.entities.Note['reactions']),
 		reactionCount: note.reactionCount,
 		reactionEmojis: note.reactionEmojis,
-		myReaction: note.myReaction,
+		myReactions: getMyReactions(note),
 		repliesCount: note.repliesCount,
 		renoteCount: note.renoteCount,
 		pollChoices: note.poll?.choices ?? [],
@@ -512,6 +518,15 @@ export function useNoteCapture(props: {
 		$note.reactions = data.reactions;
 		$note.reactionCount = Object.values(data.reactions).reduce((a, b) => a + b, 0);
 		$note.reactionEmojis = data.reactionEmojis;
+		if (data.myReactions != null) {
+			$note.myReactions = getMyReactions(data);
+			if ($i) {
+				const previous = reactionUserMap.get($i.id);
+				const ownState = new Map<string, boolean>([...(previous?.keys() ?? [])].map(reaction => [reaction, false]));
+				for (const reaction of $note.myReactions) ownState.set(reaction, true);
+				reactionUserMap.set($i.id, ownState);
+			}
+		}
 		$note.repliesCount = data.repliesCount;
 		$note.renoteCount = data.renoteCount;
 		$note.viewsCount = data.viewsCount;
@@ -546,8 +561,9 @@ export function useNoteCapture(props: {
 	fetchStartedEvent.on(note.id, onFetchStarted);
 	fetchEvent.on(note.id, onFetched);
 
-	// 操作がダブっていないかどうかを簡易的に記録するためのMap
-	const reactionUserMap = new Map<Misskey.entities.User['id'], string | typeof noReaction>();
+	// 同一用户的不同表情独立去重，避免本地确认和流事件重复计数。
+	const reactionUserMap = new Map<Misskey.entities.User['id'], Map<string, boolean>>();
+	if ($i) reactionUserMap.set($i.id, new Map($note.myReactions.map(reaction => [reaction, true])));
 	let latestPollVotedKey: string | null = null;
 
 	// 同じ返信について重複した投稿/削除イベントを一度だけ反映する
@@ -557,10 +573,11 @@ export function useNoteCapture(props: {
 	const renoteEventState = new Map<Misskey.entities.Note['id'], 'renoted' | 'unrenoted'>();
 
 	function onReacted(ctx: { userId: Misskey.entities.User['id']; reaction: string; emoji?: { name: string; url: string; } | null; }): void {
-		let normalizedName = ctx.reaction.replace(/^:(\w+):$/, ':$1@.:');
-		if (!normalizedName.startsWith('text:') && !normalizedName.includes('\u200d')) normalizedName = normalizedName.replace(/\ufe0f/g, '');
-		if (reactionUserMap.has(ctx.userId) && reactionUserMap.get(ctx.userId) === normalizedName) return;
-		reactionUserMap.set(ctx.userId, normalizedName);
+		const normalizedName = normalizeReaction(ctx.reaction);
+		const userReactions = reactionUserMap.get(ctx.userId) ?? new Map<string, boolean>();
+		if (userReactions.get(normalizedName) === true) return;
+		userReactions.set(normalizedName, true);
+		reactionUserMap.set(ctx.userId, userReactions);
 		mutationVersion++;
 
 		if (ctx.emoji && !(ctx.emoji.name in $note.reactionEmojis)) {
@@ -573,28 +590,27 @@ export function useNoteCapture(props: {
 		$note.reactionCount += 1;
 
 		if ($i && (ctx.userId === $i.id)) {
-			$note.myReaction = normalizedName;
+			$note.myReactions = [...new Set([...$note.myReactions, normalizedName])];
 		}
 		if (active.value && !mock) requestNoteRefresh(note.id);
 	}
 
 	function onUnreacted(ctx: { userId: Misskey.entities.User['id']; reaction: string; emoji?: { name: string; url: string; } | null; }): void {
-		let normalizedName = ctx.reaction.replace(/^:(\w+):$/, ':$1@.:');
-		if (!normalizedName.startsWith('text:') && !normalizedName.includes('\u200d')) normalizedName = normalizedName.replace(/\ufe0f/g, '');
-
-		// 確実に一度リアクションされて取り消されている場合のみ処理をとめる（APIで初回読み込み→Streamでアップデート等の場合、reactionUserMapに情報がないため）
-		if (reactionUserMap.has(ctx.userId) && reactionUserMap.get(ctx.userId) === noReaction) return;
-		reactionUserMap.set(ctx.userId, noReaction);
+		const normalizedName = normalizeReaction(ctx.reaction);
+		const userReactions = reactionUserMap.get(ctx.userId) ?? new Map<string, boolean>();
+		if (userReactions.get(normalizedName) === false) return;
+		userReactions.set(normalizedName, false);
+		reactionUserMap.set(ctx.userId, userReactions);
 		mutationVersion++;
 
 		const currentCount = $note.reactions[normalizedName] || 0;
 
 		$note.reactions[normalizedName] = Math.max(0, currentCount - 1);
-		$note.reactionCount = Math.max(0, $note.reactionCount - 1);
+		if (currentCount > 0) $note.reactionCount = Math.max(0, $note.reactionCount - 1);
 		if ($note.reactions[normalizedName] === 0) delete $note.reactions[normalizedName];
 
 		if ($i && (ctx.userId === $i.id)) {
-			$note.myReaction = null;
+			$note.myReactions = $note.myReactions.filter(reaction => reaction !== normalizedName);
 		}
 		if (active.value && !mock) requestNoteRefresh(note.id);
 	}

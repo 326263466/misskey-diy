@@ -11,7 +11,8 @@ let dialogOpen = false;
 
 export async function confirmExternalLink(event: MouseEvent): Promise<void> {
 	if (event.defaultPrevented || event.button > 1) return;
-	const anchor = event.currentTarget;
+	const anchor = event.currentTarget instanceof HTMLAnchorElement ? event.currentTarget
+		: event.target instanceof Element ? event.target.closest('a[href]') : null;
 	if (!(anchor instanceof HTMLAnchorElement)) return;
 
 	// Read the actual href so the displayed destination is the one being opened.

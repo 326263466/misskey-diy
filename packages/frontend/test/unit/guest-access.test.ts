@@ -69,6 +69,10 @@ describe('public browsing and authenticated interactions', () => {
 		const view = render(MobileFooter);
 		expect(view.queryByRole('button', { name: i18n.ts.notifications })).toBeNull();
 		expect(view.queryByRole('button', { name: i18n.ts.widgets })).toBeNull();
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.home }));
+		expect(mocks.push).toHaveBeenLastCalledWith('/');
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts.timeline }));
+		expect(mocks.push).toHaveBeenLastCalledWith('/timeline');
 		await fireEvent.click(view.getByRole('button', { name: i18n.ts.search }));
 		expect(mocks.push).toHaveBeenCalledWith('/search');
 		expect(mocks.login).not.toHaveBeenCalled();
@@ -77,7 +81,7 @@ describe('public browsing and authenticated interactions', () => {
 	});
 
 	test('asks a visitor to log in before sending a like mutation', async () => {
-		const { toggleLike, liking } = useLike('public-note', { isLiked: false, likesCount: 0 });
+		const { toggleLike, liking } = useLike('public-note', { isLiked: false, likeCount: 0, likeUsers: [] });
 		await toggleLike();
 		expect(mocks.login).toHaveBeenCalledOnce();
 		expect(mocks.api).not.toHaveBeenCalled();

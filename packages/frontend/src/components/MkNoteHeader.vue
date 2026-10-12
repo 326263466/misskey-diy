@@ -4,9 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<header :class="$style.root">
+<header :class="[$style.root, { [$style.detailLayout]: detailLayout, [$style.mini]: mini }]">
 	<div :class="$style.primaryLine">
 		<div :class="$style.authorLine">
+			<slot name="avatar"></slot>
 			<div v-if="mock" :class="$style.name">
 				<MkUserName :user="user"/>
 			</div>
@@ -15,23 +16,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkA>
 			<div v-if="showAuthorBadge || user.isBot" :class="$style.badges">
 				<div v-if="showAuthorBadge" :class="$style.badge">{{ i18n.ts.author }}</div>
-				<div v-if="user.isBot" :class="$style.badge">bot</div>
+				<i v-if="user.isBot" v-tooltip="'bot'" class="ti ti-robot" :class="$style.badge" role="img" aria-label="bot"></i>
 			</div>
 			<div v-if="user.badgeRoles && user.badgeRoles.length > 0" :class="$style.badgeRoles">
 				<img v-for="(role, i) in user.badgeRoles" :key="i" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl!"/>
 			</div>
 		</div>
-		<div :class="$style.meta">
-			<MkA :class="$style.account" :to="userPage(user)"><MkAcct :user="user"/></MkA>
-			<span v-if="note.visibility !== 'public'" :title="i18n.ts._visibility[note.visibility]">
+		<div v-if="!mini && !detailLayout && (showVisibility || note.visibility !== 'public')" :class="$style.meta">
+			<span v-if="!detailLayout && (showVisibility || note.visibility !== 'public')" :title="i18n.ts._visibility[note.visibility]">
+				<i v-if="note.visibility === 'public'" class="ti ti-world"></i>
 				<i v-if="note.visibility === 'home'" class="ti ti-home"></i>
 				<i v-else-if="note.visibility === 'followers'" class="ti ti-lock"></i>
 				<i v-else-if="note.visibility === 'specified'" ref="specified" class="ti ti-mail"></i>
 			</span>
-			<span v-if="note.localOnly && !note.redPacket" :title="i18n.ts._visibility['disableFederation']"><i class="ti ti-rocket-off"></i></span>
 		</div>
+		<template v-if="detailLayout">
+			<MkTime v-if="showTime && mock" :time="note.createdAt" mode="date" :class="$style.time"/>
+			<MkA v-else-if="showTime" :class="$style.time" :to="notePage(note)"><MkTime :time="note.createdAt" mode="date"/></MkA>
+			<span v-if="viewsCount != null" :class="$style.views" :title="i18n.ts.viewsCount"><i class="ti ti-eye" role="img" :aria-label="i18n.ts.viewsCount"></i> {{ viewsCount.toLocaleString() }}</span>
+		</template>
+		<template v-else-if="mini && showTime">
+			<div v-if="mock" :class="$style.time"><MkTime :time="note.createdAt" colored/></div>
+			<MkA v-else :class="$style.time" :to="notePage(note)"><MkTime :time="note.createdAt" colored/></MkA>
+		</template>
 	</div>
-	<div v-if="hasWork || showTime" :class="$style.secondaryLine">
+	<div v-if="!mini && !detailLayout && (hasWork || showTime)" :class="$style.secondaryLine">
 		<MkUserWork :user="user" :class="$style.work"/>
 		<span v-if="hasWork && showTime" :class="$style.separator" aria-hidden="true">·</span>
 		<div v-if="showTime && mock" :class="$style.time">
@@ -48,8 +57,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, inject } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
-import { notePage } from '@/filters/note.js';
-import { userPage } from '@/filters/user.js';
+import { notePage } from '@@/js/note.js';
+import { userPage } from '@@/js/user.js';
 import { DI } from '@/di.js';
 import MkUserWork from '@/components/MkUserWork.vue';
 import { useUserProfile } from '@/composables/use-user-profile.js';
@@ -58,6 +67,11 @@ const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
 	showAuthorBadge?: boolean;
 	showTime?: boolean;
+	showVisibility?: boolean;
+	detailLayout?: boolean;
+	viewsCount?: number;
+	/** 引用/转发卡片：头像内联名字行，时间紧跟用户名，不显示可见范围图标 */
+	mini?: boolean;
 }>(), {
 	showTime: true,
 });
@@ -129,14 +143,8 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 }
 
 .badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	box-sizing: border-box;
-	padding: 1px 4px;
-	line-height: 1;
-	border: solid 0.5px var(--MI_THEME-divider);
-	border-radius: 3px;
+	display: block;
+	line-height: 1.3;
 }
 
 .meta {
@@ -194,6 +202,32 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 	white-space: nowrap;
 }
 
+// mini 布局的时间内联在名字后，沿用原先次行的时间字号
+.mini .time {
+	font-size: .875em;
+}
+
+.detailLayout .primaryLine {
+	flex-wrap: wrap;
+	gap: 8px 14px;
+	font-size: .9em;
+	line-height: 1.6;
+	white-space: normal;
+}
+
+.detailLayout .name {
+	font-weight: normal;
+	white-space: nowrap;
+}
+
+.views {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
 .badgeRoles {
 	flex: 0 1 auto;
 	min-width: 0;
@@ -204,7 +238,7 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 
 .badgeRole {
 	height: 1.3em;
-	vertical-align: -20%;
+	vertical-align: -0.275em;
 
 	& + .badgeRole {
 		margin-left: 0.2em;

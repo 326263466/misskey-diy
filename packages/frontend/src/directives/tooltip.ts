@@ -20,6 +20,7 @@ type TooltipDirectiveState = {
 	text: string | null | undefined;
 	_close: null | (() => void);
 	show: () => void;
+	schedule: () => void;
 	close: () => void;
 
 	abortController: AbortController;
@@ -29,12 +30,26 @@ type TooltipDirectiveState = {
 
 const states = new WeakMap<HTMLElement, TooltipDirectiveState>();
 
-type TooltipDirectiveModifiers = 'left' | 'right' | 'top' | 'bottom' | 'mfm' | 'noDelay' | 'icon';
+/** 列表滚动后按实际命中元素恢复提示，不依赖再次触发鼠标进入事件。 */
+export function refreshTooltipAtPointer(root: HTMLElement, x: number, y: number): void {
+	if (isTouchUsing) return;
+	let target = root.ownerDocument.elementFromPoint(x, y);
+	while (target != null && root.contains(target)) {
+		const state = target instanceof HTMLElement ? states.get(target) : undefined;
+		if (state != null) {
+			state.schedule();
+			return;
+		}
+		target = target.parentElement;
+	}
+}
+
+type TooltipDirectiveModifiers = 'left' | 'right' | 'top' | 'bottom' | 'mfm' | 'noDelay' | 'icon' | 'emoji';
 type TooltipDirectiveArg = 'dialog';
 
 export const tooltipDirective = {
 	mounted(el, binding) {
-		const delay = binding.modifiers.noDelay ? 0 : SHOW_DELAY;
+		const delay = binding.modifiers.noDelay ? 0 : binding.modifiers.emoji ? 150 : SHOW_DELAY;
 
 		const state = {
 			text: binding.value,
@@ -78,11 +93,16 @@ export const tooltipDirective = {
 			const icon = binding.modifiers.icon ? el.querySelector<HTMLElement>(':scope > i') : null;
 			const anchorElement = icon ?? el;
 			const showing = ref(true);
-			const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkTooltip.vue')), {
+			const tooltip = binding.modifiers.emoji
+				? defineAsyncComponent(() => import('@/components/MkReactionTooltip.vue'))
+				: defineAsyncComponent(() => import('@/components/MkTooltip.vue'));
+			const { dispose } = popup(tooltip, {
 				showing,
-				text: state.text,
-				asMfm: binding.modifiers.mfm,
-				direction: binding.modifiers.left ? 'left' : binding.modifiers.right ? 'right' : binding.modifiers.top ? 'top' : 'bottom',
+				...(binding.modifiers.emoji ? { reaction: state.text } : {
+					text: state.text,
+					asMfm: binding.modifiers.mfm,
+					direction: binding.modifiers.left ? 'left' : binding.modifiers.right ? 'right' : binding.modifiers.top ? 'top' : 'bottom',
+				}),
 				anchorElement,
 			}, {
 				closed: () => dispose(),
@@ -117,6 +137,7 @@ export const tooltipDirective = {
 				state.showTimer = window.setTimeout(state.show, wait);
 			}
 		};
+		state.schedule = () => schedule(delay);
 
 		el.addEventListener(start, () => schedule(delay), { passive: true, signal: state.abortController.signal });
 		el.addEventListener('focusin', () => {

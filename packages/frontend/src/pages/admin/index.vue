@@ -44,7 +44,7 @@ import { lookupUser, lookupUserByEmail, lookupFile } from '@/utility/admin-looku
 import { definePage, provideMetadataReceiver, provideReactiveMetadata } from '@/page.js';
 import { useRouter } from '@/router.js';
 import { genSearchIndexes } from '@/utility/inapp-search.js';
-import { useScrollPositionKeeper } from '@/composables/use-scroll-position-keeper.js';
+import { useScrollToTop } from '@/composables/use-scroll-to-top.js';
 
 const router = useRouter();
 // Keep this layout's route while asynchronous setup finishes after navigation.
@@ -69,7 +69,7 @@ const childInfo = ref<null | PageMetadata>(null);
 const narrow = ref(false);
 const view = ref(null);
 const el = ref<HTMLDivElement | null>(null);
-useScrollPositionKeeper(el);
+useScrollToTop(el);
 const pageProps = ref({});
 const noMaintainerInformation = computed(() => isEmpty(instance.maintainerName) || isEmpty(instance.maintainerEmail));
 const noBotProtection = computed(() => !instance.disableRegistration && !instance.enableHcaptcha && !instance.enableRecaptcha && !instance.enableTurnstile && !instance.enableMcaptcha);
@@ -199,7 +199,17 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.general,
 		to: '/admin/settings',
 		active: currentPage.value?.route.name === 'settings',
+	}, ...(iAmAdmin ? [{
+		icon: 'ti ti-category',
+		text: i18n.ts._article.categoryAndTagSettings,
+		to: '/admin/article-categories',
+		active: currentPage.value?.route.name === 'article-categories',
 	}, {
+		icon: 'ti ti-percentage',
+		text: i18n.ts._payments.title,
+		to: '/admin/payments',
+		active: currentPage.value?.route.name === 'payments',
+	}] : []), {
 		icon: 'ti ti-paint',
 		text: i18n.ts.branding,
 		to: '/admin/branding',

@@ -6,10 +6,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkContainer :showHeader="widgetProps.showHeader" data-testid="mkw-trends" class="mkw-trends">
 	<template #icon><i class="ti ti-hash"></i></template>
-	<template #header><span class="heading">{{ i18n.ts._widgets.trends }}</span></template>
+	<template #header>{{ i18n.ts._widgets.trends }}</template>
 
 	<div class="wbrkwala">
-		<MkLoading v-if="fetching"/>
+		<div v-if="fetching" class="placeholder" aria-busy="true">
+			<div v-for="index in 5" :key="index" class="placeholderRow" aria-hidden="true"><span></span><span></span></div>
+		</div>
 		<TransitionGroup v-else tag="div" :name="prefer.s.animation ? 'chart' : ''" class="tags">
 			<MkA v-for="stat in stats" :key="stat.tag" class="row" :to="`/tags/${ encodeURIComponent(stat.tag) }`" :title="stat.tag">
 				<div class="tag">
@@ -90,13 +92,8 @@ defineExpose<WidgetComponentExpose>({
 	--MI-containerHeaderBg: var(--MI_THEME-panel);
 }
 
-.heading {
-	font-size: 1.15em;
-	font-weight: 600;
-}
-
 .wbrkwala {
-	height: (62px + 1px) + (62px + 1px) + (62px + 1px) + (62px + 1px) + 62px;
+	height: (54px + 1px) + (54px + 1px) + (54px + 1px) + (54px + 1px) + 54px;
 	overflow: hidden;
 
 	> .tags {
@@ -107,8 +104,8 @@ defineExpose<WidgetComponentExpose>({
 		> .row {
 			display: flex;
 			align-items: center;
-			padding: 14px var(--MI-cardPadding, 18px);
-			border-bottom: solid 0.5px var(--MI_THEME-divider);
+			padding: 10px var(--MI-cardPadding, 18px);
+			border-bottom: var(--MI-divider);
 
 			&:hover {
 				text-decoration: none;
@@ -148,5 +145,17 @@ defineExpose<WidgetComponentExpose>({
 			}
 		}
 	}
+}
+
+.placeholderRow {
+	height: 55px;
+	box-sizing: border-box;
+	padding: 12px var(--MI-cardPadding, 18px);
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+
+	> span { width: 55%; height: 10px; border-radius: var(--MI-cardRadius); background: var(--MI_THEME-panelHighlight); }
+	> span + span { width: 35%; height: 8px; }
 }
 </style>

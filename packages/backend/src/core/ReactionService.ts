@@ -8,9 +8,11 @@ import { DI } from '@/di-symbols.js';
 import type { EmojisRepository, NoteReactionsRepository, UsersRepository, NotesRepository, MiMeta } from '@/models/_.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import type { MiRemoteUser, MiUser } from '@/models/User.js';
-import type { MiNote } from '@/models/Note.js';
+import { MiNote } from '@/models/Note.js';
 import { IdService } from '@/core/IdService.js';
-import type { MiNoteReaction } from '@/models/NoteReaction.js';
+import { MiNoteReaction } from '@/models/NoteReaction.js';
+import { In } from 'typeorm';
+import type { EntityManager } from 'typeorm';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
@@ -30,7 +32,6 @@ import { trackPromise } from '@/misc/promise-tracker.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { PER_NOTE_REACTION_USER_PAIR_CACHE_MAX } from '@/const.js';
 import { isDeletedReply } from '@/misc/is-reply.js';
-import { normalizeTextReaction, TEXT_REACTION_PREFIX } from '@/misc/reaction.js';
 
 const FALLBACK = '\u2764';
 
@@ -122,17 +123,6 @@ export class ReactionService {
 
 		if (note.reactionAcceptance === 'likeOnly' || ((note.reactionAcceptance === 'likeOnlyForRemote' || note.reactionAcceptance === 'nonSensitiveOnlyForLocalLikeOnlyForRemote') && (user.host != null))) {
 			reaction = '\u2764';
-		} else if (reaction.startsWith(TEXT_REACTION_PREFIX)) {
-			// Text boosts are a local UI extension. Remote Like activities may carry
-			// arbitrary content, so they degrade to the normal Like reaction.
-			const textReaction = user.host == null ? normalizeTextReaction(reaction) : null;
-			if (user.host != null) {
-				reaction = FALLBACK;
-			} else if (textReaction == null) {
-				throw new IdentifiableError('979fafab-ba6d-4316-be72-84010a218365', 'Invalid text reaction.');
-			} else {
-				reaction = textReaction;
-			}
 		} else if (_reaction != null) {
 			const custom = reaction.match(isCustomEmojiRegexp);
 			if (custom) {
@@ -176,45 +166,35 @@ export class ReactionService {
 			noteId: note.id,
 			userId: user.id,
 			reaction,
+			sourceReaction: user.host == null ? null : _reaction ?? FALLBACK,
 		};
 
 		try {
-			await this.noteReactionsRepository.insert(record);
-		} catch (e) {
-			if (isDuplicateKeyValueError(e)) {
-				const exists = await this.noteReactionsRepository.findOneByOrFail({
-					noteId: note.id,
-					userId: user.id,
-				});
-
-				if (exists.reaction !== reaction) {
-					// 別のリアクションがすでにされていたら置き換える
-					await this.delete(user, note);
-					await this.noteReactionsRepository.insert(record);
-				} else {
-					// 同じリアクションがすでにされていたらエラー
+			await this.notesRepository.manager.transaction(async manager => {
+				// 锁定同一帖子，让种类上限、去重和计数在并发请求中保持一致。
+				const current = await manager.findOneOrFail(MiNote, { where: { id: note.id }, lock: { mode: 'pessimistic_write' } });
+				if (isDeletedReply(current)) throw new IdentifiableError('68e9d2d1-48bf-42c2-b90a-b20e09fd3d48');
+				const types = await manager.createQueryBuilder(MiNoteReaction, 'reaction')
+					.select('reaction.reaction', 'reaction').distinct(true)
+					.where('reaction.noteId = :noteId', { noteId: note.id }).getRawMany<{ reaction: string }>();
+				const displayReaction = this.getDisplayReaction(reaction) ?? reaction;
+				const matchingTypes = types.filter(item => this.getDisplayReaction(item.reaction) === displayReaction).map(item => item.reaction);
+				if (matchingTypes.length && await manager.existsBy(MiNoteReaction, { noteId: note.id, userId: user.id, reaction: In(matchingTypes) })) {
 					throw new IdentifiableError('51c42bb4-931a-456b-bff7-e5a8a70dd298');
 				}
+				const displayTypes = new Set(types.map(item => this.getDisplayReaction(item.reaction)).filter(item => item != null));
+				if (!displayTypes.has(displayReaction) && displayTypes.size >= 100) {
+					throw new IdentifiableError('reaction-types-limit', 'A note can contain at most 100 different reactions.');
+				}
+				await manager.insert(MiNoteReaction, record);
+				await this.updateReactionCount(manager, current, user.id, reaction, 1);
+			});
+		} catch (e) {
+			if (isDuplicateKeyValueError(e)) {
+				throw new IdentifiableError('51c42bb4-931a-456b-bff7-e5a8a70dd298');
 			} else {
 				throw e;
 			}
-		}
-
-		// Increment reactions count
-		if (this.meta.enableReactionsBuffering) {
-			await this.reactionsBufferingService.create(note.id, user.id, reaction, note.reactionAndUserPairCache);
-		} else {
-			const sql = 'jsonb_set("reactions", ARRAY[CAST(:reaction AS text)], to_jsonb(COALESCE(("reactions"->>:reaction)::int, 0) + 1))';
-			await this.notesRepository.createQueryBuilder().update()
-				.set({
-					reactions: () => sql,
-					...(note.reactionAndUserPairCache.length < PER_NOTE_REACTION_USER_PAIR_CACHE_MAX ? {
-						reactionAndUserPairCache: () => 'array_append("reactionAndUserPairCache", :reactionPair)',
-					} : {}),
-				})
-				.where('id = :id', { id: note.id })
-				.setParameters({ reaction, reactionPair: `${user.id}/${reaction}` })
-				.execute();
 		}
 
 		// 30%の確率、セルフではない、3日以内に投稿されたノートの場合ハイライト用ランキング更新
@@ -291,44 +271,32 @@ export class ReactionService {
 			trackPromise(dm.execute());
 		}
 		//#endregion
+		return this.decodeReaction(reaction).reaction;
 	}
 
 	@bindThis
-	public async delete(user: { id: MiUser['id']; host: MiUser['host']; isBot: MiUser['isBot']; }, note: MiNote) {
-		// if already unreacted
-		const exist = await this.noteReactionsRepository.findOneBy({
-			noteId: note.id,
-			userId: user.id,
+	public async delete(user: { id: MiUser['id']; host: MiUser['host']; isBot: MiUser['isBot']; }, note: MiNote, reaction: string) {
+		const decoded = this.decodeReaction(reaction);
+		const reactionHost = decoded.host === '.' ? null : decoded.host ?? user.host;
+		const normalized = decoded.name
+			? `:${decoded.name}${reactionHost ? `@${reactionHost}` : ''}:`
+			: this.normalize(decoded.reaction);
+		const exist = await this.notesRepository.manager.transaction(async manager => {
+			const current = await manager.findOneOrFail(MiNote, { where: { id: note.id }, lock: { mode: 'pessimistic_write' } });
+			// 显示表情可以对应旧原值；远端降级后的 Undo 仍必须匹配原始来源。
+			const displayReaction = this.getDisplayReaction(reaction) != null ? this.getDisplayReaction(normalized) : null;
+			const records = await manager.find(MiNoteReaction, { where: { noteId: note.id, userId: user.id }, order: { id: 'DESC' } });
+			const record = records.find(item => user.host != null && item.sourceReaction != null
+				? item.sourceReaction === reaction
+				: item.reaction === reaction || (displayReaction != null && this.getDisplayReaction(item.reaction) === displayReaction));
+			if (!record) throw new IdentifiableError('60527ec9-b4cb-4a88-a6bd-32d3ad26817d', 'not reacted');
+			await manager.delete(MiNoteReaction, record.id);
+			await this.updateReactionCount(manager, current, user.id, record.reaction, -1);
+			return record;
 		});
 
-		if (exist == null) {
-			throw new IdentifiableError('60527ec9-b4cb-4a88-a6bd-32d3ad26817d', 'not reacted');
-		}
-
-		// Delete reaction
-		const result = await this.noteReactionsRepository.delete(exist.id);
-
-		if (result.affected !== 1) {
-			throw new IdentifiableError('60527ec9-b4cb-4a88-a6bd-32d3ad26817d', 'not reacted');
-		}
-
-		// Decrement reactions count
-		if (this.meta.enableReactionsBuffering) {
-			await this.reactionsBufferingService.delete(note.id, user.id, exist.reaction);
-		} else {
-			const sql = 'jsonb_set("reactions", ARRAY[CAST(:reaction AS text)], to_jsonb(COALESCE(("reactions"->>:reaction)::int, 0) - 1))';
-			await this.notesRepository.createQueryBuilder().update()
-				.set({
-					reactions: () => sql,
-					reactionAndUserPairCache: () => 'array_remove("reactionAndUserPairCache", :reactionPair)',
-				})
-				.where('id = :id', { id: note.id })
-				.setParameters({ reaction: exist.reaction, reactionPair: `${user.id}/${exist.reaction}` })
-				.execute();
-		}
-
 		this.globalEventService.publishNoteStream(note, 'unreacted', {
-			reaction: this.decodeReaction(exist.reaction).reaction,
+			reaction: this.getDisplayReaction(exist.reaction) ?? this.decodeReaction(exist.reaction).reaction,
 			userId: user.id,
 		});
 
@@ -344,6 +312,27 @@ export class ReactionService {
 			trackPromise(dm.execute());
 		}
 		//#endregion
+	}
+
+	private async updateReactionCount(manager: EntityManager, note: MiNote, userId: string, reaction: string, delta: 1 | -1): Promise<void> {
+		if (this.meta.enableReactionsBuffering) {
+			if (delta === 1) await this.reactionsBufferingService.create(note.id, userId, reaction, note.reactionAndUserPairCache);
+			else await this.reactionsBufferingService.delete(note.id, userId, reaction);
+			return;
+		}
+		await manager.createQueryBuilder().update(MiNote).set({
+			reactions: () => 'jsonb_set("reactions", ARRAY[CAST(:reaction AS text)], to_jsonb(COALESCE(("reactions"->>:reaction)::int, 0) + :delta))',
+			...(delta === -1 ? { reactionAndUserPairCache: () => 'array_remove("reactionAndUserPairCache", :reactionPair)' }
+				: note.reactionAndUserPairCache.length < PER_NOTE_REACTION_USER_PAIR_CACHE_MAX ? { reactionAndUserPairCache: () => 'array_append("reactionAndUserPairCache", :reactionPair)' } : {}),
+		}).where('id = :id', { id: note.id }).setParameters({ reaction, delta, reactionPair: `${userId}/${reaction}` }).execute();
+	}
+
+	private getDisplayReaction(reaction: string): string | null {
+		const converted = this.convertLegacyReaction(reaction);
+		if (decodeCustomEmojiRegexp.test(converted)) return converted;
+		// 历史文字已不显示，不能归入默认爱心，也不能占用表情种类名额。
+		if (emojiRegex.exec(converted)?.[0] !== converted) return null;
+		return this.normalize(converted);
 	}
 
 	/**

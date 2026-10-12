@@ -15,17 +15,20 @@ import { publishCheckinStatus } from '@/composables/use-checkin-status.js';
 import { ACHIEVEMENT_BADGES, claimAchievement, claimedAchievements, SERVER_AWARDED_ACHIEVEMENT_TYPES } from '@/utility/achievements.js';
 import { checkinRewardForecast } from '@/utility/checkin.js';
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), confirm: vi.fn(), alert: vi.fn(), popup: vi.fn(), dispose: vi.fn(), account: { id: 'self', username: 'self', createdAt: '2023-01-01T00:00:00Z', achievements: [] } }));
+const mocks = vi.hoisted(() => ({ api: vi.fn(), confirm: vi.fn(), alert: vi.fn(), popup: vi.fn(), toast: vi.fn(), dispose: vi.fn(), account: { id: 'self', username: 'self', createdAt: '2023-01-01T00:00:00Z', achievements: [] } }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/i.js', () => ({ $i: mocks.account, ensureSignin: () => mocks.account }));
 vi.mock('@/page.js', () => ({ definePage: vi.fn() }));
-vi.mock('@/os.js', () => ({ alert: mocks.alert, confirm: mocks.confirm, popup: mocks.popup }));
+vi.mock('@/os.js', () => ({ alert: mocks.alert, confirm: mocks.confirm, popup: mocks.popup, toast: mocks.toast }));
 vi.mock('@/composables/use-checkin-status.js', async () => {
 	const { shallowRef } = await import('vue');
 	const sharedStatus = shallowRef(null);
 	return { useCheckinStatus: () => ({ status: sharedStatus }), publishCheckinStatus: vi.fn((_account, value) => { sharedStatus.value = value; }) };
 });
-vi.mock('@/components/MkCommunityHub.vue', () => ({ default: { template: '<main><slot/></main>' } }));
+vi.mock('@/composables/use-image-preload.js', async () => {
+	const { ref } = await import('vue');
+	return { useImagePreload: () => ref(true) };
+});
 
 function status(overrides: Partial<entities.ICheckinStatusResponse> = {}): entities.ICheckinStatusResponse {
 	return {
@@ -175,7 +178,8 @@ describe('daily check-in', () => {
 		pending.resolve(signedIn());
 		await waitFor(() => expect(button.textContent).toContain(i18n.ts._checkin.checkedIn));
 		expect(view.getByTestId('checkin-points').textContent).toBe('1');
-		expect(view.getByRole('status').textContent).toContain(i18n.tsx._checkin.rewardReceived({ n: 1 }));
+		expect(view.queryByRole('status')).toBeNull();
+		expect(view.queryByText(i18n.tsx._checkin.rewardReceived({ n: 1 }))).toBeNull();
 		expect(button.textContent).toContain(i18n.ts._checkin.checkedIn);
 		expect(button.disabled).toBe(false);
 		expect(mocks.popup).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ points: 1, consecutiveDays: 1, returnFocusTo: button }), expect.anything());
@@ -256,7 +260,7 @@ describe('daily check-in', () => {
 		await waitFor(() => expect(view.getByTestId('checkin-exchange-unavailable').textContent).toBe(i18n.ts._checkin.monthlyExchangeLimit));
 		expect((view.getByTestId('checkin-exchange') as HTMLButtonElement).disabled).toBe(false);
 		await fireEvent.click(view.getByTestId('checkin-exchange'));
-		await waitFor(() => expect(view.getByRole('status').textContent).toBe(i18n.ts._checkin.cardExchangeSuccess));
+		await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith(i18n.ts._checkin.cardExchangeSuccess, 'success'));
 		expect(mocks.api.mock.calls[3]).toEqual(firstRequest);
 		expect(view.getByTestId('checkin-points').textContent).toBe('60');
 	});
@@ -333,7 +337,7 @@ describe('daily check-in', () => {
 		pending.resolve({ ...status({ points: 3, makeupCards: 1, makeupDates: ['2026-01-14'], checkedInDates: ['2026-01-14'], totalDays: 1, consecutiveDays: 1, monthlyDays: 1 }), newlyCheckedIn: true, earnedPoints: 0, earnedMakeupCards: 0, earnedAchievements: [] });
 		await waitFor(() => expect(view.getByTestId('checkin-makeup-cards').textContent).toBe('1'));
 		expect(view.getByTestId('checkin-points').textContent).toBe('3');
-		expect(view.getByRole('status').textContent).toContain(i18n.tsx._checkin.makeupSuccess({ date: '2026-01-14' }));
+		expect(mocks.toast).toHaveBeenCalledWith(i18n.tsx._checkin.makeupSuccess({ date: '2026-01-14' }), 'success');
 		expect(view.container.querySelector('[data-checkin-date="2026-01-14"]')!.getAttribute('aria-label')).toContain(i18n.ts._checkin.madeUp);
 		expect((view.getByTestId('checkin-submit') as HTMLButtonElement).disabled).toBe(false);
 	});
@@ -366,9 +370,8 @@ describe('daily check-in', () => {
 			.mockResolvedValueOnce({ ...status({ points: 45, makeupCards: 1, consecutiveDays: 30, makeupDates: ['2026-01-14'], checkedInDates: ['2026-01-14'] }), newlyCheckedIn: true, earnedPoints: 0, earnedMakeupCards: 1, earnedAchievements: [] });
 		const view = await readyPage();
 		await fireEvent.click(view.getByRole('button', { name: i18n.tsx._checkin.makeupDate({ date: '2026-01-14' }) }));
-		await waitFor(() => expect(view.getByRole('status').textContent).toContain(i18n.tsx._checkin.cardRewardReceived({ n: 1 })));
-		expect(view.getByRole('status').textContent).toContain(i18n.tsx._checkin.makeupSuccess({ date: '2026-01-14' }));
-		expect(view.getByRole('status').textContent).not.toContain(i18n.ts._checkin.alreadyMadeUp);
+		await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith(`${i18n.tsx._checkin.makeupSuccess({ date: '2026-01-14' })} ${i18n.tsx._checkin.cardRewardReceived({ n: 1 })}`, 'success'));
+		expect(view.queryByRole('status')).toBeNull();
 		expect(view.getByTestId('checkin-points').textContent).toBe('45');
 	});
 

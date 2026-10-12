@@ -6,6 +6,8 @@
 export const packedChatRoomInvitationSchema = {
 	type: 'object',
 	properties: {
+		isRequest: { type: 'boolean', optional: false, nullable: false },
+		requestMessage: { type: 'string', optional: false, nullable: true },
 		id: {
 			type: 'string',
 			optional: false, nullable: false,

@@ -5,10 +5,11 @@
 
 import { Check, Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { id } from './util/id.js';
+import { coinColumn } from './util/coin.js';
 import { MiUser } from './User.js';
 
 @Entity('wallet')
-@Check('CHK_wallet_balance', '"balance" >= 0 AND "reservedBalance" >= 0 AND "balance"::bigint + "reservedBalance"::bigint <= 2000000000')
+@Check('CHK_wallet_balance', '"balance" >= 0 AND "reservedBalance" >= 0 AND "balance" + "reservedBalance" <= 2000000000')
 export class MiWallet {
 	@PrimaryColumn({ ...id(), primaryKeyConstraintName: 'PK_wallet' })
 	public userId: MiUser['id'];
@@ -17,9 +18,9 @@ export class MiWallet {
 	@JoinColumn({ foreignKeyConstraintName: 'FK_wallet_user' })
 	public user: MiUser | null;
 
-	@Column('integer', { default: 0 })
+	@Column({ ...coinColumn, default: 0 })
 	public balance: number;
 
-	@Column('integer', { default: 0 })
+	@Column({ ...coinColumn, default: 0 })
 	public reservedBalance: number;
 }

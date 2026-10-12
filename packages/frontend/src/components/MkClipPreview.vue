@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkA :to="`/clips/${clip.id}`" :class="$style.link">
 	<div :class="$style.root" class="_panel _gaps_s">
-		<b>{{ clip.name }}</b>
+		<b><Mfm :text="clip.name" :plain="true" :nowrap="true"/></b>
 		<div :class="$style.description">
 			<div v-if="clip.description"><Mfm :text="clip.description" :plain="true" :nowrap="true"/></div>
 			<div v-if="clip.lastClippedAt">{{ i18n.ts.updatedAt }}: <MkTime :time="clip.lastClippedAt" mode="detail"/></div>
@@ -64,8 +64,8 @@ const remaining = computed(() => {
 }
 
 .divider {
-	height: 1px;
-	background: var(--MI_THEME-divider);
+	height: var(--MI-dividerWidth);
+	background: var(--MI-dividerColor);
 }
 
 .description {

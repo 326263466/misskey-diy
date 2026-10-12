@@ -17,6 +17,7 @@ import { IdService } from '@/core/IdService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
+import { WalletService } from '@/core/WalletService.js';
 
 export const CHECKIN_TIME_ZONE = 'Asia/Shanghai';
 export const CHECKIN_MAKEUP_CARD_TARGET = 30;
@@ -115,6 +116,7 @@ export class CheckinService {
 		private userEntityService: UserEntityService,
 		private idService: IdService,
 		private moderationLogService: ModerationLogService,
+		private walletService: WalletService,
 	) {
 	}
 
@@ -134,6 +136,7 @@ export class CheckinService {
 				.andWhere('checkin.date >= :start AND checkin.date < :end', { start: `${requestedMonth}-01`, end: nextMonth(requestedMonth) })
 				.orderBy('checkin.date', 'ASC').getMany();
 		const profile = await manager.withRepository(this.userProfilesRepository).findOneByOrFail({ userId });
+		const points = await this.walletService.getBalanceInTransaction(manager, userId);
 		const exchangedThisMonth = await this.hasExchangedThisMonth(manager, userId, today);
 		const consecutiveDays = latest && latest.date >= previousCheckinDate(today) ? latest.consecutiveDays : 0;
 		const pendingDays = latest && consecutiveDays > 0 ? await checkins.countBy({
@@ -153,7 +156,7 @@ export class CheckinService {
 			checkedInDates: dates.map(record => record.date),
 			makeupDates: dates.filter(record => record.isMakeup).map(record => record.date),
 			registeredDate,
-			points: profile.checkinPoints,
+			points,
 			makeupCards: profile.checkinMakeupCards,
 			makeupCardProgress: Math.min(pendingDays, target),
 			makeupCardTarget: target,
@@ -182,7 +185,7 @@ export class CheckinService {
 				consecutiveDays: latest?.date === previousCheckinDate(today) ? latest.consecutiveDays + 1 : 1,
 			});
 			await manager.insert(MiUserCheckin, record);
-			await manager.increment(MiUserProfile, { userId }, 'checkinPoints', 1);
+			await this.walletService.changePointsInTransaction(manager, userId, 1, { type: 'checkinReward', relatedId: today });
 			const earnedMakeupCards = await this.settleStreakReward(manager, userId, now);
 			return { newlyCheckedIn: true, earnedMakeupCards, now };
 		});
@@ -231,19 +234,20 @@ export class CheckinService {
 		return this.db.transaction(async manager => {
 			await this.lockEligibleUser(manager, userId);
 			const profile = await manager.findOneByOrFail(MiUserProfile, { userId });
+			const points = await this.walletService.getBalanceInTransaction(manager, userId);
 			if (await manager.findOneBy(MiUserCheckinExchange, { userId, requestId })) {
-				return { points: profile.checkinPoints, makeupCards: profile.checkinMakeupCards, exchanged: false };
+				return { points, makeupCards: profile.checkinMakeupCards, exchanged: false };
 			}
 			const now = new Date();
 			if (await this.hasExchangedThisMonth(manager, userId, checkinDate(now))) throw new CheckinService.MonthlyExchangeLimitError();
-			if (profile.checkinPoints < CHECKIN_MAKEUP_CARD_EXCHANGE_COST) throw new CheckinService.InsufficientPointsError();
+			if (points < CHECKIN_MAKEUP_CARD_EXCHANGE_COST) throw new CheckinService.InsufficientPointsError();
 			if (profile.checkinMakeupCards >= CHECKIN_MAKEUP_CARD_LIMIT) throw new CheckinService.CardLimitError();
 			await this.ensureOpeningBatch(manager, userId, profile.checkinMakeupCards);
-			await manager.decrement(MiUserProfile, { userId }, 'checkinPoints', CHECKIN_MAKEUP_CARD_EXCHANGE_COST);
+			await this.walletService.changePointsInTransaction(manager, userId, -CHECKIN_MAKEUP_CARD_EXCHANGE_COST, { type: 'checkinMakeupExchange', requestId });
 			await manager.increment(MiUserProfile, { userId }, 'checkinMakeupCards', 1);
 			await manager.insert(MiUserCheckinExchange, { userId, requestId, createdAt: now, pointsSpent: CHECKIN_MAKEUP_CARD_EXCHANGE_COST, cardsGranted: 1 });
 			await this.createCardBatch(manager, userId, 'exchange', 1, now);
-			return { points: profile.checkinPoints - CHECKIN_MAKEUP_CARD_EXCHANGE_COST, makeupCards: profile.checkinMakeupCards + 1, exchanged: true };
+			return { points: points - CHECKIN_MAKEUP_CARD_EXCHANGE_COST, makeupCards: profile.checkinMakeupCards + 1, exchanged: true };
 		});
 	}
 
@@ -342,7 +346,8 @@ export class CheckinService {
 		await this.ensureOpeningBatch(manager, userId, profile.checkinMakeupCards);
 		await manager.update(MiUserProfile, { userId }, { checkinMakeupCards: makeupCards });
 		const batchId = await this.createCardBatch(manager, userId, 'redemption', amount, now);
-		return { batchId, makeupCards, points: profile.checkinPoints };
+		const points = await this.walletService.getBalanceInTransaction(manager, userId);
+		return { batchId, makeupCards, points };
 	}
 
 	private async createCardBatch(manager: EntityManager, userId: string, source: MiUserCheckinCardBatch['source'], amount: number, now = new Date(), grantLogId: string | null = null, adminId: string | null = null): Promise<string> {

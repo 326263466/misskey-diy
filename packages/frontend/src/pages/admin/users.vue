@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkInput>
 			</div>
 
-			<MkPagination v-slot="{items}" :paginator="paginator">
+			<MkPagination v-slot="{items}" :paginator="paginator" pageEmpty>
 				<div :class="$style.users">
 					<MkA v-for="user in items" :key="user.id" :class="$style.user" :to="`/admin/user/${user.id}`">
 						<MkUserCardMini :user="user" :subTooltip="`${i18n.ts.lastPostedAt}: ${user.updatedAt ? dateString(user.updatedAt) : i18n.ts.unknown}`"/>
@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, ref, watchEffect } from 'vue';
+import { computed, markRaw, ref, watch, watchEffect } from 'vue';
 import * as Misskey from 'misskey-js';
 import { defaultMemoryStorage } from '@/memory-storage';
 import MkButton from '@/components/MkButton.vue';
@@ -107,14 +107,24 @@ const {
 });
 const searchUsername = ref(storedQuery.username ?? '');
 const searchHost = ref(storedQuery.hostname ?? '');
+const searchFilters = ref({ username: searchUsername.value, hostname: searchHost.value });
+
+watch([searchUsername, searchHost], ([username, hostname], _previous, onCleanup) => {
+	if (username === '' && hostname === '') {
+		searchFilters.value = { username, hostname };
+		return;
+	}
+	const timer = window.setTimeout(() => { searchFilters.value = { username, hostname }; }, 250);
+	onCleanup(() => window.clearTimeout(timer));
+});
+
 const paginator = markRaw(new Paginator('admin/show-users', {
 	limit: 10,
 	computedParams: computed(() => ({
 		sort: sort.value,
 		state: state.value,
 		origin: origin.value,
-		username: searchUsername.value,
-		hostname: searchHost.value,
+		...searchFilters.value,
 	})),
 	offsetMode: true,
 }));

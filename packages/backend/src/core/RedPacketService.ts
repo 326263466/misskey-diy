@@ -21,11 +21,12 @@ import { MiRedPacketClaim } from '@/models/RedPacketClaim.js';
 import { IdService } from '@/core/IdService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { WalletService } from '@/core/WalletService.js';
+import { isCoinAmount, toCoinUnits } from '@/misc/coins.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import type Logger from '@/logger.js';
 
 export type RedPacketDraft = {
-	kind: 'direct' | 'group' | 'tip';
+	kind: 'direct' | 'group';
 	audience: 'public' | 'recipients' | 'room';
 	roomId?: string;
 	recipientIds?: string[];
@@ -33,7 +34,10 @@ export type RedPacketDraft = {
 	totalCoins: number;
 	count: number;
 	message: string;
+	password?: string | null;
 	expiresInHours: number;
+	/** 仅用于恢复历史预约请求，新建红包不接受预约。 */
+	startsAt?: string;
 	requestId: string;
 	coverId?: RedPacketCoverId;
 	coverFileId?: string | null;
@@ -47,6 +51,7 @@ export type RedPacketSummary = {
 	roomId: string | null;
 	mode: RedPacketMode;
 	message: string;
+	password: string | null;
 	coverId: RedPacketCoverId;
 	coverFileId: string | null;
 	coverUrl: string | null;
@@ -55,11 +60,17 @@ export type RedPacketSummary = {
 	remainingCoins: number;
 	remainingCount: number;
 	expiresAt: string;
-	status: RedPacketStatus;
+	startsAt: string | null;
+	serverTime: string;
+	status: RedPacketStatus | 'scheduled';
 	claimedCoins: number | null;
 };
 
 type Viewer = { id: MiUser['id'] };
+export type RedPacketClaimContext = {
+	password?: string;
+	beforeClaim?: (em: EntityManager, packet: MiRedPacket) => Promise<void>;
+};
 
 @Injectable()
 export class RedPacketService implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -67,10 +78,11 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 	public static RequestIdConflictError = class extends Error {};
 	public static NoSuchRedPacketError = class extends Error {};
 	public static AccessDeniedError = class extends Error {};
-	public static CannotClaimOwnError = class extends Error {};
 	public static ExpiredError = class extends Error {};
+	public static NotStartedError = class extends Error {};
 	public static ExhaustedError = class extends Error {};
 	public static CancelledError = class extends Error {};
+	public static PasswordRequiredError = class extends Error {};
 
 	private logger: Logger;
 	private expirationTimer: ReturnType<typeof setInterval> | undefined;
@@ -103,15 +115,21 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 
 	@bindThis
 	public validateDraft(draft: RedPacketDraft): void {
-		if (!['direct', 'group', 'tip'].includes(draft.kind) ||
+		const units = toCoinUnits(draft.totalCoins);
+		if (!['direct', 'group'].includes(draft.kind) ||
 			!['public', 'recipients', 'room'].includes(draft.audience) ||
 			!['equal', 'random'].includes(draft.mode) ||
 			!Number.isSafeInteger(draft.count) || draft.count < 1 || draft.count > 100 ||
-			!Number.isSafeInteger(draft.totalCoins) || draft.totalCoins < draft.count || draft.totalCoins > 1_000_000 ||
-			(draft.mode === 'equal' && draft.totalCoins % draft.count !== 0) ||
-			![1, 6, 24].includes(draft.expiresInHours) ||
+			!isCoinAmount(draft.totalCoins) || draft.totalCoins < 1 || draft.totalCoins > 1000 || units < draft.count ||
+			(draft.mode === 'equal' && units % draft.count !== 0) ||
+			!Number.isSafeInteger(draft.expiresInHours) || draft.expiresInHours < 1 || draft.expiresInHours > 24 ||
+			(draft.startsAt == null ? draft.expiresInHours !== 24 :
+				typeof draft.startsAt !== 'string' || draft.startsAt.length > 40 ||
+				!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(draft.startsAt) ||
+				!Number.isFinite(Date.parse(draft.startsAt))) ||
+			(draft.kind !== 'group' && draft.mode !== 'equal' && draft.password == null) ||
 			(draft.coverId != null && !redPacketCoverIds.includes(draft.coverId)) ||
-			typeof draft.message !== 'string' || [...draft.message].length > 100 ||
+			typeof draft.message !== 'string' || [...draft.message].length > 18 ||
 			typeof draft.requestId !== 'string' || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(draft.requestId)) {
 			throw new RedPacketService.InvalidDraftError();
 		}
@@ -124,6 +142,12 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 			(draft.audience === 'recipients' && recipients.length === 0) ||
 			(draft.kind !== 'group' && (draft.count !== 1 || draft.audience !== 'recipients' || recipients.length !== 1)) ||
 			(draft.audience === 'recipients' && draft.count > recipients.length)) throw new RedPacketService.InvalidDraftError();
+		if (draft.password != null && (typeof draft.password !== 'string' ||
+			[...draft.password].length > 32 || !draft.password.trim() || /[\r\n]/.test(draft.password) ||
+			draft.mode !== 'random' || draft.audience === 'public' ||
+			(draft.audience === 'recipients' && (recipients.length !== 1 || draft.count !== 1)))) {
+			throw new RedPacketService.InvalidDraftError();
+		}
 	}
 
 	private recipientIdsHash(draft: RedPacketDraft): string {
@@ -134,9 +158,11 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 	private async assertSameDraft(packet: MiRedPacket, draft: RedPacketDraft): Promise<void> {
 		if (packet.kind !== draft.kind || packet.audience !== draft.audience || (packet.roomId ?? null) !== (draft.roomId ?? null) ||
 			packet.recipientIdsHash !== this.recipientIdsHash(draft) || packet.mode !== draft.mode || packet.totalCoins !== draft.totalCoins || packet.count !== draft.count ||
+			(packet.startsAt?.getTime() ?? null) !== (draft.startsAt == null ? null : Date.parse(draft.startsAt)) ||
 			packet.message !== draft.message.trim() || packet.expiresInHours !== draft.expiresInHours || packet.coverId !== (draft.coverId ?? 'classic') || (packet.coverFileId ?? null) !== (draft.coverFileId ?? null)) {
 			throw new RedPacketService.RequestIdConflictError();
 		}
+		if ((packet.password ?? null) !== (draft.password?.trim() ?? null)) throw new RedPacketService.RequestIdConflictError();
 	}
 
 	@bindThis
@@ -149,23 +175,27 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 			await this.assertSameDraft(existing, draft);
 			return this.summarize(existing, null);
 		}
+		// 先允许旧请求按 requestId 恢复，避免响应丢失后重复扣款。
+		if (draft.startsAt != null || draft.expiresInHours !== 24 || (draft.password != null && [...draft.password.trim()].length > 18)) throw new RedPacketService.InvalidDraftError();
 		try {
 			return await this.db.transaction(async em => {
+				const createdAt = Date.now();
 				if (draft.roomId) await this.assertRoomAccess(em, draft.roomId, me.id);
 				if (draft.coverFileId) await this.lockCover(em, draft.coverFileId);
 				const cover = draft.coverFileId ? await em.findOneBy(MiDriveFile, { id: draft.coverFileId, userId: me.id }) : null;
 				if (draft.coverFileId && (!cover || cover.isSensitive || !['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'].includes(cover.type))) throw new RedPacketService.InvalidDraftError();
 				const packet = em.create(MiRedPacket, {
 					id: this.idService.gen(), kind: draft.kind, audience: draft.audience, roomId: draft.roomId ?? null, recipientIdsHash: this.recipientIdsHash(draft), userId: me.id, requestId: draft.requestId.toLowerCase(),
-					mode: draft.mode, message: draft.message.trim(), coverId: draft.coverId ?? 'classic', totalCoins: draft.totalCoins, count: draft.count,
+					mode: draft.mode, message: draft.message.trim(), password: draft.password?.trim() ?? null, coverId: draft.coverId ?? 'classic', totalCoins: draft.totalCoins, count: draft.count,
 					coverFileId: cover?.id ?? null, coverUrl: cover ? this.driveFileEntityService.getPublicUrl(cover) : null,
-					remainingCoins: draft.totalCoins, remainingCount: draft.count, expiresInHours: draft.expiresInHours,
-					expiresAt: new Date(Date.now() + draft.expiresInHours * 3_600_000), status: 'active',
+					remainingCoins: draft.totalCoins, remainingCount: draft.count, expiresInHours: 24,
+					startsAt: null,
+					expiresAt: new Date(createdAt + 86_400_000), status: 'active',
 				});
 				await em.insert(MiRedPacket, packet);
 				const recipientIds = draft.recipientIds ?? [];
 				if (recipientIds.includes(me.id)) throw new RedPacketService.InvalidDraftError();
-				await this.walletService.lockWalletsInTransaction(em, draft.kind === 'tip' ? [me.id, ...recipientIds] : [me.id]);
+				await this.walletService.lockWalletsInTransaction(em, [me.id]);
 				if (recipientIds.length > 0) {
 					const recipients = await em.findBy(MiUser, { id: In(recipientIds) });
 					if (recipients.length !== recipientIds.length || recipients.some(user => !this.isEligible(user))) throw new RedPacketService.AccessDeniedError();
@@ -177,15 +207,6 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 				await this.walletService.changeBalanceInTransaction(em, me.id, -draft.totalCoins, {
 					type: 'redPacketSend', relatedId: packet.id, description: packet.message,
 				});
-				if (draft.kind === 'tip') {
-					await this.walletService.releaseReservationInTransaction(em, me.id, packet.totalCoins);
-					await this.walletService.changeBalanceInTransaction(em, recipientIds[0], packet.totalCoins, { type: 'redPacketClaim', relatedId: packet.id, description: packet.message });
-					await em.insert(MiRedPacketClaim, { id: this.idService.gen(), redPacketId: packet.id, userId: recipientIds[0], coins: packet.totalCoins, createdAt: new Date() });
-					packet.remainingCoins = 0;
-					packet.remainingCount = 0;
-					packet.status = 'exhausted';
-					await em.update(MiRedPacket, packet.id, { remainingCoins: 0, remainingCount: 0, status: 'exhausted' });
-				}
 				return this.summarize(packet, null);
 			});
 		} catch (err) {
@@ -215,20 +236,24 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 	}
 
 	@bindThis
-	public async assertCanReference(redPacketId: string, senderId: string): Promise<void> {
+	public async assertCanReference(redPacketId: string, senderId: string): Promise<MiRedPacket> {
 		const packet = await this.db.getRepository(MiRedPacket).findOneBy({ id: redPacketId });
 		if (!packet) throw new RedPacketService.NoSuchRedPacketError();
 		if (packet.userId !== senderId) throw new RedPacketService.AccessDeniedError();
+		if (packet.status === 'cancelled') throw new RedPacketService.CancelledError();
+		return packet;
 	}
 
 	private summarize(packet: MiRedPacket, claimedCoins: number | null): RedPacketSummary {
 		return {
 			id: packet.id, senderId: packet.userId, kind: packet.kind, audience: packet.audience, roomId: packet.roomId ?? null,
-			mode: packet.mode, message: packet.message, coverId: packet.coverId, totalCoins: packet.totalCoins, count: packet.count,
+			mode: packet.mode, message: packet.message, password: packet.password ?? null, coverId: packet.coverId, totalCoins: packet.totalCoins, count: packet.count,
 			coverFileId: packet.coverFileId ?? null, coverUrl: packet.coverUrl ?? null,
 			remainingCoins: packet.remainingCoins, remainingCount: packet.remainingCount,
 			expiresAt: packet.expiresAt.toISOString(),
-			status: packet.status === 'active' && packet.expiresAt.getTime() <= Date.now() ? 'expired' : packet.status,
+			startsAt: packet.startsAt?.toISOString() ?? null,
+			serverTime: new Date().toISOString(),
+			status: packet.status !== 'active' ? packet.status : packet.expiresAt.getTime() <= Date.now() ? 'expired' : (packet.startsAt?.getTime() ?? 0) > Date.now() ? 'scheduled' : 'active',
 			claimedCoins,
 		};
 	}
@@ -240,13 +265,13 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 		else {
 			const user = await this.db.getRepository(MiUser).findOneBy({ id: me.id });
 			if (!user || !this.isEligible(user)) throw new RedPacketService.AccessDeniedError();
-			query.where('packet.userId <> :userId', { userId: me.id })
-				.andWhere(`(((packet.audience = 'public' OR (packet.audience = 'room' AND EXISTS (SELECT 1 FROM chat_room room WHERE room.id = packet."roomId" AND room."isArchived" = false AND (room."ownerId" = :userId OR EXISTS (SELECT 1 FROM chat_room_membership member WHERE member."roomId" = room.id AND member."userId" = :userId))))) AND packet.status = 'active' AND packet."expiresAt" > CURRENT_TIMESTAMP) OR EXISTS (SELECT 1 FROM red_packet_recipient recipient WHERE recipient."redPacketId" = packet.id AND recipient."userId" = :userId) OR EXISTS (SELECT 1 FROM red_packet_claim claim WHERE claim."redPacketId" = packet.id AND claim."userId" = :userId))`)
+			query.where(`(((packet.userId = :userId OR packet.audience = 'public' OR (packet.audience = 'room' AND EXISTS (SELECT 1 FROM chat_room room WHERE room.id = packet."roomId" AND room."isArchived" = false AND (room."ownerId" = :userId OR EXISTS (SELECT 1 FROM chat_room_membership member WHERE member."roomId" = room.id AND member."userId" = :userId))))) AND packet.status = 'active' AND packet."expiresAt" > CURRENT_TIMESTAMP) OR EXISTS (SELECT 1 FROM red_packet_recipient recipient WHERE recipient."redPacketId" = packet.id AND recipient."userId" = :userId) OR EXISTS (SELECT 1 FROM red_packet_claim claim WHERE claim."redPacketId" = packet.id AND claim."userId" = :userId))`, { userId: me.id })
 				.innerJoin(MiUser, 'sender', 'sender.id = packet.userId')
 				.andWhere('sender.host IS NULL AND sender."isSuspended" = false AND sender."isDeleted" = false AND sender."movedToUri" IS NULL')
 				.andWhere('NOT EXISTS (SELECT 1 FROM blocking b WHERE (b."blockerId" = :userId AND b."blockeeId" = packet."userId") OR (b."blockeeId" = :userId AND b."blockerId" = packet."userId"))');
 		}
 		if (scope === 'claimable') query.andWhere("packet.status = 'active' AND packet.\"expiresAt\" > CURRENT_TIMESTAMP").andWhere('NOT EXISTS (SELECT 1 FROM red_packet_claim claim WHERE claim."redPacketId" = packet.id AND claim."userId" = :userId)');
+		if (scope === 'claimable') query.andWhere('(packet."startsAt" IS NULL OR packet."startsAt" <= CURRENT_TIMESTAMP)');
 		if (untilId) query.andWhere('packet.id < :untilId', { untilId });
 		const packets = await query.orderBy('packet.id', 'DESC').take(limit).getMany();
 		const claims = packets.length ? await this.db.getRepository(MiRedPacketClaim).findBy({ redPacketId: In(packets.map(packet => packet.id)), userId: me.id }) : [];
@@ -301,7 +326,7 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 				const candidate = await em.findOneBy(MiRedPacket, { id: redPacketId });
 				if (!candidate) throw new RedPacketService.NoSuchRedPacketError();
 				// 与删群保持相同锁序：先群再红包，避免外键清空 roomId 时死锁。
-				if (candidate.audience === 'room' && candidate.userId !== me.id) await this.assertRoomAccess(em, candidate.roomId, me.id);
+				if (candidate.audience === 'room' && (candidate.userId !== me.id || candidate.password != null)) await this.assertRoomAccess(em, candidate.roomId, me.id);
 			}
 			const packet = await em.findOne(MiRedPacket, { where: { id: redPacketId }, lock: { mode: 'pessimistic_write' } });
 			if (!packet) throw new RedPacketService.NoSuchRedPacketError();
@@ -325,6 +350,30 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 		await em.update(MiRedPacket, packet.id, { remainingCoins: 0, status });
 	}
 
+	/** 调用方须先校验删除权限，并与宿主删除使用同一事务。 */
+	@bindThis
+	public async cancelInTransaction(em: EntityManager, redPacketIds: string[]): Promise<void> {
+		if (redPacketIds.length === 0) return;
+		const packets = await em.find(MiRedPacket, {
+			where: { id: In([...new Set(redPacketIds)]) }, order: { id: 'ASC' }, lock: { mode: 'pessimistic_write' },
+		});
+		// 批量删除先锁全部红包，再按用户顺序锁钱包，避免与并发领取互相等待。
+		await this.walletService.lockWalletsInTransaction(em, packets.filter(packet => packet.status === 'active' && packet.remainingCoins > 0).map(packet => packet.userId));
+		for (const packet of packets) {
+			await this.refund(em, packet, packet.expiresAt.getTime() <= Date.now() ? 'expired' : 'cancelled');
+		}
+	}
+
+	@bindThis
+	public async cancel(redPacketId: string, me: Viewer) {
+		const packet = await this.withPacketTransaction(redPacketId, undefined, async (em, locked) => {
+			if (locked.userId !== me.id) throw new RedPacketService.AccessDeniedError();
+			await this.cancelInTransaction(em, [locked.id]);
+			return locked;
+		});
+		return this.details(packet, me);
+	}
+
 	/** Account deletion settles only packets issued by that account. */
 	@bindThis
 	public async refundForAccountDeletion(userId: string): Promise<void> {
@@ -340,7 +389,7 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 	private async details(packet: MiRedPacket, me: Viewer) {
 		const snapshot = await this.db.transaction('REPEATABLE READ', async em => ({
 			packet: await em.findOneByOrFail(MiRedPacket, { id: packet.id }),
-			claims: await em.find(MiRedPacketClaim, { where: { redPacketId: packet.id }, relations: { user: true }, order: { id: 'ASC' } }),
+			claims: await em.find(MiRedPacketClaim, { where: { redPacketId: packet.id }, relations: { user: true }, order: { id: 'DESC' } }),
 		}));
 		const claims = snapshot.claims;
 		const users = await this.userEntityService.packMany(claims.flatMap(claim => claim.user ? [claim.user] : []), me);
@@ -364,42 +413,57 @@ export class RedPacketService implements OnApplicationBootstrap, OnApplicationSh
 	}
 
 	@bindThis
-	public async claim(redPacketId: string, me: Viewer) {
+	public async claim(redPacketId: string, me: Viewer, password?: string) {
+		const result = await this.claimWithContext(redPacketId, me, { password });
+		return this.details(result.packet, me);
+	}
+
+	/** 适配层的附加权限检查在红包锁内执行，与领取共用事务。 */
+	@bindThis
+	public async claimWithContext(redPacketId: string, me: Viewer, context: RedPacketClaimContext = {}): Promise<{ packet: MiRedPacket; coins: number; created: boolean }> {
 		const result = await this.withPacketTransaction(redPacketId, me, async (em, packet) => {
-			if (packet.userId === me.id) throw new RedPacketService.CannotClaimOwnError();
+			if (packet.password != null) {
+				// 定向口令只允许收件人领取，发送者仅有查看权限。
+				if (packet.audience === 'recipients' && !await em.existsBy(MiRedPacketRecipient, { redPacketId: packet.id, userId: me.id })) throw new RedPacketService.AccessDeniedError();
+				if (context.password?.trim() !== packet.password) throw new RedPacketService.PasswordRequiredError();
+			}
+			await context.beforeClaim?.(em, packet);
 			const previous = await em.findOneBy(MiRedPacketClaim, { redPacketId: packet.id, userId: me.id });
-			if (previous) return { packet, error: null };
-			if (packet.status === 'active' && packet.expiresAt.getTime() <= Date.now()) await this.refund(em, packet, 'expired');
-			// Throw after committing the transaction, so a late claim still refunds the sender.
-			if (packet.status === 'expired') return { packet, error: new RedPacketService.ExpiredError() };
-			if (packet.status === 'cancelled') return { packet, error: new RedPacketService.CancelledError() };
-			if (packet.status === 'exhausted') return { packet, error: new RedPacketService.ExhaustedError() };
-			const coins = this.drawCoins(packet);
+			if (previous) return { packet, error: null, coins: previous.coins, created: false };
 			await this.walletService.lockWalletsInTransaction(em, [packet.userId, me.id]);
 			await this.assertUsersAccess(em, packet.userId, me);
-			await this.walletService.releaseReservationInTransaction(em, packet.userId, coins);
+			if (packet.status === 'active' && packet.expiresAt.getTime() <= Date.now()) await this.refund(em, packet, 'expired');
+			// Throw after committing the transaction, so a late claim still refunds the sender.
+			if (packet.status === 'expired') return { packet, error: new RedPacketService.ExpiredError(), coins: 0, created: false };
+			if (packet.status === 'cancelled') return { packet, error: new RedPacketService.CancelledError(), coins: 0, created: false };
+			if (packet.status === 'exhausted') return { packet, error: new RedPacketService.ExhaustedError(), coins: 0, created: false };
+			if (packet.startsAt && packet.startsAt.getTime() > Date.now()) return { packet, error: new RedPacketService.NotStartedError(), coins: 0, created: false };
+			const coins = this.drawCoins(packet);
+			await this.walletService.releaseReservationInTransaction(em, packet.userId, coins, { type: 'redPacketReservationRelease', relatedId: packet.id, actorId: me.id });
 			await this.walletService.changeBalanceInTransaction(em, me.id, coins, {
 				type: 'redPacketClaim', relatedId: packet.id, description: packet.message,
 			});
 			await em.insert(MiRedPacketClaim, {
 				id: this.idService.gen(), redPacketId: packet.id, userId: me.id, coins, createdAt: new Date(),
 			});
-			packet.remainingCoins -= coins;
+			packet.remainingCoins = (toCoinUnits(packet.remainingCoins) - toCoinUnits(coins)) / 100;
 			packet.remainingCount--;
 			if (packet.remainingCount === 0) packet.status = 'exhausted';
 			await em.update(MiRedPacket, packet.id, { remainingCoins: packet.remainingCoins, remainingCount: packet.remainingCount, status: packet.status });
-			return { packet, error: null };
+			return { packet, error: null, coins, created: true };
 		});
 		if (result.error) throw result.error;
-		return this.details(result.packet, me);
+		return { packet: result.packet, coins: result.coins, created: result.created };
 	}
 
 	private drawCoins(packet: MiRedPacket): number {
 		if (packet.remainingCount === 1) return packet.remainingCoins;
-		if (packet.mode === 'equal') return packet.totalCoins / packet.count;
-		// Double-mean allocation, reserving at least one coin for each later recipient.
-		const maximum = Math.min(packet.remainingCoins - packet.remainingCount + 1, Math.floor(2 * packet.remainingCoins / packet.remainingCount));
-		return randomInt(1, maximum + 1);
+		if (packet.mode === 'equal') return (toCoinUnits(packet.totalCoins) / packet.count) / 100;
+		// 以分为单位的二倍均值法；随机舍入上界，避免取整造成先领偏高。
+		const doubled = 2 * toCoinUnits(packet.remainingCoins);
+		const maximum = Math.floor(doubled / packet.remainingCount) - 1 +
+			(randomInt(packet.remainingCount) < doubled % packet.remainingCount ? 1 : 0);
+		return randomInt(1, maximum + 1) / 100;
 	}
 
 	@bindThis

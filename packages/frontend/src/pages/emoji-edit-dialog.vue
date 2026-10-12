@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkWindow
 	ref="windowEl"
+	:closeOnBackdrop="false"
 	:initialWidth="400"
 	:initialHeight="500"
 	:canResize="true"
@@ -58,7 +59,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 						<div v-for="role in rolesThatCanBeUsedThisEmojiAsReaction" :key="role.id" :class="$style.roleItem">
 							<MkRolePreview :class="$style.role" :role="role" :forModeration="true" :detailed="false" style="pointer-events: none;"/>
-							<button v-if="role.target === 'manual'" class="_button" :class="$style.roleUnassign" @click="removeRole(role)"><i class="ti ti-x"></i></button>
+							<button v-if="role.target === 'manual'" class="_button _iconButton" :class="$style.roleUnassign" @click="removeRole(role)"><i class="ti ti-x"></i></button>
 							<button v-else class="_button" :class="$style.roleUnassign" disabled><i class="ti ti-ban"></i></button>
 						</div>
 
@@ -259,7 +260,7 @@ async function del() {
 	bottom: 0;
 	left: 0;
 	padding: var(--MI-cardPadding, 18px);
-	border-top: solid 0.5px var(--MI_THEME-divider);
+	border-top: var(--MI-divider);
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.5);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));

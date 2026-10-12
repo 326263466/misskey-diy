@@ -1,16 +1,16 @@
 # i18n キーを追加・改修する
 
-UI 文言の追加・変更を行う際の手順。**手動編集して良いのは `locales/ja-JP.yml` のみ**。
+UI 文言の追加・変更を行う際の手順。**手動編集して良いのは `locales/zh-CN.yml` のみ**。
 
 ## 大前提 (絶対 NG)
 
-- **`locales/<lang>.yml` (ja-JP.yml 以外) の編集は禁止**。これらは Crowdin の自動配信先で、手動編集すると次の同期で上書き喪失する ([locales/README.md](../../../../../locales/README.md), [crowdin.yml](../../../../../crowdin.yml))
-- 文字列リテラルを SFC に直書きしない (`<span>こんにちは</span>` 等)。必ず `i18n.ts.<key>` を経由する
+- **`locales/<lang>.yml` (zh-CN.yml 以外) の編集は禁止**。これらは Crowdin の自動配信先で、手動編集すると次の同期で上書き喪失する ([locales/README.md](../../../../../locales/README.md), [crowdin.yml](../../../../../crowdin.yml))
+- 文字列リテラルを SFC に直書きしない (`<span>你好</span>` 等)。必ず `i18n.ts.<key>` を経由する
 - 既存キーの破壊的リネームは Crowdin 翻訳資産を失わせる。**追加 → 移行 → 旧キー削除** の 3 段階に分割する。詳細手順と誤編集の復旧は [knowledge/i18n-usage.md §Crowdin 安全策](../knowledge/i18n-usage.md)
 
-## ステップ 1: ja-JP.yml にキーを追加
+## ステップ 1: zh-CN.yml にキーを追加
 
-[locales/ja-JP.yml](../../../../../locales/ja-JP.yml) を編集する。YAML の階層構造を維持し、関連するセクションに配置する:
+[locales/zh-CN.yml](../../../../../locales/zh-CN.yml) を編集する。YAML の階層構造を維持し、関連するセクションに配置する:
 
 ```yaml
 # トップレベル単純キー
@@ -18,12 +18,12 @@ save: "保存"
 
 # ネストしたカテゴリ (アンダースコア接頭辞は内部カテゴリ)
 _settings:
-  general: "全般"
-  appearance: "外観"
+  general: "常规"
+  appearance: "外观"
 
 # パラメータ付き (単純なプレースホルダ置換)
 # 受け付けるのは {name} 形式のみ。ICU MessageFormat (plural/select) は非対応
-greeting: "こんにちは、{name}さん"
+greeting: "你好，{name}"
 ```
 
 ### 命名のお作法
@@ -37,7 +37,7 @@ greeting: "こんにちは、{name}さん"
 
 ## ステップ 2: 型定義の自動再生成
 
-`packages/i18n/build.ts` が `ja-JP.yml` を解析し、TypeScript インターフェースを [packages/i18n/src/autogen/locale.ts](../../../../../packages/i18n/src/autogen/locale.ts) に出力する。
+`packages/i18n/build.ts` が `zh-CN.yml` を解析し、TypeScript インターフェースを [packages/i18n/src/autogen/locale.ts](../../../../../packages/i18n/src/autogen/locale.ts) に出力する。
 
 ### 自動 (推奨)
 
@@ -83,17 +83,17 @@ pnpm --filter i18n lint
 pnpm --filter frontend lint
 
 # 他言語 yml に diff が出ていないことを確認 (出力が空であれば OK)
-git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'
+git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/zh-CN\.yml$'
 ```
 
-**注意:** `grep -v 'ja-JP.yml'` を **diff 本文** に当てると ja-JP.yml 単体の変更でも `+追加行` が素通りして必ず非空になる。`--name-only` でファイル名だけに絞ってから完全一致で除外するのが正しい。
+**注意:** `grep -v 'zh-CN.yml'` を **diff 本文** に当てると zh-CN.yml 単体の変更でも `+追加行` が素通りして必ず非空になる。`--name-only` でファイル名だけに絞ってから完全一致で除外するのが正しい。
 
 ## 例: 「ノートを削除しますか？」確認ダイアログを追加する
 
-1. `locales/ja-JP.yml`:
+1. `locales/zh-CN.yml`:
    ```yaml
    _notes:
-     deleteConfirm: "このノートを削除しますか？"
+     deleteConfirm: "要删除这条帖子吗？"
    ```
 2. `pnpm --filter i18n generate` (または `pnpm dev` で watch 中)
 3. SFC:
@@ -116,7 +116,7 @@ git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'
 ## 参照ファイル
 
 - [locales/README.md (★ 編集ポリシー根拠)](../../../../../locales/README.md)
-- [locales/ja-JP.yml](../../../../../locales/ja-JP.yml)
+- [locales/zh-CN.yml](../../../../../locales/zh-CN.yml)
 - [packages/i18n/build.ts](../../../../../packages/i18n/build.ts)
 - [packages/i18n/src/autogen/locale.ts (生成物)](../../../../../packages/i18n/src/autogen/locale.ts)
 - [packages/frontend/src/i18n.ts](../../../../../packages/frontend/src/i18n.ts)

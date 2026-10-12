@@ -6,13 +6,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
+	headerIcon="ti ti-upload"
+	:closeOnBackdrop="false"
 	:width="800"
 	:height="500"
 	@close="cancel()"
 	@closed="emit('closed')"
 >
 	<template #header>
-		<i class="ti ti-upload"></i> {{ i18n.tsx.uploadNFiles({ n: files.length }) }}
+		{{ i18n.tsx.uploadNFiles({ n: files.length }) }}
 	</template>
 
 	<div :class="$style.root">
@@ -31,10 +33,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div>{{ i18n.tsx._uploader.maxFileSizeIsX({ x: $i.policies.maxFileSizeMb + 'MB' }) }}</div>
 
-			<!-- クライアントで検出するMIME typeとサーバーで検出するMIME typeが異なる場合があり、混乱の元になるのでとりあえず隠しとく -->
-			<!-- https://github.com/misskey-dev/misskey/issues/16091 -->
-			<!-- https://github.com/misskey-dev/misskey/issues/16663 -->
-			<!--<div>{{ i18n.ts._uploader.allowedTypes }}: {{ $i.policies.uploadableFileTypes.join(', ') }}</div>-->
 		</div>
 	</div>
 
@@ -67,6 +65,8 @@ const $i = ensureSignin();
 const props = withDefaults(defineProps<{
 	files: File[];
 	folderId?: string | null;
+	isManaged?: boolean;
+	draftId?: string;
 	multiple?: boolean;
 	features?: UploaderFeatures;
 }>(), {
@@ -84,6 +84,8 @@ const dialog = useTemplateRef('dialog');
 const uploader = useUploader({
 	multiple: props.multiple,
 	folderId: props.folderId,
+	isManaged: props.isManaged,
+	draftId: props.draftId,
 	features: props.features,
 });
 

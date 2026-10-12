@@ -41,6 +41,16 @@ export const emptyWithNoText = {
 		text: undefined,
 	},
 } satisfies StoryObj<typeof MkResult>;
+export const pageEmpty = {
+	...Default,
+	args: {
+		...Default.args,
+		page: true,
+	},
+	parameters: {
+		layout: 'padded',
+	},
+} satisfies StoryObj<typeof MkResult>;
 export const notFound = {
 	...Default,
 	args: {

@@ -4,6 +4,9 @@
  */
 
 import ms from 'ms';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
+import { ApiError } from '@/server/api/error.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { DriveFilesRepository, GalleryPostsRepository } from '@/models/_.js';
@@ -32,7 +35,8 @@ export const meta = {
 	},
 
 	errors: {
-
+		contentTooLong: { ...contentTooLongError, id: 'eef3996e-751b-4783-88d1-ce2dd37709a9' },
+		noSuchPost: { message: 'No such owned gallery post.', code: 'NO_SUCH_POST', id: '2f9d79b4-a81a-4258-88a8-2880dbe3fbed' },
 	},
 } as const;
 
@@ -62,6 +66,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private galleryPostEntityService: GalleryPostEntityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			const previous = await this.galleryPostsRepository.findOneBy({ id: ps.postId, userId: me.id });
+			if (previous == null) throw new ApiError(meta.errors.noSuchPost);
+			if (isContentTooLong(ps.title, CONTENT_LIMITS.galleryTitle, previous.title) ||
+				isContentTooLong(ps.description, CONTENT_LIMITS.galleryDescription, previous.description)) {
+				throw new ApiError(meta.errors.contentTooLong);
+			}
 			let files: Array<MiDriveFile> | undefined;
 
 			if (ps.fileIds) {

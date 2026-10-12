@@ -12,6 +12,7 @@ import { MiUserProfile } from '@/models/UserProfile.js';
 import { MiCheckinRedemptionCode } from '@/models/CheckinRedemptionCode.js';
 import { MiCheckinRedemptionClaim } from '@/models/CheckinRedemptionClaim.js';
 import { CheckinService } from '@/core/CheckinService.js';
+import { WalletService } from '@/core/WalletService.js';
 import { IdService } from '@/core/IdService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
@@ -34,6 +35,7 @@ export class CheckinRedemptionService {
 	constructor(
 		@Inject(DI.db) private db: DataSource,
 		private checkinService: CheckinService,
+		private walletService: WalletService,
 		private idService: IdService,
 		private userEntityService: UserEntityService,
 	) {
@@ -97,7 +99,8 @@ export class CheckinRedemptionService {
 			if (!code) throw new CheckinRedemptionService.NoSuchCodeError();
 			if (await manager.existsBy(MiCheckinRedemptionClaim, { userId, codeId: code.id })) {
 				const profile = await manager.findOneByOrFail(MiUserProfile, { userId });
-				return { newlyRedeemed: false, amount: 0, makeupCards: profile.checkinMakeupCards, points: profile.checkinPoints };
+				const points = await this.walletService.getBalanceInTransaction(manager, userId);
+				return { newlyRedeemed: false, amount: 0, makeupCards: profile.checkinMakeupCards, points };
 			}
 			const now = new Date();
 			if (!code.enabled) throw new CheckinRedemptionService.DisabledCodeError();

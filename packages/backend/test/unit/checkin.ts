@@ -25,7 +25,8 @@ import { CheckinRedemptionService } from '@/core/CheckinRedemptionService.js';
 
 function setup(records: Partial<MiUserCheckin>[] = []) {
 	const user = { id: 'user', username: 'user', host: null, isSuspended: false, isDeleted: false, movedToUri: null };
-	const profile = { achievements: [] as { name: string; unlockedAt: number }[], checkinPoints: 0, checkinMakeupCards: 0, checkinFirstRewardClaimed: false };
+	const profile = { achievements: [] as { name: string; unlockedAt: number }[], checkinMakeupCards: 0, checkinFirstRewardClaimed: false };
+	let points = 0;
 	const state = { failInsert: false };
 	const latest = (): Partial<MiUserCheckin> | null => [...records].sort((a, b) => b.date!.localeCompare(a.date!))[0] ?? null;
 	const query = {
@@ -42,7 +43,7 @@ function setup(records: Partial<MiUserCheckin>[] = []) {
 		findOneBy: vi.fn(async (_entity: unknown, where: { date: string }) => records.find(record => record.date === where.date)),
 		existsBy: vi.fn(async () => false),
 		create: vi.fn((_entity: unknown, data: Partial<MiUserCheckin>) => data),
-		increment: vi.fn(async (_entity: unknown, _where: unknown, property: 'checkinPoints' | 'checkinMakeupCards', amount: number) => { profile[property] += amount; }),
+		increment: vi.fn(async (_entity: unknown, _where: unknown, property: 'checkinMakeupCards', amount: number) => { profile[property] += amount; }),
 		findOneByOrFail: vi.fn(async () => profile),
 		countBy: vi.fn(async () => actualDays()),
 		insert: vi.fn(async (_entity: unknown, record: Partial<MiUserCheckin>) => {
@@ -61,7 +62,11 @@ function setup(records: Partial<MiUserCheckin>[] = []) {
 		query: vi.fn().mockResolvedValue([]),
 	};
 	const pack = { packMany: vi.fn(async (ids: string[]) => ids.map(id => ({ id }))) };
-	const service = new CheckinService(db as never, repository as never, { findOneByOrFail: vi.fn(async () => profile) } as never, achievements as never, pack as never, { parse: () => ({ date: new Date('2024-01-01T00:00:00Z') }) } as never, { log: vi.fn() } as never);
+	const walletService = {
+		getBalanceInTransaction: vi.fn(async () => points),
+		changePointsInTransaction: vi.fn(async (_manager: unknown, _userId: string, amount: number) => { points += amount; return points; }),
+	};
+	const service = new CheckinService(db as never, repository as never, { findOneByOrFail: vi.fn(async () => profile) } as never, achievements as never, pack as never, { parse: () => ({ date: new Date('2024-01-01T00:00:00Z') }) } as never, { log: vi.fn() } as never, walletService as never);
 	return { service, records, user, state, manager, achievements, profile, repository, query, db, pack };
 }
 

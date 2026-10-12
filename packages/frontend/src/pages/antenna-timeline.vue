@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.tl">
 			<MkStreamingNotesTimeline
 				ref="tlEl" :key="antennaId"
+				pageEmpty
 				src="antenna"
 				:antenna="antennaId"
 				:sound="true"

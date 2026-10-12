@@ -9,7 +9,7 @@ export const abuseReportSnapshotSchema = {
 	properties: {
 		version: { type: 'number', nullable: false, optional: false },
 		capturedAt: { type: 'string', format: 'date-time', nullable: false, optional: false },
-		type: { type: 'string', enum: ['user', 'note', 'boost', 'chat', 'page', 'gallery', 'play'], nullable: false, optional: false },
+		type: { type: 'string', enum: ['user', 'note', 'chat', 'page', 'gallery', 'play'], nullable: false, optional: false },
 		sourceUrl: { type: 'string', nullable: false, optional: false },
 		user: {
 			type: 'object', nullable: false, optional: false,

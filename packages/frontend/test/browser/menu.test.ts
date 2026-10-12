@@ -14,7 +14,7 @@ import MkPopupMenu from '@/components/MkPopupMenu.vue';
 import type { MenuItem } from '@/types/menu.js';
 import { hotkeyDirective } from '@/directives/hotkey.js';
 import { prefer } from '@/preferences.js';
-import { MENU_GAP, VIEWPORT_MARGIN } from '@/utility/menu-position.js';
+import { MENU_GAP, SUBMENU_OVERLAP, VIEWPORT_MARGIN } from '@/utility/menu-position.js';
 import { lastPointerType } from '@/utility/touch.js';
 
 vi.mock('@/os.js', () => ({ claimZIndex: () => 1000, popupMenu: vi.fn() }));
@@ -123,7 +123,7 @@ function expectedLeft(anchor: DOMRect, width: number) {
 function submenuGap(root: HTMLElement, child: HTMLElement) {
 	const rootRect = root.getBoundingClientRect();
 	const childRect = child.getBoundingClientRect();
-	return childRect.left >= rootRect.right ? childRect.left - rootRect.right : rootRect.left - childRect.right;
+	return Math.max(childRect.left - rootRect.right, rootRect.left - childRect.right);
 }
 
 async function openSubmenu(fixture: ReturnType<typeof mountMenu>, label = 'Action') {
@@ -204,7 +204,7 @@ test('keeps a submenu visible when an outer container scrolls', async () => {
 	const child = root.querySelector<HTMLElement>('[role="menu"]')!;
 	assertVisible(root);
 	assertVisible(child);
-	expect(submenuGap(root, child)).toBeCloseTo(MENU_GAP, 1);
+	expect(submenuGap(root, child)).toBeCloseTo(-SUBMENU_OVERLAP, 1);
 });
 
 test.each(['removed', 'hidden'])('keeps a popup and its submenu in place after the anchor is %s', async state => {
@@ -226,7 +226,7 @@ test.each(['removed', 'hidden'])('keeps a popup and its submenu in place after t
 		const child = root.querySelector<HTMLElement>('[role="menu"]')!;
 		expect(rect.left).toBeCloseTo(initialRect.left, 1);
 		expect(rect.top).toBeCloseTo(initialRect.top, 1);
-		expect(submenuGap(root, child)).toBeCloseTo(MENU_GAP, 1);
+		expect(submenuGap(root, child)).toBeCloseTo(-SUBMENU_OVERLAP, 1);
 		expect(child.querySelector('[role="menuitem"]')!.getBoundingClientRect().top).toBeCloseTo(item.getBoundingClientRect().top, 1);
 		assertVisible(root);
 		assertVisible(child);
@@ -464,7 +464,7 @@ describe('button menus anchor to the trigger element', () => {
 });
 
 describe.each(['context', 'popup'] as const)('%s submenus', kind => {
-	test.each([100, 900])('crosses the submenu gap in both directions and closes on a sibling at x=%s', async x => {
+	test.each([100, 900])('crosses the submenu edge in both directions and closes on a sibling at x=%s', async x => {
 		prefer.s.animation = false;
 		const fixture = mountMenu(kind, x, 100, { child: true });
 		await fixture.open();
@@ -477,7 +477,7 @@ describe.each(['context', 'popup'] as const)('%s submenus', kind => {
 		const start = parentRect.left + parentRect.width / 2;
 		const end = childRect.left + childRect.width / 2;
 		const direction = Math.sign(end - start);
-		// 逐像素经过父项边缘与实际空隙，避免一次 hover 跳过断开的通路。
+		// 逐像素经过父项边缘，避免一次 hover 跳过断开的通路。
 		for (let cursor = start; direction * (end - cursor) > 0; cursor += direction * 2) {
 			await movePointer(cursor, y);
 			expect(root.querySelector('[role="menu"]')).toBe(child);
@@ -565,14 +565,14 @@ describe.each(['context', 'popup'] as const)('%s submenus', kind => {
 		expect(root.querySelector('[role="menu"]')).toBe(child);
 	});
 
-	test.each([100, 900])('opens a submenu without overlap during the parent fade-in at x=%s', async x => {
+	test.each([100, 900])('keeps a submenu attached during the parent fade-in at x=%s', async x => {
 		await import('@/components/MkMenu.child.vue');
 		const fixture = mountMenu(kind, x, 100, { child: true });
 		await fixture.open();
 		const { root, item } = await openSubmenu(fixture);
 		for (let frame = 0; frame < 8; frame++) {
 			const child = root.querySelector<HTMLElement>('[role="menu"]')!;
-			expect(submenuGap(root, child)).toBeCloseTo(MENU_GAP, 1);
+			expect(submenuGap(root, child)).toBeCloseTo(-SUBMENU_OVERLAP, 1);
 			expect(child.querySelector('[role="menuitem"]')!.getBoundingClientRect().top).toBeCloseTo(item.getBoundingClientRect().top, 1);
 			assertVisible(child);
 			expect(child.querySelector('[role^="menuitem"]:hover')).toBeNull();
@@ -607,6 +607,6 @@ describe.each(['context', 'popup'] as const)('%s submenus', kind => {
 		await nextFrame();
 		const child = root.querySelector<HTMLElement>('[role="menu"]')!;
 		assertVisible(child);
-		expect(submenuGap(root, child)).toBeCloseTo(MENU_GAP, 1);
+		expect(submenuGap(root, child)).toBeCloseTo(-SUBMENU_OVERLAP, 1);
 	});
 });

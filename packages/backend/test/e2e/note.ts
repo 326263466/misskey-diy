@@ -52,6 +52,13 @@ describe('Note', () => {
 		assert.strictEqual(res.body.createdNote.text, post.text);
 	});
 
+	test('回应接口返回实际接受的表情', async () => {
+		const note = await post(alice, { text: 'reaction result', reactionAcceptance: 'likeOnly', localOnly: true });
+		const accepted = await api('notes/reactions/create', { noteId: note.id, reaction: ':missing:' }, bob);
+		assert.strictEqual(accepted.status, 200);
+		assert.deepStrictEqual(accepted.body, { reaction: '❤' });
+	});
+
 	test('ファイルを添付できる', async () => {
 		const file = await uploadUrl(alice, 'https://raw.githubusercontent.com/misskey-dev/misskey/develop/packages/backend/test/resources/192.jpg');
 
@@ -1119,7 +1126,7 @@ describe('Note', () => {
 		test('edits a post in place while keeping reactions, votes and replies', async () => {
 			const note = await post(alice, { text: 'original post', poll: { choices: ['one', 'two'] } });
 			const child = await post(bob, { text: 'existing comment', replyId: note.id });
-			assert.strictEqual((await api('notes/reactions/create', { noteId: note.id, reaction: '\u2764\ufe0f' }, bob)).status, 204);
+			assert.strictEqual((await api('notes/reactions/create', { noteId: note.id, reaction: '\u2764\ufe0f' }, bob)).status, 200);
 			assert.strictEqual((await api('notes/polls/vote', { noteId: note.id, choice: 1 }, bob)).status, 204);
 			const before = await Notes.findOneByOrFail({ id: note.id });
 
@@ -1138,6 +1145,98 @@ describe('Note', () => {
 	});
 
 	describe('notes/delete', () => {
+		describe('attachment retention without a complete reference ledger', () => {
+			async function attachment(user = alice) {
+				const result = await uploadFile(user, { blob: new Blob([`attachment-${crypto.randomUUID()}`], { type: 'text/plain' }), name: 'attachment.txt' });
+				assert.strictEqual(result.status, 200);
+				return result.body!;
+			}
+
+			test('preserves an attachment with unverified usage after deleting its post', async () => {
+				const file = await attachment();
+				const note = await post(alice, { fileIds: [file.id] });
+				assert.strictEqual((await api('notes/delete', { noteId: note.id }, alice)).status, 204);
+				assert.strictEqual((await api('drive/files/show', { fileId: file.id }, alice)).status, 200);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: file.id }), true);
+			});
+
+			test('preserves uploads linked in a deleted post body and files owned by others', async () => {
+				const own = await attachment();
+				const foreign = await attachment(bob);
+				const unrelated = await attachment();
+				const note = await post(alice, { text: `[own](${own.url}) [foreign](${foreign.url})` });
+				assert.strictEqual((await api('notes/delete', { noteId: note.id }, alice)).status, 204);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: own.id }), true);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: foreign.id }), true);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: unrelated.id }), true);
+			});
+
+			test('preserves a shared attachment even after its last known post is deleted', async () => {
+				const file = await attachment();
+				const first = await post(alice, { text: 'first', fileIds: [file.id] });
+				const second = await post(alice, { text: 'second', fileIds: [file.id] });
+				assert.strictEqual((await api('notes/delete', { noteId: first.id }, alice)).status, 204);
+				assert.strictEqual((await api('drive/files/show', { fileId: file.id }, alice)).status, 200);
+				assert.strictEqual((await api('notes/delete', { noteId: second.id }, alice)).status, 204);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: file.id }), true);
+			});
+
+			test('preserves files used by avatars, drafts and Markdown articles', async () => {
+				const avatar = (await uploadFile(alice)).body!;
+				assert.strictEqual((await api('i/update', { avatarId: avatar.id }, alice)).status, 200);
+				const draft = await attachment();
+				assert.strictEqual((await api('notes/drafts/create', { text: 'draft', fileIds: [draft.id] }, alice)).status, 200);
+				const article = await attachment();
+				assert.strictEqual((await api('pages/create', {
+					title: 'Keep article media', name: 'keep-media', variables: [], script: '',
+					content: [{ id: 'markdown', type: 'markdown', text: `![media](${article.url})` }],
+				}, alice)).status, 200);
+				for (const file of [avatar, draft, article]) {
+					const note = await post(alice, { fileIds: [file.id] });
+					assert.strictEqual((await api('notes/delete', { noteId: note.id }, alice)).status, 204);
+					assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: file.id }), true);
+				}
+			});
+
+			test('preserves attachments referenced by an MFM link without attachment IDs', async () => {
+				const file = await attachment();
+				const note = await post(alice, { fileIds: [file.id] });
+				await post(alice, { text: `[file](${file.url})` });
+				assert.strictEqual((await api('notes/delete', { noteId: note.id }, alice)).status, 204);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: file.id }), true);
+			});
+
+			test('preserves every author\'s uploads when deleting a thread and its descendants', async () => {
+				const own = await attachment();
+				const other = await attachment(bob);
+				const parent = await post(alice, { text: 'parent' });
+				await post(alice, { replyId: parent.id, fileIds: [own.id] });
+				await post(bob, { replyId: parent.id, fileIds: [other.id] });
+				assert.strictEqual((await api('notes/delete', { noteId: parent.id }, alice)).status, 204);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: own.id }), true);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: other.id }), true);
+			});
+
+			test('preserves cloud-synced wallpaper and widget file references', async () => {
+				const wallpaper = await attachment();
+				const widget = await attachment();
+				assert.strictEqual((await api('i/registry/set', { key: 'wallpaper', value: wallpaper.url, scope: ['client', 'preferences'] }, alice)).status, 204);
+				assert.strictEqual((await api('i/registry/set', { key: 'widget', value: { fileId: widget.id }, scope: ['client', 'preferences'] }, alice)).status, 204);
+				for (const file of [wallpaper, widget]) {
+					const note = await post(alice, { fileIds: [file.id] });
+					assert.strictEqual((await api('notes/delete', { noteId: note.id }, alice)).status, 204);
+					assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: file.id }), true);
+				}
+			});
+
+			test('does not delete files when note deletion is denied', async () => {
+				const file = await attachment();
+				const note = await post(alice, { fileIds: [file.id] });
+				assert.strictEqual((await api('notes/delete', { noteId: note.id }, bob)).status, 400);
+				assert.strictEqual(await Notes.manager.existsBy(MiDriveFile, { id: file.id }), true);
+			});
+		});
+
 		test('deletes a root post and its complete discussion while leaving other posts intact', async () => {
 			const rootNote = await post(alice, { text: 'Delete root and discussion' });
 			const comment = await post(bob, { text: 'child', replyId: rootNote.id });
@@ -1175,7 +1274,7 @@ describe('Note', () => {
 			const unrelated = await post(bob, { text: 'unrelated' });
 			for (const note of [parent, comment, child, sibling, unrelated]) {
 				assert.strictEqual((await api('notes/likes/create', { noteId: note.id }, alice)).status, 200);
-				assert.strictEqual((await api('notes/reactions/create', { noteId: note.id, reaction: '\u2764\ufe0f' }, alice)).status, 204);
+				assert.strictEqual((await api('notes/reactions/create', { noteId: note.id, reaction: '\u2764\ufe0f' }, alice)).status, 200);
 				assert.strictEqual((await api('notes/favorites/create', { noteId: note.id }, alice)).status, 204);
 			}
 			for (const note of [comment, child, sibling]) await api('notes/polls/vote', { noteId: note.id, choice: 0 }, alice);
@@ -1215,7 +1314,7 @@ describe('Note', () => {
 				poll: { choices: ['one', 'two'] },
 			});
 			assert.strictEqual((await Notes.findOneByOrFail({ id: parent.id })).repliesCount, 1);
-			assert.strictEqual((await api('notes/reactions/create', { noteId: comment.id, reaction: '\u2764\ufe0f' }, alice)).status, 204);
+			assert.strictEqual((await api('notes/reactions/create', { noteId: comment.id, reaction: '\u2764\ufe0f' }, alice)).status, 200);
 			assert.strictEqual((await api('notes/polls/vote', { noteId: comment.id, choice: 0 }, alice)).status, 204);
 			for (const model of [MiNoteReaction, MiPoll, MiPollVote]) {
 				assert.strictEqual(await Notes.manager.count(model, { where: { noteId: comment.id } }), 1);

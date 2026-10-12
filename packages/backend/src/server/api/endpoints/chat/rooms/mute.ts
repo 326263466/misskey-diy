@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import { DI } from '@/di-symbols.js';
-import { ChatService } from '@/core/ChatService.js';
+import { ChatService, ChatRoomAccessError } from '@/core/ChatService.js';
 import { ApiError } from '@/server/api/error.js';
 
 export const meta = {
@@ -30,6 +29,7 @@ export const paramDef = {
 	properties: {
 		roomId: { type: 'string', format: 'misskey:id' },
 		mute: { type: 'boolean' },
+		duration: { type: 'integer', minimum: 60, maximum: 31536000 },
 	},
 	required: ['roomId', 'mute'],
 } as const;
@@ -42,7 +42,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me) => {
 			await this.chatService.checkChatAvailability(me.id, 'write');
 
-			await this.chatService.muteRoom(me.id, ps.roomId, ps.mute);
+			try {
+				await this.chatService.muteRoom(me.id, ps.roomId, ps.mute, ps.duration);
+			} catch (error) {
+				if (error instanceof ChatRoomAccessError) throw new ApiError(meta.errors.noSuchRoom);
+				throw error;
+			}
 		});
 	}
 }
