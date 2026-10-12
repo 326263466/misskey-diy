@@ -434,6 +434,16 @@ function realtimeSubscribe(props: {
 	};
 }
 
+// 同一帖子的多个实例会收到同一份服务器数据；各自复制一份，否则回应变化会被重复计算。
+function copyReactions(reactions: Misskey.entities.Note['reactions']): Misskey.entities.Note['reactions'] {
+	const copied: Misskey.entities.Note['reactions'] = {};
+	for (const [name, count] of Object.entries(reactions)) {
+		const normalizedName = normalizeReaction(name);
+		copied[normalizedName] = (copied[normalizedName] ?? 0) + count;
+	}
+	return copied;
+}
+
 export type ReactiveNoteData = {
 	viewsCount: number;
 	favoritesCount: number;
@@ -477,18 +487,9 @@ export function useNoteCapture(props: {
 		likeCount: note.likeCount ?? 0,
 		isLiked: note.isLiked ?? false,
 		likeUsers: note.likeUsers ?? [],
-		reactions: Object.entries(note.reactions).reduce((acc, [name, count]) => {
-			// Normalize reactions
-			const normalizedName = normalizeReaction(name);
-			if (acc[normalizedName] == null) {
-				acc[normalizedName] = count;
-			} else {
-				acc[normalizedName] += count;
-			}
-			return acc;
-		}, {} as Misskey.entities.Note['reactions']),
+		reactions: copyReactions(note.reactions),
 		reactionCount: note.reactionCount,
-		reactionEmojis: note.reactionEmojis,
+		reactionEmojis: { ...note.reactionEmojis },
 		myReactions: getMyReactions(note),
 		repliesCount: note.repliesCount,
 		renoteCount: note.renoteCount,
@@ -515,9 +516,9 @@ export function useNoteCapture(props: {
 			if (active.value) requestNoteRefresh(note.id);
 			return;
 		}
-		$note.reactions = data.reactions;
-		$note.reactionCount = Object.values(data.reactions).reduce((a, b) => a + b, 0);
-		$note.reactionEmojis = data.reactionEmojis;
+		$note.reactions = copyReactions(data.reactions);
+		$note.reactionCount = Object.values($note.reactions).reduce((a, b) => a + b, 0);
+		$note.reactionEmojis = { ...data.reactionEmojis };
 		if (data.myReactions != null) {
 			$note.myReactions = getMyReactions(data);
 			if ($i) {

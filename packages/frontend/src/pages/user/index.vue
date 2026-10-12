@@ -51,7 +51,7 @@ const initialRoute = router.current.route.path === '/@:acct' && router.current.p
 	: router.resolve(`/@${props.acct}`)!;
 
 // Unknown child pages keep the existing fallback to the profile overview.
-const PROFILE_PAGES = ['home', 'notes', 'files', 'activity', 'achievements', 'reactions', 'clips', 'lists', 'pages', 'flashs', 'gallery', 'raw', 'management'] as const;
+const PROFILE_PAGES = ['home', 'notes', 'files', 'activity', 'achievements', 'reactions', 'clips', 'lists', 'pages', 'flashs', 'gallery', 'raw'] as const;
 
 function pathForTab(key: string): string {
 	// トップは /@acct を正規のURLとして扱う (/@acct/home は別パスになってしまう)
@@ -61,7 +61,6 @@ function pathForTab(key: string): string {
 const tab = computed<string>({
 	get: () => {
 		const page = router.currentRef.value.child?.props.get('page');
-		if (page === 'management' && (!$i || user.value?.id !== $i.id)) return 'home';
 		return typeof page === 'string' && (PROFILE_PAGES as readonly string[]).includes(page) ? page : 'home';
 	},
 	set: (key) => {
@@ -174,11 +173,12 @@ const profileTabs = computed(() => user.value ? [{
 	icon: 'ti ti-list',
 }, {
 	key: 'pages',
-	title: i18n.ts.pages,
+	// 此标签页同时列出文章和自定义页面。
+	title: i18n.ts.articlesAndPages,
 	icon: 'ti ti-news',
 }, {
 	key: 'flashs',
-	title: 'Play',
+	title: i18n.ts.play,
 	icon: 'ti ti-player-play',
 }, {
 	key: 'gallery',
@@ -188,11 +188,7 @@ const profileTabs = computed(() => user.value ? [{
 	key: 'raw',
 	title: i18n.ts.rawData,
 	icon: 'ti ti-code',
-}, ...($i?.id === user.value.id ? [{
-	key: 'management',
-	title: i18n.ts._management.title,
-	icon: 'ti ti-layout-grid',
-}] : [])] : []);
+}] : []);
 
 // 搜索范围与当前可见菜单一致，结果跳转到当前用户的对应页面。
 const searchIndex = computed<SearchIndexItem[]>(() => profileTabs.value.map(item => ({
@@ -204,16 +200,25 @@ const searchIndex = computed<SearchIndexItem[]>(() => profileTabs.value.map(item
 	icon: item.icon,
 })));
 
+const PROFILE_CONTENT_PAGES = ['notes', 'files', 'clips', 'lists', 'pages', 'flashs', 'gallery'];
+const PROFILE_ACTIVITY_PAGES = ['activity', 'achievements', 'reactions'];
+
 // 菜单使用真实链接，刷新或分享后保留当前页面。
-const menuDef = computed<SuperMenuDef[]>(() => [{
-	items: profileTabs.value.map(item => ({
+const menuDef = computed<SuperMenuDef[]>(() => {
+	const items = (keys: string[]) => profileTabs.value.filter(item => keys.includes(item.key)).map(item => ({
 		type: 'link' as const,
 		to: pathForTab(item.key),
 		icon: item.icon,
 		text: item.title,
 		active: tab.value === item.key,
-	})),
-}]);
+	}));
+	return [
+		{ items: items(['home']) },
+		{ title: i18n.ts._menuGroup.profileContent, items: items(PROFILE_CONTENT_PAGES) },
+		{ title: i18n.ts._menuGroup.profileActivity, items: items(PROFILE_ACTIVITY_PAGES) },
+		{ items: items(['raw']) },
+	].filter(group => group.items.length > 0);
+});
 
 definePage(() => ({
 	title: i18n.ts.user,

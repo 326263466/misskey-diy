@@ -52,7 +52,7 @@ describe('personal benefits', () => {
 		await waitFor(() => expect(view.getByTestId('benefits-history')).toBeTruthy());
 		expect(view.getByText(i18n.ts._checkin._history.sourceAdmin)).toBeTruthy();
 		expect(view.getByRole('textbox', { name: i18n.ts._benefits.codeEntry })).toBeTruthy();
-		expect(view.getByRole('link', { name: i18n.ts._checkin.dailyCheckin }).getAttribute('href')).toBe('/checkin');
+		expect(view.getByRole('link', { name: i18n.ts._checkin.dailyCheckin }).getAttribute('href')).toBe('/my/checkin');
 		expect(mocks.api.mock.calls.map(([endpoint]) => endpoint)).toEqual(['i/checkin-status', 'i/checkin-history']);
 		expect(view.queryByText(i18n.ts._checkin.grantCards)).toBeNull();
 	});

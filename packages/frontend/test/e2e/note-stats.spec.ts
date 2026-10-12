@@ -94,7 +94,7 @@ function observeNetwork(page: Page, noteId: string) {
 	return state;
 }
 
-test('real accounts update list and detail counters through streaming and recover missed updates', async ({ browser, request }, testInfo) => {
+test('real accounts update timeline and profile counters through streaming and recover missed updates', async ({ browser, request }, testInfo) => {
 	test.setTimeout(180_000);
 	const suffix = randomUUID().replaceAll('-', '').slice(0, 12);
 	const author = await registerUser(`statsa${suffix}`, randomUUID());
@@ -134,7 +134,9 @@ test('real accounts update list and detail counters through streaming and recove
 
 	try {
 		await pages[0].goto(`${BASE_URL}/`);
+		// 旧帖子链接会转到作者主页，帖子在主页时间线中显示。
 		await pages[1].goto(`${BASE_URL}/notes/${original.id}`);
+		await pages[1].waitForURL(/\/@statsa/);
 		const articles = pages.map(page => noteArticle(page, text));
 		for (let index = 0; index < pages.length; index++) {
 			await expect(articles[index]).toBeVisible();

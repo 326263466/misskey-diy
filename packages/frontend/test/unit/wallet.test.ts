@@ -165,7 +165,7 @@ test('交易记录显示业务字段并打开对应凭证，冻结释放不再�
 	await waitFor(() => expect(view.getByText('+3.00')).toBeTruthy());
 	expect(view.queryByText('transfer-business-id')).toBeNull();
 	expect(view.getAllByText(i18n.ts._wallet.statusRecorded)).toHaveLength(2);
-	expect(view.getByText(i18n.tsx._wallet.reservedChange({ amount: '-1' }))).toBeTruthy();
+	expect(view.getByText(i18n.tsx._wallet.reservedShort({ amount: '-1.00' }))).toBeTruthy();
 	const release = within(view.getByText(i18n.ts._wallet._types.transferReservationRelease).closest('tr')!);
 	expect(release.getByText('0')).toBeTruthy();
 	const detail = release.getByRole('button', { name: i18n.ts._wallet.viewDetail });

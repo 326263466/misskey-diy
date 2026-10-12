@@ -14,7 +14,6 @@ import { i18n } from '@/i18n.js';
 import { publishUserProfileUpdate } from '@/composables/use-user-profile.js';
 
 vi.mock('@@/js/user.js', () => ({ userPage: () => '/@alice' }));
-vi.mock('@@/js/note.js', () => ({ notePage: () => '/notes/note' }));
 
 afterEach(cleanup);
 
@@ -127,7 +126,7 @@ describe('note author profile', () => {
 		expect(primary.textContent).toBe('Alice');
 		expect(header.children).toHaveLength(2);
 		expect(header.lastElementChild!.textContent).toBe(expected);
-		expect(view.getByRole('link', { name: 'now' }).getAttribute('href')).toBe('/notes/note');
+		expect(view.queryByRole('link', { name: 'now' })).toBeNull();
 	});
 
 	test('does not leave an empty secondary row when time and work are absent', () => {

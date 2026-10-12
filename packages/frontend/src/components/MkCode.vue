@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="[$style.codeBlockRoot, { [$style.outerStyle]: withOuterStyle }]" data-note-interactive>
+<div :class="[$style.codeBlockRoot, { [$style.outerStyle]: withOuterStyle }]">
 	<div :class="$style.codeBlockHeader">
 		<span :class="$style.codeBlockDots" aria-hidden="true"><span></span><span></span><span></span></span>
 		<div :class="$style.codeBlockActions">

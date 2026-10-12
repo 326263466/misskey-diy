@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true" :loading="loading">
 	<div class="_pageBody">
+		<MkTip k="gallery" style="margin-bottom: var(--MI-margin);">{{ i18n.ts._gallery.tip }}</MkTip>
 		<div v-if="tab === 'explore'" class="_gaps">
 			<MkFoldableSection>
 				<template #header><i class="ti ti-clock"></i>{{ i18n.ts.recentPosts }}</template>

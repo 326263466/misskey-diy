@@ -8,6 +8,7 @@ import type { PagesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { PageEntityService } from '@/core/entities/PageEntityService.js';
 import { ArticleService } from '@/core/ArticleService.js';
+import { notArticleCondition } from '@/misc/article-access.js';
 import { DI } from '@/di-symbols.js';
 
 export const meta = {
@@ -45,6 +46,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const query = this.pagesRepository.createQueryBuilder('page')
 				.where('page.visibility = \'public\'')
 				.andWhere('page.likedCount > 0')
+				.andWhere(notArticleCondition('page'))
 				.orderBy('page.likedCount', 'DESC');
 
 			const pages = await query.limit(10).getMany();

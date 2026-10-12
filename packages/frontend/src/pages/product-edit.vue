@@ -4,9 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader class="_standalonePage" contentCard hideHeader>
+<PageWithHeader contentCard hideHeader>
 	<div class="_pageBody _gaps_m" :class="$style.root" :aria-busy="loading || saving">
-		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title"><MkA to="/products/manage"><i class="ti ti-arrow-left" aria-hidden="true"></i> {{ i18n.ts._marketplace.myProducts }}</MkA><MkA to="/shop">{{ i18n.ts._marketplace.allProducts }}</MkA></nav>
+		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title"><MkA to="/my/products"><i class="ti ti-arrow-left" aria-hidden="true"></i> {{ i18n.ts._marketplace.myProducts }}</MkA><MkA to="/shop">{{ i18n.ts._marketplace.allProducts }}</MkA></nav>
 		<h1 :class="$style.heading">{{ props.productId ? i18n.ts._marketplace.editProduct : i18n.ts._marketplace.publishProduct }}</h1>
 		<p v-if="loading" role="status">{{ i18n.ts.loading }}</p>
 		<div v-else-if="loadError" role="alert" class="_gaps_s"><p>{{ loadError }}</p><MkButton @click="load">{{ i18n.ts.retry }}</MkButton></div>
@@ -37,7 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput v-model="draft.stockLimit" type="number" :min="0" :max="1000000" :step="1" :disabled="locked"><template #label>{{ i18n.ts._marketplace.stockLimit }} ({{ draft.unit }})</template><template #caption>{{ i18n.ts._marketplace.stockHint }}</template></MkInput>
 				<MkTextarea v-model="draft.deliveryText" :maxLength="2000" :rows="5" :disabled="locked"><template #label>{{ draft.type === 'physical' ? i18n.ts._marketplace.physicalDeliveryContent : i18n.ts._marketplace.deliveryContent }}</template><template #caption>{{ draft.type === 'physical' ? i18n.ts._marketplace.physicalDeliveryHint : i18n.ts._marketplace.deliveryHint }}</template></MkTextarea>
 				<MkSelect v-model="saleStatus" :items="saleOptions" :disabled="locked"><template #label>{{ i18n.ts.state }}</template></MkSelect>
-				<div class="_buttons" :class="$style.actions"><MkButton primary type="submit" :disabled="locked || !valid || conflict || feeRateBps == null" :wait="saving"><i class="ti ti-check" aria-hidden="true"></i> {{ props.productId ? i18n.ts.save : i18n.ts._marketplace.publishProduct }}</MkButton><MkA to="/products/manage">{{ i18n.ts.cancel }}</MkA></div>
+				<div class="_buttons" :class="$style.actions"><MkButton primary type="submit" :disabled="locked || !valid || conflict || feeRateBps == null" :wait="saving"><i class="ti ti-check" aria-hidden="true"></i> {{ props.productId ? i18n.ts.save : i18n.ts._marketplace.publishProduct }}</MkButton><MkA to="/my/products">{{ i18n.ts.cancel }}</MkA></div>
 			</form>
 		</template>
 	</div>
@@ -191,7 +191,7 @@ async function publish(request: entities.ProductsCreateRequest, retrying = false
 		if (disposed || !active || !pageActive.value) return;
 		clearPending(request.requestId);
 		os.toast(i18n.ts._marketplace.publishSuccess, 'success');
-		router.replace('/products/:productId/edit', { params: { productId: product.id } });
+		router.replace('/my/products/:productId/edit', { params: { productId: product.id } });
 	} catch (error) {
 		if (disposed || !active || !pageActive.value) return;
 		const code = (error as { code?: string }).code ?? '';

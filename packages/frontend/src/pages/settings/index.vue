@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div ref="el" class="_pageLayout" :class="{ _pageLayoutWithSidebar: !narrow }">
-	<nav v-if="!narrow || currentPage?.route.name == null" class="_pageNavigation" :aria-label="i18n.ts.settings">
+	<nav v-if="!narrow || currentPage?.route.name == null" class="_pageNavigation _pageNavigationFill" :aria-label="i18n.ts.settings">
 		<div class="_gaps_s">
 			<MkInfo v-if="emailNotConfigured" warn class="info">{{ i18n.ts.emailNotConfiguredWarning }} <MkA to="/settings/email" class="_link">{{ i18n.ts.configure }}</MkA></MkInfo>
 			<MkInfo v-if="storagePersistenceSupported && !storagePersisted && store.r.showStoragePersistenceSuggestion.value" class="info">
@@ -80,118 +80,92 @@ function skipAutoBackup() {
 	store.set('showPreferencesAutoCloudBackupSuggestion', false);
 }
 
-const menuDef = computed<SuperMenuDef[]>(() => [{
-	items: [{
-		icon: 'ti ti-user',
-		text: i18n.ts.profile,
-		to: '/settings/profile',
-		active: currentPage.value?.route.name === 'profile',
+const menuDef = computed<SuperMenuDef[]>(() => {
+	const active = currentPage.value?.route.name;
+	return [{
+		title: i18n.ts.account,
+		icon: 'ti ti-user-circle',
+		collapsible: true,
+		items: [
+			{ icon: 'ti ti-user', text: i18n.ts.profile, to: '/settings/profile', active: active === 'profile' },
+			{ icon: 'ti ti-sparkles', text: i18n.ts.avatarDecorations, to: '/settings/avatar-decoration', active: active === 'avatarDecoration' },
+			{ icon: 'ti ti-mail', text: i18n.ts.email, to: '/settings/email', active: active === 'email' },
+			{ icon: 'ti ti-lock', text: i18n.ts.security, to: '/settings/security', active: active === 'security' },
+			{ icon: 'ti ti-users', text: i18n.ts.manageAccounts, to: '/settings/accounts', active: active === 'accounts' },
+		],
 	}, {
-		icon: 'ti ti-lock-open',
-		text: i18n.ts.privacy,
-		to: '/settings/privacy',
-		active: currentPage.value?.route.name === 'privacy',
+		title: i18n.ts._menuGroup.privacyAndNotifications,
+		icon: 'ti ti-shield-lock',
+		collapsible: true,
+		items: [
+			{ icon: 'ti ti-lock-open', text: i18n.ts.privacy, to: '/settings/privacy', active: active === 'privacy' },
+			{ icon: 'ti ti-bell', text: i18n.ts.notifications, to: '/settings/notifications', active: active === 'notifications' },
+			{ icon: 'ti ti-ban', text: i18n.ts.muteAndBlock, to: '/settings/mute-block', active: active === 'mute-block' },
+		],
 	}, {
-		icon: 'ti ti-bell',
-		text: i18n.ts.notifications,
-		to: '/settings/notifications',
-		active: currentPage.value?.route.name === 'notifications',
-	}, {
-		icon: 'ti ti-mail',
-		text: i18n.ts.email,
-		to: '/settings/email',
-		active: currentPage.value?.route.name === 'email',
-	}, {
-		icon: 'ti ti-lock',
-		text: i18n.ts.security,
-		to: '/settings/security',
-		active: currentPage.value?.route.name === 'security',
-	}],
-}, {
-	items: [{
-		icon: 'ti ti-adjustments',
-		text: i18n.ts.preferences,
-		to: '/settings/preferences',
-		active: currentPage.value?.route.name === 'preferences',
-	}, {
+		title: i18n.ts.appearance,
 		icon: 'ti ti-palette',
-		text: i18n.ts.theme,
-		to: '/settings/theme',
-		active: currentPage.value?.route.name === 'theme',
+		collapsible: true,
+		items: [
+			{ icon: 'ti ti-palette', text: i18n.ts.theme, to: '/settings/theme', active: active === 'theme' },
+			{ icon: 'ti ti-list', text: i18n.ts.navbar, to: '/settings/navbar', active: active === 'navbar' },
+			{ icon: 'ti ti-layout-bottombar', text: i18n.ts.statusbar, to: '/settings/statusbar', active: active === 'statusbar' },
+			{ icon: 'ti ti-columns', text: i18n.ts.deck, to: '/settings/deck', active: active === 'deck' },
+			{ icon: 'ti ti-mood-happy', text: i18n.ts.emojiPalette, to: '/settings/emoji-palette', active: active === 'emoji-palette' },
+			{ icon: 'ti ti-music', text: i18n.ts.sounds, to: '/settings/sounds', active: active === 'sounds' },
+		],
 	}, {
-		icon: 'ti ti-mood-happy',
-		text: i18n.ts.emojiPalette,
-		to: '/settings/emoji-palette',
-		active: currentPage.value?.route.name === 'emoji-palette',
+		title: i18n.ts.preferences,
+		icon: 'ti ti-adjustments',
+		collapsible: true,
+		items: [
+			{ icon: 'ti ti-adjustments', text: i18n.ts.preferences, to: '/settings/preferences', active: active === 'preferences' },
+			{ icon: 'ti ti-code', text: i18n.ts.customCss, to: '/settings/custom-css', active: active === 'custom-css' },
+			{ icon: 'ti ti-cloud', text: i18n.ts.drive, to: '/settings/drive', active: active === 'drive' },
+			{ icon: 'ti ti-plug', text: i18n.ts.plugins, to: '/settings/plugin', active: active === 'plugin' },
+		],
 	}, {
-		icon: 'ti ti-music',
-		text: i18n.ts.sounds,
-		to: '/settings/sounds',
-		active: currentPage.value?.route.name === 'sounds',
+		title: i18n.ts._menuGroup.integrationsAndData,
+		icon: 'ti ti-plug-connected',
+		collapsible: true,
+		items: [
+			{ icon: 'ti ti-link', text: i18n.ts._settings.serviceConnection, to: '/settings/connect', active: active === 'connect' },
+			{ icon: 'ti ti-apps', text: i18n.ts.installedApps, to: '/settings/apps', active: active === 'apps' },
+			{ icon: 'ti ti-package', text: i18n.ts._settings.accountData, to: '/settings/account-data', active: active === 'account-data' },
+			{ icon: 'ti ti-dots', text: i18n.ts.other, to: '/settings/other', active: active === 'other' },
+		],
 	}, {
-		icon: 'ti ti-plug',
-		text: i18n.ts.plugins,
-		to: '/settings/plugin',
-		active: currentPage.value?.route.name === 'plugin',
-	}],
-}, {
-	items: [{
-		icon: 'ti ti-cloud',
-		text: i18n.ts.drive,
-		to: '/settings/drive',
-		active: currentPage.value?.route.name === 'drive',
-	}, {
-		icon: 'ti ti-ban',
-		text: i18n.ts.muteAndBlock,
-		to: '/settings/mute-block',
-		active: currentPage.value?.route.name === 'mute-block',
+		items: [{
+			type: 'button',
+			icon: 'ti ti-settings-2',
+			text: i18n.ts.preferencesProfile,
+			action: async (ev) => {
+				os.popupMenu(getPreferencesProfileMenu(), ev.currentTarget ?? ev.target);
+			},
 		}, {
-			icon: 'ti ti-link',
-			text: i18n.ts._settings.serviceConnection,
-			to: '/settings/connect',
-			active: currentPage.value?.route.name === 'connect',
+			type: 'button',
+			icon: 'ti ti-trash',
+			text: i18n.ts.clearCache,
+			action: async () => {
+				await clearCache();
+			},
 		}, {
-		icon: 'ti ti-package',
-		text: i18n.ts._settings.accountData,
-		to: '/settings/account-data',
-		active: currentPage.value?.route.name === 'account-data',
-	}, {
-		icon: 'ti ti-dots',
-		text: i18n.ts.other,
-		to: '/settings/other',
-		active: currentPage.value?.route.name === 'other',
-	}],
-}, {
-	items: [{
-		type: 'button',
-		icon: 'ti ti-settings-2',
-		text: i18n.ts.preferencesProfile,
-		action: async (ev) => {
-			os.popupMenu(getPreferencesProfileMenu(), ev.currentTarget ?? ev.target);
-		},
-	}, {
-		type: 'button',
-		icon: 'ti ti-trash',
-		text: i18n.ts.clearCache,
-		action: async () => {
-			await clearCache();
-		},
-	}, {
-		type: 'button',
-		icon: 'ti ti-logout',
-		text: i18n.ts.logout,
-		action: async () => {
-			const { canceled } = await os.confirm({
-				type: 'warning',
-				title: i18n.ts.logoutConfirm,
-				text: i18n.ts.logoutWillClearClientData,
-			});
-			if (canceled) return;
-			signout();
-		},
-		danger: true,
-	}],
-}]);
+			type: 'button',
+			icon: 'ti ti-logout',
+			text: i18n.ts.logout,
+			action: async () => {
+				const { canceled } = await os.confirm({
+					type: 'warning',
+					title: i18n.ts.logoutConfirm,
+					text: i18n.ts.logoutWillClearClientData,
+				});
+				if (canceled) return;
+				signout();
+			},
+			danger: true,
+		}],
+	}];
+});
 
 onMounted(() => {
 	if (el.value == null) return; // TSを黙らすため

@@ -38,10 +38,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button v-tooltip="captured?.isLiked ? i18n.ts.unlike : i18n.ts.like" type="button" class="_button" :class="[$style.action, { [$style.liked]: captured?.isLiked }]" :aria-label="captured?.isLiked ? i18n.ts.unlike : i18n.ts.like" :aria-pressed="captured?.isLiked ?? false" :disabled="liking" @click="toggleLike">
 					<i :class="captured?.isLiked ? 'ti ti-heart-filled' : 'ti ti-heart'"></i><span v-if="captured && captured.likeCount > 0">{{ captured.likeCount }}</span>
 				</button>
-				<button v-tooltip="i18n.ts.reply" type="button" class="_button" :class="$style.action" :aria-label="i18n.ts.reply" @click="replyToComment">
-					<i class="ti ti-message-circle"></i><span v-if="captured && captured.repliesCount > 0">{{ captured.repliesCount }}</span>
+				<button v-tooltip="replyOpen ? i18n.ts._article.cancelReply : i18n.ts.reply" type="button" class="_button" :class="[$style.action, { [$style.actionActive]: replyOpen }]" :aria-label="replyOpen ? i18n.ts._article.cancelReply : i18n.ts.reply" :aria-expanded="replyOpen" @click="toggleReply">
+					<i class="ti ti-message-circle"></i><span v-if="replyOpen">{{ i18n.ts._article.cancelReply }}</span><span v-else-if="captured && captured.repliesCount > 0">{{ captured.repliesCount }}</span>
 				</button>
 			</footer>
+			<MkPostForm v-if="replyOpen && note" :class="$style.replyForm" :reply="note" :channel="note.channel" commentMode inlineReply fixed autofocus @posted="closeReply" @esc="closeReply"/>
 		</div>
 	</div>
 	<template v-if="detail && depth === 1">
@@ -62,7 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
+import { computed, defineAsyncComponent, inject, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
@@ -87,6 +88,9 @@ import { useLike } from '@/composables/use-like.js';
 import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkNoteTags from '@/components/MkNoteTags.vue';
 import { getNoteTopics } from '@/utility/note-topics.js';
+import { activeCommentReplyId } from '@/utility/comment-reply.js';
+
+const MkPostForm = defineAsyncComponent(() => import('@/components/MkPostForm.vue'));
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note | null;
@@ -133,10 +137,20 @@ const liking = likeActions?.liking ?? ref(false);
 
 function toggleLike(): void { void likeActions?.toggleLike(); }
 
-async function replyToComment(): Promise<void> {
-	if (note == null || deleted.value || !await pleaseLogin() || deleted.value) return;
-	await os.post({ reply: note, channel: note.channel });
+const replyOpen = computed(() => note != null && !deleted.value && activeCommentReplyId.value === note.id);
+
+async function toggleReply(): Promise<void> {
+	if (note == null || deleted.value) return;
+	if (replyOpen.value) return closeReply();
+	if (!await pleaseLogin() || deleted.value) return;
+	activeCommentReplyId.value = note.id;
 }
+
+function closeReply(): void {
+	if (replyOpen.value) activeCommentReplyId.value = null;
+}
+
+onBeforeUnmount(closeReply);
 
 async function deleteComment(): Promise<void> {
 	const note = props.note;
@@ -313,9 +327,13 @@ if (hasMoreReplies.value) void loadReplies();
 	min-width: 28px;
 	min-height: 32px;
 
-	&:hover, &.liked {
+	&:hover, &.liked, &.actionActive {
 		color: var(--MI_THEME-accent);
 	}
+}
+
+.replyForm {
+	margin-top: 8px;
 }
 
 .menu {

@@ -152,6 +152,54 @@ describe('context menu replacement', () => {
 		expect(focusParent).not.toHaveBeenCalled();
 	});
 
+	test('closes an open context menu before showing a popup menu', async () => {
+		renderPopups();
+		const closed = contextMenu([{ text: 'Context', action: vi.fn() }], contextEvent());
+		await nextTick();
+		const menu = popupMenu([{ text: 'Account', action: vi.fn() }], anchor);
+		await closed;
+		await nextTick();
+		expect(popups.value).toHaveLength(1);
+		expect(popups.value[0].props.items[0].text).toBe('Account');
+		popups.value[0].events.closed();
+		await menu;
+	});
+
+	test('lets a newer popup menu or context menu close the open popup menu through its normal transition', async () => {
+		const view = renderPopups();
+		const onClosing = vi.fn();
+		const first = popupMenu([{ text: 'First', action: vi.fn() }], anchor, { onClosing });
+		await nextTick();
+		const second = popupMenu([{ text: 'Second', action: vi.fn() }], anchor);
+		await nextTick();
+		await nextTick();
+		expect(onClosing).toHaveBeenCalledOnce();
+		await fireEvent.click(view.getAllByRole('button', { name: 'Finish transition' })[0]);
+		await first;
+		expect(popups.value.map(popup => popup.props.items[0].text)).toEqual(['Second']);
+
+		const context = contextMenu([{ text: 'Context', action: vi.fn() }], contextEvent());
+		await nextTick();
+		await nextTick();
+		await fireEvent.click(view.getAllByRole('button', { name: 'Finish transition' })[0]);
+		await second;
+		expect(popups.value.map(popup => popup.props.items[0].text)).toEqual(['Context']);
+		popups.value[0].events.closed();
+		await context;
+	});
+
+	test('keeps the parent menu while a drawer submenu takes over', async () => {
+		renderPopups();
+		const onClosing = vi.fn();
+		void popupMenu([{ text: 'Parent', action: vi.fn() }], anchor, { onClosing });
+		await nextTick();
+		void popupMenu([{ text: 'Child', action: vi.fn() }], anchor, { exclusive: false });
+		await nextTick();
+		await nextTick();
+		expect(onClosing).not.toHaveBeenCalled();
+		expect(popups.value).toHaveLength(2);
+	});
+
 	test.each(['native', 'appWithShift'] as const)('closes the previous app menu when the next right click uses %s', async mode => {
 		const closed = contextMenu([{ text: 'First', action: vi.fn() }], contextEvent());
 		await nextTick();

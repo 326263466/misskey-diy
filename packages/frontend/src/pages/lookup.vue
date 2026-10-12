@@ -52,9 +52,11 @@ function _fetch_() {
 					},
 				});
 			} else if (res.type === 'Note') {
-				mainRouter.replace('/notes/:noteId/:initialTab?', {
+				// 帖子没有单独页面，查到帖子时打开作者主页。
+				const user = res.object.user;
+				mainRouter.replace('/@:acct/:page?', {
 					params: {
-						noteId: res.object.id,
+						acct: user.host != null ? `${user.username}@${user.host}` : user.username,
 					},
 				});
 			} else {

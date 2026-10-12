@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader class="_standalonePage" hideHeader>
+<PageWithHeader hideHeader>
 <div class="_pageBody" :class="$style.root">
 	<section class="_panel _card" :class="$style.panel" :aria-busy="loading || posting">
 		<header :class="$style.header">

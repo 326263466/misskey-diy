@@ -159,7 +159,6 @@ function getNoteEmbedCodeMenu(note: Misskey.entities.Note, text: string): MenuIt
 
 export function getNoteMenu(props: {
 	note: Misskey.entities.Note;
-	menuContext?: 'list' | 'detail';
 	translation: Ref<Misskey.entities.NotesTranslateResponse | null>;
 	translating: Ref<boolean>;
 	currentClip?: Misskey.entities.Clip | null;
@@ -251,10 +250,6 @@ export function getNoteMenu(props: {
 		});
 	}
 
-	function openDetail(): void {
-		os.pageWindow(`/notes/${appearNote.id}`);
-	}
-
 	async function translate(): Promise<void> {
 		if (props.translation.value != null || props.translating.value) return;
 
@@ -330,10 +325,6 @@ export function getNoteMenu(props: {
 		}
 
 		menuItems.push({
-			icon: 'ti ti-info-circle',
-			text: i18n.ts.details,
-			action: openDetail,
-		}, {
 			icon: 'ti ti-copy',
 			text: i18n.ts.copyContent,
 			action: copyContent,
@@ -384,7 +375,7 @@ export function getNoteMenu(props: {
 			action: () => toggleFavorite(true),
 		}));
 
-		if (props.menuContext === 'detail' && appearNote.user.host == null && appearNote.userId !== $i.id && !appearNote.isHidden) {
+		if (appearNote.user.host == null && appearNote.userId !== $i.id && !appearNote.isHidden) {
 			menuItems.push({
 				icon: 'ti ti-heart-handshake',
 				text: i18n.ts._tip.title,
@@ -516,10 +507,6 @@ export function getNoteMenu(props: {
 		}
 	} else {
 		menuItems.push({
-			icon: 'ti ti-info-circle',
-			text: i18n.ts.details,
-			action: openDetail,
-		}, {
 			icon: 'ti ti-copy',
 			text: i18n.ts.copyContent,
 			action: copyContent,

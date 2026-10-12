@@ -9,7 +9,6 @@ import type { CDPSession } from '@vitest/browser-playwright';
 import { createApp, h, nextTick, ref } from 'vue';
 import type { App } from 'vue';
 import MkCode from '@/components/MkCode.vue';
-import { shouldOpenNote } from '@/utility/note-card-click.js';
 import '@/style.scss';
 import 'virtual:tabler-icons.css';
 
@@ -17,7 +16,6 @@ const mocks = vi.hoisted(() => ({
 	ready: Promise.resolve(),
 	codeToHtml: vi.fn(),
 	copy: vi.fn(),
-	openNote: vi.fn(),
 	success: vi.fn(),
 	alert: vi.fn(),
 	toast: vi.fn(),
@@ -63,10 +61,6 @@ function mountCode(withOuterStyle: boolean, options: { code?: string; lang?: str
 	const host = document.createElement('div');
 	host.style.cssText = 'width:240px;cursor:pointer;--MI_THEME-bg:#f3f4f6;--MI_THEME-divider:#dfe3e8;--MI_THEME-fg:#364152;--MI_THEME-fgTransparentWeak:#6b7280;--MI_THEME-fgHighlighted:#111827;--MI_THEME-buttonHoverBg:#e5e7eb;';
 	host.style.cssText += '--MI_THEME-codeBlockBg:#282c34;--MI_THEME-codeBlockFg:#abb2bf;--MI_THEME-error:#ec4137;--MI_THEME-warn:#ecb637;--MI_THEME-success:#86b300;';
-	host.dataset.noteCard = '';
-	host.addEventListener('click', event => {
-		if (shouldOpenNote(event, host)) mocks.openNote();
-	});
 	document.body.append(host);
 	const app = createApp({ render: () => h(MkCode, { code, lang: 'json', withOuterStyle, ...options }) });
 	app.mount(host);
@@ -88,7 +82,7 @@ describe('code block cold loading', () => {
 		const fallback = host.querySelector('pre')!;
 		const viewport = fallback.parentElement!;
 		const body = viewport.parentElement!;
-		const root = host.querySelector<HTMLElement>('[data-note-interactive]')!;
+		const root = host.firstElementChild as HTMLElement;
 		const contentHeight = (lineHeight: string) => code.split('\n').length * parseFloat(lineHeight) + 24;
 		expect(fallback.textContent).toBe(code);
 		expect(fallback.getBoundingClientRect().width).toBeGreaterThan(body.clientWidth);
@@ -105,8 +99,6 @@ describe('code block cold loading', () => {
 		expect(document.activeElement).toBe(fallback);
 		const button = host.querySelector<HTMLButtonElement>('[aria-label="Copy"]')!;
 		expect(button.getBoundingClientRect().bottom).toBeLessThanOrEqual(fallback.getBoundingClientRect().top);
-		fallback.querySelector('code')!.click();
-		expect(mocks.openNote).not.toHaveBeenCalled();
 		body.scrollLeft = body.scrollWidth;
 		expect(body.scrollLeft).toBe(0);
 		body.scrollTop = body.scrollHeight;
@@ -133,8 +125,6 @@ describe('code block cold loading', () => {
 		highlighted.focus();
 		expect(document.activeElement).toBe(highlighted);
 		expect(button.getBoundingClientRect().bottom).toBeLessThanOrEqual(highlighted.getBoundingClientRect().top);
-		highlighted.querySelector('code')!.click();
-		expect(mocks.openNote).not.toHaveBeenCalled();
 		expect(host.getBoundingClientRect().height).toBeCloseTo(initialHeight, 1);
 		expect(host.getBoundingClientRect().width).toBeCloseTo(initialWidth, 1);
 		expect(mocks.codeToHtml).toHaveBeenCalledWith(code, expect.objectContaining({ lang: 'json' }));

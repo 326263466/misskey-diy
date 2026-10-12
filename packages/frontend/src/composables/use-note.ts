@@ -29,7 +29,6 @@ import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
-import { notePage } from '@@/js/note.js';
 import type { DI as DIType } from '@/di.js';
 import type { ExtractInjectedType } from '@/types/misc.js';
 import type { MenuItem } from '@/types/menu.js';
@@ -59,7 +58,6 @@ export interface UseNoteElements {
 
 export interface UseNoteOptions {
 	inTimeline?: boolean;
-	menuContext?: 'list' | 'detail';
 	tl_withSensitive?: Ref<boolean>;
 	inChannel?: ExtractInjectedType<typeof DIType['inChannel']>;
 	currentClip?: Ref<Misskey.entities.Clip | null> | null;
@@ -380,7 +378,6 @@ export function useNote(
 		} else {
 			const { menu, cleanup } = getNoteMenu({
 				note: isRenote ? { ...rawNote, renote: appearNote } : appearNote,
-				menuContext: options.menuContext,
 				translating,
 				translation,
 				currentClip: currentClip?.value,
@@ -394,7 +391,6 @@ export function useNote(
 		if (props.mock || els.menuButton == null) return;
 		const { menu, cleanup } = getNoteMenu({
 			note: isRenote ? { ...rawNote, renote: appearNote } : appearNote,
-			menuContext: options.menuContext,
 			translating,
 			translation,
 			currentClip: currentClip?.value,
@@ -447,12 +443,7 @@ export function useNote(
 			action: () => deleteRenote(explicitRenoteNoteId),
 		});
 
-		const menuItems: MenuItem[] = [{
-			type: 'link',
-			text: i18n.ts.renoteDetails,
-			icon: 'ti ti-info-circle',
-			to: notePage(rawNote),
-		}];
+		const menuItems: MenuItem[] = [];
 
 		if (props.note.channelId != null && (inChannel == null || props.note.channelId !== inChannel.value)) {
 			menuItems.push({

@@ -120,7 +120,7 @@ test('keeps the parent button as the anchor while loading children', async () =>
 	const parent = getByRole('menuitem');
 	await fireEvent.click(parent.querySelector('div')!);
 	resolveChildren(children);
-	await vi.waitFor(() => expect(os.popupMenu).toHaveBeenLastCalledWith(children, parent, { onAction: expect.any(Function) }));
+	await vi.waitFor(() => expect(os.popupMenu).toHaveBeenLastCalledWith(children, parent, { onAction: expect.any(Function), exclusive: false }));
 });
 
 describe('menu selection notification', () => {

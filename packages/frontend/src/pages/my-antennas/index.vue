@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader contentCard :actions="headerActions">
 	<div class="_pageBody">
+		<MkTip k="antennas" style="margin-bottom: var(--MI-margin);">{{ i18n.ts._antennas.tip }}</MkTip>
 		<MkResult v-if="!error && antennas.length === 0" type="empty" page :loading="fetching">
 			<MkButton type="routerLink" to="/my/antennas/create" primary :class="$style.add"><i class="ti ti-plus"></i> {{ i18n.ts.add }}</MkButton>
 		</MkResult>

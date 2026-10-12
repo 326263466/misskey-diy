@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<section :class="$style.root" data-note-interactive @click.stop @contextmenu.stop>
+<section :class="$style.root" @click.stop @contextmenu.stop>
 	<button type="button" class="_button" :class="$style.card" :data-cover="packet.coverId" aria-haspopup="dialog" :disabled="loading" @click="open">
 		<MkRedPacketCover :imageUrl="packet.coverUrl" :message="packet.password || packet.message"><span :class="$style.coverStatus">{{ packet.password ? i18n.ts._redPacket.passwordPacket : '' }} {{ packet.claimedCoins != null ? i18n.ts._redPacket.claimedShort : stateLabel }} <i class="ti ti-chevron-right" aria-hidden="true"></i></span></MkRedPacketCover>
 	</button>

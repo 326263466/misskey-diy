@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 	</div>
-	<MkA v-else :class="[$style.filePreview, { [$style.square]: square }]" :data-scroll-anchor="`${note.id}:${file.id}`" :to="notePage(note)">
+	<div v-else :class="[$style.filePreview, { [$style.square]: square }]" :data-scroll-anchor="`${note.id}:${file.id}`">
 		<MkDriveFileThumbnail
 			:file="file"
 			fit="cover"
@@ -35,14 +35,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:large="true"
 			:class="$style.file"
 		/>
-	</MkA>
+	</div>
 </template>
 </template>
 
 <script lang="ts" setup>
 import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
-import { notePage } from '@@/js/note.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { shouldHideFileByDefault, canRevealFile } from '@/utility/sensitive-file.js';
@@ -88,10 +87,6 @@ async function reveal(file: Misskey.entities.DriveFile) {
 	height: 128px;
 	border-radius: calc(var(--MI-radius) / 2);
 	overflow: clip;
-
-	&:hover {
-		text-decoration: none;
-	}
 
 	&.square {
 		height: 100%;

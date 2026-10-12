@@ -70,6 +70,16 @@ describe('emoji reactions', () => {
 		expect(view.queryByRole('button', { name: i18n.ts._chat.addReaction })).toBeNull();
 	});
 
+	test('按服务器给出的时间顺序显示，计数变化和新增种类不打乱已有位置', async () => {
+		const order = () => view.getAllByRole('button').map(button => button.getAttribute('data-reaction'));
+		const view = renderViewer({ '🎉': 1, '😀': 3, '👍': 2 });
+		expect(order()).toEqual(['🎉', '😀', '👍']);
+		await view.rerender({ reactions: { '🎉': 5, '😀': 1, '👍': 2 } });
+		expect(order()).toEqual(['🎉', '😀', '👍']);
+		await view.rerender({ reactions: { '🎉': 5, '😀': 1, '👍': 2, '🔥': 9 } });
+		expect(order()).toEqual(['🎉', '😀', '👍', '🔥']);
+	});
+
 	test('displays only emoji reactions and excludes invalid records from the display limit', () => {
 		const view = renderViewer({ 'old text 😀': 5, '😀': 1 }, 'old text 😀');
 		expect(view.getAllByRole('button')).toHaveLength(1);

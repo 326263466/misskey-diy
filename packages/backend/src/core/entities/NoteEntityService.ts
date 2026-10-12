@@ -57,6 +57,19 @@ function getReactionNoteIds(notes: MiNote[]): Set<string> {
 	return reactionNoteIds;
 }
 
+// reactions 存为 jsonb，键顺序不可靠；按每种回应首次出现的时间重排。
+function orderReactions(reactions: MiNote['reactions'], order: string[] | undefined): MiNote['reactions'] {
+	if (order == null || order.length === 0) return reactions;
+	const ordered: MiNote['reactions'] = {};
+	for (const reaction of order) {
+		if (reaction in reactions) ordered[reaction] = reactions[reaction];
+	}
+	for (const [reaction, count] of Object.entries(reactions)) {
+		if (!(reaction in ordered)) ordered[reaction] = count;
+	}
+	return ordered;
+}
+
 async function nullIfEntityNotFound<T>(promise: Promise<T>): Promise<T | null> {
 	try {
 		return await promise;
@@ -264,6 +277,30 @@ export class NoteEntityService implements OnModuleInit {
 	}
 
 	@bindThis
+	private async getReactionOrders(noteIds: MiNote['id'][]): Promise<Map<MiNote['id'], string[]>> {
+		const orders = new Map<MiNote['id'], string[]>();
+		if (noteIds.length === 0) return orders;
+
+		const rows = await this.noteReactionsRepository.createQueryBuilder('reaction')
+			.select('reaction.noteId', 'noteId')
+			.addSelect('reaction.reaction', 'reaction')
+			.addSelect('MIN(reaction.id)', 'firstId')
+			.where('reaction.noteId IN (:...noteIds)', { noteIds })
+			.groupBy('reaction.noteId')
+			.addGroupBy('reaction.reaction')
+			.getRawMany<{ noteId: string; reaction: string; firstId: string }>();
+		// id 按时间生成，可直接比较字符串。
+		rows.sort((a, b) => a.firstId < b.firstId ? -1 : a.firstId > b.firstId ? 1 : 0);
+		for (const row of rows) {
+			const order = orders.get(row.noteId) ?? [];
+			const reaction = this.reactionService.convertLegacyReaction(row.reaction);
+			if (!order.includes(reaction)) order.push(reaction);
+			orders.set(row.noteId, order);
+		}
+		return orders;
+	}
+
+	@bindThis
 	private async getFavoriteStates(noteIds: MiNote['id'][], meId: MiUser['id'] | null): Promise<Map<MiNote['id'], NoteFavoriteState>> {
 		const states = new Map(noteIds.map(id => [id, { favoritesCount: 0, isFavorited: false }]));
 		if (noteIds.length === 0) return states;
@@ -381,6 +418,7 @@ export class NoteEntityService implements OnModuleInit {
 				packedUsers: Map<MiUser['id'], Packed<'UserLite'>>
 				noteLikes?: Map<MiNote['id'], Packed<'LikeState'>>;
 				redPackets?: Map<MiNote['id'], NonNullable<Packed<'Note'>['redPacket']>>;
+				reactionOrders?: Map<MiNote['id'], string[]>;
 			};
 		},
 	): Promise<Packed<'Note'>> {
@@ -406,7 +444,12 @@ export class NoteEntityService implements OnModuleInit {
 			: this.meta.enableReactionsBuffering
 				? await this.reactionsBufferingService.get(note.id)
 				: { deltas: {}, pairs: [] };
-		const reactions = deleted ? {} : this.reactionService.convertLegacyReactions(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions.deltas ?? {}));
+		const mergedReactions = deleted ? {} : this.reactionService.convertLegacyReactions(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions.deltas ?? {}));
+		// 只有一种回应时顺序无关，不额外查询。
+		const reactions = Object.keys(mergedReactions).length < 2 ? mergedReactions : orderReactions(mergedReactions,
+			opts._hint_?.reactionOrders?.has(note.id)
+				? opts._hint_.reactionOrders.get(note.id)
+				: (await this.getReactionOrders([note.id])).get(note.id));
 
 		const reactionAndUserPairCache = note.reactionAndUserPairCache.concat(bufferedReactions.pairs.map(x => x.join('/')));
 		const myReactions = meId && opts.detail && !deleted ? await this.populateMyReactions(note, meId, options?._hint_) : [];
@@ -566,6 +609,11 @@ export class NoteEntityService implements OnModuleInit {
 			const packet = packetSummaries.get(note.redPacketId!);
 			return packet ? [[note.id, packet] as const] : [];
 		}));
+		// 本体、回复与引用目标一并查询，避免逐条补查。
+		const reactionOrderNotes = notes.flatMap(note => [note, note.reply, note.renote])
+			.filter((note): note is MiNote => note != null && Object.keys(note.reactions).length > 1);
+		const reactionOrders = await this.getReactionOrders([...new Set(reactionOrderNotes.map(note => note.id))]);
+		for (const note of reactionOrderNotes) if (!reactionOrders.has(note.id)) reactionOrders.set(note.id, []);
 
 		return await Promise.all(notes.map(n => this.pack(n, me, {
 			...options,
@@ -577,6 +625,7 @@ export class NoteEntityService implements OnModuleInit {
 				packedUsers,
 				noteLikes,
 				redPackets,
+				reactionOrders,
 			},
 		})));
 	}
@@ -658,10 +707,11 @@ export class NoteEntityService implements OnModuleInit {
 		const authorsById = new Map(authors.map(user => [user.id, user]));
 		const visible = await Promise.all(notes.map(note => this.isContentVisible(note, me, authorsById.get(note.userId))));
 		const visibleNoteIds = notes.filter((_note, index) => visible[index]).map(note => note.id);
-		const [likeStates, favoriteStates, ownReactions] = await Promise.all([
+		const [likeStates, favoriteStates, ownReactions, reactionOrders] = await Promise.all([
 			this.noteLikeService.getStates(visibleNoteIds, me),
 			this.getFavoriteStates(visibleNoteIds, me?.id ?? null),
 			meId ? this.noteReactionsRepository.find({ where: { userId: meId, noteId: In(visibleNoteIds) }, order: { id: 'ASC' } }) : [],
+			this.getReactionOrders(notes.filter(note => Object.keys(note.reactions).length > 1 || bufferedReactionsMap?.has(note.id)).map(note => note.id)),
 		]);
 		const visibleIds = new Set(visibleNoteIds);
 		const ownReactionsByNote = new Map<string, string[]>();
@@ -675,7 +725,7 @@ export class NoteEntityService implements OnModuleInit {
 			const bufferedReactions = bufferedReactionsMap?.get(note.id);
 			//const reactionAndUserPairCache = note.reactionAndUserPairCache.concat(bufferedReactions.pairs.map(x => x.join('/')));
 
-			const reactions = this.reactionService.convertLegacyReactions(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions?.deltas ?? {}));
+			const reactions = orderReactions(this.reactionService.convertLegacyReactions(this.reactionsBufferingService.mergeReactions(note.reactions, bufferedReactions?.deltas ?? {})), reactionOrders.get(note.id));
 
 			const reactionEmojiNames = Object.keys(reactions)
 				.filter(x => x.startsWith(':') && x.includes('@') && !x.includes('@.')) // リモートカスタム絵文字のみ

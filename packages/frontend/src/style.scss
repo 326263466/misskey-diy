@@ -202,6 +202,12 @@ a {
 	}
 }
 
+// 正文中的文字链接（网址、话题标签）悬停显示下划线。链接卡片渲染在正文之外，不受影响；
+// 含头像的提及标签也不加下划线。
+._mfm a:not(:has(img)):hover {
+	text-decoration: underline;
+}
+
 textarea, input {
 	tap-highlight-color: transparent;
 	-webkit-tap-highlight-color: transparent;
@@ -399,6 +405,11 @@ progress {
 	border-radius: var(--MI-cardRadius);
 }
 
+// 管理类页面的左侧菜单与右侧内容等高，菜单短时也不会只占半截。
+._pageLayoutWithSidebar > ._pageNavigationFill {
+	align-self: stretch;
+}
+
 ._pageContent {
 	min-width: 0;
 	min-height: 0;
@@ -590,13 +601,18 @@ progress {
 
 @keyframes global-text-action-arrow {
 	0%, 100% { translate: 0 0; }
-	50% { translate: 3px 0; }
+	50% { translate: var(--MI-textActionArrowShift, 3px) 0; }
+}
+
+// 向左的箭头朝自身方向移动。
+:is(.ti-arrow-left, .ti-chevron-left) {
+	--MI-textActionArrowShift: -3px;
 }
 
 ._textButton,
 ._textAction,
-._link:has(> :is(.ti-arrow-right, .ti-chevron-right)),
-a:has(> :is(.ti-arrow-right, .ti-chevron-right)) {
+._link:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left)),
+a:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left)) {
 	--MI-textActionAnimation: none;
 	font-weight: normal;
 	text-decoration: none !important;
@@ -605,8 +621,8 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right)) {
 		--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
 	}
 
-	// 已有尾箭头复用原元素；图标按钮不增加额外内容。
-	&:not(._textButtonIcon):not(:has(> :is(.ti-arrow-right, .ti-chevron-right)))::after {
+	// 已有箭头复用原元素；图标按钮不增加额外内容。
+	&:not(._textButtonIcon):not(:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left)))::after {
 		@include text-action-arrow-motion;
 		content: '';
 		width: 1em;
@@ -617,7 +633,7 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right)) {
 		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14m-7-7 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
 	}
 
-	> :is(.ti-arrow-right, .ti-chevron-right) { @include text-action-arrow-motion; }
+	> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left) { @include text-action-arrow-motion; }
 }
 
 ._textButtonIcon {
@@ -631,8 +647,8 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right)) {
 	--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
 }
 
-._button > div > :is(.ti-arrow-right, .ti-chevron-right) { @include text-action-arrow-motion; }
-._button:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) > div > :is(.ti-arrow-right, .ti-chevron-right) {
+._button > div > :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left) { @include text-action-arrow-motion; }
+._button:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) > div > :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left) {
 	--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
 }
 

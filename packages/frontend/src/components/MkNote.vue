@@ -9,12 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	ref="rootEl"
 	v-hotkey="keymap"
 	:class="[$style.root, { [$style.showActionsOnlyHover]: prefer.s.showNoteActionsOnlyHover, [$style.skipRender]: prefer.s.skipNoteRender, [$style.cardAnimated]: prefer.s.animation }]"
-	data-note-card
-	role="link"
 	tabindex="0"
-	@click="openNote"
-	@auxclick="openNote"
-	@keydown.enter.self.exact.prevent="openNotePage"
 >
 	<div v-if="showReplyTo && appearNote.replyId && !renoteCollapsed" :class="$style.replyThreadItem">
 		<MkNote
@@ -54,7 +49,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span>{{ i18n.ts.delete }}</span>
 		</button>
 	</div>
-	<div v-else-if="renoteCollapsed" :class="[$style.article, $style.collapsedRenoteTarget]" data-note-interactive>
+	<div v-else-if="renoteCollapsed" :class="[$style.article, $style.collapsedRenoteTarget]">
 		<MkAvatar :class="[$style.avatar, withThreadLine ? $style.threadLineAvatar : null]" :user="appearNote.user" :link="!mock" :preview="!mock"/>
 		<Mfm :text="getNoteSummary(appearNote)" :plain="true" :nowrap="true" :author="appearNote.user" :nyaize="'respect'" :class="$style.collapsedRenoteTargetText" @click="renoteCollapsed = false"/>
 	</div>
@@ -87,7 +82,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<span :class="$style.hiddenContentTitle"><i class="ti ti-lock" aria-hidden="true"></i>{{ i18n.ts.invisibleNote }}</span>
 									<span :class="$style.hiddenContentDivider" aria-hidden="true"></span>
 								</span>
-								<MkA v-if="appearNote.replyId && !showReplyTo" class="_iconButton" :class="$style.replyIcon" :to="`/notes/${appearNote.replyId}`" :aria-label="i18n.ts.reply"><i class="ti ti-message-circle"></i></MkA>
+								<i v-if="appearNote.replyId && !showReplyTo" class="ti ti-message-circle" :class="$style.replyIcon" role="img" :aria-label="i18n.ts.reply"></i>
 								<Mfm
 									v-if="appearNote.text"
 									:parsedNodes="displayNodes"
@@ -107,7 +102,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 									</div>
 								</div>
 							</div>
-							<div v-if="appearNote.files && appearNote.files.length > 0" data-note-interactive>
+							<div v-if="appearNote.files && appearNote.files.length > 0">
 								<MkMediaList ref="galleryEl" :mediaList="appearNote.files" :user="appearNote.user"/>
 							</div>
 							<MkRedPacket v-if="appearNote.redPacket" :redPacketId="appearNote.redPacket.id" :authorId="appearNote.userId" :redPacket="appearNote.redPacket" :author="appearNote.user"/>
@@ -119,12 +114,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 								:choices="$appearNote.pollChoices"
 								:author="appearNote.user"
 								:emojiUrls="appearNote.emojis"
-								data-note-interactive
 							/>
-							<div v-if="isEnabledUrlPreview" data-note-interactive>
+							<div v-if="isEnabledUrlPreview">
 								<MkUrlPreview v-for="url in urls" :key="url" :url="url" :compact="true" :detail="false" :class="$style.urlPreview"/>
 							</div>
-							<div v-if="appearNote.renoteId && !(showReplyTo && appearNote.renoteId === appearNote.replyId)" :class="$style.quote" data-note-interactive><MkNoteSimple :note="appearNote?.renote ?? null" :class="$style.quoteNote"/></div>
+							<div v-if="appearNote.renoteId && !(showReplyTo && appearNote.renoteId === appearNote.replyId)" :class="$style.quote"><MkNoteSimple :note="appearNote?.renote ?? null" :class="$style.quoteNote"/></div>
 						</div>
 					</div>
 					<button v-if="isLong && collapsed" :class="$style.collapsed" class="_button" @click="collapsed = false">
@@ -137,7 +131,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<MkReactionsViewer
 				v-if="appearNote.reactionAcceptance !== 'likeOnly'"
-				data-note-interactive
 				:reactions="emojiReactions"
 				:reactionEmojis="$reactionNote.reactionEmojis"
 				:myReactions="myEmojiReactions"
@@ -151,7 +144,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkNoteTags v-if="appearNote.cw == null || showContent" :tags="topics.tags" :channel="appearNote.channel"/>
 				<MkLikeSummary :noteId="appearNote.id" :count="$appearNote.likeCount" :users="$appearNote.likeUsers"/>
 			</div>
-			<footer :class="[$style.footer, { [$style.footerAnimated]: prefer.s.animation }]" data-note-interactive>
+			<footer :class="[$style.footer, { [$style.footerAnimated]: prefer.s.animation }]">
 				<div :class="$style.footerButtonSlot">
 					<button v-tooltip.icon="i18n.ts.reply" :class="[$style.footerButton, { [$style.footerButtonWithCount]: $appearNote.repliesCount > 0 }]" class="_button" :aria-label="i18n.ts.reply" @click.stop="reply()">
 						<i class="ti ti-message-circle"></i>
@@ -248,9 +241,6 @@ import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n.js';
 import { getMyReactions, isEmojiReaction } from '@/utility/normalize-reaction.js';
 import { userPage } from '@@/js/user.js';
-import { notePage } from '@@/js/note.js';
-import { useRouter } from '@/router.js';
-import { shouldOpenNote } from '@/utility/note-card-click.js';
 import { getNoteSummary } from '@/utility/get-note-summary.js';
 import { getNoteDisplayNodes, getNoteThreadAuthor } from '@/utility/note-display.js';
 import { isEnabledUrlPreview } from '@/utility/url-preview.js';
@@ -383,23 +373,6 @@ watch([isLong, () => appearNote.cw], ([long, cw]) => {
 	if (!long || cw != null) collapsed.value = false;
 });
 
-const router = useRouter();
-
-function openNote(event: MouseEvent): void {
-	if (!shouldOpenNote(event, rootEl.value)) return;
-	event.preventDefault();
-	openNotePage(event);
-}
-
-function openNotePage(event?: KeyboardEvent | MouseEvent): void {
-	if (props.mock || isDeleted.value || isRenoteTargetDeleted.value || renoteCollapsed.value || (event && 'repeat' in event && event.repeat)) return;
-	if (event?.ctrlKey || event?.metaKey || (event && 'button' in event && event.button === 1)) {
-		window.open(notePage(appearNote), '_blank', 'noopener');
-	} else {
-		router.pushByPath(notePage(appearNote));
-	}
-}
-
 function handleToggleReact(event?: MouseEvent) {
 	toggleReact((reaction) => {
 		if (getMyReactions($reactionNote).includes(reaction)) {
@@ -485,7 +458,6 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 .footerButton.liked { color: var(--MI_THEME-love); }
 .root {
 	position: relative;
-	cursor: pointer;
 	font-size: 1.05em;
 	border-radius: var(--MI-cardRadius);
 	overflow: clip;
@@ -784,7 +756,6 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 }
 
 .text {
-	cursor: pointer;
 	overflow-wrap: break-word;
 }
 

@@ -241,8 +241,8 @@ $bodyInfoHieght: 16px;
 
 .authorTitle {
 	display: grid;
-	grid-template-rows: 22px 16px;
-	gap: 6px;
+	grid-template-rows: 22px 18px;
+	gap: 4px;
 	min-width: 0;
 	flex: 1;
 }
@@ -258,8 +258,8 @@ $bodyInfoHieght: 16px;
 }
 
 .authorDescription {
-	font-size: 0.8em;
-	line-height: 16px;
+	font-size: 0.9em;
+	line-height: 18px;
 	opacity: 0.85;
 	overflow: hidden;
 	white-space: nowrap;
@@ -272,8 +272,8 @@ $bodyInfoHieght: 16px;
 	justify-content: center;
 	box-sizing: border-box;
 	height: 80px;
-	gap: 16px;
-	padding: 18px 16px;
+	gap: 14px;
+	padding: 17px 16px;
 }
 
 .bodyWithActions {
@@ -294,14 +294,14 @@ $bodyInfoHieght: 16px;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 6px;
+	gap: 2px;
 }
 
 .statisticValue {
 	max-width: 100%;
-	height: 22px;
-	line-height: 22px;
-	font-size: 1.1em;
+	height: 24px;
+	line-height: 24px;
+	font-size: 1.2em;
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
@@ -310,9 +310,9 @@ $bodyInfoHieght: 16px;
 }
 
 .statisticLabel {
-	height: 16px;
-	line-height: 16px;
-	font-size: 0.8em;
+	height: 20px;
+	line-height: 20px;
+	font-size: 1em;
 	white-space: nowrap;
 	color: var(--MI_THEME-fgTransparentWeak);
 }
@@ -339,7 +339,7 @@ $bodyInfoHieght: 16px;
 	box-sizing: border-box;
 	border: 1px solid transparent;
 	border-radius: 999px;
-	font-size: .85em;
+	font-size: 1em;
 	font-weight: 600;
 	text-decoration: none;
 	-webkit-backdrop-filter: none;

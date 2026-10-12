@@ -778,11 +778,11 @@ export interface Locale extends ILocale {
      */
     "deleteAndEditConfirm": string;
     /**
-     * 添加至列表
+     * 添加到用户列表
      */
     "addToList": string;
     /**
-     * 添加到天线
+     * 添加到关键词订阅
      */
     "addToAntenna": string;
     /**
@@ -910,7 +910,7 @@ export interface Locale extends ILocale {
      */
     "importRequested": string;
     /**
-     * 列表
+     * 用户列表
      */
     "lists": string;
     /**
@@ -938,11 +938,11 @@ export interface Locale extends ILocale {
      */
     "followsYou": string;
     /**
-     * 创建列表
+     * 创建用户列表
      */
     "createList": string;
     /**
-     * 管理列表
+     * 管理用户列表
      */
     "manageLists": string;
     /**
@@ -982,7 +982,7 @@ export interface Locale extends ILocale {
      */
     "privacy": string;
     /**
-     * 关注请求需要批准
+     * 关注需经本人同意
      */
     "makeFollowManuallyApprove": string;
     /**
@@ -998,7 +998,7 @@ export interface Locale extends ILocale {
      */
     "followRequest": string;
     /**
-     * 关注请求
+     * 关注申请
      */
     "followRequests": string;
     /**
@@ -1190,11 +1190,11 @@ export interface Locale extends ILocale {
      */
     "unsuspendConfirm": string;
     /**
-     * 选择列表
+     * 选择用户列表
      */
     "selectList": string;
     /**
-     * 编辑列表
+     * 编辑用户列表
      */
     "editList": string;
     /**
@@ -1202,15 +1202,15 @@ export interface Locale extends ILocale {
      */
     "selectChannel": string;
     /**
-     * 选择天线
+     * 选择关键词订阅
      */
     "selectAntenna": string;
     /**
-     * 编辑天线
+     * 编辑关键词订阅
      */
     "editAntenna": string;
     /**
-     * 创建天线
+     * 创建关键词订阅
      */
     "createAntenna": string;
     /**
@@ -1298,7 +1298,7 @@ export interface Locale extends ILocale {
      */
     "flagShowTimelineRepliesDescription": string;
     /**
-     * 自动批准已关注用户的关注请求
+     * 自动同意已关注用户的关注申请
      */
     "autoAcceptFollowed": string;
     /**
@@ -2110,7 +2110,7 @@ export interface Locale extends ILocale {
      */
     "yearX": ParameterizedString<"year">;
     /**
-     * 页面
+     * 自定义页面
      */
     "pages": string;
     /**
@@ -2267,11 +2267,11 @@ export interface Locale extends ILocale {
      */
     "avoidMultiCaptchaConfirm": string;
     /**
-     * 天线
+     * 关键词订阅
      */
     "antennas": string;
     /**
-     * 管理天线
+     * 管理关键词订阅
      */
     "manageAntennas": string;
     /**
@@ -2383,7 +2383,7 @@ export interface Locale extends ILocale {
      */
     "popularTags": string;
     /**
-     * 列表
+     * 用户列表
      */
     "userList": string;
     /**
@@ -2759,7 +2759,7 @@ export interface Locale extends ILocale {
      */
     "showMediaListByGridInWideArea": string;
     /**
-     * 没有关注请求
+     * 没有关注申请
      */
     "noFollowRequests": string;
     /**
@@ -3631,7 +3631,7 @@ export interface Locale extends ILocale {
      */
     "confirmToUnclipAlreadyClippedNote": ParameterizedString<"name">;
     /**
-     * 从此天线中删除
+     * 从此关键词订阅中移除
      */
     "removeFromAntenna": string;
     /**
@@ -4287,6 +4287,10 @@ export interface Locale extends ILocale {
              */
             "social": string;
         };
+        /**
+         * 自动
+         */
+        "auto": string;
     };
     /**
      * 隐藏在线状态
@@ -4373,7 +4377,7 @@ export interface Locale extends ILocale {
      */
     "configure": string;
     /**
-     * 发布到相册
+     * 发布图集
      */
     "postToGallery": string;
     /**
@@ -4381,7 +4385,7 @@ export interface Locale extends ILocale {
      */
     "postToHashtag": string;
     /**
-     * 相册
+     * 图集
      */
     "gallery": string;
     /**
@@ -5151,7 +5155,7 @@ export interface Locale extends ILocale {
      */
     "preset": string;
     /**
-     * 从预设值中选择
+     * 从预设中选择
      */
     "selectFromPresets": string;
     /**
@@ -5809,7 +5813,7 @@ export interface Locale extends ILocale {
      */
     "loadConversation": string;
     /**
-     * 已置顶的列表
+     * 已置顶的用户列表
      */
     "pinnedList": string;
     /**
@@ -6439,11 +6443,11 @@ export interface Locale extends ILocale {
      */
     "sensitiveMediaRevealConfirm": string;
     /**
-     * 已创建的列表
+     * 已创建的用户列表
      */
     "createdLists": string;
     /**
-     * 已创建的天线
+     * 已创建的关键词订阅
      */
     "createdAntennas": string;
     /**
@@ -8576,7 +8580,7 @@ export interface Locale extends ILocale {
              */
             "reaction": string;
             /**
-             * 查看详情、复制链接及执行其他操作。
+             * 复制链接、分享及执行其他操作。
              */
             "menu": string;
         };
@@ -10192,7 +10196,7 @@ export interface Locale extends ILocale {
              */
             "pinMax": string;
             /**
-             * 可创建的天线数量
+             * 关键词订阅数量上限
              */
             "antennaMax": string;
             /**
@@ -10252,7 +10256,7 @@ export interface Locale extends ILocale {
              */
             "avatarDecorationLimit": string;
             /**
-             * 允许导入天线
+             * 允许导入关键词订阅
              */
             "canImportAntennas": string;
             /**
@@ -10382,6 +10386,10 @@ export interface Locale extends ILocale {
          * 字符
          */
         "characters": string;
+        /**
+         * 仅管理员可以分配或移除此角色
+         */
+        "adminOnlyMembers": string;
     };
     "_sensitiveMediaDetection": {
         /**
@@ -10609,11 +10617,11 @@ export interface Locale extends ILocale {
     };
     "_gallery": {
         /**
-         * 我的相册
+         * 我的图集
          */
         "my": string;
         /**
-         * 点赞过的相册
+         * 点赞过的图集
          */
         "liked": string;
         /**
@@ -10624,6 +10632,10 @@ export interface Locale extends ILocale {
          * 取消点赞
          */
         "unlike": string;
+        /**
+         * 图集用于发布一组图片作品，每组包含标题、说明和多张图片，与普通帖子分开展示。
+         */
+        "tip": string;
     };
     "_email": {
         /**
@@ -10638,7 +10650,7 @@ export interface Locale extends ILocale {
         };
         "_receiveFollowRequest": {
             /**
-             * 收到了关注请求
+             * 收到新的关注申请
              */
             "title": string;
         };
@@ -10973,11 +10985,15 @@ export interface Locale extends ILocale {
          */
         "members": string;
         /**
-         * 最近参与
+         * 频道成员（{n}）
+         */
+        "membersWithCount": ParameterizedString<"n">;
+        /**
+         * 最近加入
          */
         "recentMembers": string;
         /**
-         * 等 {n} 人已参与
+         * 等 {n} 人已加入
          */
         "membersJoined": ParameterizedString<"n">;
         /**
@@ -11649,19 +11665,19 @@ export interface Locale extends ILocale {
          */
         "write:votes": string;
         /**
-         * 查看页面
+         * 查看文章和自定义页面
          */
         "read:pages": string;
         /**
-         * 编辑页面
+         * 编辑文章和自定义页面
          */
         "write:pages": string;
         /**
-         * 查看页面点赞
+         * 查看文章和自定义页面的点赞
          */
         "read:page-likes": string;
         /**
-         * 管理页面点赞
+         * 管理文章和自定义页面的点赞
          */
         "write:page-likes": string;
         /**
@@ -11681,35 +11697,35 @@ export interface Locale extends ILocale {
          */
         "write:channels": string;
         /**
-         * 查看相册
+         * 查看图集
          */
         "read:gallery": string;
         /**
-         * 管理相册
+         * 管理图集
          */
         "write:gallery": string;
         /**
-         * 查看相册点赞
+         * 查看图集点赞
          */
         "read:gallery-likes": string;
         /**
-         * 管理相册点赞
+         * 管理图集点赞
          */
         "write:gallery-likes": string;
         /**
-         * 查看 Play
+         * 查看互动应用
          */
         "read:flash": string;
         /**
-         * 编辑 Play
+         * 编辑互动应用
          */
         "write:flash": string;
         /**
-         * 查看 Play 点赞
+         * 查看互动应用点赞
          */
         "read:flash-likes": string;
         /**
-         * 管理 Play 点赞
+         * 管理互动应用点赞
          */
         "write:flash-likes": string;
         /**
@@ -12941,7 +12957,7 @@ export interface Locale extends ILocale {
          */
         "blockingList": string;
         /**
-         * 列表
+         * 用户列表
          */
         "userLists": string;
         /**
@@ -13077,31 +13093,31 @@ export interface Locale extends ILocale {
     };
     "_play": {
         /**
-         * 创建 Play
+         * 创建互动应用
          */
         "new": string;
         /**
-         * 编辑 Play
+         * 编辑互动应用
          */
         "edit": string;
         /**
-         * 已创建 Play
+         * 互动应用已创建
          */
         "created": string;
         /**
-         * 已更新 Play
+         * 互动应用已更新
          */
         "updated": string;
         /**
-         * 已删除 Play
+         * 互动应用已删除
          */
         "deleted": string;
         /**
-         * Play 设置
+         * 互动应用设置
          */
         "pageSetting": string;
         /**
-         * 编辑此 Play
+         * 编辑此互动应用
          */
         "editThisPage": string;
         /**
@@ -13109,11 +13125,11 @@ export interface Locale extends ILocale {
          */
         "viewSource": string;
         /**
-         * 我的 Play
+         * 我创建的
          */
         "my": string;
         /**
-         * 点赞过的 Play
+         * 我点赞的
          */
         "liked": string;
         /**
@@ -13133,11 +13149,11 @@ export interface Locale extends ILocale {
          */
         "summary": string;
         /**
-         * 设为不公开后，Play 不在个人主页显示；知道 URL 的人仍可访问。
+         * 设为不公开后，此互动应用不在个人主页显示；知道链接的人仍可访问。
          */
         "visibilityDescription": string;
         /**
-         * 新的 Play
+         * 未命名互动应用
          */
         "defaultTitle": string;
         /**
@@ -13146,18 +13162,26 @@ export interface Locale extends ILocale {
         "saveBeforePreview": string;
         "_presets": {
             /**
-             * 御神签
+             * 每日运势
              */
             "omikuji": string;
             /**
-             * 问答
+             * 知识测验
              */
             "quiz": string;
             /**
-             * 时间线查看器
+             * 本站时间线
              */
             "timeline": string;
+            /**
+             * 文字打乱
+             */
+            "shuffle": string;
         };
+        /**
+         * 互动应用是用 AiScript 脚本编写的小程序，例如抽签、测验和计算器。发布后其他用户可以直接打开使用，并可将结果分享为帖子。
+         */
+        "tip": string;
     };
     "_articleForm": {
         /**
@@ -13211,7 +13235,7 @@ export interface Locale extends ILocale {
     };
     "_pages": {
         /**
-         * 创建页面
+         * 创建自定义页面
          */
         "newPage": string;
         /**
@@ -13259,11 +13283,11 @@ export interface Locale extends ILocale {
          */
         "unlike": string;
         /**
-         * 我的页面
+         * 我的自定义页面
          */
         "my": string;
         /**
-         * 点赞过的页面
+         * 点赞过的自定义页面
          */
         "liked": string;
         /**
@@ -13402,6 +13426,10 @@ export interface Locale extends ILocale {
          * {title}（副本）
          */
         "duplicateTitle": ParameterizedString<"title">;
+        /**
+         * 自定义页面由文本、章节、图片和嵌入帖子等内容块组合而成，适合制作作品集、活动说明等固定内容。撰写长文请使用文章。
+         */
+        "tip": string;
     };
     "_relayStatus": {
         /**
@@ -13443,11 +13471,11 @@ export interface Locale extends ILocale {
          */
         "youWereFollowed": string;
         /**
-         * 收到关注请求
+         * 收到关注申请
          */
         "youReceivedFollowRequest": string;
         /**
-         * 关注请求已通过
+         * 关注申请已通过
          */
         "yourFollowRequestAccepted": string;
         /**
@@ -13467,7 +13495,7 @@ export interface Locale extends ILocale {
          */
         "newNote": string;
         /**
-         * 天线 {name}
+         * 关键词订阅：{name}
          */
         "unreadAntennaNote": ParameterizedString<"name">;
         /**
@@ -13584,11 +13612,11 @@ export interface Locale extends ILocale {
              */
             "scheduledNotePostFailed": string;
             /**
-             * 收到关注请求
+             * 收到关注申请
              */
             "receiveFollowRequest": string;
             /**
-             * 关注请求已通过
+             * 关注申请已通过
              */
             "followRequestAccepted": string;
             /**
@@ -13788,11 +13816,11 @@ export interface Locale extends ILocale {
              */
             "tl": string;
             /**
-             * 天线
+             * 关键词订阅
              */
             "antenna": string;
             /**
-             * 列表
+             * 用户列表
              */
             "list": string;
             /**
@@ -13968,15 +13996,15 @@ export interface Locale extends ILocale {
              */
             "note": string;
             /**
-             * 页面
+             * 文章或自定义页面
              */
             "page": string;
             /**
-             * 相册
+             * 图集
              */
             "gallery": string;
             /**
-             * Play
+             * 互动应用
              */
             "play": string;
             /**
@@ -14283,15 +14311,15 @@ export interface Locale extends ILocale {
          */
         "deleteAccount": string;
         /**
-         * 删除页面
+         * 删除文章或自定义页面
          */
         "deletePage": string;
         /**
-         * 删除 Play
+         * 删除互动应用
          */
         "deleteFlash": string;
         /**
-         * 删除相册内容
+         * 删除图集
          */
         "deleteGalleryPost": string;
         /**
@@ -15942,13 +15970,13 @@ export interface Locale extends ILocale {
     };
     "_clip": {
         /**
-         * 用收藏夹收集和整理帖子。
+         * 收藏夹用于按主题整理帖子，每个收藏夹可命名并设为公开。“收藏”则是不分组的个人书签。
          */
         "tip": string;
     };
     "_userLists": {
         /**
-         * 可创建包含任意用户的列表。已创建的列表可作为时间线查看。
+         * 用户列表用于将多个用户归为一组，可作为单独的时间线查看。
          */
         "tip": string;
     };
@@ -18556,6 +18584,10 @@ export interface Locale extends ILocale {
          */
         "reservedChange": ParameterizedString<"amount">;
         /**
+         * 冻结 {amount}
+         */
+        "reservedShort": ParameterizedString<"amount">;
+        /**
          * 冻结后余额：{amount} 积分
          */
         "reservedAfter": ParameterizedString<"amount">;
@@ -18726,6 +18758,14 @@ export interface Locale extends ILocale {
      * 已添加
      */
     "added": string;
+    /**
+     * 互动应用
+     */
+    "play": string;
+    /**
+     * 文章和页面
+     */
+    "articlesAndPages": string;
     /**
      * 不能超过 {limit} 个字。
      */
@@ -19048,6 +19088,14 @@ export interface Locale extends ILocale {
          */
         "commentPlaceholder": string;
         /**
+         * 回复 {user}…
+         */
+        "replyPlaceholder": ParameterizedString<"user">;
+        /**
+         * 取消回复
+         */
+        "cancelReply": string;
+        /**
          * 写评论
          */
         "writeComment": string;
@@ -19312,6 +19360,12 @@ export interface Locale extends ILocale {
          * 新增关注者
          */
         "follows": string;
+    };
+    "_antennas": {
+        /**
+         * 关键词订阅会持续收集包含指定关键词的帖子，可限定来源为全部帖子、已关注用户、指定用户或用户列表，结果以单独的时间线查看。
+         */
+        "tip": string;
     };
     "_chatRedPacket": {
         /**
@@ -20384,5 +20438,73 @@ export interface Locale extends ILocale {
          * 草稿附件保护尚未完成，将自动重试。请联网后继续编辑，或在网盘中永久保留附件。
          */
         "draftFailed": string;
+    };
+    "_myCenter": {
+        /**
+         * 个人中心
+         */
+        "title": string;
+        /**
+         * 积分资产
+         */
+        "points": string;
+        /**
+         * 交易管理
+         */
+        "trade": string;
+        /**
+         * 成长权益
+         */
+        "growth": string;
+        /**
+         * 我买到的
+         */
+        "purchases": string;
+    };
+    "_menuGroup": {
+        /**
+         * 隐私与通知
+         */
+        "privacyAndNotifications": string;
+        /**
+         * 连接与数据
+         */
+        "integrationsAndData": string;
+        /**
+         * 用户管理
+         */
+        "userManagement": string;
+        /**
+         * 内容管理
+         */
+        "contentManagement": string;
+        /**
+         * 运营管理
+         */
+        "operations": string;
+        /**
+         * 审核
+         */
+        "review": string;
+        /**
+         * 联邦网络
+         */
+        "federation": string;
+        /**
+         * 系统设置
+         */
+        "systemSettings": string;
+        /**
+         * 运维
+         */
+        "maintenance": string;
+        /**
+         * 内容
+         */
+        "profileContent": string;
+        /**
+         * 动态
+         */
+        "profileActivity": string;
     };
 }

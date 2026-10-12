@@ -656,6 +656,8 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 	onClosing?: () => void;
 	onClosed?: () => void;
 	onAction?: () => void;
+	/** 默认关闭其他菜单面板；抽屉中的子菜单接替父菜单显示，需设为 false。 */
+	exclusive?: boolean;
 	debugDisablePredictionCone?: boolean;
 	debugShowPredictionCone?: boolean;
 }): Promise<void> {
@@ -665,6 +667,10 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 
 	let returnFocusTo = getHTMLElementOrNull(anchorElement) ?? getHTMLElementOrNull(window.document.activeElement);
 	return new Promise(resolve => nextTick(() => {
+		if (options?.exclusive !== false) closeOtherMenus();
+		const closeRequested = ref(false);
+		const requestClose = () => { closeRequested.value = true; };
+		openMenuClosers.add(requestClose);
 		const { dispose } = popup(MkPopupMenu, {
 			items: items.filter(x => x != null),
 			anchorElement,
@@ -672,10 +678,12 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 			align: options?.align,
 			matchAnchorWidth: options?.matchAnchorWidth,
 			returnFocusTo,
+			closeRequested,
 			debugDisablePredictionCone: options?.debugDisablePredictionCone,
 			debugShowPredictionCone: options?.debugShowPredictionCone,
 		}, {
 			closed: () => {
+				openMenuClosers.delete(requestClose);
 				resolve();
 				dispose();
 				returnFocusTo = null;
@@ -692,9 +700,16 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 }
 
 let closeContextMenu: ((restoreFocus?: boolean) => void) | null = null;
+const openMenuClosers = new Set<() => void>();
+
+// 新菜单出现前收起其他菜单面板。新面板挂载后已成为最上层，点击外部只会关闭它，旧面板会残留。
+function closeOtherMenus() {
+	closeContextMenu?.(false);
+	for (const close of [...openMenuClosers]) close();
+}
 
 export function contextMenu(items: MenuItem[], ev: PointerEvent): Promise<void> {
-	closeContextMenu?.(false);
+	closeOtherMenus();
 
 	if (
 		prefer.s.contextMenu === 'native' ||

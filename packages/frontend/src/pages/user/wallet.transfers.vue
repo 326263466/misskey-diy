@@ -4,29 +4,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<section class="_gaps" :class="$style.root" :aria-busy="loading || undefined">
-	<div :class="$style.heading"><h1>{{ i18n.ts._transfer.history }}</h1><div :class="$style.headerActions"><MkSelect v-model="direction" small :class="$style.filter" :items="directions" :disabled="loading || busy" @update:modelValue="load()"><template #label>{{ i18n.ts._transfer.history }}</template></MkSelect><MkButton small primary :disabled="transferDialogOpen" aria-haspopup="dialog" @click="createTransfer">{{ i18n.ts._transfer.title }}</MkButton><MkButton small :disabled="loading || busy" :wait="loading" @click="load()">{{ i18n.ts.reload }}</MkButton></div></div>
-	<p v-if="notice" role="status">{{ notice }}</p>
-	<div v-if="transfers.length === 0" :class="$style.emptyState">
-		<MkLoading v-if="loading"/>
-		<MkButton v-else-if="loadError" small :disabled="busy" @click="load()">{{ i18n.ts.retry }}</MkButton>
-		<p v-else>{{ i18n.ts._transfer.empty }}</p>
-	</div>
-	<MkButton v-if="loadError && transfers.length > 0" small :disabled="loading || busy" @click="load()">{{ i18n.ts.retry }}</MkButton>
-	<ul v-if="transfers.length > 0" :class="$style.list">
-		<li v-for="transfer in transfers" :key="transfer.id" class="_gaps_s" :class="$style.entry">
-			<div :class="$style.heading"><strong>{{ transfer.amount.toLocaleString() }} {{ i18n.ts._transfer.coinUnit }}</strong><span>{{ i18n.ts._transfer._status[transfer.status] }}</span></div>
-			<MkA :to="`/users/${transfer.senderId === account.id ? transfer.recipientId : transfer.senderId}`">{{ transfer.senderId === account.id ? i18n.ts._transfer.recipient : i18n.ts._transfer.sender }}: {{ names[transfer.senderId === account.id ? transfer.recipientId : transfer.senderId] ?? (transfer.senderId === account.id ? transfer.recipientId : transfer.senderId) }}</MkA>
-			<p v-if="transfer.message" :class="$style.message">{{ transfer.message }}</p>
-			<div :class="$style.dates"><span>{{ i18n.ts._transfer.createdAt }}: <MkTime :time="transfer.createdAt" mode="detail"/></span><span>{{ i18n.ts._transfer.expiresAt }}: <MkTime :time="transfer.expiresAt" mode="detail"/></span></div>
-			<div v-if="transfer.recipientId === account.id && transfer.status === 'pending'" :class="$style.actions">
-				<MkButton small primary :disabled="busy" @click="settle(transfer, 'accept')">{{ i18n.ts._transfer.accept }}</MkButton>
-				<MkButton small :disabled="busy" @click="settle(transfer, 'refund')">{{ i18n.ts._transfer.refund }}</MkButton>
-			</div>
-		</li>
-	</ul>
-	<MkButton v-if="more" :disabled="loading || busy" @click="load(true)">{{ i18n.ts.loadMore }}</MkButton>
-</section>
+<PageWithHeader contentCard hideHeader>
+	<section class="_gaps" :class="$style.root" :aria-busy="loading || undefined">
+		<div :class="$style.heading"><h1>{{ i18n.ts._transfer.history }}</h1><div :class="$style.headerActions"><MkSelect v-model="direction" small :class="$style.filter" :items="directions" :disabled="loading || busy" @update:modelValue="load()"><template #label>{{ i18n.ts._transfer.history }}</template></MkSelect><MkButton small primary :disabled="transferDialogOpen" aria-haspopup="dialog" @click="createTransfer">{{ i18n.ts._transfer.title }}</MkButton><MkButton small :disabled="loading || busy" :wait="loading" @click="load()">{{ i18n.ts.reload }}</MkButton></div></div>
+		<p v-if="notice" role="status">{{ notice }}</p>
+		<div v-if="transfers.length === 0" :class="$style.emptyState">
+			<MkLoading v-if="loading"/>
+			<MkButton v-else-if="loadError" small :disabled="busy" @click="load()">{{ i18n.ts.retry }}</MkButton>
+			<p v-else>{{ i18n.ts._transfer.empty }}</p>
+		</div>
+		<MkButton v-if="loadError && transfers.length > 0" small :disabled="loading || busy" @click="load()">{{ i18n.ts.retry }}</MkButton>
+		<ul v-if="transfers.length > 0" :class="$style.list">
+			<li v-for="transfer in transfers" :key="transfer.id" class="_gaps_s" :class="$style.entry">
+				<div :class="$style.heading"><strong>{{ transfer.amount.toLocaleString() }} {{ i18n.ts._transfer.coinUnit }}</strong><span>{{ i18n.ts._transfer._status[transfer.status] }}</span></div>
+				<MkA :to="`/users/${transfer.senderId === account.id ? transfer.recipientId : transfer.senderId}`">{{ transfer.senderId === account.id ? i18n.ts._transfer.recipient : i18n.ts._transfer.sender }}: {{ names[transfer.senderId === account.id ? transfer.recipientId : transfer.senderId] ?? (transfer.senderId === account.id ? transfer.recipientId : transfer.senderId) }}</MkA>
+				<p v-if="transfer.message" :class="$style.message">{{ transfer.message }}</p>
+				<div :class="$style.dates"><span>{{ i18n.ts._transfer.createdAt }}: <MkTime :time="transfer.createdAt" mode="detail"/></span><span>{{ i18n.ts._transfer.expiresAt }}: <MkTime :time="transfer.expiresAt" mode="detail"/></span></div>
+				<div v-if="transfer.recipientId === account.id && transfer.status === 'pending'" :class="$style.actions">
+					<MkButton small primary :disabled="busy" @click="settle(transfer, 'accept')">{{ i18n.ts._transfer.accept }}</MkButton>
+					<MkButton small :disabled="busy" @click="settle(transfer, 'refund')">{{ i18n.ts._transfer.refund }}</MkButton>
+				</div>
+			</li>
+		</ul>
+		<MkButton v-if="more" :disabled="loading || busy" @click="load(true)">{{ i18n.ts.loadMore }}</MkButton>
+	</section>
+</PageWithHeader>
 </template>
 
 <script lang="ts" setup>

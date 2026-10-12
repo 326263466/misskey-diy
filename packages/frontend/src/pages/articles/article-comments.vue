@@ -10,12 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkAvatar v-if="$i" :user="$i" :class="$style.avatar"/>
 		<div v-else :class="[$style.avatar, $style.guestAvatar]" aria-hidden="true"><i class="ti ti-user-filled"></i></div>
 		<div :class="$style.editorBody">
-			<div v-if="replyTo" :class="$style.replying">
-				<span>{{ i18n.ts.reply }} <MkUserName :user="replyTo.user"/></span>
-				<button type="button" class="_button _iconButton" :aria-label="i18n.ts.cancel" :disabled="sending || choosingEmoji" @click="replyTo = null"><i class="ti ti-x" aria-hidden="true"></i></button>
-			</div>
 			<MkPostFormInput :key="articleId" ref="editor" v-model="text" v-model:files="files" :maxLength="CONTENT_LIMITS.commentText" :disabled="sending" :placeholder="i18n.ts._article.commentPlaceholder" @submit="submit">
-				<template #actions="{ valid }"><MkButton primary small :disabled="!$i || sending || deleting.size > 0 || !valid" :wait="sending" type="submit">{{ i18n.ts._article.publishComment }}</MkButton></template>
+				<template #actions="{ valid }"><MkButton primary small :disabled="!$i || sending || deleting.size > 0 || !valid" :wait="sending && !sendingReply" type="submit">{{ i18n.ts._article.publishComment }}</MkButton></template>
 			</MkPostFormInput>
 		</div>
 	</form>
@@ -29,9 +25,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div :class="$style.text"><Mfm :text="comment.text" :author="comment.user"/></div>
 				<MkMediaList v-if="comment.files.length" :mediaList="comment.files"/>
 				<div :class="$style.actions">
-					<button type="button" class="_button" :class="$style.action" :disabled="sending || choosingEmoji || deleting.size > 0" @click="reply(comment, thread.comment.id)"><i class="ti ti-message-circle" aria-hidden="true"></i>{{ i18n.ts.reply }}<span v-if="comment.repliesCount > 0">{{ comment.repliesCount }}</span></button>
+					<button type="button" class="_button" :class="[$style.action, { [$style.actionActive]: replyTo?.id === comment.id }]" :aria-expanded="replyTo?.id === comment.id" :disabled="sending || choosingEmoji || deleting.size > 0" @click="reply(comment, thread.comment.id)"><i class="ti ti-message-circle" aria-hidden="true"></i><template v-if="replyTo?.id === comment.id">{{ i18n.ts._article.cancelReply }}</template><template v-else>{{ i18n.ts.reply }}<span v-if="comment.repliesCount > 0">{{ comment.repliesCount }}</span></template></button>
 					<button v-if="comment.canDelete" type="button" class="_button" :class="$style.action" :disabled="sending || deleting.size > 0" @click="remove(comment)">{{ i18n.ts.delete }}</button>
 				</div>
+				<form v-if="replyTo?.id === comment.id" :class="$style.replyForm" @submit.prevent="submitReply" @keydown.esc.stop="cancelReply">
+					<MkPostFormInput :ref="setReplyEditor" v-model="replyText" v-model:files="replyFiles" :maxLength="CONTENT_LIMITS.commentText" :disabled="sending" :placeholder="i18n.tsx._article.replyPlaceholder({ user: comment.user.name ?? comment.user.username })" @submit="submitReply">
+						<template #actions="{ valid }"><MkButton primary small :disabled="sending || deleting.size > 0 || !valid" :wait="sendingReply" type="submit">{{ i18n.ts.reply }}</MkButton></template>
+					</MkPostFormInput>
+				</form>
 			</div>
 		</article>
 		<div v-if="thread.hasMore && !thread.error" :key="thread.replies.length" v-appear="() => loadReplies(thread)" :class="$style.sentinel" aria-hidden="true"></div>
@@ -47,7 +48,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
+import { computed, markRaw, nextTick, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import { CONTENT_LIMITS } from 'misskey-js';
 import type { Endpoints, entities } from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
@@ -79,15 +81,19 @@ const editor = useTemplateRef('editor');
 const threads = ref<ArticleThread[]>([]);
 const text = ref('');
 const files = ref<entities.DriveFile[]>([]);
-const textLength = computed(() => Array.from(text.value).length);
+// 回复框展开在被回复的评论下方，与顶部发表评论的输入框分开保存内容。
 const replyTo = ref<ArticleComment | null>(null);
+const replyText = ref('');
+const replyFiles = ref<entities.DriveFile[]>([]);
+const replyEditor = shallowRef<InstanceType<typeof MkPostFormInput> | null>(null);
+const sendingReply = ref(false);
 let replyingRootId: string | null = null;
 const loading = ref(false);
 const loadError = ref(false);
 const actionError = ref('');
 const hasMore = ref(true);
 const sending = ref(false);
-const choosingEmoji = computed(() => editor.value?.busy ?? false);
+const choosingEmoji = computed(() => (editor.value?.busy ?? false) || (replyEditor.value?.busy ?? false));
 const deleting = ref(new Set<string>());
 let cursor: string | undefined;
 let generation = 0;
@@ -159,25 +165,39 @@ function focus() {
 	editor.value?.focus();
 }
 
+function setReplyEditor(el: Element | ComponentPublicInstance | null) {
+	replyEditor.value = el as InstanceType<typeof MkPostFormInput> | null;
+}
+
+function cancelReply() {
+	if (sending.value || choosingEmoji.value) return;
+	replyTo.value = null;
+	replyingRootId = null;
+}
+
 async function reply(comment: ArticleComment, rootId: string) {
 	if (sending.value || choosingEmoji.value || deleting.value.size > 0) return;
+	if (replyTo.value?.id === comment.id) return cancelReply();
 	if (!await pleaseLogin()) return;
+	if (replyTo.value?.id !== comment.id) {
+		replyText.value = '';
+		replyFiles.value = [];
+	}
 	replyTo.value = comment;
 	replyingRootId = rootId;
 	await nextTick();
-	focus();
+	replyEditor.value?.focus();
 }
 
-async function submit() {
-	if (!$i || sending.value || choosingEmoji.value || deleting.value.size > 0 || !editor.value?.valid || textLength.value > CONTENT_LIMITS.commentText) return;
+async function postComment(input: InstanceType<typeof MkPostFormInput> | null, body: string, attachments: entities.DriveFile[], target: ArticleComment | null) {
+	if (!$i || sending.value || choosingEmoji.value || deleting.value.size > 0 || !input?.valid || Array.from(body).length > CONTENT_LIMITS.commentText) return false;
 	const current = generation;
-	const target = replyTo.value;
-	const rootId = replyingRootId;
+	const rootId = target ? replyingRootId : null;
 	sending.value = true;
 	actionError.value = '';
 	try {
-		const comment = await misskeyApi('articles/comments/create', { articleId: props.articleId, text: text.value.trim(), fileIds: files.value.map(file => file.id), replyId: target?.id });
-		if (current !== generation) return;
+		const comment = await misskeyApi('articles/comments/create', { articleId: props.articleId, text: body.trim(), fileIds: attachments.map(file => file.id), replyId: target?.id });
+		if (current !== generation) return false;
 		const thread = target ? threads.value.find(item => item.comment.id === rootId) : null;
 		if (!target) {
 			threads.value.unshift(createThread(comment));
@@ -189,14 +209,32 @@ async function submit() {
 			resetComments();
 			void loadMore();
 		}
-		editor.value?.submitted();
-		replyTo.value = null;
-		replyingRootId = null;
+		input.submitted();
 		emit('countChange', 1);
+		return true;
 	} catch (error) {
 		if (current === generation && !isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+		return false;
 	} finally {
 		if (current === generation) sending.value = false;
+	}
+}
+
+function submit() {
+	return postComment(editor.value, text.value, files.value, null);
+}
+
+async function submitReply() {
+	const target = replyTo.value;
+	if (!target) return;
+	sendingReply.value = true;
+	try {
+		if (await postComment(replyEditor.value, replyText.value, replyFiles.value, target) && replyTo.value?.id === target.id) {
+			replyTo.value = null;
+			replyingRootId = null;
+		}
+	} finally {
+		sendingReply.value = false;
 	}
 }
 
@@ -229,6 +267,8 @@ watch(() => props.articleId, () => {
 	text.value = '';
 	files.value = [];
 	replyTo.value = null;
+	replyText.value = '';
+	replyFiles.value = [];
 	replyingRootId = null;
 	sending.value = false;
 	deleting.value.clear();
@@ -245,8 +285,7 @@ defineExpose({ focus });
 .heading > span { color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; font-weight: normal; }
 .composer { display: flex; align-items: flex-start; gap: 12px; width: 100%; min-width: 0; }
 .editorBody { flex: 1 1 auto; width: 100%; min-width: 0; }
-.replying { display: flex; justify-content: space-between; align-items: center; gap: var(--MI-marginHalf); margin-bottom: var(--MI-marginHalf); padding: var(--MI-marginHalf) var(--MI-margin); background: var(--MI_THEME-panelHighlight); border-radius: var(--MI-radius); }
-.replying > span { min-width: 0; overflow-wrap: anywhere; }
+.replyForm { margin-top: 8px; }
 .thread { --avatarSize: 36px; --columnGap: 12px; --threadLineWidth: 2px; display: grid; grid-template-columns: var(--avatarSize) minmax(0, 1fr); column-gap: var(--columnGap); padding-top: var(--MI-margin); border-top: var(--MI-divider); }
 .comment { display: flex; position: relative; grid-column: 1 / -1; gap: var(--columnGap); min-width: 0; }
 .parentWithReplies::after { content: ''; position: absolute; left: calc((var(--avatarSize) - var(--threadLineWidth)) / 2); top: var(--avatarSize); bottom: 0; width: var(--threadLineWidth); background: var(--MI_THEME-divider); pointer-events: none; } // divider-exempt: thread connector line
@@ -264,7 +303,7 @@ defineExpose({ focus });
 .quote { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 8px 12px; border-radius: 6px; background: var(--MI_THEME-panelHighlight); color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; overflow-wrap: anywhere; }
 .actions { display: flex; align-items: center; gap: 16px; color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; }
 .action { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; }
-.action:hover:not(:disabled) { color: var(--MI_THEME-accent); }
+.action:hover:not(:disabled), .actionActive { color: var(--MI_THEME-accent); }
 .action:focus-visible { outline: 2px solid var(--MI_THEME-focus); }
 .error { color: var(--MI_THEME-error) !important; }
 </style>

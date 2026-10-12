@@ -122,6 +122,24 @@ describe('note deletion capture', () => {
 		expect(captured.$note.myReactions).toEqual(['😀', '🎉']);
 	});
 
+	test('同一帖子的多个实例共享服务器快照后，回应和撤回只计算一次', async () => {
+		const source = makeNote('shared-snapshot', { reactions: { '😀': 1, '🎉': 1 }, reactionCount: 2 });
+		const list = captureNote(source);
+		const profile = captureNote(source);
+		await vi.advanceTimersByTimeAsync(50);
+		noteEvents.emit('reacted:shared-snapshot', { userId: 'self', reaction: '😀' });
+		for (const capture of [list, profile]) {
+			expect(capture.$note.reactions).toEqual({ '😀': 2, '🎉': 1 });
+			expect(capture.$note.reactionCount).toBe(3);
+		}
+		noteEvents.emit('unreacted:shared-snapshot', { userId: 'self', reaction: '😀' });
+		for (const capture of [list, profile]) {
+			expect(capture.$note.reactions).toEqual({ '😀': 1, '🎉': 1 });
+			expect(capture.$note.reactionCount).toBe(2);
+		}
+		expect(serverNotes.get(source.id)!.reactions).toEqual({ '😀': 1, '🎉': 1 });
+	});
+
 	test('counts own replies and deep descendants once in every ancestor using repliesCount', async () => {
 		const source = makeNote('own-reply-root', { repliesCount: 3 });
 		const captured = captureNote(source);

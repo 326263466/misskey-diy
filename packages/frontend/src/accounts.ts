@@ -355,9 +355,9 @@ export async function getAccountMenu(opts: {
 			to: `/@${$i.username}`,
 		}, {
 			type: 'link',
-			icon: 'ti ti-wallet',
-			text: i18n.ts._wallet.title,
-			to: '/wallet',
+			icon: 'ti ti-layout-dashboard',
+			text: i18n.ts._myCenter.title,
+			to: '/my',
 		}, {
 			type: 'link',
 			icon: 'ti ti-settings',

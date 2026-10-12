@@ -1621,19 +1621,23 @@ definePage(computed(() => ({
 	align-items: center;
 	justify-content: center;
 	gap: 5px;
-	min-width: 32px;
-	height: 52px;
+	min-width: 28px;
+	height: 28px;
+	padding: 0 6px;
+	box-sizing: border-box;
+	border-radius: 8px;
 	white-space: nowrap;
 	font-size: 1em;
 	font-weight: normal;
 	color: var(--MI_THEME-fgTransparentWeak);
-	> i { font-size: 1em; }
-	&:hover { color: var(--MI_THEME-fg); }
+	> i { font-size: 1.1em; }
+	&:hover:not(:disabled) { background: var(--MI_THEME-buttonHoverBg); color: var(--MI_THEME-fg); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }
 
 .headerMenu {
-	flex: 0 0 32px;
-	width: 32px;
+	flex: 0 0 28px;
+	width: 28px;
 }
 
 .latestButton {
@@ -1686,7 +1690,8 @@ definePage(computed(() => ({
 	width: 100%;
 	height: 52px;
 	flex: 0 0 auto;
-	padding: 0 calc(8px + var(--MI-chatWindowControlsWidth, 0px)) 0 16px;
+	gap: 4px;
+	padding: 0 calc(12px + var(--MI-chatWindowControlsWidth, 0px)) 0 16px;
 	box-sizing: border-box;
 	font-weight: normal;
 	line-height: 1.5;
@@ -1694,20 +1699,22 @@ definePage(computed(() => ({
 	button:not(:disabled) { cursor: pointer; }
 }
 
+// 与聊天窗口的最小化、最大化、关闭按钮同一尺寸和悬停效果。
 .mobileHeaderButton {
 	display: grid;
-	flex: 0 0 32px;
+	flex: 0 0 28px;
 	place-items: center;
-	width: 32px;
-	height: 36px;
+	width: 28px;
+	height: 28px;
 	border-radius: 8px;
 	font-size: 1em;
 	font-weight: normal;
 	color: var(--MI_THEME-fgTransparentWeak);
-	> i { font-size: 1em; }
+	> i { font-size: 1.1em; }
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 
-	&:hover {
+	&:hover:not(:disabled) {
+		background: var(--MI_THEME-buttonHoverBg);
 		color: var(--MI_THEME-fg);
 	}
 }
@@ -1730,6 +1737,7 @@ definePage(computed(() => ({
 	max-width: 100%;
 	padding: 0;
 	line-height: 1.5;
+	font-size: 1.15em;
 	font-weight: 700;
 }
 

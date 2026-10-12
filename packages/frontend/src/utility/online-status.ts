@@ -14,6 +14,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import type { CustomStatus } from '@/utility/status-icons.js';
 import type { AutoReplyStatus } from '@/utility/status-auto-reply.js';
+import { getUserStatusDisplay } from '@/utility/user-status.js';
 
 async function updateStatus(params: Misskey.entities.IUpdateRequest): Promise<void> {
 	try {
@@ -62,8 +63,9 @@ function configureAutoReply(status: AutoReplyStatus): void {
 }
 
 export function getOnlineStatusMenu(): MenuItem {
+	// 默认值 online 表示跟随活动自动显示，不代表始终在线。
 	const choices = [
-		{ value: 'online', text: i18n.ts.online },
+		{ value: 'online', text: i18n.ts._onlineStatus.auto },
 		{ value: 'away', text: i18n.ts._onlineStatus.away },
 		{ value: 'busy', text: i18n.ts._onlineStatus.busy },
 		{ value: 'doNotDisturb', text: i18n.ts._onlineStatus.doNotDisturb },
@@ -76,9 +78,10 @@ export function getOnlineStatusMenu(): MenuItem {
 		type: 'parent',
 		text: i18n.ts.onlineStatus,
 		truncateCaption: true,
-		caption: computed(() => $i ? selected.value === 'online' && customStatus.value
-			? customStatus.value.text
-			: choices.find(choice => choice.value === selected.value)?.text : undefined),
+		// 自动模式显示他人实际看到的状态（在线、最近活跃、离线或未知），自定义状态优先。
+		caption: computed(() => !$i ? undefined
+			: selected.value !== 'online' ? choices.find(choice => choice.value === selected.value)?.text
+			: customStatus.value?.text ?? getUserStatusDisplay({ ...$i, customStatus: null })?.text ?? i18n.ts._onlineStatus._display.unknown),
 		icon: 'ti ti-user-circle',
 		children: [{
 			type: 'grid',

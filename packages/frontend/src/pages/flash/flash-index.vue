@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkPaginationControl :paginator="likedFlashsPaginator" compact/>
 	</template>
 	<div class="_pageBody _gaps">
+		<MkTip k="play">{{ i18n.ts._play.tip }}</MkTip>
 		<div v-if="tab === 'search'">
 			<div class="_gaps">
 				<div :class="$style.searchRow">
@@ -22,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<MkButton v-if="tab === 'my'" gradate rounded style="margin: 0 auto;" @click="create()"><i class="ti ti-plus"></i></MkButton>
 		<MkPagination v-if="paginator" v-slot="{items}" :paginator="paginator" pageEmpty>
-			<div class="_gaps_s">
+			<div :class="$style.grid">
 				<MkFlashPreview v-for="flash in items.map(item => 'flash' in item ? item.flash : item)" :key="flash.id" :flash="flash"/>
 			</div>
 		</MkPagination>
@@ -109,7 +110,7 @@ const headerTabs = computed(() => [{
 }]);
 
 definePage(() => ({
-	title: 'Play',
+	title: i18n.ts.play,
 	icon: 'ti ti-player-play',
 }));
 </script>
@@ -125,5 +126,11 @@ definePage(() => ({
 .searchInput {
 	flex: 1 1 220px;
 	min-width: 0;
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+	gap: var(--MI-margin);
 }
 </style>

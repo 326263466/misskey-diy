@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_pageBody">
 		<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
 			<div v-if="flash" :key="flash.id">
-				<Transition :name="prefer.s.animation ? 'zoom' : ''" mode="out-in">
+				<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
 					<div v-if="started" :class="$style.started">
 						<div class="main _panel">
 							<MkAsUi v-if="root" :component="root" :components="components"/>
@@ -280,10 +280,11 @@ function showMenu(ev: PointerEvent) {
 					action: () => os.confirm({
 						type: 'warning',
 						text: i18n.ts.deleteConfirm,
-					}).then(({ canceled }) => {
+					}).then(async ({ canceled }) => {
 						if (canceled || !flash.value) return;
 
-						os.apiWithDialog('flash/delete', { flashId: flash.value.id });
+						await os.apiWithDialog('flash/delete', { flashId: flash.value.id });
+						os.toast(i18n.ts._play.deleted, 'success');
 					}),
 				},
 			] : []),
@@ -311,7 +312,7 @@ const headerActions = computed(() => []);
 const headerTabs = computed(() => []);
 
 definePage(() => ({
-	title: flash.value ? flash.value.title : 'Play',
+	title: flash.value ? flash.value.title : i18n.ts.play,
 	...flash.value ? {
 		avatar: flash.value.user,
 		path: `/play/${flash.value.id}`,
@@ -390,25 +391,13 @@ definePage(() => ({
 </style>
 
 <style lang="scss" scoped>
+// 点击“开始”只做短暂淡入淡出，不再缩放。
 .fade-enter-active,
 .fade-leave-active {
-	transition: opacity 0.125s ease;
+	transition: opacity 0.12s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
 	opacity: 0;
-}
-
-.zoom-enter-active,
-.zoom-leave-active {
-	transition: opacity 0.3s cubic-bezier(0,0,.35,1), transform 0.3s cubic-bezier(0,0,.35,1);
-}
-.zoom-enter-from {
-	opacity: 0;
-	transform: scale(0.7);
-}
-.zoom-leave-to {
-	opacity: 0;
-	transform: scale(1.3);
 }
 </style>

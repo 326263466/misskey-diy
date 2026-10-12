@@ -256,11 +256,12 @@ onUnmounted(() => {
 	overflow: clip;
 	text-align: left;
 
+	// 卡片整体可点击，悬停只改变标题颜色，不显示下划线。
 	&:hover {
 		text-decoration: none;
 
 		> .body > .header > .title {
-			text-decoration: underline;
+			color: var(--MI_THEME-accent);
 		}
 	}
 

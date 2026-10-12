@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div class="_gaps">
 							<MkUserCardMini :user="article.user" :withChart="false" :cachePath="`/articles/${article.id}`" author/>
 							<XArticleToc v-if="headings.length > 0" :headings="headings" :previewId="previewId" :compact="false"/>
-							<MkDetailRecommendations kind="article" :excludeId="article.id"/>
+							<MkDetailRecommendations :excludeId="article.id"/>
 						</div>
 					</Teleport>
 					<XArticleToc v-else-if="headings.length > 0" :headings="headings" :previewId="previewId" compact/>
@@ -227,12 +227,13 @@ definePage(() => ({ title: article.value?.title ?? i18n.ts._article.article, ico
 .bodyLoading { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; }
 .bodyLoading > * { position: sticky; top: calc(var(--MI-stickyTop, 0px) + 120px); }
 .sideActions { display: none; }
-.sideAction { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--MI_THEME-panel); color: var(--MI_THEME-fgTransparentWeak); font-size: 20px; line-height: 1; }
-.sideAction:hover:not(:disabled), .sideAction:focus-visible { color: var(--MI_THEME-accent); }
-.sideAction.liked { color: var(--MI_THEME-love); }
-.sideAction.favorited { color: var(--MI_THEME-accent); }
+.sideAction { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--MI_THEME-panel); color: var(--MI_THEME-fgTransparentWeak); font-size: 20px; line-height: 1; transition: color .15s ease; }
+// 悬停和已操作统一用主题色，图标与角标同步变色。
+.sideAction:hover:not(:disabled), .sideAction:focus-visible, .sideAction.liked, .sideAction.favorited { color: var(--MI_THEME-accent); }
 .sideAction:disabled { cursor: wait; opacity: 0.6; }
-.count { position: absolute; top: 0; right: -6px; padding: 2px 5px; border-radius: var(--MI-radius); background: var(--MI_THEME-fgTransparentWeak); color: var(--MI_THEME-panel); font-size: 11px; line-height: 1; }
+.count { position: absolute; top: 0; right: -6px; padding: 2px 5px; border-radius: var(--MI-radius); background: var(--MI_THEME-fgTransparentWeak); color: var(--MI_THEME-panel); font-size: 11px; line-height: 1; transition: background-color .15s ease; }
+.sideAction:hover:not(:disabled) > .count, .sideAction:focus-visible > .count, .sideAction.liked > .count { background: var(--MI_THEME-accent); color: var(--MI_THEME-fgOnAccent); }
+@media (prefers-reduced-motion: reduce) { .sideAction, .count { transition: none; } }
 @container (min-width: 700px) {
 	.layout { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--MI-margin); align-items: start; }
 	.sideActions { position: sticky; top: calc(var(--MI-stickyTop, 0px) + 48px); display: flex; flex-direction: column; align-items: center; gap: 20px; margin-top: 48px; }

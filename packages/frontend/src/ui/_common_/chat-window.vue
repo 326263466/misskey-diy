@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </MkModal>
 <div v-show="visible" :class="$style.host" :style="{ top: `${narrow ? 0 : top}px` }">
 	<Teleport :to="dialogTarget ?? 'body'" :disabled="!dialogShowing || dialogTarget == null">
-		<section v-show="open" data-popup-boundary role="dialog" :aria-modal="dialogShowing || undefined" :class="[$style.window, { [$style.maximized]: dialogShowing, [$style.minimized]: minimized }]" :style="{ '--MI-chatWindowControlsWidth': showWindowControls ? '72px' : '28px' }" :aria-label="i18n.ts.chat">
+			<section v-show="open" data-popup-boundary role="dialog" :aria-modal="dialogShowing || undefined" :class="[$style.window, { [$style.maximized]: dialogShowing, [$style.minimized]: minimized }]" :style="{ '--MI-chatWindowControlsWidth': showWindowControls && !minimized ? '92px' : '28px' }" :aria-label="i18n.ts.chat">
 	<button v-if="minimized" type="button" class="_button" :class="$style.restoreArea" :aria-label="i18n.ts.windowRestore" :aria-expanded="false" @click="minimized = false"></button>
 	<header v-if="minimized" :class="$style.header">
 		<div :class="$style.title">
@@ -184,7 +184,7 @@ watch([open, () => props.restoreKey], ([value]) => {
 	flex: 0 0 52px;
 	align-items: center;
 	gap: 8px;
-	padding: 0 44px 0 16px;
+	padding: 0 calc(16px + var(--MI-chatWindowControlsWidth, 0px)) 0 16px;
 	border-bottom: var(--MI-divider);
 }
 
@@ -203,36 +203,38 @@ watch([open, () => props.restoreKey], ([value]) => {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	font-size: 1.15em;
 	font-weight: 700;
 }
 
 .controls {
 	position: absolute;
 	top: 0;
-	right: 6px;
+	right: 8px;
 	z-index: 5;
 	display: flex;
 	align-items: center;
-	gap: 0;
+	gap: 4px;
 	height: 52px;
 	pointer-events: none;
 }
 
+// 与聊天页顶栏图标按钮（新建、搜索、更多）保持同一尺寸和悬停效果。
 .control {
 	display: grid;
-	flex: 0 0 24px;
+	flex: 0 0 28px;
 	place-items: center;
-	width: 24px;
-	height: 24px;
-	border-radius: var(--MI-radius);
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
 	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 1em;
 	pointer-events: auto;
 
-	> i { font-size: 0.8em; }
+	> i { font-size: 1.1em; }
 
-	&:hover { background: var(--MI_THEME-buttonHoverBg); }
-	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); }
+	&:hover { background: var(--MI_THEME-buttonHoverBg); color: var(--MI_THEME-fg); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }
 
 .content {

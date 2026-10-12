@@ -35,11 +35,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 
 		<div :class="$style.body" @contextmenu.stop="onContextmenu">
-			<div :class="[$style.columns, { [$style.wide]: wide, [$style.singleColumn]: singleColumn, [$style.navigationLayout]: navigationLayout, [$style.articleEditor]: articleEditor, [$style.chat]: isChat, [$style.channelDetail]: channelDetail, [$style.featureNavigation]: featureNavigation }]">
-				<XDock v-if="!singleColumn && !noteDetail && !channelDetail && !isChat && !featureNavigation" :class="$style.dock" :articleCategories="isRoot"/>
+			<div :class="[$style.columns, { [$style.wide]: wide, [$style.singleColumn]: singleColumn, [$style.navigationLayout]: navigationLayout, [$style.fullWidthNavigation]: fullWidthNavigation, [$style.articleEditor]: articleEditor, [$style.chat]: isChat, [$style.channelDetail]: channelDetail, [$style.featureNavigation]: featureNavigation }]">
+				<XDock v-if="!singleColumn && !articleDetail && !channelDetail && !isChat && !featureNavigation" :class="$style.dock" :articleCategories="isRoot"/>
 
 				<div ref="mainContent" :class="$style.stream">
-					<div v-if="noteDetail && detailActionsLoading" :class="[$style.detailActionsPlaceholder, { [$style.noteActionsPlaceholder]: mainRouter.currentRoute.value.name === 'note' }]" aria-hidden="true">
+					<div v-if="articleDetail && detailActionsLoading" :class="$style.detailActionsPlaceholder" aria-hidden="true">
 						<span v-for="icon in detailActionIcons" :key="icon"><i :class="`ti ti-${icon}`"></i></span>
 					</div>
 					<StackingRouterView v-if="prefer.s['experimental.stackingRouterView']" :class="$style.content"/>
@@ -47,8 +47,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 
 				<div v-if="!wide && !singleColumn && !isChat" :class="$style.sidebar">
-					<div ref="pageSidebar" :class="[$style.pageSidebar, { [$style.authorSidebar]: noteDetail }]">
-						<div v-if="noteDetail" :class="$style.authorPlaceholder">
+					<div ref="pageSidebar" :class="[$style.pageSidebar, { [$style.authorSidebar]: articleDetail }]">
+						<div v-if="articleDetail" :class="$style.authorPlaceholder">
 							<MkUserCardMini v-if="cachedAuthor" :user="cachedAuthor.user" :cachePath="authorPath" :withChart="false" author preview/>
 							<div v-else :class="$style.authorSkeleton" aria-busy="true">
 								<div :class="$style.skeletonIdentity" aria-hidden="true"><span></span><span></span></div>
@@ -57,7 +57,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</div>
 					<XCheckinCard v-if="isRoot"/>
-					<XWidgets v-if="!noteDetail"/>
+					<XWidgets v-if="!articleDetail"/>
 				</div>
 			</div>
 		</div>
@@ -165,29 +165,28 @@ watch(isChat, value => {
 }, { immediate: true });
 const isChatConversation = computed(() => /^\/chat\/(room|user)\//.test(mainRouter.currentRef.value._parsedRoute.fullPath));
 const channelDetail = computed(() => ['/channels/:channelId', '/channels/:channelId/members'].includes(mainRouter.currentRoute.value.path));
-const noteDetail = computed(() => ['note', 'article'].includes(mainRouter.currentRoute.value.name ?? ''));
+const articleDetail = computed(() => mainRouter.currentRoute.value.name === 'article');
 const authorPath = computed(() => mainRouter.currentRef.value._parsedRoute.fullPath.split(/[?#]/)[0].split('/').slice(0, 3).join('/'));
 const cachedAuthor = computed(() => readAuthorCard(authorPath.value));
 const detailActionsLoading = ref(true);
 provide(DI.detailActionsLoading, detailActionsLoading);
 watch(authorPath, () => { detailActionsLoading.value = true; }, { flush: 'sync' });
-const detailActionIcons = computed(() => mainRouter.currentRoute.value.name === 'article'
-	? ['heart', 'message-circle', 'star', 'share', 'refresh']
-	: ['heart', 'message-circle', 'repeat', 'mood-happy', 'star', 'share']);
+const detailActionIcons = ['heart', 'message-circle', 'star', 'share', 'refresh'];
 // 文章编辑页统一渲染品牌、标题和操作，不再同时创建全局顶栏。
 const articleEditor = computed(() => ['/articles/new', '/articles/edit/:articleId'].includes(mainRouter.currentRoute.value.path));
 watch(articleEditor, value => { if (value) chatWindowOpen.value = false; });
 // 返回时堆叠的页面仍保持挂载，所以布局要跟随当前激活的路由
-const singleColumn = computed(() => articleEditor.value || mainRouter.currentRoute.value.path.startsWith('/products') || mainRouter.currentRoute.value.path.startsWith('/orders') || [
+const singleColumn = computed(() => articleEditor.value || mainRouter.currentRoute.value.path.startsWith('/products') || [
 	'/shop',
 	'/@:acct', '/@:acct/following', '/@:acct/followers',
-	'/checkin', '/community-ranking', '/my/achievements',
+	'/community-ranking',
 ].includes(mainRouter.currentRoute.value.path));
 
 // 刷新时按路由确定最终宽度，不等待异步页面和用户资料。
 const navigationLayout = computed(() => [
-	'/settings', '/admin', '/wallet', '/@:acct',
+	'/settings', '/admin', '/my', '/@:acct',
 ].includes(mainRouter.currentRoute.value.path));
+const fullWidthNavigation = computed(() => mainRouter.currentRoute.value.path === '/my');
 
 const MOBILE_THRESHOLD = 500;
 // 与下方 $dock-collapse-threshold 的左右边距、dock、gap、正文最小宽度保持同步。
@@ -207,10 +206,10 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
 
 const pageMetadata = ref<null | PageMetadata>(null);
 // 在异步页面元数据到达之前，先确定导航页的布局外壳
-const wide = computed(() => !singleColumn.value && !noteDetail.value && !channelDetail.value && !isChat.value && !featureNavigation.value && (
-	['/settings', '/admin', '/wallet', '/feedback'].includes(mainRouter.currentRoute.value.path) || pageMetadata.value?.needWideArea === true
+const wide = computed(() => !singleColumn.value && !articleDetail.value && !channelDetail.value && !isChat.value && !featureNavigation.value && (
+	['/settings', '/admin', '/my', '/feedback'].includes(mainRouter.currentRoute.value.path) || pageMetadata.value?.needWideArea === true
 ));
-const dockHidden = computed(() => singleColumn.value || noteDetail.value || channelDetail.value || isChat.value || featureNavigation.value || wide.value || dockCollapsed.value);
+const dockHidden = computed(() => singleColumn.value || articleDetail.value || channelDetail.value || isChat.value || featureNavigation.value || wide.value || dockCollapsed.value);
 provide('chatNavigationInDock', computed(() => !isMobile.value && !dockCollapsed.value));
 const widgetsShowing = ref(false);
 const mainContent = useTemplateRef('mainContent');
@@ -383,6 +382,11 @@ $chat-sidebar-collapse-threshold: $body-side-margin * 2 + 240px + $column-gap + 
 		max-width: calc(var(--MI-pageWidth) + #{$body-side-margin * 2});
 	}
 
+	// 内容含宽表格的双列页面使用与首页三栏相同的总宽度。
+	&.fullWidthNavigation {
+		--MI-navigationPageWidth: #{$content-width};
+	}
+
 	&.articleEditor {
 		max-width: none;
 		padding: 0;
@@ -456,10 +460,8 @@ $chat-sidebar-collapse-threshold: $body-side-margin * 2 + 240px + $column-gap + 
 	pointer-events: none;
 	> span { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--MI_THEME-panel); color: var(--MI_THEME-fgTransparentWeak); font-size: 20px; line-height: 1; }
 }
-.noteActionsPlaceholder { gap: 12px; }
 @container (min-width: 700px) { .detailActionsPlaceholder { display: flex; } }
 .stream:has([data-detail-actions="true"]) > .detailActionsPlaceholder { display: none; }
-@media (max-height: 600px) { .noteActionsPlaceholder { top: 12px; gap: 8px; } }
 
 .content {
 	height: 100%;

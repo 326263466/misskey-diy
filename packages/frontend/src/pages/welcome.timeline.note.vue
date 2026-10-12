@@ -11,17 +11,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user"/>
 			</MkCwButton>
 			<div v-if="showContent">
-				<MkA v-if="note.replyId" class="reply _iconButton" :to="`/notes/${note.replyId}`" :aria-label="i18n.ts.reply"><i class="ti ti-message-circle"></i></MkA>
+				<i v-if="note.replyId" class="ti ti-message-circle" role="img" :aria-label="i18n.ts.reply"></i>
 				<Mfm v-if="note.text" :text="note.text" :author="note.user"/>
-				<MkA v-if="note.renoteId" class="rp" :to="`/notes/${note.renoteId}`">{{ i18n.ts.renote }}: ...</MkA>
+				<span v-if="note.renoteId">{{ i18n.ts.renote }}: ...</span>
 			</div>
 		</div>
 		<div v-else-if="note.text || note.replyId || note.renoteId" ref="noteTextEl" :class="[$style.text, { [$style.collapsed]: shouldCollapse }]">
-			<MkA v-if="note.replyId" class="reply _iconButton" :to="`/notes/${note.replyId}`" :aria-label="i18n.ts.reply"><i class="ti ti-message-circle"></i></MkA>
+			<i v-if="note.replyId" class="ti ti-message-circle" role="img" :aria-label="i18n.ts.reply"></i>
 			<Mfm v-if="note.text" :text="note.text" :author="note.user"/>
-			<MkA v-if="note.renoteId" class="rp" :to="`/notes/${note.renoteId}`">{{ i18n.ts.renote }}: ...</MkA>
+			<span v-if="note.renoteId">{{ i18n.ts.renote }}: ...</span>
 		</div>
-		<div v-if="note.files && note.files.length > 0 && (note.cw == null || showContent)" :class="$style.media" data-note-interactive>
+		<div v-if="note.files && note.files.length > 0 && (note.cw == null || showContent)" :class="$style.media">
 			<MkMediaList :mediaList="note.files.slice(0, 4)" :user="note.user"/>
 		</div>
 		<MkPoll v-if="note.poll && (note.cw == null || showContent)" :class="$style.poll" :noteId="note.id" v-bind="note.poll" :expiresAt="note.poll.expiresAt" :author="note.user" readOnly/>

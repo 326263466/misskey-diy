@@ -4,11 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader class="_standalonePage" contentCard hideHeader>
+<PageWithHeader contentCard hideHeader>
 	<div class="_pageBody _gaps_m" :class="$style.root" :aria-busy="loading">
 		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title">
-			<MkA :to="userPage(account, 'management')"><i class="ti ti-arrow-left" aria-hidden="true"></i> {{ i18n.ts._management.title }}</MkA>
-			<MkA to="/products/new" :class="$style.publish"><i class="ti ti-plus" aria-hidden="true"></i> {{ i18n.ts._marketplace.publishProduct }}</MkA>
+			<MkA to="/my/products/new" :class="$style.publish"><i class="ti ti-plus" aria-hidden="true"></i> {{ i18n.ts._marketplace.publishProduct }}</MkA>
 		</nav>
 		<div :class="$style.heading"><h1>{{ i18n.ts._marketplace.myProducts }}</h1><MkButton small :disabled="loading" :wait="loading" @click="load">{{ i18n.ts.reload }}</MkButton></div>
 		<p v-if="loading && !products.length" role="status">{{ i18n.ts.loading }}</p>
@@ -18,11 +17,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<li v-for="product in products" :key="product.id" :class="$style.product">
 				<div :class="$style.image"><img v-if="product.imageUrl && !failedImages[product.id]" :src="product.imageUrl" alt="" loading="lazy" referrerpolicy="no-referrer" @error="failedImages[product.id] = true"><i v-else :class="product.type === 'physical' ? 'ti ti-package' : 'ti ti-gift'" aria-hidden="true"></i></div>
 				<div :class="$style.summary">
-					<MkA :to="`/products/${encodeURIComponent(product.id)}/edit`" :class="$style.name">{{ product.name }}</MkA>
+					<MkA :to="`/my/products/${encodeURIComponent(product.id)}/edit`" :class="$style.name">{{ product.name }}</MkA>
 					<div :class="$style.meta"><span :class="{ [$style.onSale]: product.enabled }">{{ product.enabled ? i18n.ts._marketplace.onSale : i18n.ts._marketplace.offSale }}</span><span>{{ product.price.toLocaleString() }} {{ i18n.ts._marketplace.pointUnit }} / {{ product.unit }}</span></div>
 					<span :class="$style.limit">{{ product.perUserLimit > 0 ? i18n.tsx._marketplace.cumulativeLimit({ count: product.perUserLimit.toLocaleString(), unit: product.unit }) : i18n.ts._marketplace.noPurchaseLimit }}</span>
 				</div>
-				<MkA :to="`/products/${encodeURIComponent(product.id)}/edit`">{{ i18n.ts.edit }}</MkA>
+				<MkA :to="`/my/products/${encodeURIComponent(product.id)}/edit`">{{ i18n.ts.edit }}</MkA>
 				<MkA :to="`/products/${encodeURIComponent(product.id)}`">{{ i18n.ts.details }}</MkA>
 			</li>
 		</ul>
@@ -40,9 +39,8 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { DI } from '@/di.js';
-import { userPage } from '@@/js/user.js';
 
-const account = ensureSignin();
+ensureSignin();
 const pageActive = inject(DI.pageActive, ref(true));
 const products = ref<entities.ProductsMineResponse>([]);
 const failedImages = ref<Record<string, boolean>>(Object.create(null));

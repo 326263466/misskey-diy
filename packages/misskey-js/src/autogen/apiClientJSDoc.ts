@@ -1810,7 +1810,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * List users who have posted in the channel, most recently active first.
+     * List users who have posted in the channel, most recently joined (first post) first.
      * 
      * **Credential required**: *No*
      */

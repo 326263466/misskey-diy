@@ -55,7 +55,8 @@ describe('Channel', () => {
 			await db.getRepository(MiUser).update(suspended.id, { isSuspended: true });
 			await db.getRepository(MiUser).update(deleted.id, { isDeleted: true });
 
-			const expectedIds = [active[0].id, ...active.slice(1).reverse().map(user => user.id)];
+			// 按首次发帖排序：active[0] 之后再发帖也不会提前，删除最新回复也不影响加入时间。
+			const expectedIds = [...active].reverse().map(user => user.id);
 			for (const viewer of [undefined, alice]) {
 				const list = await api('channels/participants', { channelId, limit: 100 }, viewer);
 				const show = await api('channels/show', { channelId }, viewer);

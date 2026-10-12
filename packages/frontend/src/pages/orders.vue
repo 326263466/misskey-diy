@@ -4,9 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader class="_standalonePage" contentCard hideHeader>
+<PageWithHeader contentCard hideHeader>
 	<div class="_pageBody _gaps" :class="$style.section" :aria-busy="loading">
-		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title"><MkA :to="userPage(account, 'management')"><i class="ti ti-arrow-left" aria-hidden="true"></i> {{ i18n.ts._management.title }}</MkA><MkA :to="props.mode === 'sales' ? '/orders' : '/orders?mode=sales'">{{ props.mode === 'sales' ? i18n.ts._marketplace.orders : i18n.ts._marketplace.sales }}</MkA></nav>
+		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title"><MkA :to="props.mode === 'sales' ? '/my/orders' : '/my/sales'">{{ props.mode === 'sales' ? i18n.ts._marketplace.orders : i18n.ts._marketplace.sales }}</MkA></nav>
 		<div :class="$style.heading"><h1>{{ props.mode === 'sales' ? i18n.ts._marketplace.sales : i18n.ts._marketplace.orders }}</h1><MkButton small :disabled="loading" :wait="loading" @click="load()">{{ i18n.ts.reload }}</MkButton></div>
 		<p v-if="loading && !orders.length">{{ i18n.ts.loading }}</p>
 		<div v-if="loadError" role="alert" class="_gaps_s"><p>{{ i18n.ts._marketplace.orderLoadFailed }}</p><MkButton small :disabled="loading" @click="load(appendFailed)">{{ i18n.ts.retry }}</MkButton></div>
@@ -28,8 +28,7 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { DI } from '@/di.js';
-import { userPage } from '@@/js/user.js';
-const account = ensureSignin();
+ensureSignin();
 const props = withDefaults(defineProps<{ mode?: 'purchases' | 'sales' }>(), { mode: 'purchases' });
 const orders = ref<entities.OrdersListResponse>([]);
 const loading = ref(false);

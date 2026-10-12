@@ -133,8 +133,8 @@ describe('desktop navigation page layout', () => {
 		expect(view.getByTestId('header')).toBeTruthy();
 	});
 
-	test('uses the wallet navigation layout before its benefits child loads', async () => {
-		setRoute('/wallet');
+	test('uses the personal center navigation layout before its child page loads', async () => {
+		setRoute('/my');
 		const { view, columns } = renderShell();
 		const initialClasses = columns.className;
 		expect(initialClasses).toContain('navigationLayout');
@@ -147,7 +147,7 @@ describe('desktop navigation page layout', () => {
 		expect(columns.className).toBe(initialClasses);
 	});
 
-	test.each(['/checkin', '/community-ranking', '/my/achievements'])('keeps %s in its own layout while metadata changes', async path => {
+	test.each(['/shop', '/community-ranking'])('keeps %s in its own layout while metadata changes', async path => {
 		setRoute('/timeline');
 		const { view, columns } = renderShell();
 		await publishMetadata(true);
@@ -163,7 +163,7 @@ describe('desktop navigation page layout', () => {
 		expect(columns.className).toBe(loadingClasses);
 	});
 
-	test.each(['/settings', '/admin', '/wallet', '/feedback'])('keeps %s at its final width before async metadata arrives', async path => {
+	test.each(['/settings', '/admin', '/my', '/feedback'])('keeps %s at its final width before async metadata arrives', async path => {
 		setRoute(path);
 		const { columns } = renderShell();
 		const initialClasses = columns.className;
@@ -196,11 +196,11 @@ describe('desktop navigation page layout', () => {
 		expect(columns.className).toBe(initialClasses);
 	});
 
-	test('omits the navigation dock on a note detail route before its metadata loads', async () => {
+	test('omits the navigation dock on an article detail route before its metadata loads', async () => {
 		setRoute('/settings');
 		const { view, columns } = renderShell();
 		await publishMetadata(true);
-		mainRouter.currentRoute.value = { name: 'note', path: '/notes/:noteId/:initialTab?' } as typeof mainRouter.currentRoute.value;
+		mainRouter.currentRoute.value = { name: 'article', path: '/articles/:articleId' } as typeof mainRouter.currentRoute.value;
 		await nextTick();
 		const loadingClasses = columns.className;
 		expect(loadingClasses).not.toContain('wide');
@@ -211,7 +211,7 @@ describe('desktop navigation page layout', () => {
 		expect(columns.className).toBe(loadingClasses);
 		await publishMetadata(true);
 		expect(columns.className).toBe(loadingClasses);
-		setRoute('/timeline');
+		setRoute('/');
 		await publishMetadata(false);
 		expect(view.container.querySelector('nav')).not.toBeNull();
 	});
@@ -231,7 +231,7 @@ describe('header dock visibility', () => {
 		expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe(String(hidden));
 	});
 
-	test.each(['/@:acct', '/@:acct/following', '/@:acct/followers', '/settings', '/admin', '/wallet'])('reports the hidden dock on %s even at desktop width', path => {
+	test.each(['/@:acct', '/@:acct/following', '/@:acct/followers', '/settings', '/admin', '/my'])('reports the hidden dock on %s even at desktop width', path => {
 		setRoute(path);
 		const { view } = renderShell();
 		expect(view.getByTestId('header').getAttribute('data-dock-hidden')).toBe('true');

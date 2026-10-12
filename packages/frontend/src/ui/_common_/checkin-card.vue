@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<strong :class="$style.greeting">{{ greeting }}</strong>
 		<p :class="$style.description">{{ description }}</p>
 	</div>
-	<MkA v-if="!checkedInToday" to="/checkin" :class="$style.action">{{ i18n.ts._checkin.goCheckin }}</MkA>
+	<MkA v-if="!checkedInToday" to="/my/checkin" :class="$style.action">{{ i18n.ts._checkin.goCheckin }}</MkA>
 	<button v-else ref="actionButton" type="button" class="_button" :class="[$style.action, $style.checkedIn]" @click="showReward">{{ i18n.ts._checkin.checkedIn }}</button>
 </section>
 </template>

@@ -59,24 +59,24 @@ var name = ""
 
 Ui:render([
 	Ui:C:textInput({
-		label: "Your name"
+		label: "你的名字"
 		onInput: @(v) { name = v }
 	})
 	Ui:C:button({
-		text: "Hello"
+		text: "打招呼"
 		onClick: @() {
-			Mk:dialog(null, \`Hello, {name}!\`)
+			Mk:dialog(null, \`你好，{name}！\`)
 		}
 	})
 ])
 `;
 
 const PRESET_OMIKUJI = `/// @ ${AISCRIPT_VERSION}
-// ユーザーごとに日替わりのおみくじのプリセット
+// 每日运势：同一用户在同一天得到相同的结果
 
-// 選択肢
+// 可能的结果
 let choices = [
-	"ｷﾞｶﾞ吉"
+	"超级大吉"
 	"大吉"
 	"吉"
 	"中吉"
@@ -86,23 +86,23 @@ let choices = [
 	"大凶"
 ]
 
-// シードが「PlayID+ユーザーID+今日の日付」である乱数生成器を用意
+// 以“互动应用 ID + 用户 ID + 当天日期”作为随机数种子
 let random = Math:gen_rng(\`{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}\`)
 
-// ランダムに選択肢を選ぶ
+// 随机选取一个结果
 let chosen = choices[random(0, (choices.len - 1))]
 
-// 結果のテキスト
-let result = \`今日のあなたの運勢は **{chosen}** です。\`
+// 结果文本
+let result = \`你今天的运势是 **{chosen}**。\`
 
-// UIを表示
+// 显示界面
 Ui:render([
 	Ui:C:container({
 		align: 'center'
 		children: [
 			Ui:C:mfm({ text: result })
 			Ui:C:postFormButton({
-				text: "投稿する"
+				text: "发布到帖子"
 				rounded: true
 				primary: true
 				form: {
@@ -115,15 +115,15 @@ Ui:render([
 `;
 
 const PRESET_SHUFFLE = `/// @ ${AISCRIPT_VERSION}
-// 巻き戻し可能な文字シャッフルのプリセット
+// 打乱文字顺序，可前后查看历史结果
 
-let string = "ペペロンチーノ"
+let string = "意大利面"
 let length = string.len
 
-// 過去の結果を保存しておくやつ
+// 保存历史结果
 var results = []
 
-// どれだけ巻き戻しているか
+// 当前回看到第几条
 var cursor = 0
 
 @main() {
@@ -141,7 +141,7 @@ var cursor = 0
 
 	results.push(result)
 
-	// UIを表示
+	// 显示界面
 	render(result)
 }
 
@@ -173,12 +173,12 @@ var cursor = 0
 						disabled: !(results.len > 1 && cursor > 0)
 						onClick: forward
 					}, {
-						text: "引き直す"
+						text: "重新打乱"
 						onClick: main
 					}]
 				})
 				Ui:C:postFormButton({
-					text: "投稿する"
+					text: "发布到帖子"
 					rounded: true
 					primary: true
 					form: {
@@ -194,28 +194,28 @@ main()
 `;
 
 const PRESET_QUIZ = `/// @ ${AISCRIPT_VERSION}
-let title = '地理クイズ'
+let title = '地理知识测验'
 
 let qas = [{
-	q: 'オーストラリアの首都は？'
-	choices: ['シドニー', 'キャンベラ', 'メルボルン']
-	a: 'キャンベラ'
-	aDescription: '最大の都市はシドニーですが首都はキャンベラです。'
+	q: '澳大利亚的首都是？'
+	choices: ['悉尼', '堪培拉', '墨尔本']
+	a: '堪培拉'
+	aDescription: '悉尼是澳大利亚最大的城市，但首都是堪培拉。'
 }, {
-	q: '国土面積2番目の国は？'
-	choices: ['カナダ', 'アメリカ', '中国']
-	a: 'カナダ'
-	aDescription: '大きい順にロシア、カナダ、アメリカ、中国です。'
+	q: '国土面积排名第二的国家是？'
+	choices: ['加拿大', '美国', '中国']
+	a: '加拿大'
+	aDescription: '按国土总面积排序，前四位依次为俄罗斯、加拿大、美国和中国。'
 }, {
-	q: '二重内陸国ではないのは？'
-	choices: ['リヒテンシュタイン', 'ウズベキスタン', 'レソト']
-	a: 'レソト'
-	aDescription: 'レソトは(一重)内陸国です。'
+	q: '以下哪个国家不是双重内陆国？'
+	choices: ['列支敦士登', '乌兹别克斯坦', '莱索托']
+	a: '莱索托'
+	aDescription: '莱索托四周只与南非接壤，是内陆国，但不是双重内陆国。'
 }, {
-	q: '閘門がない運河は？'
-	choices: ['キール運河', 'スエズ運河', 'パナマ運河']
-	a: 'スエズ運河'
-	aDescription: 'スエズ運河は高低差がないので閘門はありません。'
+	q: '以下哪条运河没有船闸？'
+	choices: ['基尔运河', '苏伊士运河', '巴拿马运河']
+	a: '苏伊士运河'
+	aDescription: '苏伊士运河两端水位基本相同，因此没有船闸。'
 }]
 
 let qaEls = [Ui:C:container({
@@ -267,7 +267,7 @@ each (let qa, qas) {
 					size: 1.2
 					bold: true
 					color: if (correct) '#f00' else '#00f'
-					text: if (correct) '🎉正解' else '不正解'
+					text: if (correct) '🎉 回答正确' else '回答错误'
 				})
 				Ui:C:text({
 					text: qa.aDescription
@@ -276,11 +276,11 @@ each (let qa, qas) {
 		})
 	}
 
-	let result = \`{title}の結果は{qas.len}問中{score}問正解でした。\`
+	let result = \`{title}：共 {qas.len} 题，答对 {score} 题。\`
 	Ui:get('footer').update({
 		children: [
 			Ui:C:postFormButton({
-				text: '結果を共有'
+				text: '分享结果'
 				rounded: true
 				primary: true
 				form: {
@@ -295,7 +295,7 @@ qaEls.push(Ui:C:container({
 	align: 'center'
 	children: [
 		Ui:C:button({
-			text: '答え合わせ'
+			text: '提交答案'
 			primary: true
 			rounded: true
 			onClick: finish
@@ -307,28 +307,28 @@ Ui:render(qaEls)
 `;
 
 const PRESET_TIMELINE = `/// @ ${AISCRIPT_VERSION}
-// APIリクエストを行いローカルタイムラインを表示するプリセット
+// 调用 API 获取并显示本站时间线
 
 @fetch() {
 	Ui:render([
 		Ui:C:container({
 			align: 'center'
 			children: [
-				Ui:C:text({ text: "読み込み中..." })
+				Ui:C:text({ text: "加载中…" })
 			]
 		})
 	])
 
-	// タイムライン取得
+	// 获取时间线
 	let notes = Mk:api("notes/local-timeline", {})
 
-	// それぞれのノートごとにUI要素作成
+	// 为每条帖子生成界面元素
 	let noteEls = []
 	each (let note, notes) {
-		// 表示名を設定していないアカウントはidを表示
+		// 未设置昵称的账号显示用户名
 		let userName = if Core:type(note.user.name) == "str" note.user.name else note.user.username
-		// リノートもしくはメディア・投票のみで本文が無いノートに代替表示文を設定
-		let noteText = if Core:type(note.text) == "str" note.text else "（リノートもしくはメディア・投票のみのノート）"
+		// 转发或只有媒体、投票而没有正文的帖子显示替代文字
+		let noteText = if Core:type(note.text) == "str" note.text else "（转发，或仅包含媒体、投票的帖子）"
 
 		let el = Ui:C:container({
 			bgColor: "#444"
@@ -348,11 +348,11 @@ const PRESET_TIMELINE = `/// @ ${AISCRIPT_VERSION}
 		noteEls.push(el)
 	}
 
-	// UIを表示
+	// 显示界面
 	Ui:render([
-		Ui:C:text({ text: "ローカル タイムライン" })
+		Ui:C:text({ text: "本站时间线" })
 		Ui:C:button({
-			text: "更新"
+			text: "刷新"
 			onClick: @() {
 				fetch()
 			}
@@ -402,7 +402,7 @@ function selectPreset(ev: PointerEvent) {
 			script.value = PRESET_OMIKUJI;
 		},
 	}, {
-		text: i18n.ts.shuffle,
+		text: i18n.ts._play._presets.shuffle,
 		action: () => {
 			script.value = PRESET_SHUFFLE;
 		},
@@ -421,7 +421,7 @@ function selectPreset(ev: PointerEvent) {
 
 async function save() {
 	if (flash.value != null) {
-		os.apiWithDialog('flash/update', {
+		await os.apiWithDialog('flash/update', {
 			flashId: flash.value.id,
 			title: title.value,
 			summary: summary.value,
@@ -429,6 +429,7 @@ async function save() {
 			script: script.value,
 			visibility: visibility.value,
 		});
+		os.toast(i18n.ts._play.updated, 'success');
 	} else {
 		const created = await os.apiWithDialog('flash/create', {
 			title: title.value,
@@ -437,6 +438,7 @@ async function save() {
 			script: script.value,
 			visibility: visibility.value,
 		});
+		os.toast(i18n.ts._play.created, 'success');
 		router.push('/play/:id/edit', {
 			params: {
 				id: created.id,
@@ -467,6 +469,7 @@ async function del() {
 	await os.apiWithDialog('flash/delete', {
 		flashId: flash.value.id,
 	});
+	os.toast(i18n.ts._play.deleted, 'success');
 	router.push('/play');
 }
 

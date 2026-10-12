@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.heading"><i class="ti ti-dice-5"></i> {{ i18n.ts._pages.blocks.dynamic }}</div>
 	<I18n :src="i18n.ts._pages.blocks.dynamicDescription" tag="div" :class="$style.text">
 		<template #play>
-			<MkA to="/play" class="_link">Play</MkA>
+			<MkA to="/play" class="_link">{{ i18n.ts.play }}</MkA>
 		</template>
 	</I18n>
 </div>

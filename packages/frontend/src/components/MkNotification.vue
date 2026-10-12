@@ -104,38 +104,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkA class="_link" to="/my/notifications/system">{{ i18n.ts._welcome.readGuide }} <i class="ti ti-arrow-right" aria-hidden="true"></i></MkA>
 				</template>
 			</div>
-			<MkA v-else-if="notification.type === 'reaction' || notification.type === 'reaction:grouped'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
+			<div v-else-if="notification.type === 'reaction' || notification.type === 'reaction:grouped'" :class="$style.text" :title="getNoteSummary(notification.note)">
 				<i class="ti ti-quote" :class="$style.quote"></i>
 				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
 				<i class="ti ti-quote" :class="$style.quote"></i>
-			</MkA>
-			<MkA v-else-if="notification.type === 'renote' || notification.type === 'renote:grouped'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note.renote)">
+			</div>
+			<div v-else-if="notification.type === 'renote' || notification.type === 'renote:grouped'" :class="$style.text" :title="getNoteSummary(notification.note.renote)">
 				<i class="ti ti-quote" :class="$style.quote"></i>
 				<Mfm :text="getNoteSummary(notification.note.renote)" :plain="true" :nowrap="true" :author="notification.note.renote?.user"/>
 				<i class="ti ti-quote" :class="$style.quote"></i>
-			</MkA>
-			<MkA v-else-if="notification.type === 'reply'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
+			</div>
+			<div v-else-if="notification.type === 'reply' || notification.type === 'mention' || notification.type === 'quote' || notification.type === 'note'" :class="$style.text" :title="getNoteSummary(notification.note)">
 				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
-			</MkA>
-			<MkA v-else-if="notification.type === 'mention'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
-				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
-			</MkA>
-			<MkA v-else-if="notification.type === 'quote'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
-				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
-			</MkA>
-			<MkA v-else-if="notification.type === 'note'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
-				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
-			</MkA>
-			<MkA v-else-if="notification.type === 'pollEnded'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
+			</div>
+			<div v-else-if="notification.type === 'pollEnded' || notification.type === 'scheduledNotePosted'" :class="$style.text" :title="getNoteSummary(notification.note)">
 				<i class="ti ti-quote" :class="$style.quote"></i>
 				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
 				<i class="ti ti-quote" :class="$style.quote"></i>
-			</MkA>
-			<MkA v-else-if="notification.type === 'scheduledNotePosted'" :class="$style.text" :to="notePage(notification.note)" :title="getNoteSummary(notification.note)">
-				<i class="ti ti-quote" :class="$style.quote"></i>
-				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
-				<i class="ti ti-quote" :class="$style.quote"></i>
-			</MkA>
+			</div>
 			<div v-else-if="notification.type === 'roleAssigned'" :class="$style.text">
 				<Mfm :text="notification.role.name" :plain="true" :nowrap="true"/>
 			</div>
@@ -208,7 +194,6 @@ import MkReactionIcon from '@/components/MkReactionIcon.vue';
 import MkButton from '@/components/MkButton.vue';
 import { getNoteSummary } from '@/utility/get-note-summary.js';
 import { formatSigninAlertSummary, isSigninAlert } from '@/utility/signin-alert.js';
-import { notePage } from '@@/js/note.js';
 import { userPage } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';

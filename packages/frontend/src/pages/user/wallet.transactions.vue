@@ -4,67 +4,74 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<section class="_gaps" :class="$style.root" :aria-busy="loading">
-	<div :class="$style.heading">
-		<h1>{{ i18n.ts._wallet.transactions }}</h1>
-		<MkButton small :disabled="loading" :wait="loading" @click="refresh()">{{ i18n.ts.reload }}</MkButton>
-	</div>
-	<div :class="$style.tabs" role="group" :aria-label="i18n.ts._wallet.transactions">
-		<button v-for="item in categories" :key="item.key" type="button" class="_button _tabUnderline" :class="[$style.tab, { [$style.selected]: category === item.key }]" :aria-pressed="category === item.key" @click="category = item.key">{{ item.title }}</button>
-	</div>
-	<div v-if="!transactions.length" :class="$style.empty">
-		<MkLoading v-if="loading"/>
-		<MkButton v-else-if="loadError" small @click="loadHistory(requestedPage)">{{ i18n.ts.retry }}</MkButton>
-		<p v-else>{{ i18n.ts._wallet.empty }}</p>
-	</div>
-	<table v-else :class="$style.table">
-		<thead>
-			<tr>
-				<th scope="col">{{ i18n.ts._wallet.columnName }}</th>
-				<th scope="col" :class="$style.pointsColumn">{{ i18n.ts._wallet.columnPoints }}</th>
-				<th scope="col" :class="$style.secondaryColumn">{{ i18n.ts._wallet.columnType }}</th>
-				<th scope="col" :class="$style.secondaryColumn">{{ i18n.ts._wallet.columnStatus }}</th>
-				<th scope="col" :class="$style.flowColumn">{{ i18n.ts._wallet.columnFlow }}</th>
-				<th scope="col" :class="$style.appColumn">{{ i18n.ts._wallet.columnApp }}</th>
-				<th scope="col" :class="$style.numberColumn">{{ i18n.ts._wallet.columnNumber }}</th>
-				<th scope="col" :class="$style.businessColumn">{{ i18n.ts._wallet.columnRelatedId }}</th>
-				<th scope="col" :class="$style.operationColumn">{{ i18n.ts._wallet.columnOperation }}</th>
-			</tr>
-		</thead>
-		<tbody>
-			<tr v-for="entry in transactions" :key="entry.id">
-				<td><span :class="$style.name" :title="entry.description || i18n.ts._wallet._types[entry.type]">{{ entry.description || i18n.ts._wallet._types[entry.type] }}</span></td>
-				<td :class="$style.amount"><strong :class="entry.amount > 0 ? $style.income : undefined">{{ signedAmount(entry.amount) }}</strong><span v-if="entry.reservedAmount" :class="$style.reserved">{{ i18n.tsx._wallet.reservedChange({ amount: signedAmount(entry.reservedAmount) }) }}</span></td>
-				<td :class="$style.secondaryColumn"><span :class="[$style.badge, $style[`badge${badgeTone(entry)}`]]">{{ i18n.ts._wallet._categories[transactionCategory(entry)] }}</span></td>
-				<td :class="$style.secondaryColumn"><span :class="[$style.badge, $style.recorded]">{{ i18n.ts._wallet.statusRecorded }}</span></td>
-				<td :class="[$style.flowColumn, $style.flowCell]" :aria-label="flowDescription(entry)">
-					<div v-if="entry.flow" :class="$style.flow" :title="flowDescription(entry)">
-						<span :class="$style.flowNode" :title="flowLabel(entry.flow.from, entry.flow.fromUser)">
-							<MkAvatar v-if="entry.flow.fromUser" :user="entry.flow.fromUser" :link="false" :preview="false" :class="$style.flowAvatar"/>
-							<i v-else :class="['ti', flowIcon(entry.flow.from), $style.flowIcon]" aria-hidden="true"></i>
-						</span>
-						<i class="ti ti-arrow-narrow-right" :class="$style.flowArrow" aria-hidden="true"></i>
-						<span :class="$style.flowNode" :title="flowLabel(entry.flow.to, entry.flow.toUser)">
-							<MkAvatar v-if="entry.flow.toUser" :user="entry.flow.toUser" :link="false" :preview="false" :class="$style.flowAvatar"/>
-							<i v-else :class="['ti', flowIcon(entry.flow.to), $style.flowIcon]" aria-hidden="true"></i>
-						</span>
-					</div>
-					<span v-else :class="$style.unavailable">-</span>
-				</td>
-				<td :class="[$style.unavailable, $style.appColumn]">-</td>
-				<td class="_selectable" :class="[$style.number, $style.numberColumn]" :title="entry.id">{{ entry.id }}</td>
-				<td class="_selectable" :class="[$style.number, $style.businessColumn]" :title="entry.relatedId || undefined">{{ entry.relatedId || '-' }}</td>
-				<td><button type="button" class="_button" :class="$style.detail" :disabled="receiptOpen" :title="i18n.ts._wallet.viewDetail" :aria-label="i18n.ts._wallet.viewDetail" aria-haspopup="dialog" @click="showReceipt(entry)"><i class="ti ti-receipt" aria-hidden="true"></i></button></td>
-			</tr>
-		</tbody>
-	</table>
-	<MkButton v-if="loadError && transactions.length" small :disabled="loading" @click="loadHistory(requestedPage)">{{ i18n.ts.retry }}</MkButton>
-	<nav v-if="hasMore || currentPage > 1" :class="$style.pagination" :aria-label="i18n.ts._wallet.history">
-		<MkButton small :disabled="loading || currentPage === 1" @click="loadHistory(currentPage - 1)">{{ i18n.ts._wallet.previousPage }}</MkButton>
-		<span aria-live="polite">{{ i18n.tsx._wallet.historyPage({ page: currentPage }) }}</span>
-		<MkButton small :disabled="loading || loadError || !hasMore" @click="loadHistory(currentPage + 1)">{{ i18n.ts._wallet.nextPage }}</MkButton>
-	</nav>
-</section>
+<PageWithHeader contentCard hideHeader>
+	<section class="_gaps" :class="$style.root" :aria-busy="loading">
+		<div :class="$style.heading">
+			<h1>{{ i18n.ts._wallet.transactions }}</h1>
+			<MkButton small :disabled="loading" :wait="loading" @click="refresh()">{{ i18n.ts.reload }}</MkButton>
+		</div>
+		<div :class="$style.tabs" role="group" :aria-label="i18n.ts._wallet.transactions">
+			<button v-for="item in categories" :key="item.key" type="button" class="_button _tabUnderline" :class="[$style.tab, { [$style.selected]: category === item.key }]" :aria-pressed="category === item.key" @click="category = item.key">{{ item.title }}</button>
+		</div>
+		<div v-if="!transactions.length" :class="$style.empty">
+			<MkLoading v-if="loading"/>
+			<MkButton v-else-if="loadError" small @click="loadHistory(requestedPage)">{{ i18n.ts.retry }}</MkButton>
+			<p v-else>{{ i18n.ts._wallet.empty }}</p>
+		</div>
+		<div v-else :class="$style.tableScroller">
+			<table :class="$style.table">
+				<thead>
+					<tr>
+						<th scope="col">{{ i18n.ts._wallet.columnName }}</th>
+						<th scope="col" :class="$style.pointsColumn">{{ i18n.ts._wallet.columnPoints }}</th>
+						<th scope="col" :class="$style.secondaryColumn">{{ i18n.ts._wallet.columnType }}</th>
+						<th scope="col" :class="$style.secondaryColumn">{{ i18n.ts._wallet.columnStatus }}</th>
+						<th scope="col" :class="$style.flowColumn">{{ i18n.ts._wallet.columnFlow }}</th>
+						<th scope="col" :class="$style.appColumn">{{ i18n.ts._wallet.columnApp }}</th>
+						<th scope="col" :class="$style.numberColumn">{{ i18n.ts._wallet.columnNumber }}</th>
+						<th scope="col" :class="$style.businessColumn">{{ i18n.ts._wallet.columnRelatedId }}</th>
+						<th scope="col" :class="$style.operationColumn">{{ i18n.ts._wallet.columnOperation }}</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr v-for="entry in transactions" :key="entry.id">
+						<td><span :class="$style.name" :title="entry.description || i18n.ts._wallet._types[entry.type]">{{ entry.description || i18n.ts._wallet._types[entry.type] }}</span></td>
+						<td :class="$style.amount">
+							<strong :class="entry.amount > 0 ? $style.income : undefined">{{ signedAmount(entry.amount) }}</strong>
+							<span v-if="entry.reservedAmount" v-tooltip="i18n.tsx._wallet.reservedChange({ amount: signedAmount(entry.reservedAmount) })" :class="$style.reserved">{{ i18n.tsx._wallet.reservedShort({ amount: signedAmount(entry.reservedAmount) }) }}</span>
+						</td>
+						<td :class="$style.secondaryColumn"><span :class="[$style.badge, $style[`badge${badgeTone(entry)}`]]">{{ i18n.ts._wallet._categories[transactionCategory(entry)] }}</span></td>
+						<td :class="$style.secondaryColumn"><span :class="[$style.badge, $style.recorded]">{{ i18n.ts._wallet.statusRecorded }}</span></td>
+						<td :class="[$style.flowColumn, $style.flowCell]" :aria-label="flowDescription(entry)">
+						<div v-if="entry.flow" :class="$style.flow">
+							<span v-tooltip="flowLabel(entry.flow.from, entry.flow.fromUser)" :class="$style.flowNode">
+								<MkAvatar v-if="entry.flow.fromUser" :user="entry.flow.fromUser" :link="false" :preview="false" :class="$style.flowAvatar"/>
+								<i v-else :class="['ti', flowIcon(entry.flow.from), $style.flowIcon]" aria-hidden="true"></i>
+							</span>
+							<i class="ti ti-chevron-right" :class="$style.flowArrow" aria-hidden="true"></i>
+							<span v-tooltip="flowLabel(entry.flow.to, entry.flow.toUser)" :class="$style.flowNode">
+									<MkAvatar v-if="entry.flow.toUser" :user="entry.flow.toUser" :link="false" :preview="false" :class="$style.flowAvatar"/>
+									<i v-else :class="['ti', flowIcon(entry.flow.to), $style.flowIcon]" aria-hidden="true"></i>
+								</span>
+							</div>
+							<span v-else :class="$style.unavailable">-</span>
+						</td>
+						<td :class="[$style.unavailable, $style.appColumn]">-</td>
+						<td class="_selectable" :class="[$style.number, $style.numberColumn]" :title="entry.id">{{ entry.id }}</td>
+						<td class="_selectable" :class="[$style.number, $style.businessColumn]" :title="entry.relatedId || undefined">{{ entry.relatedId || '-' }}</td>
+						<td><button type="button" class="_button" :class="$style.detail" :disabled="receiptOpen" :title="i18n.ts._wallet.viewDetail" :aria-label="i18n.ts._wallet.viewDetail" aria-haspopup="dialog" @click="showReceipt(entry)"><i class="ti ti-receipt" aria-hidden="true"></i></button></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		<MkButton v-if="loadError && transactions.length" small :disabled="loading" @click="loadHistory(requestedPage)">{{ i18n.ts.retry }}</MkButton>
+		<nav v-if="hasMore || currentPage > 1" :class="$style.pagination" :aria-label="i18n.ts._wallet.history">
+			<MkButton small :disabled="loading || currentPage === 1" @click="loadHistory(currentPage - 1)">{{ i18n.ts._wallet.previousPage }}</MkButton>
+			<span aria-live="polite">{{ i18n.tsx._wallet.historyPage({ page: currentPage }) }}</span>
+			<MkButton small :disabled="loading || loadError || !hasMore" @click="loadHistory(currentPage + 1)">{{ i18n.ts._wallet.nextPage }}</MkButton>
+		</nav>
+	</section>
+</PageWithHeader>
 </template>
 
 <script lang="ts" setup>
@@ -144,7 +151,7 @@ function flowDescription(entry: TransactionEntry): string {
 }
 
 function flowIcon(kind: FlowKind): string {
-	if (kind === 'system') return 'ti-adjustments-horizontal';
+	if (kind === 'system') return 'ti-building-bank';
 	if (kind === 'redPacket') return 'ti-gift';
 	if (kind === 'reserved') return 'ti-lock';
 	return 'ti-help-circle';
@@ -235,23 +242,21 @@ definePage(() => ({ title: i18n.ts._wallet.transactions, icon: 'ti ti-list-detai
 .tabs { display: flex; flex-wrap: wrap; border-bottom: var(--MI-divider); }
 .tab { --MI-tabPaddingInline: 8px; padding: 10px var(--MI-tabPaddingInline); font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); }
 .selected { --MI-tabUnderlineOpacity: 1; color: var(--MI_THEME-accent); }
-.table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; font-size: 14px; }
-.table th, .table td { padding: var(--MI-marginHalf); border-bottom: var(--MI-divider); vertical-align: middle; }
-.table th { font-weight: 600; overflow-wrap: anywhere; }
+// 每行单行显示；列宽不够时横向滚动，不压缩或折行。
+.tableScroller { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; white-space: nowrap; }
+.table th, .table td { padding: 8px 10px; border-bottom: var(--MI-divider); vertical-align: middle; }
+.table th { font-weight: 600; }
 .table th:first-child, .table td:first-child { padding-left: 0; }
 .table th:last-child, .table td:last-child { padding-right: 0; }
-.pointsColumn { width: 9%; text-align: right; }
-.secondaryColumn { width: 8%; text-align: center; }
-.flowColumn { width: 12%; text-align: center; }
-.appColumn { width: 8%; text-align: center; }
-.numberColumn { width: 14%; }
-.businessColumn { width: 14%; }
-.operationColumn { width: 3em; text-align: center; }
-.amount { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.amount > * { display: block; }
-.amount { text-align: right; }
-.name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.badge { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 3px 7px; border-radius: var(--MI-radius); background: var(--MI_THEME-accentedBg); color: var(--MI_THEME-accent); overflow-wrap: anywhere; font-size: .9em; }
+.pointsColumn { text-align: right; }
+.secondaryColumn { text-align: center; }
+.flowColumn { text-align: center; }
+.appColumn { text-align: center; }
+.operationColumn { text-align: center; }
+.amount { font-variant-numeric: tabular-nums; text-align: right; }
+.name { display: block; max-width: 12em; overflow: hidden; text-overflow: ellipsis; }
+.badge { display: inline-block; box-sizing: border-box; padding: 2px 6px; border-radius: var(--MI-radius); background: var(--MI_THEME-accentedBg); color: var(--MI_THEME-accent); font-size: .85em; }
 .badgeIncome { color: var(--MI_THEME-success); background: color-mix(in srgb, var(--MI_THEME-success) 16%, transparent); }
 .badgeExpense { color: var(--MI_THEME-error); background: color-mix(in srgb, var(--MI_THEME-error) 16%, transparent); }
 .badgeTransfer { color: var(--MI_THEME-accent); background: var(--MI_THEME-accentedBg); }
@@ -260,13 +265,13 @@ definePage(() => ({ title: i18n.ts._wallet.transactions, icon: 'ti ti-list-detai
 .unavailable { color: var(--MI_THEME-fgTransparentWeak); text-align: center; }
 .flowCell { text-align: center; }
 .flow { display: inline-flex; max-width: 100%; align-items: center; justify-content: center; gap: 3px; vertical-align: middle; }
-.flowArrow { flex: 0 0 auto; color: var(--MI_THEME-fgTransparentWeak); }
+.flowArrow { flex: 0 0 auto; font-size: 12px; color: var(--MI_THEME-fgTransparentWeak); opacity: .7; }
 .flowAvatar { width: 20px; height: 20px; }
 .flowNode { display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; overflow: hidden; }
 .flowIcon { font-size: 18px; color: var(--MI_THEME-fgTransparentWeak); }
-.reserved { margin-top: 4px; color: var(--MI_THEME-warn); font-size: .85em; white-space: normal; }
+.reserved { margin-left: 6px; color: var(--MI_THEME-warn); font-size: .85em; }
 .income { color: var(--MI_THEME-success); }
-.detail { display: grid; width: 32px; height: 32px; place-items: center; border-radius: var(--MI-radius); }
+.detail { display: grid; width: 28px; height: 28px; place-items: center; border-radius: var(--MI-radius); }
 .detail:hover { background: var(--MI_THEME-buttonHoverBg); }
 .empty { display: grid; min-height: 160px; place-items: center; color: var(--MI_THEME-fgTransparentWeak); }
 .pagination { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--MI-marginHalf); font-size: .85em; }
@@ -275,7 +280,5 @@ definePage(() => ({ title: i18n.ts._wallet.transactions, icon: 'ti ti-list-detai
 	.table th, .table td { padding-inline: 4px; }
 	.secondaryColumn { display: none; }
 	.appColumn, .numberColumn, .businessColumn { display: none; }
-	.flowColumn { width: 24%; }
-	.pointsColumn { width: 24%; }
 }
 </style>

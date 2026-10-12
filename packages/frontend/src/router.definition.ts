@@ -22,40 +22,114 @@ function chatPage(...args: Parameters<typeof page>) {
 const chatRoomPage = chatPage(() => import('@/pages/chat/room.vue'));
 
 export const ROUTE_DEF = [{
-	path: '/my/achievements',
-	name: 'achievements',
-	component: page(() => import('@/pages/achievements.vue')),
+	// 个人中心：外层保留左侧菜单，只切换右侧页面。
+	name: 'my',
+	path: '/my',
+	component: page(() => import('@/pages/my/index.vue')),
 	loginRequired: true,
+	reuseOnPropsChange: [],
+	children: [{
+		path: '/wallet/transactions', name: 'transactions', component: page(() => import('@/pages/user/wallet.transactions.vue')),
+	}, {
+		path: '/wallet/red-packets', name: 'red-packets', component: page(() => import('@/pages/user/wallet.red-packets.vue')),
+	}, {
+		path: '/wallet/transfers', name: 'transfers', component: page(() => import('@/pages/user/wallet.transfers.vue')),
+	}, {
+		path: '/wallet', name: 'wallet', component: page(() => import('@/pages/user/wallet.overview.vue')),
+	}, {
+		path: '/products/new', name: 'products-new', component: page(() => import('@/pages/product-edit.vue')),
+	}, {
+		path: '/products/:productId/edit', name: 'products', component: page(() => import('@/pages/product-edit.vue')),
+	}, {
+		path: '/products', name: 'products', component: page(() => import('@/pages/products-manage.vue')),
+	}, {
+		path: '/orders/:orderId', name: 'orders', component: page(() => import('@/pages/order-detail.vue')),
+	}, {
+		path: '/orders', name: 'orders', component: page(() => import('@/pages/orders.vue')),
+	}, {
+		path: '/sales/:orderId', name: 'sales', component: page(() => import('@/pages/order-detail.vue')),
+	}, {
+		path: '/sales', name: 'sales', component: page(() => import('@/pages/my/sales.vue')),
+	}, {
+		path: '/drive/folder/:folder', name: 'drive', component: page(() => import('@/pages/drive.vue')),
+	}, {
+		path: '/drive/file/:fileId', name: 'drive', component: page(() => import('@/pages/drive.file.vue')),
+		query: { tab: 'initialTab' },
+		reuseOnPropsChange: ['initialTab'],
+	}, {
+		path: '/drive', name: 'drive', component: page(() => import('@/pages/drive.vue')),
+	}, {
+		path: '/favorites', name: 'favorites', component: page(() => import('@/pages/favorites.vue')),
+	}, {
+		path: '/clips', name: 'clips', component: page(() => import('@/pages/my-clips/index.vue')),
+	}, {
+		path: '/lists/:listId', name: 'lists', component: page(() => import('@/pages/my-lists/list.vue')),
+	}, {
+		path: '/lists', name: 'lists', component: page(() => import('@/pages/my-lists/index.vue')),
+	}, {
+		path: '/antennas/create', name: 'antennas', component: page(() => import('@/pages/my-antennas/create.vue')),
+	}, {
+		path: '/antennas/:antennaId', name: 'antennas', component: page(() => import('@/pages/my-antennas/edit.vue')),
+	}, {
+		path: '/antennas', name: 'antennas', component: page(() => import('@/pages/my-antennas/index.vue')),
+	}, {
+		path: '/checkin', name: 'checkin', component: page(() => import('@/pages/checkin.vue')),
+	}, {
+		path: '/benefits', name: 'benefits', component: page(() => import('@/pages/benefits.vue')),
+	}, {
+		path: '/achievements', name: 'achievements', component: page(() => import('@/pages/achievements.vue')),
+	}, {
+		path: '/', component: page(() => import('@/pages/_empty_.vue')),
+	}],
 }, {
-	path: '/my/benefits',
-	redirect: '/wallet/benefits',
-	loginRequired: true,
-}, {
+	// 以下旧地址已并入个人中心，保留跳转以兼容收藏和已分享的链接。
 	path: '/checkin',
-	name: 'checkin',
-	component: page(() => import('@/pages/checkin.vue')),
+	redirect: '/my/checkin',
 	loginRequired: true,
 }, {
 	path: '/orders/:orderId',
-	component: page(() => import('@/pages/order-detail.vue')),
+	redirect: props => `/my/orders/${encodeURIComponent(String(props.get('orderId')))}`,
 	loginRequired: true,
 }, {
 	path: '/orders',
-	component: page(() => import('@/pages/orders.vue')),
 	query: { mode: 'mode' },
-	reuseOnPropsChange: ['mode'],
+	redirect: props => props.get('mode') === 'sales' ? '/my/sales' : '/my/orders',
 	loginRequired: true,
 }, {
 	path: '/products/:productId/edit',
-	component: page(() => import('@/pages/product-edit.vue')),
+	redirect: props => `/my/products/${encodeURIComponent(String(props.get('productId')))}/edit`,
 	loginRequired: true,
 }, {
 	path: '/products/new',
-	component: page(() => import('@/pages/product-edit.vue')),
+	redirect: '/my/products/new',
 	loginRequired: true,
 }, {
 	path: '/products/manage',
-	component: page(() => import('@/pages/products-manage.vue')),
+	redirect: '/my/products',
+	loginRequired: true,
+}, {
+	path: '/wallet/overview',
+	redirect: '/my/wallet',
+	loginRequired: true,
+}, {
+	path: '/wallet/transactions',
+	redirect: '/my/wallet/transactions',
+	loginRequired: true,
+}, {
+	path: '/wallet/red-packets',
+	redirect: '/my/wallet/red-packets',
+	loginRequired: true,
+}, {
+	path: '/wallet/transfers',
+	redirect: '/my/wallet/transfers',
+	loginRequired: true,
+}, {
+	path: '/wallet/benefits',
+	redirect: '/my/benefits',
+	loginRequired: true,
+}, {
+	path: '/wallet',
+	redirect: '/my/wallet',
 	loginRequired: true,
 }, {
 	path: '/products/:productId',
@@ -118,28 +192,13 @@ export const ROUTE_DEF = [{
 		reuseOnPropsChange: ['initialTab'],
 	}],
 }, {
-	name: 'wallet',
-	path: '/wallet',
-	component: page(() => import('@/pages/user/wallet.vue')),
-	loginRequired: true,
-	reuseOnPropsChange: [],
-	children: [{
-		path: '/overview', name: 'overview', component: page(() => import('@/pages/user/wallet.overview.vue')),
-	}, {
-		path: '/transactions', name: 'transactions', component: page(() => import('@/pages/user/wallet.transactions.vue')),
-	}, {
-		path: '/red-packets', name: 'red-packets', component: page(() => import('@/pages/user/wallet.red-packets.vue')),
-	}, {
-		path: '/transfers', name: 'transfers', component: page(() => import('@/pages/user/wallet.transfers.vue')),
-	}, {
-		path: '/benefits', name: 'benefits', component: page(() => import('@/pages/benefits.vue')),
-	}, {
-		path: '/', component: page(() => import('@/pages/_empty_.vue')),
-	}],
-}, {
 	path: '/@:acct/wallet',
-	redirect: '/wallet',
+	redirect: '/my/wallet',
 	loginRequired: true,
+}, {
+	// 资料页的“管理”已并入个人中心；访问他人的旧地址时回到其主页。
+	path: '/@:acct/management',
+	redirect: props => props.get('acct') === $i?.username ? '/my' : `/@${String(props.get('acct'))}`,
 }, {
 	path: '/@:username/pages/:pageName(*)',
 	component: page(() => import('@/pages/page.vue')),
@@ -159,10 +218,9 @@ export const ROUTE_DEF = [{
 		reuseOnPropsChange: ['page'],
 	}],
 }, {
-	name: 'note',
-	path: '/notes/:noteId/:initialTab?',
-	component: page(() => import('@/pages/note.vue')),
-	reuseOnPropsChange: ['initialTab'],
+	// 帖子不再有单独页面；分享、通知和外部链接仍使用该地址，打开后转到作者主页。
+	path: '/notes/:noteId',
+	component: page(() => import('@/pages/note-redirect.vue')),
 }, {
 	name: 'list',
 	path: '/list/:listId',
@@ -306,7 +364,7 @@ export const ROUTE_DEF = [{
 		component: page(() => import('@/pages/settings/connect.vue')),
 	}, {
 		path: '/apps',
-		name: 'connect',
+		name: 'apps',
 		component: page(() => import('@/pages/settings/apps.vue')),
 	}, {
 		path: '/webhook/edit/:webhookId',
@@ -322,7 +380,7 @@ export const ROUTE_DEF = [{
 		component: page(() => import('@/pages/settings/deck.vue')),
 	}, {
 		path: '/custom-css',
-		name: 'preferences',
+		name: 'custom-css',
 		component: page(() => import('@/pages/settings/custom-css.vue')),
 	}, {
 		path: '/profiles',
@@ -330,7 +388,7 @@ export const ROUTE_DEF = [{
 		component: page(() => import('@/pages/settings/profiles.vue')),
 	}, {
 		path: '/accounts',
-		name: 'profile',
+		name: 'accounts',
 		component: page(() => import('@/pages/settings/accounts.vue')),
 	}, {
 		path: '/other',
@@ -728,50 +786,8 @@ export const ROUTE_DEF = [{
 		reuseOnPropsChange: ['initialTab'],
 	}],
 }, {
-	path: '/my/favorites',
-	component: page(() => import('@/pages/favorites.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/drive/folder/:folder',
-	component: page(() => import('@/pages/drive.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/drive',
-	component: page(() => import('@/pages/drive.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/drive/file/:fileId',
-	component: page(() => import('@/pages/drive.file.vue')),
-	query: { tab: 'initialTab' },
-	reuseOnPropsChange: ['initialTab'],
-	loginRequired: true,
-}, {
 	path: '/my/follow-requests',
 	redirect: '/my/notifications/follow-requests',
-	loginRequired: true,
-}, {
-	path: '/my/lists/:listId',
-	component: page(() => import('@/pages/my-lists/list.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/lists',
-	component: page(() => import('@/pages/my-lists/index.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/clips',
-	component: page(() => import('@/pages/my-clips/index.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/antennas/create',
-	component: page(() => import('@/pages/my-antennas/create.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/antennas/:antennaId',
-	component: page(() => import('@/pages/my-antennas/edit.vue')),
-	loginRequired: true,
-}, {
-	path: '/my/antennas',
-	component: page(() => import('@/pages/my-antennas/index.vue')),
 	loginRequired: true,
 }, {
 	path: '/timeline/list/:listId',

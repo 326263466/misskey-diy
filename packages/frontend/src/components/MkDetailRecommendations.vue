@@ -5,11 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <section v-if="items.length > 0" class="_panel" :class="$style.root" :aria-labelledby="titleId">
-	<h2 :id="titleId" :class="$style.title">{{ kind === 'article' ? i18n.ts._article.recommendedArticles : i18n.ts._article.recommendedNotes }}</h2>
+	<h2 :id="titleId" :class="$style.title">{{ i18n.ts._article.recommendedArticles }}</h2>
 	<ol :class="$style.list">
 		<li v-for="item in items" :key="item.id">
 			<MkA :to="item.to" :class="$style.item">
-				<span :class="[$style.text, { [$style.articleTitle]: kind === 'article' }]"><Mfm v-if="item.mfm" :text="item.text" :plain="true" :author="item.user" :emojiUrls="item.emojis"/><template v-else>{{ item.text }}</template></span>
+				<span :class="$style.text">{{ item.text }}</span>
 				<span :class="$style.meta">
 					<MkAvatar :user="item.user" :class="$style.avatar" :link="false" :preview="false"/>
 					<MkUserName :user="item.user" :class="$style.name"/>
@@ -32,8 +32,6 @@ type Item = {
 	id: string;
 	to: string;
 	text: string;
-	mfm: boolean;
-	emojis?: Record<string, string>;
 	user: Misskey.entities.UserLite;
 	createdAt: string;
 };
@@ -41,7 +39,6 @@ type Item = {
 const LIMIT = 5;
 
 const props = defineProps<{
-	kind: 'article' | 'note';
 	excludeId: string;
 }>();
 
@@ -50,25 +47,17 @@ const items = ref<Item[]>([]);
 
 function articleItem(article: Misskey.entities.Page): Item {
 	const text = article.title.trim() || article.summary?.trim() || articleBody(article).replace(/\s+/gu, ' ').trim().slice(0, 80);
-	return { id: article.id, to: `/articles/${article.id}`, text, mfm: false, user: article.user, createdAt: article.createdAt };
+	return { id: article.id, to: `/articles/${article.id}`, text, user: article.user, createdAt: article.createdAt };
 }
 
-function noteItem(note: Misskey.entities.Note): Item | null {
-	const text = (note.cw || note.text)?.trim();
-	if (!text) return null;
-	return { id: note.id, to: `/notes/${note.id}`, text, mfm: true, emojis: note.emojis, user: note.user, createdAt: note.createdAt };
-}
-
-watch(() => [props.kind, props.excludeId] as const, async ([kind, excludeId], _previous, onCleanup) => {
+watch(() => props.excludeId, async (excludeId, _previous, onCleanup) => {
 	const controller = new AbortController();
 	onCleanup(() => controller.abort());
 	items.value = [];
 	try {
-		const result = kind === 'article'
-			? (await misskeyApi('articles/list', { sort: 'recommended', limit: LIMIT + 1 }, undefined, controller.signal)).map(articleItem)
-			: (await misskeyApi('notes/featured', { limit: LIMIT * 2 }, undefined, controller.signal)).map(noteItem);
+		const result = (await misskeyApi('articles/list', { sort: 'recommended', limit: LIMIT + 1 }, undefined, controller.signal)).map(articleItem);
 		if (controller.signal.aborted) return;
-		items.value = result.filter((item): item is Item => item != null && item.id !== excludeId).slice(0, LIMIT);
+		items.value = result.filter(item => item.id !== excludeId).slice(0, LIMIT);
 	} catch {
 		// 推荐只是补充内容，加载失败时不显示卡片。
 	}
@@ -122,11 +111,10 @@ watch(() => [props.kind, props.excludeId] as const, async ([kind, excludeId], _p
 	-webkit-line-clamp: 2;
 	font-size: .9em;
 	line-height: 1.5;
+	font-weight: 600;
 	overflow-wrap: anywhere;
 	transition: color .15s ease;
 }
-
-.articleTitle { font-weight: 600; }
 
 .meta {
 	display: flex;

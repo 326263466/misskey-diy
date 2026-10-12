@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader class="_standalonePage" hideHeader>
+<PageWithHeader hideHeader>
 	<div class="_pageBody">
 		<MkAchievements :key="refreshKey" :user="$i" card :withLocked="false"/>
 	</div>

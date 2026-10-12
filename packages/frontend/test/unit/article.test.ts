@@ -220,13 +220,17 @@ describe('article comment threads', () => {
 		expect(view.getByText(grandchild.text).closest('article')!.parentElement).toBe(parentThread);
 		expect(view.getByText(other.text).closest('article')!.parentElement).not.toBe(parentThread);
 		await fireEvent.click(within(childRow).getByRole('button', { name: new RegExp(i18n.ts.reply) }));
-		await fireEvent.update(view.getByRole('textbox'), 'New child reply');
-		await fireEvent.submit(view.container.querySelector('form')!);
+		// 回复框展开在被回复的评论下方，而不是复用顶部的发表评论框。
+		const replyBox = await waitFor(() => within(childRow).getByRole('textbox') as HTMLTextAreaElement);
+		expect(within(childRow).getByRole('button', { name: new RegExp(i18n.ts._article.cancelReply) }).getAttribute('aria-expanded')).toBe('true');
+		await fireEvent.update(replyBox, 'New child reply');
+		await fireEvent.submit(replyBox.closest('form')!);
 		await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith(i18n.ts.somethingHappened, 'error'));
-		expect((view.getByRole('textbox') as HTMLTextAreaElement).value).toBe('New child reply');
+		expect(replyBox.value).toBe('New child reply');
 		shouldFail = false;
-		await fireEvent.submit(view.container.querySelector('form')!);
+		await fireEvent.submit(replyBox.closest('form')!);
 		await waitFor(() => expect(view.getByText(created.text)).toBeTruthy());
+		expect(within(childRow).queryByRole('textbox')).toBeNull();
 		expect(mocks.api.mock.calls.filter(([endpoint]) => endpoint === 'articles/comments/create').map(([, params]) => params)).toEqual([
 			{ articleId: 'article', replyId: child.id, text: 'New child reply', fileIds: [] },
 			{ articleId: 'article', replyId: child.id, text: 'New child reply', fileIds: [] },

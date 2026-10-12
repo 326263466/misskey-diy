@@ -4,57 +4,59 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<section class="_gaps" :class="$style.root">
-	<h1>{{ i18n.ts._benefits.title }}</h1>
-	<form :class="$style.redeemForm" :aria-busy="redeeming" novalidate @submit.prevent="redeem">
-		<MkInput v-model="code" :class="$style.codeInput" :disabled="redeeming" :maxLength="64" autocomplete="off" autocapitalize="characters" :spellcheck="false" required>
-		<template #label>{{ i18n.ts._benefits.codeEntry }}</template>
-		</MkInput>
-		<MkButton type="submit" primary :wait="redeeming">{{ i18n.ts._benefits.redeem }}</MkButton>
-	</form>
-	<div v-if="loadError" role="alert" class="_gaps_s">
-		<MkInfo warn>{{ i18n.ts._checkin.loadFailed }}</MkInfo>
-		<MkButton small :disabled="loading || redeeming" @click="loadBalance">{{ i18n.ts.retry }}</MkButton>
-	</div>
-	<section class="_gaps" :aria-label="i18n.ts._checkin._history.title">
-		<div :class="$style.historyHead">
-			<h2>{{ i18n.ts._checkin._history.title }}</h2>
-			<MkA to="/checkin" class="_link">{{ i18n.ts._checkin.dailyCheckin }}</MkA>
+<PageWithHeader contentCard hideHeader>
+	<section class="_gaps" :class="$style.root">
+		<h1>{{ i18n.ts._benefits.title }}</h1>
+		<form :class="$style.redeemForm" :aria-busy="redeeming" novalidate @submit.prevent="redeem">
+			<MkInput v-model="code" :class="$style.codeInput" :disabled="redeeming" :maxLength="64" autocomplete="off" autocapitalize="characters" :spellcheck="false" required>
+			<template #label>{{ i18n.ts._benefits.codeEntry }}</template>
+			</MkInput>
+			<MkButton type="submit" primary :wait="redeeming">{{ i18n.ts._benefits.redeem }}</MkButton>
+		</form>
+		<div v-if="loadError" role="alert" class="_gaps_s">
+			<MkInfo warn>{{ i18n.ts._checkin.loadFailed }}</MkInfo>
+			<MkButton small :disabled="loading || redeeming" @click="loadBalance">{{ i18n.ts.retry }}</MkButton>
 		</div>
-		<div :class="$style.filters" role="group" :aria-label="i18n.ts.filter">
-			<button v-for="tab in historyTabs" :key="tab.key" type="button" class="_button _tabUnderline" :class="[$style.filterTab, { [$style.filterTabActive]: historyType === tab.key }]" :aria-pressed="historyType === tab.key" @click="selectHistory(tab.key)">{{ tab.label }}</button>
-		</div>
-		<MkLoading v-if="historyLoading"/>
-		<div v-else-if="historyError" class="_gaps_s" role="alert">
-			<MkInfo warn>{{ i18n.ts._checkin._history.loadFailed }}</MkInfo>
-			<MkButton @click="loadHistory">{{ i18n.ts.retry }}</MkButton>
-		</div>
-		<p v-else-if="history.length === 0" :class="$style.empty">{{ i18n.ts._checkin._history.empty }}</p>
-		<ul v-else :class="$style.history" data-testid="benefits-history">
-			<li v-for="entry in history" :key="entry.id" :class="$style.record">
-				<div :class="$style.recordHeading">
-					<strong>{{ historyType === 'use' ? i18n.tsx._checkin.makeupDate({ date: entry.date ?? '' }) : sourceLabel(entry.source) }}</strong>
-					<span :class="[$style.amount, { [$style.amountIn]: historyType !== 'use' }]">{{ historyType === 'use' ? '-' : '+' }}{{ entry.amount.toLocaleString() }}</span>
-				</div>
-				<div :class="$style.recordDetail">
-					<MkTime :time="entry.createdAt" mode="detail"/>
-					<span v-if="entry.pointsSpent != null">{{ i18n.ts._checkin._history.pointsSpent }}: {{ entry.pointsSpent.toLocaleString() }}</span>
-				</div>
-				<dl v-if="historyType === 'earned'" :class="$style.recordStats">
-					<div><dt>{{ i18n.ts._checkin._history.remaining }}</dt><dd>{{ entry.remaining?.toLocaleString() ?? i18n.ts.unknown }}</dd></div>
-					<div><dt>{{ i18n.ts._checkin._history.used }}</dt><dd>{{ entry.used?.toLocaleString() ?? i18n.ts.unknown }}</dd></div>
-					<div v-if="entry.revoked"><dt>{{ i18n.ts._checkin._history.revoked }}</dt><dd>{{ entry.revoked.toLocaleString() }}</dd></div>
-				</dl>
-			</li>
-		</ul>
-		<p v-if="!historyLoading && !historyError && history.some(entry => entry.source === 'legacy')" :class="$style.description">{{ i18n.ts._checkin._history.legacyDescription }}</p>
-		<div v-if="total > pageSize || page > 0" :class="$style.pagination">
-			<MkButton small :disabled="historyLoading || page === 0" @click="changePage(-1)">{{ i18n.ts._checkin.grantPreviousPage }}</MkButton>
-			<span aria-live="polite">{{ i18n.tsx._checkin._history.page({ current: page + 1, total: Math.max(1, Math.ceil(total / pageSize)) }) }}</span>
-			<MkButton small :disabled="historyLoading || historyError || (page + 1) * pageSize >= total || (page + 1) * pageSize > 100000" @click="changePage(1)">{{ i18n.ts._checkin.grantNextPage }}</MkButton>
-		</div>
+		<section class="_gaps" :aria-label="i18n.ts._checkin._history.title">
+			<div :class="$style.historyHead">
+				<h2>{{ i18n.ts._checkin._history.title }}</h2>
+				<MkA to="/my/checkin" class="_link">{{ i18n.ts._checkin.dailyCheckin }}</MkA>
+			</div>
+			<div :class="$style.filters" role="group" :aria-label="i18n.ts.filter">
+				<button v-for="tab in historyTabs" :key="tab.key" type="button" class="_button _tabUnderline" :class="[$style.filterTab, { [$style.filterTabActive]: historyType === tab.key }]" :aria-pressed="historyType === tab.key" @click="selectHistory(tab.key)">{{ tab.label }}</button>
+			</div>
+			<MkLoading v-if="historyLoading"/>
+			<div v-else-if="historyError" class="_gaps_s" role="alert">
+				<MkInfo warn>{{ i18n.ts._checkin._history.loadFailed }}</MkInfo>
+				<MkButton @click="loadHistory">{{ i18n.ts.retry }}</MkButton>
+			</div>
+			<p v-else-if="history.length === 0" :class="$style.empty">{{ i18n.ts._checkin._history.empty }}</p>
+			<ul v-else :class="$style.history" data-testid="benefits-history">
+				<li v-for="entry in history" :key="entry.id" :class="$style.record">
+					<div :class="$style.recordHeading">
+						<strong>{{ historyType === 'use' ? i18n.tsx._checkin.makeupDate({ date: entry.date ?? '' }) : sourceLabel(entry.source) }}</strong>
+						<span :class="[$style.amount, { [$style.amountIn]: historyType !== 'use' }]">{{ historyType === 'use' ? '-' : '+' }}{{ entry.amount.toLocaleString() }}</span>
+					</div>
+					<div :class="$style.recordDetail">
+						<MkTime :time="entry.createdAt" mode="detail"/>
+						<span v-if="entry.pointsSpent != null">{{ i18n.ts._checkin._history.pointsSpent }}: {{ entry.pointsSpent.toLocaleString() }}</span>
+					</div>
+					<dl v-if="historyType === 'earned'" :class="$style.recordStats">
+						<div><dt>{{ i18n.ts._checkin._history.remaining }}</dt><dd>{{ entry.remaining?.toLocaleString() ?? i18n.ts.unknown }}</dd></div>
+						<div><dt>{{ i18n.ts._checkin._history.used }}</dt><dd>{{ entry.used?.toLocaleString() ?? i18n.ts.unknown }}</dd></div>
+						<div v-if="entry.revoked"><dt>{{ i18n.ts._checkin._history.revoked }}</dt><dd>{{ entry.revoked.toLocaleString() }}</dd></div>
+					</dl>
+				</li>
+			</ul>
+			<p v-if="!historyLoading && !historyError && history.some(entry => entry.source === 'legacy')" :class="$style.description">{{ i18n.ts._checkin._history.legacyDescription }}</p>
+			<div v-if="total > pageSize || page > 0" :class="$style.pagination">
+				<MkButton small :disabled="historyLoading || page === 0" @click="changePage(-1)">{{ i18n.ts._checkin.grantPreviousPage }}</MkButton>
+				<span aria-live="polite">{{ i18n.tsx._checkin._history.page({ current: page + 1, total: Math.max(1, Math.ceil(total / pageSize)) }) }}</span>
+				<MkButton small :disabled="historyLoading || historyError || (page + 1) * pageSize >= total || (page + 1) * pageSize > 100000" @click="changePage(1)">{{ i18n.ts._checkin.grantNextPage }}</MkButton>
+			</div>
+		</section>
 	</section>
-</section>
+</PageWithHeader>
 </template>
 
 <script lang="ts" setup>

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	:class="[$style.root, { [$style.rootMaximized]: maximized, [$style.withInitialRows]: initialRows != null, [$style.commentMode]: commentMode, [$style.fixedMode]: fixed && !commentMode }]"
+	:class="[$style.root, { [$style.rootMaximized]: maximized, [$style.withInitialRows]: initialRows != null, [$style.commentMode]: commentMode, [$style.inlineReply]: commentMode && inlineReply, [$style.fixedMode]: fixed && !commentMode }]"
 	:style="initialRows != null ? { '--MI-postForm-initialRows': initialRows } : undefined"
 	@dragover.stop="onDragover"
 	@dragenter="onDragenter"
@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<header :class="$style.header">
 		<div :class="$style.headerLeft">
 			<button v-if="!fixed" v-tooltip="i18n.ts.cancel" :class="$style.cancel" class="_button _iconButton" :aria-label="i18n.ts.cancel" @click="cancel"><i class="ti ti-x"></i></button>
-			<img v-if="commentMode" :class="$style.avatar" :src="getUserAvatar($i).avatarUrl" alt=""/>
+			<img v-if="commentMode && !inlineReply" :class="$style.avatar" :src="getUserAvatar($i).avatarUrl" alt=""/>
 			<button v-else ref="accountMenuEl" v-click-anime v-tooltip="userName(postAccount ?? $i)" class="_button" :aria-label="i18n.ts.account" :disabled="isEditing || redPacket != null" @click="openAccountMenu">
 				<img :class="$style.avatar" :src="getUserAvatar(postAccount ?? $i).avatarUrl" alt="" style="border-radius: 100%;"/>
 			</button>
@@ -151,7 +151,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button v-click-anime class="_button" :class="$style.submit" :disabled="!canPost" data-testid="post-form-submit" @click="post">
 					<div :class="$style.submitInner">
 						<MkEllipsis v-if="posting"/>
-						<template v-else>{{ i18n.ts._article.publishComment }}</template>
+						<template v-else>{{ inlineReply ? i18n.ts.reply : i18n.ts._article.publishComment }}</template>
 					</div>
 				</button>
 			</template>
@@ -235,6 +235,8 @@ const props = withDefaults(defineProps<PostFormProps & {
 	mock?: boolean;
 	canMaximize?: boolean;
 	commentMode?: boolean;
+	// 评论下方展开的回复框：不显示头像，提交按钮为“回复”。
+	inlineReply?: boolean;
 }>(), {
 	initialVisibleUsers: () => [],
 	autofocus: false,
@@ -404,7 +406,9 @@ function getRandomPlaceholder(): string {
 const randomPlaceholder = getRandomPlaceholder();
 
 const placeholder = computed((): string => {
-	if (props.commentMode) {
+	if (props.commentMode && props.inlineReply && replyTargetNote.value) {
+		return i18n.tsx._article.replyPlaceholder({ user: userName(replyTargetNote.value.user) });
+	} else if (props.commentMode) {
 		return i18n.ts._article.commentPlaceholder;
 	} else if (replyTargetNote.value) {
 		return i18n.tsx._drafts.replyTo({ user: `@${userName(replyTargetNote.value.user)}` });
@@ -2771,6 +2775,14 @@ button.channelChip {
 		font-weight: normal;
 		background: var(--MI_THEME-accent);
 	}
+}
+
+.commentMode.inlineReply {
+	padding: 0;
+
+	.header { display: none; }
+	.text { min-height: 64px; }
+	.submitInner { min-width: 72px; }
 }
 
 </style>

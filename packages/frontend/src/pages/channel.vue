@@ -21,15 +21,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<MkUserName :user="owner" :class="$style.ownerName"/>
 						</MkA>
 					</template>
-					<template v-if="members.length > 0">
-						<h3 :class="$style.memberHeading">{{ i18n.ts._channel.recentMembers }}</h3>
-						<div :class="$style.memberStack">
-							<MkAvatar v-for="(user, i) in members" :key="user.id" v-tooltip.noDelay="user.name ?? user.username" :user="user" :class="$style.memberAvatar" :style="{ zIndex: members.length - i }" :aria-label="user.name ?? user.username" title="" link/>
-						</div>
-						<button v-if="participantsCount > members.length" type="button" class="_button _textAction" :class="$style.membersLink" aria-haspopup="dialog" @click="showMembers">
+				<template v-if="members.length > 0">
+					<h3 :class="$style.memberHeading">{{ i18n.ts._channel.recentMembers }}</h3>
+					<!-- 与帖子点赞汇总一致：整块点击打开成员弹窗，头像悬停只显示名称。 -->
+					<button type="button" class="_button" :class="$style.memberSummary" aria-haspopup="dialog" :aria-label="i18n.tsx._channel.membersJoined({ n: participantsCount })" @click="showMembers">
+						<span :class="$style.memberStack">
+							<span v-for="(user, i) in members" :key="user.id" v-tooltip.noDelay="user.name ?? user.username" :class="$style.memberAvatarWrap" :style="{ zIndex: members.length - i }">
+								<MkAvatar :user="user" :class="$style.memberAvatar" :decorations="[]" title=""/>
+							</span>
+						</span>
+						<span v-if="participantsCount > members.length" :class="$style.membersLink">
 							{{ i18n.tsx._channel.membersJoined({ n: participantsCount }) }}<i class="ti ti-chevron-right" aria-hidden="true"></i>
-						</button>
-					</template>
+						</span>
+					</button>
+				</template>
 				</div>
 			</MkContainer>
 		</Teleport>
@@ -120,6 +125,8 @@ import MkInfo from '@/components/MkInfo.vue';
 import MkContainer from '@/components/MkContainer.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { useStream } from '@/stream.js';
+import { globalEvents } from '@/events.js';
 import { $i, iAmModerator } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
@@ -220,9 +227,55 @@ async function fetchChannel() {
 
 watch(() => props.channelId, fetchChannel, { immediate: true });
 
+// “最近加入”实时更新：
+// - 新帖子来自本次会话中未出现过的用户时，重新获取成员和人数；已知成员再次发帖不影响加入顺序和人数。
+// - 频道推送不包含删除事件，改为监听帖子删除事件后刷新。删除事件不带频道信息，刷新只请求前几名成员和人数，开销很小。
+watch(() => props.channelId, (channelId, _previous, onCleanup) => {
+	const connection = useStream().useChannel('channel', { channelId });
+	let knownUserIds = new Set<string>();
+	let timer: number | undefined;
+	let resetKnown = false;
+	const refreshMembers = async () => {
+		timer = undefined;
+		const reset = resetKnown;
+		resetKnown = false;
+		const [show, users] = await Promise.all([
+			misskeyApi('channels/show', { channelId }),
+			misskeyApi('channels/participants', { channelId, limit: MEMBER_LIMIT }),
+		]).catch(() => [null, null] as const);
+		if (channelId !== props.channelId || show == null || users == null || channel.value?.id !== channelId) return;
+		// 删除后某人可能已不是成员，按最新列表重建，之后他再发帖仍能被识别为新加入。
+		if (reset) knownUserIds = new Set();
+		channel.value = { ...channel.value, participantsCount: show.participantsCount };
+		members.value = users;
+	};
+	const scheduleRefresh = () => {
+		window.clearTimeout(timer);
+		timer = window.setTimeout(refreshMembers, 1000);
+	};
+	const stopWatchingMembers = watch(members, users => { for (const user of users) knownUserIds.add(user.id); }, { immediate: true });
+	connection.on('note', (note: Misskey.entities.Note) => {
+		if (knownUserIds.has(note.userId)) return;
+		knownUserIds.add(note.userId);
+		scheduleRefresh();
+	});
+	const onNoteDeleted = () => {
+		resetKnown = true;
+		scheduleRefresh();
+	};
+	globalEvents.on('noteDeleted', onNoteDeleted);
+	onCleanup(() => {
+		window.clearTimeout(timer);
+		stopWatchingMembers();
+		globalEvents.off('noteDeleted', onNoteDeleted);
+		connection.dispose();
+	});
+}, { immediate: true });
+
 function showMembers() {
 	const { dispose } = os.popup(defineAsyncComponent(() => import('./channel.members-dialog.vue')), {
 		channelId: props.channelId,
+		count: participantsCount.value,
 	}, {
 		closed: () => dispose(),
 	});
@@ -628,31 +681,48 @@ definePage(() => ({
 	font-size: 0.85em;
 }
 
-.memberStack {
+.memberSummary {
 	display: flex;
-	isolation: isolate;
-	padding-left: 6px;
+	align-items: center;
+	align-self: flex-start;
+	flex-wrap: wrap;
+	gap: 8px;
+	max-width: 100%;
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	&:hover .membersLink { color: var(--MI_THEME-accent); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; border-radius: var(--MI-radius); }
 }
 
-.memberAvatar {
-	width: 24px;
-	height: 24px;
-	margin-left: -6px;
+.memberStack {
+	display: flex;
+	align-items: center;
+	isolation: isolate;
+}
+
+.memberAvatarWrap {
+	position: relative;
+	display: block;
+	border-radius: 50%;
 	box-shadow: 0 0 0 2px var(--MI_THEME-panel);
+
+	& + & { margin-left: -7px; }
+}
+
+// 层叠头像不显示头像框，避免装饰溢出遮挡相邻头像。
+.memberAvatar {
+	display: block;
+	width: 28px;
+	height: 28px;
 }
 
 .membersLink {
 	display: inline-flex;
 	align-items: center;
-	align-self: flex-start;
-	gap: 4px;
-	font-size: 0.85em;
-	color: var(--MI_THEME-fgTransparentWeak);
-
-	&:hover {
-		color: var(--MI_THEME-accent);
-		text-decoration: none;
-	}
+	gap: 2px;
+	font-size: 0.9em;
+	white-space: nowrap;
+	transition: color .15s ease;
 }
 
 @container (max-width: 500px) {

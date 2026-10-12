@@ -166,7 +166,7 @@ provideMetadataReceiver(getter => { metadata.value = getter(); });
 	flex: 1;
 	min-width: 0;
 	padding-left: 4px;
-	font-size: 1em;
+	font-size: 1.15em;
 	font-weight: 700;
 }
 
@@ -211,13 +211,14 @@ provideMetadataReceiver(getter => { metadata.value = getter(); });
 	font-size: 1em;
 	pointer-events: auto;
 
-	> i { font-size: 0.9em; }
+	// 与聊天窗口的最小化、最大化、关闭按钮同一尺寸和悬停效果。
+	> i { font-size: 1.1em; }
 
 	&:hover {
 		background: var(--MI_THEME-buttonHoverBg);
 		color: var(--MI_THEME-fg);
 	}
-	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }
 
 .conversationList {

@@ -13,6 +13,11 @@ export function isArticle(page: MiPage): boolean {
 	return page.content.length === 1 && page.content[0]?.type === 'markdown' && typeof page.content[0].text === 'string';
 }
 
+// 与 isArticle 判定相反的 SQL 条件，自定义页面列表据此排除文章。
+export function notArticleCondition(alias: string): string {
+	return `NOT (jsonb_array_length(${alias}.content) = 1 AND ${alias}.content->0->>'type' = 'markdown' AND jsonb_typeof(${alias}.content->0->'text') = 'string')`;
+}
+
 // 文章详情与资料中的置顶文章共用门禁，避免打包入口绕过可见范围或拉黑限制。
 export async function canReadArticle(page: MiPage, viewer: { id: MiUser['id'] } | null | undefined, manager: EntityManager): Promise<boolean> {
 	const author = await manager.findOneBy(MiUser, { id: page.userId, isSuspended: false, isDeleted: false });

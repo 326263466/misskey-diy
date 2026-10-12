@@ -16,7 +16,7 @@ import { i18n } from '@/i18n.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 
 // 顶部只放内容板块；公告属于站方消息，登录后归入通知中心。
-export const primaryNavItems: readonly string[] = ['explore', 'channels', 'shop'];
+export const primaryNavItems: readonly string[] = ['explore', 'channels', 'play', 'shop'];
 
 // 已在头像菜单、关于菜单或设置页提供，“更多”中不再重复。
 export const launchPadExcludedItems: readonly string[] = ['achievements', 'qr', 'benefits', 'tools', 'cacheClear'];
@@ -114,7 +114,7 @@ export const navbarItemDef = reactive<{
 		to: '/pages',
 	},
 	play: {
-		title: 'Play',
+		title: i18n.ts.play,
 		icon: 'ti ti-player-play',
 		to: '/play',
 	},
@@ -145,7 +145,7 @@ export const navbarItemDef = reactive<{
 		title: i18n.ts._checkin.dailyCheckin,
 		icon: 'ti ti-calendar-check',
 		show: computed(() => $i != null),
-		to: '/checkin',
+		to: '/my/checkin',
 	},
 	communityRanking: {
 		title: i18n.ts.communityRanking,
@@ -157,7 +157,7 @@ export const navbarItemDef = reactive<{
 		title: i18n.ts._wallet.title,
 		icon: 'ti ti-wallet',
 		show: computed(() => $i != null),
-		to: '/wallet',
+		to: '/my/wallet',
 	},
 	shop: {
 		title: i18n.ts._marketplace.title,

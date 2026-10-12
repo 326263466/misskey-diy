@@ -84,21 +84,10 @@ watch([() => props.reactions, myReactions], ([source]) => {
 		}
 	}
 
-	const sorted = Object.entries(newSource);
+	// 服务器按首次回应时间给出顺序，新增种类追加在末尾；计数变化不改变位置。
+	let sorted = Object.entries(newSource);
 	if (prefer.s.showAvailableReactionsFirstInNote) {
-		// ソートの比較関数内で評価すると同じ絵文字に対して何度も実行されるため、事前に1回だけ評価しておく
-		const canReactCache = new Map<string, boolean>();
-		for (const [emoji] of sorted) {
-			canReactCache.set(emoji, canReact(emoji));
-		}
-		sorted.sort(([emojiA, countA], [emojiB, countB]) => {
-			const canReactA = canReactCache.get(emojiA)!;
-			const canReactB = canReactCache.get(emojiB)!;
-			if (canReactA !== canReactB) return canReactA ? -1 : 1;
-			return countB - countA;
-		});
-	} else {
-		sorted.sort(([, countA], [, countB]) => countB - countA);
+		sorted = [...sorted.filter(([emoji]) => canReact(emoji)), ...sorted.filter(([emoji]) => !canReact(emoji))];
 	}
 
 	const newReactionsNames = new Set(newReactions.map(([x]) => x));

@@ -43,9 +43,10 @@ export async function lookup(router?: Router) {
 				},
 			});
 		} else if (res.type === 'Note') {
-			_router.push('/notes/:noteId/:initialTab?', {
+			// 帖子没有单独页面，查到帖子时打开作者主页。
+			_router.push('/@:acct/:page?', {
 				params: {
-					noteId: res.object.id,
+					acct: acct(res.object.user),
 				},
 			});
 		}

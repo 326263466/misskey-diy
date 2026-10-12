@@ -4,29 +4,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_gaps_m" :class="$style.root" :aria-busy="loading">
-	<div :class="$style.heading">
-		<h1>{{ i18n.ts._wallet.overview }}</h1>
-		<MkButton small :disabled="loading" :wait="loading" @click="refresh">{{ i18n.ts.reload }}</MkButton>
+<PageWithHeader contentCard hideHeader>
+	<div class="_gaps_m" :class="$style.root" :aria-busy="loading">
+		<div :class="$style.heading">
+			<h1>{{ i18n.ts._wallet.overview }}</h1>
+			<MkButton small :disabled="loading" :wait="loading" @click="refresh">{{ i18n.ts.reload }}</MkButton>
+		</div>
+		<MkLoading v-if="loading && !wallet"/>
+		<MkButton v-if="loadError" small :disabled="loading" @click="refresh">{{ i18n.ts.retry }}</MkButton>
+		<dl v-if="wallet" :class="$style.balances">
+			<div><dt>{{ i18n.ts._wallet.balance }}</dt><dd data-testid="wallet-balance">{{ wallet.balance.toLocaleString() }}</dd></div>
+			<div><dt>{{ i18n.ts._wallet.reservedBalance }}</dt><dd>{{ wallet.reservedBalance.toLocaleString() }}</dd></div>
+		</dl>
+		<section class="_gaps" :class="$style.activity">
+			<div :class="$style.heading"><h2>{{ i18n.ts._wallet.recentActivity }}</h2><MkA to="/my/wallet/transactions">{{ i18n.ts._wallet.transactions }}</MkA></div>
+			<ul v-if="transactions.length" :class="$style.list">
+				<li v-for="entry in transactions" :key="entry.id">
+					<span>{{ i18n.ts._wallet._types[entry.type] }}</span>
+					<!-- 可用积分不变、只有冻结积分变化时，显示冻结变化而不是 0。 -->
+					<strong v-if="entry.amount === 0 && entry.reservedAmount" v-tooltip="i18n.tsx._wallet.reservedChange({ amount: signedAmount(entry.reservedAmount) })" :class="$style.reserved">{{ i18n.tsx._wallet.reservedShort({ amount: signedAmount(entry.reservedAmount) }) }}</strong>
+					<strong v-else :class="entry.amount > 0 ? $style.income : undefined">{{ signedAmount(entry.amount) }}</strong>
+					<MkTime :time="entry.createdAt" mode="detail"/>
+				</li>
+			</ul>
+			<p v-else-if="!loading && !loadError" :class="$style.caption">{{ i18n.ts._wallet.empty }}</p>
+		</section>
 	</div>
-	<MkLoading v-if="loading && !wallet"/>
-	<MkButton v-if="loadError" small :disabled="loading" @click="refresh">{{ i18n.ts.retry }}</MkButton>
-	<dl v-if="wallet" :class="$style.balances">
-		<div><dt>{{ i18n.ts._wallet.balance }}</dt><dd data-testid="wallet-balance">{{ wallet.balance.toLocaleString() }}</dd></div>
-		<div><dt>{{ i18n.ts._wallet.reservedBalance }}</dt><dd>{{ wallet.reservedBalance.toLocaleString() }}</dd></div>
-	</dl>
-	<section class="_gaps" :class="$style.activity">
-		<div :class="$style.heading"><h2>{{ i18n.ts._wallet.recentActivity }}</h2><MkA to="/wallet/transactions">{{ i18n.ts._wallet.transactions }}</MkA></div>
-		<ul v-if="transactions.length" :class="$style.list">
-			<li v-for="entry in transactions" :key="entry.id">
-				<span>{{ i18n.ts._wallet._types[entry.type] }}</span>
-				<strong :class="entry.amount > 0 ? $style.income : undefined">{{ entry.amount > 0 ? '+' : '' }}{{ entry.amount.toLocaleString() }}</strong>
-				<MkTime :time="entry.createdAt" mode="detail"/>
-			</li>
-		</ul>
-		<p v-else-if="!loading && !loadError" :class="$style.caption">{{ i18n.ts._wallet.empty }}</p>
-	</section>
-</div>
+</PageWithHeader>
 </template>
 
 <script lang="ts" setup>
@@ -48,6 +52,10 @@ const loadError = ref(false);
 const pageActive = inject(DI.pageActive, ref(true));
 let active = true;
 let generation = 0;
+
+function signedAmount(amount: number): string {
+	return `${amount > 0 ? '+' : ''}${amount.toLocaleString()}`;
+}
 
 async function refresh() {
 	if (!active || !pageActive.value) return;
@@ -102,9 +110,10 @@ definePage(() => ({ title: i18n.ts._wallet.overview, icon: 'ti ti-wallet' }));
 .balances dd { margin: var(--MI-marginHalf) 0 0; font-size: 1.8em; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .activity { padding-top: var(--MI-margin); border-top: var(--MI-divider); }
 .list { margin: 0; padding: 0; list-style: none; }
-.list li { display: flex; align-items: center; flex-wrap: wrap; gap: var(--MI-marginHalf); padding: var(--MI-marginHalf) 0; border-top: var(--MI-divider); }
+.list li { display: flex; align-items: center; gap: var(--MI-marginHalf); padding: 8px 0; border-top: var(--MI-divider); white-space: nowrap; }
 .list li:first-child { border-top: 0; }
-.list li > span { flex: 1; }
+.list li > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.reserved { color: var(--MI_THEME-warn); font-weight: normal; }
 .list time { color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; }
 .income { color: var(--MI_THEME-success); }
 </style>

@@ -13,9 +13,9 @@ import { i18n } from '@/i18n.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { $i, iAmModerator } from '@/i.js';
+import { $i, iAmAdmin, iAmModerator } from '@/i.js';
 import { notesSearchAvailable, canSearchNonLocalNotes } from '@/utility/check-permissions.js';
-import { antennasCache, rolesCache, userListsCache } from '@/cache.js';
+import { antennasCache, userListsCache } from '@/cache.js';
 import { mainRouter } from '@/router.js';
 import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
@@ -339,11 +339,29 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 				icon: 'ti ti-badges',
 				text: i18n.ts.roles,
 				children: async () => {
-					const roles = await rolesCache.fetch();
+					// 每次展开都读取最新的角色和对方当前的分配，结果因查看者和对象而异。
+					const [roles, target] = await Promise.all([
+						misskeyApi('admin/roles/list', { limit: 100 }),
+						misskeyApi('admin/show-user', { userId: user.id }),
+					]);
+					const assignedRoleIds = new Set(target.roles.map(role => role.id));
 
-					return roles.filter(r => r.target === 'manual').map(r => ({
-						text: r.name,
-						action: async () => {
+					return roles.filter(r => r.target === 'manual').map(r => {
+						const assigned = ref(assignedRoleIds.has(r.id));
+						let reverting = false;
+						const revert = () => {
+							reverting = true;
+							assigned.value = !assigned.value;
+						};
+						cleanups.push(watch(assigned, async value => {
+							if (reverting) {
+								reverting = false;
+								return;
+							}
+							if (!value) {
+								await os.apiWithDialog('admin/roles/unassign', { roleId: r.id, userId: user.id }).catch(revert);
+								return;
+							}
 							const { canceled, result: period } = await os.select({
 								title: i18n.ts.period + ': ' + r.name,
 								items: [{
@@ -359,7 +377,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 								}],
 								default: 'indefinitely',
 							});
-							if (canceled) return;
+							if (canceled) return revert();
 
 							const expiresAt = period === 'indefinitely' ? null
 								: period === 'oneHour' ? Date.now() + (1000 * 60 * 60)
@@ -368,9 +386,19 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 								: period === 'oneMonth' ? Date.now() + (1000 * 60 * 60 * 24 * 30)
 								: null;
 
-							os.apiWithDialog('admin/roles/assign', { roleId: r.id, userId: user.id, expiresAt });
-						},
-					}));
+							await os.apiWithDialog('admin/roles/assign', { roleId: r.id, userId: user.id, expiresAt }).catch(revert);
+						}));
+
+						// 与服务端规则一致：审核员只能调整允许审核员管理成员的角色。
+						const editable = iAmAdmin || r.canEditMembersByModerator;
+						return {
+							type: 'switch' as const,
+							text: r.name,
+							ref: assigned,
+							disabled: !editable,
+							tooltip: editable ? undefined : i18n.ts._role.adminOnlyMembers,
+						};
+					});
 				},
 			});
 		}

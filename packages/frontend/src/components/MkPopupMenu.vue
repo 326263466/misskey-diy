@@ -41,12 +41,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef } from 'vue';
+import { ref, useTemplateRef, watch } from 'vue';
 import MkModal from './MkModal.vue';
 import MkMenu from './MkMenu.vue';
 import type { MenuItem } from '@/types/menu.js';
 
-defineProps<{
+const props = defineProps<{
 	items: MenuItem[];
 	align?: 'center' | string;
 	/** 菜单宽度跟随触发元素（select 类下拉），默认按内容自适应 */
@@ -54,6 +54,8 @@ defineProps<{
 	width?: number;
 	anchorElement?: HTMLElement | null;
 	returnFocusTo?: HTMLElement | null;
+	/** 打开其他菜单时由外部置为 true，以正常的关闭流程收起。 */
+	closeRequested?: boolean;
 	debugDisablePredictionCone?: boolean;
 	debugShowPredictionCone?: boolean;
 }>();
@@ -110,6 +112,10 @@ function close() {
 	// closeは呼ぶ必要がある
 	modal.value?.close();
 }
+
+watch(() => props.closeRequested, requested => {
+	if (requested) close();
+});
 </script>
 
 <style lang="scss" module>

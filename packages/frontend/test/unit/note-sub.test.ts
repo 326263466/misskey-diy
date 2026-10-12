@@ -25,6 +25,7 @@ vi.mock('@/utility/show-moved-dialog.js', () => ({ showMovedDialog: () => {} }))
 vi.mock('@/utility/get-note-menu.js', () => ({ getAbuseNoteMenu: (_note: unknown, text: string) => ({ text, action: vi.fn() }) }));
 vi.mock('@/components/MkSubNoteContent.vue', () => ({ default: { props: ['note'], template: '<p>{{ note.text }}</p>' } }));
 vi.mock('@/components/MkReactionsViewer.vue', () => ({ default: { props: ['reactions'], template: '<div data-testid="reactions">{{ reactions }}</div>' } }));
+vi.mock('@/components/MkPostForm.vue', () => ({ __esModule: true, default: { props: ['reply'], template: '<div data-testid="inline-reply" :data-reply="reply.id"/>' } }));
 
 function makeNote(id: string, overrides: Partial<Misskey.entities.Note> = {}): Misskey.entities.Note {
 	return {
@@ -147,7 +148,17 @@ describe('comment actions', () => {
 		expect(view.getAllByRole('button', { name: i18n.ts.like })).toHaveLength(2);
 		for (const menu of view.getAllByRole('button', { name: i18n.ts.more })) expect(menu.closest('footer')).toBeNull();
 		await fireEvent.click(view.getAllByRole('button', { name: i18n.ts.reply })[1]);
-		await waitFor(() => expect(mocks.post).toHaveBeenCalledWith({ reply: child, channel: undefined }));
+		// 回复框展开在被回复的子评论下方，并且同一时间只展开一个。
+		const inlineReply = await waitFor(() => view.getByTestId('inline-reply'));
+		expect(inlineReply.getAttribute('data-reply')).toBe(child.id);
+		expect(inlineReply.parentElement!.contains(view.getByText(child.id))).toBe(true);
+		expect(inlineReply.parentElement!.contains(view.getByText(parent.id))).toBe(false);
+		expect(mocks.post).not.toHaveBeenCalled();
+		await fireEvent.click(view.getAllByRole('button', { name: i18n.ts.reply })[0]);
+		await waitFor(() => expect(view.container.querySelectorAll('[data-testid="inline-reply"]')).toHaveLength(1));
+		expect(view.container.querySelector('[data-testid="inline-reply"]')!.getAttribute('data-reply')).toBe(parent.id);
+		await fireEvent.click(view.getByRole('button', { name: i18n.ts._article.cancelReply }));
+		await waitFor(() => expect(view.container.querySelector('[data-testid="inline-reply"]')).toBeNull());
 	});
 
 	test('toggles independent likes without replacing an existing reaction', async () => {

@@ -54,8 +54,8 @@ function makeNote(overrides: Partial<Misskey.entities.Note> = {}): Misskey.entit
 	} as Misskey.entities.Note;
 }
 
-async function getButtons(note: Misskey.entities.Note, menuContext?: 'list' | 'detail'): Promise<MenuButton[]> {
-	const { menu } = getNoteMenu({ note, menuContext, translation: ref(null), translating: ref(false) });
+async function getButtons(note: Misskey.entities.Note): Promise<MenuButton[]> {
+	const { menu } = getNoteMenu({ note, translation: ref(null), translating: ref(false) });
 	return (await Promise.all(menu)).filter((item): item is MenuButton => !item.type || item.type === 'button');
 }
 
@@ -79,17 +79,13 @@ describe('note editing menu', () => {
 		expect(mocks.copyLink).toHaveBeenCalledExactlyOnceWith(note);
 	});
 
-	test.each(([undefined, 'list', 'detail'] as const).flatMap(menuContext => [false, true].map(renoted => ({ menuContext, renoted }))))('仅详情菜单提供帖子打赏，场景=$menuContext，纯转发=$renoted', async ({ menuContext, renoted }) => {
+	test.each([false, true])('帖子菜单向原帖作者打赏，纯转发=%s', async renoted => {
 		const original = makeNote({ id: 'original', userId: 'author', user: { id: 'author', username: 'author', host: null } as Misskey.entities.UserLite });
 		const note = renoted ? makeNote({ text: null, renoteId: original.id, renote: original }) : original;
 		const dispose = vi.fn();
 		mocks.popupAsyncWithDialog.mockResolvedValue({ dispose });
-		const buttons = await getButtons(note, menuContext);
+		const buttons = await getButtons(note);
 		const tip = buttons.find(item => item.text === i18n.ts._tip.title);
-		if (menuContext !== 'detail') {
-			expect(tip).toBeUndefined();
-			return;
-		}
 		await tip!.action(new PointerEvent('click'));
 		expect(mocks.popupAsyncWithDialog).toHaveBeenCalledExactlyOnceWith(expect.any(Promise), {
 			recipient: original.user, target: { type: 'note', id: original.id },
@@ -103,7 +99,7 @@ describe('note editing menu', () => {
 		{ userId: 'other', user: { id: 'other', host: 'remote.test' } },
 		{ userId: 'other', isHidden: true },
 	])('不向本人、远程或隐藏帖子提供打赏：%j', async overrides => {
-		const buttons = await getButtons(makeNote(overrides as Partial<Misskey.entities.Note>), 'detail');
+		const buttons = await getButtons(makeNote(overrides as Partial<Misskey.entities.Note>));
 		expect(buttons.some(item => item.text === i18n.ts._tip.title)).toBe(false);
 	});
 

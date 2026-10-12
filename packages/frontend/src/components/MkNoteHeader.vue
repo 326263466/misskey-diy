@@ -31,24 +31,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</span>
 		</div>
 		<template v-if="detailLayout">
-			<MkTime v-if="showTime && mock" :time="note.createdAt" mode="date" :class="$style.time"/>
-			<MkA v-else-if="showTime" :class="$style.time" :to="notePage(note)"><MkTime :time="note.createdAt" mode="date"/></MkA>
+			<MkTime v-if="showTime" :time="note.createdAt" mode="date" :class="$style.time"/>
 			<span v-if="viewsCount != null" :class="$style.views" :title="i18n.ts.viewsCount"><i class="ti ti-eye" role="img" :aria-label="i18n.ts.viewsCount"></i> {{ viewsCount.toLocaleString() }}</span>
 		</template>
-		<template v-else-if="mini && showTime">
-			<div v-if="mock" :class="$style.time"><MkTime :time="note.createdAt" colored/></div>
-			<MkA v-else :class="$style.time" :to="notePage(note)"><MkTime :time="note.createdAt" colored/></MkA>
-		</template>
+		<div v-else-if="mini && showTime" :class="$style.time"><MkTime :time="note.createdAt" colored/></div>
 	</div>
 	<div v-if="!mini && !detailLayout && (hasWork || showTime)" :class="$style.secondaryLine">
 		<MkUserWork :user="user" :class="$style.work"/>
 		<span v-if="hasWork && showTime" :class="$style.separator" aria-hidden="true">·</span>
-		<div v-if="showTime && mock" :class="$style.time">
+		<div v-if="showTime" :class="$style.time">
 			<MkTime :time="note.createdAt" colored/>
 		</div>
-		<MkA v-else-if="showTime" :class="$style.time" :to="notePage(note)">
-			<MkTime :time="note.createdAt" colored/>
-		</MkA>
 	</div>
 </header>
 </template>
@@ -57,7 +50,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, inject } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
-import { notePage } from '@@/js/note.js';
 import { userPage } from '@@/js/user.js';
 import { DI } from '@/di.js';
 import MkUserWork from '@/components/MkUserWork.vue';

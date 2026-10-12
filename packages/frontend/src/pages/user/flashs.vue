@@ -6,7 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_pageBody">
 	<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard pageEmpty>
-		<MkFlashPreview v-for="flash in items" :key="flash.id" :flash="flash"/>
+		<div :class="$style.grid">
+			<MkFlashPreview v-for="flash in items" :key="flash.id" :flash="flash"/>
+		</div>
 	</MkPagination>
 </div>
 </template>
@@ -29,3 +31,11 @@ const paginator = markRaw(new Paginator('users/flashs', {
 	})),
 }));
 </script>
+
+<style lang="scss" module>
+.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+	gap: var(--MI-margin);
+}
+</style>

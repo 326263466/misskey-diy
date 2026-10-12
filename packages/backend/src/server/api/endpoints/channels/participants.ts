@@ -23,7 +23,7 @@ export const meta = {
 		max: 30,
 	},
 
-	description: 'List users who have posted in the channel, most recently active first.',
+	description: 'List users who have posted in the channel, most recently joined (first post) first.',
 
 	res: {
 		type: 'array',
@@ -72,15 +72,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.noSuchChannel);
 			}
 
-			// 频道帖子总是公开的，这里只列出发帖人，不涉及关注关系
+			// 频道帖子总是公开的，这里只列出发帖人，不涉及关注关系。
+			// 以首次发帖时间作为加入时间，最近加入的排在前面。
 			const rows = await this.channelEntityService.makeParticipantsQuery(channel.id)
 				.select('note.userId', 'userId')
-				.addSelect('MAX(note.id)', 'lastNoteId')
+				.addSelect('MIN(note.id)', 'firstNoteId')
 				.groupBy('note.userId')
-				.orderBy('"lastNoteId"', 'DESC')
+				.orderBy('"firstNoteId"', 'DESC')
 				.limit(ps.limit)
 				.offset(ps.offset)
-				.getRawMany<{ userId: string; lastNoteId: string }>();
+				.getRawMany<{ userId: string; firstNoteId: string }>();
 
 			if (rows.length === 0) return [];
 

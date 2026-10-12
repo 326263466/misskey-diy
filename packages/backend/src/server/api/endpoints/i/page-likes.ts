@@ -8,6 +8,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { PageLikesRepository } from '@/models/_.js';
 import { QueryService } from '@/core/QueryService.js';
 import { PageLikeEntityService } from '@/core/entities/PageLikeEntityService.js';
+import { notArticleCondition } from '@/misc/article-access.js';
 import { DI } from '@/di-symbols.js';
 
 export const meta = {
@@ -62,7 +63,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me) => {
 			const query = this.queryService.makePaginationQuery(this.pageLikesRepository.createQueryBuilder('like'), ps.sinceId, ps.untilId, ps.sinceDate, ps.untilDate)
 				.andWhere('like.userId = :meId', { meId: me.id })
-				.leftJoinAndSelect('like.page', 'page');
+				.innerJoinAndSelect('like.page', 'page')
+				.andWhere(notArticleCondition('page'));
 
 			const likes = await query
 				.limit(ps.limit)

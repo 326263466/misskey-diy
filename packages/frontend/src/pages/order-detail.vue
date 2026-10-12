@@ -4,9 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader class="_standalonePage" contentCard hideHeader>
+<PageWithHeader contentCard hideHeader>
 	<div class="_pageBody _gaps_m" :aria-busy="loading">
-		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title"><MkA to="/orders"><i class="ti ti-arrow-left" aria-hidden="true"></i> {{ i18n.ts._marketplace.orders }}</MkA><MkA to="/orders?mode=sales">{{ i18n.ts._marketplace.sales }}</MkA></nav>
+		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title"><MkA to="/my/orders"><i class="ti ti-arrow-left" aria-hidden="true"></i> {{ i18n.ts._marketplace.orders }}</MkA><MkA to="/my/sales">{{ i18n.ts._marketplace.sales }}</MkA></nav>
 		<h1 :class="$style.heading">{{ i18n.ts._marketplace.orderDetails }}</h1>
 		<p v-if="loading" role="status">{{ i18n.ts.loading }}</p>
 		<div v-else-if="loadError" role="alert" class="_gaps_s"><p>{{ i18n.ts._marketplace.orderLoadFailed }}</p><MkButton @click="load">{{ i18n.ts.retry }}</MkButton></div>

@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true" :loading="paginator.fetching.value">
 	<div class="_pageBody _gaps">
+		<MkTip k="pages">{{ i18n.ts._pages.tip }}</MkTip>
 		<MkButton v-if="tab === 'my'" class="new" @click="create()"><i class="ti ti-plus"></i></MkButton>
 		<MkPagination v-slot="{items}" :paginator="paginator" pageEmpty>
 			<div class="_gaps">

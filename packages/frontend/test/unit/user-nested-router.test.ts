@@ -216,33 +216,26 @@ describe('profile nested routes', () => {
 		{ name: 'RouterView', view: RouterView },
 		{ name: 'StackingRouterView', view: StackingRouterView },
 	])('$name', ({ view }) => {
-		test('opens personal management without rebuilding the profile sidebar', async () => {
+		test('leaves personal management to the personal center', async () => {
 			mocks.account = { id: 'alice', username: 'alice', isAdmin: false };
-			const mounted = mountProfile(view, '/@alice/management', true);
-			await waitFor(() => expect(mounted.getByRole('heading', { name: i18n.ts._management.title })).toBeTruthy());
-			const parent = mounted.currentProfile();
-			const sidebar = within(parent).getByRole('navigation', { name: i18n.ts.profile });
-			const entry = within(sidebar).getByRole('link', { name: i18n.ts._management.title });
-			expect(entry.getAttribute('href')).toBe('/@alice/management');
-			expect(entry.getAttribute('data-active')).toBe('true');
-			expect(mounted.getByRole('link', { name: i18n.ts._marketplace.publishProduct }).getAttribute('href')).toBe('/products/new');
-			await fireEvent.click(within(sidebar).getByRole('link', { name: i18n.ts.overview }));
+			const mounted = mountProfile(view, '/@alice', true);
 			await waitFor(() => expect(mounted.getByTestId('profile-home')).toBeTruthy());
-			await fireEvent.click(entry);
-			await waitFor(() => expect(mounted.getByRole('heading', { name: i18n.ts._management.title })).toBeTruthy());
-			expect(mounted.currentProfile()).toBe(parent);
-			expect(within(parent).getByRole('navigation', { name: i18n.ts.profile })).toBe(sidebar);
-			expect(mocks.api).toHaveBeenCalledExactlyOnceWith('users/show', { username: 'alice', host: null });
+			const sidebar = within(mounted.currentProfile()).getByRole('navigation', { name: i18n.ts.profile });
+			expect(within(sidebar).queryByRole('link', { name: i18n.ts._management.title })).toBeNull();
+			const router = new Nirax(ROUTE_DEF, '/', true, { template: '<div/>' });
+			router.pushByPath('/@alice/management');
+			expect(router.getCurrentFullPath()).toBe('/my');
 			expect(mounted.errors).not.toHaveBeenCalled();
 		});
 
-		test.each([false, true])('hides another account management from a direct profile URL (signedIn=%s)', async signedIn => {
+		test.each([false, true])('sends another account management URL back to that profile (signedIn=%s)', async signedIn => {
 			if (signedIn) mocks.account = { id: 'alice', username: 'alice', isAdmin: true };
-			const mounted = mountProfile(view, '/@bob/management', signedIn);
+			const mounted = mountProfile(view, '/@bob', signedIn);
 			await waitFor(() => expect(mounted.getByTestId('profile-home').getAttribute('data-user')).toBe('bob'));
+			mounted.router.pushByPath('/@bob/management');
+			expect(mounted.router.getCurrentFullPath()).toBe('/@bob');
+			expect(mounted.getByTestId('profile-home').getAttribute('data-user')).toBe('bob');
 			expect(mounted.queryByRole('link', { name: i18n.ts._management.title })).toBeNull();
-			expect(mounted.queryByRole('heading', { name: i18n.ts._management.title })).toBeNull();
-			expect(mounted.queryByRole('link', { name: i18n.ts._marketplace.publishProduct })).toBeNull();
 			expect(mocks.api).toHaveBeenCalledExactlyOnceWith('users/show', { username: 'bob', host: null });
 			expect(mounted.errors).not.toHaveBeenCalled();
 		});

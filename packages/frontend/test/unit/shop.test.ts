@@ -354,7 +354,7 @@ test('restores an uncertain product publication with the same request and withou
 	const restored = render(ProductEditor, { global: { stubs: editorStubs } });
 	expect((restored.getByLabelText(i18n.ts._marketplace.productName) as HTMLInputElement).disabled).toBe(true);
 	await fireEvent.click(restored.getByRole('button', { name: i18n.ts._marketplace.retryPublish }));
-	await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/products/:productId/edit', { params: { productId: 'new-product' } }));
+	await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/my/products/:productId/edit', { params: { productId: 'new-product' } }));
 	expect(attempts).toHaveLength(2);
 	expect(attempts[1]).toEqual(attempts[0]);
 	expect(miLocalStorage.getItem('product-publish:shop-buyer')).toBeNull();
@@ -398,7 +398,7 @@ test('keeps a hidden publication recoverable without navigating away from the ac
 	await nextTick();
 	mocks.api.mockResolvedValueOnce(published);
 	await fireEvent.click(view.getByRole('button', { name: i18n.ts._marketplace.retryPublish }));
-	await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/products/:productId/edit', { params: { productId: published.id } }));
+	await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/my/products/:productId/edit', { params: { productId: published.id } }));
 	const publishCalls = mocks.api.mock.calls.filter(([endpoint]) => endpoint === 'products/create');
 	expect(publishCalls[1]).toEqual(publishCalls[0]);
 });

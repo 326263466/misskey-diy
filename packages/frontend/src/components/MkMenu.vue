@@ -472,7 +472,7 @@ async function showRadioOptions(item: MenuRadio, anchorElement: HTMLElement) {
 	});
 
 	if (props.asDrawer) {
-		os.popupMenu(children, anchorElement, { onAction: () => emit('actioned') }).finally(() => {
+		os.popupMenu(children, anchorElement, { onAction: () => emit('actioned'), exclusive: false }).finally(() => {
 			close(false);
 		});
 		emit('hide');
@@ -501,7 +501,7 @@ async function showChildren(item: MenuParent, anchorElement: HTMLElement, reques
 	if (disposed || request !== childRequest) return;
 
 	if (props.asDrawer) {
-		os.popupMenu(children, anchorElement, { onAction: () => emit('actioned') }).finally(() => {
+		os.popupMenu(children, anchorElement, { onAction: () => emit('actioned'), exclusive: false }).finally(() => {
 			close(false);
 		});
 		emit('hide');

@@ -17,10 +17,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</MkInput>
 
 	<template v-if="rawSearchQuery == ''">
-		<div v-for="group in def" class="group">
-			<div v-if="group.title" class="title">{{ group.title }}</div>
+		<div v-for="(group, groupIndex) in def" :key="group.title ?? groupIndex" class="group" :class="{ collapsible: isCollapsible(group) }">
+			<button
+				v-if="isCollapsible(group)"
+				type="button"
+				class="_button toggle"
+				:class="{ hasActive: !isOpen(group) && hasActiveItem(group) }"
+				:aria-expanded="isOpen(group)"
+				:aria-controls="`${groupIdPrefix}-${groupIndex}`"
+				@click="toggleGroup(group)"
+			>
+				<span v-if="group.icon" class="icon"><i :class="group.icon" class="ti-fw"></i></span>
+				<span class="text">{{ group.title }}</span>
+				<i class="ti ti-chevron-down ti-fw arrow" :class="{ opened: isOpen(group) }" aria-hidden="true"></i>
+			</button>
+			<div v-else-if="group.title" class="title">{{ group.title }}</div>
 
-			<div class="items">
+			<div v-show="!isCollapsible(group) || isOpen(group)" :id="`${groupIdPrefix}-${groupIndex}`" class="items">
 				<template v-for="(item, i) in group.items">
 					<a v-if="item.type === 'a'" :href="item.href" :target="item.target" class="_button item" :class="{ danger: item.danger, active: item.active }">
 						<span v-if="item.icon" class="icon"><i :class="item.icon" class="ti-fw"></i></span>
@@ -67,6 +80,9 @@ import type { Awaitable } from '@/types/misc.js';
 
 export type SuperMenuDef = {
 	title?: string;
+	icon?: string;
+	/** 作为可折叠的一级菜单显示，需要同时提供 title。宫格布局下始终展开。 */
+	collapsible?: boolean;
 	items: ({
 		type: 'a';
 		href: string;
@@ -94,7 +110,7 @@ export type SuperMenuDef = {
 </script>
 
 <script lang="ts" setup>
-import { useTemplateRef, ref, watch, nextTick, computed, onUnmounted } from 'vue';
+import { useTemplateRef, ref, watch, nextTick, computed, onUnmounted, useId } from 'vue';
 import { debounce } from 'throttle-debounce';
 import { getScrollContainer } from '@@/js/scroll.js';
 import type { SearchIndexItem } from '@/utility/inapp-search.js';
@@ -124,6 +140,32 @@ const maxSearchResult = 20;
 
 const router = useRouter();
 const rootEl = useTemplateRef('rootEl');
+
+const groupIdPrefix = useId();
+// 一级菜单同时只展开一个。
+const openGroup = ref<string | null>(null);
+
+function isCollapsible(group: SuperMenuDef): boolean {
+	return group.collapsible === true && group.title != null && !props.grid;
+}
+
+function hasActiveItem(group: SuperMenuDef): boolean {
+	return group.items.some(item => item.active);
+}
+
+function isOpen(group: SuperMenuDef): boolean {
+	return openGroup.value === group.title;
+}
+
+function toggleGroup(group: SuperMenuDef) {
+	openGroup.value = isOpen(group) ? null : group.title!;
+}
+
+// 切换到其他分组的页面时展开该分组；用户手动收起当前分组后不再强制展开。
+const activeGroupTitle = computed(() => props.def.find(group => group.collapsible && hasActiveItem(group))?.title ?? null);
+watch(activeGroupTitle, title => {
+	if (title != null) openGroup.value = title;
+}, { immediate: true });
 
 const searchQuery = ref('');
 const rawSearchQuery = ref('');
@@ -291,6 +333,7 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 				display: flex;
 				align-items: center;
 				width: 100%;
+				min-height: 40px;
 				box-sizing: border-box;
 				padding: 9px 16px 9px 8px;
 				border-radius: var(--MI-cardRadius);
@@ -331,6 +374,72 @@ function searchOnKeyDown(ev: KeyboardEvent) {
 				}
 
 			}
+		}
+	}
+
+	// 一级菜单可折叠时与菜单项同高排列，二级菜单缩进
+	> .group.collapsible {
+		& + .group.collapsible {
+			margin-top: 2px;
+		}
+
+		> .toggle {
+			display: flex;
+			align-items: center;
+			width: 100%;
+			min-height: 40px;
+			box-sizing: border-box;
+			padding: 9px 12px 9px 8px;
+			border-radius: var(--MI-cardRadius);
+			color: var(--MI_THEME-fg);
+			font-size: 1em;
+			text-align: left;
+
+			&:hover {
+				color: var(--MI_THEME-accent);
+			}
+
+			&:focus-visible {
+				outline-offset: -2px;
+			}
+
+			&.hasActive {
+				color: var(--MI_THEME-accent);
+			}
+
+			> .icon {
+				width: 32px;
+				margin-right: 2px;
+				flex-shrink: 0;
+				text-align: center;
+			}
+
+			> .text {
+				flex: 1;
+				min-width: 0;
+				font-weight: 500;
+			}
+
+			> .arrow {
+				flex-shrink: 0;
+				color: var(--MI_THEME-fgTransparentWeak);
+				transition: transform 0.2s ease;
+
+				&.opened {
+					transform: rotate(180deg);
+				}
+			}
+		}
+
+		> .items {
+			margin-top: 2px;
+			padding-left: 16px;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		> .group.collapsible > .toggle > .arrow {
+			transition: none;
 		}
 	}
 

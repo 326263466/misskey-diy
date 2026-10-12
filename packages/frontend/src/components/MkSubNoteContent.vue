@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span v-if="note.isDeleted" style="color: var(--MI_THEME-fgTransparentWeak);">({{ getDeletedText(note.deletedBy) }})</span>
 		<span v-else-if="note.deletedAt" style="color: var(--MI_THEME-fgTransparentWeak);">({{ i18n.ts.deletedNote }})</span>
 		<Mfm v-if="note.text" :text="note.text" :parsedNodes="displayNodes" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
-		<MkA v-if="note.renoteId && note.renoteId !== note.replyId" :class="$style.rp" :to="`/notes/${note.renoteId}`">RN: ...</MkA>
+		<span v-if="note.renoteId && note.renoteId !== note.replyId" :class="$style.rp">RN: ...</span>
 	</div>
 	<details v-if="note.files && note.files.length > 0">
 		<summary>({{ i18n.tsx.withNFiles({ n: note.files.length }) }})</summary>
@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:emojiUrls="note.emojis"
 		/>
 	</details>
-	<MkA v-if="note.hasPoll && note.poll == null" :to="`/notes/${note.id}`">({{ i18n.ts.poll }})</MkA>
+	<span v-if="note.hasPoll && note.poll == null">({{ i18n.ts.poll }})</span>
 	<button v-if="isLong && collapsed" :class="$style.fade" class="_button" @click="collapsed = false">
 		<span class="_textAction" :class="$style.fadeLabel">{{ i18n.ts.showMore }}</span>
 	</button>

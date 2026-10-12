@@ -8,38 +8,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	v-if="!muted && !hideByPlugin && !isDeleted"
 	ref="rootEl"
 	v-hotkey="keymap"
-	:class="[$style.root, { [$style.separateActivity]: separateActivity, [$style.articleLayout]: sideActions }]"
+	:class="$style.root"
 	tabindex="0"
 	@keydown.enter.self.exact.prevent="toggleContent"
 >
-	<aside v-if="sideActions && !isRenoteTargetDeleted" :class="$style.sideActions" :aria-label="i18n.ts.note" :data-detail-actions="pageActive ? 'true' : undefined">
-		<button v-tooltip.icon="$appearNote.isLiked ? i18n.ts.unlike : i18n.ts.like" type="button" class="_button" :class="[$style.sideAction, { [$style.liked]: $appearNote.isLiked }]" :aria-label="$appearNote.isLiked ? i18n.ts.unlike : i18n.ts.like" :aria-pressed="$appearNote.isLiked" :disabled="liking" @click.stop="toggleLike()">
-			<i :class="$appearNote.isLiked ? 'ti ti-heart-filled' : 'ti ti-heart'" aria-hidden="true"></i>
-			<span v-if="$appearNote.likeCount > 0" :class="$style.sideCount" aria-hidden="true">{{ $appearNote.likeCount }}</span>
-		</button>
-		<button v-tooltip.icon="i18n.ts.replies" type="button" class="_button" :class="$style.sideAction" :aria-label="i18n.ts.replies" @click="showReplies">
-			<i class="ti ti-message-circle" aria-hidden="true"></i>
-			<span v-if="$appearNote.repliesCount > 0" :class="$style.sideCount" aria-hidden="true">{{ $appearNote.repliesCount }}</span>
-		</button>
-		<button ref="renoteButton" v-tooltip.icon="isRenote ? i18n.ts.more : i18n.ts.renote" type="button" class="_button" :class="[$style.sideAction, { [$style.renoted]: isRenotedByMe }]" :aria-label="isRenote ? i18n.ts.more : i18n.ts.renote" :disabled="!canRenote && !isRenote" @click.stop="toggleRenote()" @keydown.enter.stop>
-			<i :class="canRenote || isRenote ? 'ti ti-repeat' : 'ti ti-ban'" aria-hidden="true"></i>
-			<span v-if="displayedRenoteCount > 0" :class="$style.sideCount" aria-hidden="true">{{ displayedRenoteCount }}</span>
-		</button>
-		<button ref="reactButton" v-tooltip.icon="appearNote.reactionAcceptance === 'likeOnly' && myEmojiReaction ? i18n.ts.cancel : i18n.ts._chat.addReaction" type="button" class="_button" :class="$style.sideAction" :aria-label="appearNote.reactionAcceptance === 'likeOnly' && myEmojiReaction ? i18n.ts.cancel : i18n.ts._chat.addReaction" @click.stop="toggleReact()">
-			<i :class="appearNote.reactionAcceptance === 'likeOnly' ? (myEmojiReaction ? 'ti ti-heart-filled' : 'ti ti-heart') : 'ti ti-mood-happy'" aria-hidden="true"></i>
-		</button>
-		<button v-tooltip.icon="isFavorited ? i18n.ts.unfavorite : i18n.ts.favorite" type="button" class="_button" :class="[$style.sideAction, { [$style.favorited]: isFavorited }]" :aria-label="isFavorited ? i18n.ts.unfavorite : i18n.ts.favorite" :aria-pressed="isFavorited" :disabled="favoriting" @click.stop="toggleFavorite()">
-			<i :class="isFavorited ? 'ti ti-star-filled' : 'ti ti-star'" aria-hidden="true"></i>
-		</button>
-		<button v-tooltip.icon="i18n.ts.share" type="button" class="_button" :class="$style.sideAction" :aria-label="i18n.ts.share" @click.stop="share()">
-			<i class="ti ti-share" aria-hidden="true"></i>
-		</button>
-		<button v-if="$i && $i.id !== appearNote.userId" v-tooltip.icon="i18n.ts.reportAbuse" type="button" class="_button" :class="$style.sideAction" :aria-label="i18n.ts.reportAbuse" @click.stop="getAbuseNoteMenu(appearNote, i18n.ts.reportAbuse).action($event)">
-			<i class="ti ti-alert-triangle" aria-hidden="true"></i>
-		</button>
-	</aside>
-	<div :class="separateActivity ? $style.card : undefined">
-		<slot name="header"></slot>
+	<div>
 		<div v-if="appearNote.replyId" :class="$style.replyThread">
 			<div v-for="parentNote in replyThread" :key="parentNote.id" :class="$style.replyThreadItem">
 				<MkNote :note="parentNote" :showReplyTo="false" :withThreadLine="true" :threadAuthor="threadAuthor" :class="$style.replyThreadNote"/>
@@ -158,7 +131,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkLikeSummary :noteId="appearNote.id" :count="$appearNote.likeCount" :users="$appearNote.likeUsers"/>
 				</div>
 
-				<div v-if="!sideActions" :class="[$style.footer, { [$style.footerAnimated]: prefer.s.animation }]">
+				<div :class="[$style.footer, { [$style.footerAnimated]: prefer.s.animation }]">
 					<div :class="$style.footerButtonSlot">
 						<button v-tooltip.icon="i18n.ts.reply" class="_button" :class="[$style.footerButton, { [$style.footerButtonWithCount]: $appearNote.repliesCount > 0 }]" :aria-label="i18n.ts.reply" @click.stop="showReplies()">
 							<i class="ti ti-message-circle"></i>
@@ -208,15 +181,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		</article>
 	</div>
-	<div v-if="!isRenoteTargetDeleted" ref="activityEl" :class="separateActivity ? [$style.card, $style.activityCard] : undefined">
-		<div v-if="sideActions" :class="$style.commentHeader">
-			<h2><button type="button" class="_button" :aria-pressed="tab === 'replies'" @click="showReplies">{{ i18n.ts._article.comment }} <span>{{ $appearNote.repliesCount }}</span></button></h2>
-			<div :class="$style.activityLinks">
-				<button type="button" class="_button" :class="{ [$style.tabActive]: tab === 'renotes' }" :aria-pressed="tab === 'renotes'" @click="tab = tab === 'renotes' ? 'replies' : 'renotes'">{{ i18n.ts.renotes }}</button>
-				<button type="button" class="_button" :class="{ [$style.tabActive]: tab === 'reactions' }" :aria-pressed="tab === 'reactions'" @click="tab = tab === 'reactions' ? 'replies' : 'reactions'">{{ i18n.ts.reactions }}</button>
-			</div>
-		</div>
-		<div v-else :class="$style.tabs">
+	<div v-if="!isRenoteTargetDeleted" ref="activityEl">
+		<div :class="$style.tabs">
 			<button class="_button" :class="[$style.tab, { [$style.tabActive]: tab === 'replies' }]" @click="tab = 'replies'"><i class="ti ti-message-circle"></i> {{ i18n.ts.replies }}</button>
 			<button class="_button" :class="[$style.tab, { [$style.tabActive]: tab === 'renotes' }]" @click="tab = 'renotes'"><i class="ti ti-repeat"></i> {{ i18n.ts.renotes }}</button>
 			<button class="_button" :class="[$style.tab, { [$style.tabActive]: tab === 'reactions' }]" @click="tab = 'reactions'"><i class="ti ti-mood-happy"></i> {{ i18n.ts.reactions }}</button>
@@ -268,12 +234,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</div>
 </div>
-<div v-else-if="isDeleted" class="_panel" :class="separateActivity ? $style.card : undefined">
-	<slot name="header"></slot>
+<div v-else-if="isDeleted" class="_panel">
 	<div :class="$style.deleted"><span>{{ getDeletedText(deletedBy) }}</span></div>
 </div>
-<div v-else-if="muted" class="_panel" :class="separateActivity ? $style.card : undefined">
-	<slot name="header"></slot>
+<div v-else-if="muted" class="_panel">
 	<div :class="$style.muted" @click="muted = false">
 		<I18n :src="i18n.ts.userSaysSomething" tag="small">
 			<template #name>
@@ -283,9 +247,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</I18n>
 	</div>
-</div>
-<div v-else-if="hideByPlugin && $slots.header" :class="separateActivity ? $style.card : undefined">
-	<slot name="header"></slot>
 </div>
 </template>
 
@@ -304,7 +265,6 @@ import { getNoteDisplayNodes, getNoteThreadAuthor } from '@/utility/note-display
 import { DI } from '@/di.js';
 import { useGlobalEvent } from '@/events.js';
 import { getDeletedText, toDeletedNote } from '@/utility/deleted-note.js';
-import { getAbuseNoteMenu } from '@/utility/get-note-menu.js';
 import { $i } from '@/i.js';
 import MkLikeSummary from '@/components/MkLikeSummary.vue';
 import MkNoteTags from '@/components/MkNoteTags.vue';
@@ -336,14 +296,8 @@ import MkReactionIcon from '@/components/MkReactionIcon.vue';
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
 	initialTab?: 'replies' | 'renotes' | 'reactions';
-	separateActivity?: boolean;
-	sideActions?: boolean;
-	menuContext?: 'list' | 'detail';
 }>(), {
 	initialTab: 'replies',
-	separateActivity: false,
-	sideActions: false,
-	menuContext: 'list',
 });
 
 // 周辺コンテキストのインジェクト
@@ -398,9 +352,6 @@ const {
 	share,
 	liking,
 	toggleLike,
-	isFavorited,
-	favoriting,
-	toggleFavorite,
 	blur,
 } = useNote(props, {
 	rootEl,
@@ -411,11 +362,9 @@ const {
 	clipButton,
 }, {
 	inChannel,
-	menuContext: props.menuContext,
 });
 
 // provide
-const pageActive = inject(DI.pageActive, ref(true));
 provide(DI.mfmEmojiReactCallback, reactViaMfmEmoji);
 
 // MkNoteDetailed固有
@@ -523,7 +472,7 @@ function loadConversation() {
 	}).catch(() => undefined);
 }
 
-// 回复和上文会话在打开详情页时直接加载，无需用户手动点击
+// 回复和上文会话在组件创建时直接加载，无需用户手动点击
 loadReplies();
 loadConversation();
 
@@ -557,8 +506,6 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 </script>
 
 <style lang="scss" module>
-@use '@/styles/card-header.scss';
-
 @use "../styles/community.scss";
 
 .footerButton.liked { color: var(--MI_THEME-love); }
@@ -592,122 +539,10 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 	}
 }
 
-.separateActivity {
-	display: flex;
-	flex-direction: column;
-	gap: var(--MI-margin);
-}
-
-.sideActions {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px;
-}
-
-.sideAction {
-	position: relative;
-	display: grid;
-	place-items: center;
-	width: 48px;
-	height: 48px;
-	border-radius: 50%;
-	background: var(--MI_THEME-panel);
-	color: var(--MI_THEME-fgTransparentWeak);
-	font-size: 20px;
-	line-height: 1;
-
-	&:hover:not(:disabled), &:focus-visible {
-		color: var(--MI_THEME-accent);
-	}
-
-	&.liked {
-		color: var(--MI_THEME-love);
-	}
-
-	&.favorited, &.renoted {
-		color: var(--MI_THEME-accent);
-	}
-
-	&:disabled {
-		cursor: wait;
-		opacity: 0.6;
-	}
-}
-
-.sideCount {
-	position: absolute;
-	top: 0;
-	right: -6px;
-	padding: 2px 5px;
-	border-radius: var(--MI-radius);
-	background: var(--MI_THEME-fgTransparentWeak);
-	color: var(--MI_THEME-panel);
-	font-size: 11px;
-	line-height: 1;
-}
-
-@container (min-width: 700px) {
-	.articleLayout {
-		display: grid;
-		grid-template-columns: 64px minmax(0, 1fr);
-		column-gap: var(--MI-margin);
-		row-gap: var(--MI-margin);
-
-		> .card {
-			grid-column: 2;
-			min-width: 0;
-		}
-
-		> .sideActions {
-			position: sticky;
-			top: calc(var(--MI-stickyTop, 0px) + 48px);
-			grid-column: 1;
-			grid-row: 1 / span 2;
-			align-self: start;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			gap: 12px;
-			margin-top: 48px;
-
-			@media (max-height: 600px) {
-				top: calc(var(--MI-stickyTop, 0px) + 12px);
-				gap: 8px;
-				margin-top: 12px;
-			}
-		}
-	}
-}
-
-.card {
-	background: var(--MI_THEME-panel);
-	border-radius: var(--MI-cardRadius);
-	overflow: clip;
-}
-
-.activityCard > .tabs {
-	border-top: none;
-}
-
 .replyComposer {
 	padding: var(--MI-cardPadding);
 }
 
-.commentHeader {
-	@include card-header.row;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	padding-inline: var(--MI-cardPadding);
-	h2 { @include card-header.label; margin: 0; }
-	h2 > button { font-weight: inherit; }
-	h2 span { color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; font-weight: normal; }
-}
-
-.activityLinks { display: flex; gap: 16px; color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; }
 .repliesLoading { padding: 24px; }
 
 .replyThread {
@@ -806,7 +641,7 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 	min-width: 0;
 }
 
-// 详情页各区块共用卡片自身的内边距，这里只负责垂直节奏。
+// 各区块共用卡片自身的内边距，这里只负责垂直节奏。
 .tagsAndLikeRow {
 	display: flex;
 	flex-wrap: wrap;

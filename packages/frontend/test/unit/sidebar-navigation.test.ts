@@ -9,7 +9,7 @@ import { defineComponent, h, ref } from 'vue';
 import type { PropType } from 'vue';
 import Settings from '@/pages/settings/index.vue';
 import Admin from '@/pages/admin/index.vue';
-import Wallet from '@/pages/user/wallet.vue';
+import MyCenter from '@/pages/my/index.vue';
 import Articles from '@/pages/articles/index.vue';
 import ChatLayout from '@/pages/chat/index.vue';
 import ChatHome from '@/pages/chat/home.vue';
@@ -83,7 +83,7 @@ afterEach(() => {
 const sections = [
 	{ path: '/settings', component: Settings, initial: '/settings/security' },
 	{ path: '/admin', component: Admin, initial: '/admin/overview' },
-	{ path: '/wallet', component: Wallet, initial: '/wallet/overview' },
+	{ path: '/my', component: MyCenter, initial: '/my/wallet' },
 ];
 
 function mountSection(section: typeof sections[number], view: typeof RouterView | typeof StackingRouterView, initial: string, width = 1200) {
@@ -134,7 +134,7 @@ test.each([RouterView, StackingRouterView].flatMap(view => sections.map(section 
 	await waitFor(() => expect(mounted.getByTestId('child').textContent).toBe(section.initial), { timeout: 5000 });
 	const sidebar = mounted.getByRole('navigation');
 	const links = Array.from(sidebar.querySelectorAll<HTMLAnchorElement>('[data-menu-link]'));
-	if (section.path === '/wallet') expect(links).toHaveLength(5);
+	if (section.path === '/my') expect(links).toHaveLength(16);
 	else expect(links.length).toBeGreaterThan(10);
 	for (const link of links) {
 		const path = link.getAttribute('href')!;
@@ -149,33 +149,52 @@ test.each([RouterView, StackingRouterView].flatMap(view => sections.map(section 
 	router.replaceByPath(section.initial);
 	await waitFor(() => expect(mounted.getByTestId('child').textContent).toBe(section.initial));
 	expect(mounted.getByRole('navigation')).toBe(sidebar);
-	if (section.path === '/wallet') {
-		router.pushByPath('/wallet');
-		await waitFor(() => expect(router.getCurrentFullPath()).toBe('/wallet/overview'));
-		await waitFor(() => expect(mounted.getByTestId('child').textContent).toBe('/wallet/overview'));
+	if (section.path === '/my') {
+		router.pushByPath('/my');
+		await waitFor(() => expect(router.getCurrentFullPath()).toBe('/my/wallet'));
+		await waitFor(() => expect(mounted.getByTestId('child').textContent).toBe('/my/wallet'));
 		expect(mounted.getByRole('navigation')).toBe(sidebar);
 	}
 });
 
-test.each([RouterView, StackingRouterView])('opens the canonical benefits page and returns to its narrow wallet menu (%#)', async view => {
-	const { router, mounted, resize } = mountSection(sections[2], view, '/wallet/benefits', 390);
-	await waitFor(() => expect(mounted.getByTestId('child').textContent).toBe('/wallet/benefits'));
-	expect(router.getCurrentFullPath()).toBe('/wallet/benefits');
-	await fireEvent.click(mounted.getByRole('link', { name: i18n.ts._wallet.title }));
-	await waitFor(() => expect(mounted.getByRole('navigation', { name: i18n.ts._wallet.title })).toBeTruthy());
-	expect(router.getCurrentFullPath()).toBe('/wallet');
-	const navigation = mounted.getByRole('navigation', { name: i18n.ts._wallet.title });
-	expect(within(navigation).getByRole('link', { name: i18n.ts._benefits.title }).getAttribute('href')).toBe('/wallet/benefits');
+test.each([RouterView, StackingRouterView])('opens a personal center page and returns to its narrow menu (%#)', async view => {
+	const { router, mounted, resize } = mountSection(sections[2], view, '/my/benefits', 390);
+	await waitFor(() => expect(mounted.getByTestId('child').textContent).toBe('/my/benefits'));
+	expect(router.getCurrentFullPath()).toBe('/my/benefits');
+	await fireEvent.click(mounted.getByRole('link', { name: i18n.ts._myCenter.title }));
+	await waitFor(() => expect(mounted.getByRole('navigation', { name: i18n.ts._myCenter.title })).toBeTruthy());
+	expect(router.getCurrentFullPath()).toBe('/my');
+	const navigation = mounted.getByRole('navigation', { name: i18n.ts._myCenter.title });
+	expect(within(navigation).getByRole('link', { name: i18n.ts._benefits.title }).getAttribute('href')).toBe('/my/benefits');
 	resize(1040);
-	await waitFor(() => expect(mounted.getByTestId('child').textContent).toBe('/wallet/overview'));
-	expect(router.getCurrentFullPath()).toBe('/wallet/overview');
-	expect(mounted.getByRole('navigation', { name: i18n.ts._wallet.title })).toBe(navigation);
+	await waitFor(() => expect(mounted.getByTestId('child').textContent).toBe('/my/wallet'));
+	expect(router.getCurrentFullPath()).toBe('/my/wallet');
+	expect(mounted.getByRole('navigation', { name: i18n.ts._myCenter.title })).toBe(navigation);
 });
 
-test.each([RouterView, StackingRouterView])('keeps the shared article dock mounted and separates the standalone checkin page (%#)', async view => {
+test('redirects the former personal pages into the personal center', () => {
+	const router = new Nirax(ROUTE_DEF, '/', true, { render: () => null });
+	for (const [from, to] of [
+		['/wallet', '/my/wallet'], ['/wallet/overview', '/my/wallet'], ['/wallet/transactions', '/my/wallet/transactions'],
+		['/wallet/red-packets', '/my/wallet/red-packets'], ['/wallet/transfers', '/my/wallet/transfers'], ['/wallet/benefits', '/my/benefits'],
+		['/checkin', '/my/checkin'], ['/orders', '/my/orders'], ['/orders?mode=sales', '/my/sales'], ['/orders/order-1', '/my/orders/order-1'],
+		['/products/manage', '/my/products'], ['/products/new', '/my/products/new'], ['/products/product-1/edit', '/my/products/product-1/edit'],
+	]) {
+		router.pushByPath(from);
+		expect(router.getCurrentFullPath(), from).toBe(to);
+		router.replaceByPath('/');
+	}
+	for (const path of ['/my/notifications', '/my/lists/list-1', '/my/drive/file/file-1', '/products/product-1']) {
+		expect(router.resolve(path)?.route.path, path).not.toBe('/:(*)');
+	}
+	expect(router.resolve('/my/notifications')?.route.path).toBe('/my/notifications');
+	expect(router.resolve('/products/product-1')?.route.name).toBe('shop');
+});
+
+test.each([RouterView, StackingRouterView])('keeps the shared article dock mounted and separates the standalone shop page (%#)', async view => {
 	const parent = ROUTE_DEF.find(route => 'name' in route && route.name === 'index')!;
 	if (!('children' in parent)) throw new Error('No article child routes');
-	const checkin = ROUTE_DEF.find(route => route.path === '/checkin')!;
+	const shop = ROUTE_DEF.find(route => route.path === '/shop')!;
 	const router = new Nirax([{
 		...parent,
 		component: Articles,
@@ -184,8 +203,8 @@ test.each([RouterView, StackingRouterView])('keeps the shared article dock mount
 			component: defineComponent({ props: ['categoryId'], setup: props => () => h('output', { 'data-testid': 'article-list' }, props.categoryId ?? 'all') }),
 		})),
 	}, {
-		...checkin,
-		component: defineComponent({ render: () => h('div', { 'data-testid': 'checkin' }, 'Checkin') }),
+		...shop,
+		component: defineComponent({ render: () => h('div', { 'data-testid': 'shop' }, 'Shop') }),
 	}], '/articles/category/tech', true, { render: () => h('div', 'Missing route') });
 	mainRouter.currentRef = router.currentRef;
 	const shell = defineComponent({
@@ -232,10 +251,10 @@ test.each([RouterView, StackingRouterView])('keeps the shared article dock mount
 		await fireEvent.click(mounted.getByRole('link', { name: '生活' }));
 		await waitFor(() => expect(mounted.getByTestId('article-list').textContent).toBe('life'));
 	}
-	router.pushByPath('/checkin');
-	await waitFor(() => expect(mounted.getByTestId('checkin')).toBeDefined());
+	router.pushByPath('/shop');
+	await waitFor(() => expect(mounted.getByTestId('shop')).toBeDefined());
 	expect(mounted.queryByTestId('article-dock')).toBeNull();
-	expect(mounted.getByTestId('checkin').contains(sidebar)).toBe(false);
+	expect(mounted.getByTestId('shop').contains(sidebar)).toBe(false);
 	if (view === StackingRouterView) {
 		await fireEvent.click(mounted.container.querySelector('button:has(.ti-x)')!);
 		await waitFor(() => expect(router.getCurrentFullPath()).toBe('/articles/category/life'));

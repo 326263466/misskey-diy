@@ -73,7 +73,7 @@ describe('note preview code blocks', () => {
 	test('renders an unlabelled fenced block with a separate copy toolbar', async () => {
 		const host = await mountPreview('dasdasdasdsad');
 		const pre = host.querySelector('pre')!;
-		const root = pre.closest<HTMLElement>('[data-note-interactive]')!;
+		const root = pre.closest<HTMLElement>('[class*="codeBlockRoot"]')!;
 		const button = root.querySelector('[aria-label="Copy"]')!;
 		const style = getComputedStyle(pre);
 		expect(pre.textContent).toBe('dasdasdasdsad');

@@ -48,7 +48,7 @@ describe('account online status menu', () => {
 		expect(menu.children).toHaveLength(1);
 		expect(grid.columns).toBe(3);
 		expect(unref(grid.text)).toBe(i18n.ts.onlineStatus);
-		expect(grid.items.map(button => unref(button.text))).toEqual([i18n.ts.online, i18n.ts._onlineStatus.away, i18n.ts._onlineStatus.busy, i18n.ts._onlineStatus.doNotDisturb, i18n.ts._onlineStatus.invisible, i18n.ts.custom]);
+		expect(grid.items.map(button => unref(button.text))).toEqual([i18n.ts._onlineStatus.auto, i18n.ts._onlineStatus.away, i18n.ts._onlineStatus.busy, i18n.ts._onlineStatus.doNotDisturb, i18n.ts._onlineStatus.invisible, i18n.ts.custom]);
 		expect(grid.items.map(button => unref(button.active))).toEqual([false, false, false, false, true, false]);
 		expect(grid.items.at(-1)?.status).toBe('custom');
 		expect(grid.items.at(-1)?.icon).toBeUndefined();
@@ -121,6 +121,14 @@ describe('account online status menu', () => {
 		expect(unref(menu.caption)).toBe(i18n.ts._onlineStatus.invisible);
 	});
 
+	test.each([
+		['online', 'online'], ['active', 'active'], ['offline', 'offline'], ['unknown', 'unknown'],
+	] as const)('shows the status others see (%s) instead of a fixed online label in automatic mode', (onlineStatus, display) => {
+		Object.assign($i!, { hideOnlineStatus: false, onlineStatusOverride: 'online', onlineStatus, customStatus: null });
+		const menu = getOnlineStatusMenu() as MenuParent;
+		expect(unref(menu.caption)).toBe(i18n.ts._onlineStatus._display[display]);
+	});
+
 	test('opens the custom editor with the saved text even while invisible', () => {
 		const menu = getOnlineStatusMenu() as MenuParent;
 		const edit = (menu.children as MenuGrid[])[0].items.at(-1)!;
@@ -154,7 +162,7 @@ describe('account online status menu', () => {
 			props: { items: menu.children as MenuItem[] },
 			global: { directives: { hotkey: hotkeyDirective } },
 		});
-		expect(view.getByRole('menuitemradio', { name: i18n.ts.online }).getAttribute('aria-checked')).toBe('false');
+		expect(view.getByRole('menuitemradio', { name: i18n.ts._onlineStatus.auto }).getAttribute('aria-checked')).toBe('false');
 		expect(view.getByRole('menuitemradio', { name: i18n.ts.custom }).getAttribute('aria-checked')).toBe('true');
 		const customIcon = view.getByRole('menuitemradio', { name: i18n.ts.custom }).querySelector('[data-custom-status-icon="add"]');
 		expect(customIcon).not.toBeNull();
