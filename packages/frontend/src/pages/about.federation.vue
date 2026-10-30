@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_gaps">
 	<div :class="$style.filters">
-		<MkInput v-model="host" :class="$style.host">
+		<MkInput v-model="host" type="search" :class="$style.host">
 			<template #prefix><i class="ti ti-search"></i></template>
 			<template #label>{{ i18n.ts.host }}</template>
 		</MkInput>
@@ -107,6 +107,7 @@ function getStatus(instance: Misskey.entities.FederationInstance) {
 
 <style lang="scss" module>
 .filters {
+	--MI-controlHeight: 40px;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-end;

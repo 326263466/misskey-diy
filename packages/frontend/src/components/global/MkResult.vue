@@ -37,7 +37,7 @@ const props = defineProps<{
 	loading?: boolean;
 }>();
 
-const text = computed(() => props.text ?? (props.type === 'notFound' ? i18n.ts.notFound : props.type === 'error' ? i18n.ts.somethingHappened : null));
+const text = computed(() => props.text ?? (props.type === 'empty' ? i18n.ts.nothing : props.type === 'notFound' ? i18n.ts.notFound : props.type === 'error' ? i18n.ts.somethingHappened : null));
 </script>
 
 <style lang="scss" module>

@@ -26,8 +26,6 @@ import { execaSync } from 'execa';
 
 import { DEFAULT_INTEGRATION_REFS, findClosestMergeBase, gitLines, gitMergeBase, gitPaths } from './lib/git.mjs';
 
-const PNPM_COMMAND = process.platform === 'win32' ? process.execPath : 'pnpm';
-
 const LINT_TARGETS = [
 	{ root: 'packages/backend', pattern: /^packages\/backend\/(src|test-federation)\/.*\.ts$/ },
 	{ root: 'packages/frontend', pattern: /^packages\/frontend\/src\/.*\.(ts|vue)$/ },
@@ -135,9 +133,6 @@ function normalizeStatus(status) {
 function runChangedFileLint(changedFiles, repoRoot) {
 	let ran = false;
 	/** @type {0 | 1 | 2} */ let status = 0;
-	// Windows 无法直接启动 .cmd 文件，因此不经过 shell 传递文件参数
-	const pnpmArgs = process.platform === 'win32' ? [join(repoRoot, 'node_modules/pnpm/bin/pnpm.mjs')] : [];
-
 	for (const target of LINT_TARGETS) {
 		try {
 			const files = changedFiles
@@ -147,7 +142,7 @@ function runChangedFileLint(changedFiles, repoRoot) {
 
 			ran = true;
 			console.log(`Lint: ${target.root} (${files.length} files)`);
-			const current = normalizeStatus(runCommand(PNPM_COMMAND, [...pnpmArgs, 'exec', 'eslint', '--quiet', '--', ...files], join(repoRoot, target.root)));
+			const current = normalizeStatus(runCommand('pnpm', ['exec', 'eslint', '--quiet', '--', ...files], join(repoRoot, target.root)));
 			if (current > status) status = current;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -189,8 +184,7 @@ function runSpdx(base, repoRoot) {
 }
 
 /**
- * ja-JP.yml / zh-CN.yml 以外の locale YAML 変更がないかを検査する。
- * 本リポジトリでは ja-JP.yml に加えて zh-CN.yml の手動編集を AGENTS.md が許可している。
+ * 按 AGENTS.md 检查语言文件，只允许手动修改 zh-CN.yml。
  *
  * @param {string[]} changedFiles
  * @returns {0 | 1}
@@ -199,7 +193,6 @@ function runLocaleSafety(changedFiles) {
 	const badLocales = changedFiles.filter((file) => (
 		file.startsWith('locales/') &&
 		file.endsWith('.yml') &&
-		file !== 'locales/ja-JP.yml' &&
 		file !== 'locales/zh-CN.yml'
 	));
 	if (badLocales.length === 0) {

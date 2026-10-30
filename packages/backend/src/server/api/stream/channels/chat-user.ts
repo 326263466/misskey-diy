@@ -48,6 +48,9 @@ export class ChatUserChannel extends Channel {
 	private async onEvent(data: GlobalEvents['chatUser']['payload']) {
 		this.eventQueue = this.eventQueue.then(async () => {
 			if (this.stopped || !this.user) return;
+			// 撤回和取消回应仍须同步到已有历史，拉黑只拦新的接触。
+			if (data.type !== 'deleted' && data.type !== 'unreact' && this.blockedUserIds.has(this.otherId)) return;
+			if ((data.type === 'message' || data.type === 'edited') && data.body.fromUserId === this.otherId && this.userIdsWhoMeMuting.has(this.otherId)) return;
 			let blocked = ChatUserChannel.blockedCache.get(data);
 			if (!blocked) {
 				blocked = this.chatService.getConversationNotificationMode(this.user.id, { userId: this.otherId }).then(mode => mode === 'blocked');

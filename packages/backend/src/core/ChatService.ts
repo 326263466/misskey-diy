@@ -8,15 +8,13 @@ import { CONTENT_LIMITS } from 'misskey-js';
 import { assertContentLength } from '@/misc/content-limits.js';
 import * as Redis from 'ioredis';
 import * as mfm from 'mfm-js';
-import { Brackets, In, IsNull, type EntityManager } from 'typeorm';
+import { Brackets, In, IsNull, type EntityManager, type SelectQueryBuilder } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
-import { QueueService } from '@/core/QueueService.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { ChatEntityService } from '@/core/entities/ChatEntityService.js';
-import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { PushNotificationService } from '@/core/PushNotificationService.js';
 import { bindThis } from '@/decorators.js';
 import type { ChatApprovalsRepository, ChatMessagesRepository, ChatRoomInvitationsRepository, ChatRoomMembershipsRepository, ChatRoomsRepository, MiDriveFile, MutingsRepository, UsersRepository } from '@/models/_.js';
@@ -47,6 +45,7 @@ export class ChatRoomAccessError extends Error {}
 export class ChatRoomMemberError extends Error {}
 export class ChatRoomFullError extends Error {}
 export class ChatRoomJoinDeniedError extends Error {}
+export class ChatRoomJoinRequestMessageError extends Error {}
 export class ChatRoomInvitationError extends Error {
 	constructor(public readonly reason: 'invalid' | 'privacy' | 'blocked' | 'unavailable' | 'remote' | 'alreadyMember' | 'closed' = 'invalid', public readonly userId?: MiUser['id'], public readonly chatScope?: MiUser['chatScope']) {
 		super(`Room invitation rejected: ${reason}`);
@@ -142,8 +141,6 @@ export class ChatService {
 		private chatEntityService: ChatEntityService,
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
-		private apRendererService: ApRendererService,
-		private queueService: QueueService,
 		private pushNotificationService: PushNotificationService,
 		private notificationService: NotificationService,
 		private userBlockingService: UserBlockingService,
@@ -277,7 +274,7 @@ export class ChatService {
 			throw new ChatSendDeniedError('unavailable', 'recipient is cannot chat (policy)');
 		}
 
-		const blocked = await this.userBlockingService.checkBlocked(toUser.id, fromUser.id);
+		const blocked = await this.userBlockingService.isBlockedEither(toUser.id, fromUser.id);
 		if (blocked) {
 			if (params.redPacketId) throw new RedPacketService.AccessDeniedError();
 			throw new ChatSendDeniedError('blocked', 'blocked');
@@ -315,8 +312,9 @@ export class ChatService {
 		const packedMessage = await this.chatEntityService.packMessageLiteFor1on1(inserted);
 		await this.restoreConversationForMessage(inserted);
 		const recipientMode = await this.chatConversationService.mode(toUser.id, { userId: fromUser.id });
+		const recipientMuted = await this.mutingsRepository.existsBy({ muterId: toUser.id, muteeId: fromUser.id });
 
-		if (this.userEntityService.isLocalUser(toUser) && recipientMode !== 'blocked') {
+		if (this.userEntityService.isLocalUser(toUser) && recipientMode !== 'blocked' && !recipientMuted) {
 			await this.markUnread(toUser.id, 'user', fromUser.id, message.id);
 		}
 
@@ -325,7 +323,7 @@ export class ChatService {
 			this.globalEventService.publishChatUserStream(fromUser.id, toUser.id, 'message', packedMessage);
 		}
 
-		if (this.userEntityService.isLocalUser(toUser) && recipientMode !== 'blocked') {
+		if (this.userEntityService.isLocalUser(toUser) && recipientMode !== 'blocked' && !recipientMuted) {
 			// 相手のストリーム
 			this.globalEventService.publishChatUserStream(toUser.id, fromUser.id, 'message', packedMessage);
 		}
@@ -333,12 +331,14 @@ export class ChatService {
 		await this.publishHistoryUpdate(inserted);
 
 		// 3秒経っても既読にならなかったらイベント発行
-		if (this.userEntityService.isLocalUser(toUser) && recipientMode === 'all') {
+		if (this.userEntityService.isLocalUser(toUser) && recipientMode === 'all' && !recipientMuted) {
 			this.scheduleNotification(async () => {
 				if (await this.chatConversationService.mode(toUser.id, { userId: fromUser.id }) !== 'all') return;
+				if (await this.userBlockingService.isBlockedEither(fromUser.id, toUser.id) || await this.mutingsRepository.existsBy({ muterId: toUser.id, muteeId: fromUser.id })) return;
 				const marker = await this.redisClient.get(`newUserChatMessageExists:${toUser.id}:${fromUser.id}`);
 
 				if (marker == null) return; // 既読
+				if (inserted.isPoke && !await this.claimPokeAlert(toUser.id, fromUser.id)) return;
 
 				const packedMessageForTo = await this.chatEntityService.packMessageDetailed(inserted, toUser);
 				this.globalEventService.publishMainStream(toUser.id, 'newChatMessage', packedMessageForTo);
@@ -399,7 +399,12 @@ export class ChatService {
 			throw new ChatSendDeniedError('notMember', 'you are not a member of the room');
 		}
 
-		const membershipsOtherThanMe = memberships.filter(member => member.userId !== fromUser.id && member.notificationMode !== 'blocked');
+		const [memberAccess, mutings] = await Promise.all([
+			Promise.all(memberships.map(member => this.userBlockingService.isBlockedEither(fromUser.id, member.userId))),
+			this.mutingsRepository.findBy({ muteeId: fromUser.id }),
+		]);
+		const mutedRecipients = new Set(mutings.map(muting => muting.muterId));
+		const membershipsOtherThanMe = memberships.filter((member, index) => member.userId !== fromUser.id && member.notificationMode !== 'blocked' && !memberAccess[index] && !mutedRecipients.has(member.userId));
 		await this.checkReply(params.replyId, fromUser.id, null, toRoom.id);
 
 		const message = {
@@ -427,11 +432,14 @@ export class ChatService {
 		this.globalEventService.publishChatRoomStream(toRoom.id, 'message', packedMessage);
 		await this.publishHistoryUpdate(inserted);
 
+		const pokeTargetId = inserted.isPoke ? inserted.pokeUserId : null;
+		// 被戳的人开了群免打扰也提醒；拒收该群、拉黑或屏蔽时仍不提醒。
+		const canNotify = (member: { userId: string; notificationMode: string }) => member.notificationMode === 'all' || (member.userId === pokeTargetId && member.notificationMode !== 'blocked');
 		// 消息到达和实际通知时都必须允许提醒，解除静音不能补发静音期间的通知。
-		const notificationRecipients = membershipsOtherThanMe.filter(member => member.notificationMode === 'all');
+		const notificationRecipients = membershipsOtherThanMe.filter(canNotify);
 		if (notificationRecipients.length) this.scheduleNotification(async () => {
 			// 发送后开启静音或退出群的用户也不应收到延迟通知。
-			const currentRecipients = new Set((await this.getRoomParticipants(toRoom.id)).filter(member => member.notificationMode === 'all').map(member => member.userId));
+			const currentRecipients = new Set((await this.getRoomParticipants(toRoom.id)).filter(canNotify).map(member => member.userId));
 			const redisPipeline = this.redisClient.pipeline();
 			for (const membership of notificationRecipients) {
 				redisPipeline.get(`newRoomChatMessageExists:${membership.userId}:${toRoom.id}`);
@@ -441,7 +449,6 @@ export class ChatService {
 
 			if (markers.every(marker => marker[1] == null)) return;
 
-			const packedMessageForTo = await this.chatEntityService.packMessageDetailed(inserted);
 			const quietUsers = new Set((await this.usersRepository.find({
 				where: {
 					id: In(notificationRecipients.filter((_, i) => markers[i][1] != null).map(member => member.userId)),
@@ -453,6 +460,10 @@ export class ChatService {
 			for (let i = 0; i < notificationRecipients.length; i++) {
 				const marker = markers[i][1];
 				if (marker == null || !currentRecipients.has(notificationRecipients[i].userId)) continue;
+				if (await this.userBlockingService.isBlockedEither(fromUser.id, notificationRecipients[i].userId)) continue;
+				if (await this.mutingsRepository.existsBy({ muterId: notificationRecipients[i].userId, muteeId: fromUser.id })) continue;
+				if (notificationRecipients[i].userId === pokeTargetId && !await this.claimPokeAlert(pokeTargetId, fromUser.id)) continue;
+				const packedMessageForTo = await this.chatEntityService.packMessageDetailed(inserted, { id: notificationRecipients[i].userId });
 
 				this.globalEventService.publishMainStream(notificationRecipients[i].userId, 'newChatMessage', packedMessageForTo);
 				if (!quietUsers.has(notificationRecipients[i].userId)) {
@@ -480,6 +491,11 @@ export class ChatService {
 		if (params.pokeUserId && (params.text?.trim() || params.file || params.redPacketId || params.replyId || params.uri || params.isAutoReply)) throw new ChatPokeError();
 	}
 
+	// 连续戳一戳只提醒一次，消息本身照常保存和显示。
+	private async claimPokeAlert(targetId: string, fromUserId: string): Promise<boolean> {
+		return await this.redisClient.set(`chatPokeAlert:${targetId}:${fromUserId}`, '1', 'EX', 10, 'NX') === 'OK';
+	}
+
 	private async assertRoomWriteAccess(manager: EntityManager, roomId: string, userId: string, pokeUserId?: string | null): Promise<void> {
 		const room = await manager.findOne(MiChatRoom, { where: { id: roomId }, lock: { mode: 'pessimistic_read' } });
 		if (!room || room.isArchived) throw new ChatSendDeniedError('notMember', 'room unavailable');
@@ -487,7 +503,7 @@ export class ChatService {
 			const membership = await manager.findOne(MiChatRoomMembership, { where: { roomId, userId }, lock: { mode: 'pessimistic_read' } });
 			if (!membership) throw new ChatSendDeniedError('notMember', 'not a current member');
 			if (membership.isSilenced && (membership.silenceUntil == null || membership.silenceUntil.getTime() > Date.now())) throw new ChatRoomSilencedError();
-			if (membership.role !== 'administrator' && room.isSilenced && (room.silenceUntil == null || room.silenceUntil.getTime() > Date.now())) throw new ChatRoomSilencedError();
+			if (room.isSilenced && (room.silenceUntil == null || room.silenceUntil.getTime() > Date.now())) throw new ChatRoomSilencedError();
 		}
 		if (pokeUserId) {
 			if (room.ownerId !== pokeUserId && !await manager.findOne(MiChatRoomMembership, { where: { roomId, userId: pokeUserId }, lock: { mode: 'pessimistic_read' } })) throw new ChatPokeError();
@@ -512,7 +528,7 @@ export class ChatService {
 			(reply.fromUserId === fromUserId && reply.toUserId === toUserId) ||
 			(reply.fromUserId === toUserId && reply.toUserId === fromUserId)
 		));
-		if (!sameConversation || reply?.systemEvent) throw new Error('NO_SUCH_REPLY');
+		if (!sameConversation || reply?.systemEvent || await this.userBlockingService.isBlockedEither(fromUserId, reply.fromUserId)) throw new Error('NO_SUCH_REPLY');
 	}
 
 	private async insertMessageWithRedPacket(message: Partial<MiChatMessage> & Pick<MiChatMessage, 'id' | 'fromUserId'>, redPacketId: string): Promise<{ message: MiChatMessage; created: boolean }> {
@@ -601,7 +617,7 @@ export class ChatService {
 	}
 
 	@bindThis
-	public async getUnreadSnapshot(readerId: string, type: 'user' | 'room', otherId: string, includeMentions = true): Promise<{ count: number; firstMessageId: string | null; firstMentionId: string | null; lastMessageId: string | null }> {
+	public async getUnreadSnapshot(readerId: string, type: 'user' | 'room', otherId: string, includeAttention = true): Promise<{ count: number; firstMessageId: string | null; firstMentionId: string | null; lastMessageId: string | null }> {
 		const [latest, first, cursor] = await this.redisClient.mget(...this.unreadKeys(readerId, type, otherId).slice(0, 3));
 		const empty = { count: 0, firstMessageId: null, firstMentionId: null, lastMessageId: latest };
 		if (!latest) return empty;
@@ -612,35 +628,58 @@ export class ChatService {
 		if (first || !cursor) query.andWhere('message.id >= :first', { first: first ?? latest });
 		if (type === 'room') query.andWhere('message.toRoomId = :otherId', { otherId });
 		else query.andWhere('message.toUserId = :readerId AND message.fromUserId = :otherId', { readerId, otherId });
+		if (type === 'room') this.generateRoomMessageFilteringQuery(query, readerId, 'message');
 		const result = await query.clone().select('COUNT(*)', 'count')
 			.addSelect('MIN(message.id)', 'firstMessageId')
 			.getRawOne<{ count: string; firstMessageId: string | null }>();
 		const snapshot = { count: Number(result?.count ?? 0), firstMessageId: result?.firstMessageId ?? null, firstMentionId: null, lastMessageId: latest };
-		// 滚动阅读只同步剩余数量，不反复解析历史消息中的提及。
-		if (!includeMentions || snapshot.count === 0) return snapshot;
+		// 滚动阅读只同步剩余数量，不反复解析历史消息中的提及或回复。
+		if (!includeAttention || snapshot.count === 0) return snapshot;
 		const reader = await this.usersRepository.findOneBy({ id: readerId });
 		if (!reader) return empty;
 		// 与前端使用同一 MFM 语义，完整本地提及有效，代码块和远站同名无效。
-		const mentionQuery = query.clone().select(['message.id', 'message.text'])
-			.andWhere('message.text ILIKE :mention', { mention: `%@${sqlLikeEscape(reader.username)}%` })
+		const roomMentionSenders = new Set<string>();
+		if (type === 'room') {
+			const [room, administrators] = await Promise.all([
+				this.chatRoomsRepository.findOneBy({ id: otherId }),
+				this.chatRoomMembershipsRepository.findBy({ roomId: otherId, role: 'administrator' }),
+			]);
+			if (room) roomMentionSenders.add(room.ownerId);
+			for (const administrator of administrators) roomMentionSenders.add(administrator.userId);
+		}
+		const attentionCondition = type === 'room' && roomMentionSenders.size > 0
+			? '(message.text ILIKE :mention OR message.text ILIKE :everyoneMention OR message.text ILIKE :allMention OR message.replyId IS NOT NULL)'
+			: '(message.text ILIKE :mention OR message.replyId IS NOT NULL)';
+		const attentionQuery = query.clone()
+			.leftJoinAndSelect('message.reply', 'attentionReply')
+			.select(['message.id', 'message.text', 'message.fromUserId', 'message.replyId', 'message.replyType', 'attentionReply.id', 'attentionReply.fromUserId'])
+			.andWhere(attentionCondition, {
+				mention: `%@${sqlLikeEscape(reader.username)}%`,
+				everyoneMention: '%@everyone%',
+				allMention: '%@all%',
+			})
 			.orderBy('message.id', 'ASC').take(100);
-		let firstMentionId: string | null = null;
+		let firstAttentionId: string | null = null;
 		let afterId: string | null = null;
-		while (!firstMentionId) {
-			const batchQuery = mentionQuery.clone();
+		while (!firstAttentionId) {
+			const batchQuery = attentionQuery.clone();
 			if (afterId) batchQuery.andWhere('message.id > :afterId', { afterId });
 			const candidates = await batchQuery.getMany();
 			for (const candidate of candidates) {
 				const mentions = mfm.extract(mfm.parse(candidate.text ?? ''), node => node.type === 'mention') as mfm.MfmMention[];
-				if (mentions.some(node => node.props.username.toLowerCase() === reader.username.toLowerCase() && (node.props.host == null || node.props.host.toLowerCase() === this.config.hostname.toLowerCase()))) {
-					firstMentionId = candidate.id;
+				const isLocalMention = (node: mfm.MfmMention, username: string) => node.props.username.toLowerCase() === username && (node.props.host == null || node.props.host.toLowerCase() === this.config.hostname.toLowerCase());
+				const mentionedReader = mentions.some(node => isLocalMention(node, reader.username.toLowerCase()));
+				const mentionedEveryone = type === 'room' && roomMentionSenders.has(candidate.fromUserId) && mentions.some(node => isLocalMention(node, 'everyone') || isLocalMention(node, 'all'));
+				const repliedOrQuoted = (candidate.replyType === 'reply' || candidate.replyType === 'quote') && candidate.reply?.fromUserId === readerId;
+				if (mentionedReader || mentionedEveryone || repliedOrQuoted) {
+					firstAttentionId = candidate.id;
 					break;
 				}
 			}
 			if (candidates.length < 100) break;
 			afterId = candidates.at(-1)!.id;
 		}
-		return { count: Number(result?.count ?? 0), firstMessageId: result?.firstMessageId ?? null, firstMentionId, lastMessageId: latest };
+		return { count: Number(result?.count ?? 0), firstMessageId: result?.firstMessageId ?? null, firstMentionId: firstAttentionId, lastMessageId: latest };
 	}
 
 	@bindThis
@@ -697,11 +736,6 @@ export class ChatService {
 
 			if (this.userEntityService.isLocalUser(fromUser)) this.globalEventService.publishChatUserStream(message.fromUserId, message.toUserId, 'deleted', message.id);
 			if (message.toUserId !== message.fromUserId && this.userEntityService.isLocalUser(toUser)) this.globalEventService.publishChatUserStream(message.toUserId, message.fromUserId, 'deleted', message.id);
-
-			if (this.userEntityService.isLocalUser(fromUser) && this.userEntityService.isRemoteUser(toUser)) {
-				//const activity = this.apRendererService.addContext(this.apRendererService.renderDelete(this.apRendererService.renderTombstone(`${this.config.url}/notes/${message.id}`), fromUser));
-				//this.queueService.deliver(fromUser, activity, toUser.inbox);
-			}
 		} else if (message.toRoomId) {
 			this.globalEventService.publishChatRoomStream(message.toRoomId, 'deleted', message.id);
 		}
@@ -710,6 +744,7 @@ export class ChatService {
 
 	@bindThis
 	public async editMessage(message: MiChatMessage, text: string | null): Promise<MiChatMessage> {
+		if (message.toUserId && await this.userBlockingService.isBlockedEither(message.fromUserId, message.toUserId)) throw new ChatMessageAccessError('blocked');
 		const editedAt = new Date();
 		const updated = await this.chatMessagesRepository.manager.transaction(async manager => {
 			if (message.toRoomId) await this.assertRoomWriteAccess(manager, message.toRoomId, message.fromUserId);
@@ -758,15 +793,26 @@ export class ChatService {
 	}
 
 	@bindThis
-	public async roomTimeline(roomId: MiChatRoom['id'], limit: number, sinceId?: MiChatMessage['id'] | null, untilId?: MiChatMessage['id'] | null) {
+	public async roomTimeline(roomId: MiChatRoom['id'], limit: number, sinceId?: MiChatMessage['id'] | null, untilId?: MiChatMessage['id'] | null, meId?: MiUser['id']) {
 		const query = this.queryService.makePaginationQuery(this.chatMessagesRepository.createQueryBuilder('message'), sinceId, untilId)
 			.andWhere('message.toRoomId = :roomId', { roomId })
 			.leftJoinAndSelect('message.file', 'file')
 			.leftJoinAndSelect('message.fromUser', 'fromUser');
+		if (meId) this.generateRoomMessageFilteringQuery(query, meId, 'message');
 
 		const messages = await query.take(limit).getMany();
 
 		return messages;
+	}
+
+	private generateRoomMessageFilteringQuery(query: SelectQueryBuilder<MiChatMessage>, meId: MiUser['id'], alias: string): void {
+		const visible = this.chatMessagesRepository.createQueryBuilder('visibleMessage').select('visibleMessage.id');
+		this.queryService.generateBlockedUserQuery(visible, { id: meId }, 'visibleMessage.fromUserId');
+		this.queryService.generateMutedUserQuery(visible, { id: meId }, 'visibleMessage.fromUserId');
+		// 群管理事件不属于个人发言，不能被成员的屏蔽或拉黑隐藏。
+		query.andWhere(new Brackets(qb => {
+			qb.where(`${alias}.systemEvent IS NOT NULL`).orWhere(`${alias}.id IN (${visible.getQuery()})`);
+		})).setParameters(visible.getParameters());
 	}
 
 	@bindThis
@@ -813,6 +859,7 @@ export class ChatService {
 			.limit(limit)
 			.offset(offset);
 		if (roomId) latestMessages.andWhere('latestMessage.toRoomId = :roomId', { roomId });
+		this.generateRoomMessageFilteringQuery(latestMessages, meId, 'latestMessage');
 
 		return this.chatMessagesRepository.createQueryBuilder('message')
 			.where(`message.id IN (${latestMessages.getQuery()})`)
@@ -874,12 +921,14 @@ export class ChatService {
 		name: string;
 		description: string;
 		joinPolicy: MiChatRoom['joinPolicy'];
+		joinQuestion: string;
 		avatarId: MiChatRoom['avatarId'];
 		initialUserIds: MiUser['id'][];
 	}>) {
 		const ids = params.initialUserIds ?? [];
 		assertContentLength(params.name, CONTENT_LIMITS.chatRoomName);
 		assertContentLength(params.description, CONTENT_LIMITS.chatRoomDescription);
+		assertContentLength(params.joinQuestion?.trim(), 200);
 		if (ids.length && (ids.length < 2 || ids.length >= MAX_ROOM_MEMBERS || new Set(ids).size !== ids.length || ids.includes(owner.id))) throw new ChatRoomInvitationError();
 		const result = await this.chatRoomsRepository.manager.transaction(async manager => {
 			const users = ids.length ? await manager.find(MiUser, { where: { id: In(ids) }, lock: { mode: 'pessimistic_read' } }) : [];
@@ -888,6 +937,7 @@ export class ChatService {
 			const room = manager.create(MiChatRoom, {
 				id: this.idService.gen(), name: params.name?.trim() || `${Array.from(owner.name || owner.username).slice(0, CONTENT_LIMITS.chatRoomName - 3).join('')}的群组`,
 				description: params.description ?? '', joinPolicy: params.joinPolicy ?? 'public',
+				joinQuestion: params.joinQuestion?.trim() ?? '',
 				avatarId: params.avatarId ?? null, ownerId: owner.id,
 			});
 			await manager.insert(MiChatRoom, room);
@@ -1091,7 +1141,7 @@ export class ChatService {
 
 	@bindThis
 	public async removeRoomMember(actorId: MiUser['id'], roomId: MiChatRoom['id'], userId: MiUser['id']) {
-		await this.chatRoomsRepository.manager.transaction(async manager => {
+		const roomName = await this.chatRoomsRepository.manager.transaction(async manager => {
 			const room = await manager.findOne(MiChatRoom, { where: { id: roomId }, lock: { mode: 'pessimistic_write' } });
 			if (!room) throw new ChatRoomAccessError();
 			const actorRole = await this.getRoomRole(room, actorId, manager);
@@ -1101,9 +1151,11 @@ export class ChatService {
 			if (!membership || (actorRole === 'administrator' && membership.role === 'administrator')) throw new ChatRoomMemberError();
 			await manager.delete(MiChatRoomMembership, membership.id);
 			await manager.delete(MiChatRoomInvitation, { roomId, userId });
+			return room.name;
 		});
 		this.globalEventService.publishChatRoomStream(roomId, 'membersChanged');
 		await this.clearRoomUnread(userId, roomId);
+		this.notificationService.createNotification(userId, 'chatRoomMemberRemoved', { roomId, roomName }, actorId);
 	}
 
 	@bindThis
@@ -1120,13 +1172,15 @@ export class ChatService {
 			if (await manager.existsBy(MiChatRoomMembership, { roomId, userId: inviteeId })) throw new ChatRoomInvitationError('alreadyMember', inviteeId);
 			await this.assertRoomInvitee(inviterId, invitee);
 			const existing = await manager.findOneBy(MiChatRoomInvitation, { roomId, userId: inviteeId });
-			if (existing && !existing.isRequest) return { invitation: existing, created: false };
+			// 待处理的邀请不重复通知；对方忽略后可再次邀请，换新记录让旧通知失效。
+			if (existing && !existing.isRequest && !existing.ignored) return { invitation: existing, created: false };
 			if (await manager.countBy(MiChatRoomMembership, { roomId }) + 1 >= MAX_ROOM_MEMBERS) throw new ChatRoomFullError('room is full');
-			if (existing) {
+			if (existing?.isRequest) {
 				const accepted = { isRequest: false, requestMessage: null, ignored: false, inviterId };
 				await manager.update(MiChatRoomInvitation, existing.id, accepted);
 				return { invitation: { ...existing, ...accepted }, created: true };
 			}
+			if (existing) await manager.delete(MiChatRoomInvitation, existing.id);
 			const invitation = manager.create(MiChatRoomInvitation, { id: this.idService.gen(), roomId: room.id, userId: inviteeId, inviterId });
 			await manager.insert(MiChatRoomInvitation, invitation);
 			return { invitation, created: true };
@@ -1177,6 +1231,7 @@ export class ChatService {
 			if (room.joinPolicy === 'closed' || room.isArchived) throw new ChatRoomJoinDeniedError();
 			const invitation = await manager.findOneBy(MiChatRoomInvitation, { roomId, userId, ignored: false, isRequest: false });
 			if (room.joinPolicy !== 'public' && !invitation) throw new ChatRoomJoinDeniedError();
+			if (await this.userBlockingService.isBlockedEither(userId, room.ownerId)) throw new ChatRoomJoinDeniedError();
 			const membershipsCount = await manager.countBy(MiChatRoomMembership, { roomId });
 			if (membershipsCount + 1 >= MAX_ROOM_MEMBERS) throw new ChatRoomFullError('room is full');
 			await manager.insert(MiChatRoomMembership, { id: this.idService.gen(), roomId, userId });
@@ -1197,6 +1252,7 @@ export class ChatService {
 			if (await this.userBlockingService.checkBlocked(userId, room.ownerId) || await this.userBlockingService.checkBlocked(room.ownerId, userId)) throw new ChatRoomJoinDeniedError();
 			const existing = await manager.findOneBy(MiChatRoomInvitation, { roomId, userId });
 			if (existing && !existing.ignored) return false;
+			if (room.joinQuestion && !requestMessage?.trim()) throw new ChatRoomJoinRequestMessageError();
 			if (await manager.countBy(MiChatRoomMembership, { roomId }) + 1 >= MAX_ROOM_MEMBERS) throw new ChatRoomFullError('room is full');
 			if (existing) await manager.delete(MiChatRoomInvitation, existing.id);
 			await manager.insert(MiChatRoomInvitation, {
@@ -1241,8 +1297,8 @@ export class ChatService {
 
 	@bindThis
 	public async ignoreRoomInvitation(userId: MiUser['id'], roomId: MiChatRoom['id']) {
-		const invitation = await this.chatRoomInvitationsRepository.findOneByOrFail({ roomId, userId, isRequest: false });
-		await this.chatRoomInvitationsRepository.update(invitation.id, { ignored: true });
+		// 邀请已接受、已忽略或群已解散时结果相同，重复操作不报错。
+		await this.chatRoomInvitationsRepository.update({ roomId, userId, isRequest: false }, { ignored: true });
 	}
 
 	@bindThis
@@ -1332,6 +1388,7 @@ export class ChatService {
 		description?: string;
 		announcement?: string;
 		joinPolicy?: MiChatRoom['joinPolicy'];
+		joinQuestion?: string;
 		avatarId?: MiChatRoom['avatarId'];
 		isSilenced?: boolean;
 		silenceUntil?: Date | null;
@@ -1339,13 +1396,15 @@ export class ChatService {
 		if (params.silenceUntil && (!Number.isFinite(params.silenceUntil.getTime()) || params.silenceUntil.getTime() <= Date.now())) throw new ChatSilenceDurationError();
 		if (params.isSilenced === false) params = { ...params, silenceUntil: null };
 		if (params.isSilenced === true && params.silenceUntil === undefined) params = { ...params, silenceUntil: null };
+		if (params.joinQuestion !== undefined) params = { ...params, joinQuestion: params.joinQuestion.trim() };
 		const updated = await this.chatRoomsRepository.manager.transaction(async manager => {
 			const current = await manager.findOne(MiChatRoom, { where: { id: room.id }, lock: { mode: 'pessimistic_write' } });
 			if (!current) throw new ChatRoomAccessError();
 			const role = await this.getRoomRole(current, updaterId, manager);
-			if (role !== 'owner' && (role !== 'administrator' || params.name !== undefined || params.description !== undefined || params.joinPolicy !== undefined || params.avatarId !== undefined)) throw new ChatRoomAccessError();
+			if (role !== 'owner' && (role !== 'administrator' || params.name !== undefined || params.description !== undefined || params.joinPolicy !== undefined || params.joinQuestion !== undefined || params.avatarId !== undefined)) throw new ChatRoomAccessError();
 			assertContentLength(params.name, CONTENT_LIMITS.chatRoomName, current.name);
 			assertContentLength(params.description, CONTENT_LIMITS.chatRoomDescription, current.description);
+			assertContentLength(params.joinQuestion, 200, current.joinQuestion);
 			if (Object.values(params).some(value => value !== undefined)) await manager.update(MiChatRoom, current.id, params);
 			return manager.findOneByOrFail(MiChatRoom, { id: current.id });
 		});
@@ -1410,6 +1469,12 @@ export class ChatService {
 		}
 
 		q.andWhere('LOWER(message.text) LIKE :q', { q: `%${ sqlLikeEscape(query.toLowerCase()) }%` });
+		// 私信历史是当事人的记录；群搜索沿用群时间线的个人过滤。
+		const visibleGroupMessages = this.chatMessagesRepository.createQueryBuilder('visibleGroupMessage').select('visibleGroupMessage.id');
+		this.generateRoomMessageFilteringQuery(visibleGroupMessages, meId, 'visibleGroupMessage');
+		q.andWhere(new Brackets(qb => {
+			qb.where('message.toRoomId IS NULL').orWhere(`message.id IN (${visibleGroupMessages.getQuery()})`);
+		})).setParameters(visibleGroupMessages.getParameters());
 
 		q.leftJoinAndSelect('message.file', 'file');
 		q.leftJoinAndSelect('message.fromUser', 'fromUser');
@@ -1450,6 +1515,11 @@ export class ChatService {
 
 		if (message.toRoomId === null && message.toUserId !== userId) {
 			throw new ChatMessageAccessError('cannot react to others message');
+		}
+
+		// 回应会通知作者；拉黑后不能再回应，撤回仍可用。
+		if (await this.userBlockingService.isBlockedEither(message.fromUserId, userId)) {
+			throw new ChatMessageAccessError('blocked');
 		}
 
 		const room = message.toRoomId ? await this.chatRoomsRepository.findOneByOrFail({ id: message.toRoomId }) : null;

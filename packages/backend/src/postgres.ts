@@ -29,9 +29,6 @@ import { MiClip } from '@/models/Clip.js';
 import { MiClipNote } from '@/models/ClipNote.js';
 import { MiClipFavorite } from '@/models/ClipFavorite.js';
 import { MiDriveFile } from '@/models/DriveFile.js';
-import { MiDriveFileReference } from '@/models/DriveFileReference.js';
-import { MiDriveFileTarget } from '@/models/DriveFileTarget.js';
-import { MiDriveFileDraft } from '@/models/DriveFileDraft.js';
 import { MiDriveFolder } from '@/models/DriveFolder.js';
 import { MiEmoji } from '@/models/Emoji.js';
 import { MiFollowing } from '@/models/Following.js';
@@ -42,6 +39,7 @@ import { MiHashtag } from '@/models/Hashtag.js';
 import { MiInstance } from '@/models/Instance.js';
 import { MiMeta } from '@/models/Meta.js';
 import { MiProduct } from '@/models/Product.js';
+import { MiProductImage } from '@/models/ProductImage.js';
 import { MiOrder } from '@/models/Order.js';
 import { MiPaymentSettings } from '@/models/PaymentSettings.js';
 import { MiPlatformAccount } from '@/models/PlatformAccount.js';
@@ -58,6 +56,7 @@ import { MiNoteDraft } from '@/models/NoteDraft.js';
 import { MiPage } from '@/models/Page.js';
 import { MiPageLike } from '@/models/PageLike.js';
 import { MiArticleComment } from '@/models/ArticleComment.js';
+import { MiArticleCommentLike } from '@/models/ArticleCommentLike.js';
 import { MiArticleFavorite } from '@/models/ArticleFavorite.js';
 import { MiArticleDraft } from '@/models/ArticleDraft.js';
 import { MiPasswordResetRequest } from '@/models/PasswordResetRequest.js';
@@ -109,11 +108,12 @@ import { MiBubbleGameRecord } from '@/models/BubbleGameRecord.js';
 import { MiUserCheckin } from '@/models/UserCheckin.js';
 import { MiUserCheckinExchange } from '@/models/UserCheckinExchange.js';
 import { MiUserCheckinCardBatch } from '@/models/UserCheckinCardBatch.js';
-import { MiCheckinRedemptionCode } from '@/models/CheckinRedemptionCode.js';
-import { MiCheckinRedemptionClaim } from '@/models/CheckinRedemptionClaim.js';
+import { MiBenefitRedemptionCode } from '@/models/BenefitRedemptionCode.js';
+import { MiBenefitRedemptionClaim } from '@/models/BenefitRedemptionClaim.js';
 import { MiReversiGame } from '@/models/ReversiGame.js';
 import { MiChatApproval } from '@/models/ChatApproval.js';
 import { MiSystemAccount } from '@/models/SystemAccount.js';
+import { MiSearchIndexJob, MiSearchIndexState } from '@/models/SearchIndex.js';
 
 pg.types.setTypeParser(20, Number);
 
@@ -205,10 +205,13 @@ class MyCustomLogger implements Logger {
 }
 
 export const entities = [
+	MiSearchIndexJob,
+	MiSearchIndexState,
 	MiAnnouncement,
 	MiAnnouncementRead,
 	MiMeta,
 	MiProduct,
+	MiProductImage,
 	MiOrder,
 	MiPaymentSettings,
 	MiPlatformAccount,
@@ -242,14 +245,12 @@ export const entities = [
 	MiPage,
 	MiPageLike,
 	MiArticleComment,
+	MiArticleCommentLike,
 	MiArticleFavorite,
 	MiArticleDraft,
 	MiGalleryPost,
 	MiGalleryLike,
 	MiDriveFile,
-	MiDriveFileReference,
-	MiDriveFileTarget,
-	MiDriveFileDraft,
 	MiDriveFolder,
 	MiPoll,
 	MiPollVote,
@@ -305,8 +306,8 @@ export const entities = [
 	MiUserCheckin,
 	MiUserCheckinExchange,
 	MiUserCheckinCardBatch,
-	MiCheckinRedemptionCode,
-	MiCheckinRedemptionClaim,
+	MiBenefitRedemptionCode,
+	MiBenefitRedemptionClaim,
 	MiReversiGame,
 	...charts,
 ];

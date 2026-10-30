@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="[$style.root, { [$style.disabled]: disabled }]">
+<div class="_formSwitch" :class="[$style.root, { [$style.disabled]: disabled }]">
 	<input
 		ref="input"
 		type="checkbox"
@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span @click="toggle">
 				<slot name="label"></slot><slot></slot>
 			</span>
-			<span v-if="helpText" v-tooltip:dialog="helpText" class="_button _help" :class="$style.help"><i class="ti ti-help-circle"></i></span>
+			<span v-if="helpText" v-tooltip:dialog="helpText" class="_button" :class="$style.help"><i class="ti ti-help-circle"></i></span>
 		</span>
 		<p :class="$style.caption"><slot name="caption"></slot></p>
 	</span>
@@ -103,7 +103,7 @@ const toggle = () => {
 .caption {
 	margin: 8px 0 0 0;
 	color: var(--MI_THEME-fgTransparentWeak);
-	font-size: 0.85em;
+	font-size: var(--MI-formCaptionFontSize, 0.85em);
 
 	&:empty {
 		display: none;
@@ -114,5 +114,6 @@ const toggle = () => {
 	margin-left: 0.5em;
 	font-size: 85%;
 	vertical-align: top;
+	color: var(--MI_THEME-accent);
 }
 </style>

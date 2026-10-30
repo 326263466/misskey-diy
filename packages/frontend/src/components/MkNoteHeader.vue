@@ -35,6 +35,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-if="viewsCount != null" :class="$style.views" :title="i18n.ts.viewsCount"><i class="ti ti-eye" role="img" :aria-label="i18n.ts.viewsCount"></i> {{ viewsCount.toLocaleString() }}</span>
 		</template>
 		<div v-else-if="mini && showTime" :class="$style.time"><MkTime :time="note.createdAt" colored/></div>
+		<MkA
+			v-if="channel"
+			:class="$style.channelLink"
+			:to="`/channels/${channel.id}`"
+			:title="channel.name"
+			:aria-label="`${i18n.ts.channel}: ${channel.name}`"
+			@click.stop
+			@keydown.enter.stop
+		>
+			<i class="ti ti-broadcast" aria-hidden="true"></i>
+			<span :class="$style.channelLabel">{{ i18n.ts.channel }}</span>
+			<span :class="$style.channelName"><Mfm :text="channel.name" :plain="true" :nowrap="true"/></span>
+		</MkA>
 	</div>
 	<div v-if="!mini && !detailLayout && (hasWork || showTime)" :class="$style.secondaryLine">
 		<MkUserWork :user="user" :class="$style.work"/>
@@ -69,8 +82,10 @@ const props = withDefaults(defineProps<{
 });
 
 const mock = inject(DI.mock, false);
+const inChannel = inject(DI.inChannel, null);
 const user = useUserProfile(() => props.note.user);
 const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.jobTitle?.trim()));
+const channel = computed(() => props.note.channel != null && inChannel?.value !== props.note.channel.id ? props.note.channel : null);
 </script>
 
 <style lang="scss" module>
@@ -127,6 +142,7 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 .badges {
 	flex-shrink: 0;
 	display: inline-grid;
+	align-items: center;
 	grid-auto-flow: column;
 	grid-auto-columns: 1fr;
 	gap: .5em;
@@ -189,6 +205,54 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 	flex-shrink: 0;
 }
 
+.channelLink {
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 4px;
+	min-width: 0;
+	max-width: 50%;
+	margin-left: auto;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: .85em;
+	font-weight: normal;
+	text-decoration: none;
+
+	> i {
+		flex: none;
+		color: inherit;
+	}
+
+	&:hover .channelName {
+		text-decoration: underline;
+	}
+
+	&:focus-visible {
+		border-radius: 2px;
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 2px;
+	}
+}
+
+.channelLabel {
+	flex: none;
+
+	&::after {
+		content: "·";
+		margin-left: 4px;
+		opacity: .65;
+	}
+}
+
+.channelName {
+	min-width: 0;
+	overflow: hidden;
+	color: inherit;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .time {
 	flex-shrink: 0;
 	white-space: nowrap;
@@ -212,6 +276,11 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 	white-space: nowrap;
 }
 
+.detailLayout .channelLink {
+	// 详情页频道与日期同为辅助信息，避免频道在长标题行里显得过小。
+	font-size: 1em;
+}
+
 .views {
 	display: inline-flex;
 	align-items: center;
@@ -221,6 +290,8 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 }
 
 .badgeRoles {
+	display: flex;
+	align-items: center;
 	flex: 0 1 auto;
 	min-width: 0;
 	overflow: hidden;
@@ -229,8 +300,8 @@ const hasWork = computed(() => Boolean(user.value.company?.trim() || user.value.
 }
 
 .badgeRole {
+	flex-shrink: 0;
 	height: 1.3em;
-	vertical-align: -0.275em;
 
 	& + .badgeRole {
 		margin-left: 0.2em;

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps">
-	<MkRadios v-model="filter" :options="[{ value: 'active', label: i18n.ts._channel.owned }, { value: 'archived', label: i18n.ts.archived }]"/>
+	<MkRadios v-model="filter" :options="[{ value: 'active', label: i18n.ts._channel.unarchived }, { value: 'archived', label: i18n.ts.archived }]"/>
 	<MkChannelList :key="filter" :paginator="filter === 'archived' ? archivedPaginator : ownedPaginator"/>
 </div>
 </template>

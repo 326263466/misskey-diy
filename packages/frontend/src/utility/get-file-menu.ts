@@ -38,10 +38,14 @@ export function getFileMenu(file: Misskey.entities.DriveFile, onHideStateUpdated
 
 				if (canceled) return;
 
+				const isSensitive = !file.isSensitive;
+				// 失败提示由 apiWithDialog 处理
 				os.apiWithDialog('drive/files/update', {
 					fileId: file.id,
-					isSensitive: !file.isSensitive,
-				});
+					isSensitive,
+				}).then(() => {
+					os.toast(isSensitive ? i18n.ts.markedAsSensitive : i18n.ts.unmarkedAsSensitive, 'success');
+				}, () => {});
 			},
 		});
 	}

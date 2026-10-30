@@ -4,34 +4,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
+<!-- 已关注、已申请时悬停切换为撤销文案，提示再次点击的结果；全站关注按钮统一这一形式，不另加提示框。 -->
 <button
 	ref="rootEl"
-	v-tooltip="textOnly ? null : buttonLabel"
 	class="_button"
-	:class="[$style.root, { [$style.active]: !textOnly && (isFollowing || hasPendingFollowRequestFromYou), [$style.full]: full, [$style.large]: large, [$style.textOnly]: textOnly }]"
-	:data-state="hasPendingFollowRequestFromYou ? 'pending' : isFollowing ? 'following' : 'follow'"
+	:class="[$style.root, { [$style.large]: large }]"
+	:data-state="state"
 	:aria-label="buttonLabel"
 	:aria-busy="wait"
 	:disabled="wait"
 	@click="onClick"
 >
-	<!-- 已关注和已申请时悬停切换为撤销文案，提示再次点击的结果。 -->
-	<span v-if="textOnly" :class="[$style.labels, { [$style.swappable]: isFollowing || hasPendingFollowRequestFromYou }]">
-		<span :class="$style.label">{{ hasPendingFollowRequestFromYou ? i18n.ts.followRequestSent : isFollowing ? i18n.ts.youFollowing : user.isLocked ? i18n.ts.followRequest : i18n.ts.follow }}</span>
-		<span v-if="isFollowing || hasPendingFollowRequestFromYou" :class="$style.hoverLabel" aria-hidden="true">{{ hasPendingFollowRequestFromYou ? i18n.ts.cancelFollowRequest : i18n.ts.unfollow }}</span>
-	</span>
-	<template v-else-if="hasPendingFollowRequestFromYou">
-		<span v-if="full" :class="$style.text">{{ i18n.ts.followRequestPending }}</span><i class="ti ti-hourglass-empty"></i>
-	</template>
-	<template v-else-if="isFollowing">
-		<span v-if="full" :class="$style.text">{{ i18n.ts.youFollowing }}</span><i class="ti ti-minus"></i>
-	</template>
-	<template v-else-if="user.isLocked">
-		<span v-if="full" :class="$style.text">{{ i18n.ts.followRequest }}</span><i class="ti ti-plus"></i>
-	</template>
-	<template v-else>
-		<span v-if="full" :class="$style.text">{{ i18n.ts.follow }}</span><i class="ti ti-plus"></i>
-	</template>
+	<span :class="$style.labels" :data-hover-label="hoverLabel"><span :class="$style.label">{{ label }}</span></span>
 </button>
 </template>
 
@@ -40,6 +24,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, wa
 import * as Misskey from 'misskey-js';
 import { host } from '@@/js/config.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
+import * as os from '@/os.js';
 import { useStream } from '@/stream.js';
 import { i18n } from '@/i18n.js';
 import { claimAchievement } from '@/utility/achievements.js';
@@ -52,13 +38,9 @@ import { useUserStatisticsVisibility } from '@/composables/use-user-statistics-v
 
 const props = withDefaults(defineProps<{
 	user: Misskey.entities.UserDetailed,
-	full?: boolean,
 	large?: boolean,
-	textOnly?: boolean,
 }>(), {
-	full: false,
 	large: false,
-	textOnly: false,
 });
 
 const emit = defineEmits<{
@@ -68,6 +50,12 @@ const emit = defineEmits<{
 const isFollowing = ref(props.user.isFollowing);
 const hasPendingFollowRequestFromYou = ref(props.user.hasPendingFollowRequestFromYou);
 const wait = ref(false);
+const state = computed(() => hasPendingFollowRequestFromYou.value ? 'pending' : isFollowing.value ? 'following' : 'follow');
+const label = computed(() => hasPendingFollowRequestFromYou.value ? i18n.ts.followRequestSent
+	: isFollowing.value ? i18n.ts.youFollowing
+	: props.user.isLocked ? i18n.ts.followRequest : i18n.ts.follow);
+const hoverLabel = computed(() => hasPendingFollowRequestFromYou.value ? i18n.ts.cancelFollowRequest
+	: isFollowing.value ? i18n.ts.unfollow : undefined);
 const buttonLabel = computed(() => hasPendingFollowRequestFromYou.value ? i18n.ts.followRequestPending
 	: isFollowing.value ? i18n.ts.unfollow
 	: props.user.isLocked ? i18n.ts.followRequest : i18n.ts.follow);
@@ -174,6 +162,8 @@ async function onClick() {
 		}
 		await refreshRelationship(isFollowAction);
 	} catch (err) {
+		// 按钮状态即为成功反馈，失败时需要提示
+		if (!isAccountSessionErrorHandled(err)) os.toast(i18n.ts.somethingHappened, 'error');
 		console.error(err);
 	} finally {
 		wait.value = false;
@@ -191,82 +181,77 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" module>
+// 关注为主题色实心按钮；关注中、已申请为灰底，悬停变为警示色并显示撤销文案。
 .root {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	font-weight: bold;
-	color: var(--MI-followButton-fg, var(--MI_THEME-fg));
-	padding: 0;
-	height: 31px;
-	font-size: 16px;
-	border-radius: 32px;
-	background: var(--MI-followButton-bg, color-mix(in srgb, var(--MI_THEME-panel), transparent 10%));
-	-webkit-backdrop-filter: var(--MI-followButton-backdropFilter, var(--MI-blur, blur(12px) saturate(180%)));
-	backdrop-filter: var(--MI-followButton-backdropFilter, var(--MI-blur, blur(12px) saturate(180%)));
+	min-width: 64px;
+	height: 28px;
+	padding: 0 14px;
+	box-sizing: border-box;
+	border-radius: 999px;
+	font-size: 13px;
+	white-space: nowrap;
+	color: var(--MI_THEME-fgOnAccent);
+	background: var(--MI_THEME-accent);
+	transition: background-color .15s ease, color .15s ease;
 
-	&.full {
-		padding: 0 8px 0 12px;
-		font-size: 14px;
-	}
-
-	&.large {
-		font-size: 16px;
-		height: 38px;
-		padding: 0 12px 0 16px;
-	}
-
-	&:not(.full) {
-		width: 31px;
+	&:not(:disabled):hover {
+		background: hsl(from var(--MI_THEME-accent) h s calc(l + 6));
 	}
 
 	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
 		outline-offset: 2px;
 	}
 
-	&:hover {
-		//background: mix($primary, #fff, 20);
+	&:disabled {
+		cursor: progress;
+		opacity: .7;
 	}
 
-	&:active {
-		//background: mix($primary, #fff, 40);
+	&.large {
+		min-width: 88px;
+		height: 34px;
+		padding: 0 18px;
+		font-size: 14px;
 	}
 
-	&.active {
-		color: var(--MI-followButton-fg, var(--MI_THEME-fgOnAccent));
-		background: var(--MI-followButton-bg, var(--MI_THEME-accent));
+	&:is([data-state="following"], [data-state="pending"]) {
+		color: var(--MI_THEME-fg);
+		background: var(--MI_THEME-buttonBg);
 
-		&:hover {
-			background: var(--MI-followButton-bg, hsl(from var(--MI_THEME-accent) h s calc(l + 10)));
+		&:not(:disabled):is(:hover, :focus-visible) {
+			color: var(--MI_THEME-error);
+			background: color-mix(in srgb, var(--MI_THEME-error) 10%, var(--MI_THEME-buttonBg));
 		}
+	}
 
-		&:active {
-			background: var(--MI-followButton-bg, hsl(from var(--MI_THEME-accent) h s calc(l - 10)));
-		}
+	&:not(:disabled):is(:hover, :focus-visible) > .labels[data-hover-label] {
+		> .label { visibility: hidden; }
+		&::after { visibility: visible; }
 	}
 }
 
-.text {
-	margin-right: 6px;
-}
-
+// 两种文案叠在同一格内，按钮宽度取较宽者，悬停切换时不跳动。
 .labels {
 	display: inline-grid;
-	min-width: 0;
+	place-items: center;
 
-	> span {
+	> .label,
+	&::after {
 		grid-area: 1 / 1;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+	}
+
+	&::after {
+		content: attr(data-hover-label);
+		visibility: hidden;
 	}
 }
 
-.hoverLabel { visibility: hidden; }
-
-.textOnly:not(:disabled):is(:hover, :focus-visible) .swappable {
-	> .label { visibility: hidden; }
-	> .hoverLabel { visibility: visible; }
+@media (prefers-reduced-motion: reduce) {
+	.root { transition: none; }
 }
 </style>

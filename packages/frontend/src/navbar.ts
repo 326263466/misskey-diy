@@ -14,12 +14,17 @@ import { lookup } from '@/utility/lookup.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { unisonReload } from '@/utility/unison-reload.js';
+import { navigationIcons } from '@/navigation-icons.js';
 
 // 顶部只放内容板块；公告属于站方消息，登录后归入通知中心。
 export const primaryNavItems: readonly string[] = ['explore', 'channels', 'play', 'shop'];
 
-// 已在头像菜单、关于菜单或设置页提供，“更多”中不再重复。
-export const launchPadExcludedItems: readonly string[] = ['achievements', 'qr', 'benefits', 'tools', 'cacheClear'];
+// 已在个人中心、通知中心、头像菜单、关于菜单或设置页提供，“更多”中不再重复。
+// 刷新属于浏览器操作，不作为功能入口。
+export const launchPadExcludedItems: readonly string[] = [
+	'drive', 'favorites', 'clips', 'lists', 'antennas', 'checkin', 'benefits', 'achievements',
+	'followRequests', 'qr', 'tools', 'cacheClear', 'reload',
+];
 
 export const navbarItemDef = reactive<{
 	[key: string]: {
@@ -34,7 +39,7 @@ export const navbarItemDef = reactive<{
 }>({
 	notifications: {
 		title: i18n.ts.notifications,
-		icon: 'ti ti-bell',
+		icon: navigationIcons.notifications,
 		show: computed(() => $i != null),
 		indicated: computed(() => $i != null && $i.hasUnreadNotification),
 		indicateValue: computed(() => {
@@ -68,13 +73,13 @@ export const navbarItemDef = reactive<{
 	},
 	announcements: {
 		title: i18n.ts.announcements,
-		icon: 'ti ti-speakerphone',
+		icon: navigationIcons.announcements,
 		indicated: computed(() => $i != null && $i.hasUnreadAnnouncement),
 		to: $i != null ? '/my/notifications/announcements' : '/announcements',
 	},
 	search: {
 		title: i18n.ts.search,
-		icon: 'ti ti-search',
+		icon: navigationIcons.search,
 		to: '/search',
 	},
 	lookup: {
@@ -92,13 +97,13 @@ export const navbarItemDef = reactive<{
 	},
 	lists: {
 		title: i18n.ts.lists,
-		icon: 'ti ti-list',
+		icon: 'ti ti-users-group',
 		show: computed(() => $i != null),
 		to: '/my/lists',
 	},
 	antennas: {
 		title: i18n.ts.antennas,
-		icon: 'ti ti-antenna',
+		icon: 'ti ti-rss',
 		show: computed(() => $i != null),
 		to: '/my/antennas',
 	},
@@ -110,33 +115,33 @@ export const navbarItemDef = reactive<{
 	},
 	pages: {
 		title: i18n.ts.pages,
-		icon: 'ti ti-news',
+		icon: 'ti ti-file-description',
 		to: '/pages',
 	},
 	play: {
 		title: i18n.ts.play,
-		icon: 'ti ti-player-play',
+		icon: 'ti ti-apps',
 		to: '/play',
 	},
 	gallery: {
 		title: i18n.ts.gallery,
-		icon: 'ti ti-icons',
+		icon: 'ti ti-library-photo',
 		to: '/gallery',
 	},
 	clips: {
 		title: i18n.ts.clip,
-		icon: 'ti ti-paperclip',
+		icon: 'ti ti-bookmarks',
 		show: computed(() => $i != null),
 		to: '/my/clips',
 	},
 	channels: {
 		title: i18n.ts.channel,
-		icon: 'ti ti-device-tv',
+		icon: 'ti ti-broadcast',
 		to: '/channels',
 	},
 	chat: {
 		title: i18n.ts.chat,
-		icon: 'ti ti-message-circle',
+		icon: navigationIcons.chat,
 		to: '/chat',
 		show: computed(() => $i != null && $i.policies.chatAvailability !== 'unavailable'),
 		indicated: computed(() => $i != null && $i.hasUnreadChatMessages),
@@ -149,7 +154,7 @@ export const navbarItemDef = reactive<{
 	},
 	communityRanking: {
 		title: i18n.ts.communityRanking,
-		icon: 'ti ti-trophy',
+		icon: navigationIcons.communityRanking,
 		to: '/community-ranking',
 	},
 	benefits: {

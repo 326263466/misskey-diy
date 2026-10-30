@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<MkA :to="userPage(user)">
 		<MkAvatar :class="$style.avatar" :user="user" indicator/>
 	</MkA>
-	<div :class="$style.title">
+	<div :class="$style.title" data-search-highlight>
 		<MkA :class="$style.name" :to="userPage(user)"><MkUserName :user="user" :nowrap="false"/></MkA>
 		<p :class="$style.username"><MkAcct :user="user"/></p>
 	</div>
@@ -27,7 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<dd>{{ user.jobTitle }}</dd>
 			</div>
 		</dl>
-		<div v-if="user.description" :class="$style.mfm">
+		<div v-if="user.description" :class="$style.mfm" data-search-highlight>
 			<Mfm :text="user.description" :author="user"/>
 		</div>
 		<span v-else style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.noAccountDescription }}</span>
@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<p :class="$style.statusItemLabel">{{ i18n.ts.followers }}</p><span :class="$style.statusItemValue">{{ number(user.followersCount) }}</span>
 		</MkA>
 	</div>
-	<MkFollowButton v-if="user.id != $i?.id" :class="$style.follow" :user="user" mini/>
+	<MkFollowButton v-if="user.id != $i?.id" :class="$style.follow" :user="user"/>
 </div>
 </template>
 
@@ -124,7 +124,7 @@ watch(() => props.user, value => {
 	padding: 4px 8px;
 	color: #fff;
 	background: rgba(0, 0, 0, 0.7);
-	font-size: 0.7em;
+	font-size: 0.85em;
 	border-radius: 6px;
 }
 
@@ -180,7 +180,7 @@ watch(() => props.user, value => {
 
 .statusItemLabel {
 	margin: 0;
-	font-size: 0.7em;
+	font-size: 0.85em;
 	color: var(--MI_THEME-fgTransparentWeak);
 }
 

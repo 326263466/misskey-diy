@@ -4,15 +4,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="[$style.root, { [$style.contentVisibilityAuto]: contentVisibilityAuto }]">
+<div :class="[$style.root, { [$style.contentVisibilityAuto]: contentVisibilityAuto, [$style.chatRoomNotification]: notification.type === 'chatRoomInvitationReceived' || notification.type === 'chatRoomMemberRemoved' }]">
 	<div :class="[$style.head, prefer.s.useStickyIcons ? $style.useSticky : null]">
 		<div v-if="notification.type === 'system'" :class="[$style.icon, $style.systemIcon]"><i class="ti ti-shield-check" aria-hidden="true"></i></div>
-		<MkAvatar v-else-if="['pollEnded', 'note'].includes(notification.type) && 'note' in notification" :class="$style.icon" :user="notification.note.user" link preview/>
-		<MkAvatar v-else-if="['roleAssigned', 'achievementEarned', 'exportCompleted', 'login', 'createToken', 'scheduledNotePosted', 'scheduledNotePostFailed'].includes(notification.type)" :class="$style.icon" :user="$i" link preview/>
+		<MkAvatar v-else-if="['pollEnded', 'note'].includes(notification.type) && 'note' in notification" :class="[$style.icon, $style.avatarIcon]" :user="notification.note.user" link preview imageOnly/>
+		<MkAvatar v-else-if="notification.type === 'achievementEarned'" :class="$style.icon" :user="$i" link preview/>
+		<MkAvatar v-else-if="['roleAssigned', 'exportCompleted', 'login', 'createToken', 'scheduledNotePosted', 'scheduledNotePostFailed'].includes(notification.type)" :class="[$style.icon, $style.avatarIcon]" :user="$i" link preview imageOnly/>
 		<div v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'" :class="[$style.icon, $style.icon_reactionGroupHeart]"><i class="ti ti-heart" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'reaction:grouped'" :class="[$style.icon, $style.icon_reactionGroup]"><i class="ti ti-mood-happy" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'renote:grouped'" :class="[$style.icon, $style.icon_renoteGroup]"><i class="ti ti-repeat" style="line-height: 1;"></i></div>
-		<MkAvatar v-else-if="'user' in notification" :class="$style.icon" :user="notification.user" link preview/>
+		<MkAvatar v-else-if="'user' in notification" :class="[$style.icon, $style.avatarIcon]" :user="notification.user" link preview imageOnly/>
 		<img v-else-if="'icon' in notification && notification.icon != null" :class="[$style.icon, $style.icon_app]" :src="notification.icon" alt=""/>
 		<div
 			:class="[$style.subIcon, {
@@ -31,6 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				[$style.t_login]: notification.type === 'login',
 				[$style.t_createToken]: notification.type === 'createToken',
 				[$style.t_chatRoomInvitationReceived]: notification.type === 'chatRoomInvitationReceived',
+				[$style.t_chatRoomMemberRemoved]: notification.type === 'chatRoomMemberRemoved',
 				[$style.t_roleAssigned]: notification.type === 'roleAssigned' && notification.role.iconUrl == null,
 			}]"
 		>
@@ -49,6 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'login'" class="ti ti-login-2"></i>
 			<i v-else-if="notification.type === 'createToken'" class="ti ti-key"></i>
 			<i v-else-if="notification.type === 'chatRoomInvitationReceived'" class="ti ti-message-circle"></i>
+			<i v-else-if="notification.type === 'chatRoomMemberRemoved'" class="ti ti-user-minus"></i>
 			<template v-else-if="notification.type === 'roleAssigned'">
 				<img v-if="notification.role.iconUrl" style="height: 1.3em; vertical-align: -0.275em;" :src="notification.role.iconUrl" alt=""/>
 				<i v-else class="ti ti-badges"></i>
@@ -70,13 +73,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'scheduledNotePostFailed'">{{ i18n.ts._notification.scheduledNotePostFailed }}</span>
 			<span v-else-if="notification.type === 'note'">{{ i18n.ts._notification.newNote }}: <MkUserName :user="notification.note.user"/></span>
 			<span v-else-if="notification.type === 'roleAssigned'">{{ i18n.ts._notification.roleAssigned }}</span>
-			<span v-else-if="notification.type === 'chatRoomInvitationReceived'">{{ i18n.ts._notification.chatRoomInvitationReceived }}</span>
+			<span v-else-if="notification.type === 'chatRoomInvitationReceived'" :class="$style.chatNotificationLabel">{{ i18n.ts._notification.chatRoomInvitationReceived }}</span>
 			<span v-else-if="notification.type === 'achievementEarned'">{{ i18n.ts._notification.achievementEarned }}</span>
 			<span v-else-if="notification.type === 'login'">{{ i18n.ts._notification.login }}</span>
 			<span v-else-if="notification.type === 'createToken'">{{ i18n.ts._notification.createToken }}</span>
 			<span v-else-if="notification.type === 'test'">{{ i18n.ts._notification.testNotification }}</span>
 			<span v-else-if="notification.type === 'exportCompleted'">{{ i18n.tsx._notification.exportOfXCompleted({ x: exportEntityName[notification.exportedEntity] }) }}</span>
+			<span v-else-if="notification.type === 'chatRoomMemberRemoved'" :class="$style.chatNotificationLabel">{{ i18n.ts._notification.chatRoomMemberRemoved }}</span>
 			<MkA v-else-if="notification.type === 'follow' || notification.type === 'mention' || notification.type === 'reply' || notification.type === 'renote' || notification.type === 'quote' || notification.type === 'reaction' || notification.type === 'receiveFollowRequest' || notification.type === 'followRequestAccepted'" v-user-preview="notification.user.id" :class="$style.headerName" :to="userPage(notification.user)"><MkUserName :user="notification.user"/></MkA>
+			<span v-if="notificationAction" :class="$style.headerAction">{{ notificationAction }}</span>
 			<span v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'">{{ i18n.tsx._notification.likedBySomeUsers({ n: getActualReactedUsersCount(notification) }) }}</span>
 			<span v-else-if="notification.type === 'reaction:grouped'">{{ i18n.tsx._notification.reactedBySomeUsers({ n: getActualReactedUsersCount(notification) }) }}</span>
 			<span v-else-if="notification.type === 'renote:grouped'">{{ i18n.tsx._notification.renotedBySomeUsers({ n: notification.users.length }) }}</span>
@@ -104,55 +109,99 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkA class="_link" to="/my/notifications/system">{{ i18n.ts._welcome.readGuide }} <i class="ti ti-arrow-right" aria-hidden="true"></i></MkA>
 				</template>
 			</div>
-			<div v-else-if="notification.type === 'reaction' || notification.type === 'reaction:grouped'" :class="$style.text" :title="getNoteSummary(notification.note)">
-				<i class="ti ti-quote" :class="$style.quote"></i>
-				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
-				<i class="ti ti-quote" :class="$style.quote"></i>
+			<div v-else-if="notification.type === 'reaction' || notification.type === 'reaction:grouped'" :class="$style.messageQuote" :title="getNoteSummary(notification.note)">
+				<i class="ti ti-quote" :class="$style.messageQuoteIcon" aria-hidden="true"></i>
+				<div :class="$style.messageQuoteText"><Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/></div>
 			</div>
-			<div v-else-if="notification.type === 'renote' || notification.type === 'renote:grouped'" :class="$style.text" :title="getNoteSummary(notification.note.renote)">
-				<i class="ti ti-quote" :class="$style.quote"></i>
-				<Mfm :text="getNoteSummary(notification.note.renote)" :plain="true" :nowrap="true" :author="notification.note.renote?.user"/>
-				<i class="ti ti-quote" :class="$style.quote"></i>
+			<div v-else-if="notification.type === 'renote' || notification.type === 'renote:grouped'" :class="$style.messageQuote" :title="getNoteSummary(notification.note.renote)">
+				<i class="ti ti-quote" :class="$style.messageQuoteIcon" aria-hidden="true"></i>
+				<div :class="$style.messageQuoteText"><Mfm :text="getNoteSummary(notification.note.renote)" :plain="true" :nowrap="true" :author="notification.note.renote?.user"/></div>
 			</div>
-			<div v-else-if="notification.type === 'reply' || notification.type === 'mention' || notification.type === 'quote' || notification.type === 'note'" :class="$style.text" :title="getNoteSummary(notification.note)">
-				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
+			<template v-else-if="notification.type === 'reply'">
+				<div v-if="notification.note.reply" :class="$style.replyQuote">
+					<i class="ti ti-quote" :class="$style.messageQuoteIcon" aria-hidden="true"></i>
+					<span :class="$style.replyQuoteAuthor"><MkUserName :user="notification.note.reply.user"/>：</span>
+					<span :class="$style.replyQuoteText"><Mfm :text="getReplyQuoteText(notification.note.reply)" :plain="true" :nowrap="true" :author="notification.note.reply.user"/></span>
+				</div>
+				<div :class="[$style.text, $style.replyContent]" :title="getNoteSummary(notification.note, { showReply: false })">
+					<Mfm :text="getNoteSummary(notification.note, { showReply: false })" :plain="true" :nowrap="true" :author="notification.note.user"/>
+				</div>
+			</template>
+			<template v-else-if="notification.type === 'mention' || notification.type === 'quote' || notification.type === 'note'">
+				<div :class="$style.contentCard" :title="getNoteSummary(notification.note)">
+					<div :class="$style.contentText"><Mfm :text="getNoteSummary(notification.note, { showRenote: notification.type !== 'quote' })" :plain="true" :nowrap="false" :author="notification.note.user"/></div>
+				</div>
+				<div v-if="notification.type === 'quote' && notification.note.renote" :class="$style.messageQuote" :title="getNoteSummary(notification.note.renote)">
+					<i class="ti ti-quote" :class="$style.messageQuoteIcon" aria-hidden="true"></i>
+					<div :class="$style.messageQuoteText"><Mfm :text="getNoteSummary(notification.note.renote, { showReply: false, showRenote: false })" :plain="true" :nowrap="true" :author="notification.note.renote.user"/></div>
+				</div>
+			</template>
+			<div v-else-if="notification.type === 'pollEnded' || notification.type === 'scheduledNotePosted'" :class="$style.messageQuote" :title="getNoteSummary(notification.note)">
+				<i class="ti ti-quote" :class="$style.messageQuoteIcon" aria-hidden="true"></i>
+				<div :class="$style.messageQuoteText"><Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/></div>
 			</div>
-			<div v-else-if="notification.type === 'pollEnded' || notification.type === 'scheduledNotePosted'" :class="$style.text" :title="getNoteSummary(notification.note)">
-				<i class="ti ti-quote" :class="$style.quote"></i>
-				<Mfm :text="getNoteSummary(notification.note)" :plain="true" :nowrap="true" :author="notification.note.user"/>
-				<i class="ti ti-quote" :class="$style.quote"></i>
-			</div>
-			<div v-else-if="notification.type === 'roleAssigned'" :class="$style.text">
+			<div v-else-if="notification.type === 'roleAssigned'" :class="[$style.text, $style.result]">
 				<Mfm :text="notification.role.name" :plain="true" :nowrap="true"/>
 			</div>
-			<div v-else-if="notification.type === 'chatRoomInvitationReceived'" :class="$style.text">
-				<Mfm :text="notification.invitation.room.name" :plain="true" :nowrap="true"/>
+			<div v-else-if="notification.type === 'chatRoomInvitationReceived'" :class="$style.chatInvitation">
+				<div :class="$style.chatRoomContext">
+					<div :class="$style.chatRoomSymbol" aria-hidden="true"><i class="ti ti-users-group"></i></div>
+					<div :class="$style.chatRoomDetails">
+						<span :class="$style.chatRoomEyebrow">{{ i18n.ts._chat.roomChat }}</span>
+						<Mfm :class="$style.chatRoomName" :text="notification.invitation.room.name" :plain="true" :nowrap="true"/>
+						<Mfm v-if="notification.invitation.room.description" :class="$style.chatRoomDescription" :text="notification.invitation.room.description" :plain="true" :author="notification.invitation.room.owner"/>
+					</div>
+				</div>
+				<div v-if="full" :class="$style.invitationFooter">
+					<div v-if="invitationActionState === 'idle'" :class="$style.invitationCommands">
+						<MkButton small rounded primary :wait="invitationActionPending === 'accept'" :disabled="invitationActionPending != null" @click="handleChatRoomInvitation('accept')">
+							<i class="ti ti-check" aria-hidden="true"></i> {{ i18n.ts._chat.join }}
+						</MkButton>
+						<MkButton small rounded :wait="invitationActionPending === 'ignore'" :disabled="invitationActionPending != null" @click="handleChatRoomInvitation('ignore')">
+							<i class="ti ti-x" aria-hidden="true"></i> {{ i18n.ts._chat.ignore }}
+						</MkButton>
+					</div>
+					<div :class="$style.invitationResult">
+						<!-- 状态区常驻，处理结果变化时读屏才能播报 -->
+						<span role="status" aria-live="polite" :class="$style.invitationStatus">{{ invitationStatusText }}</span>
+						<MkA v-if="invitationActionState === 'joined'" :class="$style.notificationAction" :to="`/chat/room/${notification.invitation.room.id}`">
+							{{ i18n.ts._chat.enterRoom }}
+							<i class="ti ti-arrow-right" aria-hidden="true"></i>
+						</MkA>
+					</div>
+				</div>
+				<MkA v-else :class="$style.notificationAction" to="/chat/invitations">
+					{{ i18n.ts._chat.invitations }}
+					<i class="ti ti-arrow-right" aria-hidden="true"></i>
+				</MkA>
+			</div>
+			<div v-else-if="notification.type === 'chatRoomMemberRemoved'" :class="$style.text">
+				<div :class="$style.chatRoomContext">
+					<div :class="$style.chatRoomSymbol" aria-hidden="true"><i class="ti ti-users-group"></i></div>
+					<Mfm :class="$style.chatRoomName" :text="notification.roomName" :plain="true" :nowrap="true"/>
+				</div>
 			</div>
 			<MkA v-else-if="notification.type === 'achievementEarned'" :class="$style.text" to="/my/achievements">
 				{{ i18n.ts._achievements._types[`_${notification.achievement}`].title }}
 			</MkA>
-			<MkA v-else-if="notification.type === 'exportCompleted'" :class="$style.text" :to="`/my/drive/file/${notification.fileId}`">
+			<MkA v-else-if="notification.type === 'exportCompleted'" :class="[$style.text, $style.result]" :to="`/my/drive/file/${notification.fileId}`">
 				{{ i18n.ts.showFile }}
 			</MkA>
-			<MkA v-else-if="isSigninAlert(notification)" :class="$style.text" to="/settings/security">
+			<MkA v-else-if="isSigninAlert(notification)" :class="[$style.text, $style.result]" to="/settings/security">
 				{{ formatSigninAlertSummary(notification) }}
 			</MkA>
 			<MkA v-else-if="notification.type === 'createToken'" :class="$style.text" to="/settings/apps">
 				<Mfm :text="i18n.tsx._notification.createTokenDescription({ text: i18n.ts.manageAccessTokens })"/>
 			</MkA>
-			<template v-else-if="notification.type === 'follow'">
-				<span :class="$style.text" style="color: var(--MI_THEME-fgTransparent);">{{ i18n.ts.youGotNewFollower }}</span>
-			</template>
 			<template v-else-if="notification.type === 'followRequestAccepted'">
-				<div :class="$style.text" style="color: var(--MI_THEME-fgTransparent);">{{ i18n.ts.followRequestAccepted }}</div>
-				<div v-if="notification.message" :class="$style.text" style="color: var(--MI_THEME-fgTransparent); font-style: oblique;">
-					<i class="ti ti-quote" :class="$style.quote"></i>
-					<Mfm :text="notification.message" :author="notification.user" :plain="true" :nowrap="true"/>
-					<i class="ti ti-quote" :class="$style.quote"></i>
+				<div :class="$style.status">{{ i18n.ts.followRequestAccepted }}</div>
+				<div v-if="notification.message" :class="$style.messageQuote">
+					<i class="ti ti-quote" :class="$style.messageQuoteIcon" aria-hidden="true"></i>
+					<div :class="$style.messageQuoteText"><Mfm :text="notification.message" :author="notification.user" :plain="true" :nowrap="true"/></div>
 				</div>
 			</template>
 			<template v-else-if="notification.type === 'receiveFollowRequest'">
-				<span :class="$style.text" style="color: var(--MI_THEME-fgTransparent);">{{ i18n.ts.receiveFollowRequest }}</span>
+				<span :class="$style.status">{{ i18n.ts.receiveFollowRequest }}</span>
 				<div v-if="full && !followRequestDone" :class="$style.followRequestCommands">
 					<MkButton :class="$style.followRequestCommandButton" rounded primary @click="acceptFollowRequest()"><i class="ti ti-check"></i> {{ i18n.ts.accept }}</MkButton>
 					<MkButton :class="$style.followRequestCommandButton" rounded danger @click="rejectFollowRequest()"><i class="ti ti-x"></i> {{ i18n.ts.reject }}</MkButton>
@@ -164,8 +213,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</span>
 
 			<div v-if="notification.type === 'reaction:grouped'">
-				<div v-for="reaction of notification.reactions" :key="reaction.user.id + reaction.reaction" :class="$style.reactionsItem">
-					<MkAvatar :class="$style.reactionsItemAvatar" :user="reaction.user" link preview/>
+				<div v-for="reaction of notification.reactions" :key="reaction.user.id + reaction.reaction" :class="[$style.reactionsItem, $style.reactionResponseItem]">
+					<MkAvatar :class="$style.reactionsItemAvatar" :user="reaction.user" link preview imageOnly/>
 					<div :class="$style.reactionsItemReaction">
 						<MkReactionIcon
 							:withTooltip="true"
@@ -178,7 +227,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<div v-else-if="notification.type === 'renote:grouped'">
 				<div v-for="user of notification.users" :key="user.id" :class="$style.reactionsItem">
-					<MkAvatar :class="$style.reactionsItemAvatar" :user="user" link preview/>
+					<MkAvatar :class="$style.reactionsItemAvatar" :user="user" link preview imageOnly/>
 				</div>
 			</div>
 		</div>
@@ -187,7 +236,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { host } from '@@/js/config.js';
 import MkReactionIcon from '@/components/MkReactionIcon.vue';
@@ -197,6 +246,10 @@ import { formatSigninAlertSummary, isSigninAlert } from '@/utility/signin-alert.
 import { userPage } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
+import { getChatRoomJoinErrorMessage, isChatInvitationGoneError } from '@/utility/misskey-api-with-toast.js';
+import * as os from '@/os.js';
+import { useRouter } from '@/router.js';
 import { ensureSignin } from '@/i.js';
 import { instance } from '@/instance.js';
 import { prefer } from '@/preferences.js';
@@ -214,7 +267,21 @@ const props = withDefaults(defineProps<{
 	contentVisibilityAuto: true,
 });
 
+const router = useRouter();
+
 type ExportCompletedNotification = Misskey.entities.Notification & { type: 'exportCompleted' };
+
+const notificationAction = computed<string | null>(() => {
+	switch (props.notification.type) {
+		case 'follow': return i18n.ts._notification.youWereFollowed;
+		case 'reply': return i18n.ts._notification.repliedToYou;
+		case 'mention': return i18n.ts._notification.mentionedYou;
+		case 'quote': return i18n.ts._notification.quotedYou;
+		case 'renote': return i18n.ts._notification.renotedYou;
+		case 'reaction': return i18n.ts._notification.reactedToYou;
+		default: return null;
+	}
+});
 
 const exportEntityName = {
 	antenna: i18n.ts.antennas,
@@ -229,22 +296,80 @@ const exportEntityName = {
 } as const satisfies Record<ExportCompletedNotification['exportedEntity'], string>;
 
 const followRequestDone = ref(false);
+const invitationActionState = ref<'idle' | 'joined' | 'ignored' | 'expired'>('idle');
+const invitationActionPending = ref<'accept' | 'ignore' | null>(null);
+let invitationRevision = 0;
+const invitationStatusText = computed(() => {
+	switch (invitationActionState.value) {
+		case 'joined': return i18n.ts._chat.roomJoined;
+		case 'ignored': return i18n.ts._chat.invitationIgnored;
+		case 'expired': return i18n.ts._chat.invitationExpired;
+		default: return '';
+	}
+});
+
+watch(() => props.notification.id, () => {
+	invitationRevision++;
+	invitationActionState.value = 'idle';
+	invitationActionPending.value = null;
+});
+onBeforeUnmount(() => { invitationRevision++; });
+
+// 按钮隐藏即为成功反馈；失败时恢复按钮并提示
+function onFollowRequestError(error: unknown) {
+	followRequestDone.value = false;
+	if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+}
 
 const acceptFollowRequest = () => {
 	if (!('user' in props.notification)) return;
 	followRequestDone.value = true;
-	misskeyApi('following/requests/accept', { userId: props.notification.user.id });
+	misskeyApi('following/requests/accept', { userId: props.notification.user.id }).catch(onFollowRequestError);
 };
 
 const rejectFollowRequest = () => {
 	if (!('user' in props.notification)) return;
 	followRequestDone.value = true;
-	misskeyApi('following/requests/reject', { userId: props.notification.user.id });
+	misskeyApi('following/requests/reject', { userId: props.notification.user.id }).catch(onFollowRequestError);
 };
+
+async function handleChatRoomInvitation(action: 'accept' | 'ignore') {
+	if (props.notification.type !== 'chatRoomInvitationReceived' || invitationActionPending.value != null || invitationActionState.value !== 'idle') return;
+	const roomId = props.notification.invitation.room.id;
+	const revision = invitationRevision;
+	const originPath = router.currentRef.value._parsedRoute.fullPath;
+	invitationActionPending.value = action;
+	try {
+		await misskeyApi(action === 'accept' ? 'chat/rooms/join' : 'chat/rooms/invitations/ignore', { roomId });
+		if (revision !== invitationRevision) return;
+		invitationActionState.value = action === 'accept' ? 'joined' : 'ignored';
+	} catch (error) {
+		if (revision === invitationRevision) onChatRoomInvitationError(error);
+		return;
+	} finally {
+		if (revision === invitationRevision) invitationActionPending.value = null;
+	}
+	// 用户已切换页面时只更新处理结果，不用迟到的请求抢回导航。
+	if (action === 'accept' && router.currentRef.value._parsedRoute.fullPath === originPath) {
+		router.push('/chat/room/:roomId', { params: { roomId } });
+	}
+}
+
+// 邀请已失效时收起按钮，避免反复点击；其他错误保留按钮以便重试
+function onChatRoomInvitationError(error: unknown) {
+	if (isChatInvitationGoneError(error)) invitationActionState.value = 'expired';
+	if (!isAccountSessionErrorHandled(error)) os.toast(getChatRoomJoinErrorMessage(error), 'error');
+}
 
 function getActualReactedUsersCount(notification: Misskey.entities.Notification) {
 	if (notification.type !== 'reaction:grouped') return 0;
 	return new Set(notification.reactions.map((reaction) => reaction.user.id)).size;
+}
+
+function getReplyQuoteText(note: Misskey.entities.Note): string {
+	if (note.isDeleted) return i18n.ts.deletedComment;
+	if (note.isHidden) return i18n.ts.invisibleNote;
+	return note.cw ?? note.text ?? '';
 }
 </script>
 
@@ -292,14 +417,19 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	height: 100%;
 }
 
+.avatarIcon {
+	width: 40px;
+	height: 40px;
+}
+
 .icon_reactionGroup,
 .icon_reactionGroupHeart,
 .icon_renoteGroup {
 	display: grid;
 	align-items: center;
 	justify-items: center;
-	width: 80%;
-	height: 80%;
+	width: 40px;
+	height: 40px;
 	font-size: 15px;
 	border-radius: 100%;
 	color: #fff;
@@ -370,7 +500,7 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	box-sizing: border-box;
 	border-radius: 100%;
 	background: var(--MI_THEME-panel);
-	box-shadow: 0 0 0 3px var(--MI_THEME-panel);
+	box-shadow: 0 0 0 2px var(--MI_THEME-panel);
 	font-size: 11px;
 	text-align: center;
 	color: #fff;
@@ -450,6 +580,11 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	pointer-events: none;
 }
 
+.t_chatRoomMemberRemoved {
+	background: var(--eventOther);
+	pointer-events: none;
+}
+
 .tail {
 	flex: 1;
 	min-width: 0;
@@ -468,8 +603,16 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	overflow: hidden;
 }
 
+.headerAction {
+	flex-shrink: 0;
+	margin-left: 4px;
+	color: var(--MI_THEME-accent);
+	font-weight: 600;
+}
+
 .headerTime {
 	margin-left: auto;
+	padding-left: 8px;
 	font-size: 0.9em;
 	color: var(--MI_THEME-fgTransparentWeak);
 }
@@ -480,24 +623,232 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	overflow: clip;
 }
 
-.quote {
-	vertical-align: super;
-	font-size: 50%;
+.status {
+	display: block;
+	margin-top: 2px;
 	color: var(--MI_THEME-fgTransparentWeak);
+	line-height: 1.55;
 }
 
-.quote:first-child {
-	margin-right: 4px;
-	position: relative;
+.result {
+	margin-top: 2px;
+	color: var(--MI_THEME-accent);
+	font-weight: 600;
+	line-height: 1.5;
+}
 
-	&::before {
-		position: absolute;
-		transform: rotate(180deg);
+.contentCard {
+	margin-top: 6px;
+	padding: 9px 12px;
+	border-radius: 8px;
+	background: var(--MI_THEME-panelHighlight);
+	color: var(--MI_THEME-fg);
+	line-height: 1.65;
+	overflow-wrap: anywhere;
+}
+
+.contentText {
+	display: -webkit-box;
+	overflow: hidden;
+	white-space: pre-wrap;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+}
+
+.messageQuote {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	min-width: 0;
+	margin-top: 6px;
+	padding: 8px 10px;
+	border-left: 2px solid color-mix(in srgb, var(--MI_THEME-accent) 45%, transparent);
+	border-radius: 0 6px 6px 0;
+	background: var(--MI_THEME-panelHighlight);
+	color: var(--MI_THEME-fgTransparentWeak);
+	line-height: 1.55;
+	overflow-wrap: anywhere;
+}
+
+.messageQuoteIcon {
+	flex-shrink: 0;
+	margin-top: 2px;
+	color: var(--MI_THEME-accent);
+	font-size: 12px;
+}
+
+.messageQuoteText {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.replyQuote {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	margin-top: 4px;
+	padding: 6px 10px;
+	border-left: 2px solid color-mix(in srgb, var(--MI_THEME-accent) 45%, transparent);
+	border-radius: 0 6px 6px 0;
+	background: var(--MI_THEME-panelHighlight);
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 0.95em;
+}
+
+.replyQuoteAuthor {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
+.replyQuoteText {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.replyContent {
+	margin-top: 6px;
+	line-height: 1.6;
+}
+
+.chatRoomNotification {
+	align-items: flex-start;
+
+	.head {
+		margin-top: 2px;
+	}
+
+	.header {
+		align-items: center;
+		min-height: 22px;
+	}
+
+	.text {
+		display: block;
+		overflow: visible;
 	}
 }
 
-.quote:last-child {
-	margin-left: 4px;
+.chatInvitation {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	width: 100%;
+	min-width: 0;
+}
+
+.chatNotificationLabel {
+	color: var(--MI_THEME-accent);
+	font-weight: 600;
+}
+
+.chatRoomContext {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+	padding: 10px 12px;
+	border: var(--MI-divider);
+	border-radius: var(--MI-radius);
+	background: color-mix(in srgb, var(--MI_THEME-accentedBg) 45%, var(--MI_THEME-panel));
+	color: var(--MI_THEME-fg);
+}
+
+.chatRoomSymbol {
+	display: grid;
+	flex: 0 0 36px;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
+	font-size: 18px;
+}
+
+.chatRoomDetails {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.chatRoomEyebrow {
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 0.78em;
+	line-height: 1.2;
+}
+
+.chatRoomName {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	font-size: 1.05em;
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.chatRoomDescription {
+	display: -webkit-box;
+	max-height: 2.9em;
+	overflow: hidden;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 0.88em;
+	line-height: 1.45;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+.invitationFooter {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	min-width: 0;
+}
+
+.invitationCommands {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	width: 100%;
+
+	> * {
+		min-width: 0;
+		width: 100%;
+	}
+}
+
+.invitationResult {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 12px;
+	min-width: 0;
+}
+
+.invitationStatus {
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.notificationAction {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	align-self: flex-start;
+	padding: 6px 0;
+	color: var(--MI_THEME-accent);
+	font-size: 0.9em;
 }
 
 .followRequestCommands {
@@ -524,6 +875,19 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	height: 100%;
 }
 
+.reactionResponseItem {
+	width: 28px;
+	height: 28px;
+}
+
+.reactionResponseItem .reactionsItemReaction {
+	width: 16px;
+	height: 16px;
+	background: transparent;
+	box-shadow: none;
+	font-size: 9px;
+}
+
 .reactionsItemReaction {
 	position: absolute;
 	z-index: 1;
@@ -534,7 +898,7 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	box-sizing: border-box;
 	border-radius: 100%;
 	background: var(--MI_THEME-panel);
-	box-shadow: 0 0 0 3px var(--MI_THEME-panel);
+	box-shadow: 0 0 0 2px var(--MI_THEME-panel);
 	font-size: 11px;
 	text-align: center;
 	color: #fff;

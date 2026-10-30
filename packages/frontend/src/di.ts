@@ -11,6 +11,10 @@ export const DI = {
 	routerCurrentDepth: Symbol() as InjectionKey<number>,
 	router: Symbol() as InjectionKey<Router>,
 	pageActive: Symbol() as InjectionKey<Readonly<Ref<boolean>>>,
+	pageHistoryRestoring: Symbol() as InjectionKey<Readonly<Ref<boolean>>>,
+	routeScrollHasSnapshot: Symbol() as InjectionKey<Readonly<Ref<boolean>>>,
+	routeScrollPending: Symbol() as InjectionKey<Readonly<Ref<boolean>>>,
+	routeScrollCancel: Symbol() as InjectionKey<() => void>,
 	pageSidebar: Symbol() as InjectionKey<Readonly<Ref<HTMLElement | null>>>,
 	detailActionsLoading: Symbol() as InjectionKey<Ref<boolean>>,
 	mock: Symbol() as InjectionKey<boolean>,
@@ -20,7 +24,10 @@ export const DI = {
 	currentStickyBottom: Symbol() as InjectionKey<Ref<number>>,
 	mfmEmojiReactCallback: Symbol() as InjectionKey<(emoji: string) => void>,
 	inModal: Symbol() as InjectionKey<boolean>,
+	popupHost: Symbol() as InjectionKey<Readonly<Ref<HTMLElement | null>>>,
+	pageOverlayHost: Symbol() as InjectionKey<Readonly<Ref<HTMLElement | null>>>,
 	inAppSearchMarkerId: Symbol() as InjectionKey<Ref<string | null>>,
+	hasGlobalSearch: Symbol() as InjectionKey<Readonly<Ref<boolean>>>,
 	inChannel: Symbol() as InjectionKey<ComputedRef<string | null> | null>, // 現在開いているチャンネルのID
 	mkLightboxItemMediaEl: Symbol() as InjectionKey<Ref<HTMLVideoElement | HTMLAudioElement | null>>,
 	// 左侧菜单布局收窄时为 true，子页面改用顶部标签切换

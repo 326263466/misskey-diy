@@ -13,7 +13,7 @@ import { i18n } from '@/i18n.js';
 
 const mocks = vi.hoisted(() => ({
 	qr: vi.fn(), append: vi.fn(), update: vi.fn(),
-	signin: vi.fn(), share: vi.fn(), canShare: vi.fn(),
+	signin: vi.fn(),
 	popup: vi.fn(), dispose: vi.fn(), close: vi.fn(),
 }));
 
@@ -21,11 +21,10 @@ vi.mock('@@/js/config.js', () => ({ url: 'https://local.example', host: 'local.e
 vi.mock('@/i.js', () => ({ $i: null, iAmModerator: false, ensureSignin: mocks.signin }));
 vi.mock('@/instance.js', () => ({ instance: { themeColor: '#86b300', iconUrl: null } }));
 vi.mock('@/os.js', () => ({ popup: mocks.popup }));
-vi.mock('@/utility/share-dialog.js', () => ({ openShareDialog: mocks.share }));
 vi.mock('@/utility/media-proxy.js', () => ({ getStaticImageUrl: (url: string) => url }));
 vi.mock('@/utility/copy-to-clipboard.js', () => ({ copyToClipboard: vi.fn() }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: vi.fn() }));
-vi.mock('@/utility/check-permissions.js', () => ({ notesSearchAvailable: false, canSearchNonLocalNotes: false }));
+vi.mock('@/utility/check-permissions.js', () => ({ notesSearchAvailable: { value: false }, canSearchNonLocalNotes: false }));
 vi.mock('@/cache.js', () => ({ antennasCache: {}, rolesCache: {}, userListsCache: {} }));
 vi.mock('@/router.js', () => ({ mainRouter: { push: vi.fn() } }));
 vi.mock('@/utility/get-embed-code.js', () => ({ genEmbedCode: vi.fn() }));
@@ -67,8 +66,6 @@ function renderQr(user?: Misskey.entities.UserDetailed) {
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.signin.mockReturnValue(localUser);
-	mocks.canShare.mockReturnValue(true);
-	mocks.share.mockResolvedValue('shared');
 	mocks.popup.mockReturnValue({ dispose: mocks.dispose });
 });
 
@@ -78,22 +75,19 @@ describe('user QR display', () => {
 	test.each([
 		{ user: localUser, acct: '@alice@local.example', url: 'https://local.example/@alice' },
 		{ user: remoteUser, acct: '@bob@social.example', url: 'https://local.example/@bob@social.example' },
-	])('encodes and shares the selected $acct profile without requiring sign-in', async ({ user, acct, url }) => {
+	])('encodes the selected $acct profile without requiring sign-in', ({ user, acct, url }) => {
 		const view = renderQr(user);
 		expect(view.getByText(acct)).toBeTruthy();
 		expect(mocks.qr).toHaveBeenCalledWith(expect.objectContaining({ data: url }));
 		expect(mocks.signin).not.toHaveBeenCalled();
-		expect(mocks.append).toHaveBeenCalledOnce();
-		await fireEvent.click(view.getByRole('button', { name: i18n.ts.share }));
-		expect(mocks.share).toHaveBeenCalledWith(expect.objectContaining({ url, text: i18n.ts._qr.userShareText }));
+		expect(mocks.append).toHaveBeenCalledWith(view.getByRole('img', { name: i18n.ts._qr.showUser }));
 	});
 
-	test('keeps the existing current-account page working without a user prop', async () => {
+	test('keeps the existing current-account page working without a user prop', () => {
 		const view = renderQr();
 		expect(view.getByText('@alice@local.example')).toBeTruthy();
 		expect(mocks.signin).toHaveBeenCalledOnce();
-		await fireEvent.click(view.getByRole('button', { name: i18n.ts.share }));
-		expect(mocks.share).toHaveBeenCalledWith(expect.objectContaining({ text: i18n.ts._qr.shareText }));
+		expect(mocks.append).toHaveBeenCalledWith(view.getByRole('img', { name: i18n.ts._qr.showUser }));
 	});
 
 	test('updates the encoded profile when the displayed user changes', async () => {
@@ -103,14 +97,11 @@ describe('user QR display', () => {
 		expect(mocks.update).toHaveBeenCalledWith({ data: 'https://local.example/@bob@social.example' });
 	});
 
-	test('opens the shared dialog without native sharing support', async () => {
-		mocks.canShare.mockReturnValue(false);
+	test('renders the QR code as a non-interactive image', () => {
 		const view = renderQr(remoteUser);
-		const button = view.getByRole('button', { name: i18n.ts.share }) as HTMLButtonElement;
-		expect(button.disabled).toBe(false);
-		expect(mocks.append).toHaveBeenCalledWith(button);
-		await fireEvent.click(button);
-		expect(mocks.share).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://local.example/@bob@social.example' }));
+		const qr = view.getByRole('img', { name: i18n.ts._qr.showUser });
+		expect(view.queryByRole('button', { name: i18n.ts.share })).toBeNull();
+		expect(mocks.append).toHaveBeenCalledWith(qr);
 	});
 });
 
@@ -133,9 +124,9 @@ describe('user QR dialog', () => {
 	test.each(['close', 'esc'])('closes and emits disposal after modal %s', async (event) => {
 		const view = render(MkUserQrDialog, {
 			props: { user: remoteUser },
-			global: { stubs: { MkQrShow: { props: ['user'], template: '<span>{{ user.username }}</span>' } } },
+			global: { stubs: { MkQrShow: { props: ['user', 'compact'], template: '<span>{{ user.username }}</span>' } } },
 		});
-		expect(view.getByText(i18n.ts._qr.showUser)).toBeTruthy();
+		expect(view.getByText(i18n.ts.qr)).toBeTruthy();
 		expect(view.getByText('bob')).toBeTruthy();
 		await fireEvent.click(view.getByRole('button', { name: event }));
 		expect(mocks.close).toHaveBeenCalledOnce();

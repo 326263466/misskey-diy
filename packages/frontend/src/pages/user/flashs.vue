@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div class="_pageBody">
 	<MkPagination v-slot="{items}" :paginator="paginator" withControl controlCard pageEmpty>
 		<div :class="$style.grid">
-			<MkFlashPreview v-for="flash in items" :key="flash.id" :flash="flash"/>
+			<MkFlashPreview v-for="flash in items" :key="flash.id" :flash="flash" @deleted="paginator.removeItem(flash.id)"/>
 		</div>
 	</MkPagination>
 </div>
@@ -34,8 +34,9 @@ const paginator = markRaw(new Paginator('users/flashs', {
 
 <style lang="scss" module>
 .grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
-	gap: var(--MI-margin);
+	// 与频道列表一致：单列卡片。
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 }
 </style>

@@ -538,7 +538,13 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 
 		let newValue = record[1];
 
-		const existing = await this.io.cloudGet({ key, scope: record[0] });
+		let existing: { value: ValueOf<K>; } | null;
+		try {
+			existing = await this.io.cloudGet({ key, scope: record[0] });
+		} catch (err) {
+			console.error(err);
+			return { enabled: false };
+		}
 		if (existing != null && !deepEqual(record[1], existing.value)) {
 			const resolvedValue = await resolveConflict(record[1], existing.value);
 			if (resolvedValue === undefined) return { enabled: false }; // canceled
@@ -547,24 +553,12 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 
 		this.commit(key, newValue);
 
-		const done = os.waiting();
-
 		try {
 			await this.io.cloudSet({ key, scope: record[0], value: newValue });
 		} catch (err) {
-			done();
-
-			os.alert({
-				type: 'error',
-				title: i18n.ts.somethingHappened,
-			});
-
 			console.error(err);
-
 			return { enabled: false };
 		}
-
-		done({ success: true });
 
 		record[2].sync = true;
 		this.save();

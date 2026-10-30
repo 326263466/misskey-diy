@@ -12,33 +12,36 @@ export type FlatNoteRepliesRequest = {
 	noteId: string;
 	limit: number;
 	untilId?: string;
+	sinceId?: string;
 };
 
 type PendingReplies = {
 	noteId: string;
-	untilId?: string;
+	cursor?: string;
 	cursors: Set<string>;
 };
 
 export function createFlatNoteRepliesLoader<T extends ReplyNote>(
 	rootNote: ReplyNote,
 	fetchPage: (request: FlatNoteRepliesRequest) => Promise<readonly T[]>,
+	// ascending 时按时间正序，用 sinceId 游标从最早的回复开始。
+	options: { recursive?: boolean; ascending?: boolean } = {},
 ) {
-	const pageSize = 5;
 	const requestBudget = 5;
 	const pending: PendingReplies[] = rootNote.repliesCount > 0 ? [{ noteId: rootNote.id, cursors: new Set() }] : [];
 	const seen = new Set([rootNote.id]);
 	const buffered: T[] = [];
 	let loading: Promise<{ notes: T[]; hasMore: boolean }> | null = null;
 
-	async function loadPage() {
+	async function loadPage(pageSize: number) {
 		for (let requests = 0; requests < requestBudget && buffered.length < pageSize && pending.length > 0; requests++) {
 			const task = pending[0];
 			// Commit queue progress only after success, so failed pages remain retryable.
-			const notes = await fetchPage({ noteId: task.noteId, limit: pageSize, ...(task.untilId ? { untilId: task.untilId } : {}) });
+			const cursor = options.ascending ? { sinceId: task.cursor ?? '0' } : task.cursor ? { untilId: task.cursor } : {};
+			const notes = await fetchPage({ noteId: task.noteId, limit: pageSize, ...cursor });
 			const nextCursor = notes.at(-1)?.id;
 			if (notes.length >= pageSize && nextCursor != null && !task.cursors.has(nextCursor)) {
-				task.untilId = nextCursor;
+				task.cursor = nextCursor;
 				task.cursors.add(nextCursor);
 			} else {
 				pending.shift();
@@ -48,7 +51,7 @@ export function createFlatNoteRepliesLoader<T extends ReplyNote>(
 				if (seen.has(note.id)) continue;
 				seen.add(note.id);
 				buffered.push(note);
-				if (note.repliesCount > 0) pending.push({ noteId: note.id, cursors: new Set() });
+				if (options.recursive !== false && note.repliesCount > 0) pending.push({ noteId: note.id, cursors: new Set() });
 			}
 		}
 
@@ -62,9 +65,9 @@ export function createFlatNoteRepliesLoader<T extends ReplyNote>(
 		get hasMore() {
 			return buffered.length > 0 || pending.length > 0;
 		},
-		loadMore() {
+		loadMore(limit = 5) {
 			if (loading != null) return loading;
-			loading = loadPage().finally(() => {
+			loading = loadPage(Math.max(1, Math.min(100, Math.floor(limit)))).finally(() => {
 				loading = null;
 			});
 			return loading;

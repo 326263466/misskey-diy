@@ -6,11 +6,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import type { MiUser, ChatMessagesRepository, MiChatMessage, ChatRoomsRepository, MiChatRoom, MiChatRoomInvitation, ChatRoomInvitationsRepository, MiChatRoomMembership, ChatRoomMembershipsRepository, DriveFilesRepository, MiDriveFile } from '@/models/_.js';
-import { awaitAll } from '@/misc/prelude/await-all.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { } from '@/models/Blocking.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
+import { QueryService } from '@/core/QueryService.js';
 import { RedPacketService, type RedPacketSummary } from '@/core/RedPacketService.js';
 import { UserEntityService } from './UserEntityService.js';
 import { DriveFileEntityService } from './DriveFileEntityService.js';
@@ -38,13 +38,23 @@ export class ChatEntityService {
 		private driveFileEntityService: DriveFileEntityService,
 		private idService: IdService,
 		private redPacketService: RedPacketService,
+		private queryService: QueryService,
 	) {
 	}
 
-	private async packReplies(messages: MiChatMessage[]): Promise<Map<string, Packed<'ChatMessage'>['reply']>> {
+	private async packReplies(messages: MiChatMessage[], me?: { id: MiUser['id'] }): Promise<Map<string, Packed<'ChatMessage'>['reply']>> {
 		const ids = [...new Set(messages.flatMap(message => message.replyId ? [message.replyId] : []))];
 		if (ids.length === 0) return new Map();
-		const originals = await this.chatMessagesRepository.find({ where: { id: In(ids) }, relations: { file: true } });
+		const fetched = await this.chatMessagesRepository.find({ where: { id: In(ids) }, relations: { file: true } });
+		let originals = fetched;
+		if (me && fetched.some(message => message.toRoomId != null)) {
+			const visible = this.chatMessagesRepository.createQueryBuilder('reply').select('reply.id')
+				.where('reply.id IN (:...ids)', { ids });
+			this.queryService.generateBlockedUserQuery(visible, me, 'reply.fromUserId');
+			this.queryService.generateMutedUserQuery(visible, me, 'reply.fromUserId');
+			const visibleIds = new Set((await visible.getMany()).map(message => message.id));
+			originals = fetched.filter(message => message.toRoomId == null || visibleIds.has(message.id));
+		}
 		const users = new Map((await this.userEntityService.packMany(originals.map(message => message.fromUserId))).map(user => [user.id, user]));
 		return new Map(originals.map(message => [message.id, {
 			id: message.id,
@@ -109,7 +119,7 @@ export class ChatEntityService {
 			pokeUser: await this.packPokeUser(message, packedUsers, me),
 			replyId: message.replyId ?? null,
 			replyType: message.replyType ?? null,
-			reply: message.replyId ? (options?._hint_?.replies ?? await this.packReplies([message])).get(message.replyId) ?? null : null,
+			reply: message.replyId ? (options?._hint_?.replies ?? await this.packReplies([message], me)).get(message.replyId) ?? null : null,
 			editedAt: message.editedAt ? message.editedAt.toISOString() : null,
 			redPacketId: message.redPacketId ?? undefined,
 			redPacket: message.redPacketId ? (options?._hint_?.redPackets?.get(message.redPacketId) ?? await this.redPacketService.packById(message.redPacketId, me)) : undefined,
@@ -165,7 +175,7 @@ export class ChatEntityService {
 			this.packRooms(messages.map(m => m.toRoom ?? m.toRoomId).filter(x => x != null), me)
 				.then(rooms => new Map(rooms.map(r => [r.id, r]))),
 			this.redPacketService.packByIds(messages.flatMap(message => message.redPacketId ? [message.redPacketId] : []), me),
-			this.packReplies(messages),
+			this.packReplies(messages, me),
 		]);
 
 		return Promise.all(messages.map(message => this.packMessageDetailed(message, me, { _hint_: { packedUsers, packedFiles, packedRooms, redPackets, replies } })));
@@ -290,6 +300,7 @@ export class ChatEntityService {
 	@bindThis
 	public async packMessagesLiteForRoom(
 		messages: MiChatMessage[],
+		me?: { id: MiUser['id'] },
 	) {
 		if (messages.length === 0) return [];
 
@@ -303,12 +314,12 @@ export class ChatEntityService {
 		}
 
 		const [packedUsers, packedFiles, redPackets, replies] = await Promise.all([
-			this.userEntityService.packMany(users)
+			this.userEntityService.packMany(users, me)
 				.then(users => new Map(users.map(u => [u.id, u]))),
 			this.driveFileEntityService.packMany(messages.map(m => m.file).filter(x => x != null))
 				.then(files => new Map(files.map(f => [f.id, f]))),
-			this.redPacketService.packByIds(messages.flatMap(message => message.redPacketId ? [message.redPacketId] : [])),
-			this.packReplies(messages),
+			this.redPacketService.packByIds(messages.flatMap(message => message.redPacketId ? [message.redPacketId] : []), me),
+			this.packReplies(messages, me),
 		]);
 
 		return Promise.all(messages.map(message => this.packMessageLiteForRoom(message, { _hint_: { packedFiles, packedUsers, redPackets, replies } })));
@@ -347,6 +358,7 @@ export class ChatEntityService {
 			avatarId: room.avatarId ?? null,
 			avatarUrl: avatarFile ? this.driveFileEntityService.getPublicUrl(avatarFile) : null,
 			joinPolicy: room.joinPolicy,
+			joinQuestion: room.joinQuestion ?? '',
 			isSilenced: Boolean(room.isSilenced && (room.silenceUntil == null || room.silenceUntil.getTime() > Date.now())),
 			silenceUntil: room.silenceUntil?.toISOString() ?? null,
 			isMember: me ? room.ownerId === me.id || membership != null : undefined,
@@ -425,13 +437,17 @@ export class ChatEntityService {
 		src: MiChatRoomInvitation['id'] | MiChatRoomInvitation,
 		me: { id: MiUser['id'] },
 		options?: {
+			onlyPending?: boolean;
 			_hint_?: {
 				packedRooms: Map<MiChatRoomInvitation['roomId'], Packed<'ChatRoom'>>;
 				packedUsers: Map<MiChatRoomInvitation['id'], Packed<'UserLite'>>;
 			};
 		},
 	): Promise<Packed<'ChatRoomInvitation'>> {
-		const invitation = typeof src === 'object' ? src : await this.chatRoomInvitationsRepository.findOneByOrFail({ id: src });
+		const invitation = typeof src === 'object' && !options?.onlyPending ? src : await this.chatRoomInvitationsRepository.findOneByOrFail({
+			id: typeof src === 'object' ? src.id : src,
+			...(options?.onlyPending ? { userId: me.id, ignored: false, isRequest: false } : {}),
+		});
 
 		return {
 			id: invitation.id,

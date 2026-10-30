@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<SearchMarker path="/settings/other" :label="i18n.ts.other" :keywords="['other']" icon="ti ti-dots">
+<SearchMarker path="/settings/other" :label="i18n.ts.otherSettings" :keywords="['other']" icon="ti ti-dots">
 	<div class="_gaps_m">
 
 		<div class="_gaps_s">
@@ -115,12 +115,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<hr>
 
-		<FormLink to="/registry"><template #icon><i class="ti ti-adjustments"></i></template>{{ i18n.ts.registry }}</FormLink>
+		<FormLink to="/settings/registry"><template #icon><i class="ti ti-adjustments"></i></template>{{ i18n.ts.registry }}</FormLink>
 
 		<hr>
 
 		<MkButton @click="resetAllTips"><i class="ti ti-bulb"></i> {{ i18n.ts.redisplayAllTips }}</MkButton>
-		<MkButton @click="hideAllTips"><i class="ti ti-bulb-off"></i> {{ i18n.ts.hideAllTips }}</MkButton>
 
 		<hr>
 
@@ -138,7 +137,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch } from 'vue';
+import { watch } from 'vue';
 import XMigration from './migration.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import FormLink from '@/components/form/link.vue';
@@ -146,25 +145,23 @@ import MkFolder from '@/components/MkFolder.vue';
 import FormInfo from '@/components/MkInfo.vue';
 import MkKeyValue from '@/components/MkKeyValue.vue';
 import MkButton from '@/components/MkButton.vue';
-import FormSlot from '@/components/form/slot.vue';
 import * as os from '@/os.js';
 import { enableStoragePersistence, getStoragePersistenceStatusRef, storagePersistenceSupported } from '@/utility/storage.js';
 import { ensureSignin } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
-import FormSection from '@/components/form/section.vue';
 import { prefer } from '@/preferences.js';
 import MkRolePreview from '@/components/MkRolePreview.vue';
 import { signout } from '@/signout.js';
-import { hideAllTips as _hideAllTips, resetAllTips as _resetAllTips } from '@/tips.js';
+import { resetAllTips as _resetAllTips } from '@/tips.js';
 import { suggestReload } from '@/utility/reload-suggest.js';
 import { cloudBackup } from '@/preferences/utility.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
 const $i = ensureSignin();
 
 const storagePersisted = await getStoragePersistenceStatusRef();
 
-const reportError = prefer.model('reportError');
 const skipNoteRender = prefer.model('skipNoteRender');
 const devMode = prefer.model('devMode');
 const stackingRouterView = prefer.model('experimental.stackingRouterView');
@@ -202,29 +199,27 @@ async function deleteAccount() {
 
 function resetAllTips() {
 	_resetAllTips();
-	os.success();
-}
-
-function hideAllTips() {
-	_hideAllTips();
-	os.success();
+	os.toast(i18n.ts.tipsRedisplayed, 'success');
 }
 
 function readAllChatMessages() {
-	os.apiWithDialog('chat/read-all', {});
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('chat/read-all', {}).then(() => {
+		os.toast(i18n.ts.allMarkedAsRead, 'success');
+	}, () => {});
 }
 
 async function forceCloudBackup() {
-	await cloudBackup();
-	os.success();
+	try {
+		await cloudBackup();
+		os.toast(i18n.ts._preferencesBackup.backupCompleted, 'success');
+	} catch (error) {
+		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts._preferencesBackup.backupFailed, 'error');
+	}
 }
 
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
-
 definePage(() => ({
-	title: i18n.ts.other,
+	title: i18n.ts.otherSettings,
 	icon: 'ti ti-dots',
 }));
 </script>

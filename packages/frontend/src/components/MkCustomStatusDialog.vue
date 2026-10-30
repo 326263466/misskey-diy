@@ -28,8 +28,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					@keydown.esc="onEscape"
 					@blur="finishEditing()"
 				>
-				<button v-else ref="textButton" type="button" class="_button" :class="$style.textButton" :aria-label="i18n.ts.text" :disabled="saving" @click="startEditing">
-					<span><Mfm v-if="text" :text="text" :plain="true" :nowrap="true"/><template v-else>{{ i18n.ts._onlineStatus.customStatusPlaceholder }}</template></span>
+				<!-- 先选择状态，再修改文字；未选择时只提示，不能编辑。 -->
+				<button v-else ref="textButton" type="button" class="_button" :class="$style.textButton" :aria-label="i18n.ts.text" :disabled="saving || icon == null" @click="startEditing">
+					<span><Mfm v-if="text" :text="text" :plain="true" :nowrap="true"/><template v-else>{{ icon == null ? i18n.ts._onlineStatus.selectStatusFirst : i18n.ts._onlineStatus.customStatusPlaceholder }}</template></span>
 				</button>
 			</div>
 		</div>
@@ -72,8 +73,9 @@ const dialogEl = useTemplateRef('dialogEl');
 const inputEl = useTemplateRef('inputEl');
 const textButton = useTemplateRef('textButton');
 const iconName = useId();
-const icon = ref<CustomStatusIcon>(props.initialStatus?.icon ?? 'coffee');
-const text = ref(props.initialStatus?.text ?? getIconText(icon.value));
+// 新建时不预选图标，由用户自己挑选；编辑已有状态时沿用原来的选择。
+const icon = ref<CustomStatusIcon | null>(props.initialStatus?.icon ?? null);
+const text = ref(props.initialStatus?.text ?? '');
 const editing = ref(false);
 let textBeforeEditing = text.value;
 let finishAfterComposition = false;
@@ -83,14 +85,14 @@ const normalizedText = computed(() => text.value.trim());
 const length = computed(() => [...normalizedText.value].length);
 const tooLong = computed(() => length.value > CUSTOM_STATUS_TEXT_LIMIT);
 const invalidCharacters = computed(() => /[\p{Cc}\p{Zl}\p{Zp}\u202a-\u202e\u2066-\u2069]/u.test(normalizedText.value));
-const valid = computed(() => length.value > 0 && !tooLong.value && !invalidCharacters.value && !composing.value);
+const valid = computed(() => icon.value != null && length.value > 0 && !tooLong.value && !invalidCharacters.value && !composing.value);
 
 function getIconText(value: CustomStatusIcon): string {
 	return [...i18n.ts._onlineStatus._icons[value]].slice(0, CUSTOM_STATUS_TEXT_LIMIT).join('');
 }
 
 async function startEditing(): Promise<void> {
-	if (saving.value) return;
+	if (saving.value || icon.value == null) return;
 	textBeforeEditing = text.value;
 	finishAfterComposition = false;
 	editing.value = true;
@@ -163,7 +165,7 @@ function close(): void {
 }
 
 async function submit(): Promise<void> {
-	if (!valid.value || saving.value) return;
+	if (!valid.value || saving.value || icon.value == null) return;
 	await saveValue({ icon: icon.value, text: normalizedText.value });
 }
 
@@ -221,7 +223,7 @@ async function saveValue(value: CustomStatus | null): Promise<void> {
 	min-width: 0;
 	height: 24px;
 
-	// 独立绘制下划线，避开全局输入框阴影重置，也不改变文字布局。
+	// 独立绘制下划线，不改变文字布局。
 	&:has(> .input:focus, > .textButton:focus-visible)::after {
 		content: '';
 		position: absolute;
@@ -321,6 +323,11 @@ async function saveValue(value: CustomStatus | null): Promise<void> {
 .textEditor > .textButton {
 	// 与输入框共用自然行高，避免固定行高与原生输入文字的基线取整不同。
 	cursor: pointer;
+
+	&:disabled {
+		color: var(--MI_THEME-fgTransparentWeak);
+		cursor: default;
+	}
 }
 
 .actions {

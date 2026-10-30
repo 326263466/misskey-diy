@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_pageBody">
 		<SearchMarker path="/admin/settings" :label="i18n.ts.general" :keywords="['general', 'settings']" icon="ti ti-settings">
 			<div class="_gaps_m">
-				<SearchMarker v-slot="slotProps" :keywords="['information', 'meta']">
+				<SearchMarker :keywords="['information', 'meta']">
 					<MkFolder :defaultOpen="true">
 						<template #icon><SearchIcon><i class="ti ti-info-circle"></i></SearchIcon></template>
 						<template #label><SearchLabel>{{ i18n.ts.info }}</SearchLabel></template>
@@ -359,14 +359,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #icon><SearchIcon><i class="ti ti-ghost"></i></SearchIcon></template>
 						<template #label><SearchLabel>{{ i18n.ts.proxyAccount }}</SearchLabel></template>
 						<template v-if="proxyAccountForm.modified.value" #footer>
-							<MkFormFooter :form="proxyAccountForm"/>
+							<MkFormFooter :form="proxyAccountForm" :canSaving="proxyDescriptionValid"/>
 						</template>
 
 						<div class="_gaps">
 							<MkInfo>{{ i18n.ts.proxyAccountDescription }}</MkInfo>
 
 							<SearchMarker :keywords="['description']">
-					<MkTextarea v-model="proxyAccountForm.state.description" :max="500" :counterMaxLength="1500" tall mfmAutocomplete :mfmPreview="true">
+					<MkTextarea v-model="proxyAccountForm.state.description" :counterMaxLength="CONTENT_LIMITS.profileDescription" tall mfmAutocomplete :mfmPreview="true">
 									<template #label><SearchLabel>{{ i18n.ts._profile.description }}</SearchLabel></template>
 									<template #caption>{{ i18n.ts._profile.youCanIncludeHashtags }}</template>
 								</MkTextarea>
@@ -386,6 +386,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed } from 'vue';
+import { CONTENT_LIMITS } from 'misskey-js';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
@@ -517,6 +518,11 @@ const proxyAccountForm = useForm({
 		description: state.description,
 	});
 	fetchInstance(true);
+});
+// 与后端一致：只校验改动后的简介，未修改的旧长文本仍可保存其他设置。
+const proxyDescriptionValid = computed(() => {
+	const description = proxyAccountForm.state.description ?? '';
+	return description === (proxyAccount.description ?? '') || Array.from(description).length <= CONTENT_LIMITS.profileDescription;
 });
 
 async function openSetupWizard() {

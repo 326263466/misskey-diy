@@ -4,12 +4,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div data-image-fade="off" :class="$style.root">
+<div data-image-fade="off" :class="[$style.root, { [$style.compact]: compact }]">
 	<div :class="[$style.content]">
-		<button
-			ref="qrCodeEl" v-flip type="button" class="_button" :aria-label="i18n.ts.share"
-			:class="$style.qr" @click="share"
-		></button>
+		<div
+			ref="qrCodeEl" v-flip role="img" :aria-label="i18n.ts._qr.showUser"
+			:class="$style.qr"
+		></div>
 		<div v-flip :class="$style.user">
 			<MkAvatar :class="$style.avatar" :user="user" :indicator="false"/>
 			<div>
@@ -17,8 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div><MkCondensedLine :minScale="2 / 3">{{ acct }}</MkCondensedLine></div>
 			</div>
 		</div>
-		<img v-if="deviceMotionPermissionNeeded" v-flip :class="$style.logo" :src="misskeysvg" alt="Misskey" @click="requestDeviceMotion"/>
-		<img v-else v-flip :class="$style.logo" :src="misskeysvg" alt="Misskey"/>
+		<div v-if="!compact" v-flip :class="$style.instanceName" @click="requestDeviceMotion">{{ instanceName }}</div>
 	</div>
 </div>
 </template>
@@ -27,38 +26,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 import tinycolor from 'tinycolor2';
 import QRCodeStyling from 'qr-code-styling';
 import { computed, ref, watch, onMounted, onUnmounted, useTemplateRef } from 'vue';
-import { host } from '@@/js/config.js';
+import { host, instanceName } from '@@/js/config.js';
 import type { Directive } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { instance } from '@/instance.js';
 import { ensureSignin } from '@/i.js';
-import { userPage, userName } from '@@/js/user.js';
-import misskeysvg from '/client-assets/misskey.svg';
+import { userPage } from '@@/js/user.js';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
 import { i18n } from '@/i18n.js';
-import { openShareDialog } from '@/utility/share-dialog.js';
 
 const props = defineProps<{
 	user?: Misskey.entities.UserDetailed;
+	compact?: boolean;
 }>();
 
 const user = computed(() => props.user ?? ensureSignin());
 const acct = computed(() => `@${user.value.username}@${user.value.host ?? host}`);
 const userProfileUrl = computed(() => userPage(user.value, undefined, true));
-const shareData = computed(() => ({
-	title: i18n.tsx._qr.shareTitle({ name: userName(user.value), acct: acct.value }),
-	text: props.user ? i18n.ts._qr.userShareText : i18n.ts._qr.shareText,
-	url: userProfileUrl.value,
-}));
-
 const qrCodeEl = useTemplateRef('qrCodeEl');
 
 const qrColor = computed(() => tinycolor(instance.themeColor ?? '#86b300'));
 const qrHsl = computed(() => qrColor.value.toHsl());
-
-function share() {
-	openShareDialog(shareData.value);
-}
 
 const qrCodeInstance = new QRCodeStyling({
 	width: 600,
@@ -214,10 +202,39 @@ $avatarSize: 58px;
 	font-size: 110%;
 }
 
-.logo {
-	width: 100px;
+.instanceName {
+	max-width: 100%;
 	margin: $s3 auto 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 24px;
+	font-weight: 800;
+	color: #fff;
 	filter: drop-shadow(0 0 6px #0007);
+}
+
+.compact {
+	flex: none;
+	padding: var(--MI-cardPadding, 18px);
+}
+
+.compact .qr {
+	max-width: 210px;
+}
+
+.compact .user {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+	margin: 18px 0 0;
+	text-align: start;
+}
+
+.compact .avatar {
+	width: 42px;
+	height: 42px;
+	margin-bottom: 0;
 }
 </style>
 

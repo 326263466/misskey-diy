@@ -29,7 +29,7 @@ export const MENU_PADDING_Y = 8;
 export type MenuSide = 'bottom' | 'top' | 'right' | 'left';
 
 /** 浮层沿该边的对齐方式。`start` 是书写方向的起始边，RTL 下即锚点右边缘 */
-export type MenuAlign = 'start' | 'end';
+export type MenuAlign = 'start' | 'end' | 'center';
 
 type Size = { width: number; height: number };
 type Rect = { left: number; right: number; top: number; bottom: number };
@@ -103,6 +103,10 @@ export function calcDropdownPosition(
 	options: {
 		/** 优先在容器内完整展示；锚点周围放不下时退回视口。 */
 		boundary?: Rect;
+		/** 普通面板可指定初始方位；菜单仍默认从下方展开。 */
+		initialSide?: MenuSide;
+		/** 保留面板的居中或末端对齐，默认按菜单的起始边对齐。 */
+		initialAlign?: MenuAlign;
 		/** 是否允许翻到锚点左右两侧。宽度跟随锚点的 select 类下拉应关掉，甩到侧面很怪 */
 		allowSideFlip?: boolean;
 		/** 书写方向。RTL 下 `start` 对齐的是锚点右边缘 */
@@ -164,12 +168,12 @@ export function calcDropdownPosition(
 	// 横向方位可以用满整条边界高度，纵向方位受锚点上下的空间限制
 	const availableHeight = (s: MenuSide) => Math.max(0, Math.min(isVertical(s) ? mainSpace[s] : boundaryHeight, boundaryHeight));
 
-	const candidateSides: MenuSide[] = (options.allowSideFlip ?? true)
-		? ['bottom', 'top', 'right', 'left']
-		: ['bottom', 'top'];
+	const initialSide = options.initialSide ?? 'bottom';
+	const opposite: Record<MenuSide, MenuSide> = { bottom: 'top', top: 'bottom', right: 'left', left: 'right' };
+	const candidateSides: MenuSide[] = [initialSide, opposite[initialSide], ...(isVertical(initialSide) ? ['right', 'left'] as const : ['bottom', 'top'] as const)];
 	// 横向方位的主轴是宽度，宽度放不下就不可用；否则 shift 会把菜单夹回来压住锚点。
 	// 纵向方位恒定可用（高度不够就限高滚动），所以 sides 不会为空。
-	const sides = candidateSides.filter(s => isVertical(s) || size.width <= mainSpace[s]);
+	const sides = candidateSides.filter(s => isVertical(s) || ((options.allowSideFlip ?? true) && size.width <= mainSpace[s]));
 
 	// flip：只有主轴放不下才换方位（交叉轴溢出交给下面的对齐和 shift，否则菜单会莫名跳到侧面）。
 	// 任何方位都装不下时退化成 bestFit，取可见高度最大的那个。
@@ -195,8 +199,14 @@ export function calcDropdownPosition(
 	const crossFits = (value: number) => value >= crossMin && value + crossSize <= crossMax;
 
 	// 对齐边溢出时先翻到另一边（alignment flip），两边都装不下才靠 shift 夹紧
-	const align: MenuAlign = crossFits(crossStart) || !crossFits(crossEnd) ? 'start' : 'end';
-	const cross = align === 'start' ? crossStart : crossEnd;
+	const initialAlign = options.initialAlign ?? 'start';
+	const preferEnd = initialAlign === 'end';
+	const align: MenuAlign = initialAlign === 'center' ? 'center'
+		: crossFits(preferEnd ? crossEnd : crossStart) || !crossFits(preferEnd ? crossStart : crossEnd) ? initialAlign
+			: preferEnd ? 'start' : 'end';
+	const cross = align === 'center'
+		? (isVertical(side) ? (anchor.left + anchor.right - size.width) / 2 : (anchor.top + anchor.bottom - height) / 2)
+		: align === 'start' ? crossStart : crossEnd;
 
 	let left: number;
 	let top: number;

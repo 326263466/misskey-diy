@@ -15,7 +15,7 @@ const items = [5, 10, 19.99, 20, 50, 100].map((amount, index) => ({ id: `tip-${i
 
 export const Default = {
 	render(args) { return { components: { MkTipSection }, setup() { return { args }; }, template: '<div style="width: min(780px, 90vw)"><MkTipSection v-bind="args"/></div>' }; },
-	args: { recipient: userLite('tip-recipient', 'alice', null, 'Alice'), targetType: 'page', targetId: 'article', targetTitle: 'Hello, Misskey' },
+	args: { recipient: userLite('tip-recipient', 'alice', null, 'Alice'), targetType: 'page', targetId: 'article' },
 	parameters: { msw: { handlers: [...commonHandlers, http.post('/api/tips/list', () => HttpResponse.json({ items, totalCount: items.length, totalAmount: items.reduce((sum, item) => sum + item.amount, 0) })), http.post('/api/i/wallet', () => HttpResponse.json({ balance: 1000, points: 100, reservedBalance: 0, exchangeEnabled: true, exchangeRate: 1 })), http.post('/api/i/wallet/tip', async ({ request }) => {
 		const { amount } = await request.json() as { amount: number };
 		return HttpResponse.json({ balance: 1000 - amount, amount, sent: true });

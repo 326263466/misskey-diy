@@ -36,7 +36,7 @@ const paginator = markRaw(new Paginator('users/gallery/posts', {
 <style lang="scss" module>
 .root {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
 	grid-gap: 12px;
 }
 </style>

@@ -8,7 +8,7 @@ import { CONTENT_LIMITS } from 'misskey-js';
 import { contentTooLongError } from '@/misc/content-limits.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { FeedbackService } from '@/core/FeedbackService.js';
-import { DriveFileLifecycleService } from '@/core/DriveFileLifecycleService.js';
+import { DriveFileValidationService } from '@/core/DriveFileValidationService.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 
@@ -46,7 +46,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			try {
 				return await this.feedbackService.update(ps.feedbackId, ps, me);
 			} catch (error) {
-				if (DriveFileLifecycleService.isInvalidImagesError(error)) throw new ApiError(meta.errors.invalidFiles);
+				if (error instanceof DriveFileValidationService.InvalidImagesError) throw new ApiError(meta.errors.invalidFiles);
 				if (error instanceof IdentifiableError && error.id === contentTooLongError.id) throw new ApiError(meta.errors.contentTooLong);
 				if (error instanceof FeedbackService.NoSuchFeedbackError) throw new ApiError(meta.errors.noSuchFeedback);
 				if (error instanceof FeedbackService.AccessDeniedError) throw new ApiError(meta.errors.accessDenied);

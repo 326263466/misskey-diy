@@ -7,26 +7,58 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody">
 		<div class="_gaps">
-			<div :class="$style.filters">
-				<MkInput v-model="host">
-					<template #prefix><i class="ti ti-search"></i></template>
-					<template #label>{{ i18n.ts.host }}</template>
-				</MkInput>
-				<MkSelect v-model="state" :items="stateDef">
-					<template #label>{{ i18n.ts.state }}</template>
-				</MkSelect>
-				<MkSelect v-model="sort" :items="sortDef">
-					<template #label>{{ i18n.ts.sort }}</template>
-				</MkSelect>
-			</div>
-
-			<MkPagination v-slot="{items}" :paginator="paginator" pageEmpty>
-				<div :class="$style.instances">
-					<MkA v-for="instance in items" :key="instance.id" v-tooltip.mfm="`${i18n.ts.state}: ${getStatus(instance)}`" :class="$style.instance" :to="`/instance-info/${instance.host}`">
-						<MkInstanceCardMini :instance="instance"/>
-					</MkA>
+			<div class="_adminPanel">
+				<div class="_adminToolbar">
+					<MkInput v-model="host" type="search" class="_adminToolbarField">
+						<template #prefix><i class="ti ti-search"></i></template>
+						<template #label>{{ i18n.ts.host }}</template>
+					</MkInput>
+					<MkSelect v-model="state" :items="stateDef" class="_adminToolbarField">
+						<template #label>{{ i18n.ts.state }}</template>
+					</MkSelect>
+					<MkSelect v-model="sort" :items="sortDef" class="_adminToolbarField" style="--admin-fieldWidth: 200px;">
+						<template #label>{{ i18n.ts.sort }}</template>
+					</MkSelect>
 				</div>
-			</MkPagination>
+
+				<MkPagination v-slot="{items}" :paginator="paginator" pageEmpty>
+					<div class="_adminTableContainer">
+						<table class="_adminTable">
+							<thead>
+								<tr>
+									<th scope="col">{{ i18n.ts.instance }}</th>
+									<th scope="col">{{ i18n.ts.software }}</th>
+									<th scope="col">{{ i18n.ts.state }}</th>
+									<th scope="col" class="_adminTableNumber">{{ i18n.ts.users }}</th>
+									<th scope="col" class="_adminTableNumber">{{ i18n.ts.notes }}</th>
+									<th scope="col" class="_adminTableNumber">{{ i18n.ts.following }}</th>
+									<th scope="col" class="_adminTableNumber">{{ i18n.ts.followers }}</th>
+									<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr v-for="instance in items" :key="instance.id">
+									<td class="_adminTableMain">
+										<MkA :class="$style.instance" :to="`/instance-info/${instance.host}`" behavior="window">
+											<MkInstanceCardMini :class="$style.instanceCard" :instance="instance"/>
+										</MkA>
+									</td>
+									<td>
+										<div>{{ instance.softwareName || '?' }}</div>
+										<div v-if="instance.softwareVersion" class="_adminTableSecondary _monospace">{{ instance.softwareVersion }}</div>
+									</td>
+									<td><span class="_adminTableStatus" :style="{ '--admin-statusColor': instance.isBlocked ? 'var(--MI_THEME-error)' : instance.isSuspended || instance.isNotResponding ? 'var(--MI_THEME-warn)' : instance.isSilenced ? 'var(--MI_THEME-fgTransparentWeak)' : 'var(--MI_THEME-success)' }">{{ getStatus(instance) }}</span></td>
+									<td class="_adminTableNumber">{{ number(instance.usersCount) }}</td>
+									<td class="_adminTableNumber">{{ number(instance.notesCount) }}</td>
+									<td class="_adminTableNumber">{{ number(instance.followingCount) }}</td>
+									<td class="_adminTableNumber">{{ number(instance.followersCount) }}</td>
+									<td class="_adminTableActions"><MkA class="_textButton" :to="`/instance-info/${instance.host}`" behavior="window">{{ i18n.ts.details }}</MkA></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</MkPagination>
+			</div>
 		</div>
 	</div>
 </PageWithHeader>
@@ -44,6 +76,7 @@ import { definePage } from '@/page.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 import { Paginator } from '@/utility/paginator.js';
 import { useSearchQuery } from '@/composables/use-search-query.js';
+import number from '@/filters/number.js';
 
 const host = ref('');
 const searchHost = useSearchQuery(host);
@@ -54,8 +87,8 @@ const {
 	items: [
 		{ label: i18n.ts.all, value: 'all' },
 		{ label: i18n.ts.federating, value: 'federating' },
-		{ label: i18n.ts.subscribing, value: 'subscribing' },
-		{ label: i18n.ts.publishing, value: 'publishing' },
+		{ label: i18n.ts._chartSeries.federationSub, value: 'subscribing' },
+		{ label: i18n.ts._chartSeries.federationPub, value: 'publishing' },
 		{ label: i18n.ts.suspended, value: 'suspended' },
 		{ label: i18n.ts.blocked, value: 'blocked' },
 		{ label: i18n.ts.silence, value: 'silenced' },
@@ -129,25 +162,30 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
-.filters {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-end;
-	gap: 12px;
+.instance {
+	display: block;
+	min-width: 220px;
+	max-width: 340px;
 
-	> * {
-		flex: 1 1 220px;
-		min-width: 0;
+	&:hover {
+		text-decoration: none;
 	}
 }
 
-.instances {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
-	grid-gap: 12px;
-}
+.instance .instanceCard.instanceCard {
+	padding: 0;
+	background: transparent;
+	background-image: none;
+	border-radius: 0;
 
-.instance:hover {
-	text-decoration: none;
+	> :global(.icon) {
+		width: 32px;
+		height: 32px;
+		flex-shrink: 0;
+	}
+
+	> :global(.body) {
+		font-size: inherit;
+	}
 }
 </style>

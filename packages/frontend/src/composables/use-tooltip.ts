@@ -3,15 +3,18 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { ref, watch, onBeforeUnmount } from 'vue';
+import { ref, shallowRef, watch, onBeforeUnmount } from 'vue';
 import type { Ref } from 'vue';
+
+export type TooltipPointerPosition = { x: number; y: number };
 
 export function useTooltip(
 	elRef: Ref<HTMLElement | { $el: HTMLElement } | null | undefined>,
-	onShow: (showing: Ref<boolean>) => void,
+	onShow: (showing: Ref<boolean>, pointerPosition: Ref<TooltipPointerPosition | null>) => void,
 	delay = 600,
 ): void {
 	let isHovering = false;
+	const pointerPosition = shallowRef<TooltipPointerPosition | null>(null);
 
 	// iOS(Androidも？)では、要素をタップした直後に(おせっかいで)mouseoverイベントを発火させたりするため、それを無視するためのフラグ
 	// 無視しないと、画面に触れてないのにツールチップが出たりし、ユーザビリティが損なわれる
@@ -32,7 +35,7 @@ export function useTooltip(
 		if (!window.document.body.contains(el)) return; // openしようとしたときに既に元要素がDOMから消えている場合があるため
 
 		const showing = ref(true);
-		onShow(showing);
+		onShow(showing, pointerPosition);
 		changeShowingState = () => {
 			showing.value = false;
 		};
@@ -55,9 +58,15 @@ export function useTooltip(
 		}
 	};
 
-	const onMouseover = () => {
-		if (isHovering) return;
+	const onMousemove = (event: MouseEvent) => {
 		if (shouldIgnoreMouseover) return;
+		pointerPosition.value = { x: event.clientX, y: event.clientY };
+	};
+
+	const onMouseover = (event: MouseEvent) => {
+		if (shouldIgnoreMouseover) return;
+		onMousemove(event);
+		if (isHovering) return;
 		isHovering = true;
 		timeoutId = window.setTimeout(open, delay);
 	};
@@ -72,6 +81,7 @@ export function useTooltip(
 
 	const onTouchstart = () => {
 		shouldIgnoreMouseover = true;
+		pointerPosition.value = null;
 		if (isHovering) return;
 		isHovering = true;
 		timeoutId = window.setTimeout(open, delay);
@@ -90,6 +100,7 @@ export function useTooltip(
 			stop();
 			const el = elRef.value instanceof Element ? elRef.value : elRef.value.$el;
 			el.addEventListener('mouseover', onMouseover, { passive: true });
+			el.addEventListener('mousemove', onMousemove, { passive: true });
 			el.addEventListener('mouseleave', onMouseleave, { passive: true });
 			el.addEventListener('touchstart', onTouchstart, { passive: true });
 			el.addEventListener('touchend', onTouchend, { passive: true });
@@ -105,6 +116,7 @@ export function useTooltip(
 		if (elRef.value) {
 			const el = elRef.value instanceof Element ? elRef.value : elRef.value.$el;
 			el.removeEventListener('mouseover', onMouseover);
+			el.removeEventListener('mousemove', onMousemove);
 			el.removeEventListener('mouseleave', onMouseleave);
 			el.removeEventListener('touchstart', onTouchstart);
 			el.removeEventListener('touchend', onTouchend);

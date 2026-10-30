@@ -19,6 +19,7 @@ description: 编辑或新增 packages/backend/ 下的 API、NestJS 服务、Type
 - API `meta` / `paramDef` / `res`：[api-meta-paramdef](references/knowledge/api-meta-paramdef.md)
 - `endpoint-list.ts` 接线：[endpoint-list](references/knowledge/endpoint-list.md)
 - 后端测试前提和 helper：[backend-testing](references/knowledge/backend-testing.md)
+- 用户间互动、提醒、交易或内容展示：[拉黑关系规范](references/knowledge/user-blocking.md)
 
 ## 验证
 

@@ -25,6 +25,19 @@ describe('createFlatNoteRepliesLoader', () => {
 		expect(fetchPage).toHaveBeenCalledTimes(1);
 	});
 
+	test('paginates oldest replies first with sinceId in ascending mode', async () => {
+		const firstPage = ['1', '2', '3', '4', '5'].map(id => makeNote(id));
+		const fetchPage = vi.fn().mockResolvedValueOnce(firstPage).mockResolvedValueOnce([makeNote('6')]);
+		const loader = createFlatNoteRepliesLoader(makeNote('root', 6), fetchPage, { ascending: true });
+
+		expect(await loader.loadMore()).toEqual({ notes: firstPage, hasMore: true });
+		expect(await loader.loadMore()).toEqual({ notes: [makeNote('6')], hasMore: false });
+		expect(fetchPage.mock.calls).toEqual([
+			[{ noteId: 'root', limit: 5, sinceId: '0' }],
+			[{ noteId: 'root', limit: 5, sinceId: '5' }],
+		]);
+	});
+
 	test('does not fetch a root without replies', async () => {
 		const fetchPage = vi.fn();
 		const loader = createFlatNoteRepliesLoader(makeNote('root'), fetchPage);

@@ -400,7 +400,6 @@ export class MiMeta {
 
 	@Column('varchar', {
 		length: 1024,
-		default: 'https://github.com/misskey-dev/misskey',
 		nullable: true,
 	})
 	public repositoryUrl: string | null;

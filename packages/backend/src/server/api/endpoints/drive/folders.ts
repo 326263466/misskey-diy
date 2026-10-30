@@ -62,7 +62,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const folders = await query.limit(ps.limit).getMany();
 
-			return await Promise.all(folders.map(folder => this.driveFolderEntityService.pack(folder)));
+			// 列表直接显示每个文件夹内的文件数和子文件夹数，计数由 packMany 批量查询。
+			return await this.driveFolderEntityService.packMany(folders, { detail: true });
 		});
 	}
 }

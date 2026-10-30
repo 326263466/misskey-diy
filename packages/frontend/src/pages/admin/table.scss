@@ -1,0 +1,310 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+@mixin styles {
+	// 样式表离开后台后不会卸载，通用表单类名只能在引入页的 .adminScope 内生效，否则会改掉其他页面的表单布局。
+	// 后台操作按钮沿用站点控件圆角，不使用胶囊按钮。
+	:where(.adminScope) :global(._pageBody ._buttonRounded),
+	:where(.adminScope) :global(._pageFooter ._buttonRounded) {
+		border-radius: var(--MI-radius);
+	}
+
+	// 页脚与正文使用同一条左边界，不为标签列预留缩进。
+	:where(.adminScope) :global(._pageFooter) {
+		padding: 12px var(--MI-pageContentPadding, var(--MI-cardPadding));
+		background: var(--MI_THEME-panel);
+	}
+
+	// 状态提示与表单保持相同的密度。
+	:where(.adminScope) :global(._pageBody ._alert) {
+		padding: 8px 16px;
+		border-radius: var(--MI-radius);
+		font-size: 1em;
+		line-height: 1.6;
+	}
+
+	:global(._adminToolbar) {
+		--MI-controlHeight: 36px;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 12px;
+		min-width: 0;
+		font-size: 1em;
+	}
+
+	// 列表筛选保留行内布局，普通设置表单使用组件自身的布局。
+	:global(._adminToolbarField) {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex: 0 1 auto;
+		min-width: 0;
+		max-width: 100%;
+
+		> :first-child {
+			flex: none;
+			margin: 0;
+			padding: 0;
+			white-space: nowrap;
+			color: var(--MI_THEME-fgTransparent);
+
+			&:empty {
+				display: none;
+			}
+		}
+
+		> :nth-child(2) {
+			flex: 0 1 var(--admin-fieldWidth, 160px);
+			width: var(--admin-fieldWidth, 160px);
+			min-width: 0;
+		}
+	}
+
+	:global(._adminToolbarActions) {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		margin-inline-start: auto;
+	}
+
+	// 列表页：查询栏和内容合为一个面板，中间用分割线分开。
+	:global(._adminPanel) {
+		min-width: 0;
+		gap: 0;
+		border-radius: var(--MI-cardRadius);
+		background: var(--MI_THEME-panel);
+		overflow: clip;
+
+		> :global(._adminToolbar),
+		> :global(._adminPanelHeader) {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 12px 16px;
+			border-bottom: var(--MI-divider);
+		}
+
+		// 能放进一行时保持一行；放不下时整项换行，不把输入框压到无法阅读。
+		:global(._adminToolbar) {
+			column-gap: 16px;
+			row-gap: 12px;
+
+			> :global(._adminToolbarField) {
+				flex-shrink: 0;
+			}
+
+			// 按钮按文字宽度显示，减少查询栏换行。
+			:global(._button._button) {
+				min-width: auto;
+			}
+		}
+
+		:global(._adminToolbarActions) {
+			flex-wrap: nowrap;
+		}
+
+		:global(._pagination) {
+			padding-inline: 16px;
+			border-top: var(--MI-divider);
+		}
+
+		:has(> :global(._pagination)) {
+			gap: 0;
+		}
+	}
+
+	:global(._adminPanelInset) {
+		padding: 16px;
+	}
+
+	// 页头分割线原本用 1px 高的背景绘制，缩放屏幕下会比表格边框粗；后台改用边框，与表格线对齐到相同物理像素。
+	:where(.adminScope) :global([data-page-header][data-page-header])::after {
+		height: 0;
+		border-bottom: var(--MI-divider);
+		background: none;
+	}
+
+	// 放在页面标签同一行的工具栏。
+	:global([data-page-header] > :has(> * > ._adminHeaderToolbar)) {
+		flex-wrap: wrap;
+
+		// 按标签自身宽度判断，放不下时工具栏整体换到下一行。
+		> :first-child {
+			flex: 1 1 auto;
+		}
+	}
+
+	:global(._adminHeaderToolbar) {
+		justify-content: flex-end;
+		column-gap: 16px;
+		padding: 7px 8px 7px 0;
+		color: var(--MI_THEME-fg);
+
+		> :global(._adminToolbarField) {
+			flex-shrink: 0;
+		}
+
+		:global(._button._button) {
+			min-width: auto;
+		}
+
+		:global(._adminToolbarActions) {
+			flex-wrap: nowrap;
+		}
+	}
+
+	:global(._adminTableContainer) {
+		width: 100%;
+		min-width: 0;
+		max-width: 100%;
+		box-sizing: border-box;
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+		border-radius: var(--MI-cardRadius);
+		background: var(--MI_THEME-panel);
+	}
+
+	:global(._adminTable) {
+		width: 100%;
+		border-collapse: collapse;
+		border-spacing: 0;
+		font-size: 1em;
+		line-height: 1.5;
+		text-align: start;
+
+		> thead > tr > th,
+		> tbody > tr > td {
+			padding: 10px 12px;
+			border-bottom: var(--MI-divider);
+			text-align: start;
+			vertical-align: middle;
+		}
+
+		> thead > tr > th {
+			background: var(--MI_THEME-panelHighlight);
+			color: var(--MI_THEME-fgTransparent);
+			font-weight: 600;
+			white-space: nowrap;
+		}
+
+		> tbody:last-child > tr:last-child > td {
+			border-bottom: none;
+		}
+
+		> tbody > tr:hover > td {
+			background: var(--MI_THEME-panelHighlight);
+		}
+
+		> tbody > tr:hover > :global(._adminTableActions) {
+			background: var(--MI_THEME-panelHighlight);
+		}
+
+		> thead > tr > :global(._adminTableNumber),
+		> tbody > tr > :global(._adminTableNumber) {
+			text-align: start;
+			font-variant-numeric: tabular-nums;
+			white-space: nowrap;
+		}
+
+		> thead > tr > :global(._adminTableActions),
+		> tbody > tr > :global(._adminTableActions) {
+			position: sticky;
+			inset-inline-end: 0;
+			z-index: 1;
+			width: 1%;
+			min-width: 72px;
+			text-align: start;
+			white-space: nowrap;
+			background: var(--MI_THEME-panel);
+			box-shadow: calc(-1 * var(--MI-dividerWidth)) 0 0 var(--MI-dividerColor);
+		}
+
+		> thead > tr > :global(._adminTableActions) {
+			z-index: 2;
+			background: var(--MI_THEME-panelHighlight);
+		}
+
+		> tbody > tr > :global(._adminTableDetail) {
+			padding: 20px;
+			background: var(--MI_THEME-panel);
+		}
+
+		> tbody > tr > :global(._adminTableEmpty) {
+			padding: 32px 16px;
+			color: var(--MI_THEME-fgTransparentWeak);
+			text-align: center;
+		}
+	}
+
+	:global(._adminTableMain) {
+		width: auto;
+		min-width: 160px;
+		max-width: 320px;
+		overflow-wrap: anywhere;
+	}
+
+	:global(._adminTableDate) {
+		width: 180px;
+		min-width: 160px;
+		white-space: normal;
+	}
+
+	:global(._adminTableShort) {
+		width: 1%;
+		white-space: nowrap;
+	}
+
+	:global(._adminTableIdentity) {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
+
+		> :last-child {
+			min-width: 0;
+		}
+	}
+
+	:global(._adminTableAvatar) {
+		display: block;
+		flex: 0 0 auto;
+		width: 32px;
+		height: 32px;
+		object-fit: cover;
+	}
+
+	:global(._adminTableImage) {
+		display: block;
+		flex: 0 0 auto;
+		width: 48px;
+		height: 40px;
+		object-fit: contain;
+	}
+
+	:global(._adminTableSecondary) {
+		margin-top: 3px;
+		color: var(--MI_THEME-fgTransparentWeak);
+		font-size: 0.9em;
+		overflow-wrap: anywhere;
+	}
+
+	:global(._adminTableStatus) {
+		display: inline-block;
+		padding: 2px 7px;
+		border-radius: var(--MI-radius);
+		background: color-mix(in srgb, var(--admin-statusColor, var(--MI_THEME-accent)) 8%, transparent);
+		color: var(--admin-statusColor, var(--MI_THEME-accent));
+		font-size: 0.9em;
+		white-space: nowrap;
+	}
+
+	:global(._adminTableTools) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 12px;
+	}
+}

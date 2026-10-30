@@ -5,13 +5,14 @@
 
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { In } from 'typeorm';
 import { IdService } from '@/core/IdService.js';
 import type { MiUser } from '@/models/User.js';
 import type { MiBlocking } from '@/models/Blocking.js';
 import { QueueService } from '@/core/QueueService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { DI } from '@/di-symbols.js';
-import type { FollowRequestsRepository, BlockingsRepository, UserListsRepository, UserListMembershipsRepository } from '@/models/_.js';
+import type { FollowRequestsRepository, BlockingsRepository, UserListsRepository, UserListMembershipsRepository, ChatRoomsRepository, ChatRoomInvitationsRepository } from '@/models/_.js';
 import Logger from '@/logger.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
@@ -41,6 +42,12 @@ export class UserBlockingService implements OnModuleInit {
 		@Inject(DI.userListMembershipsRepository)
 		private userListMembershipsRepository: UserListMembershipsRepository,
 
+		@Inject(DI.chatRoomsRepository)
+		private chatRoomsRepository: ChatRoomsRepository,
+
+		@Inject(DI.chatRoomInvitationsRepository)
+		private chatRoomInvitationsRepository: ChatRoomInvitationsRepository,
+
 		private cacheService: CacheService,
 		private userEntityService: UserEntityService,
 		private idService: IdService,
@@ -65,6 +72,8 @@ export class UserBlockingService implements OnModuleInit {
 			this.userFollowingService.unfollow(blocker, blockee, silent),
 			this.userFollowingService.unfollow(blockee, blocker, silent),
 			this.removeFromList(blockee, blocker),
+			this.removeRoomInvitations(blocker, blockee),
+			this.removeRoomInvitations(blockee, blocker),
 		]);
 
 		const blocking = {
@@ -77,8 +86,10 @@ export class UserBlockingService implements OnModuleInit {
 
 		await this.blockingsRepository.insert(blocking);
 
-		this.cacheService.userBlockingCache.refresh(blocker.id);
-		this.cacheService.userBlockedCache.refresh(blockee.id);
+		await Promise.all([
+			this.cacheService.userBlockingCache.refresh(blocker.id),
+			this.cacheService.userBlockedCache.refresh(blockee.id),
+		]);
 
 		this.globalEventService.publishInternalEvent('blockingCreated', {
 			blockerId: blocker.id,
@@ -150,6 +161,23 @@ export class UserBlockingService implements OnModuleInit {
 	}
 
 	@bindThis
+	private async removeRoomInvitations(roomOwner: MiUser, user: MiUser) {
+		const rooms = await this.chatRoomsRepository.find({
+			select: { id: true },
+			where: { ownerId: roomOwner.id },
+		});
+
+		if (rooms.length === 0) {
+			return;
+		}
+
+		await this.chatRoomInvitationsRepository.delete({
+			roomId: In(rooms.map(room => room.id)),
+			userId: user.id,
+		});
+	}
+
+	@bindThis
 	public async unblock(blocker: MiUser, blockee: MiUser) {
 		const blocking = await this.blockingsRepository.findOneBy({
 			blockerId: blocker.id,
@@ -168,8 +196,10 @@ export class UserBlockingService implements OnModuleInit {
 
 		await this.blockingsRepository.delete(blocking.id);
 
-		this.cacheService.userBlockingCache.refresh(blocker.id);
-		this.cacheService.userBlockedCache.refresh(blockee.id);
+		await Promise.all([
+			this.cacheService.userBlockingCache.refresh(blocker.id),
+			this.cacheService.userBlockedCache.refresh(blockee.id),
+		]);
 
 		this.globalEventService.publishInternalEvent('blockingDeleted', {
 			blockerId: blocker.id,
@@ -186,5 +216,16 @@ export class UserBlockingService implements OnModuleInit {
 	@bindThis
 	public async checkBlocked(blockerId: MiUser['id'], blockeeId: MiUser['id']): Promise<boolean> {
 		return (await this.cacheService.userBlockingCache.fetch(blockerId)).has(blockeeId);
+	}
+
+	/** 社交内容与新互动按双向拉黑判断，不用于替代公开资源和订单的业务权限。 */
+	@bindThis
+	public async isBlockedEither(userId: MiUser['id'], otherId: MiUser['id']): Promise<boolean> {
+		if (userId === otherId) return false;
+		const [blocking, blocked] = await Promise.all([
+			this.cacheService.userBlockingCache.fetch(userId),
+			this.cacheService.userBlockedCache.fetch(userId),
+		]);
+		return blocking.has(otherId) || blocked.has(otherId);
 	}
 }

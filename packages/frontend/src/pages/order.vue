@@ -10,11 +10,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<time v-if="order.createdAt" :datetime="order.createdAt">{{ new Date(order.createdAt).toLocaleString() }}</time>
 	</header>
 	<dl :class="$style.facts">
-		<div><dt>{{ i18n.ts._marketplace.quantity }}</dt><dd>{{ order.quantity.toLocaleString() }} {{ order.unit }}</dd></div>
+		<div><dt>{{ i18n.ts._marketplace.quantity }}</dt><dd>{{ order.quantity.toLocaleString() }}</dd></div>
 		<div><dt>{{ sales ? i18n.ts._payments.orderTotal : i18n.ts._marketplace.pointsRedemption }}</dt><dd>{{ order.total.toLocaleString() }} {{ i18n.ts._marketplace.pointUnit }}</dd></div>
 		<div v-if="sales && order.platformFee != null"><dt>{{ i18n.ts._payments.platformFee }}<template v-if="order.feeRateBps != null"> ({{ (order.feeRateBps / 100).toLocaleString() }}%)</template></dt><dd>{{ order.platformFee.toLocaleString() }} {{ i18n.ts._marketplace.pointUnit }}</dd></div>
 		<div v-if="sales && order.sellerAmount != null"><dt>{{ i18n.ts._payments.sellerAmount }}</dt><dd :class="$style.income">{{ order.sellerAmount.toLocaleString() }} {{ i18n.ts._marketplace.pointUnit }}</dd></div>
-		<div><dt>{{ i18n.ts._marketplace.orderNumber }}</dt><dd class="_selectable"><MkA :to="`/my/${sales ? 'sales' : 'orders'}/${encodeURIComponent(order.id)}`">{{ order.id }}</MkA></dd></div>
+		<div><dt>{{ i18n.ts._marketplace.orderNumber }}</dt><dd class="_selectable"><MkA :to="`/my/${sales ? 'sales' : 'orders'}/${encodeURIComponent(order.id)}`">{{ order.orderNumber }}</MkA></dd></div>
 		<div v-if="counterparty"><dt>{{ sales ? i18n.ts._marketplace.buyer : i18n.ts._marketplace.seller }}</dt><dd><MkA :to="userPage(counterparty)"><MkUserName :user="counterparty"/><span :class="$style.account">@{{ acct(counterparty) }}</span></MkA></dd></div>
 	</dl>
 	<section v-if="order.redemptionCode" :class="$style.codes">
@@ -44,7 +44,7 @@ import { acct, userPage } from '@@/js/user.js';
 
 type Order = entities.OrdersListResponse[number];
 const props = defineProps<{
-	order: Pick<Order, 'id' | 'name' | 'type' | 'quantity' | 'unit' | 'total' | 'deliveryText' | 'redemptionCode'> & Partial<Pick<Order, 'createdAt' | 'seller' | 'buyer' | 'feeRateBps' | 'platformFee' | 'sellerAmount'>>;
+	order: Pick<Order, 'id' | 'orderNumber' | 'name' | 'type' | 'quantity' | 'total' | 'deliveryText' | 'redemptionCode'> & Partial<Pick<Order, 'createdAt' | 'seller' | 'buyer' | 'feeRateBps' | 'platformFee' | 'sellerAmount'>>;
 	embedded?: boolean;
 	sales?: boolean;
 }>();
@@ -94,9 +94,10 @@ const counterparty = computed(() => props.sales ? props.order.buyer : props.orde
 
 	dt { color: var(--MI_THEME-fgTransparent); }
 	dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+	dd > a { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 }
 
-.account { margin-left: 6px; color: var(--MI_THEME-fgTransparent); font-size: .85em; }
+.account { color: var(--MI_THEME-fgTransparent); font-size: .85em; }
 .income { color: var(--MI_THEME-success); font-weight: 600; }
 .codes { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; padding-top: 16px; border-top: var(--MI-divider); }
 .codes h3, .codes p { margin: 0; }

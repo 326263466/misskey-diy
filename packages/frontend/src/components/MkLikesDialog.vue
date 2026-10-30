@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModalWindow ref="dialogEl" :width="440" :height="560" :autoHeight="true" @close="close" @esc="close" @closed="emit('closed')">
+<MkModalWindow ref="dialogEl" :width="400" :height="480" :autoHeight="true" @close="close" @esc="close" @closed="emit('closed')">
 	<template #header>{{ count == null ? i18n.ts._likes.title : i18n.tsx._likes.titleWithCount({ n: count }) }}</template>
 	<div :class="$style.content">
 		<MkPagination :paginator="paginator" :pullToRefresh="false">
@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</div>
 							</div>
 						</MkA>
-						<MkFollowButton v-if="$i != null && like.user.id !== $i.id" v-model:user="like.user" :class="$style.follow" full/>
+						<MkFollowButton v-if="$i != null && like.user.id !== $i.id" v-model:user="like.user" :class="$style.follow"/>
 					</div>
 				</div>
 			</template>

@@ -37,18 +37,29 @@ describe('chat message editing', () => {
 		const owner = await signup({ username: 'chatapprovalowner' });
 		const applicant = await signup({ username: 'chatapplicant' });
 		expect(applicant.token).toBeTypeOf('string');
-		const created = await api('chat/rooms/create', { name: 'approval discovery', joinPolicy: 'approval' }, owner);
+		const tooLongQuestion = await api('chat/rooms/create', { joinQuestion: 'q'.repeat(201) }, owner);
+		expect(tooLongQuestion.status).toBe(400);
+		expect(castAsError(tooLongQuestion.body).error.code).toBe('INVALID_PARAM');
+		const created = await api('chat/rooms/create', { name: 'approval discovery', joinPolicy: 'approval', joinQuestion: '  Why would you like to join?  ' }, owner);
 		expect(created.status).toBe(200);
+		expect(created.body.joinQuestion).toBe('Why would you like to join?');
 		const roomId = created.body.id;
 		const secret = await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'members only' }, owner);
 		const discovery = await api('chat/rooms/search', { query: 'approval discovery' }, applicant);
 		expect(discovery.status, JSON.stringify(discovery.body)).toBe(200);
 		expect(discovery.body.some(room => room.id === roomId)).toBe(true);
+		for (const params of [{ roomId }, { roomId, requestMessage: '  \t\n  ' }]) {
+			const invalidAnswer = await api('chat/rooms/requests/create', params, applicant);
+			expect(invalidAnswer.status).toBe(400);
+			expect(castAsError(invalidAnswer.body).error.code).toBe('INVALID_PARAM');
+		}
+		expect(await db.getRepository(MiChatRoomInvitation).countBy({ roomId, userId: applicant.id })).toBe(0);
 		const submissions = await Promise.all([1, 2].map(() => api('chat/rooms/requests/create', { roomId, requestMessage: '  请让我加入  ' }, applicant)));
 		for (const submission of submissions) {
 			expect(submission.status).toBe(200);
 			expect(submission.body).toMatchObject({ isMember: false, joinRequestPending: true, invitationExists: false });
 		}
+		expect((await api('chat/rooms/requests/create', { roomId }, applicant)).status).toBe(200);
 		expect(await db.getRepository(MiChatRoomInvitation).countBy({ roomId, userId: applicant.id, isRequest: true })).toBe(1);
 		expect((await api('chat/rooms/join', { roomId }, applicant)).status).toBe(400);
 		expect((await api('chat/messages/room-timeline', { roomId }, applicant)).status).toBe(400);
@@ -69,6 +80,8 @@ describe('chat message editing', () => {
 		expect(timeline.status).toBe(200);
 		expect(timeline.body.filter(message => message.systemEvent?.userIds.includes(applicant.id))).toHaveLength(1);
 		expect(timeline.body.some(message => message.id === secret.body.id)).toBe(true);
+		expect((await api('chat/rooms/invitations/create', { roomId, userId: bob.id }, owner)).status).toBe(200);
+		expect((await api('chat/rooms/join', { roomId }, bob)).status).toBe(204);
 	});
 
 	test('群管理员可拒绝申请，旧审核不能处理新申请，关闭群与仅邀请群拒绝主动申请', async () => {
@@ -77,8 +90,16 @@ describe('chat message editing', () => {
 		const applicant = await signup({ username: 'chatrequestuser' });
 		const created = await api('chat/rooms/create', { joinPolicy: 'public' }, owner);
 		const roomId = created.body.id;
+		expect(created.body.joinQuestion).toBe('');
+		const tooLongQuestion = await api('chat/rooms/update', { roomId, joinQuestion: 'q'.repeat(201) }, owner);
+		expect(tooLongQuestion.status).toBe(400);
+		expect(castAsError(tooLongQuestion.body).error.code).toBe('INVALID_PARAM');
+		expect((await api('chat/rooms/update', { roomId, joinQuestion: 'q'.repeat(200) }, owner)).body.joinQuestion).toBe('q'.repeat(200));
 		expect((await api('chat/rooms/join', { roomId }, administrator)).status).toBe(204);
 		expect((await api('chat/rooms/members/update', { roomId, userId: administrator.id, role: 'administrator' }, owner)).status).toBe(200);
+		expect((await api('chat/rooms/update', { roomId, joinQuestion: 'not allowed' }, administrator)).status).toBe(400);
+		expect((await api('chat/rooms/update', { roomId, joinQuestion: '  New question  ' }, owner)).body.joinQuestion).toBe('New question');
+		expect((await api('chat/rooms/update', { roomId, joinQuestion: '  ' }, owner)).body.joinQuestion).toBe('');
 		await api('chat/rooms/update', { roomId, joinPolicy: 'approval' }, owner);
 		await api('chat/rooms/requests/create', { roomId }, applicant);
 		const initial = (await api('chat/rooms/invitations/outbox', { roomId, isRequest: true }, administrator)).body[0];
@@ -459,7 +480,10 @@ describe('chat message editing', () => {
 		expect((await api('chat/messages/create-to-user', { toUserId: owner.id, text: 'recipient approval' }, invitee)).status).toBe(200);
 		expect((await api('chat/rooms/invitations/create', params, owner)).status).toBe(200);
 		for (const [blocker, blocked] of [[invitee, owner], [owner, invitee]]) {
+			expect((await api('chat/rooms/invitations/create', params, owner)).status).toBe(200);
+			expect((await api('chat/rooms/invitations/inbox', {}, invitee)).body.some(invitation => invitation.roomId === room.body.id)).toBe(true);
 			expect((await api('blocking/create', { userId: blocked.id }, blocker)).status).toBe(200);
+			expect((await api('chat/rooms/invitations/inbox', {}, invitee)).body.some(invitation => invitation.roomId === room.body.id)).toBe(false);
 			const rejected = await api('chat/rooms/invitations/create', params, owner);
 			expect(rejected.status).toBe(400);
 			expect(castAsError(rejected.body).error.info).toEqual({ reason: 'blocked', userId: invitee.id });
@@ -492,8 +516,9 @@ describe('chat message editing', () => {
 		const admin = await signup({ username: 'chatsettingsadmin' });
 		const member = await signup({ username: 'chatsettingsmember' });
 		const peer = await signup({ username: 'chatsettingspeer' });
-		for (const user of [admin, member, peer]) await api('i/update', { chatScope: 'everyone' }, user);
-		const created = await api('chat/rooms/create', { initialUserIds: [admin.id, member.id, peer.id], description: 'description' }, owner);
+		const otherMember = await signup({ username: 'chatsettingsother' });
+		for (const user of [admin, member, peer, otherMember]) await api('i/update', { chatScope: 'everyone' }, user);
+		const created = await api('chat/rooms/create', { initialUserIds: [admin.id, member.id, peer.id, otherMember.id], description: 'description' }, owner);
 		expect(created.status).toBe(200);
 		const roomId = created.body.id;
 		for (const userId of [admin.id, peer.id]) expect((await api('chat/rooms/members/update', { roomId, userId, role: 'administrator' }, owner)).status).toBe(200);
@@ -508,10 +533,15 @@ describe('chat message editing', () => {
 		expect((await api('chat/rooms/members/update', { roomId, userId: member.id, isSilenced: true, silenceUntil }, admin)).body.isSilenced).toBe(true);
 		expect((await api('chat/rooms/show', { roomId }, member)).body).toMatchObject({ myNickname: '新昵称', myIsSilenced: true, mySilenceUntil: silenceUntil });
 		expect((await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'blocked' }, member)).status).toBe(400);
+		expect((await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'not silenced' }, otherMember)).status).toBe(200);
 		expect((await api('chat/rooms/members/update', { roomId, userId: member.id, isSilenced: false }, member)).status).toBe(400);
 		await db.getRepository(MiChatRoomMembership).update({ roomId, userId: member.id }, { silenceUntil: new Date(Date.now() - 1000) });
 		expect((await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'expired' }, member)).status).toBe(200);
 		expect((await api('chat/messages/create-to-room', { toRoomId: roomId, pokeUserId: member.id }, member)).status).toBe(200);
+		expect((await api('chat/rooms/members/update', { roomId, userId: member.id, isSilenced: true, silenceUntil: null }, admin)).body).toMatchObject({ isSilenced: true, silenceUntil: null });
+		const permanentBlocked = await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'permanently silenced' }, member);
+		expect(permanentBlocked.status).toBe(400);
+		expect(castAsError(permanentBlocked.body).error.code).toBe('CHAT_ROOM_SILENCED');
 	});
 
 	test('自聊允许保存及查询自己的消息且不产生未读', async () => {
@@ -688,14 +718,23 @@ describe('chat message editing', () => {
 		const silenced = await api('chat/rooms/update', { roomId, isSilenced: true, silenceUntil: new Date(Date.now() + 60000).toISOString() }, alice);
 		expect(silenced.status).toBe(200);
 		expect(silenced.body.isSilenced).toBe(true);
-		expect((await api('chat/messages/create-to-room', { toRoomId: roomId, text: '管理员通知' }, alice)).status).toBe(200);
-		const blocked = await api('chat/messages/create-to-room', { toRoomId: roomId, text: '普通成员' }, bob);
-		expect(blocked.status).toBe(400);
-		expect(castAsError(blocked.body).error.code).toBe('CHAT_ROOM_SILENCED');
+		for (const member of [alice, otherAdmin, bob]) {
+			const blocked = await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'blocked by room silence' }, member);
+			expect(blocked.status).toBe(400);
+			expect(castAsError(blocked.body).error.code).toBe('CHAT_ROOM_SILENCED');
+		}
+		expect((await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'owner announcement' }, owner)).status).toBe(200);
 		expect((await api('chat/rooms/update', { roomId, isSilenced: false }, bob)).status).toBe(400);
 		expect((await api('chat/rooms/update', { roomId, name: 'unauthorized', isSilenced: false }, alice)).status).toBe(400);
 		expect((await api('chat/rooms/update', { roomId, joinPolicy: 'closed' }, alice)).status).toBe(400);
 		expect((await api('chat/rooms/show', { roomId }, alice)).body).toMatchObject({ name: 'managed room', isSilenced: true, joinPolicy: 'public' });
+		await db.getRepository(MiChatRoom).update(roomId, { silenceUntil: new Date(Date.now() - 1000) });
+		for (const member of [alice, bob]) expect((await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'room silence expired' }, member)).status).toBe(200);
+		expect((await api('chat/rooms/update', { roomId, isSilenced: true, silenceUntil: null }, alice)).body).toMatchObject({ isSilenced: true, silenceUntil: null });
+		const permanentBlocked = await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'administrator remains silenced' }, alice);
+		expect(permanentBlocked.status).toBe(400);
+		expect(castAsError(permanentBlocked.body).error.code).toBe('CHAT_ROOM_SILENCED');
+		expect((await api('chat/messages/create-to-room', { toRoomId: roomId, text: 'owner may still send' }, owner)).status).toBe(200);
 		expect((await api('chat/rooms/delete', { roomId }, alice)).status).toBe(400);
 		expect((await api('chat/rooms/members/update', { roomId, userId: bob.id, role: 'administrator' }, alice)).status).toBe(400);
 		for (const userId of [owner.id, otherAdmin.id, alice.id]) {

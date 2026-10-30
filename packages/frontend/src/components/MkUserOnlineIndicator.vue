@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div
 	v-if="display"
 	v-tooltip="tooltip ? display.text : null"
-	:class="$style.root"
+	:class="[$style.root, { [$style.passive]: !tooltip }]"
 	role="img"
 	:aria-label="display.text"
 	@click.stop.prevent
@@ -42,8 +42,15 @@ const display = computed(() => getUserStatusDisplay(
 	display: inline-flex;
 	width: var(--MI-statusIconSize, 1em);
 	aspect-ratio: 1 / 1;
+	border-radius: 120%;
+	box-shadow: 0 0 0 2px var(--MI_THEME-panel);
 	line-height: 1;
 	cursor: default;
+}
+
+// 没有提示时只作展示，点击交给外层按钮。
+.passive {
+	pointer-events: none;
 }
 
 .icon {

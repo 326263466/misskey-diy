@@ -36,22 +36,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-else-if="note._shouldInsertAd_" :class="{ [$style.lastNoteItem]: i === paginator.items.value.length - 1 }" :data-scroll-anchor="note.id">
 					<MkNote :class="[$style.note, { [$style.lastNote]: i === paginator.items.value.length - 1 }]" :note="note" :withHardMute="true"/>
 					<div :class="$style.ad">
-						<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
+						<MkAd edgeToEdge :preferForms="['horizontal', 'horizontal-big']"/>
 					</div>
 				</div>
 				<MkNote v-else :class="[$style.note, { [$style.lastNote]: i === paginator.items.value.length - 1 }]" :note="note" :withHardMute="true" :data-scroll-anchor="note.id"/>
 			</template>
 		</component>
 		<div v-if="paginator.canFetchOlder.value">
-			<div :key="paginator.items.value.at(-1)?.id" v-appear="paginator.fetchOlder" :class="$style.sentinel" aria-hidden="true"></div>
 			<MkLoading v-if="paginator.fetchingOlder.value"/>
+			<MkButton v-else-if="paginator.olderError.value" small @click="paginator.fetchOlder">{{ i18n.ts.retry }}</MkButton>
+			<div v-else-if="liveActive && !fetching" v-appear="paginator.fetchOlder" :class="$style.sentinel" aria-hidden="true"></div>
 		</div>
 	</div>
 </component>
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, onUnmounted, provide, useTemplateRef, TransitionGroup, onMounted, shallowRef, ref, markRaw } from 'vue';
+import { computed, inject, watch, onActivated, onDeactivated, onUnmounted, provide, useTemplateRef, TransitionGroup, onMounted, ref, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import { useInterval } from '@@/js/use-interval.js';
 import { useDocumentVisibility } from '@@/js/use-document-visibility.js';
@@ -60,6 +61,7 @@ import type { BasicTimelineType } from '@/timelines.js';
 import type { SoundStore } from '@/preferences/def.js';
 import type { IPaginator, MisskeyEntity } from '@/utility/paginator.js';
 import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
+import MkButton from '@/components/MkButton.vue';
 import { useStream } from '@/stream.js';
 import * as sound from '@/utility/sound.js';
 import { $i } from '@/i.js';
@@ -69,7 +71,7 @@ import { store } from '@/store.js';
 import MkNote from '@/components/MkNote.vue';
 import { i18n } from '@/i18n.js';
 import { DI } from '@/di.js';
-import { globalEvents, useGlobalEvent } from '@/events.js';
+import { useGlobalEvent } from '@/events.js';
 import { isSeparatorNeeded } from '@/utility/timeline-date-separate.js';
 import { Paginator } from '@/utility/paginator.js';
 
@@ -99,6 +101,12 @@ const props = withDefaults(defineProps<{
 provide('inTimeline', true);
 provide('tl_withSensitive', computed(() => props.withSensitive));
 provide(DI.inChannel, computed(() => props.src === 'channel' ? props.channel ?? null : null));
+const pageActive = inject(DI.pageActive, ref(true));
+const restorePending = inject(DI.routeScrollPending, ref(false));
+const activated = ref(true);
+const liveActive = computed(() => pageActive.value && activated.value && !restorePending.value);
+onActivated(() => { activated.value = true; });
+onDeactivated(() => { activated.value = false; });
 
 let paginator: IPaginator<Misskey.entities.Note>;
 
@@ -204,7 +212,7 @@ function isTop() {
 let scrollContainer: HTMLElement | null = null;
 
 function onScrollContainerScroll() {
-	if (isTop()) {
+	if (liveActive.value && !isPausingUpdate && isTop()) {
 		paginator.releaseQueue();
 	}
 }
@@ -232,11 +240,16 @@ watch(visibility, () => {
 		isPausingUpdate = true;
 	} else { // 'visible'
 		isPausingUpdate = false;
-		if (isTop()) {
+		if (liveActive.value && isTop()) {
 			releaseQueue();
 		}
 	}
 });
+
+watch(liveActive, active => {
+	// 等缓存页和滚动位置恢复后再合并，保持非顶部阅读时的队列。
+	if (active && !isPausingUpdate && isTop()) paginator.releaseQueue();
+}, { flush: 'post' });
 
 let adInsertionCounter = 0;
 
@@ -250,6 +263,7 @@ const POLLING_INTERVAL =
 if (!store.s.realtimeMode) {
 	// TODO: 先頭のノートの作成日時が1日以上前であれば流速が遅いTLと見做してインターバルを通常より延ばす
 	useInterval(async () => {
+		if (!liveActive.value) return;
 		paginator.fetchNewer({
 			toQueue: !isTop() || isPausingUpdate,
 		});
@@ -259,6 +273,7 @@ if (!store.s.realtimeMode) {
 	});
 
 	useGlobalEvent('notePosted', (note) => {
+		if (!liveActive.value) return;
 		paginator.fetchNewer({
 			toQueue: !isTop() || isPausingUpdate,
 		});
@@ -276,6 +291,7 @@ useGlobalEvent('noteRemovedFromAntenna', (antennaId, noteId) => {
 });
 
 function releaseQueue() {
+	if (!liveActive.value) return;
 	paginator.releaseQueue();
 	scrollToTop(rootEl.value!);
 }
@@ -287,13 +303,14 @@ function prepend(note: Misskey.entities.Note & MisskeyEntity) {
 		note._shouldInsertAd_ = true;
 	}
 
-	if (isTop() && !isPausingUpdate) {
+	if (liveActive.value && isTop() && !isPausingUpdate) {
+		paginator.releaseQueue();
 		paginator.prepend(note);
 	} else {
 		paginator.enqueue(note);
 	}
 
-	if (props.sound) {
+	if (props.sound && liveActive.value) {
 		if (props.customSound) {
 			sound.playMisskeySfxFile(props.customSound);
 		} else {
@@ -467,7 +484,20 @@ defineExpose({
 	overflow: clip;
 }
 
-.note { border-radius: 0; }
+.note {
+	position: relative;
+	border-radius: 0;
+
+	&:hover {
+		z-index: 1;
+		background: var(--MI_THEME-panelHighlight);
+		box-shadow: 0 4px 16px color-mix(in srgb, var(--MI_THEME-shadow) 35%, transparent);
+	}
+
+	&:active {
+		background: color-mix(in srgb, var(--MI_THEME-panelHighlight) 72%, var(--MI_THEME-panel));
+	}
+}
 
 .note:not(:empty):not(.lastNote) {
 	border-bottom: var(--MI-divider);
@@ -556,9 +586,6 @@ defineExpose({
 }
 
 .ad {
-	padding: 8px;
-	background-size: auto auto;
-	background-image: repeating-linear-gradient(45deg, transparent, transparent 8px, var(--MI_THEME-bg) 8px, var(--MI_THEME-bg) 14px);
 	border-bottom: var(--MI-divider);
 
 	&:empty {

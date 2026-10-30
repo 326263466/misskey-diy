@@ -27,7 +27,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<XCode :class="$style.codeEditorHighlighter" :codeEditor="true" :code="v" :lang="lang"/>
 			</div>
 		</div>
-		<span v-if="!readonly" class="_inputCounter">{{ v.length }}</span>
 	</div>
 	<div :class="$style.caption"><slot name="caption"></slot></div>
 	<MkButton v-if="manualSave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
@@ -173,9 +172,6 @@ watch(v, newValue => {
 	border: solid 1px var(--MI_THEME-panel);
 	transition: border-color 0.1s ease-out;
 	font-family: Consolas, Monaco, Andale Mono, Ubuntu Mono, monospace;
-	&:hover {
-		border-color: var(--MI_THEME-inputBorderHover) !important;
-	}
 }
 
 .focused.codeEditorRoot {

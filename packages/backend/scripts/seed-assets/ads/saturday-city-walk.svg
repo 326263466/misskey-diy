@@ -1,0 +1,48 @@
+<!--
+SPDX-FileCopyrightText: syuilo and misskey-project
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="250" viewBox="0 0 1200 250">
+	<defs>
+		<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#bfe7ed"/>
+			<stop offset="1" stop-color="#8fd6df"/>
+		</linearGradient>
+		<linearGradient id="hill" x1="0" y1="0" x2="1" y2="0">
+			<stop offset="0" stop-color="#88bd68"/>
+			<stop offset="1" stop-color="#4e9577"/>
+		</linearGradient>
+		<pattern id="cross" width="28" height="28" patternUnits="userSpaceOnUse">
+			<path d="M8 14h12M14 8v12" stroke="#183644" stroke-width="2" opacity=".08"/>
+		</pattern>
+		<clipPath id="clip">
+			<rect width="1200" height="250" rx="18"/>
+		</clipPath>
+	</defs>
+	<g clip-path="url(#clip)">
+		<rect width="1200" height="250" fill="url(#sky)"/>
+		<rect width="1200" height="250" fill="url(#cross)"/>
+		<circle cx="1027" cy="57" r="38" fill="#f8d861"/>
+		<path d="M628 203c92-52 187-65 284-39 88 24 178 17 288-23v109H628z" fill="url(#hill)"/>
+		<path d="M622 222c130-47 241-57 334-29 82 24 160 17 244-15v72H622z" fill="#d9f0b4"/>
+		<path d="M710 238c44-34 99-45 166-34 63 10 112 7 168-10 36-11 78-13 126-7" fill="none" stroke="#f8f1d4" stroke-width="12" stroke-linecap="round" stroke-dasharray="3 24"/>
+		<path d="M763 250V133h85v117M806 133V96M797 96h18" fill="#f8f1d4" stroke="#183644" stroke-width="7"/>
+		<path d="M873 250V112h55v138M892 112V83l22 13-22 13" fill="#f6c958" stroke="#183644" stroke-width="7"/>
+		<path d="M950 250V153h98v97M978 153v-30h44v30" fill="#fb895f" stroke="#183644" stroke-width="7"/>
+		<path d="M1150 213c-29-19-41-51-31-83 8-26 34-37 55-20 23 18 24 53 4 82-10 15-19 22-28 21z" fill="#2f6e5f" stroke="#183644" stroke-width="6"/>
+		<path d="M1132 206c-0-23 5-44 15-62" fill="none" stroke="#b9e6a8" stroke-width="5" stroke-linecap="round"/>
+		<rect x="80" y="38" width="207" height="38" rx="19" fill="#183644"/>
+		<text x="183.5" y="63" text-anchor="middle" fill="#f7f2df" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="18" font-weight="800" letter-spacing="2">城市散步计划 · 07</text>
+		<text x="80" y="141" fill="#183644" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="68" font-weight="900" letter-spacing="-4">周六走一段</text>
+		<text x="83" y="181" fill="#1d5d65" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="29" font-weight="800" letter-spacing="3">8 公里，不赶路</text>
+		<rect x="80" y="203" width="262" height="31" rx="15.5" fill="#f8d861"/>
+		<text x="211" y="224" text-anchor="middle" fill="#183644" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="17" font-weight="800" letter-spacing="1">周六 09:00 · 地铁 A 口</text>
+		<g transform="translate(544 76) rotate(-5)">
+			<rect x="0" y="0" width="132" height="94" rx="17" fill="#183644"/>
+			<path d="M31 0l10-19h51l10 19" fill="#183644"/>
+			<circle cx="66" cy="48" r="29" fill="#86c9d1" stroke="#f8f1d4" stroke-width="7"/>
+			<circle cx="66" cy="48" r="14" fill="#f8d861"/>
+			<circle cx="110" cy="18" r="6" fill="#fb895f"/>
+		</g>
+	</g>
+</svg>

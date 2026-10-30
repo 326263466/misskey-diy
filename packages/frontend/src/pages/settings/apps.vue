@@ -48,7 +48,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, markRaw } from 'vue';
+import { ref, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkPagination from '@/components/MkPagination.vue';
 import * as os from '@/os.js';
@@ -76,13 +76,10 @@ async function revoke(token: Misskey.entities.IAppsResponse[number]) {
 	revoking.value.add(token.id);
 	try {
 		await os.apiWithDialog('i/revoke-token', { tokenId: token.id });
+		os.toast(i18n.ts.deleteSucceeded, 'success');
 		paginator.reload();
 	} catch { /* API 错误已提示，保留授权条目以便重试。 */ } finally { revoking.value.delete(token.id); }
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.installedApps,

@@ -47,6 +47,9 @@ export const themeProps = [
 	...Object.keys(lightTheme.props).filter(key => !key.startsWith('X')),
 	...Object.keys(derivedTextProps),
 	...Object.keys(derivedAccentProps),
+	// 可选菜单令牌只由指定主题提供，切换主题时会移除，不改变其他主题。
+	'menuItemRadius',
+	'menuPanelRadius',
 ];
 
 export const getBuiltinThemes = () => Promise.all(

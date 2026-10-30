@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<a ref="el" :href="to" :class="[$style.root, active ? activeClass : null]" @click="nav" @contextmenu.prevent.stop="onContextmenu">
+<a ref="el" :href="to" :class="[$style.root, active ? activeClass : null]" :aria-current="active ? 'page' : undefined" @click="nav" @contextmenu.prevent.stop="onContextmenu">
 	<slot></slot>
 </a>
 </template>
@@ -14,20 +14,22 @@ import { url } from '@@/js/config.js';
 import * as os from '@/os.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { i18n } from '@/i18n.js';
+import { deviceKind } from '@/utility/device-kind.js';
 import type { Router } from '@/router.js';
 import type { MenuItem } from '@/types/menu.js';
 
 export type MkABehavior = 'window' | 'browser' | null;
 
-export function getLinkMenu(to: string, router: Router): MenuItem[] {
-	return [{
+export function getLinkMenu(to: string, router: Router, options?: { plainCanvas?: boolean }): MenuItem[] {
+	const items: MenuItem[] = [{
 		type: 'label',
 		text: to,
-	}, {
+	}];
+	if (deviceKind !== 'smartphone' && window.innerWidth > 500) items.push({
 		icon: 'ti ti-app-window',
 		text: i18n.ts.openInWindow,
 		action: () => {
-			os.pageWindow(to);
+			os.pageWindow(to, options);
 		},
 	}, {
 		icon: 'ti ti-player-eject',
@@ -35,7 +37,8 @@ export function getLinkMenu(to: string, router: Router): MenuItem[] {
 		action: () => {
 			router.pushByPath(to, 'forcePage');
 		},
-	}, { type: 'divider' }, {
+	});
+	items.push({ type: 'divider' }, {
 		icon: 'ti ti-external-link',
 		text: i18n.ts.openInNewTab,
 		action: () => {
@@ -47,19 +50,15 @@ export function getLinkMenu(to: string, router: Router): MenuItem[] {
 		action: () => {
 			copyToClipboard(`${url}${to}`);
 		},
-	}];
+	});
+	return items;
 }
 </script>
 
 <style lang="scss" module>
-.root:has(> :global(._userName)) {
-	&:hover {
-		text-decoration: none !important;
-
-		> :global(._userName) {
-			--MI-userNameUnderline: 1;
-		}
-	}
+// 用户名链接悬停时不加下划线。
+.root:has(> :global(._userName)):hover {
+	text-decoration: none !important;
 }
 </style>
 
@@ -70,14 +69,17 @@ import { useRouter } from '@/router.js';
 const props = withDefaults(defineProps<{
 	to: string;
 	activeClass?: null | string;
+	exact?: boolean;
 	behavior?: MkABehavior;
 }>(), {
 	activeClass: null,
+	exact: false,
 	behavior: null,
 });
 
 const behavior = props.behavior ?? inject<MkABehavior>('linkNavigationBehavior', null);
 const isWindow = inject<boolean>('inWindow', false);
+const plainCanvas = inject('pagePlainCanvas', false);
 
 const el = useTemplateRef('el');
 
@@ -87,22 +89,20 @@ const router = useRouter();
 
 const active = computed(() => {
 	if (props.activeClass == null) return false;
-	const resolved = router.resolve(props.to);
-	if (resolved == null) return false;
-	if (resolved.route.path === router.currentRoute.value.path) return true;
-	if (resolved.route.name == null) return false;
-	if (router.currentRoute.value.name == null) return false;
-	return resolved.route.name === router.currentRoute.value.name;
+	const targetPath = props.to.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+	const currentPath = router.currentRef.value._parsedRoute.fullPath.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+	// 同一父路由下的菜单必须区分实际地址，不能按路由名称一起选中。
+	return currentPath === targetPath || (!props.exact && targetPath !== '/' && currentPath.startsWith(`${targetPath}/`));
 });
 
 function onContextmenu(ev: PointerEvent) {
 	const selection = window.getSelection();
 	if (selection && selection.toString() !== '') return;
-	os.contextMenu(getLinkMenu(props.to, router), ev);
+	os.contextMenu(getLinkMenu(props.to, router, { plainCanvas: plainCanvas || undefined }), ev);
 }
 
 function openWindow() {
-	os.pageWindow(props.to);
+	os.pageWindow(props.to, { plainCanvas: plainCanvas || undefined });
 }
 
 function nav(ev: PointerEvent) {
@@ -120,11 +120,7 @@ function nav(ev: PointerEvent) {
 		return;
 	}
 
-	if (behavior === 'window') {
-		return openWindow();
-	}
-
-	if (ev.shiftKey) {
+	if ((behavior === 'window' || ev.shiftKey) && deviceKind !== 'smartphone' && window.innerWidth > 500) {
 		return openWindow();
 	}
 

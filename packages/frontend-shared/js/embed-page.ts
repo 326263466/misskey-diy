@@ -29,7 +29,6 @@ export type EmbedParams = {
 	colorMode?: 'light' | 'dark';
 	rounded?: boolean;
 	border?: boolean;
-	autoload?: boolean;
 	header?: boolean;
 };
 
@@ -42,7 +41,6 @@ export const defaultEmbedParams = {
 	colorMode: undefined,
 	rounded: true,
 	border: true,
-	autoload: false,
 	header: true,
 } as const satisfies EmbedParams;
 
@@ -91,7 +89,6 @@ export function parseEmbedParams(searchParams: URLSearchParams | string): Parsed
 		colorMode: convertColorMode(_searchParams.get('colorMode')) ?? defaultEmbedParams.colorMode,
 		rounded: convertBoolean(_searchParams.get('rounded')) ?? defaultEmbedParams.rounded,
 		border: convertBoolean(_searchParams.get('border')) ?? defaultEmbedParams.border,
-		autoload: convertBoolean(_searchParams.get('autoload')) ?? defaultEmbedParams.autoload,
 		header: convertBoolean(_searchParams.get('header')) ?? defaultEmbedParams.header,
 	};
 }

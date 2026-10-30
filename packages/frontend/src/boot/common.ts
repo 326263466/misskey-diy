@@ -52,7 +52,7 @@ export async function common(createVue: () => Promise<App<Element>>) {
 		window.document.documentElement.style.removeProperty('--MI-iconCloseTransitionDuration');
 		window.document.documentElement.style.removeProperty('--MI-iconCloseHoverRotation');
 	});
-	console.info(`Misskey v${version}`);
+	console.info(`v${version}`);
 
 	if (_DEV_) {
 		console.warn('Development mode!!!');
@@ -316,7 +316,8 @@ export async function common(createVue: () => Promise<App<Element>>) {
 	window.onerror = null;
 	window.onunhandledrejection = null;
 
-	removeSplash();
+	// 首个路由渲染完成后再移除服务端 Splash。
+	void waitForSplashReady().then(removeSplash);
 
 	//#region Self-XSS 対策メッセージ
 	if (!_DEV_) {
@@ -348,15 +349,17 @@ export async function common(createVue: () => Promise<App<Element>>) {
 	};
 }
 
+async function waitForSplashReady() {
+	const timeoutAt = performance.now() + 10000;
+
+	while (window.document.querySelector('#misskey_app [data-splash-gate]') != null && performance.now() < timeoutAt) {
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+	}
+}
+
 function removeSplash() {
 	const splash = window.document.getElementById('splash');
 	if (splash) {
-		splash.style.opacity = '0';
-		splash.style.pointerEvents = 'none';
-
-		// transitionendイベントが発火しない場合があるため
-		window.setTimeout(() => {
-			splash.remove();
-		}, 1000);
+		splash.remove();
 	}
 }

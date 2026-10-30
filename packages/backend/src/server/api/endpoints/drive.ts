@@ -45,12 +45,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const usage = await this.driveFileEntityService.calcDriveUsageOf(me.id);
-
 			const policies = await this.roleService.getUserPolicies(me.id);
 
 			return {
 				capacity: 1024 * 1024 * policies.driveCapacityMb,
-				usage: usage,
+				usage,
 			};
 		});
 	}

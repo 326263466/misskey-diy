@@ -5,15 +5,18 @@
 
 import 'reflect-metadata';
 import { EventEmitter } from 'node:events';
-import { NestFactory } from '@nestjs/core';
-import { CommandModule } from '@/cli/CommandModule.js';
-import { NestLogger } from '@/NestLogger.js';
-import { CommandService } from '@/cli/CommandService.js';
 
 process.title = 'Misskey Cli';
 
 Error.stackTraceLimit = Infinity;
 EventEmitter.defaultMaxListeners = 128;
+
+// 与服务入口一致，先初始化 Reflect，再加载使用装饰器的模块。
+const { NestFactory } = await import('@nestjs/core');
+const { CommandModule } = await import('@/cli/CommandModule.js');
+const { NestLogger } = await import('@/NestLogger.js');
+const { CommandService } = await import('@/cli/CommandService.js');
+const { SearchIndexService } = await import('@/core/SearchIndexService.js');
 
 const app = await NestFactory.createApplicationContext(CommandModule, {
 	logger: new NestLogger(),
@@ -28,6 +31,7 @@ switch (command) {
 		console.log('Available commands:');
 		console.log('  help - Displays this help message');
 		console.log('  reset-captcha - Resets the captcha');
+		console.log('  rebuild-search - Rebuilds note, article and user search indexes');
 		break;
 	}
 	case 'ping': {
@@ -39,6 +43,11 @@ switch (command) {
 		console.log('Captcha has been reset.');
 		break;
 	}
+	case 'rebuild-search': {
+		await app.get(SearchIndexService).rebuild();
+		console.log('Search indexes rebuilt.');
+		break;
+	}
 	default: {
 		console.error(`Unrecognized command: ${command}`);
 		console.error('Use "help" to see available commands.');
@@ -46,4 +55,5 @@ switch (command) {
 	}
 }
 
+await app.close();
 process.exit(0);

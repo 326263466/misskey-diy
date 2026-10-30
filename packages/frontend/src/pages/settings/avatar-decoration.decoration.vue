@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkCondensedLine v-if="preload" :minScale="0.5">{{ decoration.name }}</MkCondensedLine>
 		<span v-else :class="$style.namePlaceholder">{{ decoration.name }}</span>
 	</div>
-	<MkAvatar v-if="preload" :class="$style.avatar" :user="$i" :decorations="[{ url: decoration.url, angle, flipH, offsetX, offsetY }]" forceShowDecoration/>
+	<MkAvatar v-if="preload" :class="$style.avatar" :user="$i" :decorations="[{ url: decoration.url, scale: decoration.scale, angle, flipH, offsetX, offsetY }]" forceShowDecoration/>
 	<span v-else :class="$style.avatar" aria-hidden="true"></span>
 	<i v-if="locked" :class="$style.lock" class="ti ti-lock"></i>
 </div>
@@ -33,6 +33,7 @@ const props = defineProps<{
 		url: string;
 		name: string;
 		roleIdsThatCanBeUsedThisDecoration: string[];
+		scale?: number;
 	};
 	angle?: number;
 	flipH?: boolean;

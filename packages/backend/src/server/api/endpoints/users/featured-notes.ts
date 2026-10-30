@@ -53,10 +53,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queryService: QueryService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const userIdsWhoBlockingMe = me ? await this.cacheService.userBlockedCache.fetch(me.id) : new Set<string>();
+			const blockedUserIds = me ? await this.cacheService.getBlockedUserIds(me.id) : new Set<string>();
 
-			// early return if me is blocked by requesting user
-			if (userIdsWhoBlockingMe.has(ps.userId)) {
+			// 双方存在拉黑关系时不显示对方的内容
+			if (blockedUserIds.has(ps.userId)) {
 				return [];
 			}
 
@@ -66,7 +66,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.untilId) {
 				noteIds = noteIds.filter(id => id < ps.untilId!);
 			}
-			noteIds = noteIds.slice(0, ps.limit);
 
 			if (noteIds.length === 0) {
 				return [];
@@ -91,7 +90,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			this.queryService.generateSuspendedUserQueryForNote(query);
 
 			const notes = (await query.getMany()).filter(note => {
-				if (me && isUserRelated(note, userIdsWhoBlockingMe, false)) return false;
+				if (me && isUserRelated(note, blockedUserIds, false)) return false;
+				if (me && isUserRelated(note.renote, blockedUserIds)) return false;
 				if (me && isUserRelated(note, userIdsWhoMeMuting, true)) return false;
 
 				return true;
@@ -99,7 +99,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			notes.sort((a, b) => a.id > b.id ? -1 : 1);
 
-			return await this.noteEntityService.packMany(notes, me);
+			return await this.noteEntityService.packMany(notes.slice(0, ps.limit), me);
 		});
 	}
 }

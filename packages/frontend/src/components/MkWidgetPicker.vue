@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.searchArea">
 			<label :class="$style.searchBox">
 				<i class="ti ti-search" aria-hidden="true"></i>
-				<input ref="input" v-model="query" :class="$style.input" :placeholder="i18n.ts._widgetPicker.search" :aria-label="i18n.ts._widgetPicker.search" autocomplete="off" autocapitalize="off" spellcheck="false">
+				<input ref="input" v-model="query" :class="$style.input" type="search" enterkeyhint="search" :placeholder="i18n.ts._widgetPicker.search" :aria-label="i18n.ts._widgetPicker.search" autocomplete="off" autocapitalize="off" spellcheck="false" @keydown="onSearchKeydown">
 			</label>
 		</div>
 		<div ref="resultsEl" :class="$style.results">
@@ -57,6 +57,7 @@ import type { Widget } from '@/components/MkWidgets.vue';
 import MkModal from '@/components/MkModal.vue';
 import MkDraggable from '@/components/MkDraggable.vue';
 import { i18n } from '@/i18n.js';
+import { onSearchKeydown } from '@/utility/search-keydown.js';
 
 const props = defineProps<{
 	widgets: readonly WidgetName[];
@@ -183,6 +184,8 @@ onBeforeUnmount(() => { media.removeEventListener('change', onMediaChange); });
 </script>
 
 <style lang="scss" module>
+@use '../styles/search.scss' as search;
+
 .root {
 	display: flex;
 	flex-direction: column;
@@ -209,10 +212,11 @@ onBeforeUnmount(() => { media.removeEventListener('change', onMediaChange); });
 .title { margin: 0; font-size: 1.1em; font-weight: 700; }
 .close { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--MI-radius); color: var(--MI_THEME-fgTransparentWeak); }
 .searchArea { padding: 8px 20px 16px; flex-shrink: 0; }
-.searchBox { display: flex; align-items: center; gap: 10px; padding: 0 12px; border: var(--MI-divider); border-radius: var(--MI-radius); color: var(--MI_THEME-fgTransparentWeak); }
-.searchBox:focus-within { border-color: var(--MI_THEME-focus); }
-.input { flex: 1; min-width: 0; height: 40px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--MI_THEME-fg); font: inherit; }
-.input::placeholder { color: var(--MI_THEME-fgTransparentWeak); }
+.searchBox {
+	@include search.container;
+	> i { @include search.icon; }
+}
+.input { @include search.input; }
 .results { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px 12px 12px; border-top: var(--MI-divider); }
 .option { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 72px; padding: 12px; border-radius: var(--MI-radius); text-align: start; }
 .icon { width: 28px; flex-shrink: 0; text-align: center; font-size: 1.5em; color: var(--MI_THEME-fgTransparentWeak); }

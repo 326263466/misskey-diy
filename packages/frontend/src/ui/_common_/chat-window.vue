@@ -4,13 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModal :manualShowing="dialogShowing" preferType="dialog" zPriority="veryLow" :closeOnBackdrop="false" :returnFocusTo="dialogReturnFocus" @close="open = false">
+<MkModal :manualShowing="dialogShowing" preferType="dialog" zPriority="veryLow" :closeOnBackdrop="false" @close="open = false">
 	<div ref="dialogTarget" :class="$style.dialogTarget"></div>
 </MkModal>
 <div v-show="visible" :class="$style.host" :style="{ top: `${narrow ? 0 : top}px` }">
 	<Teleport :to="dialogTarget ?? 'body'" :disabled="!dialogShowing || dialogTarget == null">
-			<section v-show="open" data-popup-boundary role="dialog" :aria-modal="dialogShowing || undefined" :class="[$style.window, { [$style.maximized]: dialogShowing, [$style.minimized]: minimized }]" :style="{ '--MI-chatWindowControlsWidth': showWindowControls && !minimized ? '92px' : '28px' }" :aria-label="i18n.ts.chat">
-	<button v-if="minimized" type="button" class="_button" :class="$style.restoreArea" :aria-label="i18n.ts.windowRestore" :aria-expanded="false" @click="minimized = false"></button>
+			<section v-show="open" data-popup-boundary role="dialog" :aria-modal="dialogShowing || undefined" :class="[$style.window, { [$style.dialog]: dialogShowing, [$style.minimized]: minimized }]" :style="{ '--MI-chatWindowControlsWidth': minimized ? '48px' : showWindowControls ? '72px' : '24px' }" :aria-label="i18n.ts.chat">
+	<button v-if="minimized" v-tooltip="i18n.ts.windowRestore" type="button" class="_button" :class="$style.restoreArea" :aria-label="i18n.ts.windowRestore" :aria-expanded="false" @click="minimized = false"><span :class="$style.restoreIcon"><i class="ti ti-chevron-up" aria-hidden="true"></i></span></button>
 	<header v-if="minimized" :class="$style.header">
 		<div :class="$style.title">
 			<span :class="$style.titleText"><Mfm :text="pageMetadata?.title || i18n.ts.chat" :plain="true" :nowrap="true"/></span>
@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</header>
 	<div :class="$style.controls">
 		<button v-if="!minimized && showWindowControls" v-tooltip="i18n.ts.windowMinimize" type="button" class="_button" :class="$style.control" :aria-label="i18n.ts.windowMinimize" @click="minimized = true"><i class="ti ti-minus" aria-hidden="true"></i></button>
-		<button v-if="!minimized && showWindowControls" v-tooltip="maximized ? i18n.ts.windowRestore : i18n.ts.windowMaximize" type="button" class="_button" :class="$style.control" :aria-label="maximized ? i18n.ts.windowRestore : i18n.ts.windowMaximize" :aria-pressed="maximized" @click="toggleMaximized"><i :class="maximized ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize'" aria-hidden="true"></i></button>
+		<button v-if="!minimized && showWindowControls" v-tooltip="i18n.ts.windowMaximize" type="button" class="_button" :class="$style.control" :aria-label="i18n.ts.windowMaximize" @click="emit('openFullPage', chatRouter.getCurrentFullPath())"><i class="ti ti-arrows-maximize" aria-hidden="true"></i></button>
 		<button v-tooltip="i18n.ts.close" type="button" class="_button" :class="$style.control" :aria-label="i18n.ts.close" @click="open = false"><i class="ti ti-x" aria-hidden="true"></i></button>
 	</div>
 	<div :class="$style.content">
@@ -40,49 +40,42 @@ import { createRouter, mainRouter } from '@/router.js';
 import { provideMetadataReceiver } from '@/page.js';
 import { DI } from '@/di.js';
 import { i18n } from '@/i18n.js';
+import { deviceKind } from '@/utility/device-kind.js';
 
 const open = defineModel<boolean>('open', { default: false });
+const minimized = defineModel<boolean>('minimized', { default: false });
 const props = withDefaults(defineProps<{
 	visible?: boolean;
 	top?: number;
 	restoreKey?: number;
 	path?: string;
-	maximize?: boolean;
-}>(), { visible: true, top: 0, restoreKey: 0, path: '/chat', maximize: false });
-const minimized = ref(false);
-const maximized = ref(false);
+}>(), { visible: true, top: 0, restoreKey: 0, path: '/chat' });
 const narrowViewport = window.matchMedia('(max-width: 500px)');
-const narrow = ref(narrowViewport.matches);
-const showWindowControls = computed(() => !narrow.value || maximized.value);
+const narrow = ref(deviceKind === 'smartphone' || narrowViewport.matches);
+const showWindowControls = computed(() => !narrow.value);
 const dialogTarget = useTemplateRef('dialogTarget');
-const dialogReturnFocus = ref<HTMLElement | null>(null);
-const dialogShowing = computed(() => open.value && props.visible && !minimized.value && (narrow.value || maximized.value));
+const dialogShowing = computed(() => open.value && props.visible && !minimized.value && narrow.value);
 
 function updateViewport(event: MediaQueryListEvent) {
-	narrow.value = event.matches;
+	narrow.value = deviceKind === 'smartphone' || event.matches;
 	minimized.value = false;
 }
 
 narrowViewport.addEventListener('change', updateViewport);
 
-function toggleMaximized(event: MouseEvent) {
-	if (!maximized.value && event.currentTarget instanceof HTMLElement) dialogReturnFocus.value = event.currentTarget;
-
-	maximized.value = !maximized.value;
-}
+const emit = defineEmits<{
+	(event: 'openFullPage', path: string): void;
+}>();
 
 onBeforeUnmount(() => narrowViewport.removeEventListener('change', updateViewport));
 
-watch([open, () => props.visible, minimized], ([isOpen, isVisible, isMinimized]) => {
-	if (!isOpen || !isVisible || isMinimized) maximized.value = false;
-}, { flush: 'sync' });
 const chatRouter = createRouter(props.path);
 const pageMetadata = ref<PageMetadata | null>(null);
 
 provide(DI.router, chatRouter);
 provide(DI.routerCurrentDepth, 0);
 provide(DI.pageSidebar, computed(() => null));
-provide('chatFloatingLayout', computed(() => !maximized.value));
+provide('chatFloatingLayout', computed(() => true));
 // 浮窗内的页面标题不能覆盖背景页面和浏览器标题。
 provideMetadataReceiver(getter => { pageMetadata.value = getter(); });
 
@@ -102,16 +95,16 @@ chatRouter.addListener('forceReplace', ({ fullPath }) => {
 });
 chatRouter.init();
 
-// 首次挂载时窗口可能已经打开，需要立即应用请求的会话和最大化状态。
+// 首次挂载时窗口可能已经打开，需要立即应用请求的会话。
 watch([open, () => props.restoreKey], ([value]) => {
 	if (!value) return;
-	minimized.value = false;
-	maximized.value = props.maximize;
 	if (chatRouter.getCurrentFullPath() !== props.path) chatRouter.replaceByPath(props.path);
 }, { immediate: true });
 </script>
 
 <style lang="scss" module>
+@use '../../styles/chat-header.scss';
+
 .host {
 	position: absolute;
 	inset: 0;
@@ -148,23 +141,39 @@ watch([open, () => props.restoreKey], ([value]) => {
 	box-sizing: border-box;
 	overflow: clip;
 	border: var(--MI-divider);
-	border-radius: var(--MI-radius) var(--MI-radius) 0 0;
+	border-radius: 10px 10px 0 0;
 	background: var(--MI_THEME-panel);
 	box-shadow: 0 8px 32px var(--MI_THEME-shadow);
 	pointer-events: auto;
-
-	&.maximized {
-		--MI-chatListWidth: 220px;
-		position: relative;
-		right: auto;
-		bottom: auto;
-		width: 100%;
-		height: 100%;
-		border-radius: var(--MI-radius);
-	}
+	transform-origin: bottom right;
 
 	&.minimized {
 		height: 52px;
+	}
+
+	&.dialog {
+		position: relative;
+		inset: auto;
+		width: 100%;
+		height: 100%;
+		border-radius: 12px;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		animation: windowEnter 0.16s ease-out;
+		transition: height 0.16s ease-out;
+	}
+}
+
+@keyframes windowEnter {
+	from {
+		opacity: 0;
+		transform: translateY(6px) scale(0.985);
+	}
+
+	to {
+		opacity: 1;
+		transform: none;
 	}
 }
 
@@ -177,6 +186,19 @@ watch([open, () => props.restoreKey], ([value]) => {
 	border-radius: inherit;
 
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
+	&:hover .restoreIcon { color: var(--MI_THEME-accent); }
+}
+
+.restoreIcon {
+	position: absolute;
+	top: 0;
+	right: 30px;
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 100%;
+	color: var(--MI_THEME-fgTransparent);
+	font-size: 14px;
 }
 
 .header {
@@ -203,38 +225,30 @@ watch([open, () => props.restoreKey], ([value]) => {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: 1.15em;
-	font-weight: 700;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--MI_THEME-fg);
 }
 
 .controls {
 	position: absolute;
 	top: 0;
-	right: 8px;
+	right: 6px;
 	z-index: 5;
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 0;
 	height: 52px;
 	pointer-events: none;
 }
 
-// 与聊天页顶栏图标按钮（新建、搜索、更多）保持同一尺寸和悬停效果。
+// 窗口控制属于次要操作，悬停只改变图标颜色。
 .control {
-	display: grid;
-	flex: 0 0 28px;
-	place-items: center;
-	width: 28px;
-	height: 28px;
-	border-radius: 8px;
-	color: var(--MI_THEME-fgTransparentWeak);
-	font-size: 1em;
+	@include chat-header.plainAction;
+	flex-basis: 24px;
+	width: 24px;
+	font-size: 14px;
 	pointer-events: auto;
-
-	> i { font-size: 1.1em; }
-
-	&:hover { background: var(--MI_THEME-buttonHoverBg); color: var(--MI_THEME-fg); }
-	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }
 
 .content {

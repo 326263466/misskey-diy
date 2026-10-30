@@ -1,0 +1,37 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+// 聊天页与桌面窗口共用按钮尺寸，避免继承各自顶栏字号。
+@mixin action {
+	display: grid;
+	flex: 0 0 var(--MI-chatHeaderActionSize);
+	place-items: center;
+	width: var(--MI-chatHeaderActionSize);
+	height: var(--MI-chatHeaderActionSize);
+	padding: 0;
+	box-sizing: border-box;
+	border-radius: 8px;
+	color: var(--MI_THEME-fg);
+	font-size: 15px;
+	font-weight: normal;
+	line-height: 1;
+
+	> i { font-size: inherit; line-height: inherit; }
+	&:hover:not(:disabled) { color: var(--MI_THEME-accent); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
+
+	@media (prefers-reduced-motion: no-preference) {
+		transition: color 0.15s, transform 0.12s ease-out;
+		&:active:not(:disabled) { transform: scale(0.92); }
+	}
+}
+
+// 次要操作只改变图标颜色，减少顶栏色块。
+@mixin plainAction {
+	@include action;
+	flex-basis: var(--MI-chatPlainActionSize);
+	width: var(--MI-chatPlainActionSize);
+	color: var(--MI_THEME-fgTransparent);
+}

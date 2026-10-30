@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" :class="$style.root">
-	<button :class="$style.item" class="_button" :aria-label="i18n.ts.menu" @click="drawerMenuShowing = true">
+<nav :class="$style.root" :aria-label="i18n.ts.navbar">
+	<button type="button" :class="$style.item" class="_button" :aria-label="i18n.ts.menu" :aria-expanded="drawerMenuShowing" @click="drawerMenuShowing = true">
 		<div :class="$style.itemInner">
 			<span :class="$style.itemIcon">
 				<i class="ti ti-menu-2" aria-hidden="true"></i>
@@ -15,30 +15,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span :class="$style.itemText">{{ i18n.ts.menu }}</span>
 	</button>
 
-	<button :class="$style.item" class="_button" @click="mainRouter.push('/')">
+	<button type="button" :class="[$style.item, { [$style.active]: homeActive }]" class="_button" :aria-current="homeActive ? 'page' : undefined" @click="mainRouter.push('/')">
 		<div :class="$style.itemInner">
-			<span :class="$style.itemIcon"><i class="ti ti-home" aria-hidden="true"></i></span>
+			<span :class="$style.itemIcon"><i :class="navigationIcons.home" aria-hidden="true"></i></span>
 		</div>
 		<span :class="$style.itemText">{{ i18n.ts.home }}</span>
 	</button>
-	<button :class="$style.item" class="_button" @click="mainRouter.push('/timeline')">
+	<button type="button" :class="[$style.item, { [$style.active]: pageActive('/timeline') }]" class="_button" :aria-current="pageActive('/timeline') ? 'page' : undefined" @click="mainRouter.push('/timeline')">
 		<div :class="$style.itemInner">
-			<span :class="$style.itemIcon"><i class="ti ti-messages" aria-hidden="true"></i></span>
+			<span :class="$style.itemIcon"><i :class="navigationIcons.timeline" aria-hidden="true"></i></span>
 		</div>
 		<span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 	</button>
 
-	<button :class="[$style.item, $style.post]" class="_button" @click="os.post()">
+	<button v-if="$i && $i.policies.chatAvailability !== 'unavailable'" type="button" :class="[$style.item, { [$style.active]: chatOpen || pathActive('/chat') }]" class="_button" :aria-label="i18n.ts.chat" :aria-current="pageActive('/chat') ? 'page' : undefined" @click="openChat ? openChat() : mainRouter.push('/chat')">
 		<div :class="$style.itemInner">
-			<span :class="$style.itemIcon"><i class="ti ti-plus" aria-hidden="true"></i></span>
-		</div>
-		<span :class="$style.itemText">{{ i18n.ts._postForm.post }}</span>
-	</button>
-
-	<button v-if="$i && $i.policies.chatAvailability !== 'unavailable'" :class="$style.item" class="_button" :aria-label="i18n.ts.chat" @click="openChat ? openChat() : mainRouter.push('/chat')">
-		<div :class="$style.itemInner">
-			<span :class="$style.itemIcon">
-				<i class="ti ti-message-circle" aria-hidden="true"></i>
+			<span ref="chatIcon" :class="$style.itemIcon">
+				<i :class="navigationIcons.chat" aria-hidden="true"></i>
 				<span v-if="$i.hasUnreadChatMessages" :class="$style.itemIndicator">
 					<i class="_indicatorCircle"></i>
 				</span>
@@ -46,41 +39,80 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<span :class="$style.itemText">{{ i18n.ts.chat }}</span>
 	</button>
-	<button v-else :class="$style.item" class="_button" :aria-label="i18n.ts.search" @click="mainRouter.push('/search')">
-		<div :class="$style.itemInner"><span :class="$style.itemIcon"><i class="ti ti-search" aria-hidden="true"></i></span></div>
+	<button v-else-if="!pageHasSearch" type="button" :class="[$style.item, { [$style.active]: pageActive('/search') }]" class="_button" :aria-label="i18n.ts.search" :aria-current="pageActive('/search') ? 'page' : undefined" @click="mainRouter.push('/search')">
+		<div :class="$style.itemInner"><span :class="$style.itemIcon"><i :class="navigationIcons.search" aria-hidden="true"></i></span></div>
 		<span :class="$style.itemText">{{ i18n.ts.search }}</span>
 	</button>
-
-	<button v-if="$i" :class="$style.item" class="_button" :aria-label="i18n.ts.widgets" @click="widgetsShowing = true">
+	<button v-else-if="$i" type="button" :class="[$style.item, { [$style.active]: pageActive('/my/notifications') }]" class="_button" :aria-label="i18n.ts.notifications" :aria-current="pageActive('/my/notifications') ? 'page' : undefined" @click="mainRouter.pushByPath('/my/notifications')">
 		<div :class="$style.itemInner">
-			<span :class="$style.itemIcon"><i class="ti ti-apps" aria-hidden="true"></i></span>
+			<span :class="$style.itemIcon">
+				<i :class="navigationIcons.notifications" aria-hidden="true"></i>
+				<span v-if="$i.hasUnreadNotification || $i.hasUnreadAnnouncement" :class="$style.itemIndicator"><i class="_indicatorCircle"></i></span>
+			</span>
+		</div>
+		<span :class="$style.itemText">{{ i18n.ts.notifications }}</span>
+	</button>
+	<button v-else type="button" :class="[$style.item, { [$style.active]: pageActive('/announcements') }]" class="_button" :aria-label="i18n.ts.announcements" :aria-current="pageActive('/announcements') ? 'page' : undefined" @click="mainRouter.pushByPath('/announcements')">
+		<div :class="$style.itemInner"><span :class="$style.itemIcon"><i :class="navigationIcons.announcements" aria-hidden="true"></i></span></div>
+		<span :class="$style.itemText">{{ i18n.ts.announcements }}</span>
+	</button>
+
+	<button v-if="$i" type="button" :class="$style.item" class="_button" :aria-label="i18n.ts.widgets" :aria-expanded="widgetsShowing" @click="widgetsShowing = true">
+		<div :class="$style.itemInner">
+			<span :class="$style.itemIcon"><i :class="navigationIcons.widgets" aria-hidden="true"></i></span>
 		</div>
 		<span :class="$style.itemText">{{ i18n.ts.widgets }}</span>
 	</button>
-	<button v-else :class="$style.item" class="_button" :aria-label="i18n.ts.login" @click="pleaseLogin({ message: '' })">
+	<button v-else type="button" :class="$style.item" class="_button" :aria-label="i18n.ts.login" @click="pleaseLogin({ message: '' })">
 		<div :class="$style.itemInner"><span :class="$style.itemIcon"><i class="ti ti-login-2" aria-hidden="true"></i></span></div>
 		<span :class="$style.itemText">{{ i18n.ts.login }}</span>
 	</button>
-</div>
+	<button v-if="showPost && postAvailable && !drawerMenuShowing && !widgetsShowing" type="button" class="_button" :class="$style.post" :aria-label="homeActive ? i18n.ts._article.publish : i18n.ts._postForm.post" @click="mainRouter.pushByPath(homeActive ? '/articles/new' : '/compose')">
+		<i class="ti ti-plus" aria-hidden="true"></i>
+	</button>
+</nav>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, useTemplateRef, watch } from 'vue';
+import { computed, inject, ref, useTemplateRef } from 'vue';
 import { $i } from '@/i.js';
-import * as os from '@/os.js';
 import { mainRouter } from '@/router.js';
 import { navbarItemDef } from '@/navbar.js';
+import { navigationIcons } from '@/navigation-icons.js';
 import { i18n } from '@/i18n.js';
 import { pleaseLogin } from '@/utility/please-login.js';
+import { useGlobalEvent } from '@/events.js';
+import { nudgeChatEntry } from '@/utility/chat-conversations.js';
+import { DI } from '@/di.js';
+import { instance } from '@/instance.js';
 
 const drawerMenuShowing = defineModel<boolean>('drawerMenuShowing');
 const widgetsShowing = defineModel<boolean>('widgetsShowing');
 
-defineProps<{
+const props = withDefaults(defineProps<{
 	openChat?: () => void;
-}>();
+	chatOpen?: boolean;
+	showPost?: boolean;
+}>(), {
+	chatOpen: false,
+	showPost: true,
+});
 
-const rootEl = useTemplateRef('rootEl');
+const currentPath = computed(() => mainRouter.currentRef.value._parsedRoute.fullPath.split(/[?#]/)[0]);
+const hasGlobalSearch = inject(DI.hasGlobalSearch, ref(false));
+const chatIcon = useTemplateRef('chatIcon');
+useGlobalEvent('chatPoked', () => nudgeChatEntry(chatIcon.value));
+const homeActive = computed(() => !props.chatOpen && (currentPath.value === '/' || currentPath.value.startsWith('/articles/category/') || currentPath.value.startsWith('/articles/tag/')));
+const pageHasSearch = computed(() => hasGlobalSearch.value || pageActive('/search') || homeActive.value && ($i != null || !instance.requireSetup && instance.clientOptions.openGuestAccess === true));
+const postAvailable = computed(() => !props.chatOpen && (homeActive.value || pathActive('/timeline')));
+
+function pageActive(path: string): boolean {
+	return !props.chatOpen && pathActive(path);
+}
+
+function pathActive(path: string): boolean {
+	return currentPath.value === path || currentPath.value.startsWith(`${path}/`);
+}
 
 const menuIndicated = computed(() => {
 	for (const def in navbarItemDef) {
@@ -90,78 +122,88 @@ const menuIndicated = computed(() => {
 	return false;
 });
 
-const rootElHeight = ref(0);
-
-watch(rootEl, () => {
-	if (rootEl.value) {
-		rootElHeight.value = rootEl.value.offsetHeight;
-		window.document.body.style.setProperty('--MI-minBottomSpacing', 'var(--MI-minBottomSpacingMobile)');
-	} else {
-		rootElHeight.value = 0;
-		window.document.body.style.setProperty('--MI-minBottomSpacing', '0px');
-	}
-}, {
-	immediate: true,
-});
 </script>
 
 <style lang="scss" module>
 .root {
-	position: relative;
-	z-index: 1;
-	padding-bottom: env(safe-area-inset-bottom, 0px);
+	position: absolute;
+	inset-inline: max(var(--MI-mobileFooterInset), env(safe-area-inset-left)) max(var(--MI-mobileFooterInset), env(safe-area-inset-right));
+	bottom: max(var(--MI-mobileFooterInset), env(safe-area-inset-bottom));
+	z-index: 10;
+	padding: 3px;
 	display: grid;
-	grid-template-columns: repeat(6, minmax(0, 1fr));
-	width: 100%;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	height: var(--MI-mobileFooterHeight);
+	max-width: 460px;
+	margin-inline: auto;
 	box-sizing: border-box;
-	background: var(--MI_THEME-navBg);
+	border: var(--MI-divider);
+	border-radius: calc(var(--MI-mobileFooterHeight) / 2);
+	background: linear-gradient(180deg, color-mix(in srgb, var(--MI_THEME-navBg) 86%, transparent), color-mix(in srgb, var(--MI_THEME-navBg) 72%, transparent));
+	backdrop-filter: blur(24px) saturate(1.6);
+	-webkit-backdrop-filter: blur(24px) saturate(1.6);
+	box-shadow: inset 0 1px 0 color-mix(in srgb, var(--MI_THEME-fgOnAccent) 60%, transparent), 0 6px 24px color-mix(in srgb, var(--MI_THEME-shadow) 65%, transparent);
 	color: var(--MI_THEME-navFg);
-	border-top: var(--MI-divider);
 }
 
 .item {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	justify-content: center;
 	gap: 2px;
 	min-width: 0;
-	padding: 6px 0;
+	min-height: 48px;
+	padding: 2px 0;
+	border-radius: 24px;
 
-	&.post {
-		.itemInner {
-			background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
-			color: var(--MI_THEME-fgOnAccent);
+	&.active {
+		color: var(--MI_THEME-navActive);
+		background: color-mix(in srgb, var(--MI_THEME-accentedBg) 70%, transparent);
+	}
 
-			&:hover {
-				background: linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
-			}
+	&:hover { color: var(--MI_THEME-navActive); }
+	&:active { opacity: .75; }
 
-			&:active {
-				background: linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
-			}
-		}
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -2px;
+	}
+}
+
+.post {
+	position: absolute;
+	right: max(var(--MI-margin), env(safe-area-inset-right, 0px));
+	bottom: calc(100% + var(--MI-margin));
+	z-index: 2;
+	display: grid;
+	place-items: center;
+	width: 52px;
+	height: 52px;
+	border-radius: 50%;
+	background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
+	color: var(--MI_THEME-fgOnAccent);
+	box-shadow: 0 3px 12px var(--MI_THEME-shadow);
+	font-size: 24px;
+
+	&:hover, &:active {
+		background: var(--MI_THEME-accent);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 3px;
 	}
 }
 
 .itemInner {
 	position: relative;
 	padding: 0;
-	aspect-ratio: 1;
-	width: 100%;
-	max-width: 42px;
-	margin: auto;
+	width: 24px;
+	height: 24px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: 100%;
-
-	&:hover {
-		background: var(--MI_THEME-panelHighlight);
-	}
-
-	&:active {
-		background: var(--MI_THEME-panelHighlight);
-	}
 }
 
 .itemIcon {
@@ -171,13 +213,14 @@ watch(rootEl, () => {
 	justify-content: center;
 	width: 1.28em;
 	height: 1.28em;
-	font-size: 15px;
+	font-size: 18px;
 }
 
 .itemText {
 	max-width: 100%;
-	font-size: 1em;
-	line-height: 1.35;
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 14px;
 	white-space: nowrap;
 }
 
@@ -189,6 +232,5 @@ watch(rootEl, () => {
 	color: var(--MI_THEME-indicator);
 	font-size: 10px;
 	pointer-events: none;
-
 }
 </style>

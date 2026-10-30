@@ -13,24 +13,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ title ?? i18n.ts.selectUser }}</template>
 	<div>
 		<div :class="$style.form">
-			<MkInput v-if="computedLocalOnly" v-model="username" :autofocus="true">
-				<template #label>{{ i18n.ts.username }}</template>
-				<template #prefix>@</template>
+			<MkInput v-if="candidates != null || computedLocalOnly" v-model="username" type="search" :autofocus="true">
+				<template #label>{{ candidates != null ? i18n.ts.search : i18n.ts.username }}</template>
+				<template v-if="candidates == null" #prefix>@</template>
 			</MkInput>
 			<FormSplit v-else :minWidth="170">
-				<MkInput v-model="username" :autofocus="true">
+				<MkInput v-model="username" type="search" :autofocus="true">
 					<template #label>{{ i18n.ts.username }}</template>
 					<template #prefix>@</template>
 				</MkInput>
-				<MkInput v-model="host" :datalist="[hostname]">
+				<MkInput v-model="host" type="search" :datalist="[hostname]">
 					<template #label>{{ i18n.ts.host }}</template>
 					<template #prefix>@</template>
 				</MkInput>
 			</FormSplit>
 		</div>
-		<div v-if="username != '' || host != ''" :class="[$style.result, { [$style.hit]: users.length > 0 }]">
-			<div v-if="users.length > 0" :class="$style.users">
-				<button v-for="user in users" :key="user.id" type="button" class="_button" :class="[$style.user, { [$style.selected]: selected?.id === user.id }]" :aria-pressed="selected?.id === user.id" :disabled="submitting" @click="choose(user)">
+		<div v-if="candidates != null || username != '' || host != ''" :class="[$style.result, { [$style.hit]: displayedUsers.length > 0 }]">
+			<div v-if="displayedUsers.length > 0" :class="$style.users">
+				<button v-for="user in displayedUsers" :key="user.id" type="button" class="_button" :class="[$style.user, { [$style.selected]: selected?.id === user.id }]" :aria-pressed="selected?.id === user.id" :disabled="submitting" @click="choose(user)">
 					<MkAvatar :user="user" :class="$style.avatar" indicator :link="false" :preview="false"/>
 					<div :class="$style.userBody">
 						<MkUserName :user="user" :class="$style.userName"/>
@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<span>{{ i18n.ts.noUsers }}</span>
 			</div>
 		</div>
-		<div v-if="username == '' && host == '' && displayedRecentUsers.length > 0" :class="$style.recent">
+		<div v-if="candidates == null && username == '' && host == '' && displayedRecentUsers.length > 0" :class="$style.recent">
 			<div :class="$style.users">
 				<button v-for="user in displayedRecentUsers" :key="user.id" type="button" class="_button" :class="[$style.user, { [$style.selected]: selected?.id === user.id }]" :aria-pressed="selected?.id === user.id" :disabled="submitting" @click="choose(user)">
 					<MkAvatar :user="user" :class="$style.avatar" indicator :link="false" :preview="false"/>
@@ -82,6 +82,7 @@ const props = withDefaults(defineProps<{
 	includeSelf?: boolean;
 	localOnly?: boolean;
 	excludeUserIds?: string[];
+	candidates?: Misskey.entities.UserLite[];
 }>(), {
 	includeSelf: false,
 	localOnly: false,
@@ -95,7 +96,16 @@ const host = ref('');
 const users = ref<Misskey.entities.UserLite[]>([]);
 const recentUsers = ref<Misskey.entities.UserLite[]>([]);
 const excludedIds = computed(() => new Set(props.excludeUserIds));
+const candidateIds = computed(() => props.candidates == null ? null : new Set(props.candidates.map(user => user.id)));
 const selected = ref<Misskey.entities.UserLite | null>(null);
+const displayedUsers = computed(() => {
+	if (props.candidates == null) return users.value;
+	const query = username.value.replace(/^[\s@]+/, '').trim().toLowerCase();
+	const matching = props.candidates.filter(user => allowed(user) && (
+		query === '' || user.username.toLowerCase().includes(query) || (user.name ?? '').toLowerCase().includes(query)
+	));
+	return [...new Map(matching.map(user => [user.id, user])).values()];
+});
 const displayedRecentUsers = computed(() => [...new Map(recentUsers.value.filter(allowed).map(user => [user.id, user])).values()]);
 const submitting = ref(false);
 const searching = ref(false);
@@ -117,7 +127,7 @@ function cancelSearch() {
 }
 
 function allowed(user: Misskey.entities.UserLite) {
-	return (props.includeSelf || user.id !== $i?.id) && (!computedLocalOnly.value || user.host == null) && !excludedIds.value.has(user.id);
+	return (props.includeSelf || user.id !== $i?.id) && (!computedLocalOnly.value || user.host == null) && !excludedIds.value.has(user.id) && (candidateIds.value == null || candidateIds.value.has(user.id));
 }
 
 function choose(user: Misskey.entities.UserLite) {
@@ -129,7 +139,7 @@ function choose(user: Misskey.entities.UserLite) {
 function scheduleSearch() {
 	cancelSearch();
 	users.value = [];
-	if (disposed || canceled || completed || (username.value === '' && host.value === '')) {
+	if (props.candidates != null || disposed || canceled || completed || (username.value === '' && host.value === '')) {
 		searching.value = false;
 		return;
 	}
@@ -142,7 +152,7 @@ function scheduleSearch() {
 }
 
 async function search(version: number) {
-	if (disposed || canceled || completed || version !== searchVersion) return;
+	if (props.candidates != null || disposed || canceled || completed || version !== searchVersion) return;
 	const controller = new AbortController();
 	searchController = controller;
 	try {
@@ -161,7 +171,7 @@ async function search(version: number) {
 	}
 }
 
-watch([username, host, computedLocalOnly], scheduleSearch);
+watch([username, host, computedLocalOnly, () => props.candidates], scheduleSearch);
 
 async function ok() {
 	if (submitting.value || completed || canceled || disposed || selected.value == null || !allowed(selected.value)) return;
@@ -191,6 +201,7 @@ function cancel() {
 }
 
 onMounted(() => {
+	if (props.candidates != null) return;
 	misskeyApi('users/show', {
 		userIds: store.s.recentlyUsedUsers,
 	}).then(foundUsers => {

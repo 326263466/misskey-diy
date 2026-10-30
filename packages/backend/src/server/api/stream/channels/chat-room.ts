@@ -88,6 +88,15 @@ export class ChatRoomChannel extends Channel {
 				return;
 			}
 			if (this.user && blocked.has(this.user.id)) return;
+			if (data.type === 'message' || data.type === 'edited') {
+				if (!data.body.systemEvent && (this.blockedUserIds.has(data.body.fromUserId) || this.userIdsWhoMeMuting.has(data.body.fromUserId))) return;
+				const reply = data.body.reply;
+				if (reply && (this.blockedUserIds.has(reply.fromUser.id) || this.userIdsWhoMeMuting.has(reply.fromUser.id))) {
+					this.send(data.type, { ...data.body, reply: null });
+					return;
+				}
+			}
+			if (data.type === 'react' && data.body.user && (this.blockedUserIds.has(data.body.user.id) || this.userIdsWhoMeMuting.has(data.body.user.id))) return;
 			if (!this.stopped) this.send(data.type, data.body);
 		}).catch(() => { this.dispose(); });
 		await this.eventQueue;

@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div>{{ i18n.ts.youShouldUpgradeClient }}</div>
 				<MkButton style="margin: 8px auto;" @click="reload">{{ i18n.ts.reload }}</MkButton>
 			</template>
-			<div><MkLink url="https://misskey-hub.net/docs/for-users/resources/troubleshooting/" target="_blank">{{ i18n.ts.troubleshooting }}</MkLink></div>
+			<div><button type="button" class="_button _link" aria-haspopup="dialog" @click="openContact">{{ i18n.ts.troubleshooting }}</button></div>
 			<div v-if="error" style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.error }}: {{ error }}</div>
 		</div>
 	</div>
@@ -29,7 +29,7 @@ import { ref, computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import { version } from '@@/js/config.js';
 import MkButton from '@/components/MkButton.vue';
-import MkLink from '@/components/MkLink.vue';
+import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { i18n } from '@/i18n.js';
@@ -61,6 +61,23 @@ misskeyApi('meta', {
 
 function reload() {
 	unisonReload();
+}
+
+function openContact(): void {
+	const contactInfo: string[] = [];
+
+	if (instance.inquiryUrl) {
+		contactInfo.push(`${i18n.ts._serverSettings.inquiryUrl}: ${instance.inquiryUrl}`);
+	}
+	if (instance.maintainerEmail) {
+		contactInfo.push(`${i18n.ts.email}: ${instance.maintainerEmail}`);
+	}
+
+	void os.alert({
+		type: 'info',
+		title: i18n.ts.contact,
+		text: contactInfo.length > 0 ? contactInfo.join('\n\n') : i18n.ts.none,
+	});
 }
 
 const headerActions = computed(() => []);

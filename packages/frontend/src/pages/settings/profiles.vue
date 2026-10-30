@@ -15,22 +15,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
 import MkButton from '@/components/MkButton.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import { i18n } from '@/i18n.js';
+import * as os from '@/os.js';
 import { definePage } from '@/page.js';
 import { deleteCloudBackup, listCloudBackups } from '@/preferences/utility.js';
 
 const backups = await listCloudBackups();
 
 function del(backup: { name: string }): void {
-	deleteCloudBackup(backup.name);
+	// 失败提示由 apiWithDialog 处理
+	deleteCloudBackup(backup.name).then(() => {
+		os.toast(i18n.ts.deleteSucceeded, 'success');
+	}, () => {});
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts._preferencesProfile.manageProfiles,

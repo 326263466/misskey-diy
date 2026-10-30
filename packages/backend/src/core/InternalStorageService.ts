@@ -49,13 +49,4 @@ export class InternalStorageService {
 	public del(key: string) {
 		fs.unlink(this.resolvePath(key), () => {});
 	}
-
-	@bindThis
-	public async delAsync(key: string): Promise<void> {
-		try {
-			await fs.promises.unlink(this.resolvePath(key));
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-		}
-	}
 }

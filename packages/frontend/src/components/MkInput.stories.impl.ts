@@ -24,11 +24,6 @@ export const Default = {
 	parameters: { layout: 'centered' },
 } satisfies StoryObj<typeof MkInput>;
 
-export const SaveOnLeave = {
-	...Default,
-	args: { ...Default.args, saveOnLeave: async () => {} },
-} satisfies StoryObj<typeof MkInput>;
-
 export const ManualSave = {
 	...Default,
 	args: { ...Default.args, manualSave: true },

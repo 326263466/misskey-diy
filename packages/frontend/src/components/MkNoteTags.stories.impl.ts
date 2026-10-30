@@ -24,12 +24,12 @@ export const LongTag = {
 
 export const WithChannel = {
 	...Default,
-	args: { tags: ['TypeScript', 'Vue'], channel: { id: 'channel', name: 'Frontend' } },
+	args: { tags: ['TypeScript', 'Vue'], channel: { id: 'channel', name: 'Frontend', color: '#4f8cff' } },
 } satisfies StoryObj<typeof MkNoteTags>;
 
 export const ChannelOnly = {
 	...Default,
-	args: { tags: [], channel: { id: 'channel', name: 'Photography' } },
+	args: { tags: [], channel: { id: 'channel', name: 'Photography', color: '#e58b3b' } },
 } satisfies StoryObj<typeof MkNoteTags>;
 
 export const Narrow = {
@@ -39,5 +39,5 @@ export const Narrow = {
 		setup: () => ({ args }),
 		template: '<div style="max-width: 100%; width: 240px;"><MkNoteTags v-bind="args"/></div>',
 	}),
-	args: { tags: ['今日话题', 'PhotoOfTheDay', 'A_very_long_topic_tag_that_is_truncated_on_a_small_screen', 'Vue', '旅の記録'], channel: { id: 'channel', name: 'A very long channel name that stays within the card' } },
+	args: { tags: ['今日话题', 'PhotoOfTheDay', 'A_very_long_topic_tag_that_is_truncated_on_a_small_screen', 'Vue', '旅の記録'], channel: { id: 'channel', name: 'A very long channel name that stays within the card', color: '#2fa66d' } },
 } satisfies StoryObj<typeof MkNoteTags>;

@@ -40,8 +40,7 @@ describe('calcPopupPosition', () => {
 	beforeEach(() => {
 		window.innerWidth = VIEWPORT_WIDTH;
 		window.innerHeight = VIEWPORT_HEIGHT;
-		window.scrollX = 0;
-		window.scrollY = 0;
+		window.scrollTo(0, 0);
 	});
 
 	test.each([
@@ -50,7 +49,7 @@ describe('calcPopupPosition', () => {
 		{ anchorLeft: 480, boundaryLeft: 450, boundaryWidth: 150, expected: 480, origin: 'left top' },
 		{ anchorLeft: 280, boundaryLeft: 200, boundaryWidth: 220, expected: 280, origin: 'left top' },
 	])('keeps or flips the anchor alignment within a panel: $anchorLeft/$boundaryWidth', ({ anchorLeft, boundaryLeft, boundaryWidth, expected, origin }) => {
-		window.scrollX = 80;
+		window.scrollTo(80, 0);
 		const position = calcPopupPosition(mockEl({ width: 200, height: 100 }), {
 			anchorElement: mockAnchor({ left: anchorLeft, top: 100, width: 40, height: 20 }),
 			boundaryElement: mockAnchor({ left: boundaryLeft, top: 0, width: boundaryWidth, height: 500 }),
@@ -350,8 +349,7 @@ describe('calcPopupPosition', () => {
 			{ align: 'left', left: 520 },
 			{ align: 'right', left: 360 },
 		] as const)('adds both scroll offsets to $align-aligned panels', ({ align, left }) => {
-			window.scrollX = 120;
-			window.scrollY = 500;
+			window.scrollTo(120, 500);
 			const content = mockEl({ width: 200, height: 100 });
 			const anchor = mockAnchor({ left: 400, top: 100, width: 40, height: 20 });
 
@@ -361,7 +359,7 @@ describe('calcPopupPosition', () => {
 		});
 
 		test('スクロール量を加味した絶対座標を返す', () => {
-			window.scrollY = 500;
+			window.scrollTo(0, 500);
 			const content = mockEl({ width: 200, height: 100 });
 			const anchor = mockAnchor({ left: 400, top: 100, width: 40, height: 20 });
 

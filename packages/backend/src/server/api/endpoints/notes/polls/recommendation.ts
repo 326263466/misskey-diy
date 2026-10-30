@@ -8,6 +8,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { NotesRepository, MutingsRepository, PollsRepository, PollVotesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
+import { QueryService } from '@/core/QueryService.js';
 import { DI } from '@/di-symbols.js';
 
 export const meta = {
@@ -32,6 +33,10 @@ export const paramDef = {
 	properties: {
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
 		offset: { type: 'integer', default: 0 },
+		sinceId: { type: 'string', format: 'misskey:id' },
+		untilId: { type: 'string', format: 'misskey:id' },
+		sinceDate: { type: 'integer' },
+		untilDate: { type: 'integer' },
 		excludeChannels: { type: 'boolean', default: false },
 	},
 	required: [],
@@ -53,10 +58,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private mutingsRepository: MutingsRepository,
 
 		private noteEntityService: NoteEntityService,
+		private queryService: QueryService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const query = this.pollsRepository.createQueryBuilder('poll')
-				.where('poll.userHost IS NULL')
+			const query = this.queryService.makePaginationQuery(this.pollsRepository.createQueryBuilder('poll'), ps.sinceId, ps.untilId, ps.sinceDate, ps.untilDate, 'noteId')
+				.andWhere('poll.userHost IS NULL')
 				.andWhere('poll.userId != :meId', { meId: me.id })
 				.andWhere('poll.noteVisibility = \'public\'')
 				.andWhere(new Brackets(qb => {
@@ -86,6 +92,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			query.setParameters(mutingQuery.getParameters());
 			//#endregion
+			this.queryService.generateBlockedUserQuery(query, me, 'poll.userId');
 
 			//#region exclude channels
 			if (ps.excludeChannels) {
@@ -94,7 +101,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			//#endregion
 
 			const polls = await query
-				.orderBy('poll.noteId', 'DESC')
 				.limit(ps.limit)
 				.offset(ps.offset)
 				.getMany();
@@ -105,12 +111,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				where: {
 					id: In(polls.map(poll => poll.noteId)),
 				},
-				order: {
-					id: 'DESC',
-				},
 			});
+			const notesById = new Map(notes.map(note => [note.id, note]));
+			const orderedNotes = polls.flatMap(poll => notesById.get(poll.noteId) ?? []);
 
-			return await this.noteEntityService.packMany(notes, me, {
+			return await this.noteEntityService.packMany(orderedNotes, me, {
 				detail: true,
 			});
 		});

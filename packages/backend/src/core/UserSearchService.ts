@@ -9,6 +9,8 @@ import { DI } from '@/di-symbols.js';
 import { type FollowingsRepository, MiUser, type MutingsRepository, type UserProfilesRepository, type UsersRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { sqlLikeEscape } from '@/misc/sql-like-escape.js';
+import { runSearchQuery } from '@/misc/search-query.js';
+import { SearchIndexService } from '@/core/SearchIndexService.js';
 import type { Config } from '@/config.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { Packed } from '@/misc/json-schema.js';
@@ -36,6 +38,7 @@ export class UserSearchService {
 		private mutingsRepository: MutingsRepository,
 
 		private userEntityService: UserEntityService,
+		private searchIndexService: SearchIndexService,
 	) {
 	}
 
@@ -222,84 +225,67 @@ export class UserSearchService {
 		offset: number;
 		origin: 'local' | 'remote' | 'combined';
 	}> = {}) {
+		query = query.trim();
+		if (!query) return [];
 		const activeThreshold = new Date(Date.now() - (1000 * 60 * 60 * 24 * 30)); // 30日
 
 		const isUsername = query.startsWith('@') && !query.includes(' ') && query.indexOf('@', 1) === -1;
-
-		let users: MiUser[] = [];
 
 		const mutingQuery = meId == null ? null : this.mutingsRepository.createQueryBuilder('muting')
 			.select('muting.muteeId')
 			.where('muting.muterId = :muterId', { muterId: meId });
 
-		const nameQuery = this.usersRepository.createQueryBuilder('user')
-			.where(new Brackets(qb => {
-				qb.where('user.name ILIKE :query', { query: '%' + sqlLikeEscape(query) + '%' });
-
-				if (isUsername) {
-					qb.orWhere('user.usernameLower LIKE :username', { username: sqlLikeEscape(query.replace('@', '').toLowerCase()) + '%' });
-				} else if (this.userEntityService.validateLocalUsername(query)) { // Also search username if it qualifies as username
-					qb.orWhere('user.usernameLower LIKE :username', { username: '%' + sqlLikeEscape(query.toLowerCase()) + '%' });
-				}
-			}))
+		const username = (isUsername ? query.slice(1) : query).toLowerCase();
+		const includeUsername = isUsername || this.userEntityService.validateLocalUsername(query);
+		const exactNameMatch = `user.name ILIKE :query${includeUsername ? ' OR user.usernameLower LIKE :username' : ''}`;
+		// 合并候选后统一分页，避免昵称和简介两次扫描、重复返回以及翻页漏项。
+		const userQuery = this.usersRepository.createQueryBuilder('user')
+			.setParameters({
+				searchText: query,
+				usernameSearch: username,
+				query: `%${sqlLikeEscape(query)}%`,
+				username: `${isUsername ? '' : '%'}${sqlLikeEscape(username)}%`,
+			})
 			.andWhere(new Brackets(qb => {
 				qb
 					.where('user.updatedAt IS NULL')
 					.orWhere('user.updatedAt > :activeThreshold', { activeThreshold: activeThreshold });
 			}))
-			.andWhere('user.isSuspended = FALSE');
+			.andWhere('user.isSuspended = FALSE')
+			.andWhere('user.isDeleted = FALSE');
 
 		if (mutingQuery) {
-			nameQuery.andWhere(`user.id NOT IN (${mutingQuery.getQuery()})`);
-			nameQuery.setParameters(mutingQuery.getParameters());
+			userQuery.andWhere(`user.id NOT IN (${mutingQuery.getQuery()})`);
+			userQuery.setParameters(mutingQuery.getParameters());
 		}
 
 		if (options.origin === 'local') {
-			nameQuery.andWhere('user.host IS NULL');
+			userQuery.andWhere('user.host IS NULL');
 		} else if (options.origin === 'remote') {
-			nameQuery.andWhere('user.host IS NOT NULL');
+			userQuery.andWhere('user.host IS NOT NULL');
 		}
 
-		users = await nameQuery
-			.orderBy('user.updatedAt', 'DESC', 'NULLS LAST')
-			.limit(options.limit)
-			.offset(options.offset)
-			.getMany();
-
-		if (users.length < (options.limit ?? 30)) {
-			const profQuery = this.userProfilesRepository.createQueryBuilder('prof')
-				.select('prof.userId')
-				.where('prof.description ILIKE :query', { query: '%' + sqlLikeEscape(query) + '%' });
-
-			if (mutingQuery) {
-				profQuery.andWhere(`prof.userId NOT IN (${mutingQuery.getQuery()})`);
-				profQuery.setParameters(mutingQuery.getParameters());
-			}
-
-			if (options.origin === 'local') {
-				profQuery.andWhere('prof.userHost IS NULL');
-			} else if (options.origin === 'remote') {
-				profQuery.andWhere('prof.userHost IS NOT NULL');
-			}
-
-			const userQuery = this.usersRepository.createQueryBuilder('user')
-				.where(`user.id IN (${ profQuery.getQuery() })`)
-				.andWhere(new Brackets(qb => {
-					qb
-						.where('user.updatedAt IS NULL')
-						.orWhere('user.updatedAt > :activeThreshold', { activeThreshold: activeThreshold });
-				}))
-				.andWhere('user.isSuspended = FALSE')
-				.setParameters(profQuery.getParameters());
-
-			users = users.concat(await userQuery
-				.orderBy('user.updatedAt', 'DESC', 'NULLS LAST')
-				.limit(options.limit)
-				.offset(options.offset)
-				.getMany(),
-			);
-		}
-
-		return users;
+		return this.searchIndexService.search('users', isUsername ? username : query, userQuery, {
+			filter: [`(updatedAt = 0 OR updatedAt > ${activeThreshold.getTime()})`, ...(options.origin === 'local' ? ['host IS NULL'] : options.origin === 'remote' ? ['host IS NOT NULL'] : [])],
+			sort: ['updatedAt:desc', 'id:desc'],
+			attributesToSearchOn: isUsername ? ['username'] : undefined,
+			limit: options.limit ?? 30,
+			offset: options.offset,
+		}, provider => {
+			const nameIds = this.usersRepository.createQueryBuilder('user').select('user.id')
+				.where(provider === 'sqlPgroonga'
+					? `(coalesce(user.name, '') || ' ' || user.usernameLower) &@~ :${isUsername ? 'usernameSearch' : 'searchText'}`
+					: `(${exactNameMatch})`);
+			const profileIds = this.userProfilesRepository.createQueryBuilder('prof').select('prof.userId')
+				.where(provider === 'sqlPgroonga' ? 'prof.description::text &@~ :searchText' : 'prof.description ILIKE :query');
+			return runSearchQuery(userQuery.clone()
+				.andWhere(`user.id IN (${nameIds.getQuery()} UNION ${profileIds.getQuery()})`)
+				.addSelect(`CASE WHEN (${exactNameMatch}) THEN 0 ELSE 1 END`, 'searchPriority')
+				.orderBy('"searchPriority"', 'ASC')
+				.addOrderBy('user.updatedAt', 'DESC', 'NULLS LAST')
+				.addOrderBy('user.id', 'DESC')
+				.limit(options.limit ?? 30)
+				.offset(options.offset ?? 0));
+		});
 	}
 }

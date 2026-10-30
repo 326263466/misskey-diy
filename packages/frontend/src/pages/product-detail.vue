@@ -31,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 				<div :class="$style.buyBox">
 					<div :class="$style.price">
-						<strong>{{ product.price.toLocaleString() }}</strong><span>{{ i18n.ts._marketplace.pointUnit }} / {{ product.unit }}</span>
+						<strong>{{ product.price.toLocaleString() }}</strong><span>{{ i18n.ts._marketplace.pointUnit }}</span>
 						<span v-if="quantity > 1" :class="$style.total">{{ i18n.tsx._marketplace.total({ amount: (product.price * quantity).toLocaleString() }) }} {{ i18n.ts._marketplace.pointUnit }}</span>
 					</div>
 					<div :class="$style.quantityRow">
@@ -47,10 +47,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 	</section>
-	<MkContainer v-if="product.description" :class="$style.description">
+	<MkContainer v-if="product.description">
 		<template #icon><i class="ti ti-notes" aria-hidden="true"></i></template>
 		<template #header>{{ i18n.ts._marketplace.productDescription }}</template>
-		<p class="_selectable">{{ product.description }}</p>
+		<p class="_selectable _panelPadding" :class="$style.description">{{ product.description }}</p>
 	</MkContainer>
 </div>
 </template>
@@ -81,9 +81,9 @@ const emit = defineEmits<{
 const imageFailed = ref(false);
 watch(() => props.product.imageUrl, () => { imageFailed.value = false; });
 const locked = computed(() => props.purchasing || props.pending || props.product.isOwner || props.product.maxQuantity === 0);
-const stockText = computed(() => props.product.remainingStock == null ? i18n.ts._marketplace.unlimitedStock : `${props.product.remainingStock.toLocaleString()} ${props.product.unit}`);
-const limitText = computed(() => props.product.perUserLimit > 0 ? i18n.tsx._marketplace.cumulativeLimit({ count: props.product.perUserLimit.toLocaleString(), unit: props.product.unit }) : i18n.ts._marketplace.noPurchaseLimit);
-const allowanceText = computed(() => props.product.remainingAllowance == null ? '' : `${props.product.remainingAllowance.toLocaleString()} ${props.product.unit}`);
+const stockText = computed(() => props.product.remainingStock == null ? i18n.ts._marketplace.unlimitedStock : i18n.tsx._marketplace.stockRemaining({ count: props.product.remainingStock.toLocaleString() }));
+const limitText = computed(() => props.product.perUserLimit > 0 ? i18n.tsx._marketplace.cumulativeLimit({ count: props.product.perUserLimit.toLocaleString() }) : i18n.ts._marketplace.noPurchaseLimit);
+const allowanceText = computed(() => props.product.remainingAllowance == null ? '' : `${i18n.ts._marketplace.remainingAllowance} ${props.product.remainingAllowance.toLocaleString()}`);
 const deliveryText = computed(() => props.product.type === 'physical' ? i18n.ts._marketplace.physicalDelivery : i18n.ts._marketplace.automaticDelivery);
 </script>
 
@@ -115,7 +115,7 @@ const deliveryText = computed(() => props.product.type === 'physical' ? i18n.ts.
 .price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; color: var(--MI_THEME-accent); }
 .price strong { font-size: 1.75em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .price > span { color: var(--MI_THEME-fgTransparent); font-size: .9em; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: calc(var(--MI-radius) / 3); font-size: .82em; color: var(--MI_THEME-fgTransparent); background: var(--MI_THEME-panelHighlight); }
 .quantityRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .stepper { display: flex; align-items: center; border: var(--MI-divider); border-radius: var(--MI-radius); overflow: hidden; }
@@ -126,8 +126,7 @@ const deliveryText = computed(() => props.product.type === 'physical' ? i18n.ts.
 .stepper > :focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 .total { margin-left: auto; color: var(--MI_THEME-fg); font-weight: 600; font-variant-numeric: tabular-nums; }
 
-.description { --MI-containerHeaderBg: var(--MI_THEME-panel); border-radius: var(--MI-cardRadius); }
-.description p { margin: 0; padding: 0 var(--MI-cardPadding) var(--MI-cardPadding); line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.description { margin: 0; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 @container (max-width: 640px) {
 	.columns { grid-template-columns: 1fr; }

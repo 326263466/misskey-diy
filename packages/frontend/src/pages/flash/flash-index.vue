@@ -4,133 +4,122 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true" :loading="paginator?.fetching.value ?? false">
-	<template v-if="tab === 'liked'" #header-actions>
-		<MkPaginationControl :paginator="likedFlashsPaginator" compact/>
-	</template>
-	<div class="_pageBody _gaps">
-		<MkTip k="play">{{ i18n.ts._play.tip }}</MkTip>
-		<div v-if="tab === 'search'">
-			<div class="_gaps">
-				<div :class="$style.searchRow">
-					<MkInput v-model="searchQuery" :class="$style.searchInput" :large="true" type="search">
-						<template #prefix><i class="ti ti-search"></i></template>
-					</MkInput>
-					<MkButton large primary gradate rounded @click="search">{{ i18n.ts.search }}</MkButton>
+<PageWithHeader v-model:tab="tab" :tabs="headerTabs" :swipable="tab !== 'search'" :hideHeader="headerTabs.length === 0" hideTitle>
+	<div class="_pageBody _gaps" :class="$style.root">
+		<XFeatureToolbar>
+			<form :class="$style.search" role="search" @submit.prevent="search">
+				<i class="ti ti-search" :class="$style.searchIcon" aria-hidden="true"></i>
+				<input v-model="searchQuery" :class="$style.searchInput" type="search" enterkeyhint="search" :placeholder="i18n.ts._play.searchPlaceholder" :aria-label="i18n.ts._play.searchPlaceholder" @keydown="onSearchKeydown($event, search)">
+				<button v-if="tab === 'search'" type="button" class="_button" :class="$style.searchClear" :title="i18n.ts.clear" :aria-label="i18n.ts.clear" @click="clearSearch"><i class="ti ti-x" aria-hidden="true"></i></button>
+				<button v-if="searchQuery.trim() !== ''" type="submit" class="_button" :class="$style.searchButton">{{ i18n.ts.search }}</button>
+			</form>
+			<template v-if="$i" #actions>
+				<MkPaginationControl v-if="tab === 'liked'" :paginator="likedFlashsPaginator" inHeader/>
+				<MkButton type="routerLink" to="/play/new" primary rounded><i class="ti ti-plus" aria-hidden="true"></i>{{ i18n.ts._play.new }}</MkButton>
+			</template>
+		</XFeatureToolbar>
+		<div v-if="paginator" :class="$style.list">
+			<MkPagination v-slot="{items}" :paginator="paginator" pageEmpty>
+				<div :class="$style.items">
+					<MkFlashPreview v-for="(item, index) in items" :key="item.id" :flash="'flash' in item ? item.flash : item" :rank="tab === 'featured' ? index + 1 : undefined" @deleted="paginator.removeItem(item.id)"/>
 				</div>
-			</div>
+			</MkPagination>
 		</div>
-
-		<MkButton v-if="tab === 'my'" gradate rounded style="margin: 0 auto;" @click="create()"><i class="ti ti-plus"></i></MkButton>
-		<MkPagination v-if="paginator" v-slot="{items}" :paginator="paginator" pageEmpty>
-			<div :class="$style.grid">
-				<MkFlashPreview v-for="flash in items.map(item => 'flash' in item ? item.flash : item)" :key="flash.id" :flash="flash"/>
-			</div>
-		</MkPagination>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, ref, shallowRef } from 'vue';
+import { markRaw, ref } from 'vue';
+import MkButton from '@/components/MkButton.vue';
 import MkFlashPreview from '@/components/MkFlashPreview.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import MkPaginationControl from '@/components/MkPaginationControl.vue';
-import MkButton from '@/components/MkButton.vue';
-import MkInput from '@/components/MkInput.vue';
+import XFeatureToolbar from '@/pages/feature-toolbar.vue';
+import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { useRouter } from '@/router.js';
 import { Paginator } from '@/utility/paginator.js';
+import { onSearchKeydown } from '@/utility/search-keydown.js';
+import { useFeatureNavigationTab } from '@/pages/feature-navigation.js';
+
+const props = defineProps<{
+	query?: string;
+}>();
 
 const router = useRouter();
+const { tab, headerTabs } = useFeatureNavigationTab();
+// 每个分类和搜索结果都是独立子路由，切换时本页面会重建。
+const keyword = props.query?.trim() ?? '';
+const searchQuery = ref(props.query ?? '');
 
-const tab = ref('featured');
+function search() {
+	const trimmed = searchQuery.value.trim();
+	if (trimmed === '') return;
+	router.pushByPath(`/play/search?q=${encodeURIComponent(trimmed)}`);
+}
 
-const searchQuery = ref('');
-const searchPaginator = shallowRef<Paginator<'flash/search'> | null>(null);
+function clearSearch() {
+	router.pushByPath('/play');
+}
 
-const featuredFlashsPaginator = markRaw(new Paginator('flash/featured', {
-	limit: 5,
-	offsetMode: true,
-}));
-const myFlashsPaginator = markRaw(new Paginator('flash/my', {
-	limit: 5,
-}));
 const likedFlashsPaginator = markRaw(new Paginator('flash/my-likes', {
 	limit: 5,
 	canSearch: true,
 	searchParamName: 'search',
 }));
-const paginator = computed(() => {
-	if (tab.value === 'search') return searchPaginator.value;
-	if (tab.value === 'my') return myFlashsPaginator;
-	if (tab.value === 'liked') return likedFlashsPaginator;
-	return featuredFlashsPaginator;
-});
 
-function create() {
-	router.push('/play/new');
-}
-
-function search() {
-	if (searchQuery.value.trim() === '') {
-		return;
-	}
-
-	searchPaginator.value = markRaw(new Paginator('flash/search', {
-		params: {
-			query: searchQuery.value,
-		},
-	}));
-}
-
-const headerActions = computed(() => [{
-	icon: 'ti ti-plus',
-	text: i18n.ts.create,
-	handler: create,
-}]);
-
-const headerTabs = computed(() => [{
-	key: 'search',
-	title: i18n.ts.search,
-	icon: 'ti ti-search',
-}, {
-	key: 'featured',
-	title: i18n.ts._play.featured,
-	icon: 'ti ti-flare',
-}, {
-	key: 'my',
-	title: i18n.ts._play.my,
-	icon: 'ti ti-edit',
-}, {
-	key: 'liked',
-	title: i18n.ts._play.liked,
-	icon: 'ti ti-heart',
-}]);
-
+const paginator = tab.value === 'search' ? (keyword === '' ? null : markRaw(new Paginator('flash/search', { params: { query: keyword } })))
+	: tab.value === 'my' ? markRaw(new Paginator('flash/my', { limit: 5 }))
+	: tab.value === 'liked' ? likedFlashsPaginator
+	: markRaw(new Paginator('flash/featured', { limit: 5, offsetMode: true }));
 definePage(() => ({
 	title: i18n.ts.play,
-	icon: 'ti ti-player-play',
+	icon: 'ti ti-apps',
 }));
 </script>
 
 <style lang="scss" module>
-.searchRow {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 10px;
+@use '../../styles/search.scss' as search;
+
+.root {
+	gap: 12px;
+	min-width: 0;
+	background: transparent;
+}
+
+.search {
+	@include search.container;
+	flex: 1;
+}
+
+.searchIcon {
+	@include search.icon;
 }
 
 .searchInput {
-	flex: 1 1 220px;
+	@include search.input;
+	@include search.hideNativeClear;
+}
+
+.searchClear {
+	@include search.clear;
+}
+
+.searchButton {
+	@include search.button;
+}
+
+.list {
 	min-width: 0;
 }
 
-.grid {
+.items {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
-	gap: var(--MI-margin);
+	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+	align-items: stretch;
+	gap: 14px;
+	width: 100%;
 }
 </style>

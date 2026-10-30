@@ -18,6 +18,7 @@ import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { prefer } from '@/preferences.js';
+import { store } from '@/store.js';
 
 type ThemeManagerEvents = {
 	'themeChanging': () => void;
@@ -112,7 +113,12 @@ class ThemeManager extends EventEmitter<ThemeManagerEvents> {
 
 		// visibilityStateがhiddenな状態でstartViewTransitionするとブラウザによってはエラーになる
 		// 通常hiddenな時に呼ばれることはないが、iOSのPWAだとアプリ切り替え時に(何故か)hiddenな状態で(何故か)一瞬デバイスのダークモード判定が変わりapplyThemeが呼ばれる場合がある
-		if (window.document.startViewTransition != null && window.document.visibilityState === 'visible') {
+		// 启动遮罩存在时直接应用主题，避免过渡快照保留旧的波浪画面。
+		if (
+			window.document.startViewTransition != null &&
+			window.document.visibilityState === 'visible' &&
+			window.document.getElementById('splash') == null
+		) {
 			window.document.documentElement.classList.add('_themeChanging_');
 			// 様々な理由により startViewTransition は失敗することがある
 			// ref. https://github.com/misskey-dev/misskey/issues/16562
@@ -196,6 +202,31 @@ themeManager.on('requestUpdateThemeCache', (theme, props) => {
 themeManager.on('previewStateChanged', (preview) => {
 	isPreviewMode.value = preview;
 });
+
+let switchingDarkMode = false;
+
+export async function toggleDarkMode(): Promise<void> {
+	// 快捷键和设置页共用此锁，等待确认时不叠加弹窗。
+	if (switchingDarkMode) return;
+	switchingDarkMode = true;
+
+	try {
+		const value = !store.s.darkMode;
+		if (prefer.s.syncDeviceDarkMode) {
+			const { canceled } = await os.confirm({
+				type: 'question',
+				text: i18n.tsx.switchDarkModeManuallyWhenSyncEnabledConfirm({ x: i18n.ts.syncDeviceDarkMode }),
+				okText: i18n.ts.continue,
+			});
+			if (canceled) return;
+
+			prefer.commit('syncDeviceDarkMode', false);
+		}
+		await store.set('darkMode', value);
+	} finally {
+		switchingDarkMode = false;
+	}
+}
 
 export async function addTheme(theme: Theme): Promise<void> {
 	if ($i == null) return;

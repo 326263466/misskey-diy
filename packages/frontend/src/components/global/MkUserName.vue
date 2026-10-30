@@ -41,17 +41,6 @@ const user = useUserProfile(() => props.user);
 			display: block;
 		}
 	}
-
-	// 链接悬停时整段姓名共用一条线，避免表情图片打断文字下划线。
-	&::after {
-		content: '';
-		position: absolute;
-		inset-inline: 0;
-		bottom: 0;
-		border-bottom: 1px solid currentColor;
-		opacity: var(--MI-userNameUnderline, 0);
-		pointer-events: none;
-	}
 }
 
 .name {

@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<MkEmojiPicker
 		ref="picker"
-		class="_popup _shadow"
+		class="_popup _acrylic _shadow"
 		:class="{ [$style.drawer]: type === 'drawer' }"
 		:showPinned="showPinned"
 		:pinnedEmojis="pinnedEmojis"

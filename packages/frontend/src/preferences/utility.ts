@@ -14,6 +14,7 @@ import * as os from '@/os.js';
 import { store } from '@/store.js';
 import { $i } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 
 function canAutoBackup() {
@@ -27,16 +28,12 @@ export function getPreferencesProfileMenu(): MenuItem[] {
 		if (autoBackupEnabled.value) {
 			if (!canAutoBackup()) {
 				autoBackupEnabled.value = false;
-				os.alert({
-					type: 'warning',
-					title: i18n.ts._preferencesBackup.youNeedToNameYourProfileToEnableAutoBackup,
-				});
 				return;
 			}
 
 			store.set('enablePreferencesAutoCloudBackup', true);
 
-			cloudBackup();
+			cloudBackup().catch(() => {});
 		} else {
 			store.set('enablePreferencesAutoCloudBackup', false);
 		}
@@ -108,6 +105,7 @@ async function renameProfile() {
 	if (canceled || name == null || name.trim() === '') return;
 
 	prefer.renameProfile(name);
+	os.toast(i18n.ts.saved, 'success');
 }
 
 function exportCurrentProfile() {
@@ -127,8 +125,13 @@ function importProfile() {
 		if (input.files == null || input.files.length === 0) return;
 
 		const file = input.files[0];
-		const txt = await file.text();
-		const profile = JSON.parse(txt) as PreferencesProfile;
+		let profile: PreferencesProfile;
+		try {
+			profile = JSON.parse(await file.text()) as PreferencesProfile;
+		} catch {
+			os.toast(i18n.ts._preferencesBackups.invalidFile, 'error');
+			return;
+		}
 
 		miLocalStorage.setItem('preferences', JSON.stringify(profile));
 		miLocalStorage.setItem('hidePreferencesRestoreSuggestion', 'true');
@@ -173,7 +176,13 @@ export async function restoreFromCloudBackup() {
 	if ($i == null) return;
 
 	// TODO: 更新日時でソートしたい
-	const backups = await listCloudBackups();
+	let backups: Awaited<ReturnType<typeof listCloudBackups>>;
+	try {
+		backups = await listCloudBackups();
+	} catch (error) {
+		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+		return;
+	}
 
 	if (backups.length === 0) {
 		os.alert({
@@ -195,10 +204,16 @@ export async function restoreFromCloudBackup() {
 	if (select.canceled) return;
 	if (select.result == null) return;
 
-	const profile = await misskeyApi('i/registry/get', {
-		scope: ['client', 'preferences', 'backups'],
-		key: select.result,
-	});
+	let profile: unknown;
+	try {
+		profile = await misskeyApi('i/registry/get', {
+			scope: ['client', 'preferences', 'backups'],
+			key: select.result,
+		});
+	} catch (error) {
+		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+		return;
+	}
 
 	if (_DEV_) console.log(profile);
 
@@ -219,6 +234,8 @@ export async function enableAutoBackup() {
 	}
 
 	store.set('enablePreferencesAutoCloudBackup', true);
+	// 提示条会直接消失，补充结果提示
+	os.toast(i18n.ts.enabled, 'success');
 }
 
 export const shouldSuggestRestoreBackup = ref(false);

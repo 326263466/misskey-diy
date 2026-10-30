@@ -66,7 +66,7 @@ const openForm = async () => {
 		},
 		baz: {
 			type: 'string',
-			default: 'Misskey makes you happy.',
+			default: 'Makes you happy.',
 			label: 'This is a string property',
 		},
 	}, { closeOnBackdrop: true });

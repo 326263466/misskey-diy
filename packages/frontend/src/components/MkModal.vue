@@ -8,24 +8,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 <Transition
 	:name="transitionName"
 	:enterActiveClass="normalizeClass({
+		[$style.transition_modalSide_enterActive]: transitionName === 'modal-side',
 		[$style.transition_modalDrawer_enterActive]: transitionName === 'modal-drawer',
 		[$style.transition_modalPopup_enterActive]: transitionName === 'modal-popup',
 		[$style.transition_modal_enterActive]: transitionName === 'modal',
 		[$style.transition_send_enterActive]: transitionName === 'send',
 	})"
 	:leaveActiveClass="normalizeClass({
+		[$style.transition_modalSide_leaveActive]: transitionName === 'modal-side',
 		[$style.transition_modalDrawer_leaveActive]: transitionName === 'modal-drawer',
 		[$style.transition_modalPopup_leaveActive]: transitionName === 'modal-popup',
 		[$style.transition_modal_leaveActive]: transitionName === 'modal',
 		[$style.transition_send_leaveActive]: transitionName === 'send',
 	})"
 	:enterFromClass="normalizeClass({
+		[$style.transition_modalSide_enterFrom]: transitionName === 'modal-side',
 		[$style.transition_modalDrawer_enterFrom]: transitionName === 'modal-drawer',
 		[$style.transition_modalPopup_enterFrom]: transitionName === 'modal-popup',
 		[$style.transition_modal_enterFrom]: transitionName === 'modal',
 		[$style.transition_send_enterFrom]: transitionName === 'send',
 	})"
 	:leaveToClass="normalizeClass({
+		[$style.transition_modalSide_leaveTo]: transitionName === 'modal-side',
 		[$style.transition_modalDrawer_leaveTo]: transitionName === 'modal-drawer',
 		[$style.transition_modalPopup_leaveTo]: transitionName === 'modal-popup',
 		[$style.transition_modal_leaveTo]: transitionName === 'modal',
@@ -33,7 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	})"
 	:duration="transitionDuration" appear @afterLeave="onClosed" @enter="emit('opening')" @afterEnter="onOpened"
 >
-	<div v-show="manualShowing != null ? manualShowing : showing" ref="modalRootEl" v-bind="$attrs" :class="[$style.root, { [$style.drawer]: type === 'drawer', [$style.dialog]: type === 'dialog', [$style.popup]: type === 'popup', [$style.menu]: menu, [$style.fullScreen]: fullScreen }]" :style="{ zIndex, pointerEvents: (manualShowing != null ? manualShowing : showing) ? 'auto' : 'none', '--transformOrigin': transformOrigin }">
+	<div v-show="manualShowing != null ? manualShowing : showing" ref="modalRootEl" v-bind="$attrs" :class="[$style.root, { [$style.drawer]: type === 'drawer', [$style.side]: type === 'side', [$style.dialog]: type === 'dialog', [$style.popup]: type === 'popup', [$style.menu]: menu, [$style.fullScreen]: fullScreen }]" :style="{ zIndex, pointerEvents: (manualShowing != null ? manualShowing : showing) ? 'auto' : 'none', '--transformOrigin': transformOrigin }">
 		<div data-testid="bg" :data-test-is-transparent="isEnableBgTransparent" class="_modalBg" :class="[$style.bg, { [$style.bgTransparent]: isEnableBgTransparent }]" :style="{ zIndex }" @click="onBgClick" @contextmenu.prevent.stop="() => {}"></div>
 		<div ref="content" :class="[$style.content, { [$style.fixed]: fixed }]" :style="{ zIndex, visibility: awaitingPosition ? 'hidden' : undefined }" @click.self="onBgClick">
 			<slot :max-height="maxHeight" :type="type" :guardInitialPointer="menuOverlapsAnchor" :anchorWidth="anchorWidth" :ready="!awaitingPosition && (manualShowing ?? showing)"></slot>
@@ -54,6 +58,7 @@ import { focusParent } from '@/utility/focus.js';
 import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
 import { calcDropdownPosition } from '@/utility/menu-position.js';
+import type { MenuAlign, MenuSide } from '@/utility/menu-position.js';
 
 defineOptions({ inheritAttrs: false });
 
@@ -67,7 +72,8 @@ function getFixedContainer(el: Element | null): Element | null {
 	}
 }
 
-type ModalTypes = 'popup' | 'dialog' | 'drawer';
+// side：从左侧滑出、占满高度的面板，只能通过 preferType 指定。
+type ModalTypes = 'popup' | 'dialog' | 'drawer' | 'side';
 
 // Menus opened in a fullscreen player must remain in the fullscreen subtree.
 const fullscreenTarget = window.document.fullscreenElement;
@@ -83,6 +89,8 @@ const props = withDefaults(defineProps<{
 	zPriority?: 'veryLow' | 'low' | 'middle' | 'high';
 	noOverlap?: boolean;
 	menu?: boolean;
+	menuPlacement?: MenuSide;
+	menuAlign?: MenuAlign;
 	menuMatchAnchorWidth?: boolean;
 	getContentHeight?: () => number | undefined;
 	transparentBg?: boolean;
@@ -92,6 +100,7 @@ const props = withDefaults(defineProps<{
 	/** 是否允许点击空白关闭，不影响 Esc。 */
 	closeOnBackdrop?: boolean;
 	waitForPosition?: boolean;
+	useHistory?: boolean;
 }>(), {
 	manualShowing: null,
 	anchorElement: null,
@@ -109,12 +118,13 @@ const props = withDefaults(defineProps<{
 	returnFocusTo: null,
 	closeOnBackdrop: true,
 	waitForPosition: true,
+	useHistory: true,
 });
 
 const emit = defineEmits<{
 	(ev: 'opening'): void;
 	(ev: 'opened'): void;
-	(ev: 'click'): void;
+	(ev: 'click', event?: MouseEvent): void;
 	(ev: 'esc'): void;
 	(ev: 'close'): void; // TODO: (refactor) closing に改名する
 	(ev: 'closed'): void;
@@ -130,6 +140,7 @@ const contentPositioned = ref(false);
 const transformOrigin = ref('center');
 const showing = ref(true);
 const modalRootEl = useTemplateRef('modalRootEl');
+provide(DI.popupHost, modalRootEl);
 const content = useTemplateRef('content');
 const zIndex = os.claimZIndex(props.zPriority);
 const useSendAnime = ref(false);
@@ -153,7 +164,9 @@ const transitionName = computed((() =>
 			? 'send'
 			: type.value === 'drawer'
 				? 'modal-drawer'
-				: type.value === 'popup'
+				: type.value === 'side'
+					? 'modal-side'
+					: type.value === 'popup'
 					? 'modal-popup'
 					: 'modal'
 		: ''
@@ -165,7 +178,7 @@ const transitionDuration = computed((() =>
 			? 100
 			: transitionName.value === 'modal'
 				? 200
-				: transitionName.value === 'modal-drawer'
+				: transitionName.value === 'modal-drawer' || transitionName.value === 'modal-side'
 					? 200
 					: 0
 ));
@@ -175,6 +188,7 @@ let contentClicking = false;
 const instance = getCurrentInstance()!;
 
 const { isTopmost } = usePopupDismissal({
+	useHistory: () => props.useHistory,
 	element: () => modalRootEl.value,
 	isShowing: () => props.manualShowing ?? showing.value,
 	onEscape: () => {
@@ -193,10 +207,10 @@ function close(opts: { useSendAnimation?: boolean } = {}) {
 	emit('close');
 }
 
-function onBgClick() {
+function onBgClick(event: MouseEvent) {
 	if (contentClicking || !props.closeOnBackdrop || !isTopmost()) return;
 	// 自定义取消逻辑可能需要确认未保存内容，不能直接隐藏弹窗。
-	if (instance.vnode.props?.onClick) emit('click');
+	if (instance.vnode.props?.onClick) emit('click', event);
 	else close();
 }
 
@@ -205,34 +219,46 @@ if (type.value === 'drawer') {
 }
 
 const MARGIN = 16;
-const SCROLLBAR_THICKNESS = 16;
 const POPUP_GAP = 8;
+let measuredPanel: Element | null = null;
+let heightBeforeLimit = 0;
 
 const align = () => {
 	if (props.anchorElement == null) return;
 	if (!props.anchorElement.isConnected || props.anchorElement.getClientRects().length === 0) return;
 	if (type.value === 'drawer') return;
+	if (type.value === 'side') return;
 	if (type.value === 'dialog') return;
 
 	if (content.value == null) return;
 
 	const anchorRect = props.anchorElement.getBoundingClientRect();
 
-	const width = content.value!.offsetWidth;
-	const height = content.value!.offsetHeight;
+	const width = content.value.offsetWidth;
+	// 尊重调用方自身的 CSS 限高；菜单等需要自然高度的内容通过 getter 明确提供。
+	const renderedHeight = content.value.offsetHeight;
+	const panel = content.value.firstElementChild;
+	const atOwnLimit = panel === measuredPanel && maxHeight.value != null && renderedHeight + 1 >= maxHeight.value;
+	if (!atOwnLimit) {
+		measuredPanel = panel;
+		heightBeforeLimit = renderedHeight;
+	}
+	// 仅在本层限高仍生效时保留限高前的实际盒高，避免观察器反复施加和撤销限高。
+	const height = props.getContentHeight?.() ?? (atOwnLimit ? Math.max(renderedHeight, heightBeforeLimit) : renderedHeight);
 
 	// 按钮菜单锚定触发元素本身：默认挂在下方并与其起始边对齐，放不下就整体换方位。
 	// 光标锚点的四角展开是右键菜单的语义，由 MkContextMenu 负责，不能混用。
 	if (props.menu) {
 		if (props.menuMatchAnchorWidth) anchorWidth.value = anchorRect.width;
-		const naturalHeight = props.getContentHeight?.() ?? height;
 		const position = calcDropdownPosition(
 			// 传自然高度而非 offsetHeight，否则上一次施加的 maxHeight 会让菜单显得“放得下”
-			{ width, height: naturalHeight },
+			{ width, height },
 			anchorRect,
 			{ width: window.innerWidth, height: window.innerHeight },
 			{
 				boundary: boundaryElement.value?.isConnected ? boundaryElement.value.getBoundingClientRect() : undefined,
+				initialSide: props.menuPlacement,
+				initialAlign: props.menuAlign,
 				// 宽度跟随锚点的下拉（select）不应该甩到侧面
 				allowSideFlip: !props.menuMatchAnchorWidth,
 				rtl: window.getComputedStyle(props.anchorElement).direction === 'rtl',
@@ -241,6 +267,27 @@ const align = () => {
 		maxHeight.value = position.maxHeight ?? undefined;
 		transformOrigin.value = position.transformOrigin;
 		menuOverlapsAnchor.value = position.overlapsAnchor;
+		content.value.style.left = `${position.left + (fixed.value ? 0 : window.scrollX)}px`;
+		content.value.style.top = `${position.top + (fixed.value ? 0 : window.scrollY)}px`;
+		contentPositioned.value = true;
+		return;
+	}
+
+	if (props.noOverlap && (props.anchor.x !== 'center' || props.anchor.y !== 'center')) {
+		const initialSide: MenuSide = props.anchor.x === 'left' ? 'left' : props.anchor.x === 'right' ? 'right'
+			: props.anchor.y === 'top' ? 'top' : 'bottom';
+		const position = calcDropdownPosition(
+			{ width, height },
+			anchorRect,
+			{ width: window.innerWidth, height: window.innerHeight },
+			{
+				boundary: boundaryElement.value?.isConnected ? boundaryElement.value.getBoundingClientRect() : undefined,
+				initialSide,
+				initialAlign: props.anchor.x !== 'center' ? 'center' : props.align === 'left' ? 'start' : props.align === 'right' ? 'end' : 'center',
+			},
+		);
+		maxHeight.value = position.maxHeight ?? undefined;
+		transformOrigin.value = position.transformOrigin;
 		content.value.style.left = `${position.left + (fixed.value ? 0 : window.scrollX)}px`;
 		content.value.style.top = `${position.top + (fixed.value ? 0 : window.scrollY)}px`;
 		contentPositioned.value = true;
@@ -271,10 +318,10 @@ const align = () => {
 
 	const scrollX = fixed.value ? 0 : window.scrollX;
 	const scrollY = fixed.value ? 0 : window.scrollY;
-	let viewportLeft = scrollX;
+	let viewportLeft = scrollX + MARGIN;
 	let viewportTop = scrollY + MARGIN;
-	let viewportRight = scrollX + window.innerWidth - SCROLLBAR_THICKNESS;
-	let viewportBottom = scrollY + window.innerHeight - SCROLLBAR_THICKNESS - MARGIN;
+	let viewportRight = scrollX + window.innerWidth - MARGIN;
+	let viewportBottom = scrollY + window.innerHeight - MARGIN;
 	if (boundaryElement.value?.isConnected) {
 		const boundary = boundaryElement.value.getBoundingClientRect();
 		const leftEdge = Math.max(viewportLeft, boundary.left + scrollX + POPUP_GAP);
@@ -290,19 +337,9 @@ const align = () => {
 			viewportBottom = bottomEdge;
 		}
 	}
-	let availableHeight = Math.max(0, viewportBottom - viewportTop);
+	const availableHeight = Math.max(0, viewportBottom - viewportTop);
 
-	if (props.noOverlap && props.anchor.x === 'center' && props.anchor.y !== 'center') {
-		const spaceAbove = Math.max(0, Math.min(y - POPUP_GAP, viewportBottom) - viewportTop);
-		const spaceBelow = Math.max(0, viewportBottom - Math.max(y + anchorRect.height + POPUP_GAP, viewportTop));
-		const opensAbove = props.anchor.y === 'top'
-			? height <= spaceAbove || (height > spaceBelow && spaceAbove >= spaceBelow)
-			: height > spaceBelow && (height <= spaceAbove || spaceAbove > spaceBelow);
-		availableHeight = opensAbove ? spaceAbove : spaceBelow;
-		top = opensAbove ? y - POPUP_GAP - Math.min(height, availableHeight) : y + anchorRect.height + POPUP_GAP;
-	}
-
-	maxHeight.value = availableHeight;
+	maxHeight.value = height > availableHeight ? availableHeight : undefined;
 	const visibleHeight = Math.min(height, availableHeight);
 	left = Math.max(viewportLeft, Math.min(left, viewportRight - width));
 	top = Math.max(viewportTop, Math.min(top, viewportBottom - visibleHeight));
@@ -535,6 +572,28 @@ defineExpose({
 	}
 }
 
+.transition_modalSide_enterActive,
+.transition_modalSide_leaveActive {
+	> .bg {
+		transition: opacity 0.2s !important;
+	}
+
+	> .content {
+		transition: transform 0.2s cubic-bezier(0,.5,0,1) !important;
+	}
+}
+.transition_modalSide_enterFrom,
+.transition_modalSide_leaveTo {
+	> .bg {
+		opacity: 0;
+	}
+
+	> .content {
+		pointer-events: none;
+		transform: translateX(-100%);
+	}
+}
+
 .root {
 	&.dialog {
 		> .content {
@@ -590,6 +649,21 @@ defineExpose({
 			left: 0;
 			right: 0;
 			margin: auto;
+		}
+	}
+
+	&.side {
+		position: fixed;
+		inset: 0;
+		overflow: clip;
+
+		> .content {
+			position: fixed;
+			top: 0;
+			bottom: 0;
+			left: 0;
+			display: flex;
+			max-width: 100%;
 		}
 	}
 }

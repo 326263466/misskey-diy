@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkButton type="button" rounded primary style="margin: 0 auto;" @click="openRemote(openOnRemote)">
 					{{ i18n.ts.continueOnRemote }} <i class="ti ti-external-link"></i>
 				</MkButton>
-				<button type="button" class="_button" :class="$style.instanceManualSelectButton" @click="specifyHostAndOpenRemote(openOnRemote)">
+				<button type="button" class="_textButton" :class="$style.instanceManualSelectButton" @click="specifyHostAndOpenRemote(openOnRemote)">
 					{{ i18n.ts.specifyServerHost }}
 				</button>
 			</div>
@@ -118,7 +118,7 @@ function openRemote(options: OpenOnRemoteOptions, targetHost?: string): void {
 async function specifyHostAndOpenRemote(options: OpenOnRemoteOptions): Promise<void> {
 	const { canceled, result: hostTemp } = await os.inputText({
 		title: i18n.ts.inputHostName,
-		placeholder: 'misskey.example.com',
+		placeholder: 'example.com',
 	});
 
 	if (canceled) return;
@@ -171,14 +171,9 @@ async function specifyHostAndOpenRemote(options: OpenOnRemoteOptions): Promise<v
 }
 
 .instanceManualSelectButton {
-	display: block;
-	text-align: center;
+	align-self: center;
 	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: .8em;
-
-	&:hover {
-		text-decoration: underline;
-	}
 }
 
 .orHr {

@@ -4,13 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader hideHeader contentCard fillHeight :class="$style.shell">
+<PageWithHeader hideHeader contentCard fillHeight :class="[$style.shell, { [$style.mobile]: mobileLayout }]">
 	<div :class="$style.root" :aria-busy="loading || saving || uploading > 0" @focusout="scheduleBlurSave" @compositionstart="startComposition" @compositionend="endComposition">
 		<header :class="$style.header">
-			<div :class="$style.titleField">
-				<input v-model="title" :class="$style.title" :disabled="!ready || saving" :aria-label="i18n.ts._article.title" :aria-invalid="titleLength > CONTENT_LIMITS.articleTitle" :placeholder="`${i18n.ts._article.title}…`">
-				<span class="_inputCounter" :class="{ _inputCounterOver: titleLength > CONTENT_LIMITS.articleTitle }">{{ titleLength }}/{{ CONTENT_LIMITS.articleTitle }}</span>
-			</div>
+			<button type="button" class="_button _iconButton" :class="$style.backButton" :aria-label="i18n.ts.goBack" :disabled="saving" @click="goBack"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
+			<h1 :class="$style.editorTitle">{{ articleId ? i18n.ts._article.edit : i18n.ts._article.publish }}</h1>
 			<div :class="$style.headerActions">
 				<span :class="[$style.draftStatus, { [$style.failed]: draftStatus === 'failed' }]" :title="i18n.ts._article.draftStrategy">
 					{{ draftStatusText }}
@@ -22,6 +20,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button ref="avatarButton" type="button" class="_button" :class="$style.avatarButton" :disabled="!canManageDrafts()" :aria-label="i18n.ts._article.menu" aria-haspopup="menu" @click="openArticleMenu"><MkAvatar :user="account" :class="$style.avatar"/></button>
 			</div>
 		</header>
+		<div :class="$style.titleField">
+			<input v-model="title" :class="$style.title" :disabled="!ready || saving" :aria-label="i18n.ts._article.title" :aria-invalid="titleLength > CONTENT_LIMITS.articleTitle" :placeholder="`${i18n.ts._article.title}…`">
+			<span v-if="titleLength > CONTENT_LIMITS.articleTitle" class="_inputCounter _inputCounterOver">{{ titleLength }}/{{ CONTENT_LIMITS.articleTitle }}</span>
+		</div>
 		<p v-if="draftStatus === 'failed'" :class="$style.saveError" role="alert">{{ i18n.ts._article.draftSaveFailed }} <button type="button" class="_textButton" @click="flushDraft">{{ i18n.ts.retry }}</button></p>
 		<p v-if="cloudError" :class="$style.saveError" role="alert">{{ cloudError }} <button type="button" class="_textButton" :disabled="cloudSaving" @click="saveCloudDraft(cloudConflict)">{{ cloudConflict ? i18n.ts._article.saveDraftCopy : i18n.ts.retry }}</button></p>
 		<MkLoading v-if="loading"/>
@@ -31,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				ref="markdownEditor"
 				v-model="markdown"
 				:class="$style.editor"
-				:theme="store.s.darkMode ? 'dark' : 'light'"
+				:theme="store.r.darkMode.value ? 'dark' : 'light'"
 				:language="lang.startsWith('zh') ? 'zh-CN' : 'en-US'"
 				:disabled="saving"
 				:sanitize="sanitizeMarkdown"
@@ -104,9 +106,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, markRaw, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useId, useTemplateRef, watch } from 'vue';
+import { computed, inject, markRaw, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useId, useTemplateRef, watch } from 'vue';
 import { MdEditor } from 'md-editor-v3';
 import type { ExposeParam, Footers, ToolbarNames, UploadImgCallBack } from 'md-editor-v3';
+import type { Ref } from 'vue';
 import 'md-editor-v3/lib/style.css';
 import { CONTENT_LIMITS } from 'misskey-js';
 import type { entities } from 'misskey-js';
@@ -133,16 +136,17 @@ import { articleBody, isArticle, rememberPublishedArticle } from '@/utility/arti
 import { createArticleCoverFile } from '@/utility/article-cover.js';
 import { sanitizeMarkdown } from '@/utility/markdown.js';
 import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
-import { createDraftFileProtection } from '@/utility/draft-file-protection.js';
+import { createDraftSession } from '@/utility/draft-session.js';
 import * as os from '@/os.js';
 
 const props = defineProps<{ articleId?: string; draftKey?: string; cloudDraftId?: string }>();
 const account = ensureSignin();
-let fileProtection = createDraftFileProtection(account);
+let draftSession = createDraftSession(account.id);
 const router = useRouter();
 const pageActive = inject(DI.pageActive, ref(true));
 const activated = ref(true);
 const editorActive = computed(() => activated.value && pageActive.value);
+const mobileLayout = inject<Readonly<Ref<boolean>>>('mobileLayout', ref(window.innerWidth <= 500));
 const title = ref('');
 const summary = ref('');
 const articleCategoryId = ref<string | null>(null);
@@ -176,14 +180,14 @@ const wideEditor = ref(editorMedia.matches);
 // 超限旧稿也需要打开设置，才能修正摘要等隐藏字段。
 const canOpenSettings = computed(() => ready.value && !saving.value && !cloudSaving.value && uploading.value === 0);
 const canPublish = computed(() => canOpenSettings.value && !!title.value.trim() && !!markdown.value.trim() && withinContentLimits.value);
-const toolbars: ToolbarNames[] = ['bold', 'italic', 'strikeThrough', 'title', 'quote', 'unorderedList', 'orderedList', 'task', 'codeRow', 'code', 'link', 'image', 'table', 'revoke', 'next', 'save', 'pageFullscreen', 'preview', 'catalog'];
+const toolbars = computed<ToolbarNames[]>(() => ['bold', 'italic', 'strikeThrough', 'title', 'quote', 'unorderedList', 'orderedList', 'task', 'codeRow', 'code', 'link', 'image', 'table', 'revoke', 'next', 'save', ...(!mobileLayout.value ? ['pageFullscreen' as const] : []), 'preview', 'catalog']);
 const footers: Footers[] = [0, 'scrollSwitch', '=', 'markdownTotal'];
 const readingMinutes = computed(() => Math.ceil(markdown.value.replace(/\s/gu, '').length / 400));
 let disposed = false;
 let saved = false;
-let fileProtectionTimer: number | undefined;
 let saveTimer: number | undefined;
 let composing = false;
+let imageUpload: AbortController | undefined;
 let cleanSnapshot = '';
 let cloudSavedSnapshot: string | null = null;
 let cloudSavedId: string | null = null;
@@ -237,8 +241,8 @@ function refreshDrafts(showError = false) {
 
 function forgetSource() {
 	if (!sourceDraft.value) return;
-	// 另一窗口仍持有附件引用时保留原稿，不能替它解除保护。
-	if (sourceDraft.value.draft.fileProtectionId && sourceDraft.value.draft.fileProtectionId !== fileProtection.id) return;
+	// 另一窗口仍在编辑时保留原稿，不能替它删除草稿。
+	if (sourceDraft.value.draft.sessionId && sourceDraft.value.draft.sessionId !== draftSession.id) return;
 	removeArticleDraft(sourceDraft.value.key, sourceDraft.value.raw);
 	activeComposerDrafts.delete(sourceDraft.value.key);
 	sourceDraft.value = null;
@@ -255,7 +259,7 @@ function flushDraft(): boolean {
 			if (workingRaw.value) removeArticleDraft(workingKey.value, workingRaw.value);
 			forgetSource();
 			workingRaw.value = null;
-			void fileProtection.release();
+			draftSession.release();
 			draftStatus.value = 'idle';
 		} else {
 			// 每个编辑器独立写入；外部改动过的记录也保留，避免覆盖。
@@ -263,10 +267,10 @@ function flushDraft(): boolean {
 				activeComposerDrafts.delete(workingKey.value);
 				workingKey.value = createArticleDraftKey(account.id, props.articleId);
 			}
-			const draft: ArticleDraft = { version: 1, ...content, fileProtectionId: fileProtection.id, updatedAt: new Date().toISOString(), ...(props.articleId ? { articleId: props.articleId } : {}), ...(cloudId.value ? { cloudId: cloudId.value, cloudRevision: cloudRevision.value } : {}) };
+			const draft: ArticleDraft = { version: 1, ...content, sessionId: draftSession.id, updatedAt: new Date().toISOString(), ...(props.articleId ? { articleId: props.articleId } : {}), ...(cloudId.value ? { cloudId: cloudId.value, cloudRevision: cloudRevision.value } : {}) };
 			workingRaw.value = writeArticleDraft(account.id, workingKey.value, draft);
 			activeComposerDrafts.add(workingKey.value);
-			fileProtection.markPersisted();
+			draftSession.markPersisted();
 			// 新副本落盘后才移除恢复来源，配额失败时原稿仍在。
 			forgetSource();
 			draftStatus.value = 'saved';
@@ -276,7 +280,6 @@ function flushDraft(): boolean {
 		return true;
 	} catch {
 		draftStatus.value = 'failed';
-		fileProtection.markStorageFailed();
 		return false;
 	}
 }
@@ -361,7 +364,7 @@ async function saveCloudDraft(asCopy = false) {
 		cloudConflict.value = (error as { code?: string }).code === 'DRAFT_CONFLICT';
 		const invalidTags = (error as { code?: string }).code === 'INVALID_ARTICLE_TAGS';
 		cloudError.value = invalidTags ? i18n.ts._article.tagsUnavailable : cloudConflict.value ? i18n.ts._article.cloudDraftConflict : i18n.ts._article.cloudDraftFailed;
-		if (invalidTags && !disposed) settingsVisible.value = true;
+		if (invalidTags && !disposed && editorActive.value) settingsVisible.value = true;
 	} finally { cloudSaving.value = false; }
 }
 
@@ -412,7 +415,7 @@ async function deleteCloudDraft(draft: entities.ArticlesDraftsShowResponse) {
 async function applyDraft(entry: StoredArticleDraft) {
 	sourceDraft.value = entry.key ? entry : null;
 	if (entry.key) activeComposerDrafts.add(entry.key);
-	await fileProtection.restore(entry.draft.fileProtectionId);
+	await draftSession.restore(entry.draft.sessionId);
 	if (disposed) return;
 	title.value = entry.draft.title;
 	summary.value = entry.draft.summary;
@@ -431,20 +434,21 @@ async function applyDraft(entry: StoredArticleDraft) {
 		try { originalCloudDraft.value = await misskeyApi('articles/drafts/show', { draftId: cloudId.value }); } catch { /* 离线时仍允许恢复并修正本地草稿。 */ }
 		if (disposed) return;
 	}
-	fileProtection.markPersisted();
+	draftSession.markPersisted();
 	draftStatus.value = 'saved';
 }
 
 function resetDraft() {
 	clearSaveTimer();
+	imageUpload?.abort();
 	coverRequest++;
 	abortCoverUpload?.();
 	saving.value = false;
 	activeComposerDrafts.delete(workingKey.value);
 	if (sourceDraft.value) activeComposerDrafts.delete(sourceDraft.value.key);
-	if (!workingRaw.value && !sourceDraft.value) void fileProtection.release();
-	fileProtection.dispose();
-	fileProtection = createDraftFileProtection(account);
+	if (!workingRaw.value && !sourceDraft.value) draftSession.release();
+	draftSession.dispose();
+	draftSession = createDraftSession(account.id);
 	workingKey.value = createArticleDraftKey(account.id, props.articleId);
 	workingRaw.value = null;
 	sourceDraft.value = null;
@@ -499,13 +503,6 @@ async function deleteDraft(entry: StoredArticleDraft) {
 		const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts._article.draftDeleteConfirm });
 		if (canceled || disposed) return;
 		if (!removeArticleDraft(entry.key, entry.raw)) { os.toast(i18n.ts._article.draftChanged, 'error'); return; }
-		if (entry.draft.fileProtectionId) {
-			const protection = createDraftFileProtection(account);
-			try {
-				await protection.restore(entry.draft.fileProtectionId);
-				if (protection.id === entry.draft.fileProtectionId) void protection.release();
-			} finally { protection.dispose(); }
-		}
 	} catch { os.toast(i18n.ts._article.draftSaveFailed, 'error'); } finally { draftBusy.value = false; refreshDrafts(); }
 }
 
@@ -522,20 +519,6 @@ function closePublishSettings() {
 function focusPublishSettings() {
 	settingsPanel.value?.querySelector<HTMLButtonElement>('[aria-haspopup="dialog"]')?.focus({ preventScroll: true });
 }
-
-function protectFiles() {
-	window.clearTimeout(fileProtectionTimer);
-	if (!ready.value || saved || disposed) return;
-	// 本地草稿正文不上传，附件保护只提交资源地址。
-	const urls = markdown.value.match(/https?:\/\/[^\s<>"')]+|\/(?:files|drive)\/[^\s<>"')]+/gu) ?? [];
-	void fileProtection.update(cover.value ? [cover.value.id] : [], urls.join('\n'));
-}
-
-watch([markdown, cover], () => {
-	if (!ready.value) return;
-	window.clearTimeout(fileProtectionTimer);
-	fileProtectionTimer = window.setTimeout(protectFiles, 500);
-});
 
 function restoredCategoryId(value: unknown): string | null {
 	return typeof value === 'string' && value.length > 0 ? value : null;
@@ -578,7 +561,6 @@ async function init(selected?: StoredArticleDraft) {
 		if (candidate && !candidate.key) cleanSnapshot = '';
 		ready.value = true;
 		if (candidate && !candidate.key) flushDraft();
-		protectFiles();
 	} catch (error) {
 		if (!disposed && !isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
 	} finally { if (!disposed) loading.value = false; }
@@ -618,8 +600,7 @@ async function save() {
 				if (!disposed) os.toast(i18n.ts._article.cloudDraftCleanupFailed, 'error');
 			}
 		}
-		void fileProtection.release();
-		window.clearTimeout(fileProtectionTimer);
+		draftSession.release();
 		if (disposed || !editorActive.value || workingKey.value !== publishingKey) return;
 		// 保留发布界面直到详情准备好；预载超时不能阻止已发布文章的跳转。
 		const controller = new AbortController();
@@ -645,11 +626,10 @@ async function chooseCover(event: PointerEvent) {
 	const draftKey = workingKey.value;
 	const request = ++coverRequest;
 	try {
-		const file = await selectFile({ anchorElement: event.currentTarget, multiple: false, isManaged: true, draftId: fileProtection.id });
+		const file = await selectFile({ anchorElement: event.currentTarget, multiple: false });
 		if (disposed || !editorActive.value || workingKey.value !== draftKey || coverRequest !== request) return;
 		if (!file.type.startsWith('image/') || file.isSensitive) { os.toast(i18n.ts._article.imageOnly, 'error'); return; }
 		cover.value = file;
-		protectFiles();
 	} catch (error) { if (error && !disposed) os.toast(i18n.ts.failedToUpload, 'error'); }
 }
 
@@ -662,7 +642,6 @@ function removeCover() {
 async function generateDefaultCover() {
 	if (!canOpenSettings.value) return;
 	const draftKey = workingKey.value;
-	const protection = fileProtection;
 	const request = ++coverRequest;
 	const isCurrentDraft = () => !disposed && editorActive.value && workingKey.value === draftKey && coverRequest === request;
 	let uploadTimeout: number | undefined;
@@ -671,13 +650,12 @@ async function generateDefaultCover() {
 	try {
 		const file = await createArticleCoverFile({ title: title.value, createdAt: new Date().toISOString(), name: `${name.value}:${genId()}`, userId: account.id });
 		if (!isCurrentDraft()) return;
-		const upload = uploadFile(file, { isManaged: true, draftId: protection.id });
+		const upload = uploadFile(file);
 		abortCoverUpload = upload.abort;
 		uploadTimeout = window.setTimeout(upload.abort, 60_000);
 		const result = await upload.filePromise;
 		if (!isCurrentDraft()) return;
 		cover.value = result;
-		protectFiles();
 		flushDraft();
 	} catch {
 		if (isCurrentDraft()) os.toast(i18n.ts._article.generateCoverFailed, 'error');
@@ -690,28 +668,32 @@ async function generateDefaultCover() {
 }
 
 async function uploadImages(files: File[], callback: UploadImgCallBack) {
-	if (saving.value || files.length === 0 || files.some(file => !file.type.startsWith('image/'))) {
+	if (!editorActive.value || saving.value || files.length === 0 || files.some(file => !file.type.startsWith('image/'))) {
 		if (files.length && !saving.value) os.toast(i18n.ts._article.imageOnly, 'error');
 		callback([]);
 		return;
 	}
+	imageUpload?.abort();
+	const request = imageUpload = new AbortController();
+	const draftKey = workingKey.value;
+	const isCurrentDraft = () => !request.signal.aborted && !disposed && editorActive.value && workingKey.value === draftKey;
 	uploading.value++;
 	try {
 		const uploaded = await new Promise<entities.DriveFile[]>((resolve, reject) => {
 			let dispose: (() => void) | undefined;
 			let closed = false;
-			void os.popupAsyncWithDialog(import('@/components/MkUploaderDialog.vue').then(module => module.default), { files: markRaw(files), multiple: true, isManaged: true, draftId: fileProtection.id }, {
-				done: resolve,
+			const close = () => { closed = true; request.signal.removeEventListener('abort', close); dispose?.(); resolve([]); };
+			request.signal.addEventListener('abort', close, { once: true });
+			void os.popupAsyncWithDialog(import('@/components/MkUploaderDialog.vue').then(module => module.default), { files: markRaw(files), multiple: true }, {
+				done: files => { if (!closed) resolve(files); },
 				canceled: () => resolve([]),
-				closed: () => { closed = true; dispose?.(); resolve([]); },
-			}).then(popup => { dispose = popup.dispose; if (closed) dispose(); }, reject);
+				closed: close,
+			}, request.signal).then(popup => { dispose = popup.dispose; if (closed) dispose(); }, error => { request.signal.removeEventListener('abort', close); reject(error); });
 		});
-		if (!disposed) {
+		if (isCurrentDraft()) {
 			callback(uploaded.map(file => ({ url: file.url, alt: file.name, title: file.name })));
-			await nextTick();
-			protectFiles();
 		}
-	} catch { if (!disposed) { os.toast(i18n.ts.failedToUpload, 'error'); callback([]); } } finally { uploading.value--; }
+	} catch { if (isCurrentDraft()) { os.toast(i18n.ts.failedToUpload, 'error'); callback([]); } } finally { uploading.value--; if (imageUpload === request) imageUpload = undefined; }
 }
 
 function updateEditorWidth(event: MediaQueryListEvent) {
@@ -720,27 +702,31 @@ function updateEditorWidth(event: MediaQueryListEvent) {
 }
 
 function saveBeforeLeave(event: BeforeUnloadEvent) {
-	if (!preserveDraft()) { event.preventDefault(); event.returnValue = ''; }
+	if (editorActive.value && !preserveDraft()) { event.preventDefault(); event.returnValue = ''; }
 }
 
 function saveWhenHidden() { if (window.document.visibilityState === 'hidden') flushDraft(); }
 
-let previousNavHook: typeof router.navHook = null;
-const leaveHook: NonNullable<typeof router.navHook> = (path, flag) => {
-	if (editorActive.value && !preserveDraft()) { os.toast(i18n.ts._article.draftSaveFailed, 'error'); return true; }
-	return previousNavHook?.(path, flag) ?? false;
-};
-
-function installLeaveHook() {
-	if (router.navHook === leaveHook) return;
-	previousNavHook = router.navHook;
-	router.navHook = leaveHook;
+function canLeave() {
+	if (!editorActive.value || preserveDraft()) return true;
+	os.toast(i18n.ts._article.draftSaveFailed, 'error');
+	return false;
 }
 
-function removeLeaveHook() { if (router.navHook === leaveHook) router.navHook = previousNavHook; }
+function goBack() {
+	if (router.canGoBack.value) router.back();
+	else router.pushByPath(props.articleId ? `/articles/${encodeURIComponent(props.articleId)}` : '/');
+}
+
+function installLeaveHook() {
+	if (editorActive.value) router.beforeLeave = canLeave;
+}
+
+function removeLeaveHook() { if (router.beforeLeave === canLeave) router.beforeLeave = null; }
 
 watch(editorActive, active => {
 	if (!active) {
+		imageUpload?.abort();
 		coverRequest++;
 		abortCoverUpload?.();
 		flushDraft();
@@ -769,6 +755,7 @@ function onStorage() { refreshDrafts(); }
 onDeactivated(() => { activated.value = false; flushDraft(); if (saved) settingsVisible.value = false; else publishModal.value?.close(); draftsDialog.value?.close(); });
 onActivated(() => { activated.value = true; });
 onBeforeUnmount(() => {
+	imageUpload?.abort();
 	abortCoverUpload?.();
 	removeLeaveHook();
 	flushDraft();
@@ -780,15 +767,18 @@ onBeforeUnmount(() => {
 	window.removeEventListener('storage', onStorage);
 	window.document.removeEventListener('visibilitychange', saveWhenHidden);
 	editorMedia.removeEventListener('change', updateEditorWidth);
-	window.clearTimeout(fileProtectionTimer);
-	if (!saved && !workingRaw.value && !sourceDraft.value) void fileProtection.release();
-	fileProtection.dispose();
+	if (!saved && !workingRaw.value && !sourceDraft.value) draftSession.release();
+	draftSession.dispose();
 	disposed = true;
 });
 definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._article.publish, icon: 'ti ti-pencil' }));
 </script>
 
 <style lang="scss" module>
+@use "../../styles/markdown.scss";
+
+@use '../../styles/input.scss' as input;
+
 .shell {
 	--MI-pageContentPadding: 0px;
 	--MI-cardRadius: 0px;
@@ -815,6 +805,8 @@ definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._ar
 }
 
 .draftStatus { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--MI_THEME-fgTransparentWeak); }
+.backButton { display: grid; place-items: center; flex: 0 0 var(--MI-mobileTouchTarget); width: var(--MI-mobileTouchTarget); height: var(--MI-mobileTouchTarget); border-radius: 8px; }
+.editorTitle { flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1em; font-weight: 600; }
 .failed { color: var(--MI_THEME-error); }
 .saveError { margin: 0; padding: 8px 16px; background: var(--MI_THEME-infoWarnBg); color: var(--MI_THEME-infoWarnFg); font-size: 13px; }
 .cloudSaveButton {
@@ -829,7 +821,7 @@ definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._ar
 	&:not(:disabled):active { background: var(--MI_THEME-buttonHoverBg); }
 	&:disabled { opacity: .5; }
 }
-.avatarButton { display: flex; flex-shrink: 0; }
+.avatarButton { display: grid; place-items: center; flex-shrink: 0; width: var(--MI-mobileTouchTarget); height: var(--MI-mobileTouchTarget); border-radius: 8px; &:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; } }
 .readingTime { white-space: nowrap; }
 
 .avatar { width: 32px; height: 32px; flex-shrink: 0; }
@@ -838,8 +830,10 @@ definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._ar
 	position: relative;
 	display: flex;
 	align-items: center;
-	flex: 1;
 	min-width: 0;
+	padding: 12px 24px;
+	flex-shrink: 0;
+	border-bottom: var(--MI-divider);
 }
 
 .title {
@@ -854,7 +848,6 @@ definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._ar
 	font-size: 22px;
 	outline: none;
 
-	&::placeholder { color: var(--MI_THEME-fgTransparentWeak); }
 	&:focus-visible { box-shadow: 0 2px var(--MI_THEME-accent); }
 }
 
@@ -877,14 +870,7 @@ definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._ar
 }
 
 .editor {
-	--md-bk-color: var(--MI_THEME-panel);
-	--md-bk-color-outstand: var(--MI_THEME-panelHighlight);
-	--md-bk-hover-color: var(--MI_THEME-buttonHoverBg);
-	--md-color: var(--MI_THEME-fg);
-	--md-border-color: var(--MI-dividerColor);
-	--md-scrollbar-bg-color: transparent;
-	--md-scrollbar-thumb-color: var(--MI_THEME-scrollbarHandle);
-	--md-scrollbar-thumb-hover-color: var(--MI_THEME-scrollbarHandleHover);
+	@include markdown.theme;
 	flex: 1;
 	min-width: 0;
 	height: 0;
@@ -1011,22 +997,18 @@ definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._ar
 .summaryField { position: relative; display: block; min-width: 0; }
 
 .summary {
+	@include input.field;
 	display: block;
 	box-sizing: border-box;
 	width: 100%;
 	min-height: 112px;
 	padding: 12px 12px 32px;
 	resize: none;
-	border: 1px solid var(--MI_THEME-inputBorder);
 	border-radius: 3px;
-	background: var(--MI_THEME-bg);
 	color: var(--MI_THEME-fg);
 	font: inherit;
 	font-size: 14px;
 	line-height: 1.6;
-
-	&::placeholder { color: var(--MI_THEME-fgTransparentWeak); }
-	&:focus-visible { outline: 2px solid var(--MI_THEME-accent); outline-offset: 2px; }
 }
 
 .settingsFooter {
@@ -1041,11 +1023,11 @@ definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._ar
 .settingsDrawer { width: 100%; max-width: 100%; border-radius: var(--MI-radius) var(--MI-radius) 0 0; }
 
 @media (max-width: 700px) {
-	.header { flex-wrap: wrap; gap: 6px 12px; padding: 8px 12px; }
-	.titleField { order: 1; flex-basis: 100%; }
+	.header { gap: 4px; padding: 0 8px; }
+	.titleField { padding: 8px 16px; }
 	.title { padding: 6px 0; font-size: 18px; }
 	.draftStatus { display: none; }
-	.headerActions { gap: 12px; }
+	.headerActions { gap: 4px; }
 	.publishButton { min-width: 64px; padding: 7px 16px; }
 	.editor :global(.md-editor-toolbar-wrapper) { padding: 6px 8px; }
 	.editor :global(.md-editor-preview-wrapper) { padding: 12px 16px; }
@@ -1054,5 +1036,12 @@ definePage(() => ({ title: props.articleId ? i18n.ts._article.edit : i18n.ts._ar
 	.field { grid-template-columns: minmax(0, 1fr); gap: 10px; }
 	.fieldLabel { padding-top: 0; }
 	.coverHint { grid-column: 1; margin-top: 0; }
+}
+
+.mobile {
+	.header { min-height: var(--MI-mobileHeaderHeight); }
+	.cloudSaveButton { min-height: var(--MI-mobileTouchTarget); padding: 0 10px; background: none; }
+	.publishButton { min-height: var(--MI-mobileTouchTarget); }
+	.avatar { width: 28px; height: 28px; }
 }
 </style>

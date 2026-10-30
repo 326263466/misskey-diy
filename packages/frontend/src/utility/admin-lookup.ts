@@ -7,10 +7,12 @@ import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
 export async function lookupUser() {
 	const { canceled, result } = await os.inputText({
 		title: i18n.ts.usernameOrUserId,
+		type: 'search',
 	});
 	if (canceled || result == null) return;
 
@@ -44,7 +46,7 @@ export async function lookupUser() {
 export async function lookupUserByEmail() {
 	const { canceled, result } = await os.inputText({
 		title: i18n.ts.emailAddress,
-		type: 'email',
+		type: 'search',
 	});
 	if (canceled || result == null) return;
 
@@ -60,6 +62,7 @@ export async function lookupUserByEmail() {
 export async function lookupFile() {
 	const { canceled, result: q } = await os.inputText({
 		title: i18n.ts.fileIdOrUrl,
+		type: 'search',
 		minLength: 1,
 	});
 	if (canceled) return;
@@ -72,6 +75,8 @@ export async function lookupFile() {
 				type: 'error',
 				text: i18n.ts.notFound,
 			});
+		} else if (!isAccountSessionErrorHandled(err)) {
+			os.toast(i18n.ts.somethingHappened, 'error');
 		}
 	});
 }

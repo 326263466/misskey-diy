@@ -4,6 +4,8 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
 import type { UserListsRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { UserListEntityService } from '@/core/entities/UserListEntityService.js';
@@ -26,6 +28,7 @@ export const meta = {
 	},
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: '2f92771d-e7e5-4f3e-ac93-bada7a95e8e0' },
 		noSuchList: {
 			message: 'No such list.',
 			code: 'NO_SUCH_LIST',
@@ -38,7 +41,7 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		listId: { type: 'string', format: 'misskey:id' },
-		name: { type: 'string', minLength: 1, maxLength: 100 },
+		name: { type: 'string', minLength: 1 },
 		isPublic: { type: 'boolean' },
 	},
 	required: ['listId'],
@@ -60,6 +63,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (userList == null) {
 				throw new ApiError(meta.errors.noSuchList);
+			}
+			if (isContentTooLong(ps.name, CONTENT_LIMITS.collectionName, userList.name)) {
+				throw new ApiError(meta.errors.contentTooLong);
 			}
 
 			await this.userListsRepository.update(userList.id, {

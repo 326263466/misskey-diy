@@ -39,6 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ref, computed, markRaw } from 'vue';
+import { CONTENT_LIMITS } from 'misskey-js';
 import MkPagination from '@/components/MkPagination.vue';
 import MkPaginationControl from '@/components/MkPaginationControl.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -65,6 +66,7 @@ async function create() {
 		name: {
 			type: 'string',
 			label: i18n.ts.name,
+			maxLength: CONTENT_LIMITS.collectionName,
 		},
 		description: {
 			type: 'string',
@@ -72,6 +74,7 @@ async function create() {
 			multiline: true,
 			treatAsMfm: true,
 			label: i18n.ts.description,
+			maxLength: CONTENT_LIMITS.clipDescription,
 		},
 		isPublic: {
 			type: 'boolean',
@@ -83,6 +86,7 @@ async function create() {
 	if (canceled) return;
 
 	await os.apiWithDialog('clips/create', result);
+	os.toast(i18n.ts.created, 'success');
 
 	clipsCache.delete();
 
@@ -99,7 +103,7 @@ const headerTabs = computed(() => [{
 
 definePage(() => ({
 	title: i18n.ts.clip,
-	icon: 'ti ti-paperclip',
+	icon: 'ti ti-bookmarks',
 }));
 </script>
 

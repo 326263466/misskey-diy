@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		/>
 		<div v-else-if="state === 'posted'" class="_buttonsCenter">
 			<MkButton primary @click="close">{{ i18n.ts.close }}</MkButton>
-			<MkButton @click="goToMisskey">{{ i18n.ts.goToMisskey }}</MkButton>
+			<MkButton @click="goToMisskey">{{ i18n.tsx.goToMisskey({ name: instanceName }) }}</MkButton>
 		</div>
 	</div>
 </PageWithHeader>
@@ -40,6 +40,7 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { postMessageToParentWindow } from '@/utility/post-message.js';
+import { instanceName } from '@@/js/config.js';
 import { i18n } from '@/i18n.js';
 
 const urlParams = new URLSearchParams(window.location.search);

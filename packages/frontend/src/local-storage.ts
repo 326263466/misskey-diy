@@ -14,16 +14,13 @@ export type Keys = (
 	'neverShowLocalOnlyInfo' |
 	'lastUsed' |
 	'lang' |
-	'drafts' |
 	'lastSigninAlert' |
-	`wallet-exchange:${string}` |
 	`wallet-transfer:${string}` |
 	`wallet-tip:${string}` |
 	`order-purchase:${string}` |
 	`product-publish:${string}` |
 	'tip-barrage-hidden' |
 	`red-packet-create:${string}` |
-	`red-packet-cover-cleanup:${string}` |
 	`wallet-adjust:${string}` |
 	'hashtags' |
 	'trendsCache' |
@@ -32,12 +29,12 @@ export type Keys = (
 	'fontSize' |
 	'ui' |
 	'ui_temp' |
+	'adminSidebarCollapsed' |
 	'bootloaderLocales' |
 	'theme' |
 	'themeId' |
 	'themeCachedVersion' |
 	'customCss' |
-	'chatMessageDrafts' |
 	'chatRecentConversations' |
 	`chat-pinned:${string}` |
 	`chat-scroll:${string}` |

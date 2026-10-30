@@ -11,11 +11,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span :class="$style.itemText">{{ i18n.ts._article.allCategories }}</span>
 		</MkA>
 		<MkA v-else-if="chatConversations" class="_button" :class="[$style.item, { [$style.itemActive]: chatHomeActive }]" to="/chat" :aria-current="chatHomeActive ? 'page' : undefined">
-			<i class="ti-fw ti ti-message-circle" :class="$style.itemIcon" aria-hidden="true"></i>
+			<i class="ti-fw" :class="[$style.itemIcon, navigationIcons.chat]" aria-hidden="true"></i>
 			<span :class="$style.itemText">{{ i18n.ts.chat }}</span>
 		</MkA>
 		<MkA v-else class="_button" :class="$style.item" :activeClass="$style.itemActive" to="/community-ranking">
-			<i class="ti-fw ti ti-trophy" :class="$style.itemIcon"></i>
+			<i class="ti-fw" :class="[$style.itemIcon, navigationIcons.communityRanking]"></i>
 			<span :class="$style.itemText">{{ i18n.ts.communityRanking }}</span>
 		</MkA>
 	</div>
@@ -70,6 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, defineAsyncComponent, unref } from 'vue';
 import { navbarItemDef, primaryNavItems } from '@/navbar.js';
+import { navigationIcons } from '@/navigation-icons.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { instance } from '@/instance.js';
@@ -134,16 +135,19 @@ const menu = computed(() => [...new Set([...prefer.r.menu.value, ...fixedDockIte
 	box-sizing: border-box;
 	padding: 10px 12px;
 	margin-bottom: 2px;
-	border-radius: var(--MI-cardRadius);
+	border-radius: var(--MI_THEME-menuItemRadius, var(--MI-cardRadius));
 	color: var(--MI_THEME-fg);
 	// 与顶部 header 导航项保持同一字号
 	font-size: 1em;
 	text-align: left;
 
-	// 悬停只改变文字颜色，背景色只用于选中项
 	&:hover {
 		text-decoration: none;
 		color: var(--MI_THEME-accent);
+	}
+
+	&:not(.itemActive):hover {
+		background: var(--MI_THEME-panelHighlight);
 	}
 
 	&.itemActive {

@@ -21,11 +21,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div class="_gaps_m">
 				<div :class="$style.preview">
 					<div :class="[$style.previewItem, $style.light]">
-						<MkAvatar style="width: 60px; height: 60px;" :user="$i" :decorations="url != '' ? [{ url }] : []" forceShowDecoration/>
+						<MkAvatar style="width: 60px; height: 60px;" :user="$i" :decorations="previewDecorations" forceShowDecoration/>
 					</div>
 					<div :class="[$style.previewItem, $style.dark]">
-						<MkAvatar style="width: 60px; height: 60px;" :user="$i" :decorations="url != '' ? [{ url }] : []" forceShowDecoration/>
+						<MkAvatar style="width: 60px; height: 60px;" :user="$i" :decorations="previewDecorations" forceShowDecoration/>
 					</div>
+				</div>
+				<div class="_gaps_s">
+					<MkRange v-model="scale" continuousUpdate :min="0.5" :max="1.5" :step="0.01" :textConverter="(v) => `${Math.round(v * 100)}%`">
+						<template #label>{{ i18n.ts._avatarDecoration.scale }}</template>
+						<template #caption>{{ i18n.ts._avatarDecoration.scaleDescription }}</template>
+					</MkRange>
+					<MkButton small :disabled="url === ''" :wait="fitting" @click="autoFit"><i class="ti ti-wand" aria-hidden="true"></i> {{ i18n.ts._avatarDecoration.autoFit }}</MkButton>
 				</div>
 				<MkInput v-model="name">
 					<template #label>{{ i18n.ts.name }}</template>
@@ -36,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInput v-model="category" :datalist="props.categories || []">
 					<template #label>{{ i18n.ts.category }}</template>
 				</MkInput>
-				<MkTextarea v-model="description">
+				<MkTextarea v-model="description" :rows="2">
 					<template #label>{{ i18n.ts.description }}</template>
 				</MkTextarea>
 				<MkFolder>
@@ -64,20 +71,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, ref, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, watch, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkWindow from '@/components/MkWindow.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
-import MkInfo from '@/components/MkInfo.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
-import MkSwitch from '@/components/MkSwitch.vue';
 import MkRolePreview from '@/components/MkRolePreview.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
+import MkRange from '@/components/MkRange.vue';
 import { ensureSignin } from '@/i.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 
 const $i = ensureSignin();
 
@@ -96,12 +103,42 @@ const url = ref<string>(props.avatarDecoration ? props.avatarDecoration.url : ''
 const name = ref<string>(props.avatarDecoration ? props.avatarDecoration.name : '');
 const category = ref<string>(props.avatarDecoration?.category ? props.avatarDecoration.category : '');
 const description = ref<string>(props.avatarDecoration ? props.avatarDecoration.description : '');
+const scale = ref<number>(props.avatarDecoration?.scale ?? 1);
+const previewDecorations = computed(() => url.value !== '' ? [{ url: url.value, scale: scale.value }] : []);
 const roleIdsThatCanBeUsedThisDecoration = ref(props.avatarDecoration ? props.avatarDecoration.roleIdsThatCanBeUsedThisDecoration : []);
 const rolesThatCanBeUsedThisDecoration = ref<Misskey.entities.Role[]>([]);
 
 watch(roleIdsThatCanBeUsedThisDecoration, async () => {
 	rolesThatCanBeUsedThisDecoration.value = (await Promise.all(roleIdsThatCanBeUsedThisDecoration.value.map((id) => misskeyApi('admin/roles/show', { roleId: id }).catch(() => null)))).filter(x => x != null);
 }, { immediate: true });
+
+const fitting = ref(false);
+let unmounted = false;
+onBeforeUnmount(() => { unmounted = true; });
+
+async function autoFit() {
+	const target = url.value;
+	if (target === '' || fitting.value) return;
+	fitting.value = true;
+	try {
+		const result = await misskeyApi('admin/avatar-decorations/suggest-scale', { url: target });
+		// 计算期间改了图片地址或关闭了窗口，结果已不适用。
+		if (unmounted || url.value !== target) return;
+		if (result.scale == null) {
+			os.alert({ type: 'info', text: i18n.ts._avatarDecoration.autoFitUnsupported });
+		} else if (Math.abs(result.scale - scale.value) < 0.005) {
+			os.toast(i18n.ts._avatarDecoration.autoFitted);
+		} else {
+			scale.value = result.scale;
+		}
+	} catch (error) {
+		if (!unmounted && !isAccountSessionErrorHandled(error)) {
+			os.toast(i18n.ts._avatarDecoration.autoFitFailed, 'error');
+		}
+	} finally {
+		fitting.value = false;
+	}
+}
 
 async function addRole() {
 	const roles = await misskeyApi('admin/roles/list');
@@ -125,6 +162,8 @@ async function done() {
 		name: name.value,
 		description: description.value,
 		category: category.value,
+		// 滑条按步长换算会带出浮点误差，保存前取到百分位。
+		scale: Math.round(scale.value * 100) / 100,
 		roleIdsThatCanBeUsedThisDecoration: rolesThatCanBeUsedThisDecoration.value.map(x => x.id),
 	};
 
@@ -133,6 +172,7 @@ async function done() {
 			id: props.avatarDecoration.id,
 			...params,
 		});
+		os.toast(i18n.ts.saved, 'success');
 
 		emit('done', {
 			updated: {
@@ -144,6 +184,7 @@ async function done() {
 		windowEl.value?.close();
 	} else {
 		const created = await os.apiWithDialog('admin/avatar-decorations/create', params);
+		os.toast(i18n.ts.created, 'success');
 
 		emit('done', {
 			created: created,
@@ -162,14 +203,16 @@ async function del() {
 	});
 	if (canceled) return;
 
-	misskeyApi('admin/avatar-decorations/delete', {
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('admin/avatar-decorations/delete', {
 		id: props.avatarDecoration.id,
 	}).then(() => {
+		os.toast(i18n.ts.deleteSucceeded, 'success');
 		emit('done', {
 			deleted: true,
 		});
 		windowEl.value?.close();
-	});
+	}, () => {});
 }
 </script>
 

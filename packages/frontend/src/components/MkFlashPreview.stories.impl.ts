@@ -51,3 +51,15 @@ export const Private = {
 		},
 	},
 } satisfies StoryObj<typeof MkFlashPreview>;
+export const Compact = {
+	...Public,
+	args: {
+		...Public.args,
+		compact: true,
+	},
+	decorators: [
+		() => ({
+			template: '<div style="max-width: 260px; margin: 1rem"><story/></div>',
+		}),
+	],
+} satisfies StoryObj<typeof MkFlashPreview>;

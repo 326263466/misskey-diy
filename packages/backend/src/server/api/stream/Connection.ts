@@ -14,7 +14,7 @@ import type { JsonObject, JsonValue } from '@/misc/json-value.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 import { ChannelFollowingService } from '@/core/ChannelFollowingService.js';
 import type { GlobalEvents, StreamEventEmitter } from '@/core/GlobalEventService.js';
-import { MiFollowing, MiUserProfile } from '@/models/_.js';
+import type { MiFollowing } from '@/models/_.js';
 import type { MiMeta } from '@/models/_.js';
 import { CacheService } from '@/core/CacheService.js';
 import { bindThis } from '@/decorators.js';
@@ -27,6 +27,7 @@ import { LocalTimelineChannel } from '@/server/api/stream/channels/local-timelin
 import { HybridTimelineChannel } from '@/server/api/stream/channels/hybrid-timeline.js';
 import { GlobalTimelineChannel } from '@/server/api/stream/channels/global-timeline.js';
 import { UserListChannel } from '@/server/api/stream/channels/user-list.js';
+import { ClipChannel } from '@/server/api/stream/channels/clip.js';
 import { HashtagChannel } from '@/server/api/stream/channels/hashtag.js';
 import { RoleTimelineChannel } from '@/server/api/stream/channels/role-timeline.js';
 import { AntennaChannel } from '@/server/api/stream/channels/antenna.js';
@@ -46,6 +47,7 @@ import type { EventEmitter } from 'events';
 
 const MAX_CHANNELS_PER_CONNECTION = 32;
 const MAX_SUBSCRIBING_NOTES_PER_CONNECTION = 1536;
+const MAX_BUFFERED_AMOUNT_PER_CONNECTION = 1024 * 1024 * 8; // 8MiB
 const MAX_USER_STATS_SUBSCRIPTIONS = 100;
 const USER_STATS_BATCH_DELAY = 250;
 
@@ -65,12 +67,13 @@ export default class Connection {
 	private subscribingUsers = new Map<string, number>();
 	private pendingUserStats = new Set<string>();
 	private userStatsTimer: NodeJS.Timeout | null = null;
-	public userProfile: MiUserProfile | null = null;
 	public following: Record<string, Pick<MiFollowing, 'withReplies'> | undefined> = {};
 	public followingChannels: Set<string> = new Set();
 	public mutingChannels: Set<string> = new Set();
 	public userIdsWhoMeMuting: Set<string> = new Set();
-	public userIdsWhoBlockingMe: Set<string> = new Set();
+	public blockedUserIds: Set<string> = new Set();
+	private blockingRevision = 0;
+	private mutingRevision = 0;
 	public userIdsWhoMeMutingRenotes: Set<string> = new Set();
 	public userMutedInstances: Set<string> = new Set();
 	private fetchIntervalId: NodeJS.Timeout | null = null;
@@ -93,13 +96,15 @@ export default class Connection {
 	@bindThis
 	public async fetch() {
 		if (this.user == null) return;
+		const blockingRevision = this.blockingRevision;
+		const mutingRevision = this.mutingRevision;
 		const [
 			userProfile,
 			following,
 			followingChannels,
 			mutingChannels,
 			userIdsWhoMeMuting,
-			userIdsWhoBlockingMe,
+			blockedUserIds,
 			userIdsWhoMeMutingRenotes,
 		] = await Promise.all([
 			this.cacheService.userProfileCache.fetch(this.user.id),
@@ -107,15 +112,14 @@ export default class Connection {
 			this.channelFollowingService.userFollowingChannelsCache.fetch(this.user.id),
 			this.channelMutingService.mutingChannelsCache.fetch(this.user.id),
 			this.cacheService.userMutingsCache.fetch(this.user.id),
-			this.cacheService.userBlockedCache.fetch(this.user.id),
+			this.cacheService.getBlockedUserIds(this.user.id),
 			this.cacheService.renoteMutingsCache.fetch(this.user.id),
 		]);
-		this.userProfile = userProfile;
 		this.following = following;
 		this.followingChannels = followingChannels;
 		this.mutingChannels = mutingChannels;
-		this.userIdsWhoMeMuting = userIdsWhoMeMuting;
-		this.userIdsWhoBlockingMe = userIdsWhoBlockingMe;
+		if (mutingRevision === this.mutingRevision) this.userIdsWhoMeMuting = userIdsWhoMeMuting;
+		if (blockingRevision === this.blockingRevision) this.blockedUserIds = blockedUserIds;
 		this.userIdsWhoMeMutingRenotes = userIdsWhoMeMutingRenotes;
 		this.userMutedInstances = new Set(userProfile.mutedInstances);
 	}
@@ -141,6 +145,30 @@ export default class Connection {
 		this.subscriber.on('broadcast', data => {
 			this.onBroadcastMessage(data);
 		});
+		this.subscriber.on('internal', this.onInternalMessage);
+	}
+
+	@bindThis
+	private onInternalMessage(data: GlobalEvents['internal']['payload']) {
+		if (!this.user) return;
+		if (data.type === 'mute' || data.type === 'unmute') {
+			if (this.user.id !== data.body.muterId) return;
+			this.mutingRevision++;
+			this.userIdsWhoMeMuting = new Set(this.userIdsWhoMeMuting);
+			if (data.type === 'mute') this.userIdsWhoMeMuting.add(data.body.muteeId);
+			else this.userIdsWhoMeMuting.delete(data.body.muteeId);
+			return;
+		}
+		if (data.type !== 'blockingCreated' && data.type !== 'blockingDeleted') return;
+		const { blockerId, blockeeId } = data.body;
+		if (this.user.id !== blockerId && this.user.id !== blockeeId) return;
+		this.blockingRevision++;
+		if (data.type === 'blockingCreated') {
+			// 已连接的时间线立即停发，不等下一次定时刷新。
+			this.blockedUserIds.add(this.user.id === blockerId ? blockeeId : blockerId);
+		} else {
+			void this.fetch();
+		}
 	}
 
 	/**
@@ -242,6 +270,7 @@ export default class Connection {
 
 	@bindThis
 	private async onNoteStreamMessage(data: GlobalEvents['note']['payload']) {
+		if (this.blockedUserIds.has(data.body.userId)) return;
 		// 自分自身ではないかつ
 		if (data.body.userId !== this.user?.id) {
 			// 公開範囲が指名で自分が含まれてない
@@ -333,10 +362,18 @@ export default class Connection {
 	 */
 	@bindThis
 	public sendMessageToWs(type: string, payload: JsonObject) {
-		this.wsConnection.send(JSON.stringify({
+		const message = JSON.stringify({
 			type: type,
 			body: payload,
-		}));
+		});
+
+		// 受信が追いつかないクライアントのために送信バッファを溜め続けないよう、閾値を超えたら切断して再接続させる
+		if (this.wsConnection.bufferedAmount + Buffer.byteLength(message) > MAX_BUFFERED_AMOUNT_PER_CONNECTION) {
+			this.wsConnection.terminate();
+			return;
+		}
+
+		this.wsConnection.send(message);
 	}
 
 	/**
@@ -404,6 +441,7 @@ export default class Connection {
 			case 'hybridTimeline': return HybridTimelineChannel;
 			case 'globalTimeline': return GlobalTimelineChannel;
 			case 'userList': return UserListChannel;
+			case 'clip': return ClipChannel;
 			case 'hashtag': return HashtagChannel;
 			case 'roleTimeline': return RoleTimelineChannel;
 			case 'antenna': return AntennaChannel;
@@ -458,6 +496,7 @@ export default class Connection {
 	 */
 	@bindThis
 	public dispose() {
+		this.subscriber?.off('internal', this.onInternalMessage);
 		if (this.fetchIntervalId) clearInterval(this.fetchIntervalId);
 		if (this.userStatsTimer) clearTimeout(this.userStatsTimer);
 		this.userStatsTimer = null;

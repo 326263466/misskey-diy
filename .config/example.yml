@@ -247,34 +247,61 @@ redis:
 #   ┌───────────────────────────────┐
 #───┘ Fulltext search configuration └─────────────────────────────
 
-# These are the setting items for the full-text search provider.
+# 文章、帖子、用户统一使用以下三选一；不自动混用或回退到其他引擎。
+# 配置入口为 .config/default.yml 的 fulltextSearch.provider，修改后重启全部后端和队列进程。
+# sqlLike：默认。PostgreSQL LIKE/ILIKE 子串检索，无需额外扩展，适合小站。
+# sqlPgroonga：PostgreSQL 全文检索；先安装 PGroonga 扩展和对应索引。
+# meilisearch：独立全文检索服务，异步同步三类内容。仅填写连接配置不会自动启用。
+# 小站可先用 sqlLike；大量中文全文搜索可比较 PGroonga 与 Meilisearch。
+# 没有固定性能排名：PGroonga 共用数据库资源；Meilisearch 隔离检索负载，但多一项服务和索引延迟。
 fulltextSearch:
-  # You can select the ID generation method.
-  # - sqlLike (default)
-  #   Use SQL-like search.
-  #   This is a standard feature of PostgreSQL, so no special extensions are required.
-  # - sqlPgroonga
-  #   Use pgroonga.
-  #   You need to install pgroonga and configure it as a PostgreSQL extension.
-  #   In addition to the above, you need to create a pgroonga index on the text column of the note table.
-  #   see: https://pgroonga.github.io/tutorial/
-  # - meilisearch
-  #   Use Meilisearch.
-  #   You need to install Meilisearch and configure.
   provider: sqlLike
 
-# For Meilisearch settings.
-# If you select "meilisearch" for "fulltextSearch.provider", it must be set.
-# You can set scope to local (default value) or global
-# (include notes from remote).
-
+# 未部署所选引擎或首次回填未完成时，搜索暂不可用；配置诊断只记服务端日志，不向用户暴露细节。
+# 引擎故障时返回搜索不可用，不会改用另一种引擎；恢复后继续使用所选引擎。
+# SQL 查询有超时、搜索 API 有限流，大型公开实例仍应保留反向代理限流。
+# PostgreSQL 保存原始数据；事务内记录待同步 ID，后台分批重试，成功后才确认。
+# 新增、修改、删除及帖子热度变化都会同步；复用 BullMQ system 队列，每 5 秒消费一批，失败重试。
+# 必须运行项目的队列 worker（仅 onlyServer 不消费索引）；多进程需使用相同搜索配置。
+# 索引只提供候选 ID，数据库重新核验权限、拉黑、屏蔽及删除状态后分页。
+# 历史内容首次自动回填；需要等待完整重建时，在仓库根目录运行：
+#   pnpm --filter backend cli rebuild-search
+# 重建只影响配置前缀下的派生索引；期间搜索暂不可用，不删除业务数据。
+# Meilisearch 深分页最多扫描 10000 个候选；应缩小关键词或时间范围。
+#
+# Windows 本机部署：从官方页面下载 x64 二进制，放在独立目录：
+#   https://www.meilisearch.com/docs/resources/self_hosting/getting_started/install_locally
+# PowerShell 中生成并妥善保存随机密钥，不要将生产密钥提交到仓库：
+#   $env:MEILI_MASTER_KEY = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+#   .\meilisearch.exe --http-addr 127.0.0.1:7700 --db-path .\data.ms --max-indexing-memory 512Mb --max-indexing-threads 1 --no-analytics
+# 把相同密钥填入下方 apiKey；先构建、应用数据库迁移，再重启后端。
+# 将 fulltextSearch.provider 设为 meilisearch；首次自动回填完成后，三类内容都使用 Meilisearch 搜索。
+# 512Mb 只限制索引构建内存，不是整个进程内存上限；首次回填更耗 CPU/磁盘，按真实数据和并发测量。
+# Meilisearch 保持私网访问，管理密钥不得交给浏览器；生产可使用权限匹配的专用 API key。
+# 每个实例用独立 index 前缀。scope 只控制帖子：local（默认）、global 或远端域名数组。
+# 只索引 public/home 帖子、公开文章、用户公开字段，不索引私密正文、邮箱、密码或令牌。
 #meilisearch:
-#  host: localhost
-#  port: 7700
+#  host: 127.0.0.1
+#  port: '7700'
 #  apiKey: ''
-#  ssl: true
-#  index: ''
+#  ssl: false
+#  index: 'misskey'
 #  scope: local
+#
+# PGroonga 仅在选择 sqlPgroonga 时需要：
+#   https://pgroonga.github.io/install/windows.html
+# 下载与 PostgreSQL 大版本和架构一致的包，安装至 PostgreSQL 目录；目标数据库执行：
+#   CREATE EXTENSION pgroonga;
+# 以下可选索引不能放在事务块里运行；已有对应索引时不要重复创建：
+#   CREATE INDEX CONCURRENTLY note_search_pgroonga ON note USING pgroonga (text);
+#   CREATE INDEX CONCURRENTLY article_search_pgroonga ON page USING pgroonga ((title || ' ' || coalesce(summary, '') || ' ' || coalesce(content->0->>'text', '')));
+#   CREATE INDEX CONCURRENTLY user_search_pgroonga ON "user" USING pgroonga ((coalesce(name, '') || ' ' || "usernameLower"));
+#   CREATE INDEX CONCURRENTLY profile_search_pgroonga ON user_profile USING pgroonga ((description::text));
+# 索引成功后修改 YAML 的 provider: sqlPgroonga 并重启全部后端和队列进程。
+# PGroonga 不是独立服务，不需要 Meilisearch。
+#
+# 中文短词和大规模全文检索优先选择 PGroonga 或 Meilisearch，不额外维护自制分词/字符片段索引。
+# 升级前备份数据库；首次回填会增加 CPU/磁盘负载，建议安排低峰时段。
 
 #   ┌───────────────┐
 #───┘ ID generation └───────────────────────────────────────────
@@ -308,7 +335,7 @@ id: 'aidx'
 #  # To check enabled names, set `options.debug: true` and see
 #  # "Integration installed: <name>" in the Sentry logs.
 #  #
-#  # As of 2026-07-07 / @sentry/node 10.62.0, useful names for Misskey include:
+#  # As of 2026-10-01 / @sentry/node 11.0.0, useful names for Misskey include:
 #  #   Postgres  ... DB queries (when pg is externalized)
 #  #   Redis     ... ioredis commands
 #  #   Fastify   ... inbound HTTP routes
@@ -328,6 +355,15 @@ id: 'aidx'
 #    # Internal allowlist example:
 #    #tracePropagationTargets:
 #    #  - 'internal-service.example'
+#    # Sentry SDK v11 collects everything unless `dataCollection` is set, so
+#    # Misskey applies a restricted default: no user info, no cookies, no URL
+#    # query params (they may carry an access token), no HTTP bodies, no DB
+#    # query values, and peer-identifying request/response headers denied.
+#    # To change what is collected, set `dataCollection` here. It replaces
+#    # Misskey's default as a whole, so `dataCollection: {}` restores Sentry's
+#    # own defaults and collects everything.
+#    #dataCollection:
+#    #  userInfo: true
 
 #sentryForFrontend:
 #  vueIntegration:

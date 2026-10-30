@@ -35,10 +35,12 @@ import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { antennasCache } from '@/cache.js';
+import { usePageHistoryRestore } from '@/composables/use-page-history-restore.js';
 
 const antennas = computed(() => antennasCache.value.value ?? []);
 const fetching = ref(false);
 const error = ref(false);
+const historyRestoring = usePageHistoryRestore();
 let requestId = 0;
 
 async function _fetch_() {
@@ -69,10 +71,13 @@ const headerActions = computed(() => [{
 
 definePage(() => ({
 	title: i18n.ts.manageAntennas,
-	icon: 'ti ti-antenna',
+	icon: 'ti ti-rss',
 }));
 
-onActivated(_fetch_);
+onActivated(() => {
+	if (fetching.value || (historyRestoring.value && !error.value && antennas.value.length > 0)) return;
+	void _fetch_();
+});
 </script>
 
 <style lang="scss" module>

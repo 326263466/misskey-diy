@@ -4,18 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" class="_selectable" @focusout="onFocusout">
-	<label v-if="!collapsible || expanded || filled" :for="id" :class="$style.label" @click="focus"><slot name="label"></slot></label>
-	<button v-if="collapsible && !expanded" type="button" class="_button" :class="$style.collapsed" :disabled="disabled" @click="focus">
-		<Mfm v-if="v && !code" :text="v" :plain="true" :noEmojiTooltip="true"/>
-		<template v-else>{{ v || collapsedPlaceholder || placeholder || i18n.ts.edit }}</template>
-	</button>
-	<div v-show="!collapsible || expanded" :class="{ [$style.disabled]: disabled, [$style.focused]: focused, [$style.tall]: tall, [$style.pre]: pre }" style="position: relative;">
+<div class="_selectable _formField">
+	<label :for="id" :class="$style.label" @click="focus"><slot name="label"></slot></label>
+	<div :class="{ [$style.disabled]: disabled, [$style.tall]: tall, [$style.pre]: pre }" style="position: relative;">
 		<textarea
 			:id="id"
 			ref="inputEl"
 			v-model="v"
-			v-adaptive-border
 			:class="[$style.textarea, { [$style.withRows]: rows != null, _monospace: code, _mfm: !code }]"
 			:rows="rows"
 			:disabled="disabled"
@@ -25,30 +20,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:pattern="pattern"
 			:autocomplete="autocomplete"
 			:spellcheck="spellcheck"
-			@focus="focused = true"
-			@blur="focused = false"
 			@keydown="onKeydown($event)"
 			@input="onInput"
 			@compositionstart="composing = true"
-			@compositionend="onCompositionEnd"
+			@compositionend="composing = false"
 		></textarea>
 		<MkEmojiInputOverlay :inputElement="inputEl" :text="v" :disabled="code"/>
 		<slot name="counter">
-			<span class="_inputCounter" :class="{ _inputCounterOver: textLength > (getCounterMaxLength() ?? Infinity) }">{{ textLength }}<template v-if="getCounterMaxLength() != null"> / {{ getCounterMaxLength() }}</template></span>
+			<span v-if="counterLimit != null" class="_inputCounter" :class="{ _inputCounterOver: textLength > counterLimit }">{{ textLength }} / {{ counterLimit }}</span>
 		</slot>
 	</div>
-	<div v-if="!collapsible || expanded" :class="$style.caption"><slot name="caption"></slot></div>
-	<button v-if="mfmPreview && (!collapsible || expanded)" style="font-size: 0.85em;" class="_textButton" type="button" @click="preview = !preview">{{ i18n.ts.preview }}</button>
-	<div v-if="mfmPreview" v-show="preview && (!collapsible || expanded)" :class="$style.mfmPreview">
+	<div :class="$style.caption"><slot name="caption"></slot></div>
+	<button v-if="mfmPreview" style="font-size: 0.85em;" class="_textButton" type="button" @click="preview = !preview">{{ i18n.ts.preview }}</button>
+	<div v-if="mfmPreview" v-show="preview" :class="$style.mfmPreview">
 		<Mfm :text="v"/>
 	</div>
 
-	<MkButton v-if="manualSave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
+	<MkButton v-if="manualSave && changed" primary :class="$style.save" :disabled="overLimit" @click="updated"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useAttrs, useTemplateRef } from 'vue';
+import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useTemplateRef } from 'vue';
 import { debounce } from 'throttle-debounce';
 import type { SuggestionType } from '@/utility/autocomplete.js';
 import MkButton from '@/components/MkButton.vue';
@@ -76,8 +69,6 @@ const props = defineProps<{
 	maxRows?: number;
 	tall?: boolean;
 	pre?: boolean;
-	collapsible?: boolean;
-	collapsedPlaceholder?: string;
 	counterMaxLength?: number;
 }>();
 
@@ -90,19 +81,12 @@ const emit = defineEmits<{
 }>();
 
 const { modelValue, autofocus } = toRefs(props);
-const attrs = useAttrs();
 const v = ref<string>(modelValue.value ?? '');
 const textLength = computed(() => Array.from(v.value).length);
-let lastUpdatedValue = v.value;
 const composing = ref(false);
-let collapseAfterComposition = false;
 const id = genId();
-const rootEl = useTemplateRef('rootEl');
-const expanded = ref(false);
-const focused = ref(false);
 const changed = ref(false);
 const invalid = ref(false);
-const filled = computed(() => v.value !== '' && v.value != null);
 const inputEl = useTemplateRef('inputEl');
 const preview = ref(false);
 let autocompleteWorker: Autocomplete | null = null;
@@ -122,74 +106,24 @@ function adjustHeight() {
 	el.style.height = `${Math.min(el.scrollHeight + border, max)}px`;
 }
 
-function getCounterMaxLength(): number | undefined {
-	// 上限只用于计数展示，保留既有 attrs 转发和输入限制行为。
-	const value = props.counterMaxLength ?? attrs.maxlength ?? attrs.maxLength ?? attrs['max-length'];
-	const limit = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '') ? Number(value) : NaN;
-	return Number.isInteger(limit) && limit >= 0 ? limit : undefined;
-}
+// 只有传入 counterMaxLength 时才显示计数；计数只做提示，不限制输入。
+const counterLimit = computed(() => {
+	const limit = props.counterMaxLength;
+	return limit != null && Number.isInteger(limit) && limit >= 0 ? limit : null;
+});
 
 function focus() {
 	if (props.disabled) return;
-	if (!props.collapsible) {
-		inputEl.value?.focus();
-		return;
-	}
-	expanded.value = true;
-	nextTick(() => {
-		inputEl.value?.focus();
-		adjustHeight();
-	});
-}
-
-function collapse() {
-	if (!props.collapsible) return;
-	expanded.value = false;
-	focused.value = false;
-}
-
-function onFocusout(event: FocusEvent) {
-	if (event.relatedTarget instanceof Node && rootEl.value?.contains(event.relatedTarget)) return;
-	if (event.relatedTarget == null) {
-		// 焦点移入编辑器之前，折叠按钮就已被移除
-		nextTick(() => {
-			if (!rootEl.value?.contains(window.document.activeElement)) finishEditing();
-		});
-		return;
-	}
-	finishEditing();
-}
-
-function onOutsidePointerDown(event: PointerEvent) {
-	if (event.target instanceof Node && !rootEl.value?.contains(event.target)) finishEditing();
-}
-
-function finishEditing() {
-	if (!props.collapsible || !expanded.value) return;
-	if (composing.value) {
-		collapseAfterComposition = true;
-		return;
-	}
-	debouncedUpdated.cancel();
-	updated();
-	collapse();
-}
-
-function onCompositionEnd() {
-	composing.value = false;
-	if (collapseAfterComposition) {
-		collapseAfterComposition = false;
-		nextTick(finishEditing);
-	}
+	inputEl.value?.focus();
 }
 
 function onInput(ev: InputEvent) {
-	changed.value = !props.collapsible || v.value !== lastUpdatedValue;
+	changed.value = true;
 	emit('change', ev);
 }
 
 function onKeydown(ev: KeyboardEvent) {
-	if (ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
+	if (composing.value || ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
 
 	emit('keydown', ev);
 
@@ -209,22 +143,14 @@ function onKeydown(ev: KeyboardEvent) {
 }
 
 function updated() {
-	if (props.collapsible && composing.value) {
-		collapseAfterComposition = true;
-		return;
-	}
+	if (props.manualSave && overLimit.value) return;
 	changed.value = false;
-	if (!props.collapsible || v.value !== lastUpdatedValue) {
-		lastUpdatedValue = v.value;
-		emit('update:modelValue', v.value ?? '');
-	}
-	if (props.manualSave) collapse();
+	emit('update:modelValue', v.value ?? '');
 }
 
 const debouncedUpdated = debounce(1000, updated);
 
 watch(modelValue, newValue => {
-	lastUpdatedValue = newValue ?? '';
 	v.value = newValue ?? '';
 });
 
@@ -240,15 +166,16 @@ watch(v, () => {
 	invalid.value = inputEl.value?.validity.badInput ?? true;
 });
 
-watch([changed, invalid], ([newChanged, newInvalid]) => {
-	emit('savingStateChange', newChanged, newInvalid);
+// 超出计数上限视为无效，表单据此禁用保存；提示只靠计数变红，不额外插入文字。
+const overLimit = computed(() => counterLimit.value != null && textLength.value > counterLimit.value);
+
+watch([changed, invalid, overLimit], ([newChanged, newInvalid, newOverLimit]) => {
+	emit('savingStateChange', newChanged, newInvalid || newOverLimit);
 }, { immediate: true });
 
 watch(v, adjustHeight, { flush: 'post' });
 
 onMounted(() => {
-	if (props.collapsible) window.document.addEventListener('pointerdown', onOutsidePointerDown);
-
 	adjustHeight();
 
 	nextTick(() => {
@@ -263,8 +190,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-	window.document.removeEventListener('pointerdown', onOutsidePointerDown);
-
 	if (autocompleteWorker) {
 		autocompleteWorker.detach();
 	}
@@ -272,9 +197,11 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" module>
+@use '../styles/input.scss' as input;
+
 .label {
 	display: block;
-	font-size: 0.85em;
+	font-size: var(--MI-formLabelFontSize, 0.85em);
 	padding: 0 0 8px 0;
 	user-select: none;
 
@@ -284,7 +211,7 @@ onUnmounted(() => {
 }
 
 .caption {
-	font-size: 0.85em;
+	font-size: var(--MI-formCaptionFontSize, 0.85em);
 	padding: 8px 0 0 0;
 	color: var(--MI_THEME-fgTransparentWeak);
 
@@ -294,6 +221,7 @@ onUnmounted(() => {
 }
 
 .textarea {
+	@include input.field;
 	appearance: none;
 	-webkit-appearance: none;
 	display: block;
@@ -308,48 +236,10 @@ onUnmounted(() => {
 	font-weight: normal;
 	font-size: 1em;
 	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-bg);
-	border: solid 1px transparent;
 	border-radius: 6px;
 	outline: none;
 	box-shadow: none;
 	box-sizing: border-box;
-	transition: border-color 0.1s ease-out;
-
-	&:hover {
-		border-color: var(--MI_THEME-inputBorderHover) !important;
-	}
-
-	&:focus {
-		border-color: var(--MI_THEME-accent) !important;
-		outline: none;
-	}
-}
-
-.collapsed {
-	display: -webkit-box;
-	width: 100%;
-	padding: 8px 12px;
-	box-sizing: border-box;
-	border-radius: var(--MI-radius);
-	background: var(--MI_THEME-buttonBg);
-	text-align: left;
-	line-height: 1.5;
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	overflow: hidden;
-
-	&:hover {
-		background: var(--MI_THEME-buttonHoverBg);
-	}
-}
-
-.focused {
-	> .textarea {
-		border-color: var(--MI_THEME-accent) !important;
-	}
 }
 
 .disabled {

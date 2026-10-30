@@ -24,28 +24,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div class="title">
 								<div class="name" :class="$style.nameRow">
 									<MkUserName :class="$style.displayName" :user="user" :nowrap="true"/>
-									<button v-if="$i && memo" type="button" class="_button" :class="$style.memoButton" :aria-label="i18n.ts.editMemo" :disabled="isMemoBusy" @click="editMemo">#{{ memo }}</button>
+									<button v-if="$i" v-tooltip="memo || null" type="button" class="_button" :class="$style.memoButton" :aria-label="memo ? `${i18n.ts.editMemo}: ${memo}` : i18n.ts.addMemo" :disabled="isMemoBusy" @click="editMemo"><i class="ti ti-pencil" aria-hidden="true"></i><span :class="$style.memoText">{{ memo || i18n.ts.addMemo }}</span></button>
 								</div>
 								<div class="bottom" :class="$style.bannerUserInfo">
 									<span class="username" :class="$style.bannerUsername"><MkAcct :user="user" :detail="true"/></span>
 									<span v-if="user.isLocked"><i class="ti ti-lock"></i></span>
 									<span v-if="user.isBot"><i class="ti ti-robot"></i></span>
-									<button v-if="$i && !memo" type="button" class="_button add-note-button" :disabled="isMemoBusy" @click="editMemo">
-										<i class="ti ti-edit"></i> {{ i18n.ts.addMemo }}
-									</button>
 								</div>
 							</div>
-							<span v-if="$i && $i.id != user.id && user.isFollowed" class="followed">{{ i18n.ts.followsYou }}</span>
+							<span v-if="blockLabel" class="followed">{{ blockLabel }}</span>
+							<span v-else-if="$i && $i.id != user.id && user.isFollowed" class="followed">{{ i18n.ts.followsYou }}</span>
 							<div class="actions">
 								<button v-tooltip="i18n.ts.more" class="menu _button" :aria-label="i18n.ts.more" @click="menu"><i class="ti ti-dots"></i></button>
-								<MkFollowButton v-if="$i?.id != user.id" v-model:user="user" :inline="true" :transparent="false" :full="true" class="koudoku"/>
+								<MkFollowButton v-if="$i?.id != user.id" v-model:user="user" large class="koudoku"/>
 							</div>
 						</div>
 						<MkAvatar class="avatar" :user="user" indicator/>
 						<div class="title">
 							<div class="name" :class="[$style.nameRow, $style.centeredNameRow]">
 								<MkUserName :class="$style.displayName" :user="user" :nowrap="true"/>
-								<button v-if="$i && memo" type="button" class="_button" :class="$style.memoButton" :aria-label="i18n.ts.editMemo" :disabled="isMemoBusy" @click="editMemo">#{{ memo }}</button>
+								<button v-if="$i" v-tooltip="memo || null" type="button" class="_button" :class="$style.memoButton" :aria-label="memo ? `${i18n.ts.editMemo}: ${memo}` : i18n.ts.addMemo" :disabled="isMemoBusy" @click="editMemo"><i class="ti ti-pencil" aria-hidden="true"></i><span :class="$style.memoText">{{ memo || i18n.ts.addMemo }}</span></button>
 							</div>
 							<div class="bottom">
 								<span class="username"><MkAcct :user="user" :detail="true"/></span>
@@ -76,7 +74,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<p v-else class="empty">{{ i18n.ts.noAccountDescription }}</p>
 							</MkOmit>
 						</div>
-						<div class="fields system">
+						<div class="fields">
 							<dl v-if="user.location" class="field">
 								<dt class="name"><i class="ti ti-map-pin ti-fw"></i> {{ i18n.ts.location }}</dt>
 								<dd class="value"><Mfm :text="user.location" :plain="true" :author="user" class="_selectable"/></dd>
@@ -97,9 +95,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<dt class="name"><i class="ti ti-calendar ti-fw"></i> {{ i18n.ts.registeredDate }}</dt>
 								<dd class="value">{{ dateString(user.createdAt) }} (<MkTime :time="user.createdAt"/>)</dd>
 							</dl>
-						</div>
-						<div v-if="user.fields.length > 0" class="fields">
-							<dl v-for="(field, i) in user.fields" :key="i" class="field">
+							<!-- 离线时才有值；与在线状态一起实时推送，下线后立即显示，重新上线后立即隐藏。 -->
+							<dl v-if="user.lastActiveAt && user.onlineStatus === 'offline'" class="field">
+								<dt class="name"><i class="ti ti-clock ti-fw" aria-hidden="true"></i> {{ i18n.ts.lastActiveDate }}</dt>
+								<dd class="value"><MkTime :time="user.lastActiveAt"/></dd>
+							</dl>
+							<dl v-for="(field, i) in user.fields" :key="`custom-${i}`" class="field">
 								<dt class="name">
 									<Mfm :text="field.name" :author="user" :plain="true" :colored="false" class="_selectable"/>
 								</dt>
@@ -126,7 +127,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</div>
 
-				<div class="contents _gaps">
+				<MkInfo v-if="blockLabel">{{ i18n.ts.blockedContent }}</MkInfo>
+				<div v-else class="contents _gaps">
 					<div v-if="user.pinnedNotes.length > 0" class="_gaps">
 						<MkNote v-for="note in user.pinnedNotes" :key="note.id" class="note _panel" :note="note" :pinned="true"/>
 					</div>
@@ -146,7 +148,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</div>
 			</div>
-			<div v-if="!narrow" class="sub _gaps" style="container-type: inline-size;">
+			<div v-if="!narrow && !blockLabel" class="sub _gaps" style="container-type: inline-size;">
 				<XFiles :key="user.id" :user="user" @showMore="emit('showMoreFiles')"/>
 				<XActivity :key="user.id" :user="user"/>
 			</div>
@@ -182,6 +184,8 @@ import MkSparkle from '@/components/MkSparkle.vue';
 import { prefer } from '@/preferences.js';
 import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
 import { isBirthday } from '@/utility/is-birthday.js';
+import { getUserBlockingState } from '@/utility/user-blocking.js';
+import { editUserMemo } from '@/utility/user-memo.js';
 import { useUserStatistics } from '@/composables/use-user-statistics.js';
 import { useUserStatisticsVisibility } from '@/composables/use-user-statistics-visibility.js';
 import type XTimeline_TypeReferenceOnly from './index.timeline.vue';
@@ -228,6 +232,12 @@ const user = ref(props.user);
 watch(() => props.user, value => {
 	user.value = value;
 });
+// 本页内拉黑或取消拉黑后立即更新；对方拉黑我的状态以资料为准。
+const blockLabel = computed(() => {
+	if (!$i || $i.id === user.value.id) return null;
+	if (getUserBlockingState(user.value.id) ?? user.value.isBlocking) return i18n.ts.youBlockedThisUser;
+	return user.value.isBlocked ? i18n.ts.blockedYou : null;
+});
 const narrow = ref<null | boolean>(props.singleColumn ? true : null);
 const rootEl = useTemplateRef('rootEl');
 useUserStatistics(user, { active: useUserStatisticsVisibility(rootEl) });
@@ -260,18 +270,9 @@ async function editMemo() {
 	if (isMemoBusy.value) return;
 	isMemoBusy.value = true;
 	const userId = props.user.id;
-	const previousMemo = memo.value;
 	try {
-		const { canceled, result } = await os.inputText({
-			title: previousMemo ? i18n.ts.editMemo : i18n.ts.addMemo,
-			default: previousMemo,
-		});
-		if (canceled || result === previousMemo) return;
-
-		await os.apiWithDialog('users/update-memo', { memo: result, userId });
-		if (userId === props.user.id) memo.value = result;
-	} catch {
-		return;
+		const result = await editUserMemo(userId, memo.value);
+		if (result != null && userId === props.user.id) memo.value = result;
 	} finally {
 		isMemoBusy.value = false;
 	}
@@ -399,7 +400,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 						padding: 4px 8px;
 						color: #fff;
 						background: rgba(0, 0, 0, 0.7);
-						font-size: 0.7em;
+						font-size: 0.85em;
 						border-radius: 6px;
 					}
 
@@ -458,16 +459,6 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 								&.username {
 									font-weight: bold;
 								}
-							}
-
-							> .add-note-button {
-								background: rgba(0, 0, 0, 0.2);
-								color: #fff;
-								-webkit-backdrop-filter: var(--MI-blur, blur(8px));
-								backdrop-filter: var(--MI-blur, blur(8px));
-								border-radius: 24px;
-								padding: 4px 8px;
-								font-size: 80%;
 							}
 						}
 					}
@@ -536,7 +527,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 				}
 
 				> .description {
-					padding: 24px 24px 24px 154px;
+					padding: 16px 24px 16px 154px;
 					font-size: 0.95em;
 
 					.empty {
@@ -546,32 +537,31 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 				}
 
 				> .fields {
-					padding: 24px;
+					padding: 8px 24px;
 					font-size: 0.9em;
 					border-top: var(--MI-divider);
 
 					> .field {
 						display: flex;
-						padding: 0;
+						gap: 16px;
+						padding: 6px 0;
 						margin: 0;
 						align-items: center;
 
-						&:not(:last-child) {
-							margin-bottom: 8px;
-						}
-
 						> .name {
+							flex-shrink: 0;
 							width: 30%;
 							min-width: 0;
 							overflow: hidden;
 							white-space: nowrap;
 							text-overflow: ellipsis;
 							font-weight: bold;
-							text-align: center;
+							text-align: left;
+							opacity: 0.85;
 						}
 
 						> .value {
-							width: 70%;
+							flex: 1;
 							min-width: 0;
 							overflow: hidden;
 							white-space: nowrap;
@@ -579,14 +569,11 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 							margin: 0;
 						}
 					}
-
-					&.system > .field > .name {
-					}
 				}
 
 				> .status {
 					display: flex;
-					padding: 24px;
+					padding: 16px 24px;
 					border-top: var(--MI-divider);
 
 					> a {
@@ -609,7 +596,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 						}
 
 						> span {
-							font-size: 70%;
+							font-size: 85%;
 						}
 					}
 				}
@@ -764,10 +751,6 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 
 .centeredNameRow {
 	justify-content: center;
-
-	.memoButton {
-		color: var(--MI_THEME-fgTransparentWeak);
-	}
 }
 
 .displayName {
@@ -777,15 +760,29 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 }
 
 .memoButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
 	min-width: 0;
-	max-width: 50%;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 	font-size: 14px;
 	font-weight: normal;
 	line-height: 1;
 	color: inherit;
+	opacity: 0.8;
+
+	&:hover { opacity: 1; }
+}
+
+.centeredNameRow .memoButton {
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.memoText {
+	display: inline-block;
+	max-width: 16em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .tl {

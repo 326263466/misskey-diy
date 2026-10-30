@@ -35,12 +35,20 @@ export const CONTENT_LIMITS = {
 	chatMessage: 2000,
 	profileDescription: 500,
 	profileFieldName: 50,
-	profileFieldValue: 1024,
+	profileFieldValue: 200,
+	profileShortText: 50,
+	followedMessage: 100,
+	collectionName: 50,
+	clipDescription: 500,
 	channelName: 50,
 	channelDescription: 500,
 	chatRoomName: 50,
 	chatRoomDescription: 500,
+	chatRoomAnnouncement: 1000,
 	transferMemo: 200,
+	tipMessage: 100,
+	fileCaption: 512,
+	abuseReportComment: 1000,
 	redPacketGreeting: 18,
 	redPacketPassword: 18,
 } as const;
@@ -66,6 +74,7 @@ export const notificationTypes = [
 	'app',
 	'roleAssigned',
 	'chatRoomInvitationReceived',
+	'chatRoomMemberRemoved',
 	'achievementEarned',
 	'exportCompleted',
 	'test',
@@ -177,8 +186,6 @@ export const moderationLogTypes = [
 	'suspend',
 	'unsuspend',
 	'updateUserNote',
-	'grantCheckinCards',
-	'revokeCheckinCards',
 	'addCustomEmoji',
 	'updateCustomEmoji',
 	'deleteCustomEmoji',
@@ -242,6 +249,7 @@ export const rolePolicies = [
 	'canManageCustomEmojis',
 	'canManageAvatarDecorations',
 	'canSearchNotes',
+	'canSearchArticles',
 	'canSearchUsers',
 	'canUseTranslator',
 	'canHideAds',
@@ -314,23 +322,6 @@ type ReceivedAbuseReport = {
 };
 
 export type ModerationLogPayloads = {
-	revokeCheckinCards: {
-		userId: string;
-		userUsername: string;
-		userHost: string | null;
-		batchId: string;
-		amount: number;
-		before: number;
-		after: number;
-	};
-	grantCheckinCards: {
-		userId: string;
-		userUsername: string;
-		userHost: string | null;
-		amount: number;
-		before: number;
-		after: number;
-	};
 	updateServerSettings: {
 		before: MetaDetailed | null;
 		after: MetaDetailed | null;

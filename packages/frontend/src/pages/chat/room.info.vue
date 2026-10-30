@@ -5,47 +5,46 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_panelPadding" :class="$style.root">
-	<div :class="$style.identity">
-		<img v-if="avatarUrl_" :src="avatarUrl_" :alt="i18n.ts.avatar" :class="$style.avatar"/>
-		<MkAvatar v-else :user="room.owner" :link="false" :preview="false" :class="$style.avatar"/>
-		<div :class="$style.identityFields">
-			<MkInput v-model="name_" :counterMaxLength="Misskey.CONTENT_LIMITS.chatRoomName" :disabled="!isOwner">
-				<template #label>{{ i18n.ts.name }}</template>
-			</MkInput>
-			<div v-if="isOwner" :class="$style.avatarActions">
-				<MkButton small :disabled="saving || selectingAvatar" @click="selectAvatar">{{ i18n.ts._profile.changeAvatar }}</MkButton>
-				<MkButton v-if="avatarId_" small :disabled="saving || selectingAvatar" @click="resetAvatar">{{ i18n.ts.resetToDefaultValue }}</MkButton>
+	<section :aria-label="i18n.ts.basicInfo" :class="$style.section">
+		<h3 :class="$style.sectionTitle">{{ i18n.ts.basicInfo }}</h3>
+		<div :class="$style.identity">
+			<img v-if="avatarUrl_" :src="avatarUrl_" :alt="i18n.ts.avatar" :class="$style.avatar"/>
+			<MkAvatar v-else :user="room.owner" :link="false" :preview="false" :class="$style.avatar"/>
+			<div :class="$style.identityFields">
+				<MkInput v-model="name_" :counterMaxLength="Misskey.CONTENT_LIMITS.chatRoomName" :disabled="!isOwner || saving">
+					<template #label>{{ i18n.ts.name }}</template>
+				</MkInput>
+				<div v-if="isOwner" :class="$style.avatarActions">
+					<MkButton small :disabled="saving || selectingAvatar" @click="selectAvatar">{{ i18n.ts._profile.changeAvatar }}</MkButton>
+					<MkButton v-if="avatarId_" small :disabled="saving || selectingAvatar" @click="resetAvatar">{{ i18n.ts.resetToDefaultValue }}</MkButton>
+				</div>
 			</div>
 		</div>
-	</div>
+		<MkTextarea v-model="description_" :rows="2" :counterMaxLength="Misskey.CONTENT_LIMITS.chatRoomDescription" :disabled="!isOwner || saving">
+			<template #label>{{ i18n.ts.description }}</template>
+		</MkTextarea>
+	</section>
 
-	<MkTextarea v-model="description_" :rows="2" :counterMaxLength="Misskey.CONTENT_LIMITS.chatRoomDescription" :disabled="!isOwner">
-		<template #label>{{ i18n.ts.description }}</template>
-	</MkTextarea>
-
-	<div :class="$style.settings">
+	<section :aria-label="i18n.ts._chat.joinValidation" :class="$style.section">
+		<h3 :class="$style.sectionTitle">{{ i18n.ts._chat.joinValidation }}</h3>
 		<MkSelect v-model="joinPolicy_" :items="joinPolicyItems" :disabled="!isOwner || saving">
 			<template #label>{{ i18n.ts._chat.joinPolicy }}</template>
 		</MkSelect>
-		<div v-if="canManage" :class="$style.silenceField">
-			<MkSwitch v-model="isSilenced_" :disabled="saving">{{ i18n.ts._chat.silenceRoom }}</MkSwitch>
-		</div>
-		<MkInput v-if="canManage && isSilenced_" v-model="silenceUntil_" type="datetime-local" :class="$style.silenceUntil" :disabled="saving">
-			<template #label>{{ i18n.ts._chat.silenceUntil }}</template>
-			<template #caption>{{ i18n.ts._chat.silenceUntilDescription }}</template>
-		</MkInput>
+		<MkTextarea v-if="joinPolicy_ === 'approval'" v-model="joinQuestion_" :rows="2" :counterMaxLength="200" :disabled="!isOwner || saving">
+			<template #label>{{ i18n.ts._chat.joinQuestion }}</template>
+			<template #caption>{{ i18n.ts._chat.joinQuestionDescription }}</template>
+		</MkTextarea>
+	</section>
+
+	<div v-if="isOwner" :class="$style.actions">
+		<MkButton primary :disabled="saving || selectingAvatar || deleting || !validContent" @click="save">{{ i18n.ts.save }}</MkButton>
 	</div>
 
-	<div v-if="room.isMember !== false" :class="$style.personalSettings">
-		<MkSwitch :modelValue="isMuted" :disabled="muting" @update:modelValue="mute">
-			<template #label>{{ i18n.ts._chat.muteThisRoom }}</template>
-		</MkSwitch>
-	</div>
-
-	<div v-if="canManage || $i.isAdmin || $i.isModerator" :class="$style.actions">
-		<MkButton v-if="isOwner || ($i.isAdmin || $i.isModerator)" danger @click="del">{{ i18n.ts._chat.deleteRoom }}</MkButton>
-		<MkButton v-if="canManage" primary :class="$style.saveButton" :disabled="saving || selectingAvatar || !validContent" @click="save">{{ i18n.ts.save }}</MkButton>
-	</div>
+	<section v-if="isOwner || $i.isAdmin || $i.isModerator" :aria-label="i18n.ts._chat.dangerZone" :class="[$style.section, $style.dangerSection]">
+		<h3 :class="$style.sectionTitle">{{ i18n.ts._chat.dangerZone }}</h3>
+		<p :class="$style.sectionDescription">{{ i18n.ts._chat.deleteRoomDescription }}</p>
+		<MkButton danger :disabled="saving || selectingAvatar || deleting" @click="del">{{ i18n.ts._chat.deleteRoom }}</MkButton>
+	</section>
 </div>
 </template>
 
@@ -59,13 +58,11 @@ import { misskeyApiWithErrorToast } from '@/utility/misskey-api-with-toast.js';
 import { ensureSignin } from '@/i.js';
 import MkInput from '@/components/MkInput.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
-import MkSwitch from '@/components/MkSwitch.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import { useRouter } from '@/router.js';
 import { chooseDriveFile } from '@/utility/drive.js';
 import MkAvatar from '@/components/global/MkAvatar.vue';
 import { globalEvents } from '@/events.js';
-import { setChatRoomMuted } from '@/utility/chat-conversations.js';
 
 const router = useRouter();
 const $i = ensureSignin();
@@ -77,36 +74,28 @@ const props = defineProps<{
 const isOwner = computed(() => {
 	return props.room.ownerId === $i.id;
 });
-const canManage = computed(() => isOwner.value || props.room.myRole === 'administrator');
 
 const name_ = ref(props.room.name);
 const description_ = ref(props.room.description);
+const joinQuestion_ = ref(props.room.joinQuestion ?? '');
 const validContent = computed(() => !isOwner.value || (name_.value.trim() !== '' &&
 	(name_.value === props.room.name || Array.from(name_.value).length <= Misskey.CONTENT_LIMITS.chatRoomName) &&
-	(description_.value === props.room.description || Array.from(description_.value ?? '').length <= Misskey.CONTENT_LIMITS.chatRoomDescription)));
+	(description_.value === props.room.description || Array.from(description_.value ?? '').length <= Misskey.CONTENT_LIMITS.chatRoomDescription) &&
+	(joinPolicy_.value !== 'approval' || Array.from(joinQuestion_.value.trim()).length <= 200)));
 const avatarId_ = ref(props.room.avatarId ?? null);
 const avatarUrl_ = ref(props.room.avatarUrl ?? null);
 const selectingAvatar = ref(false);
 let disposed = false;
-let muteTimer: number | undefined;
-onBeforeUnmount(() => { disposed = true; window.clearTimeout(muteTimer); });
+onBeforeUnmount(() => { disposed = true; });
 const joinPolicy_ = ref(props.room.joinPolicy);
-const isSilenced_ = ref(props.room.isSilenced ?? false);
-const silenceUntil_ = ref(props.room.silenceUntil ? toLocalDateTime(props.room.silenceUntil) : '');
-
-function toLocalDateTime(value: string) {
-	const date = new Date(value);
-	return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-}
 
 watch(() => props.room, (updated, previous) => {
 	// 同步其他管理员的修改；正在编辑的字段保留本地输入。
 	if (name_.value === previous.name) name_.value = updated.name;
 	if (description_.value === previous.description) description_.value = updated.description;
 	if (joinPolicy_.value === previous.joinPolicy) joinPolicy_.value = updated.joinPolicy;
+	if (joinQuestion_.value === (previous.joinQuestion ?? '')) joinQuestion_.value = updated.joinQuestion ?? '';
 	if (avatarId_.value === (previous.avatarId ?? null)) { avatarId_.value = updated.avatarId ?? null; avatarUrl_.value = updated.avatarUrl ?? null; }
-	if (isSilenced_.value === (previous.isSilenced ?? false)) isSilenced_.value = updated.isSilenced ?? false;
-	if (silenceUntil_.value === (previous.silenceUntil ? toLocalDateTime(previous.silenceUntil) : '')) silenceUntil_.value = updated.silenceUntil ? toLocalDateTime(updated.silenceUntil) : '';
 });
 
 const joinPolicyItems = computed(() => [
@@ -116,6 +105,7 @@ const joinPolicyItems = computed(() => [
 	{ value: 'closed' as const, label: i18n.ts._chat.joinPolicyClosed },
 ]);
 const saving = ref(false);
+const deleting = ref(false);
 const emit = defineEmits<{
 	(ev: 'updated', room: Misskey.entities.ChatRoom): void;
 	(ev: 'close'): void;
@@ -125,7 +115,7 @@ async function selectAvatar() {
 	if (!isOwner.value || saving.value || selectingAvatar.value) return;
 	selectingAvatar.value = true;
 	try {
-		const [file] = await chooseDriveFile({ multiple: false });
+		const [file] = await chooseDriveFile({ multiple: false, resolveOnCancel: true });
 		if (disposed || !file) return;
 		if (!file.type.startsWith('image/')) {
 			os.toast(i18n.ts._chat.avatarImageOnly, 'error');
@@ -134,32 +124,31 @@ async function selectAvatar() {
 		avatarId_.value = file.id;
 		avatarUrl_.value = file.url;
 	} catch {
-		// 取消文件选择时保留已有头像。
+		// 文件选择失败时保留已有头像。
 	} finally {
 		selectingAvatar.value = false;
 	}
 }
 
 function resetAvatar() {
+	if (!isOwner.value || saving.value || selectingAvatar.value) return;
 	avatarId_.value = null;
 	avatarUrl_.value = null;
 }
 
 async function save() {
-	if (!canManage.value || saving.value || selectingAvatar.value || !validContent.value) return;
-	const silenceEnd = isSilenced_.value && silenceUntil_.value ? new Date(silenceUntil_.value) : null;
-	if (silenceEnd && (!Number.isFinite(silenceEnd.getTime()) || silenceEnd.getTime() <= Date.now())) {
-		os.toast(i18n.ts._chat.silenceTimeInvalid, 'error');
-		return;
-	}
+	if (!isOwner.value || saving.value || selectingAvatar.value || deleting.value || !validContent.value) return;
 	saving.value = true;
 	try {
 		const updated = await misskeyApiWithErrorToast('chat/rooms/update', {
 			roomId: props.room.id,
-			...(isOwner.value ? { name: name_.value, description: description_.value, joinPolicy: joinPolicy_.value, avatarId: avatarId_.value } : {}),
-			isSilenced: isSilenced_.value,
-			silenceUntil: silenceEnd?.toISOString() ?? null,
+			name: name_.value,
+			description: description_.value,
+			joinPolicy: joinPolicy_.value,
+			joinQuestion: joinPolicy_.value === 'approval' ? joinQuestion_.value.trim() : undefined,
+			avatarId: avatarId_.value,
 		});
+		if (disposed) return;
 		avatarId_.value = updated.avatarId ?? null;
 		avatarUrl_.value = updated.avatarUrl ?? null;
 		emit('updated', updated);
@@ -173,51 +162,53 @@ async function save() {
 }
 
 async function del() {
-	const { canceled } = await os.confirm({
-		type: 'warning',
-		text: i18n.tsx.deleteAreYouSure({ x: name_.value }),
-	});
-	if (canceled) return;
-
+	if (deleting.value || saving.value || selectingAvatar.value || !(isOwner.value || $i.isAdmin || $i.isModerator)) return;
+	deleting.value = true;
 	try {
+		const { canceled } = await os.confirm({
+			type: 'warning',
+			text: i18n.tsx.deleteAreYouSure({ x: props.room.name }),
+		});
+		if (canceled || disposed) return;
 		await misskeyApiWithErrorToast('chat/rooms/delete', { roomId: props.room.id });
+		if (disposed) return;
 		emit('close');
 		router.push('/chat');
-	} catch { /* 保留群信息以便重试。 */ }
+	} catch { /* 保留群信息以便重试。 */ } finally { deleting.value = false; }
 }
 
-const isMuted = ref(props.room.isMuted ?? false);
-
-function refreshMute() {
-	window.clearTimeout(muteTimer);
-	const remaining = props.room.mutedUntil ? Date.parse(props.room.mutedUntil) - Date.now() : null;
-	isMuted.value = props.room.isMuted === true && (remaining == null || remaining > 0);
-	if (isMuted.value && remaining != null) muteTimer = window.setTimeout(refreshMute, Math.min(remaining + 10, 2147483647));
-}
-
-watch(() => [props.room.isMuted, props.room.mutedUntil], refreshMute, { immediate: true });
-
-const muting = ref(false);
-
-async function mute(value: boolean) {
-	if (muting.value || props.room.isMember === false) return;
-	muting.value = true;
-	try {
-		const updated = await setChatRoomMuted(props.room, value);
-		if (updated) { isMuted.value = updated.isMuted ?? false; emit('updated', updated); }
-	} catch {
-		// 请求失败时保持原状态。
-	} finally {
-		muting.value = false;
-	}
-}
 </script>
 
 <style lang="scss" module>
 .root {
 	display: flex;
 	flex-direction: column;
+	gap: 20px;
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
 	gap: 14px;
+	min-width: 0;
+
+	& ~ .section {
+		padding-top: 20px;
+		border-top: var(--MI-divider);
+	}
+}
+
+.sectionTitle {
+	margin: 0;
+	font-size: 1em;
+	font-weight: 600;
+}
+
+.sectionDescription {
+	margin: 0;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 0.85em;
+	line-height: 1.5;
 }
 
 .identity {
@@ -245,39 +236,13 @@ async function mute(value: boolean) {
 	margin-top: 8px;
 }
 
-.settings {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 14px;
-	align-items: end;
-}
-
-.silenceField {
-	display: flex;
-	align-items: center;
-	min-height: 36px;
-}
-
-.silenceUntil {
-	grid-column: 1 / -1;
-}
-
-.personalSettings {
-	padding-top: 14px;
-	border-top: var(--MI-divider);
-}
-
 .actions {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 10px;
-	padding-top: 14px;
-	border-top: var(--MI-divider);
+	justify-content: flex-end;
 }
 
-.saveButton {
-	margin-left: auto;
+.dangerSection .sectionTitle {
+	color: var(--MI_THEME-error);
 }
 
 @container (max-width: 440px) {
@@ -289,10 +254,6 @@ async function mute(value: boolean) {
 	.avatar {
 		width: 56px;
 		height: 56px;
-	}
-
-	.settings {
-		grid-template-columns: minmax(0, 1fr);
 	}
 }
 </style>

@@ -6,7 +6,7 @@
 import { effectScope, onActivated, onDeactivated, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 import type * as Misskey from 'misskey-js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 import { globalEvents } from '@/events.js';
 import { $i } from '@/i.js';
 import { store } from '@/store.js';
@@ -14,7 +14,8 @@ import { useStream } from '@/stream.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
 const accountFields = ['notesCount', 'followingCount', 'followersCount', 'onlineStatus', 'customStatus'] as const;
-const statisticFields = [...accountFields, 'isFollowing', 'isFollowed', 'hasPendingFollowRequestFromYou', 'followingVisibility', 'followersVisibility'] as const;
+// lastActiveAt 随在线状态一起推送，离线后个人主页立即显示最后活跃时间。
+const statisticFields = [...accountFields, 'lastActiveAt', 'isFollowing', 'isFollowed', 'hasPendingFollowRequestFromYou', 'followingVisibility', 'followersVisibility'] as const;
 const BATCH_DELAY = 50;
 const BATCH_SIZE = 30;
 const MAX_SUBSCRIPTIONS = 100;
@@ -109,7 +110,7 @@ function applyStatistics(user: UserStatisticsPatch): void {
 		const account = Object.fromEntries(accountFields
 			.filter(field => statistics[field] !== undefined && statistics[field] !== me[field])
 			.map(field => [field, statistics[field]]));
-		if (Object.keys(account).length > 0) updateCurrentAccountPartial(account);
+		if (Object.keys(account).length > 0) updateCurrentAccount(account);
 	}
 	for (const update of subscriptions.get(user.id) ?? []) update(statistics);
 }

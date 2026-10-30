@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkA v-user-preview="canonical" :class="[$style.root, { [$style.isMe]: isMe }]" :to="url" :behavior="navigationBehavior">
 	<img :class="$style.icon" :src="avatarUrl" alt="">
-	<span>
+	<span :class="$style.content">
 		<span>@{{ username }}</span>
 		<span v-if="(host != localHost)" :class="$style.host">@{{ toUnicode(host) }}</span>
 	</span>
@@ -44,23 +44,39 @@ const avatarUrl = computed(() => {
 
 <style lang="scss" module>
 .root {
-	display: inline-flex;
-	align-items: center;
-	vertical-align: middle;
-	padding: 2px 8px 2px 2px;
-	border-radius: 999px;
-	color: var(--MI_THEME-mention);
-	background: color(from var(--MI_THEME-mention) srgb r g b / 0.1);
+	--mention-color: var(--MI_THEME-mention);
+
+	// 保持普通行内文本，提及文字与前后文字共用同一行盒和基线。
+	display: inline;
+	white-space: nowrap;
+	padding: 0 2px;
+	border-radius: 4px;
+	box-decoration-break: clone;
+	font: inherit;
+	color: var(--mention-color);
+	background: transparent;
+
+	&:hover,
+	&:focus-visible {
+		background: color(from var(--mention-color) srgb r g b / 0.1);
+		text-decoration: underline;
+	}
 
 	&.isMe {
-		color: var(--MI_THEME-mentionMe);
-		background: color(from var(--MI_THEME-mentionMe) srgb r g b / 0.1);
+		--mention-color: var(--MI_THEME-mentionMe);
 	}
 }
 
+.content {
+	font: inherit;
+}
+
 .icon {
-	width: 1.4em;
-	height: 1.4em;
+	display: inline-block;
+	// 头像中心对齐当前字体的文字中线。
+	vertical-align: -0.15em;
+	width: 1em;
+	height: 1em;
 	object-fit: cover;
 	margin: 0 0.25em 0 0;
 	border-radius: 100%;

@@ -5,12 +5,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps_m">
-	<div class="_imageContainer" :class="$style.banner">
-		<img v-if="instance.bannerUrl" class="_imageBackground" :src="instance.bannerUrl" alt=""/>
-		<div style="overflow: clip;">
+	<div :class="$style.banner">
+		<div class="_imageContainer" :class="$style.bannerCover">
+			<img v-if="instance.bannerUrl" class="_imageBackground" :class="$style.bannerImage" :src="instance.bannerUrl" alt=""/>
+		</div>
+		<div :class="$style.bannerContent">
 			<img :src="instance.iconUrl ?? '/favicon.ico'" alt="" :class="$style.bannerIcon"/>
-			<div :class="$style.bannerName">
-				<b>{{ instance.name ?? host }}</b>
+			<div :class="$style.bannerIdentity">
+				<b :class="$style.bannerName" :title="instance.name ?? host">{{ instance.name ?? host }}</b>
+				<span v-if="instance.name" :class="$style.bannerHost" :title="host">{{ host }}</span>
 			</div>
 		</div>
 	</div>
@@ -23,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<FormSection>
 		<div class="_gaps_m">
 			<MkKeyValue :copy="version">
-				<template #key>Misskey</template>
+				<template #key>{{ i18n.ts.version }}</template>
 				<template #value>{{ version }}</template>
 			</MkKeyValue>
 			<div v-html="i18n.tsx.poweredByMisskeyDescription({ name: instance.name ?? host })">
@@ -145,25 +148,119 @@ const initStats = () => misskeyApi('stats', {});
 
 <style lang="scss" module>
 .banner {
-	text-align: center;
-	border-radius: 10px;
+	position: relative;
 	overflow: clip;
+	border-radius: var(--MI-radius);
 	background-color: var(--MI_THEME-panel);
+	container-type: inline-size;
+}
+
+.bannerCover {
+	height: 144px;
+	background: linear-gradient(
+		135deg,
+		color-mix(in srgb, var(--MI_THEME-accent) 18%, var(--MI_THEME-panel)),
+		var(--MI_THEME-panel) 68%
+	);
+
+	&::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		pointer-events: none;
+		background: linear-gradient(
+			to bottom,
+			transparent 55%,
+			color-mix(in srgb, var(--MI_THEME-panel) 18%, transparent)
+		);
+	}
+}
+
+.bannerImage {
+	z-index: 0;
+}
+
+.bannerContent {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: flex-start;
+	gap: 18px;
+	min-width: 0;
+	margin-top: -32px;
+	padding: 0 24px 18px;
+}
+
+.bannerIdentity {
+	min-width: 0;
+	padding-top: 35px;
 }
 
 .bannerIcon {
-	display: block;
-	margin: 16px auto 0 auto;
-	height: 64px;
-	border-radius: 8px;
+	flex: none;
+	width: 68px;
+	height: 68px;
+	box-sizing: border-box;
+	border: solid 3px var(--MI_THEME-panel);
+	border-radius: 16px;
+	background-color: var(--MI_THEME-panel);
+	object-fit: cover;
+	box-shadow: 0 8px 24px var(--MI_THEME-shadow);
 }
 
 .bannerName {
 	display: block;
-	padding: 16px;
-	color: #fff;
-	text-shadow: 0 0 8px #000;
-	background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+	overflow: hidden;
+	color: var(--MI_THEME-fgHighlighted);
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 1.2;
+	letter-spacing: -0.02em;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.bannerHost {
+	display: block;
+	overflow: hidden;
+	margin-top: 3px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 13px;
+	line-height: 1.4;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+@container (max-width: 520px) {
+	.bannerCover {
+		height: 112px;
+	}
+
+	.bannerContent {
+		gap: 12px;
+		margin-top: -26px;
+		padding: 0 16px 14px;
+	}
+
+	.bannerIdentity {
+		padding-top: 27px;
+	}
+
+	.bannerIcon {
+		width: 54px;
+		height: 54px;
+		border-width: 2px;
+		border-radius: 13px;
+	}
+
+	.bannerName {
+		font-size: 20px;
+	}
+
+	.bannerHost {
+		font-size: 12px;
+	}
 }
 
 .rules {

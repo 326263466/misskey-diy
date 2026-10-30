@@ -7,7 +7,7 @@ import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
 import { claimAchievement } from './achievements.js';
 import type { Ref, ShallowRef } from 'vue';
-import type { MenuButton, MenuItem } from '@/types/menu.js';
+import type { MenuItem } from '@/types/menu.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
@@ -28,6 +28,7 @@ import { noteEvents } from '@/composables/use-note-capture.js';
 import { editNote } from '@/utility/edit-note.js';
 import { copyNoteLink, shareNote } from '@/utility/share-note.js';
 import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
+import { getAbuseReportMenu } from '@/utility/abuse-report.js';
 
 const isInBrowserTranslationAvailable = (
 	'LanguageDetector' in window &&
@@ -62,6 +63,7 @@ export async function getNoteClipMenu(props: {
 		action: async () => {
 			try {
 				await misskeyApi('clips/add-note', { clipId: clip.id, noteId: appearNote.id });
+				os.toast(i18n.ts.added, 'success');
 				claimAchievement('noteClipped1');
 				updateClipCount(clip.id, 1);
 			} catch (error) {
@@ -75,6 +77,7 @@ export async function getNoteClipMenu(props: {
 					if (canceled) return;
 					try {
 						await os.apiWithDialog('clips/remove-note', { clipId: clip.id, noteId: appearNote.id });
+						os.toast(i18n.ts.removed, 'success');
 						updateClipCount(clip.id, -1);
 					} catch { /* API 错误已提示，不更新收藏夹计数。 */ }
 				} else {
@@ -91,6 +94,7 @@ export async function getNoteClipMenu(props: {
 					type: 'string',
 					default: null as string | null,
 					label: i18n.ts.name,
+					maxLength: Misskey.CONTENT_LIMITS.collectionName,
 				},
 				description: {
 					type: 'string',
@@ -98,6 +102,7 @@ export async function getNoteClipMenu(props: {
 					default: null,
 					multiline: true,
 					label: i18n.ts.description,
+					maxLength: Misskey.CONTENT_LIMITS.clipDescription,
 				},
 				isPublic: {
 					type: 'boolean',
@@ -111,29 +116,13 @@ export async function getNoteClipMenu(props: {
 				const clip = await os.apiWithDialog('clips/create', result);
 				clipsCache.delete();
 				await os.apiWithDialog('clips/add-note', { clipId: clip.id, noteId: appearNote.id });
+				os.toast(i18n.ts.added, 'success');
 				claimAchievement('noteClipped1');
 			} catch { /* API 错误已提示，失败时不报告收藏成功。 */ }
 		},
 	}];
 
 	return menu;
-}
-
-export function getAbuseNoteMenu(note: Misskey.entities.Note, text: string): MenuButton {
-	return {
-		icon: 'ti ti-exclamation-circle',
-		text,
-		action: async (): Promise<void> => {
-			const localUrl = `${url}/notes/${note.id}`;
-			const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
-				user: note.user,
-				reportTarget: { reportType: 'note', targetId: note.id },
-				context: { label: i18n.ts._abuseReport._linkLabels.localNote, text: note.text, url: localUrl, sourceUrl: note.url ?? note.uri ?? undefined },
-			}, {
-				closed: () => dispose(),
-			});
-		},
-	};
 }
 
 export function getCopyNoteLinkMenu(note: Misskey.entities.Note, text: string): MenuItem {
@@ -170,37 +159,34 @@ export function getNoteMenu(props: {
 	const cleanups = [] as (() => void)[];
 
 	function del(): void {
-		os.confirm({
-			type: 'warning',
-			text: i18n.ts.noteDeleteConfirm,
-		}).then(({ canceled }) => {
-			if (canceled) return;
-			const currentUser = $i;
-			if (currentUser == null) return;
+		const currentUser = $i;
+		if (currentUser == null) return;
 
-			os.apiWithDialog('notes/delete', {
-				noteId: appearNote.id,
-			}).then(() => {
-				const renoteId = appearNote.renoteId != null && appearNote.renote?.userId !== appearNote.userId
-					? appearNote.renoteId
-					: null;
-				globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId, renoteId, appearNote.userId === currentUser.id ? 'author' : 'community');
-				os.toast(i18n.ts.deleteSucceeded, 'success');
-				if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === currentUser.id) claimAchievement('noteDeletedWithin1min');
-			}).catch(() => {});
-		});
+		os.apiWithDialog('notes/delete', {
+			noteId: appearNote.id,
+		}).then(() => {
+			const renoteId = appearNote.renoteId != null && appearNote.renote?.userId !== appearNote.userId
+				? appearNote.renoteId
+				: null;
+			globalEvents.emit('noteDeleted', appearNote.id, appearNote.replyId, renoteId, appearNote.userId === currentUser.id ? 'author' : 'community');
+			if (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 60 && appearNote.userId === currentUser.id) claimAchievement('noteDeletedWithin1min');
+		}).catch(() => {});
 	}
 
+	// 菜单关闭后看不到状态变化，需要成功提示；失败提示由 apiWithDialog 处理
 	function toggleThreadMute(mute: boolean): void {
 		os.apiWithDialog(mute ? 'notes/thread-muting/create' : 'notes/thread-muting/delete', {
 			noteId: appearNote.id,
-		});
+		}).then(() => {
+			os.toast(mute ? i18n.ts.threadMuted : i18n.ts.threadUnmuted, 'success');
+		}, () => {});
 	}
 
 	async function toggleFavorite(favorite: boolean): Promise<void> {
 		await os.apiWithDialog(favorite ? 'notes/favorites/create' : 'notes/favorites/delete', {
 			noteId: appearNote.id,
 		});
+		os.toast(favorite ? i18n.ts.favorited : i18n.ts.unfavorited, 'success');
 		noteEvents.emit(`statsUpdated:${appearNote.id}`);
 		if (favorite) claimAchievement('noteFavorited1');
 	}
@@ -216,12 +202,16 @@ export function getNoteMenu(props: {
 			'72dab508-c64d-498f-8740-a8eec1ba385a': {
 				text: i18n.ts.pinLimitExceeded,
 			},
-		});
+		}).then(() => {
+			os.toast(pin ? i18n.ts.notePinned : i18n.ts.noteUnpinned, 'success');
+		}, () => {});
 	}
 
 	async function unclip(): Promise<void> {
 		if (!props.currentClip) return;
-		os.apiWithDialog('clips/remove-note', { clipId: props.currentClip.id, noteId: appearNote.id });
+		os.apiWithDialog('clips/remove-note', { clipId: props.currentClip.id, noteId: appearNote.id }).then(() => {
+			os.toast(i18n.ts.removed, 'success');
+		}, () => {});
 	}
 
 	async function removeFromAntenna(): Promise<void> {
@@ -234,6 +224,7 @@ export function getNoteMenu(props: {
 		if (canceled) return;
 
 		await os.apiWithDialog('antennas/remove-note', { antennaId: props.currentAntenna.id, noteId: appearNote.id });
+		os.toast(i18n.ts.removed, 'success');
 		globalEvents.emit('noteRemovedFromAntenna', props.currentAntenna.id, appearNote.id);
 	}
 
@@ -390,7 +381,7 @@ export function getNoteMenu(props: {
 
 		menuItems.push({
 			type: 'parent',
-			icon: 'ti ti-paperclip',
+			icon: 'ti ti-bookmarks',
 			text: i18n.ts.clip,
 			children: () => getNoteClipMenu(props),
 		});
@@ -435,14 +426,14 @@ export function getNoteMenu(props: {
 
 		if (appearNote.userId !== $i.id) {
 			menuItems.push({ type: 'divider' });
-			menuItems.push(getAbuseNoteMenu(appearNote, i18n.ts.reportAbuse));
+			menuItems.push(getAbuseReportMenu({ type: 'note', note: appearNote }));
 		}
 
 		if (appearNote.channel && (appearNote.channel.userId === $i.id || $i.isModerator || $i.isAdmin)) {
 			menuItems.push({ type: 'divider' });
 			menuItems.push({
 				type: 'parent',
-				icon: 'ti ti-device-tv',
+				icon: 'ti ti-broadcast',
 				text: i18n.ts.channel,
 				children: async () => {
 					const channelChildMenu = [] as MenuItem[];
@@ -456,7 +447,9 @@ export function getNoteMenu(props: {
 							action: () => os.apiWithDialog('channels/update', {
 								channelId: appearNote.channel!.id,
 								pinnedNoteIds: channel.pinnedNoteIds.filter(id => id !== appearNote.id),
-							}),
+							}).then(() => {
+								os.toast(i18n.ts.noteUnpinned, 'success');
+							}, () => {}),
 						});
 					} else {
 						channelChildMenu.push({
@@ -465,7 +458,9 @@ export function getNoteMenu(props: {
 							action: () => os.apiWithDialog('channels/update', {
 								channelId: appearNote.channel!.id,
 								pinnedNoteIds: [...channel.pinnedNoteIds, appearNote.id],
-							}),
+							}).then(() => {
+								os.toast(i18n.ts.notePinned, 'success');
+							}, () => {}),
 						});
 					}
 					return channelChildMenu;

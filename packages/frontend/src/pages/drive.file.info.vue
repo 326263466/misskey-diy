@@ -5,7 +5,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div class="_gaps">
-	<MkInfo>{{ i18n.ts._fileViewer.thisPageCanBeSeenFromTheAuthor }}</MkInfo>
 	<MkLoading v-if="fetching"/>
 	<div v-else-if="file" class="_gaps">
 		<div :class="$style.filePreviewRoot">
@@ -70,9 +69,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import * as Misskey from 'misskey-js';
-import MkInfo from '@/components/MkInfo.vue';
 import MkMediaList from '@/components/MkMediaList.vue';
 import MkKeyValue from '@/components/MkKeyValue.vue';
 import bytes from '@/filters/bytes.js';
@@ -103,7 +101,6 @@ const folderHierarchy = computed(() => {
 	if (file.value.folder) get(file.value.folder);
 	return folderNames;
 });
-const isImage = computed(() => file.value?.type.startsWith('image/'));
 
 async function _fetch_() {
 	fetching.value = true;
@@ -134,12 +131,15 @@ function move() {
 
 	selectDriveFolder(null).then(({ canceled, folders }) => {
 		if (canceled) return;
-		misskeyApi('drive/files/update', {
+		// 失败提示由 apiWithDialog 处理
+		os.apiWithDialog('drive/files/update', {
 			fileId: f.id,
 			folderId: folders[0] ? folders[0].id : null,
-		}).then(async () => {
+		}).then(async updated => {
+			globalEvents.emit('driveFilesUpdated', [updated]);
+			os.toast(i18n.ts.moved, 'success');
 			await _fetch_();
-		});
+		}, () => {});
 	});
 }
 
@@ -149,15 +149,10 @@ function toggleSensitive() {
 	os.apiWithDialog('drive/files/update', {
 		fileId: file.value.id,
 		isSensitive: !file.value.isSensitive,
-	}).then(async () => {
+	}).then(async updated => {
+		globalEvents.emit('driveFilesUpdated', [updated]);
 		await _fetch_();
-	}).catch(err => {
-		os.alert({
-			type: 'error',
-			title: i18n.ts.error,
-			text: err.message,
-		});
-	});
+	}, () => {}); // 页面上的标记状态即为结果；失败提示由 apiWithDialog 处理
 }
 
 function rename() {
@@ -174,9 +169,11 @@ function rename() {
 		os.apiWithDialog('drive/files/update', {
 			fileId: f.id,
 			name: name,
-		}).then(async () => {
+		}).then(async updated => {
+			globalEvents.emit('driveFilesUpdated', [updated]);
+			os.toast(i18n.ts.saved, 'success');
 			await _fetch_();
-		});
+		}, () => {}); // 失败提示由 apiWithDialog 处理
 	});
 }
 
@@ -193,9 +190,11 @@ async function describe() {
 			os.apiWithDialog('drive/files/update', {
 				fileId: f.id,
 				comment: caption.length === 0 ? null : caption,
-			}).then(async () => {
+			}).then(async updated => {
+				globalEvents.emit('driveFilesUpdated', [updated]);
+				os.toast(i18n.ts.saved, 'success');
 				await _fetch_();
-			});
+			}, () => {}); // 失败提示由 apiWithDialog 处理
 		},
 		closed: () => dispose(),
 	});
@@ -213,6 +212,7 @@ async function deleteFile() {
 	await os.apiWithDialog('drive/files/delete', {
 		fileId: file.value.id,
 	});
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 
 	globalEvents.emit('driveFilesDeleted', [file.value]);
 

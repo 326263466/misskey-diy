@@ -100,7 +100,7 @@ function choose(visibility: typeof Misskey.noteVisibilities[number]): void {
 
 .label {
 	pointer-events: none;
-	font-size: 10px;
+	font-size: 12px;
 	padding-bottom: 4px;
 	color: var(--MI_THEME-fgTransparentWeak);
 }

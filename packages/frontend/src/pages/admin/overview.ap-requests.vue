@@ -4,304 +4,152 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
-	<MkLoading v-if="fetching"/>
-	<div v-show="!fetching" :class="$style.root">
-		<div class="charts _panel">
-			<div class="chart">
-				<canvas ref="chartEl2"></canvas>
+<div :class="$style.root">
+	<MkLoading v-if="raw == null"/>
+	<div v-else :class="$style.charts">
+		<section :class="$style.chart">
+			<ul :class="$style.keys" aria-hidden="true">
+				<li><span :class="$style.key" :style="{ background: colors.accent }"></span>{{ i18n.ts._dashboard.apIn }}</li>
+			</ul>
+			<div :class="$style.canvas">
+				<MkEChart :option="inboxOption" :ariaLabel="i18n.ts._dashboard.apIn"/>
 			</div>
-			<div class="chart">
-				<canvas ref="chartEl"></canvas>
+		</section>
+		<section :class="$style.chart">
+			<ul :class="$style.keys" aria-hidden="true">
+				<li><span :class="$style.key" :style="{ background: colors.success }"></span>{{ i18n.ts._dashboard.apOutSucceeded }}</li>
+				<li><span :class="$style.key" :style="{ background: colors.error }"></span>{{ i18n.ts._dashboard.apOutFailed }}</li>
+			</ul>
+			<div :class="$style.canvas">
+				<MkEChart :option="deliverOption" :ariaLabel="`${i18n.ts._dashboard.apOutSucceeded} / ${i18n.ts._dashboard.apOutFailed}`"/>
 			</div>
-		</div>
+		</section>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, useTemplateRef, ref } from 'vue';
-import { Chart } from 'chart.js';
-import gradient from 'chartjs-plugin-gradient';
+import { computed, onMounted, onUnmounted, shallowRef } from 'vue';
 import isChromatic from 'chromatic';
+import MkEChart from '@/components/MkEChart.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
-import { chartVLine } from '@/utility/chart-vline.js';
-import { store } from '@/store.js';
-import { alpha } from '@/utility/color.js';
-import { initChart } from '@/utility/init-chart.js';
+import { chartColors, chartGrid, echarts, recentDays } from '@/utility/echarts.js';
 import { formatChartDate } from '@/utility/chart-date.js';
-import { dateOnly } from '@/filters/date.js';
+import number from '@/filters/number.js';
 import { i18n } from '@/i18n.js';
 
-initChart();
-
-let chartInstance1: Chart | null = null;
-let chartInstance2: Chart | null = null;
+const chartLimit = 50;
+const colors = chartColors;
+const raw = shallowRef<{ inboxReceived: number[]; deliverSucceeded: number[]; deliverFailed: number[] } | null>(null);
+const dates = recentDays(chartLimit, isChromatic() ? new Date('2024-08-31T10:00:00Z') : new Date()).map(date => formatChartDate(date.getTime()));
 let disposed = false;
 
-const chartLimit = 50;
-const chartEl = useTemplateRef('chartEl');
-const chartEl2 = useTemplateRef('chartEl2');
-const fetching = ref(true);
+// 接口按天倒序返回，图表从早到晚画。
+const chronological = (values: number[]) => values.slice(0, chartLimit).reverse();
+const xAxis = { type: 'category', data: dates, axisLabel: { hideOverlap: true } };
+const tooltip = { trigger: 'axis', valueFormatter: (value: unknown) => number(Number(value)) };
 
-const { handler: externalTooltipHandler } = useChartTooltip();
-const { handler: externalTooltipHandler2 } = useChartTooltip();
+// 接收量随时间连续变化，用面积曲线看走势。
+const inboxOption = computed(() => {
+	const c = colors.value;
+	return {
+		grid: chartGrid,
+		tooltip,
+		xAxis: { ...xAxis, boundaryGap: false },
+		yAxis: { type: 'value', minInterval: 1 },
+		series: [{
+			type: 'line', name: i18n.ts._dashboard.apIn, data: chronological(raw.value?.inboxReceived ?? []),
+			smooth: 0.3, smoothMonotone: 'x', showSymbol: false, symbolSize: 6,
+			lineStyle: { width: 2, color: c.accent }, itemStyle: { color: c.accent },
+			areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: c.fade(c.accent, 0.25) }, { offset: 1, color: c.fade(c.accent, 0) }]) },
+		}],
+	};
+});
+
+// 成功和失败叠在同一根柱子上，柱高是当天投递总数，红色部分就是失败占比。
+const deliverOption = computed(() => {
+	const c = colors.value;
+	const bar = { type: 'bar', stack: 'deliver', barMaxWidth: 10, emphasis: { focus: 'series' } };
+	return {
+		grid: chartGrid,
+		tooltip: { ...tooltip, axisPointer: { type: 'shadow' } },
+		xAxis,
+		yAxis: { type: 'value', minInterval: 1 },
+		series: [
+			{ ...bar, name: i18n.ts._dashboard.apOutSucceeded, data: chronological(raw.value?.deliverSucceeded ?? []), itemStyle: { color: c.success } },
+			{ ...bar, name: i18n.ts._dashboard.apOutFailed, data: chronological(raw.value?.deliverFailed ?? []), itemStyle: { color: c.error, borderRadius: [2, 2, 0, 0] } },
+		],
+	};
+});
 
 onMounted(async () => {
-	if (chartEl.value == null) return;
-	if (chartEl2.value == null) return;
-
-	const now = isChromatic() ? new Date('2024-08-31T10:00:00Z') : new Date();
-
-	const getDate = (ago: number) => {
-		const y = now.getFullYear();
-		const m = now.getMonth();
-		const d = now.getDate();
-
-		return new Date(y, m, d - ago);
-	};
-
-	const format = (arr: number[]) => {
-		return arr.map((v, i) => ({
-			x: getDate(i).getTime(),
-			y: v,
-		}));
-	};
-
-	const formatMinus = (arr: number[]) => {
-		return arr.map((v, i) => ({
-			x: getDate(i).getTime(),
-			y: -v,
-		}));
-	};
-
-	const raw = await misskeyApi('charts/ap-request', { limit: chartLimit, span: 'day' });
-
-	if (disposed || chartEl.value == null || chartEl2.value == null) return;
-
-	const succColor = '#87e000';
-	const failColor = '#ff4400';
-
-	const succMax = Math.max(...raw.deliverSucceeded);
-	const failMax = Math.max(...raw.deliverFailed);
-
-	chartInstance1 = new Chart(chartEl.value, {
-		type: 'line',
-		data: {
-			datasets: [{
-				parsing: false,
-				label: i18n.ts._dashboard.apOutSucceeded,
-				data: format(raw.deliverSucceeded).slice().reverse(),
-				tension: 0.3,
-				pointRadius: 0,
-				borderWidth: 2,
-				borderColor: succColor,
-				borderJoinStyle: 'round',
-				borderRadius: 4,
-				backgroundColor: alpha(succColor, 0.35),
-				fill: true,
-				clip: 8,
-			}, {
-				parsing: false,
-				label: i18n.ts._dashboard.apOutFailed,
-				data: formatMinus(raw.deliverFailed).slice().reverse(),
-				tension: 0.3,
-				pointRadius: 0,
-				borderWidth: 2,
-				borderColor: failColor,
-				borderJoinStyle: 'round',
-				borderRadius: 4,
-				backgroundColor: alpha(failColor, 0.35),
-				fill: true,
-				clip: 8,
-			}],
-		},
-		options: {
-			aspectRatio: 2.5,
-			layout: {
-				padding: {
-					left: 0,
-					right: 8,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					type: 'time',
-					stacked: true,
-					offset: false,
-					time: {
-						unit: 'day',
-					},
-					grid: {
-						display: true,
-					},
-					ticks: {
-						display: true,
-						maxRotation: 0,
-						autoSkipPadding: 16,
-						callback: value => formatChartDate(value),
-					},
-					min: getDate(chartLimit).getTime(),
-				},
-				y: {
-					position: 'left',
-					suggestedMax: 10,
-					grid: {
-						display: true,
-					},
-					ticks: {
-						display: true,
-						//mirror: true,
-						callback: (value, index, values) => (value as number) < 0 ? -value : value,
-					},
-				},
-			},
-			interaction: {
-				intersect: false,
-				mode: 'index',
-			},
-			elements: {
-				point: {
-					hoverRadius: 5,
-					hoverBorderWidth: 2,
-				},
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					external: externalTooltipHandler,
-					callbacks: {
-						title: items => dateOnly(items[0].parsed.x),
-						label: context => `${context.dataset.label}: ${Math.abs(context.parsed.y)}`,
-					},
-				},
-				...({ // TSを黙らすため
-					gradient,
-				}),
-			},
-		},
-		plugins: [chartVLine()],
-	});
-
-	chartInstance2 = new Chart(chartEl2.value, {
-		type: 'bar',
-		data: {
-			datasets: [{
-				parsing: false,
-				label: i18n.ts._dashboard.apIn,
-				data: format(raw.inboxReceived).slice().reverse(),
-				tension: 0.3,
-				pointRadius: 0,
-				borderWidth: 0,
-				borderJoinStyle: 'round',
-				borderRadius: 4,
-				backgroundColor: '#0cc2d6',
-				barPercentage: 0.8,
-				categoryPercentage: 0.9,
-				fill: true,
-				clip: 8,
-			}],
-		},
-		options: {
-			aspectRatio: 5,
-			layout: {
-				padding: {
-					left: 0,
-					right: 8,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					type: 'time',
-					offset: false,
-					time: {
-						unit: 'day',
-					},
-					grid: {
-						display: false,
-					},
-					ticks: {
-						display: false,
-						maxRotation: 0,
-						autoSkipPadding: 16,
-					},
-					min: getDate(chartLimit).getTime(),
-				},
-				y: {
-					position: 'left',
-					suggestedMax: 10,
-					grid: {
-						display: true,
-					},
-				},
-			},
-			interaction: {
-				intersect: false,
-				mode: 'index',
-			},
-			elements: {
-				point: {
-					hoverRadius: 5,
-					hoverBorderWidth: 2,
-				},
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					external: externalTooltipHandler2,
-					callbacks: {
-						title: items => dateOnly(items[0].parsed.x),
-					},
-				},
-				...({ // TSを黙らすため
-					gradient,
-				}),
-			},
-		},
-		plugins: [chartVLine()],
-	});
-
-	fetching.value = false;
+	const result = await misskeyApi('charts/ap-request', { limit: chartLimit, span: 'day' });
+	if (!disposed) raw.value = result;
 });
 
 onUnmounted(() => {
 	disposed = true;
-	chartInstance1?.destroy();
-	chartInstance2?.destroy();
 });
 </script>
 
 <style lang="scss" module>
 .root {
-	&:global {
-		> .charts {
-			> .chart {
-				padding: var(--MI-cardPadding);
+	container-type: inline-size;
+}
 
-				&:first-child {
-					border-bottom: var(--MI-divider);
-				}
-			}
-		}
+.charts {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chart {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	padding: var(--dashboard-inset, var(--MI-cardPadding));
+
+	&:first-child {
+		border-inline-end: var(--MI-divider);
+	}
+}
+
+.keys {
+	display: flex;
+	justify-content: flex-end;
+	gap: 16px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 0.85em;
+
+	> li {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+}
+
+.key {
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+}
+
+// 高度预先固定，图表绘制前后不改变布局。
+.canvas {
+	height: 220px;
+}
+
+@container (max-width: 640px) {
+	.charts {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.chart:first-child {
+		border-inline-end: 0;
+		border-bottom: var(--MI-divider);
 	}
 }
 </style>

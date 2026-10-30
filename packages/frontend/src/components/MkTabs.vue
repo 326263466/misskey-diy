@@ -127,13 +127,14 @@ function afterLeave(el: Element) {
 
 <style lang="scss" module>
 .tabs {
-	--height: 40px;
+	--height: var(--MI-tabHeight);
 
 	display: block;
 	position: relative;
 	margin: 0;
 	height: var(--height);
-	font-size: 85%;
+	// 放在工具栏里时与同一行的按钮、搜索框同字号。
+	font-size: var(--MI-toolbarFontSize, 85%);
 	overflow-x: auto;
 	overflow-y: hidden;
 	scrollbar-width: none;
@@ -145,7 +146,7 @@ function afterLeave(el: Element) {
 
 @container (max-width: 450px) {
 	.tabs {
-		font-size: 80%;
+		font-size: var(--MI-toolbarFontSize, 80%);
 	}
 }
 

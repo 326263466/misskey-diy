@@ -34,10 +34,7 @@ const props = withDefaults(defineProps<{
 .root {
 	display: flex;
 	flex-direction: column;
+	gap: 8px;
 	width: 100%;
-
-	> * + * {
-		border-top: var(--MI-divider);
-	}
 }
 </style>

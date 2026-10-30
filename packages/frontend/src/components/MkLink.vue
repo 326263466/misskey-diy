@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@auxclick="confirmExternalLink"
 >
 	<slot></slot>
-	<i v-if="target === '_blank'" class="ti ti-external-link" :class="$style.icon"></i>
+	<i v-if="target === '_blank'" class="ti ti-external-link" :class="$style.icon" aria-hidden="true"></i>
 </component>
 </template>
 
@@ -42,13 +42,14 @@ const el = ref<HTMLElement | { $el: HTMLElement }>();
 const enablePreview = isEnabledUrlPreview.value;
 
 if (enablePreview) {
-	useTooltip(el, (showing) => {
+	useTooltip(el, (showing, pointerPosition) => {
 		const anchorElement = el.value instanceof HTMLElement ? el.value : el.value?.$el;
 		if (anchorElement == null) return;
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUrlPreviewPopup.vue')), {
 			showing,
 			url: props.url,
-			anchorElement: anchorElement,
+			anchorElement,
+			pointerPosition,
 		}, {
 			closed: () => dispose(),
 		});

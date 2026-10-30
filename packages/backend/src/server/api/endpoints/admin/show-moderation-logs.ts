@@ -10,6 +10,7 @@ import { QueryService } from '@/core/QueryService.js';
 import { DI } from '@/di-symbols.js';
 import { ModerationLogEntityService } from '@/core/entities/ModerationLogEntityService.js';
 import { sqlLikeEscape } from '@/misc/sql-like-escape.js';
+import { moderationLogTypes } from '@/types.js';
 
 export const meta = {
 	tags: ['admin'],
@@ -84,6 +85,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const query = this.queryService.makePaginationQuery(this.moderationLogsRepository.createQueryBuilder('log'), ps.sinceId, ps.untilId, ps.sinceDate, ps.untilDate);
+			query.andWhere('log.type IN (:...types)', { types: moderationLogTypes });
 
 			if (ps.type != null) {
 				query.andWhere('log.type = :type', { type: ps.type });

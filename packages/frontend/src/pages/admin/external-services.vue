@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</MkInput>
 							</SearchMarker>
 
-							<MkButton primary @click="save_googleAnalytics">{{ i18n.ts.save }}</MkButton>
+							<div class="_formActions"><MkButton primary @click="save_googleAnalytics">{{ i18n.ts.save }}</MkButton></div>
 						</div>
 					</MkFolder>
 				</SearchMarker>
@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</MkSwitch>
 							</SearchMarker>
 
-							<MkButton primary @click="save_deepl">{{ i18n.ts.save }}</MkButton>
+							<div class="_formActions"><MkButton primary @click="save_deepl">{{ i18n.ts.save }}</MkButton></div>
 						</div>
 					</MkFolder>
 				</SearchMarker>
@@ -77,7 +77,8 @@ function save_deepl() {
 		deeplIsPro: deeplIsPro.value,
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function save_googleAnalytics() {
@@ -85,7 +86,8 @@ function save_googleAnalytics() {
 		googleAnalyticsMeasurementId: googleAnalyticsMeasurementId.value,
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 const headerActions = computed(() => []);

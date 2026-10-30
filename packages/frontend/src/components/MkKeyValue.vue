@@ -16,9 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { } from 'vue';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
-import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 
 const props = withDefaults(defineProps<{
@@ -38,6 +36,7 @@ const copy_ = () => {
 .root {
 	&.oneline {
 		display: flex;
+		align-items: center;
 		// 标签按内容自适应宽度, 与数据之间只保留固定间距,
 		// 不再用 30%/70% 分栏导致短标签后出现大片空白
 		gap: 16px;

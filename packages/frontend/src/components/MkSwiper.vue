@@ -6,32 +6,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div
 	ref="rootEl"
-	:class="[$style.transitionRoot, { [$style.enableAnimation]: shouldAnimate }]"
+	:class="$style.transitionRoot"
 	@touchstart.passive="touchStart"
 	@touchmove.passive="touchMove"
 	@touchend.passive="touchEnd"
 >
-	<Transition
+	<div
+		ref="contentEl"
 		:class="[$style.transitionChildren, { [$style.swiping]: isSwipingForClass }]"
-		:enterActiveClass="$style.swipeAnimation_enterActive"
-		:leaveActiveClass="$style.swipeAnimation_leaveActive"
-		:enterFromClass="transitionName === 'swipeAnimationLeft' ? $style.swipeAnimationLeft_enterFrom : $style.swipeAnimationRight_enterFrom"
-		:leaveToClass="transitionName === 'swipeAnimationLeft' ? $style.swipeAnimationLeft_leaveTo : $style.swipeAnimationRight_leaveTo"
 		:style="`--swipe: ${pullDistance}px;`"
 	>
-		<div :key="transitionKey">
-			<slot></slot>
-		</div>
-	</Transition>
+		<slot></slot>
+	</div>
 </div>
 </template>
 <script lang="ts" setup>
-import { ref, useTemplateRef, computed, nextTick } from 'vue';
+import { ref, useTemplateRef, computed, nextTick, onBeforeUnmount, watch } from 'vue';
 import type { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import { isHorizontalSwipeSwiping as isSwiping } from '@/utility/touch.js';
 import { prefer } from '@/preferences.js';
 
 const rootEl = useTemplateRef('rootEl');
+const contentEl = useTemplateRef('contentEl');
 
 const tabModel = defineModel<string>('tab');
 
@@ -44,8 +40,20 @@ const emit = defineEmits<{
 }>();
 
 const shouldAnimate = computed(() => prefer.r.animation.value);
-const transitionKey = ref(0);
-const transitionName = ref<'swipeAnimationLeft' | 'swipeAnimationRight'>('swipeAnimationLeft');
+let swipeAnimation: Animation | null = null;
+let animationId = 0;
+
+function cancelSwipeAnimation() {
+	animationId++;
+	swipeAnimation?.cancel();
+	swipeAnimation = null;
+}
+
+watch(tabModel, () => {
+	swipeAnimation?.cancel();
+	swipeAnimation = null;
+}, { flush: 'sync' });
+onBeforeUnmount(cancelSwipeAnimation);
 
 // ▼ しきい値 ▼ //
 
@@ -80,6 +88,7 @@ function touchStart(event: TouchEvent) {
 
 	if (hasSomethingToDoWithXSwipe(event.target as HTMLElement)) return;
 
+	cancelSwipeAnimation();
 	startScreenX = event.touches[0].screenX;
 	startScreenY = event.touches[0].screenY;
 	swipeDirectionLocked = null; // スワイプ方向をリセット
@@ -180,13 +189,20 @@ function touchEnd(event: TouchEvent) {
 }
 
 function switchBySwipe(key: string, direction: 'left' | 'right') {
-	// 只有触摸滑动需要整页切换动画，点击标签时保留内容容器和子组件。
-	if (shouldAnimate.value) {
-		transitionName.value = direction === 'left' ? 'swipeAnimationLeft' : 'swipeAnimationRight';
-		transitionKey.value++;
-	}
+	cancelSwipeAnimation();
 	tabModel.value = key;
 	emit('swiped', key, direction);
+	if (!shouldAnimate.value) return;
+	const request = animationId;
+	void nextTick(() => {
+		const el = contentEl.value;
+		if (request !== animationId || tabModel.value !== key || !el?.isConnected || !shouldAnimate.value) return;
+		// 在同一宿主上播放入场，不能重建 slot 而销毁里面的分页缓存。
+		swipeAnimation = el.animate([
+			{ transform: direction === 'left' ? 'translateX(calc(100% + 24px))' : 'translateX(calc(-100% - 24px))' },
+			{ transform: 'translateX(0)' },
+		], { duration: 300, easing: 'cubic-bezier(0.65, 0.05, 0.36, 1)' });
+	});
 }
 
 /** 横スワイプに関与する可能性のある要素を調べる */
@@ -221,29 +237,6 @@ function hasSomethingToDoWithXSwipe(el: HTMLElement) {
 .transitionChildren {
 	grid-area: 1 / 1 / 2 / 2;
 	transform: translateX(var(--swipe));
-}
-
-.enableAnimation .transitionChildren {
-	&.swipeAnimation_enterActive,
-	&.swipeAnimation_leaveActive {
-		transition: transform .3s cubic-bezier(0.65, 0.05, 0.36, 1);
-	}
-
-	// 退场内容不再撑高网格，卡片立即按当前标签的内容确定高度。
-	&.swipeAnimation_leaveActive {
-		position: absolute;
-		inset: 0 0 auto;
-	}
-
-	&.swipeAnimationRight_leaveTo,
-	&.swipeAnimationLeft_enterFrom {
-		transform: translateX(calc(100% + 24px));
-	}
-
-	&.swipeAnimationRight_enterFrom,
-	&.swipeAnimationLeft_leaveTo {
-		transform: translateX(calc(-100% - 24px));
-	}
 }
 
 .swiping {

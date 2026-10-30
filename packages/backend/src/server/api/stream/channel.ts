@@ -29,10 +29,6 @@ export default abstract class Channel {
 		return this.connection.user;
 	}
 
-	protected get userProfile() {
-		return this.connection.userProfile;
-	}
-
 	protected get following() {
 		return this.connection.following;
 	}
@@ -45,8 +41,8 @@ export default abstract class Channel {
 		return this.connection.userIdsWhoMeMutingRenotes;
 	}
 
-	protected get userIdsWhoBlockingMe() {
-		return this.connection.userIdsWhoBlockingMe;
+	protected get blockedUserIds() {
+		return this.connection.blockedUserIds;
 	}
 
 	protected get userMutedInstances() {
@@ -107,12 +103,12 @@ export default abstract class Channel {
 	 */
 	protected isNoteMutedOrBlocked(note: Packed<'Note'>): boolean {
 		// 流れてきたNoteがインスタンスミュートしたインスタンスが関わる
-		if (isInstanceMuted(note, new Set<string>(this.userProfile?.mutedInstances ?? []))) return true;
+		if (isInstanceMuted(note, this.userMutedInstances)) return true;
 
 		// 流れてきたNoteがミュートしているユーザーが関わる
 		if (isUserRelated(note, this.userIdsWhoMeMuting)) return true;
 		// 流れてきたNoteがブロックされているユーザーが関わる
-		if (isUserRelated(note, this.userIdsWhoBlockingMe)) return true;
+		if (isUserRelated(note, this.blockedUserIds)) return true;
 
 		// 流れてきたNoteがリノートをミュートしてるユーザが行ったもの
 		if (isRenotePacked(note) && !isQuotePacked(note) && this.userIdsWhoMeMutingRenotes.has(note.user.id)) return true;

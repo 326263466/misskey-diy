@@ -9,9 +9,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span>{{ title ?? 'YouTube' }}</span>
 	</template>
 
-	<div class="poamfof">
-		<MkLoading v-if="fetching || !iframeLoaded"/>
-		<div v-if="!fetching && player?.url != null" class="player">
+	<div :class="$style.root">
+		<div v-if="fetching || !iframeLoaded" :class="$style.loading">
+			<MkLoading/>
+		</div>
+		<div v-if="!fetching && player?.url != null" :class="$style.player">
 			<iframe
 				:src="transformPlayerUrl(player.url)"
 				frameborder="0"
@@ -92,20 +94,32 @@ const onFrameLoad = (): void => {
 void ytFetch();
 </script>
 
-<style lang="scss">
-.poamfof {
+<style lang="scss" module>
+.root {
 	position: relative;
 	overflow: hidden;
 	height: 100%;
+}
 
-	.player {
-		position: absolute;
-		inset: 0;
+.loading {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
 
-		iframe {
-			width: 100%;
-			height: 100%;
-		}
+	> :first-child {
+		padding: 0;
 	}
 }
+
+.player {
+	position: absolute;
+	inset: 0;
+
+	iframe {
+		width: 100%;
+		height: 100%;
+	}
+}
+
 </style>

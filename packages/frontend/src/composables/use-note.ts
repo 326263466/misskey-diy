@@ -17,7 +17,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import * as sound from '@/utility/sound.js';
 import * as os from '@/os.js';
 import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
-import { getNoteClipMenu, getNoteMenu, getRenoteMenu, getAbuseNoteMenu, getCopyNoteLinkMenu } from '@/utility/get-note-menu.js';
+import { getNoteClipMenu, getNoteMenu, getRenoteMenu, getCopyNoteLinkMenu } from '@/utility/get-note-menu.js';
 import { getMyRenoteId, noteEvents, unregisterMyRenote, useNoteCapture, useNoteCaptureVisibility } from '@/composables/use-note-capture.js';
 import { deepClone } from '@/utility/clone.js';
 import { claimAchievement } from '@/utility/achievements.js';
@@ -27,6 +27,7 @@ import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
+import { isBlockedRelationError, isNoteBlocked } from '@/utility/user-blocking.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import type { DI as DIType } from '@/di.js';
@@ -165,6 +166,7 @@ export function useNote(
 	// mutedはミュート解除の操作で書き換わるのでrefだが、hardMutedは解除できないのでリアクティブにしない
 	const muted = ref($i ? checkNoteWordMute(appearNote, $i, $i.mutedWords) || checkBuiltinSoftMute(appearNote, inTimeline && !tl_withSensitive.value) : false);
 	const hardMuted = props.withHardMute && $i ? checkNoteWordMute(appearNote, $i, $i.hardMutedWords) : false;
+	const blocked = computed(() => isNoteBlocked(rawNote));
 
 	// 導出値
 	// rawNote / appearNote / $i.id / prefer.s は変化しないので一度だけ計算する
@@ -178,7 +180,7 @@ export function useNote(
 	const renoteCollapsed = ref(prefer.s.collapseRenotes && isRenote && (($i && ($i.id === rawNote.userId || $i.id === appearNote.userId)) || (getMyReactions($reactionNote).length > 0)));
 	if (els.viewEl != null) {
 		useNoteViews(els.viewEl, computed(() => appearNote.id), computed(() =>
-			!props.mock && !hideByPlugin && !hardMuted && muted.value === false && !isDeleted.value &&
+			!props.mock && !blocked.value && !hideByPlugin && !hardMuted && muted.value === false && !isDeleted.value &&
 			!isRenoteTargetDeleted.value && !renoteCollapsed.value && !appearNote.isDeleted && !appearNote.isHidden &&
 			(appearNote.cw == null || showContent.value)));
 	}
@@ -237,7 +239,13 @@ export function useNote(
 		const renoteNoteId = explicitRenoteNoteId ?? (isMyRenote ? rawNote.id : null);
 		if (!isRenote || renoteNoteId !== rawNote.id || (!isMyRenote && !$i?.isModerator && !$i?.isAdmin)) return;
 
-		await misskeyApi('notes/delete', { noteId: renoteNoteId });
+		// 失败提示由 apiWithDialog 处理
+		try {
+			await os.apiWithDialog('notes/delete', { noteId: renoteNoteId });
+		} catch {
+			return;
+		}
+		os.toast(i18n.ts.unrenoted, 'success');
 		unregisterMyRenote(renoteTargetId!, renoteNoteId);
 		const countedRenoteId = !isRenoteTargetDeleted.value && appearNote.userId !== $i?.id && $i?.isBot !== true
 			? renoteTargetId
@@ -289,8 +297,8 @@ export function useNote(
 			if (appearNote.text && appearNote.text.length > 100 && (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 3)) {
 				claimAchievement('reactWithoutRead');
 			}
-		} catch {
-			os.toast(i18n.ts.somethingHappened, 'error');
+		} catch (err) {
+			os.toast(isBlockedRelationError(err) ? i18n.ts.blockedRelation : i18n.ts.somethingHappened, 'error');
 		} finally {
 			pendingReactions.delete(normalized);
 		}
@@ -449,25 +457,21 @@ export function useNote(
 			menuItems.push({
 				type: 'link',
 				text: i18n.ts.viewRenotedChannel,
-				icon: 'ti ti-device-tv',
+				icon: 'ti ti-broadcast',
 				to: `/channels/${props.note.channelId}`,
 			});
 		}
 
 		menuItems.push(getCopyNoteLinkMenu(rawNote, i18n.ts.copyLinkRenote));
-		menuItems.push({ type: 'divider' });
 
+		// 纯转发没有自己的内容，举报原帖或转发者即可，这里不单独提供举报。
 		if (isMyRenote) {
-			menuItems.push(getUnrenote());
-			os.popupMenu(menuItems, els.renoteButton?.value);
-		} else {
-			menuItems.push(getAbuseNoteMenu(rawNote, i18n.ts.reportAbuseRenote));
-			if ($i?.isModerator || $i?.isAdmin) {
-				menuItems.push(getUnrenote(rawNote.id));
-			}
-
-			os.popupMenu(menuItems, els.renoteButton?.value);
+			menuItems.push({ type: 'divider' }, getUnrenote());
+		} else if ($i?.isModerator || $i?.isAdmin) {
+			menuItems.push({ type: 'divider' }, getUnrenote(rawNote.id));
 		}
+
+		os.popupMenu(menuItems, els.renoteButton?.value);
 	}
 
 	// フォーカス制御
@@ -493,6 +497,7 @@ export function useNote(
 		translation,
 		muted,
 		hardMuted,
+		blocked,
 		renoteCollapsed,
 		isFavorited,
 		favoriting,

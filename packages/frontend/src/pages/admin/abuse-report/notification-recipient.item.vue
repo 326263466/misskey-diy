@@ -4,26 +4,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root" class="_panel _gaps_s">
-	<div :class="$style.rightDivider" style="width: 80px;"><span :class="`ti ${methodIcon}`"></span> {{ methodName }}</div>
-	<div :class="$style.rightDivider" style="flex: 0.5">{{ entity.name }}</div>
-	<div :class="$style.rightDivider" style="flex: 1">
+<tr>
+	<td><span :class="`ti ${methodIcon}`" aria-hidden="true"></span> {{ methodName }}</td>
+	<td class="_adminTableMain">{{ entity.name }}</td>
+	<td class="_adminTableMain">
 		<div v-if="method === 'email' && user">
 			{{ i18n.ts._abuseReport._notificationRecipient.notifiedUser }}: <MkUserName :user="user"/><template v-if="user.name">({{ user.username }})</template>
 		</div>
 		<div v-if="method === 'webhook' && systemWebhook">
 			{{ `${i18n.ts._abuseReport._notificationRecipient.notifiedWebhook}: ` + systemWebhook.name }}
 		</div>
-	</div>
-	<div :class="$style.recipientButtons" style="margin-left: auto">
-		<button :class="$style.recipientButton" @click="onEditButtonClicked()">
-			<span class="ti ti-settings"></span>
-		</button>
-		<button :class="$style.recipientButton" @click="onDeleteButtonClicked()">
-			<span class="ti ti-trash"></span>
-		</button>
-	</div>
-</div>
+	</td>
+	<td class="_adminTableActions">
+		<div class="_adminTableTools">
+			<button type="button" class="_textButton" @click="onEditButtonClicked()">
+				<span class="ti ti-settings" aria-hidden="true"></span> {{ i18n.ts.edit }}
+			</button>
+			<button type="button" class="_textButton" :style="{ color: 'var(--MI_THEME-error)' }" @click="onDeleteButtonClicked()">
+				<span class="ti ti-trash" aria-hidden="true"></span> {{ i18n.ts.delete }}
+			</button>
+		</div>
+	</td>
+</tr>
 </template>
 
 <script setup lang="ts">
@@ -74,39 +76,3 @@ function onDeleteButtonClicked() {
 	emit('delete', entity.value.id);
 }
 </script>
-
-<style module lang="scss">
-.root {
-	display: flex;
-	flex-direction: row;
-	justify-content: center;
-	align-items: center;
-	padding: 4px 8px;
-}
-
-.rightDivider {
-	border-right: var(--MI-divider);
-}
-
-.recipientButtons {
-	display: flex;
-	flex-direction: row;
-	justify-content: center;
-	align-items: center;
-	margin-right: -4;
-}
-
-.recipientButton {
-	background-color: transparent;
-	border: none;
-	border-radius: 9999px;
-	box-sizing: border-box;
-	margin-top: -2px;
-	margin-bottom: -2px;
-	padding: 8px;
-
-	&:hover {
-		background-color: var(--MI_THEME-buttonBg);
-	}
-}
-</style>

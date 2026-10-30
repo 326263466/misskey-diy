@@ -44,6 +44,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				>
 					<template #label>{{ i18n.ts.display }}</template>
 				</MkRadios>
+				<MkInput v-model="autoArchiveAt" type="datetime-local">
+					<template #label>{{ i18n.ts._announcement.autoArchiveAt }}</template>
+					<template #caption>{{ i18n.ts._announcement.autoArchiveAtDescription }}</template>
+				</MkInput>
 				<MkSwitch v-model="needConfirmationToRead">
 					{{ i18n.ts._announcement.needConfirmationToRead }}
 					<template #caption>{{ i18n.ts._announcement.needConfirmationToReadDescription }}</template>
@@ -61,25 +65,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
+import type { ApiWithDialogCustomErrors } from '@/os.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import * as os from '@/os.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import MkTextarea from '@/components/MkTextarea.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkRadios from '@/components/MkRadios.vue';
+import { formatDateTimeString } from '@/utility/format-time-string.js';
 
-type AdminAnnouncementType = Misskey.entities.AdminAnnouncementsCreateRequest & { id: string; };
+type AdminAnnouncementType = Misskey.entities.AdminAnnouncementsListResponse[number];
+type AdminAnnouncementUpdate = Misskey.entities.AdminAnnouncementsCreateRequest & { id: string; };
 
 const props = defineProps<{
 	user: Misskey.entities.User,
-	announcement?: Required<AdminAnnouncementType>,
+	announcement?: AdminAnnouncementType,
 }>();
 
 const emit = defineEmits<{
-	(ev: 'done', v: { deleted?: boolean; updated?: AdminAnnouncementType; created?: AdminAnnouncementType; }): void,
+	(ev: 'done', v: { deleted?: boolean; updated?: AdminAnnouncementUpdate; created?: Misskey.entities.AdminAnnouncementsCreateResponse; }): void,
 	(ev: 'closed'): void
 }>();
 
@@ -91,9 +97,29 @@ const validContent = computed(() => (title.value === props.announcement?.title |
 const icon = ref(props.announcement ? props.announcement.icon : 'info');
 const display = ref(props.announcement ? props.announcement.display : 'dialog');
 const needConfirmationToRead = ref(props.announcement ? props.announcement.needConfirmationToRead : false);
+const initialAutoArchiveAt = props.announcement?.autoArchiveAt ? formatDateTimeString(new Date(props.announcement.autoArchiveAt), 'yyyy-MM-ddTHH:mm') : '';
+const autoArchiveAt = ref(initialAutoArchiveAt);
+
+const createAnnouncementErrors: ApiWithDialogCustomErrors = {
+	'2a892bd5-487d-46a2-a5fe-3d85ad51defe': {
+		title: i18n.ts._announcement.autoArchiveAt,
+		text: i18n.ts._announcement.autoArchiveAtMustBeInFuture,
+	},
+};
 
 async function done() {
-	if (!validContent.value) return;
+	const autoArchiveAtMs = props.announcement?.autoArchiveAt != null && autoArchiveAt.value === initialAutoArchiveAt
+		? new Date(props.announcement.autoArchiveAt).getTime()
+		: autoArchiveAt.value === '' ? null : new Date(autoArchiveAt.value).getTime();
+	if (!props.announcement && autoArchiveAtMs != null && (Number.isNaN(autoArchiveAtMs) || autoArchiveAtMs <= Date.now())) {
+		await os.alert({
+			type: 'error',
+			title: i18n.ts._announcement.autoArchiveAt,
+			text: i18n.ts._announcement.autoArchiveAtMustBeInFuture,
+		});
+		return;
+	}
+
 	const params = {
 		title: title.value,
 		text: text.value,
@@ -102,6 +128,7 @@ async function done() {
 		display: display.value,
 		needConfirmationToRead: needConfirmationToRead.value,
 		userId: props.user.id,
+		autoArchiveAt: autoArchiveAtMs,
 	} satisfies Misskey.entities.AdminAnnouncementsCreateRequest;
 
 	if (props.announcement) {
@@ -109,6 +136,7 @@ async function done() {
 			...params,
 			id: props.announcement.id,
 		});
+		os.toast(i18n.ts.saved, 'success');
 
 		emit('done', {
 			updated: {
@@ -119,10 +147,10 @@ async function done() {
 
 		dialog.value?.close();
 	} else {
-		const created = await os.apiWithDialog('admin/announcements/create', params);
+		const created = await os.apiWithDialog('admin/announcements/create', params, undefined, createAnnouncementErrors);
 
 		emit('done', {
-			created: created,
+			created,
 		});
 
 		dialog.value?.close();
@@ -137,9 +165,11 @@ async function del() {
 	if (canceled) return;
 
 	if (props.announcement) {
-		await misskeyApi('admin/announcements/delete', {
+		// 失败提示由 apiWithDialog 处理
+		await os.apiWithDialog('admin/announcements/delete', {
 			id: props.announcement.id,
 		});
+		os.toast(i18n.ts.deleteSucceeded, 'success');
 	}
 
 	emit('done', {

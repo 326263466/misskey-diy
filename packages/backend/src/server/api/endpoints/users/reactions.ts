@@ -75,7 +75,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private roleService: RoleService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const userIdsWhoBlockingMe = me ? await this.cacheService.userBlockedCache.fetch(me.id) : new Set<string>();
+			const blockedUserIds = me ? await this.cacheService.getBlockedUserIds(me.id) : new Set<string>();
+			if (blockedUserIds.has(ps.userId)) return [];
 			const iAmModerator = me ? await this.roleService.isModerator(me) : false; // Moderators can see reactions of all users
 			if (!iAmModerator) {
 				const user = await this.cacheService.findUserById(ps.userId);
@@ -86,11 +87,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: ps.userId });
 				if ((me == null || me.id !== ps.userId) && !profile.publicReactions) {
 					throw new ApiError(meta.errors.reactionsNotPublic);
-				}
-
-				// early return if me is blocked by requesting user
-				if (userIdsWhoBlockingMe.has(ps.userId)) {
-					return [];
 				}
 			}
 
@@ -109,12 +105,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			this.queryService.generateVisibilityQuery(query, me);
 			this.queryService.generateBlockedHostQueryForNote(query);
 			this.queryService.generateSuspendedUserQueryForNote(query);
+			if (me) {
+				this.queryService.generateBlockedUserQueryForNotes(query, me);
+				this.queryService.generateBlockedUserQueryForNotes(query, me, { noteColumn: 'renote' });
+			}
 
 			const reactions = (await query
 				.limit(ps.limit)
 				.getMany()).filter(reaction => {
 				if (reaction.note?.userId === ps.userId) return true; // we can see reactions to note of requesting user
-				if (me && isUserRelated(reaction.note, userIdsWhoBlockingMe)) return false;
 				if (me && isUserRelated(reaction.note, userIdsWhoMeMuting)) return false;
 
 				return true;

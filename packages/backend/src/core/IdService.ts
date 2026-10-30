@@ -4,7 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { ulid } from 'ulid';
+import { encodeTime, ulid } from 'ulid';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { genAid, isSafeAidT, parseAid, parseAidFull } from '@/misc/id/aid.js';
@@ -54,6 +54,20 @@ export class IdService {
 			case 'meidg': return genMeidg(t);
 			case 'ulid': return ulid(t);
 			case 'objectid': return genObjectId(t);
+			default: throw new Error('unrecognized id generation method');
+		}
+	}
+
+	@bindThis
+	public getTimeBoundary(time: number): string {
+		// 范围查询必须包含边界毫秒内的所有 ID，不能使用随机后缀。
+		switch (this.method) {
+			case 'aid': return genAid(time).slice(0, 8).padEnd(10, '0');
+			case 'aidx': return genAidx(time).slice(0, 8).padEnd(16, '0');
+			case 'meid': return genMeid(time).slice(0, 12).padEnd(24, '0');
+			case 'meidg': return genMeidg(time).slice(0, 12).padEnd(24, '0');
+			case 'ulid': return encodeTime(time).padEnd(26, '0');
+			case 'objectid': return genObjectId(time).slice(0, 8).padEnd(24, '0');
 			default: throw new Error('unrecognized id generation method');
 		}
 	}

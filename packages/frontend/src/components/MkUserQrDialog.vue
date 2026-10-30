@@ -6,15 +6,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModalWindow
 	ref="dialog"
-	:width="400"
-	:height="550"
+	:width="340"
+	:height="430"
+	autoHeight
 	:withOkButton="false"
 	@close="dialog?.close()"
 	@closed="emit('closed')"
 	@esc="dialog?.close()"
 >
-	<template #header>{{ i18n.ts._qr.showUser }}</template>
-	<MkQrShow class="_spacer _spacerCard" :user="user"/>
+	<template #header>{{ i18n.ts.qr }}</template>
+	<MkQrShow compact :user="user"/>
 </MkModalWindow>
 </template>
 

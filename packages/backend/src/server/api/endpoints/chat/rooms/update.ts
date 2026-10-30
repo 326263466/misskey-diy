@@ -4,7 +4,8 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { contentTooLongError } from '@/misc/content-limits.js';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
@@ -56,8 +57,9 @@ export const paramDef = {
 		roomId: { type: 'string', format: 'misskey:id' },
 		name: { type: 'string', maxLength: 256 },
 		description: { type: 'string', maxLength: 1024 },
-		announcement: { type: 'string', maxLength: 2048 },
+		announcement: { type: 'string' },
 		joinPolicy: { type: 'string', enum: ['public', 'approval', 'invitation', 'closed'] },
+		joinQuestion: { type: 'string', maxLength: 200 },
 		avatarId: { type: 'string', format: 'misskey:id', nullable: true },
 		isSilenced: { type: 'boolean' },
 		silenceUntil: { type: 'string', nullable: true, maxLength: 40 },
@@ -81,7 +83,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.noSuchRoom);
 			}
 			const role = await this.chatService.getRoomRole(room, me.id);
-			if (role !== 'owner' && (role !== 'administrator' || ps.name !== undefined || ps.description !== undefined || ps.joinPolicy !== undefined || ps.avatarId !== undefined)) throw new ApiError(meta.errors.noSuchRoom);
+			if (role !== 'owner' && (role !== 'administrator' || ps.name !== undefined || ps.description !== undefined || ps.joinPolicy !== undefined || ps.joinQuestion !== undefined || ps.avatarId !== undefined)) throw new ApiError(meta.errors.noSuchRoom);
+			if (isContentTooLong(ps.announcement, CONTENT_LIMITS.chatRoomAnnouncement, room.announcement)) {
+				throw new ApiError(meta.errors.contentTooLong);
+			}
 			if (ps.avatarId != null) {
 				const avatar = await this.driveFilesRepository.findOneBy({ id: ps.avatarId, userId: me.id });
 				if (avatar == null) throw new ApiError(meta.errors.noSuchAvatar);
@@ -93,6 +98,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				description: ps.description,
 				announcement: ps.announcement,
 				joinPolicy: ps.joinPolicy,
+				joinQuestion: ps.joinQuestion,
 				avatarId: ps.avatarId,
 				isSilenced: ps.isSilenced,
 				silenceUntil: ps.silenceUntil === undefined ? undefined : ps.silenceUntil === null ? null : new Date(ps.silenceUntil),

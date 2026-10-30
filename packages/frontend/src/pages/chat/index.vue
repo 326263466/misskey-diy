@@ -4,53 +4,77 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="container" :class="$style.container">
+<div ref="container" :class="[$style.container, { [$style.withWindowControls]: showFullPageWindowControls }]">
 <div :class="[$style.layout, { [$style.hasSelection]: selectedTo != null }]">
 	<aside :class="$style.conversations" role="navigation" :aria-label="i18n.ts._chat.history">
-		<header :class="$style.conversationsHeader">
-			<label v-if="searchSelected" :class="$style.search">
-				<i class="ti ti-search" aria-hidden="true"></i>
-				<input ref="searchInput" v-model="query" type="search" :placeholder="i18n.ts.search" :aria-label="i18n.ts.search" autocomplete="off">
-			</label>
-			<span v-else :class="$style.listTitle">{{ i18n.ts.chat }}</span>
-			<button v-tooltip="i18n.ts.more" type="button" class="_button" :class="$style.menuButton" :aria-label="i18n.ts.more" aria-haspopup="menu" @click="openMenu">
-				<i class="ti ti-plus" aria-hidden="true"></i>
-			</button>
-		</header>
-		<div class="_scrollbarOnHover" :class="$style.conversationList">
-			<MkChatHistories :key="historiesVersion" all compact hideLoading :selectedTo="selectedTo" :query="searchSelected ? query : ''" :roomsOnly="groupsSelected"/>
+		<div :class="$style.conversationToolbar">
+			<header :class="$style.conversationsHeader">
+				<div :class="$style.titleBlock">
+					<span :class="$style.listTitle">{{ i18n.ts.chat }}</span>
+				</div>
+				<button v-tooltip="i18n.ts.more" type="button" class="_button" :class="$style.menuButton" :aria-label="i18n.ts.more" aria-haspopup="menu" @click="openMenu">
+					<i class="ti ti-dots" aria-hidden="true"></i>
+				</button>
+			</header>
+			<div :class="$style.navigation">
+				<div :class="$style.search">
+					<i class="ti ti-search" aria-hidden="true"></i>
+					<input ref="searchInput" v-model="query" type="search" :placeholder="i18n.ts._chat.searchMessages" :aria-label="i18n.ts._chat.searchMessages" autocomplete="off" enterkeyhint="search" @keydown="onSearchKeydown">
+					<button v-if="query" type="button" class="_button" :class="$style.clearSearch" :aria-label="i18n.ts.clear" @click="clearSearch">
+						<i class="ti ti-x" aria-hidden="true"></i>
+					</button>
+				</div>
+				<nav :class="$style.tabs" :aria-label="i18n.ts.chat">
+					<MkA to="/chat" :class="[$style.tab, { [$style.active]: chatSelected }]" :aria-current="chatSelected ? 'page' : undefined">
+						<i :class="navigationIcons.chat" aria-hidden="true"></i>{{ i18n.ts.chat }}
+					</MkA>
+					<MkA to="/chat/groups" :class="[$style.tab, { [$style.active]: groupsSelected }]" :aria-current="groupsSelected ? 'page' : undefined">
+						<i class="ti ti-users" aria-hidden="true"></i>{{ i18n.ts._chat.groups }}
+					</MkA>
+				</nav>
+			</div>
 		</div>
-		<nav :class="$style.tabs" :aria-label="i18n.ts.chat">
-			<MkA to="/chat" :class="[$style.tab, { [$style.active]: !groupsSelected && !searchSelected }]" :aria-current="!groupsSelected && !searchSelected ? 'page' : undefined">
-				<i class="ti ti-message-circle" aria-hidden="true"></i>{{ i18n.ts.chat }}
-			</MkA>
-			<MkA to="/chat/groups" :class="[$style.tab, { [$style.active]: groupsSelected }]" :aria-current="groupsSelected ? 'page' : undefined">
-				<i class="ti ti-users" aria-hidden="true"></i>{{ i18n.ts._chat.groups }}
-			</MkA>
-			<MkA to="/chat/search" :class="[$style.tab, { [$style.active]: searchSelected }]" :aria-current="searchSelected ? 'page' : undefined">
-				<i class="ti ti-search" aria-hidden="true"></i>{{ i18n.ts.search }}
-			</MkA>
-		</nav>
+		<div :class="$style.conversationViewport">
+			<div :class="$style.conversationList" tabindex="0" :aria-label="i18n.ts._chat.history">
+				<MkChatHistories :key="historiesVersion" all compact hideLoading :selectedTo="selectedTo" :query="query" :roomsOnly="groupsSelected"/>
+			</div>
+		</div>
 	</aside>
 	<main :class="$style.content">
 		<NestedRouterView :initialRoute="initialRoute" hideLoading/>
 	</main>
 </div>
+<div v-if="showFullPageWindowControls" :class="$style.windowControls">
+	<button v-tooltip="i18n.ts.windowMinimize" type="button" class="_button" :class="$style.windowControl" :aria-label="i18n.ts.windowMinimize" @click="fullPageChatControls?.minimize()">
+		<i class="ti ti-minus" aria-hidden="true"></i>
+	</button>
+	<button v-tooltip="i18n.ts._chat.openChatWindow" type="button" class="_button" :class="$style.windowControl" :aria-label="i18n.ts._chat.openChatWindow" @click="fullPageChatControls?.restoreWindow()">
+		<i class="ti ti-arrows-minimize" aria-hidden="true"></i>
+	</button>
+</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, useTemplateRef, watch } from 'vue';
+import { computed, defineAsyncComponent, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, useTemplateRef } from 'vue';
 import type { Ref } from 'vue';
+import { onSearchKeydown } from '@/utility/search-keydown.js';
 import type { PageMetadata } from '@/page.js';
 import { definePage, provideMetadataReceiver } from '@/page.js';
 import { i18n } from '@/i18n.js';
+import { navigationIcons } from '@/navigation-icons.js';
 import { useRouter } from '@/router.js';
 import MkChatHistories from '@/components/MkChatHistories.vue';
 import * as os from '@/os.js';
+import { deviceKind } from '@/utility/device-kind.js';
 
 const router = useRouter();
 const floatingLayout = inject<Readonly<Ref<boolean>> | null>('chatFloatingLayout', null);
+const mobileLayout = inject<Readonly<Ref<boolean>>>('chatMobileLayout', computed(() => deviceKind === 'smartphone' || window.innerWidth <= 500));
+const fullPageChatControls = inject<{
+	minimize: () => void;
+	restoreWindow: () => void;
+} | null>('chatFullPageControls', null);
 const container = useTemplateRef('container');
 const compactLayout = ref(floatingLayout?.value ?? window.matchMedia('(max-width: 800px)').matches);
 const layoutObserver = new ResizeObserver(([entry]) => { compactLayout.value = entry.contentRect.width <= 800; });
@@ -60,13 +84,20 @@ const query = ref('');
 const searchInput = useTemplateRef('searchInput');
 const historiesVersion = ref(0);
 const currentPath = computed(() => router.currentRef.value._parsedRoute.fullPath.split(/[?#]/)[0]);
-const groupsSelected = computed(() => currentPath.value === '/chat/groups');
-const searchSelected = computed(() => currentPath.value === '/chat/search');
-const metadata = ref<PageMetadata>({ title: i18n.ts.chat, icon: 'ti ti-message-circle' });
+// 群聊邀请、已加入和已创建的群聊从“更多”菜单进入，都归在群组标签下
+const roomSectionPaths = ['/chat/invitations', '/chat/joining-rooms', '/chat/owned-rooms'];
+const groupsSelected = computed(() => currentPath.value === '/chat/groups' || roomSectionPaths.includes(currentPath.value));
+const chatSelected = computed(() => !groupsSelected.value);
+const metadata = ref<PageMetadata>({ title: i18n.ts.chat, icon: navigationIcons.chat });
 const selectedTo = computed(() => {
-	const path = router.currentRef.value._parsedRoute.fullPath;
-	return path.startsWith('/chat/user/') || path.startsWith('/chat/room/') ? path : null;
+	const roomPage = currentPath.value.match(/^\/chat\/room\/([^/]+)\/(?:members|announcement)\/?$/);
+	if (roomPage) return `/chat/room/${roomPage[1]}`;
+	if (currentPath.value.startsWith('/chat/user/') || currentPath.value.startsWith('/chat/room/') || currentPath.value.startsWith('/chat/messages/')) return currentPath.value;
+	// 窄屏下有选中项才显示右侧内容
+	if (roomSectionPaths.includes(currentPath.value)) return currentPath.value;
+	return null;
 });
+const showFullPageWindowControls = computed(() => fullPageChatControls != null && floatingLayout?.value !== true && !mobileLayout.value && selectedTo.value == null);
 
 onMounted(() => {
 	if (!container.value) return;
@@ -78,20 +109,21 @@ onBeforeUnmount(() => {
 	layoutObserver.disconnect();
 });
 
-watch(searchSelected, async selected => {
-	if (!selected) return;
-	await nextTick();
-	searchInput.value?.focus();
-}, { immediate: true });
+function clearSearch() {
+	query.value = '';
+	void nextTick(() => searchInput.value?.focus());
+}
+
+async function startDirectMessage() {
+	const user = await os.selectUser({ includeSelf: false, localOnly: true });
+	router.push('/chat/user/:userId', { params: { userId: user.id } });
+}
 
 function openMenu(ev: MouseEvent) {
 	os.popupMenu([{
 		text: i18n.ts._chat.newDirectMessage,
 		icon: 'ti ti-message-plus',
-		action: async () => {
-			const user = await os.selectUser({ includeSelf: false, localOnly: true });
-			router.push('/chat/user/:userId', { params: { userId: user.id } });
-		},
+		action: () => { void startDirectMessage(); },
 	}, {
 		text: i18n.ts._chat.createRoom,
 		icon: 'ti ti-users-plus',
@@ -100,6 +132,21 @@ function openMenu(ev: MouseEvent) {
 		text: i18n.ts._chat.joinRoom,
 		icon: 'ti ti-login-2',
 		action: () => { void joinRoom(); },
+	}, { type: 'divider' }, {
+		text: i18n.ts._chat.invitations,
+		icon: 'ti ti-mail-opened',
+		active: currentPath.value === '/chat/invitations',
+		action: () => router.pushByPath('/chat/invitations'),
+	}, {
+		text: i18n.ts._chat.joiningRooms,
+		icon: 'ti ti-users-group',
+		active: currentPath.value === '/chat/joining-rooms',
+		action: () => router.pushByPath('/chat/joining-rooms'),
+	}, {
+		text: i18n.ts._chat.yourRooms,
+		icon: 'ti ti-crown',
+		active: currentPath.value === '/chat/owned-rooms',
+		action: () => router.pushByPath('/chat/owned-rooms'),
 	}], ev.currentTarget ?? ev.target);
 }
 
@@ -122,20 +169,50 @@ function joinRoom() {
 	});
 }
 
+provide('chatQuickActions', {
+	startDirectMessage: () => { void startDirectMessage(); },
+	createRoom,
+	joinRoom,
+});
+
 definePage(() => metadata.value);
 provideMetadataReceiver(getter => { metadata.value = getter(); });
 </script>
 
 <style lang="scss" module>
+@use '../../styles/search.scss' as search;
+
+@use '../../styles/chat-header.scss';
+
 .container {
+	position: relative;
 	container-type: inline-size;
 	height: 100%;
 	min-height: 0;
+	overflow: clip;
+	background: var(--MI_THEME-panel);
+}
+
+.windowControls {
+	position: absolute;
+	top: 0;
+	right: 12px;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 56px;
+}
+
+.windowControl {
+	@include chat-header.plainAction;
 }
 
 .layout {
+	// 桌面 IM 使用满宽双栏，外框保持直角；圆角只用于列表项和可交互控件。
 	display: grid;
-	grid-template-columns: minmax(200px, var(--MI-chatListWidth, 220px)) minmax(0, 1fr);
+	grid-template-columns: clamp(280px, 25vw, 336px) minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
 	height: 100%;
 	min-height: 0;
 	overflow: clip;
@@ -143,88 +220,119 @@ provideMetadataReceiver(getter => { metadata.value = getter(); });
 }
 
 .conversations {
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
 	min-width: 0;
 	min-height: 0;
+	overflow: clip;
 	border-right: var(--MI-divider);
 	background: var(--MI_THEME-panel);
 }
 
+.conversationToolbar {
+	min-width: 0;
+}
+
 .conversationsHeader {
 	display: flex;
-	flex-shrink: 0;
 	align-items: center;
 	gap: 8px;
-	height: 52px;
+	height: var(--MI-chatHeaderHeight);
 	box-sizing: border-box;
-	padding: 8px 12px;
+	padding: 0 12px 0 16px;
 	border-bottom: var(--MI-divider);
+	background: var(--MI_THEME-panel);
+}
+
+.titleBlock {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+	gap: 0;
 }
 
 .listTitle {
-	flex: 1;
 	min-width: 0;
-	padding-left: 4px;
-	font-size: 1.15em;
-	font-weight: 700;
+	overflow: hidden;
+	font-size: 1.125em;
+	font-weight: 600;
+	line-height: 1.2;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--MI_THEME-fg);
+}
+
+.navigation {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px 12px;
 }
 
 .search {
-	display: flex;
-	flex: 1;
-	align-items: center;
-	gap: 8px;
-	min-width: 0;
-	height: 36px;
+	@include search.container;
+	--MI-searchHeight: 34px;
+	width: 100%;
 	box-sizing: border-box;
-	padding: 0 10px;
-	border: 1px solid transparent;
 	border-radius: 8px;
-	background: var(--MI_THEME-buttonBg);
-	color: var(--MI_THEME-fgTransparentWeak);
-
-	&:focus-within { border-color: var(--MI_THEME-accent); }
-	> i { flex-shrink: 0; font-size: 1em; }
+	> i { @include search.icon; font-size: 14px; }
 	> input {
-		min-width: 0;
-		width: 100%;
-		padding: 0;
-		border: 0;
-		outline: 0;
-		background: transparent;
-		color: var(--MI_THEME-fg);
-		font: inherit;
-
-		&::placeholder { color: var(--MI_THEME-fgTransparentWeak); opacity: 1; }
+		@include search.input;
+		@include search.hideNativeClear;
 	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		transition: background-color 0.15s, border-color 0.15s;
+	}
+}
+
+.clearSearch {
+	@include search.clear;
+	> i { font-size: 13px; }
 }
 
 .menuButton {
-	display: grid;
-	flex: 0 0 28px;
-	place-items: center;
-	width: 28px;
-	height: 28px;
+	@include chat-header.action;
+	width: var(--MI-chatHeaderActionSize);
+	height: var(--MI-chatHeaderActionSize);
+	flex: 0 0 var(--MI-chatHeaderActionSize);
 	border-radius: 8px;
-	color: var(--MI_THEME-fgTransparentWeak);
-	font-size: 1em;
+	color: var(--MI_THEME-fgTransparent);
 	pointer-events: auto;
 
-	// 与聊天窗口的最小化、最大化、关闭按钮同一尺寸和悬停效果。
-	> i { font-size: 1.1em; }
-
-	&:hover {
-		background: var(--MI_THEME-buttonHoverBg);
+	&:hover:not(:disabled) {
 		color: var(--MI_THEME-fg);
 	}
-	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
+
+	> i { font-size: 14px; }
+}
+
+.conversationViewport {
+	// 滚动内容脱离网格尺寸计算，搜索栏和列表边界不随内容更新移动。
+	position: relative;
+	min-width: 0;
+	min-height: 0;
+	contain: size layout paint;
 }
 
 .conversationList {
-	flex: 1;
-	min-height: 0;
+	position: absolute;
+	inset: 0;
+	overflow-x: hidden;
 	overflow-y: auto;
+	overscroll-behavior: none;
+	overflow-anchor: none;
+	scrollbar-gutter: stable;
+	padding-bottom: var(--MI-minBottomSpacing);
+	box-sizing: border-box;
+	scroll-padding-bottom: var(--MI-minBottomSpacing);
+	background: var(--MI_THEME-panel);
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -2px;
+	}
 }
 
 .content {
@@ -232,16 +340,16 @@ provideMetadataReceiver(getter => { metadata.value = getter(); });
 	min-width: 0;
 	min-height: 0;
 	overflow: clip;
-	// 子路由尚未加载时保留会话底色，避免切换时闪出不同背景。
-	background-color: var(--MI_THEME-buttonBg);
+	// 子路由尚未加载时保留卡片底色，避免切换时闪出页面背景。
+	background: var(--MI_THEME-panel);
 }
 
 .tabs {
 	display: flex;
-	flex-shrink: 0;
 	gap: 4px;
-	padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
-	border-top: var(--MI-divider);
+	padding: 3px;
+	border-radius: 8px;
+	background: var(--MI_THEME-buttonBg);
 }
 
 .tab {
@@ -251,21 +359,38 @@ provideMetadataReceiver(getter => { metadata.value = getter(); });
 	justify-content: center;
 	gap: 6px;
 	min-width: 0;
-	min-height: 40px;
-	border-radius: 8px;
+	min-height: 32px;
+	padding: 0 8px;
+	box-sizing: border-box;
+	border: 1px solid transparent;
+	border-radius: 6px;
 	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: 13px;
 	text-decoration: none;
+	transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 
-	> i { font-size: 1.25em; }
-	&:hover { color: var(--MI_THEME-accent); }
-	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
-	&.active { color: var(--MI_THEME-accent); background: var(--MI_THEME-accentedBg); font-weight: 600; }
+	> i { font-size: 14px; }
+	&:hover {
+		background: var(--MI_THEME-buttonHoverBg);
+		color: var(--MI_THEME-fg);
+	}
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 1px; }
+
+	&.active {
+		background: var(--MI_THEME-panel);
+		border-color: var(--MI_THEME-divider); // divider-exempt: active room control outline
+		color: var(--MI_THEME-accent);
+		font-weight: 600;
+	}
 }
 
 @container (max-width: 800px) {
 	.conversationsHeader {
 		padding-right: calc(12px + var(--MI-chatWindowControlsWidth, 0px));
+	}
+
+	.withWindowControls .conversationsHeader {
+		padding-right: 74px;
 	}
 
 	.conversations {

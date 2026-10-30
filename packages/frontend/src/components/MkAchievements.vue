@@ -38,17 +38,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 				@keydown.space.prevent="isClickHere(item) && clickHere()"
 			>
 				<div :class="$style.icon">
-					<MkAchievementBadge :name="item.name"/>
+					<button
+						v-if="item.unlockedAt != null"
+						type="button"
+						class="_button"
+						:class="$style.iconButton"
+						:aria-label="`${getAchievementTitle(item)} ${i18n.ts.details}`"
+						aria-haspopup="dialog"
+						@click.stop="openDetails(item, $event)"
+					>
+						<MkAchievementBadge :name="item.name"/>
+					</button>
+					<MkAchievementBadge v-else :name="item.name"/>
 				</div>
 				<div :class="$style.body">
 					<div :class="$style.header">
-						<span :class="$style.title">{{ i18n.ts._achievements._types[`_${item.name}`].title }}</span>
+						<span :class="$style.title">{{ getAchievementTitle(item) }}</span>
 						<span v-if="item.unlockedAt != null" :class="$style.time">
 							<time v-tooltip="new Date(item.unlockedAt).toLocaleString()">{{ new Date(item.unlockedAt).getFullYear() }}/{{ new Date(item.unlockedAt).getMonth() + 1 }}/{{ new Date(item.unlockedAt).getDate() }}</time>
 						</span>
 					</div>
-					<div :class="$style.description">{{ withDescription ? i18n.ts._achievements._types[`_${item.name}`].description : '???' }}</div>
-					<div v-if="withDescription && 'flavor' in i18n.ts._achievements._types[`_${item.name}`]" :class="$style.flavor">{{ (i18n.ts._achievements._types[`_${item.name}`] as { flavor: string; }).flavor }}</div>
+					<div :class="$style.description">{{ withDescription ? getAchievementDescription(item) : '???' }}</div>
+					<div v-if="withDescription && getAchievementFlavor(item) != null" :class="$style.flavor">{{ getAchievementFlavor(item) }}</div>
 				</div>
 			</div>
 		</div>
@@ -60,9 +71,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 import * as Misskey from 'misskey-js';
 import { onMounted, ref, computed, watch, useTemplateRef } from 'vue';
 import MkAchievementBadge from '@/components/MkAchievementBadge.vue';
+import MkAchievementDetailDialog from '@/components/MkAchievementDetailDialog.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { getScrollContainer } from '@@/js/scroll.js';
 import { i18n } from '@/i18n.js';
+import * as os from '@/os.js';
 import { ACHIEVEMENT_TYPES, claimAchievement } from '@/utility/achievements.js';
 
 type AchievementName = typeof ACHIEVEMENT_TYPES[number];
@@ -120,6 +133,31 @@ const items = computed<AchievementItem[]>(() => {
 
 function isClickHere(item: AchievementItem): boolean {
 	return item.name === 'clickedClickHere' && item.unlockedAt == null;
+}
+
+function getAchievementTitle(item: AchievementItem): string {
+	return i18n.ts._achievements._types[`_${item.name}`].title;
+}
+
+function getAchievementDescription(item: AchievementItem): string {
+	return i18n.ts._achievements._types[`_${item.name}`].description;
+}
+
+function getAchievementFlavor(item: AchievementItem): string | null {
+	const achievement = i18n.ts._achievements._types[`_${item.name}`];
+	return 'flavor' in achievement ? achievement.flavor : null;
+}
+
+function openDetails(item: AchievementItem, ev: MouseEvent): void {
+	if (item.unlockedAt == null) return;
+	const { dispose } = os.popup(MkAchievementDetailDialog, {
+		name: item.name,
+		unlockedAt: item.unlockedAt,
+		withDescription: props.withDescription,
+		returnFocusTo: ev.currentTarget as HTMLElement,
+	}, {
+		closed: () => dispose(),
+	});
 }
 
 function _fetch_() {
@@ -254,6 +292,16 @@ onMounted(() => {
 .icon {
 	flex-shrink: 0;
 	margin-right: 12px;
+}
+
+.iconButton {
+	display: block;
+	border-radius: 100%;
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 3px;
+	}
 }
 
 .body {

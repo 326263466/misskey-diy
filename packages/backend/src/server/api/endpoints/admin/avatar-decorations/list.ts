@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import { DI } from '@/di-symbols.js';
 import { IdService } from '@/core/IdService.js';
 import { AvatarDecorationService } from '@/core/AvatarDecorationService.js';
 
@@ -64,6 +63,10 @@ export const meta = {
 					type: 'string',
 					optional: true, nullable: true,
 				},
+				scale: {
+					type: 'number',
+					optional: false, nullable: false,
+				},
 			},
 		},
 	},
@@ -100,6 +103,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				url: avatarDecoration.url,
 				roleIdsThatCanBeUsedThisDecoration: avatarDecoration.roleIdsThatCanBeUsedThisDecoration,
 				category: avatarDecoration.category,
+				scale: avatarDecoration.scale,
 			}));
 		});
 	}

@@ -147,6 +147,8 @@ async function submit(): Promise<void> {
 </script>
 
 <style lang="scss" module>
+@use '../styles/input.scss' as input;
+
 .content {
 	display: flex;
 	flex-direction: column;
@@ -226,22 +228,17 @@ async function submit(): Promise<void> {
 }
 
 .input {
+	@include input.field;
 	display: block;
 	width: 100%;
 	min-width: 0;
 	box-sizing: border-box;
 	padding: 12px;
-	border: 1px solid var(--MI_THEME-inputBorder);
 	border-radius: var(--MI-radius);
-	background: var(--MI_THEME-bg);
 	color: var(--MI_THEME-fg);
 	font: inherit;
 	resize: none;
 	line-height: 1.6;
-
-	&:focus-visible {
-		outline: 2px solid var(--MI_THEME-focus);
-	}
 }
 
 .hint {

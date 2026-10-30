@@ -49,7 +49,6 @@ import { copyToClipboard } from '@/utility/copy-to-clipboard';
 import MkDriveFileThumbnail from '@/components/MkDriveFileThumbnail.vue';
 import MkDraggable from '@/components/MkDraggable.vue';
 import * as os from '@/os.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
@@ -110,6 +109,7 @@ async function detachAndDeleteMedia(file: Misskey.entities.DriveFile) {
 	await os.apiWithDialog('drive/files/delete', {
 		fileId: file.id,
 	});
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 
 	globalEvents.emit('driveFilesDeleted', [file]);
 }
@@ -121,12 +121,13 @@ function toggleSensitive(file: Misskey.entities.DriveFile) {
 		return;
 	}
 
-	misskeyApi('drive/files/update', {
+	// 附件上的标记会立即变化；失败提示由 apiWithDialog 处理
+	os.apiWithDialog('drive/files/update', {
 		fileId: file.id,
 		isSensitive: !file.isSensitive,
 	}).then(() => {
 		emit('changeSensitive', file, !file.isSensitive);
-	});
+	}, () => {});
 }
 
 async function rename(file: Misskey.entities.DriveFile) {
@@ -138,13 +139,15 @@ async function rename(file: Misskey.entities.DriveFile) {
 		minLength: 1,
 	});
 	if (canceled || props.editing || props.disabled) return;
-	misskeyApi('drive/files/update', {
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('drive/files/update', {
 		fileId: file.id,
 		name: result,
 	}).then(() => {
 		emit('changeName', file, result);
 		file.name = result;
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {});
 }
 
 async function describe(file: Misskey.entities.DriveFile) {
@@ -157,12 +160,14 @@ async function describe(file: Misskey.entities.DriveFile) {
 		done: caption => {
 			if (props.editing || props.disabled) return;
 			let comment = caption.length === 0 ? null : caption;
-			misskeyApi('drive/files/update', {
+			// 失败提示由 apiWithDialog 处理
+			os.apiWithDialog('drive/files/update', {
 				fileId: file.id,
 				comment: comment,
 			}).then(() => {
 				file.comment = comment;
-			});
+				os.toast(i18n.ts.saved, 'success');
+			}, () => {});
 		},
 		closed: () => dispose(),
 	});

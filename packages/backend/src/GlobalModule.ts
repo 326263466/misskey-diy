@@ -38,14 +38,12 @@ const $db: Provider = {
 const $meilisearch: Provider = {
 	provide: DI.meilisearch,
 	useFactory: (config: Config) => {
-		if (config.fulltextSearch?.provider === 'meilisearch') {
-			if (!config.meilisearch) {
-				throw new Error('Meilisearch is enabled but no configuration is provided');
-			}
-
+		if (config.fulltextSearch.provider === 'meilisearch') {
+			if (!config.meilisearch) throw new Error('Meilisearch is enabled but no configuration is provided');
 			return new Meilisearch({
 				host: `${config.meilisearch.ssl ? 'https' : 'http'}://${config.meilisearch.host}:${config.meilisearch.port}`,
 				apiKey: config.meilisearch.apiKey,
+				timeout: 2500,
 			});
 		} else {
 			return null;

@@ -204,9 +204,6 @@ export const PREF_DEF = definePreferences({
 	statusbars: {
 		default: [] as StatusbarStore[],
 	},
-	serverDisconnectedBehavior: {
-		default: 'quiet' as 'quiet' | 'reload' | 'dialog',
-	},
 	nsfw: {
 		default: 'respect' as 'respect' | 'force' | 'ignore',
 	},
@@ -250,7 +247,7 @@ export const PREF_DEF = definePreferences({
 		default: true,
 	},
 	useStickyIcons: {
-		default: true,
+		default: false,
 	},
 	enableHighQualityImagePlaceholders: {
 		default: true,

@@ -4,10 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<component :is="link ? MkA : 'span'" ref="root" v-user-preview="preview ? user.id : undefined" v-bind="bound" class="_noSelect" :class="[$style.root, { [$style.animation]: animation, [$style.cat]: avatar.isCat, [$style.square]: squareAvatars }]" :style="{ color }" :title="preview ? '' : acct(user)" :aria-label="link ? acct(user) : undefined" @click="onClick">
+<component :is="link ? MkA : 'span'" ref="root" v-user-preview="preview ? user.id : undefined" v-bind="bound" class="_noSelect" :class="[$style.root, { [$style.animation]: animation, [$style.cat]: isCat, [$style.square]: squareAvatars }]" :style="{ color }" :title="preview ? '' : acct(user)" :aria-label="link ? acct(user) : undefined" :data-avatar-user-id="user.id" @click="onClick">
 	<MkImgWithBlurhash :class="$style.inner" :src="url" :hash="avatar.avatarBlurhash" :useBlurhash="prefer.s.enableHighQualityImagePlaceholders" :cover="true" :onlyAvgColor="true"/>
-	<MkUserOnlineIndicator v-if="indicator" :class="$style.indicator" :user="user" :tooltip="indicatorTooltip" title=""/>
-	<div v-if="avatar.isCat" :class="[$style.ears]">
+	<MkUserOnlineIndicator v-if="indicator && !imageOnly" :class="$style.indicator" :user="user" :tooltip="indicatorTooltip" title=""/>
+	<div v-if="isCat" :class="[$style.ears]">
 		<div :class="$style.earLeft">
 
 		</div>
@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, useTemplateRef } from 'vue';
+import { watch, ref, computed, useTemplateRef } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { extractAvgColorFromBlurhash } from '@@/js/extract-avg-color-from-blurhash.js';
 import MkImgWithBlurhash from '../MkImgWithBlurhash.vue';
@@ -62,6 +62,8 @@ const props = withDefaults(defineProps<{
 	indicatorTooltip?: boolean;
 	decorations?: DecorationEditorDecoration[];
 	forceShowDecoration?: boolean;
+	// 只显示头像图片，不显示挂件、猫耳和在线状态，用于表格等紧凑场景。
+	imageOnly?: boolean;
 }>(), {
 	target: null,
 	link: false,
@@ -70,14 +72,16 @@ const props = withDefaults(defineProps<{
 	indicatorTooltip: true,
 	decorations: undefined,
 	forceShowDecoration: false,
+	imageOnly: false,
 });
 
 const emit = defineEmits<{
 	(ev: 'click', v: PointerEvent): void;
 }>();
 
-const showDecoration = props.forceShowDecoration || prefer.s.showAvatarDecorations;
+const showDecoration = !props.imageOnly && (props.forceShowDecoration || prefer.s.showAvatarDecorations);
 const avatar = computed(() => getUserAvatar(props.user));
+const isCat = computed(() => !props.imageOnly && avatar.value.isCat);
 const root = useTemplateRef<HTMLElement | { $el: HTMLElement }>('root');
 const decorationRoot = computed(() => {
 	if (root.value == null || !showDecoration || (props.decorations ?? avatar.value.avatarDecorations).length === 0) return null;
@@ -110,8 +114,9 @@ function getDecorationAngle(decoration: Decoration | DecorationEditorDecoration)
 }
 
 function getDecorationScale(decoration: Decoration | DecorationEditorDecoration) {
-	const scaleX = decoration.flipH ? -1 : 1;
-	return scaleX === 1 ? undefined : `${scaleX} 1`;
+	const scale = decoration.scale ?? 1;
+	const scaleX = decoration.flipH ? -scale : scale;
+	return scaleX === 1 ? undefined : `${scaleX} ${scale}`;
 }
 
 function getDecorationOffset(decoration: Decoration | DecorationEditorDecoration) {
@@ -124,9 +129,13 @@ function getDecorationIsBrink(decoration: Decoration | DecorationEditorDecoratio
 	return 'blink' in decoration && decoration.blink === true;
 }
 
-const color = computed(() => {
-	const hash = avatar.value.avatarBlurhash;
-	return hash == null ? undefined : extractAvgColorFromBlurhash(hash);
+const color = ref<string | undefined>();
+
+watch(() => avatar.value.avatarBlurhash, () => {
+	if (avatar.value.avatarBlurhash == null) return;
+	color.value = extractAvgColorFromBlurhash(avatar.value.avatarBlurhash);
+}, {
+	immediate: true,
 });
 </script>
 
@@ -161,6 +170,8 @@ const color = computed(() => {
 
 .root {
 	position: relative;
+	// 挂件可越出头像绘制，但不向父层传播滚动溢出。
+	contain: layout;
 	isolation: isolate;
 	display: inline-block;
 	vertical-align: bottom;
@@ -266,12 +277,19 @@ const color = computed(() => {
 
 .decoration {
 	position: absolute;
-	// 装饰需覆盖在线状态，避免边框被状态图标截断。
+	// 挂件需覆盖在线状态，避免边框被状态图标截断。
 	z-index: 4;
 	top: -50%;
 	left: -50%;
 	width: 200%;
+	// 延迟加载前图片没有尺寸，保留方形区域，避免高度为 0 时可视检测落到头像上方而不加载。
+	aspect-ratio: auto 1;
 	pointer-events: none;
+
+	// 有尺寸但还没有 src 的图片会被浏览器画出默认边框，加载前先隐藏。
+	&:not([src]) {
+		visibility: hidden;
+	}
 }
 
 .decorationBlink {

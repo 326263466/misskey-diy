@@ -47,7 +47,7 @@ export class CheckoutService {
 			const existing = await this.orderService.findRequest(manager, userId, normalizedRequestId);
 			if (existing) {
 				if (existing.productId !== productId || existing.quantity !== quantity || existing.total !== total || existing.receipt.version !== expectedVersion) throw new RequestConflictError();
-				return { productId, quantity, points: await this.paymentService.balance(manager, userId), purchased: false, orderId: existing.id, deliveryText: existing.receipt.deliveryText, redemptionCode: existing.redemptionCode ? formatRedemptionCode(existing.redemptionCode) : null, feeRateBps: existing.feeRateBps, platformFee: existing.platformFee, sellerAmount: existing.sellerAmount };
+				return { productId, quantity, points: await this.paymentService.balance(manager, userId), purchased: false, orderId: existing.id, orderNumber: existing.number, deliveryText: existing.receipt.deliveryText, redemptionCode: existing.redemptionCode ? formatRedemptionCode(existing.redemptionCode) : null, feeRateBps: existing.feeRateBps, platformFee: existing.platformFee, sellerAmount: existing.sellerAmount };
 			}
 			if (!sellerId) throw new NoSuchProductError();
 			const product = await this.productService.lockForPurchase(manager, productId, sellerId);
@@ -64,7 +64,7 @@ export class CheckoutService {
 			const payment = await this.paymentService.settle(manager, userId, sellerId, order.id, product.name, quote);
 			await this.orderService.attachPayment(manager, order.id, payment);
 			await this.productService.recordSale(manager, product, quantity);
-			return { productId, quantity, points: payment.points, purchased: true, orderId: order.id, deliveryText: order.receipt.deliveryText, redemptionCode: order.redemptionCode ? formatRedemptionCode(order.redemptionCode) : null, feeRateBps: order.feeRateBps, platformFee: order.platformFee, sellerAmount: order.sellerAmount };
+			return { productId, quantity, points: payment.points, purchased: true, orderId: order.id, orderNumber: order.number, deliveryText: order.receipt.deliveryText, redemptionCode: order.redemptionCode ? formatRedemptionCode(order.redemptionCode) : null, feeRateBps: order.feeRateBps, platformFee: order.platformFee, sellerAmount: order.sellerAmount };
 		});
 	}
 }

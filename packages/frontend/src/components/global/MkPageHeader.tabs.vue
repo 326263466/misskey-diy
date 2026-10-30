@@ -10,10 +10,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button
 				v-for="t in tabs"
 				:key="t.key"
-				class="_button"
+				class="_button _tabUnderline"
 				:class="[$style.tab, {
 					[$style.active]: t.key != null && t.key === props.tab,
 					[$style.animate]: prefer.s.animation,
+					_tabUnderlineAnimated: prefer.s.animation,
 				}]"
 				@mousedown="(ev) => onTabMousedown(t, ev)"
 				@click="(ev) => onTabClick(t, ev)"
@@ -124,15 +125,14 @@ function onTabClick(t: Tab, ev: PointerEvent): void {
 }
 
 function onTabWheel(ev: WheelEvent) {
-	if (ev.deltaY !== 0 && ev.deltaX === 0) {
-		ev.preventDefault();
-		ev.stopPropagation();
-		tabsScroller.value?.scrollBy({
-			left: ev.deltaY,
-			behavior: 'instant',
-		});
-	}
-	return false;
+	const scroller = tabsScroller.value;
+	if (!scroller || ev.deltaY === 0 || ev.deltaX !== 0) return;
+	const previousLeft = scroller.scrollLeft;
+	scroller.scrollBy({ left: ev.deltaY, behavior: 'instant' });
+	// 仅消费实际横向滚动，标签不溢出或已到边界时交给正文。
+	if (scroller.scrollLeft === previousLeft) return;
+	ev.preventDefault();
+	ev.stopPropagation();
 }
 
 function enter(el: Element) {
@@ -214,7 +214,7 @@ function afterLeave(el: Element) {
 
 .tabsInner {
 	display: inline-flex;
-	gap: 20px;
+	gap: calc(var(--MI-margin) * 2);
 	height: var(--height);
 	white-space: nowrap;
 }
@@ -226,12 +226,21 @@ function afterLeave(el: Element) {
 	height: 100%;
 	font-weight: normal;
 
-	&:hover > .tabInner {
-		color: var(--MI_THEME-fgHighlighted);
+	&::after {
+		width: 50%;
+		border-radius: var(--MI-cardRadius);
 	}
 
-	&.active > .tabInner {
-		color: var(--MI_THEME-accent);
+	&:hover > .tabInner {
+		color: var(--MI_THEME-fg);
+	}
+
+	&.active {
+		--MI-tabUnderlineOpacity: 1;
+
+		> .tabInner {
+			color: var(--MI_THEME-fg);
+		}
 	}
 
 	&.animate > .tabInner {
@@ -242,7 +251,19 @@ function afterLeave(el: Element) {
 .tabInner {
 	display: flex;
 	align-items: center;
-	color: var(--MI_THEME-fgTransparent);
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+@container (max-width: 500px) {
+	.tabsInner {
+		gap: 0;
+	}
+
+	.tab {
+		box-sizing: border-box;
+		min-width: 48px;
+		padding-inline: 14px;
+	}
 }
 
 .tabIcon + .tabTitle {

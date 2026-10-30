@@ -580,7 +580,12 @@ function paste(event: ClipboardEvent): void {
 }
 
 function onKeydown(ev: KeyboardEvent) {
-	if (ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
+	if (ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) {
+		if (ev.key === 'Enter' || ev.code === 'Enter') {
+			ev.stopPropagation();
+		}
+		return;
+	}
 	if (ev.key === 'Enter') {
 		ev.preventDefault();
 		ev.stopPropagation();
@@ -799,7 +804,8 @@ defineExpose({
 		font-size: 1em;
 		outline: none;
 		border: none;
-		background: var(--MI_THEME-panel);
+		// 与 _acrylic 的半透明面板底色一致
+		background: transparent;
 		color: var(--MI_THEME-fg);
 
 		box-shadow: 0 calc(-1 * var(--MI-dividerWidth)) 0 0 var(--MI-dividerColor);
@@ -812,7 +818,8 @@ defineExpose({
 	}
 
 	.toolbar {
-		background: var(--MI_THEME-panel);
+		// 底部工具栏透出 _acrylic 面板底色
+		background: transparent;
 		display: flex;
 		flex: none;
 		order: 2;
@@ -877,7 +884,10 @@ defineExpose({
 		}
 
 		:deep(.title.stuck) {
-			background: var(--MI_THEME-panel);
+			// 与 _acrylic 一致的半透明底色，避免滚动内容穿透 sticky 标题
+			background: color(from var(--MI_THEME-panel) srgb r g b / 0.7);
+			-webkit-backdrop-filter: var(--MI-blur, blur(15px));
+			backdrop-filter: var(--MI-blur, blur(15px));
 		}
 
 		.empty {

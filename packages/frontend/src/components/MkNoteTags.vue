@@ -9,12 +9,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 		v-if="channel"
 		:to="`/channels/${channel.id}`"
 		:class="[$style.tag, $style.channel]"
+		:style="{ '--MI-channelColor': channel.color ?? 'var(--MI_THEME-accent)' }"
 		:title="channel.name"
 		:aria-label="channel.name"
 		@click.stop
 		@keydown.enter.stop
 	>
-		<i class="ti ti-device-tv" aria-hidden="true"></i>
+		<i class="ti ti-broadcast" aria-hidden="true"></i>
 		<span :class="$style.channelName"><Mfm :text="channel.name" :plain="true" :nowrap="true"/></span>
 	</MkA>
 	<MkA
@@ -37,7 +38,7 @@ import { i18n } from '@/i18n.js';
 
 defineProps<{
 	tags: string[];
-	channel?: { id: string; name: string } | null;
+	channel?: { id: string; name: string; color?: string } | null;
 }>();
 </script>
 
@@ -74,23 +75,23 @@ defineProps<{
 .channel {
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
-	padding: 4px 8px;
-	line-height: 1;
-	border-radius: 999px;
-	color: var(--MI_THEME-accent);
-	background: var(--MI_THEME-accentedBg);
-	font-size: .85em;
+	gap: 5px;
+	padding: 0;
+	line-height: 1.4;
+	color: var(--MI_THEME-fgHighlighted);
+	background: none;
 
 	&:hover {
 		text-decoration: none;
-		background: color-mix(in srgb, var(--MI_THEME-accent) 20%, var(--MI_THEME-panel));
+		color: color-mix(in srgb, var(--MI-channelColor) 60%, var(--MI_THEME-fgHighlighted));
 	}
 
 	> i {
 		display: flex;
 		align-items: center;
 		flex-shrink: 0;
+		font-size: 15px;
+		color: color-mix(in srgb, var(--MI-channelColor) 80%, var(--MI_THEME-fg));
 	}
 }
 
@@ -98,5 +99,7 @@ defineProps<{
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	font-weight: normal;
 }
+
 </style>

@@ -1,0 +1,52 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+@mixin theme {
+	// 覆盖编辑器的深浅色预设，不受预览和编辑页面的 CSS 加载顺序影响。
+	&:global(.md-editor[data-theme]) {
+		--md-color: var(--MI_THEME-fg);
+		--md-hover-color: var(--MI_THEME-fgHighlighted);
+		--md-bk-color: var(--MI_THEME-panel);
+		--md-bk-color-outstand: var(--MI_THEME-panelHighlight);
+		--md-bk-hover-color: var(--MI_THEME-buttonHoverBg);
+		--md-border-color: var(--MI-dividerColor);
+		--md-border-hover-color: var(--MI_THEME-inputBorderHover);
+		--md-border-active-color: var(--MI_THEME-accent);
+		--md-scrollbar-bg-color: transparent;
+		--md-scrollbar-thumb-color: var(--MI_THEME-scrollbarHandle);
+		--md-scrollbar-thumb-hover-color: var(--MI_THEME-scrollbarHandleHover);
+		--md-scrollbar-thumb-active-color: var(--MI_THEME-scrollbarHandleHover);
+
+		:global(.md-editor-preview) {
+			--md-theme-color: var(--MI_THEME-fg);
+			--md-theme-color-reverse: var(--MI_THEME-panel);
+			--md-theme-color-hover: var(--MI_THEME-panelHighlight);
+			--md-theme-color-hover-inset: var(--MI_THEME-buttonHoverBg);
+			--md-theme-link-color: var(--MI_THEME-link);
+			--md-theme-link-hover-color: var(--MI_THEME-accent);
+			--md-theme-border-color: var(--MI-dividerColor);
+			--md-theme-border-color-reverse: var(--MI_THEME-fgTransparentWeak);
+			--md-theme-border-color-inset: var(--MI-dividerColor);
+			--md-theme-bg-color: var(--MI_THEME-panel);
+			--md-theme-bg-color-inset: var(--MI_THEME-panelHighlight);
+			--md-theme-code-inline-color: var(--MI_THEME-fg);
+			--md-theme-code-inline-bg-color: var(--MI_THEME-panelHighlight);
+			--md-theme-code-block-color: var(--MI_THEME-fg);
+			--md-theme-code-block-bg-color: var(--MI_THEME-panelHighlight);
+			--md-theme-code-before-bg-color: var(--MI_THEME-panelHighlight);
+			--md-theme-code-copy-tips-color: var(--MI_THEME-fg);
+			--md-theme-code-copy-tips-bg-color: var(--MI_THEME-popup);
+			--md-theme-code-active-color: var(--MI_THEME-accent);
+			--md-theme-code-line-number-color: var(--MI_THEME-fgTransparentWeak);
+			--md-theme-code-line-highlight-bg-color: var(--MI_THEME-accentedBg);
+			--md-theme-quote-color: var(--MI_THEME-fg);
+			--md-theme-quote-border: 4px solid var(--MI_THEME-accent);
+			--md-theme-quote-bg-color: var(--MI_THEME-panelHighlight);
+			--md-theme-table-stripe-color: var(--MI_THEME-panelHighlight);
+			--md-theme-table-tr-bg-color: transparent;
+			--md-theme-table-td-border-color: var(--MI-dividerColor);
+		}
+	}
+}

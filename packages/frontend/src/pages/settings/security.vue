@@ -50,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw } from 'vue';
+import { markRaw } from 'vue';
 import X2fa from './2fa.vue';
 import XSignin from './security.signin.vue';
 import FormSection from '@/components/form/section.vue';
@@ -58,7 +58,6 @@ import FormSlot from '@/components/form/slot.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import * as os from '@/os.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import MkFeatureBanner from '@/components/MkFeatureBanner.vue';
@@ -94,26 +93,27 @@ async function change() {
 	const auth = await os.authenticateDialog();
 	if (auth.canceled) return;
 
+	// 失败提示由 apiWithDialog 处理
 	os.apiWithDialog('i/change-password', {
 		currentPassword: auth.result.password,
 		token: auth.result.token,
 		newPassword,
-	});
+	}).then(() => {
+		os.toast(i18n.ts.passwordChanged, 'success');
+	}, () => {});
 }
 
 async function regenerateToken() {
 	const auth = await os.authenticateDialog();
 	if (auth.canceled) return;
 
-	misskeyApi('i/regenerate-token', {
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('i/regenerate-token', {
 		password: auth.result.password,
-		token: auth.result.token,
-	});
+	}).then(() => {
+		os.toast(i18n.ts.updated, 'success');
+	}, () => {});
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.security,

@@ -124,6 +124,29 @@ test('keeps the parent button as the anchor while loading children', async () =>
 });
 
 describe('menu selection notification', () => {
+	test('shows a live radio fallback only while the current value is unknown', async () => {
+		const unknown = ref(false);
+		const view = render(MkMenu, {
+			props: {
+				items: [{ type: 'radioOption', text: 'One hour', active: computed(() => !unknown.value), action: vi.fn() }, {
+					type: 'radioOption', text: 'Current deadline', active: computed(() => unknown.value),
+					hidden: computed(() => !unknown.value), action: vi.fn(),
+				}],
+			},
+			global: { directives: { hotkey: hotkeyDirective } },
+		});
+		expect(view.queryByRole('menuitemradio', { name: 'Current deadline' })).toBeNull();
+		expect(view.getByRole('menuitemradio', { checked: true }).textContent).toBe('One hour');
+		unknown.value = true;
+		await nextTick();
+		expect(view.getByRole('menuitemradio', { name: 'Current deadline', checked: true })).toBeTruthy();
+		expect(view.getByRole('menuitemradio', { name: 'One hour' }).getAttribute('aria-checked')).toBe('false');
+		unknown.value = false;
+		await nextTick();
+		expect(view.queryByRole('menuitemradio', { name: 'Current deadline' })).toBeNull();
+		expect(view.getByRole('menuitemradio', { checked: true }).textContent).toBe('One hour');
+	});
+
 	test.each([false, true])('runs an active button only when actionOnActive is %s', async actionOnActive => {
 		const action = vi.fn();
 		const view = render(MkMenu, {

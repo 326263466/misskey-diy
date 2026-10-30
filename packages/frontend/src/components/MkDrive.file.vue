@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	:class="[$style.root, { [$style.isSelected]: isSelected }]"
+	:class="[$style.root, { [$style.isSelected]: isSelected, [$style.isDisabled]: isDisabled }]"
 	draggable="true"
 	:title="title"
 	@contextmenu.stop="onContextmenu"
@@ -30,14 +30,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<p :class="$style.name">
 			<span>{{ file.name.lastIndexOf('.') != -1 ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name }}</span>
-			<span v-if="file.name.lastIndexOf('.') != -1" :class="$style.extension">{{ file.name.substring(file.name.lastIndexOf('.')) }}</span>
+			<span v-if="file.name.lastIndexOf('.') != -1" style="opacity: 0.5;">{{ file.name.substring(file.name.lastIndexOf('.')) }}</span>
 		</p>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkDriveFileThumbnail from '@/components/MkDriveFileThumbnail.vue';
 import bytes from '@/filters/bytes.js';
@@ -51,16 +51,16 @@ const props = withDefaults(defineProps<{
 	file: Misskey.entities.DriveFile;
 	folder: Misskey.entities.DriveFolder | null;
 	isSelected?: boolean;
+	isDisabled?: boolean;
 }>(), {
 	isSelected: false,
+	isDisabled: false,
 });
 
 const emit = defineEmits<{
 	(ev: 'dragstart', dragEvent: DragEvent): void;
 	(ev: 'dragend'): void;
 }>();
-
-const isDragging = ref(false);
 
 const title = computed(() => `${props.file.name}\n${props.file.type} ${bytes(props.file.size)}`);
 
@@ -69,17 +69,16 @@ function onContextmenu(ev: PointerEvent) {
 }
 
 function onDragstart(ev: DragEvent) {
+	if (props.isDisabled) return;
+
 	if (ev.dataTransfer) {
 		ev.dataTransfer.effectAllowed = 'move';
 		setDragData(ev, 'driveFiles', [props.file]);
 	}
-	isDragging.value = true;
-
 	emit('dragstart', ev);
 }
 
 function onDragend() {
-	isDragging.value = false;
 	emit('dragend');
 }
 </script>
@@ -152,6 +151,23 @@ function onDragend() {
 
 		.thumbnail {
 			color: var(--MI_THEME-fgOnAccent);
+		}
+	}
+
+	&.isDisabled {
+		cursor: not-allowed;
+
+		.thumbnail {
+			opacity: 0.5;
+		}
+
+		.name {
+			opacity: 0.5;
+		}
+
+		&:hover,
+		&:active {
+			background: none;
 		}
 	}
 }
@@ -228,13 +244,5 @@ function onDragend() {
 	word-break: break-all;
 	color: var(--MI_THEME-fg);
 	overflow: hidden;
-}
-
-.extension {
-	color: var(--MI_THEME-fgTransparentWeak);
-}
-
-.root.isSelected .extension {
-	color: inherit;
 }
 </style>

@@ -4,6 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { IdService } from '@/core/IdService.js';
 import type { UserListsRepository, AntennasRepository } from '@/models/_.js';
@@ -52,7 +53,7 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		name: { type: 'string', minLength: 1, maxLength: 100 },
+		name: { type: 'string', minLength: 1, maxLength: CONTENT_LIMITS.collectionName },
 		src: { type: 'string', enum: ['home', 'all', 'users', 'list', 'users_blacklist'] },
 		userListId: { type: 'string', format: 'misskey:id', nullable: true },
 		keywords: { type: 'array', items: {

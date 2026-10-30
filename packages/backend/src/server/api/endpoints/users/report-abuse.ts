@@ -4,11 +4,12 @@
  */
 
 import { Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { AbuseReportService } from '@/core/AbuseReportService.js';
-import { abuseReportReasons } from '@/models/AbuseUserReport.js';
+import { abuseReportReasons, abuseReportTypes } from '@/models/AbuseUserReport.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -67,9 +68,9 @@ export const paramDef = {
 	properties: {
 		requestId: { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' },
 		userId: { type: 'string', format: 'misskey:id' },
-		comment: { type: 'string', maxLength: 2048 },
+		comment: { type: 'string', maxLength: CONTENT_LIMITS.abuseReportComment },
 		reason: { type: 'string', enum: abuseReportReasons },
-		reportType: { type: 'string', enum: ['user', 'note', 'chat', 'page', 'gallery', 'play'] },
+		reportType: { type: 'string', enum: abuseReportTypes },
 		targetId: { type: 'string', format: 'misskey:id' },
 	},
 	required: ['userId', 'comment', 'reason', 'reportType', 'requestId'],

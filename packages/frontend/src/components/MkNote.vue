@@ -5,10 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	v-if="!isDeleted && !hardMuted && !hideByPlugin && muted === false"
+	v-if="!blocked && !isDeleted && !hardMuted && !hideByPlugin && muted === false"
 	ref="rootEl"
 	v-hotkey="keymap"
 	:class="[$style.root, { [$style.showActionsOnlyHover]: prefer.s.showNoteActionsOnlyHover, [$style.skipRender]: prefer.s.skipNoteRender, [$style.cardAnimated]: prefer.s.animation }]"
+	:style="appearNote.channel ? { '--MI-channelColor': appearNote.channel.color } : undefined"
 	tabindex="0"
 >
 	<div v-if="showReplyTo && appearNote.replyId && !renoteCollapsed" :class="$style.replyThreadItem">
@@ -39,12 +40,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-else-if="note.visibility === 'followers'" class="ti ti-lock"></i>
 				<i v-else-if="note.visibility === 'specified'" ref="specified" class="ti ti-mail"></i>
 			</span>
-			<span v-if="note.channel" style="margin-left: 0.5em;" :title="note.channel.name"><i class="ti ti-device-tv"></i></span>
+			<span v-if="note.channel" style="margin-left: 0.5em;" :title="note.channel.name"><i class="ti ti-broadcast"></i></span>
 		</div>
 	</div>
 	<div v-if="isRenoteTargetDeleted" :class="$style.deleted">
 		<span>{{ getDeletedText(renoteTargetDeletedBy) }}</span>
-		<button v-if="isMyRenote" type="button" class="_button" :class="$style.deletedRenoteAction" @click.stop="deleteRenote()">
+		<button v-if="isMyRenote" type="button" class="_textButton" :class="$style.deletedRenoteAction" @click.stop="deleteRenote()">
 			<i class="ti ti-trash"></i>
 			<span>{{ i18n.ts.delete }}</span>
 		</button>
@@ -64,7 +65,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<MkInstanceTicker v-if="showTicker" :host="appearNote.user.host" :instance="appearNote.user.instance"/>
 			<div style="container-type: inline-size; margin-top: 4px;">
-				<MkCwButton v-if="appearNote.cw != null" v-model="showContent" :text="appearNote.text" :renote="appearNote.renote" :files="appearNote.files" :poll="appearNote.poll">
+				<MkCwButton v-if="appearNote.cw != null" v-model="showContent">
 					<Mfm
 						v-if="appearNote.cw != ''"
 						:text="appearNote.cw"
@@ -74,15 +75,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 						:enableEmojiMenuReaction="true"
 					/>
 				</MkCwButton>
-				<div v-show="appearNote.cw == null || showContent">
+				<MkCwContent v-model="showContent" :enabled="appearNote.cw != null">
 					<div :class="{ [$style.contentCollapsed]: isLong && collapsed }">
 						<div :class="$style.content">
-							<div :class="$style.text">
+							<div :class="$style.text" data-search-highlight>
 								<span v-if="appearNote.isHidden" :class="$style.hiddenContent">
 									<span :class="$style.hiddenContentTitle"><i class="ti ti-lock" aria-hidden="true"></i>{{ i18n.ts.invisibleNote }}</span>
 									<span :class="$style.hiddenContentDivider" aria-hidden="true"></span>
 								</span>
-								<i v-if="appearNote.replyId && !showReplyTo" class="ti ti-message-circle" :class="$style.replyIcon" role="img" :aria-label="i18n.ts.reply"></i>
+								<i v-if="appearNote.replyId && !showReplyTo" class="ti ti-corner-up-left" :class="$style.replyIcon" role="img" :aria-label="i18n.ts.reply"></i>
 								<Mfm
 									v-if="appearNote.text"
 									:parsedNodes="displayNodes"
@@ -127,7 +128,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<button v-else-if="isLong && !collapsed" :class="$style.showLess" class="_button" @click="collapsed = true">
 						<span class="_textAction" :class="$style.showLessLabel">{{ i18n.ts.showLess }}</span>
 					</button>
-				</div>
+				</MkCwContent>
 			</div>
 			<MkReactionsViewer
 				v-if="appearNote.reactionAcceptance !== 'likeOnly'"
@@ -141,14 +142,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			>
 			</MkReactionsViewer>
 			<div :class="$style.tagsAndLikeRow">
-				<MkNoteTags v-if="appearNote.cw == null || showContent" :tags="topics.tags" :channel="appearNote.channel"/>
+				<MkNoteTags v-if="appearNote.cw == null || showContent" :tags="topics.tags"/>
 				<MkLikeSummary :noteId="appearNote.id" :count="$appearNote.likeCount" :users="$appearNote.likeUsers"/>
 			</div>
 			<footer :class="[$style.footer, { [$style.footerAnimated]: prefer.s.animation }]">
 				<div :class="$style.footerButtonSlot">
-					<button v-tooltip.icon="i18n.ts.reply" :class="[$style.footerButton, { [$style.footerButtonWithCount]: $appearNote.repliesCount > 0 }]" class="_button" :aria-label="i18n.ts.reply" @click.stop="reply()">
+					<button v-tooltip.icon="i18n.ts.reply" :class="$style.footerButton" class="_button" :aria-label="i18n.ts.reply" aria-haspopup="dialog" @click.stop="openComments($event.currentTarget as HTMLElement)">
 						<i class="ti ti-message-circle"></i>
 						<MkRollingNumber v-show="$appearNote.repliesCount > 0" :class="$style.footerButtonCount" :value="$appearNote.repliesCount"/>
+						<span v-if="$appearNote.repliesCount === 0" :class="$style.footerButtonLabel" aria-hidden="true">{{ i18n.ts.comment }}</span>
 					</button>
 				</div>
 				<div :class="$style.footerButtonSlot">
@@ -156,7 +158,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						v-if="canRenote || isRenote"
 						ref="renoteButton"
 						v-tooltip.icon="isRenote ? i18n.ts.more : i18n.ts.renote"
-						:class="[$style.footerButton, $style.renoteButton, { [$style.renoted]: isRenotedByMe, [$style.footerButtonWithCount]: displayedRenoteCount > 0 }]"
+						:class="[$style.footerButton, { [$style.renoted]: isRenotedByMe }]"
 						class="_button"
 						:aria-label="isRenote ? i18n.ts.more : i18n.ts.renote"
 						@click.stop="toggleRenote()"
@@ -164,28 +166,32 @@ SPDX-License-Identifier: AGPL-3.0-only
 					>
 						<i class="ti ti-repeat"></i>
 						<MkRollingNumber v-show="displayedRenoteCount > 0" :class="$style.footerButtonCount" :value="displayedRenoteCount"/>
+						<span v-if="displayedRenoteCount === 0" :class="$style.footerButtonLabel" aria-hidden="true">{{ i18n.ts.renote }}</span>
 					</button>
 					<button v-else v-tooltip="i18n.ts.renote" :class="$style.footerButton" class="_button" :aria-label="i18n.ts.renote" disabled>
 						<i class="ti ti-ban"></i>
+						<span :class="$style.footerButtonLabel" aria-hidden="true">{{ i18n.ts.renote }}</span>
 					</button>
 				</div>
 				<div :class="$style.footerButtonSlot">
-					<button v-tooltip.icon="$appearNote.isLiked ? i18n.ts.unlike : i18n.ts.like" :class="[$style.footerButton, $style.likeButton, { [$style.liked]: $appearNote.isLiked, [$style.footerButtonWithCount]: $appearNote.likeCount > 0 }]" class="_button" :aria-label="$appearNote.isLiked ? i18n.ts.unlike : i18n.ts.like" :aria-pressed="$appearNote.isLiked" :disabled="liking" @click.stop="toggleLike()">
+					<button v-tooltip.icon="$appearNote.isLiked ? i18n.ts.unlike : i18n.ts.like" :class="[$style.footerButton, { [$style.liked]: $appearNote.isLiked }]" class="_button" :aria-label="$appearNote.isLiked ? i18n.ts.unlike : i18n.ts.like" :aria-pressed="$appearNote.isLiked" :disabled="liking" @click.stop="toggleLike()">
 						<i :class="$appearNote.isLiked ? 'ti ti-heart-filled' : 'ti ti-heart'"></i>
 						<MkRollingNumber v-show="$appearNote.likeCount > 0" :class="$style.footerButtonCount" :value="$appearNote.likeCount"/>
+						<span v-if="$appearNote.likeCount === 0" :class="$style.footerButtonLabel" aria-hidden="true">{{ i18n.ts.like }}</span>
 					</button>
 				</div>
 				<div :class="$style.footerButtonSlot">
-					<span v-tooltip.icon="i18n.ts.viewsCount" :class="[$style.footerButton, { [$style.footerButtonWithCount]: $appearNote.viewsCount > 0 }]">
+					<span v-tooltip.icon="i18n.ts.viewsCount" :class="$style.footerButton">
 						<i class="ti ti-chart-bar" role="img" :aria-label="i18n.ts.viewsCount"></i>
 						<MkRollingNumber v-show="$appearNote.viewsCount > 0" :class="$style.footerButtonCount" :value="$appearNote.viewsCount"/>
+						<span v-if="$appearNote.viewsCount === 0" :class="$style.footerButtonLabel" aria-hidden="true">{{ i18n.ts.viewsCount }}</span>
 					</span>
 				</div>
 				<div :class="$style.footerIconActions">
 					<button v-if="prefer.s.showClipButtonInNoteFooter" ref="clipButton" v-tooltip="i18n.ts.clip" :class="$style.footerButton" class="_button" :aria-label="i18n.ts.clip" @click.stop="clip()">
 						<i class="ti ti-paperclip"></i>
 					</button>
-					<button ref="reactButton" v-tooltip="appearNote.reactionAcceptance === 'likeOnly' && myEmojiReaction ? i18n.ts.cancel : i18n.ts._chat.addReaction" class="_button" :class="[$style.footerButton, { [$style.footerButtonWithCount]: (appearNote.reactionAcceptance === 'likeOnly' || prefer.s.showReactionsCount) && emojiReactionCount > 0 }]" :aria-label="appearNote.reactionAcceptance === 'likeOnly' && myEmojiReaction ? i18n.ts.cancel : i18n.ts._chat.addReaction" @click.stop="handleToggleReact()">
+					<button ref="reactButton" v-tooltip="appearNote.reactionAcceptance === 'likeOnly' && myEmojiReaction ? i18n.ts.cancel : i18n.ts._chat.addReaction" class="_button" :class="$style.footerButton" :aria-label="appearNote.reactionAcceptance === 'likeOnly' && myEmojiReaction ? i18n.ts.cancel : i18n.ts._chat.addReaction" @click.stop="handleToggleReact()">
 						<i v-if="appearNote.reactionAcceptance === 'likeOnly' && myEmojiReaction != null" class="ti ti-heart-filled" style="color: var(--MI_THEME-love);"></i>
 						<i v-else-if="appearNote.reactionAcceptance === 'likeOnly'" class="ti ti-heart"></i>
 						<i v-else class="ti ti-mood-happy"></i>
@@ -199,10 +205,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</article>
 </div>
-<div v-else-if="isDeleted && !hideByPlugin" :class="$style.deleted">
+<div v-else-if="!blocked && isDeleted && !hideByPlugin" :class="$style.deleted">
 	<span>{{ getDeletedText(deletedBy) }}</span>
 </div>
-<div v-else-if="!isDeleted && !hardMuted && !hideByPlugin" :class="$style.muted" @click="muted = false">
+<div v-else-if="!blocked && !isDeleted && !hardMuted && !hideByPlugin" :class="$style.muted" @click="muted = false">
 	<I18n v-if="muted === 'sensitiveMute'" :src="i18n.ts.userSaysSomethingSensitive" tag="small">
 		<template #name>
 			<MkA v-user-preview="appearNote.userId" :to="userPage(appearNote.user)">
@@ -246,6 +252,7 @@ import { getNoteDisplayNodes, getNoteThreadAuthor } from '@/utility/note-display
 import { isEnabledUrlPreview } from '@/utility/url-preview.js';
 import { focusPrev, focusNext } from '@/utility/focus.js';
 import { DI } from '@/di.js';
+import * as os from '@/os.js';
 import type { Keymap } from '@/utility/hotkey.js';
 
 // コンポーネント外部の依存関係
@@ -254,6 +261,7 @@ import MkNoteSimple from '@/components/MkNoteSimple.vue';
 import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkMediaList from '@/components/MkMediaList.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
+import MkCwContent from '@/components/MkCwContent.vue';
 import MkPoll from '@/components/MkPoll.vue';
 import MkRedPacket from '@/components/MkRedPacket.vue';
 import MkUrlPreview from '@/components/MkUrlPreview.vue';
@@ -319,6 +327,7 @@ const {
 	translation,
 	muted,
 	hardMuted,
+	blocked,
 	isMyRenote,
 	isRenotedByMe,
 	isRenoteTargetDeleted,
@@ -333,7 +342,6 @@ const {
 	renote,
 	toggleRenote,
 	deleteRenote,
-	reply,
 	react,
 	reactViaMfmEmoji,
 	toggleReact,
@@ -397,11 +405,23 @@ function emitUpdReaction(emoji: string, delta: number) {
 	}
 }
 
+// 在左侧抽屉中查看和发表评论，不离开当前列表；未登录也能查看评论。
+async function openComments(trigger?: HTMLElement | null) {
+	if (props.mock) return;
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkNoteCommentsDrawer.vue').then(x => x.default), {
+		note: appearNote,
+		initialCount: $appearNote.repliesCount,
+		returnFocusTo: trigger ?? rootEl.value,
+	}, {
+		closed: () => dispose(),
+	});
+}
+
 // キーボードショートカットマップ
 const keymap = {
 	'r': () => {
 		if (renoteCollapsed.value) return;
-		reply();
+		openComments();
 	},
 	'e|a|plus': () => {
 		if (renoteCollapsed.value) return;
@@ -455,7 +475,6 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 <style lang="scss" module>
 @use "../styles/community.scss";
 
-.footerButton.liked { color: var(--MI_THEME-love); }
 .root {
 	position: relative;
 	font-size: 1.05em;
@@ -503,10 +522,16 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 			background: var(--MI_THEME-popup);
 			border-radius: 8px;
 			box-shadow: 0px 4px 32px var(--MI_THEME-shadow);
+			// 悬浮工具条按内容收缩宽度，不能作为尺寸容器
+			container-type: normal;
 		}
 
 		.footerButtonSlot {
 			flex: 0 0 auto;
+		}
+
+		.footerButtonLabel {
+			display: none;
 		}
 
 		.footerButton {
@@ -522,7 +547,7 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 }
 
 .cardAnimated {
-	transition: background-color 150ms ease;
+	transition: background-color 150ms ease, box-shadow 180ms ease;
 
 	@media (prefers-reduced-motion: reduce) {
 		transition: none;
@@ -688,7 +713,7 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 
 .headerRow {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 }
 
 .header {
@@ -701,6 +726,7 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	height: 1.3em;
 	margin: 0 0 0 8px;
 	padding: 0 4px;
 	color: var(--MI_THEME-fgTransparentWeak);
@@ -740,19 +766,13 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 	display: block;
 	width: 100%;
 	margin-top: 8px;
-
-	&:hover > .collapsedLabel {
-		background: var(--MI_THEME-panelHighlight);
-	}
+	text-align: left;
 }
 
 .collapsedLabel {
 	display: inline-block;
-	background: var(--MI_THEME-panel);
-	padding: 6px 10px;
+	color: var(--MI_THEME-accent);
 	font-size: 0.8em;
-	border: var(--MI-divider);
-	border-radius: 999px;
 }
 
 .text {
@@ -835,15 +855,10 @@ const myEmojiReaction = computed(() => myEmojiReactions.value.at(-1) ?? null);
 }
 
 .deletedRenoteAction {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 4px 8px;
 	color: var(--MI_THEME-fg);
 
 	&:hover {
 		color: var(--MI_THEME-danger);
-		text-decoration: underline;
 	}
 }
 </style>

@@ -25,17 +25,13 @@ export async function enableStoragePersistence() {
 		const persisted = await navigator.storage.persist();
 		if (persisted) {
 			storagePersisted.value = true;
+			// 提示条或按钮会直接消失，补充结果提示
+			os.toast(i18n.ts.enabled, 'success');
 		} else {
-			os.alert({
-				type: 'error',
-				text: i18n.ts.somethingHappened,
-			});
+			os.toast(i18n.ts.somethingHappened, 'error');
 		}
 	}	catch (err) {
-		os.alert({
-			type: 'error',
-			text: i18n.ts.somethingHappened,
-		});
+		os.toast(i18n.ts.somethingHappened, 'error');
 	}
 }
 

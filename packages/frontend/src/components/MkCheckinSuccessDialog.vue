@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.body" class="_selectable">
 			<div :class="$style.stats">
 				<div :class="$style.stat">
-					<span :class="$style.statLabel"><i class="ti ti-diamond-filled" aria-hidden="true"></i> {{ i18n.ts._checkin.points }}</span>
+					<span :class="$style.statLabel"><i class="ti ti-coins" aria-hidden="true"></i> {{ i18n.ts._checkin.points }}</span>
 					<I18n :src="i18n.ts._checkin.successReward" tag="p" :class="$style.statValue">
 						<template #n><strong :class="$style.points">+{{ points }}</strong></template>
 					</I18n>

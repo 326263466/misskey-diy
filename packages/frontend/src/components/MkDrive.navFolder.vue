@@ -4,16 +4,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div
+<button
+	type="button"
+	class="_button"
 	:class="[$style.root, { [$style.draghover]: draghover }]"
 	@dragover.prevent.stop="onDragover"
 	@dragenter="onDragenter"
 	@dragleave="onDragleave"
 	@drop.stop="onDrop"
 >
-	<i v-if="folder == null" class="ti ti-cloud" style="margin-right: 4px;"></i>
+	<i v-if="folder == null" class="ti ti-cloud" aria-hidden="true"></i>
 	<span>{{ folder == null ? i18n.ts.drive : folder.name }}</span>
-</div>
+</button>
 </template>
 
 <script lang="ts" setup>
@@ -130,8 +132,13 @@ function onDrop(ev: DragEvent) {
 
 <style lang="scss" module>
 .root {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	line-height: 1;
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 	&.draghover {
-		background: var(--MI_THEME-accentedBg);
+		background: var(--MI_THEME-panelHighlight);
 	}
 }
 </style>

@@ -4,34 +4,46 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkStickyContainer style="background: var(--MI_THEME-bg);">
+<MkStickyContainer :class="[$style.root, { [$style.contentCard]: contentCard, _panel: contentCard }]">
 	<template #header>
 		<nav :class="$style.nav">
-			<div :class="$style.navPath" @contextmenu.prevent.stop="() => {}">
-				<XNavFolder
-					:class="[$style.navPathItem, { [$style.navCurrent]: folder == null }]"
-					:parentFolder="folder"
-					@click="cd(null)"
-					@upload="onUploadRequested"
-				/>
-				<template v-for="f in hierarchyFolders">
-					<span :class="[$style.navPathItem, $style.navSeparator]"><i class="ti ti-chevron-right"></i></span>
+			<div :class="$style.navPathScroller">
+				<div :class="$style.navPath" @contextmenu.prevent.stop="() => {}">
 					<XNavFolder
-						:folder="f"
+						:class="[$style.navPathItem, { [$style.navCurrent]: folder == null }]"
 						:parentFolder="folder"
-						:class="[$style.navPathItem]"
-						@click="cd(f)"
+						@click="navigate(null)"
 						@upload="onUploadRequested"
 					/>
-				</template>
-				<span v-if="folder != null" :class="[$style.navPathItem, $style.navSeparator]"><i class="ti ti-chevron-right"></i></span>
-				<span v-if="folder != null" :class="[$style.navPathItem, $style.navCurrent]">{{ folder.name }}</span>
+					<template v-for="f in hierarchyFolders">
+						<span :class="[$style.navPathItem, $style.navSeparator]"><i class="ti ti-chevron-right"></i></span>
+						<XNavFolder
+							:folder="f"
+							:parentFolder="folder"
+							:class="[$style.navPathItem]"
+							@click="navigate(f)"
+							@upload="onUploadRequested"
+						/>
+					</template>
+					<span v-if="folder != null" :class="[$style.navPathItem, $style.navSeparator]"><i class="ti ti-chevron-right"></i></span>
+					<span v-if="folder != null" :class="[$style.navPathItem, $style.navCurrent]">{{ folder.name }}</span>
+				</div>
 			</div>
-			<button class="_button" :class="$style.navMenu" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots"></i></button>
+			<div :class="$style.navToolbar">
+				<MkButton :class="$style.navAction" small primary :aria-label="i18n.ts.upload" @click="chooseFileFromPcAndUpload({ multiple: true, folderId: folder?.id })">
+					<i class="ti ti-upload" aria-hidden="true"></i>
+					<span :class="$style.navToolbarLabel">{{ i18n.ts.upload }}</span>
+				</MkButton>
+				<MkButton :class="$style.navAction" small :aria-label="i18n.ts.createFolder" @click="createFolder">
+					<i class="ti ti-folder-plus" aria-hidden="true"></i>
+					<span :class="$style.navToolbarLabel">{{ i18n.ts.createFolder }}</span>
+				</MkButton>
+				<button class="_button" :class="$style.navMenu" :aria-label="i18n.ts.more" :disabled="fetching" @click="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
+			</div>
 		</nav>
 	</template>
 
-	<div>
+	<div :class="$style.body">
 		<div v-if="select === 'folder'">
 			<template v-if="folder == null">
 				<MkButton v-if="!isRootSelected" @click="isRootSelected = true">
@@ -52,7 +64,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 
 		<div
-			ref="main"
 			:class="[$style.main, { [$style.fetching]: fetching }]"
 			@dragover.prevent.stop="onDragover"
 			@dragenter="onDragenter"
@@ -64,87 +75,117 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkTip k="drive"><div v-html="i18n.ts.driveAboutTip"></div></MkTip>
 			</div>
 
-			<div :class="$style.folders">
-				<XFolder
-					v-for="(f, i) in foldersPaginator.items.value"
-					:key="f.id"
-					v-anim="i"
-					:data-scroll-anchor="f.id"
-					:folder="f"
-					:selectMode="select === 'folder'"
-					:isSelected="selectedFolders.some(x => x.id === f.id)"
-					@chosen="chooseFolder"
-					@unchose="unchoseFolder"
-					@click="cd(f)"
-					@upload="onUploadRequested"
-					@dragstart="isDragSource = true"
-					@dragend="isDragSource = false"
-				/>
-			</div>
-			<MkButton v-if="foldersPaginator.canFetchOlder.value" :class="$style.loadMore" primary rounded @click="foldersPaginator.fetchOlder()">{{ i18n.ts.loadMore }}</MkButton>
+			<section v-if="foldersPaginator.items.value.length > 0" :class="$style.section">
+				<h2 :class="$style.sectionTitle"><i class="ti ti-folder" aria-hidden="true"></i>{{ i18n.ts.folder }}</h2>
+				<div :class="$style.folders">
+					<XFolder
+						v-for="(f, i) in foldersPaginator.items.value"
+						:key="f.id"
+						v-anim="i"
+						:data-scroll-anchor="f.id"
+						:folder="f"
+						:selectMode="select === 'folder'"
+						:isSelected="selectedFolders.some(x => x.id === f.id)"
+						@chosen="chooseFolder"
+						@unchose="unchoseFolder"
+						@click="navigate(f)"
+						@upload="onUploadRequested"
+						@dragstart="isDragSource = true"
+						@dragend="isDragSource = false"
+					/>
+				</div>
+				<MkButton v-if="foldersPaginator.canFetchOlder.value" :class="$style.loadMore" primary rounded @click="foldersPaginator.fetchOlder()">{{ i18n.ts.loadMore }}</MkButton>
+			</section>
 
-			<template v-if="shouldBeGroupedByDate">
-				<MkStickyContainer v-for="(item, i) in filesTimeline" :key="`${item.date.getFullYear()}/${item.date.getMonth() + 1}`">
-					<template #header>
-						<div :class="$style.date">
-							<span><i class="ti ti-chevron-down"></i> {{ item.date.getFullYear() }}/{{ item.date.getMonth() + 1 }}</span>
-						</div>
-					</template>
+			<section v-if="filesPaginator.items.value.length > 0" :class="$style.section">
+				<h2 :class="$style.sectionTitle"><i class="ti ti-files" aria-hidden="true"></i>{{ i18n.ts.files }}</h2>
+				<template v-if="shouldBeGroupedByDate">
+					<MkStickyContainer v-for="item in filesTimeline" :key="monthKey(item.date)">
+						<template #header>
+							<div :class="$style.date">
+								<button
+									type="button"
+									class="_button"
+									:class="$style.dateToggle"
+									:aria-expanded="!collapsedMonths.has(monthKey(item.date))"
+									:aria-label="`${monthKey(item.date)} ${collapsedMonths.has(monthKey(item.date)) ? i18n.ts._drive.expandGroup : i18n.ts._drive.collapse}`"
+									@click="toggleMonth(item.date)"
+								>
+									<i :class="collapsedMonths.has(monthKey(item.date)) ? 'ti ti-chevron-right' : 'ti ti-chevron-down'" aria-hidden="true"></i>
+									<span>{{ monthKey(item.date) }}</span>
+									<span :class="$style.dateCount">{{ item.items.length }}</span>
+								</button>
+							</div>
+						</template>
 
-					<TransitionGroup
-						tag="div"
-						:enterActiveClass="prefer.s.animation ? $style.transition_files_enterActive : ''"
-						:leaveActiveClass="prefer.s.animation ? $style.transition_files_leaveActive : ''"
-						:enterFromClass="prefer.s.animation ? $style.transition_files_enterFrom : ''"
-						:leaveToClass="prefer.s.animation ? $style.transition_files_leaveTo : ''"
-						:moveClass="prefer.s.animation ? $style.transition_files_move : ''"
-						:class="$style.files"
-					>
-						<XFile
-							v-for="file in item.items" :key="file.id"
-							:data-scroll-anchor="file.id"
-							:file="file"
-							:folder="folder"
-							:isSelected="selectedFiles.some(x => x.id === file.id)"
-							@click="onFileClick($event, file)"
-							@dragstart="onFileDragstart(file, $event)"
-							@dragend="isDragSource = false"
-						/>
-					</TransitionGroup>
-				</MkStickyContainer>
-			</template>
-			<TransitionGroup
-				v-else
-				tag="div"
-				:enterActiveClass="prefer.s.animation ? $style.transition_files_enterActive : ''"
-				:leaveActiveClass="prefer.s.animation ? $style.transition_files_leaveActive : ''"
-				:enterFromClass="prefer.s.animation ? $style.transition_files_enterFrom : ''"
-				:leaveToClass="prefer.s.animation ? $style.transition_files_leaveTo : ''"
-				:moveClass="prefer.s.animation ? $style.transition_files_move : ''"
-				:class="$style.files"
-			>
-				<XFile
-					v-for="file in filesPaginator.items.value" :key="file.id"
-					:data-scroll-anchor="file.id"
-					:file="file"
-					:folder="folder"
-					:isSelected="selectedFiles.some(x => x.id === file.id)"
-					@click="onFileClick($event, file)"
-					@dragstart="onFileDragstart(file, $event)"
-					@dragend="isDragSource = false"
-				/>
-			</TransitionGroup>
+						<Transition
+							:enterActiveClass="prefer.s.animation ? $style.folderToggleEnterActive : ''"
+							:leaveActiveClass="prefer.s.animation ? $style.folderToggleLeaveActive : ''"
+							:enterFromClass="prefer.s.animation ? $style.folderToggleEnterFrom : ''"
+							:leaveToClass="prefer.s.animation ? $style.folderToggleLeaveTo : ''"
+						>
+							<div v-show="!collapsedMonths.has(monthKey(item.date))" :class="$style.collapseBody">
+								<div :class="$style.collapseInner">
+									<TransitionGroup
+										tag="div"
+										:enterActiveClass="prefer.s.animation ? $style.transition_files_enterActive : ''"
+										:leaveActiveClass="prefer.s.animation ? $style.transition_files_leaveActive : ''"
+										:enterFromClass="prefer.s.animation ? $style.transition_files_enterFrom : ''"
+										:leaveToClass="prefer.s.animation ? $style.transition_files_leaveTo : ''"
+										:moveClass="prefer.s.animation ? $style.transition_files_move : ''"
+										:class="$style.files"
+									>
+										<XFile
+											v-for="file in item.items" :key="file.id"
+											:data-scroll-anchor="file.id"
+											:file="file"
+											:folder="folder"
+											:isSelected="selectedFiles.some(x => x.id === file.id)"
+											:isDisabled="excludeSensitive && file.isSensitive"
+											@click="onFileClick($event, file)"
+											@dragstart="onFileDragstart(file, $event)"
+											@dragend="isDragSource = false"
+										/>
+									</TransitionGroup>
+								</div>
+							</div>
+						</Transition>
+					</MkStickyContainer>
+				</template>
+				<TransitionGroup
+					v-else
+					tag="div"
+					:enterActiveClass="prefer.s.animation ? $style.transition_files_enterActive : ''"
+					:leaveActiveClass="prefer.s.animation ? $style.transition_files_leaveActive : ''"
+					:enterFromClass="prefer.s.animation ? $style.transition_files_enterFrom : ''"
+					:leaveToClass="prefer.s.animation ? $style.transition_files_leaveTo : ''"
+					:moveClass="prefer.s.animation ? $style.transition_files_move : ''"
+					:class="$style.files"
+				>
+					<XFile
+						v-for="file in filesPaginator.items.value" :key="file.id"
+						:data-scroll-anchor="file.id"
+						:file="file"
+						:folder="folder"
+						:isSelected="selectedFiles.some(x => x.id === file.id)"
+						:isDisabled="excludeSensitive && file.isSensitive"
+						@click="onFileClick($event, file)"
+						@dragstart="onFileDragstart(file, $event)"
+						@dragend="isDragSource = false"
+					/>
+				</TransitionGroup>
 
-			<MkButton
-				v-show="canFetchFiles"
-				v-appear="shouldEnableInfiniteScroll ? fetchMoreFiles : null"
-				:class="$style.loadMore"
-				primary
-				rounded
-				@click="fetchMoreFiles"
-			>
-				{{ i18n.ts.loadMore }}
-			</MkButton>
+				<MkButton
+					v-show="canFetchFiles"
+					v-appear="shouldEnableInfiniteScroll ? fetchMoreFiles : null"
+					:class="$style.loadMore"
+					primary
+					rounded
+					@click="fetchMoreFiles"
+				>
+					{{ i18n.ts.loadMore }}
+				</MkButton>
+			</section>
 
 			<div v-if="filesPaginator.items.value.length == 0 && foldersPaginator.items.value.length == 0 && !fetching" :class="$style.empty">
 				<div v-if="draghover">{{ i18n.ts.dropHereToUpload }}</div>
@@ -165,7 +206,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch, computed, TransitionGroup, markRaw } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch, computed, Transition, TransitionGroup, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from './MkButton.vue';
 import type { MenuItem } from '@/types/menu.js';
@@ -190,22 +231,32 @@ const props = withDefaults(defineProps<{
 	initialFolder?: Misskey.entities.DriveFolder | Misskey.entities.DriveFolder['id'] | null;
 	type?: string;
 	multiple?: boolean;
+	excludeSensitive?: boolean;
 	select?: 'file' | 'folder' | null;
 	forceDisableInfiniteScroll?: boolean;
+	contentCard?: boolean;
+	controlledNavigation?: boolean;
 }>(), {
 	initialFolder: null,
 	multiple: false,
+	excludeSensitive: false,
 	select: null,
 	forceDisableInfiniteScroll: false,
+	contentCard: false,
+	controlledNavigation: false,
 });
 
 const emit = defineEmits<{
 	(ev: 'changeSelectedFiles', v: Misskey.entities.DriveFile[]): void;
 	(ev: 'changeSelectedFolders', v: (Misskey.entities.DriveFolder | null)[]): void;
 	(ev: 'cd', v: Misskey.entities.DriveFolder | null): void;
+	(ev: 'navigate', folderId: string | null): void;
+	(ev: 'openFile', file: Misskey.entities.DriveFile): void;
 }>();
 
-const shouldEnableInfiniteScroll = computed(() => !props.forceDisableInfiniteScroll);
+const shouldEnableInfiniteScroll = computed(() => {
+	return !props.forceDisableInfiniteScroll;
+});
 
 const folder = ref<Misskey.entities.DriveFolder | null>(null);
 const hierarchyFolders = ref<Misskey.entities.DriveFolder[]>([]);
@@ -253,10 +304,8 @@ const foldersPaginator = markRaw(new Paginator('drive/folders', {
 }));
 
 const canFetchFiles = computed(() => !fetching.value && (filesPaginator.order.value === 'oldest' ? filesPaginator.canFetchNewer.value : filesPaginator.canFetchOlder.value));
-const fetchingMoreFiles = computed(() => filesPaginator.fetchingOlder.value || filesPaginator.fetchingNewer.value);
 
 async function fetchMoreFiles() {
-	if (!canFetchFiles.value || fetchingMoreFiles.value) return;
 	if (filesPaginator.order.value === 'oldest') {
 		filesPaginator.fetchNewer();
 	} else {
@@ -265,6 +314,20 @@ async function fetchMoreFiles() {
 }
 
 const filesTimeline = makeDateGroupedTimelineComputedRef(filesPaginator.items, 'month');
+const collapsedMonths = ref(new Set<string>());
+
+function monthKey(date: Date): string {
+	return `${date.getFullYear()}/${date.getMonth() + 1}`;
+}
+
+function toggleMonth(date: Date) {
+	const key = monthKey(date);
+	const next = new Set(collapsedMonths.value);
+	if (next.has(key)) next.delete(key);
+	else next.add(key);
+	collapsedMonths.value = next;
+}
+
 const shouldBeGroupedByDate = computed(() => ['+createdAt', '-createdAt'].includes(sortModeSelect.value));
 
 watch(folder, () => emit('cd', folder.value));
@@ -287,7 +350,7 @@ async function initialize() {
 
 function onStreamDriveFileCreated(file: Misskey.entities.DriveFile) {
 	if (file.folderId === (folder.value?.id ?? null)) {
-		filesPaginator.prepend(file);
+		filesPaginator.unshiftItems([file], false);
 	}
 }
 
@@ -353,11 +416,13 @@ function onDrop(ev: DragEvent): void | boolean {
 	draghover.value = false;
 
 	if (!ev.dataTransfer) return;
+	const targetFolder = folder.value;
+	const targetFolderId = targetFolder?.id ?? null;
 
 	// ドロップされてきたものがファイルだったら
 	if (ev.dataTransfer.files.length > 0) {
 		os.launchUploader(Array.from(ev.dataTransfer.files), {
-			folderId: folder.value?.id ?? null,
+			folderId: targetFolderId,
 		});
 		return;
 	}
@@ -368,12 +433,12 @@ function onDrop(ev: DragEvent): void | boolean {
 		if (droppedData != null) {
 			misskeyApi('drive/files/move-bulk', {
 				fileIds: droppedData.map(f => f.id),
-				folderId: folder.value ? folder.value.id : null,
+				folderId: targetFolderId,
 			}).then(() => {
 				globalEvents.emit('driveFilesUpdated', droppedData.map(x => ({
 					...x,
-					folderId: folder.value ? folder.value.id : null,
-					folder: folder.value,
+					folderId: targetFolderId,
+					folder: targetFolder,
 				})));
 			});
 		}
@@ -386,16 +451,16 @@ function onDrop(ev: DragEvent): void | boolean {
 		if (droppedData != null) {
 			const droppedFolder = droppedData[0];
 			// 移動先が自分自身ならreject
-			if (folder.value && droppedFolder.id === folder.value.id) return false;
+			if (droppedFolder.id === targetFolderId) return false;
 			if (foldersPaginator.items.value.some(f => f.id === droppedFolder.id)) return false;
 			misskeyApi('drive/folders/update', {
 				folderId: droppedFolder.id,
-				parentId: folder.value ? folder.value.id : null,
+				parentId: targetFolderId,
 			}).then(() => {
 				globalEvents.emit('driveFoldersUpdated', [droppedFolder].map(x => ({
 					...x,
-					parentId: folder.value ? folder.value.id : null,
-					parent: folder.value,
+					parentId: targetFolderId,
+					parent: targetFolder,
 				})));
 			}).catch(err => {
 				switch (err.code) {
@@ -456,7 +521,7 @@ async function createFolder() {
 		parentId: folder.value ? folder.value.id : undefined,
 	});
 
-	foldersPaginator.prepend(createdFolder);
+	foldersPaginator.unshiftItems([createdFolder], false);
 }
 
 async function renameFolder(folderToRename: Misskey.entities.DriveFolder) {
@@ -480,7 +545,7 @@ function deleteFolder(folderToDelete: Misskey.entities.DriveFolder) {
 		folderId: folderToDelete.id,
 	}).then(() => {
 		// 削除時に親フォルダに移動
-		cd(folderToDelete.parentId);
+		navigate(folderToDelete.parentId);
 		globalEvents.emit('driveFoldersDeleted', [folderToDelete]);
 	}).catch(err => {
 		switch (err.id) {
@@ -500,7 +565,9 @@ function deleteFolder(folderToDelete: Misskey.entities.DriveFolder) {
 	});
 }
 
-function onFileClick(ev: PointerEvent, file: Misskey.entities.DriveFile) {
+function onFileClick(ev: MouseEvent | KeyboardEvent, file: Misskey.entities.DriveFile) {
+	if (props.excludeSensitive && file.isSensitive) return;
+
 	if (ev.shiftKey) {
 		isEditMode.value = true;
 	}
@@ -530,6 +597,8 @@ function onFileClick(ev: PointerEvent, file: Misskey.entities.DriveFile) {
 				selectedFiles.value = [file];
 			}
 		}
+	} else if (props.controlledNavigation && props.select == null) {
+		emit('openFile', file);
 	} else {
 		os.popupMenu(getDriveFileMenu(file, folder.value), (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
 	}
@@ -556,7 +625,17 @@ function unchoseFolder(folderToUnchose: Misskey.entities.DriveFolder) {
 	selectedFolders.value = selectedFolders.value.filter(f => f.id !== folderToUnchose.id);
 }
 
+let cdId = 0;
+
+function navigate(target?: Misskey.entities.DriveFolder | Misskey.entities.DriveFolder['id' | 'parentId']) {
+	const targetId = target && typeof target === 'object' ? target.id : target ?? null;
+	if (props.controlledNavigation) emit('navigate', targetId);
+	else cd(target);
+}
+
 function cd(target?: Misskey.entities.DriveFolder | Misskey.entities.DriveFolder['id' | 'parentId']) {
+	const requestId = ++cdId;
+	initializationId++;
 	if (!target) {
 		goRoot();
 		return;
@@ -569,6 +648,7 @@ function cd(target?: Misskey.entities.DriveFolder | Misskey.entities.DriveFolder
 	misskeyApi('drive/folders/show', {
 		folderId: target,
 	}).then(folderToMove => {
+		if (requestId !== cdId) return;
 		folder.value = folderToMove;
 		hierarchyFolders.value = [];
 
@@ -604,29 +684,35 @@ async function moveFilesBulk() {
 
 function goRoot() {
 	// 既にrootにいるなら何もしない
-	if (folder.value == null) return;
+	if (folder.value == null && !fetching.value) return;
 
 	folder.value = null;
 	hierarchyFolders.value = [];
 	initialize();
 }
 
-function getMenu() {
+function getMenu(includeQuickActions = true) {
 	const menu: MenuItem[] = [];
 
 	menu.push({
 		text: i18n.ts.addFile,
 		type: 'label',
-	}, {
-		text: i18n.ts.upload,
-		icon: 'ti ti-upload',
-		action: () => {
-			chooseFileFromPcAndUpload({
-				multiple: true,
-				folderId: folder.value?.id,
-			});
-		},
-	}, {
+	});
+
+	if (includeQuickActions) {
+		menu.push({
+			text: i18n.ts.upload,
+			icon: 'ti ti-upload',
+			action: () => {
+				chooseFileFromPcAndUpload({
+					multiple: true,
+					folderId: folder.value?.id,
+				});
+			},
+		});
+	}
+
+	menu.push({
 		text: i18n.ts.fromUrl,
 		icon: 'ti ti-link',
 		action: () => { urlUpload(); },
@@ -684,11 +770,15 @@ function getMenu() {
 		});
 	}
 
-	menu.push({
-		text: i18n.ts.createFolder,
-		icon: 'ti ti-folder-plus',
-		action: () => { createFolder(); },
-	}, { type: 'divider' }, {
+	if (includeQuickActions) {
+		menu.push({
+			text: i18n.ts.createFolder,
+			icon: 'ti ti-folder-plus',
+			action: () => { createFolder(); },
+		});
+	}
+
+	menu.push({ type: 'divider' }, {
 		type: 'switch',
 		text: i18n.ts.edit,
 		icon: 'ti ti-pointer',
@@ -699,7 +789,7 @@ function getMenu() {
 }
 
 function showMenu(ev: PointerEvent) {
-	os.popupMenu(getMenu(), (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+	os.popupMenu(getMenu(false), (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
 }
 
 function onContextmenu(ev: PointerEvent) {
@@ -708,7 +798,7 @@ function onContextmenu(ev: PointerEvent) {
 
 useGlobalEvent('driveFileCreated', (file) => {
 	if (file.folderId === (folder.value?.id ?? null)) {
-		filesPaginator.prepend(file);
+		filesPaginator.unshiftItems([file], false);
 	}
 });
 
@@ -722,7 +812,7 @@ useGlobalEvent('driveFilesUpdated', (files) => {
 			}
 		} else {
 			if (f.folderId === (folder.value?.id ?? null)) {
-				filesPaginator.prepend(f);
+				filesPaginator.unshiftItems([f], false);
 			}
 		}
 	}
@@ -736,6 +826,8 @@ useGlobalEvent('driveFilesDeleted', (files) => {
 
 useGlobalEvent('driveFoldersUpdated', (folders) => {
 	for (const f of folders) {
+		if (folder.value?.id === f.id) folder.value = f;
+		hierarchyFolders.value = hierarchyFolders.value.map(parent => parent.id === f.id ? f : parent);
 		if (foldersPaginator.items.value.some(x => x.id === f.id)) {
 			if (f.parentId === (folder.value?.id ?? null)) {
 				foldersPaginator.updateItem(f.id, () => f);
@@ -744,7 +836,7 @@ useGlobalEvent('driveFoldersUpdated', (folders) => {
 			}
 		} else {
 			if (f.parentId === (folder.value?.id ?? null)) {
-				foldersPaginator.prepend(f);
+				foldersPaginator.unshiftItems([f], false);
 			}
 		}
 	}
@@ -772,11 +864,14 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	cdId++;
 	initializationId++;
 	if (connection != null) {
 		connection.dispose();
 	}
 });
+
+defineExpose({ cd });
 </script>
 
 <style lang="scss" module>
@@ -793,12 +888,64 @@ onBeforeUnmount(() => {
 	position: absolute;
 }
 
+.root {
+	background: var(--MI_THEME-bg);
+}
+
+.contentCard {
+	background: var(--MI_THEME-panel);
+
+	.nav {
+		background: var(--MI_THEME-panel);
+	}
+
+	.body {
+		padding: var(--MI-cardPadding);
+	}
+
+	.main {
+		min-height: 0;
+	}
+
+	.tipContainer:not(:empty),
+	.folders,
+	.files {
+		padding: 0;
+	}
+
+	.tipContainer:not(:empty) {
+		margin-bottom: var(--MI-margin);
+	}
+
+	.sectionTitle {
+		padding-inline: 0;
+	}
+
+	.date {
+		padding-inline: 0;
+		background-color: transparent;
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+	}
+
+	.footer {
+		padding-inline: var(--MI-cardPadding);
+	}
+
+	.empty {
+		padding-inline: 0;
+	}
+}
+
 .nav {
+	--MI-driveNavHeight: var(--MI-pageHeaderHeight);
 	display: flex;
+	align-items: center;
+	gap: 8px;
 	width: 100%;
 	padding: 0 8px;
 	box-sizing: border-box;
-	overflow: auto;
+	min-height: var(--MI-driveNavHeight);
 	font-size: 0.9em;
 	background: color(from var(--MI_THEME-bg) srgb r g b / 0.75);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
@@ -806,18 +953,29 @@ onBeforeUnmount(() => {
 	border-bottom: var(--MI-divider);
 }
 
+.navPathScroller {
+	flex: 1;
+	min-width: 0;
+	overflow-x: auto;
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
 .navPath {
-	display: inline-block;
-	vertical-align: bottom;
-	line-height: 42px;
+	display: inline-flex;
+	align-items: center;
 	white-space: nowrap;
 }
 
 .navPathItem {
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
 	margin: 0;
 	padding: 0 8px;
-	line-height: 42px;
+	min-height: var(--MI-driveNavHeight);
 	cursor: pointer;
 
 	&:hover {
@@ -842,8 +1000,55 @@ onBeforeUnmount(() => {
 }
 
 .navMenu {
-	margin-left: auto;
-	padding: 0 12px;
+	display: grid;
+	place-items: center;
+	flex: 0 0 auto;
+	width: var(--MI-headerActionSize);
+	height: var(--MI-mobileTouchTarget);
+	padding: 0;
+	&:hover { color: var(--MI_THEME-accent); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
+}
+
+.navAction {
+	min-width: var(--MI-mobileTouchTarget);
+	min-height: 36px;
+}
+
+.navToolbar {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 6px;
+}
+
+.navToolbarLabel {
+	margin-left: 4px;
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+
+	+ .section {
+		margin-top: 12px;
+	}
+}
+
+.sectionTitle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 0 32px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 0.9em;
+	font-weight: 600;
+}
+
+.dateCount {
+	opacity: 0.6;
 }
 
 .main {
@@ -855,6 +1060,33 @@ onBeforeUnmount(() => {
 		opacity: 0.5;
 		pointer-events: none;
 	}
+}
+
+.dateToggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0;
+}
+
+.folderToggleEnterActive,
+.folderToggleLeaveActive {
+	overflow: clip;
+	transition: grid-template-rows 0.25s !important;
+}
+
+.collapseBody.folderToggleEnterFrom,
+.collapseBody.folderToggleLeaveTo {
+	grid-template-rows: 0fr;
+}
+
+.collapseBody {
+	display: grid;
+	grid-template-rows: 1fr;
+}
+
+.collapseInner {
+	min-height: 0;
 }
 
 .tipContainer:not(:empty) {
@@ -874,9 +1106,34 @@ onBeforeUnmount(() => {
 		padding: 16px;
 	}
 
+	.sectionTitle {
+		padding: 0 16px;
+	}
+
 	.folders,
 	.files {
 		padding: 16px;
+	}
+}
+
+@media (max-width: 600px) {
+	.nav {
+		gap: 8px;
+		padding: 0 8px;
+	}
+
+	.navPathItem {
+		padding: 0 4px;
+	}
+
+	.navToolbar {
+		gap: 4px;
+	}
+
+	.navAction { min-height: var(--MI-mobileTouchTarget); }
+
+	.navToolbarLabel {
+		display: none;
 	}
 }
 

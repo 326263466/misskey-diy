@@ -10,6 +10,7 @@ import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import { DI } from '@/di-symbols.js';
 import { MiMeta } from '@/models/Meta.js';
+import { CacheService } from '@/core/CacheService.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -60,12 +61,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private noteEntityService: NoteEntityService,
 		private getterService: GetterService,
+		private cacheService: CacheService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const note = await this.getterService.getNoteWithRelations(ps.noteId).catch(err => {
 				if (err.id === '9725d0ce-ba28-4dde-95a7-2cbb2c15de24') throw new ApiError(meta.errors.noSuchNote);
 				throw err;
 			});
+
+			// 双方存在拉黑关系时，帖子按不存在处理。
+			if (me != null && note.userId !== me.id && (await this.cacheService.getBlockedUserIds(me.id)).has(note.userId)) {
+				throw new ApiError(meta.errors.noSuchNote);
+			}
 
 			if (note.user!.requireSigninToViewContents && me == null) {
 				throw new ApiError(meta.errors.contentRestrictedByUser);

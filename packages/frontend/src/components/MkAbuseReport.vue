@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkFolder>
+<component :is="table ? 'tbody' : MkFolder">
 	<template #icon>
 		<i v-if="resolved && resolvedAs === 'accept'" class="ti ti-check" style="color: var(--MI_THEME-success)"></i>
 		<i v-else-if="resolved && resolvedAs === 'reject'" class="ti ti-x" style="color: var(--MI_THEME-error)"></i>
@@ -28,85 +28,193 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<template v-if="report.targetUser?.host != null">
 				<MkButton :disabled="forwarded || moderating" :wait="forwarding" primary @click="forward"><i class="ti ti-corner-up-right"></i> {{ forwarded ? i18n.ts._abuseUserReport.forwarded : i18n.ts._abuseUserReport.forward }}</MkButton>
-				<div v-tooltip:dialog="i18n.ts._abuseUserReport.forwardDescription" class="_button _help"><i class="ti ti-help-circle"></i></div>
+				<div v-tooltip:dialog="i18n.ts._abuseUserReport.forwardDescription" class="_button" style="color: var(--MI_THEME-accent);"><i class="ti ti-help-circle"></i></div>
 			</template>
 			<button class="_button _iconButton" :class="$style.more" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
 		</div>
 	</template>
 
-	<div :class="$style.details">
-		<div :class="$style.reportSections">
-			<section v-if="snapshot">
-				<h3 :class="$style.heading">{{ snapshot.type === 'user' ? i18n.ts._abuseUserReport.profileSnapshot : i18n.ts._abuseUserReport.snapshot }}</h3>
-				<div :class="$style.content" class="_gaps_s">
-					<div :class="$style.snapshotUser" class="_selectable">
-						<strong v-if="snapshot.user.name">{{ snapshot.user.name }}</strong>
-						<span>@{{ snapshot.user.username }}<template v-if="snapshot.user.host">@{{ snapshot.user.host }}</template></span>
-					</div>
-					<div :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotCapturedAt }}: <MkTime :time="snapshot.capturedAt" mode="absolute"/></div>
-					<div v-if="snapshot.content" :class="$style.text" class="_selectable">{{ snapshot.content }}</div>
-					<div v-else-if="snapshotFiles.length === 0" :class="$style.hint">{{ snapshot.type === 'user' ? i18n.ts._abuseUserReport.profileSnapshotEmpty : i18n.ts._abuseUserReport.snapshotEmpty }}</div>
-					<div v-if="snapshotFiles.length > 0" class="_gaps_s">
-						<h4 :class="$style.heading">{{ i18n.ts._abuseUserReport.snapshotFiles }}</h4>
-						<ul :class="$style.snapshotFiles">
-							<li v-for="file in snapshotFiles" :key="file.id" class="_gaps_s">
-								<button class="_button _textButton" :class="$style.evidenceDownload" :disabled="!$i || downloadingFiles.has(file.id)" :aria-label="`${i18n.ts.download}: ${file.name}`" @click="downloadEvidence(file)">
-									<i class="ti ti-download" aria-hidden="true"></i> {{ file.name }}
-								</button>
-								<span :class="$style.hint">{{ file.type }} · {{ bytes(file.size) }}</span>
-								<span :class="$style.hint">{{ i18n.ts._abuseUserReport.fileHash }}: <code>{{ file.sha256 }}</code></span>
-								<span v-if="file.comment" :class="$style.text" class="_selectable">{{ file.comment }}</span>
-							</li>
-						</ul>
-						<div :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotFilesDescription }}</div>
-					</div>
+	<tr v-if="table">
+		<td class="_adminTableMain">
+			<div class="_adminTableIdentity">
+				<MkAvatar v-if="report.targetUser" :user="report.targetUser" :link="false" class="_adminTableAvatar"/>
+				<span>{{ targetAccount }}</span>
+			</div>
+		</td>
+		<td class="_adminTableMain"><div :class="$style.tableSummary">{{ summary || i18n.ts._abuseUserReport.noDescription }}</div></td>
+		<td><MkAcct v-if="report.reporter" :user="report.reporter"/><template v-else>#{{ report.reporterId }}</template></td>
+		<td><span class="_adminTableStatus" :style="{ '--admin-statusColor': resolved ? 'var(--MI_THEME-fgTransparentWeak)' : 'var(--MI_THEME-warn)' }">{{ statusLabel }}</span></td>
+		<td><MkTime :time="report.createdAt" mode="absolute"/></td>
+		<td class="_adminTableActions">
+			<div class="_adminTableTools">
+				<button type="button" class="_button _textButton" @click="showDetails($event)">
+					<i class="ti ti-info-circle" aria-hidden="true"></i> {{ i18n.ts.details }}
+				</button>
+				<button type="button" class="_button _iconButton" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
+			</div>
+		</td>
+	</tr>
+	<Teleport v-if="!table || detailsOpen" to="#misskey-popups" defer :disabled="!table">
+		<component
+			:is="table ? MkModalWindow : 'div'"
+			:width="table ? 680 : undefined"
+			:height="table ? 700 : undefined"
+			:autoHeight="table || undefined"
+			:closeOnBackdrop="table ? false : undefined"
+			:headerIcon="table ? 'ti ti-flag' : undefined"
+			:role="table ? 'dialog' : undefined"
+			:tabindex="table ? -1 : undefined"
+			:aria-modal="table || undefined"
+			:aria-label="table ? i18n.ts.details : undefined"
+			@closed="onDetailsClosed"
+		>
+			<template v-if="table" #header>{{ i18n.ts.details }} · {{ targetAccount }}</template>
+			<div :class="[$style.details, { [$style.modalDetails]: table }]">
+				<div :class="$style.reportSections">
+					<section v-if="snapshot">
+						<h3 :class="$style.heading">{{ snapshot.type === 'user' ? i18n.ts._abuseUserReport.profileSnapshot : i18n.ts._abuseUserReport.snapshot }}</h3>
+						<div :class="$style.content" class="_gaps_s">
+							<div :class="$style.snapshotUser" class="_selectable">
+								<strong v-if="snapshot.user.name">{{ snapshot.user.name }}</strong>
+								<span>@{{ snapshot.user.username }}<template v-if="snapshot.user.host">@{{ snapshot.user.host }}</template></span>
+							</div>
+							<div :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotCapturedAt }}: <MkTime :time="snapshot.capturedAt" mode="absolute"/></div>
+							<div v-if="snapshot.sourceUrl" :class="[$style.hint, $style.text]" class="_selectable">{{ i18n.ts._abuseUserReport.snapshotSource }}: {{ snapshot.sourceUrl }}</div>
+							<div v-if="snapshot.content" :class="$style.text" class="_selectable">{{ snapshot.content }}</div>
+							<div v-else-if="snapshotFiles.length === 0" :class="$style.hint">{{ snapshot.type === 'user' ? i18n.ts._abuseUserReport.profileSnapshotEmpty : i18n.ts._abuseUserReport.snapshotEmpty }}</div>
+							<div v-if="snapshotFiles.length > 0" class="_gaps_s">
+								<h4 :class="$style.heading">{{ i18n.ts._abuseUserReport.snapshotFiles }}</h4>
+								<ul :class="$style.snapshotFiles">
+									<li v-for="file in snapshotFiles" :key="file.id" class="_gaps_s">
+										<button class="_button _textButton" :class="$style.evidenceDownload" :disabled="!$i || downloadingFiles.has(file.id)" :aria-label="`${i18n.ts.download}: ${file.name}`" @click="downloadEvidence(file)">
+											<i class="ti ti-download" aria-hidden="true"></i> {{ file.name }}
+										</button>
+										<span :class="$style.hint">{{ file.type }} · {{ bytes(file.size) }}</span>
+										<span :class="$style.hint">{{ i18n.ts._abuseUserReport.fileHash }}: <code>{{ file.sha256 }}</code></span>
+										<span v-if="file.comment" :class="$style.text" class="_selectable">{{ file.comment }}</span>
+									</li>
+								</ul>
+								<div :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotFilesDescription }}</div>
+							</div>
+						</div>
+					</section>
+					<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotUnavailable }}</div>
+					<section v-if="snapshot?.federation">
+						<h3 :class="$style.heading">{{ i18n.ts._abuseUserReport.federationSnapshot }}</h3>
+						<div :class="[$style.content, $style.text]" class="_selectable">
+							<div>{{ i18n.ts._abuseUserReport.federationActor }}: {{ snapshot.federation.actorUri }}</div>
+							<div v-if="snapshot.federation.activityId">{{ i18n.ts._abuseUserReport.federationActivity }}: {{ snapshot.federation.activityId }}</div>
+							<div>{{ i18n.ts._abuseUserReport.federationObjects }}</div>
+							<ul><li v-for="(objectUri, index) in snapshot.federation.objectUris" :key="index">{{ objectUri }}</li></ul>
+						</div>
+					</section>
+					<section>
+						<h3 :class="$style.heading">{{ i18n.ts._abuseReport.selectReason }}</h3>
+						<span v-if="report.reason" :class="$style.reason">{{ i18n.ts._abuseReport._reasons[report.reason] }}</span>
+						<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.reasonNotProvided }}</div>
+					</section>
+					<section>
+						<h3 :class="$style.heading">{{ i18n.ts._abuseReport.description }}</h3>
+						<div v-if="report.comment" :class="[$style.content, $style.text]" class="_selectable">{{ report.comment }}</div>
+						<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.noDescription }}</div>
+					</section>
 				</div>
-			</section>
-			<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.snapshotUnavailable }}</div>
-			<section>
-				<h3 :class="$style.heading">{{ i18n.ts._abuseReport.selectReason }}</h3>
-				<span v-if="report.reason" :class="$style.reason">{{ i18n.ts._abuseReport._reasons[report.reason] }}</span>
-				<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.reasonNotProvided }}</div>
-			</section>
-			<section>
-				<h3 :class="$style.heading">{{ i18n.ts._abuseReport.description }}</h3>
-				<div v-if="report.comment" :class="[$style.content, $style.text]" class="_selectable">{{ report.comment }}</div>
-				<div v-else :class="$style.hint">{{ i18n.ts._abuseUserReport.noDescription }}</div>
-			</section>
-		</div>
-		<div>{{ i18n.ts.reporter }}: <MkAcct v-if="report.reporter" :user="report.reporter"/><template v-else>#{{ report.reporterId }}</template></div>
+				<div>{{ i18n.ts.reporter }}: <MkAcct v-if="report.reporter" :user="report.reporter"/><template v-else>#{{ report.reporterId }}</template></div>
 
-		<MkModerationNote v-model="moderationNote" :save="saveModerationNote"/>
+				<MkModerationNote v-model="moderationNote" :save="saveModerationNote"/>
 
-		<div v-if="report.assignee">
-			{{ i18n.ts.moderator }}:
-			<MkAcct :user="report.assignee"/>
-		</div>
-	</div>
-</MkFolder>
+				<div v-if="report.assignee">
+					{{ i18n.ts.moderator }}:
+					<MkAcct :user="report.assignee"/>
+				</div>
+				<div v-if="table" class="_buttons">
+					<template v-if="!resolved">
+						<MkButton :disabled="moderating" @click="resolve('accept')"><i class="ti ti-check" style="color: var(--MI_THEME-success)"></i> {{ i18n.ts._abuseUserReport.resolve }} ({{ i18n.ts._abuseUserReport.accept }})</MkButton>
+						<MkButton :disabled="moderating" @click="resolve('reject')"><i class="ti ti-x" style="color: var(--MI_THEME-error)"></i> {{ i18n.ts._abuseUserReport.resolve }} ({{ i18n.ts._abuseUserReport.reject }})</MkButton>
+						<MkButton :disabled="moderating" @click="resolve(null)"><i class="ti ti-slash"></i> {{ i18n.ts._abuseUserReport.resolve }} ({{ i18n.ts.other }})</MkButton>
+					</template>
+					<template v-if="report.targetUser?.host != null">
+						<MkButton :disabled="forwarded || moderating" :wait="forwarding" primary @click="forward"><i class="ti ti-corner-up-right"></i> {{ forwarded ? i18n.ts._abuseUserReport.forwarded : i18n.ts._abuseUserReport.forward }}</MkButton>
+						<button v-tooltip:dialog="i18n.ts._abuseUserReport.forwardDescription" type="button" class="_button _iconButton" :aria-label="i18n.ts._abuseUserReport.forwardDescription" style="color: var(--MI_THEME-accent);"><i class="ti ti-help-circle" aria-hidden="true"></i></button>
+					</template>
+				</div>
+			</div>
+		</component>
+	</Teleport>
+</component>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, ref, nextTick, onBeforeUnmount, inject, watch, onActivated, onDeactivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { apiUrl } from '@@/js/config.js';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import MkFolder from '@/components/MkFolder.vue';
+import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkModerationNote from '@/components/MkModerationNote.vue';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import bytes from '@/filters/bytes.js';
 import { $i } from '@/i.js';
+import { DI } from '@/di.js';
 
 const props = defineProps<{
 	report: Misskey.entities.AdminAbuseUserReportsResponse[number];
+	table?: boolean;
 }>();
 
 const emit = defineEmits<{
 	(ev: 'resolved', reportId: string): void;
 	(ev: 'refresh'): void;
 }>();
+
+const detailsOpen = ref(false);
+const pageActive = inject(DI.pageActive, ref(true));
+const componentActive = ref(true);
+let detailsFocusTarget: HTMLElement | null = null;
+
+function showDetails(event: PointerEvent) {
+	if (!pageActive.value || !componentActive.value) return;
+	detailsFocusTarget = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+	detailsOpen.value = true;
+}
+
+function onDetailsClosed() {
+	detailsOpen.value = false;
+	const target = detailsFocusTarget;
+	detailsFocusTarget = null;
+	if (!target || !pageActive.value || !componentActive.value) return;
+	nextTick(() => {
+		if (pageActive.value && componentActive.value && target.isConnected) target.focus({ preventScroll: true });
+	});
+}
+
+function dismissDetails() {
+	detailsFocusTarget = null;
+	detailsOpen.value = false;
+}
+
+watch(pageActive, value => {
+	if (!value) dismissDetails();
+}, { flush: 'sync' });
+onActivated(() => { componentActive.value = true; });
+onDeactivated(() => {
+	componentActive.value = false;
+	dismissDetails();
+});
+
+onBeforeUnmount(() => {
+	if (!detailsOpen.value || !pageActive.value || !componentActive.value) return;
+	const table = detailsFocusTarget?.closest('table');
+	const page = detailsFocusTarget?.closest('._pageBody');
+	const target = detailsFocusTarget;
+	nextTick(() => {
+		if (!pageActive.value || !componentActive.value) return;
+		const nextTarget = target?.isConnected ? target : table?.isConnected ? table.querySelector<HTMLButtonElement>('button') : page?.isConnected ? page.querySelector<HTMLButtonElement>('button') : null;
+		nextTarget?.focus({ preventScroll: true });
+	});
+});
 
 const snapshot = computed(() => props.report.snapshot);
 const targetAccount = computed(() => {
@@ -145,7 +253,7 @@ async function downloadEvidence(file: NonNullable<typeof snapshot.value>['files'
 		link.click();
 		link.remove();
 	} catch {
-		os.alert({ type: 'error', text: i18n.ts._abuseUserReport.evidenceDownloadFailed });
+		os.toast(i18n.ts._abuseUserReport.evidenceDownloadFailed, 'error');
 	} finally {
 		if (objectUrl != null) {
 			const completedUrl = objectUrl;
@@ -225,6 +333,23 @@ function showMenu(ev: PointerEvent) {
 </script>
 
 <style lang="scss" module>
+.modalDetails {
+	padding: 20px;
+
+	.heading,
+	.hint,
+	.reason {
+		font-size: 1em;
+	}
+}
+
+.tableSummary {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
 .reportLabel {
 	display: inline-flex;
 	align-items: center;

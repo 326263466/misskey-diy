@@ -34,7 +34,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</MkA>
 					</div>
 					<div v-if="tab !== 'past' && $i != null && !announcement.silence && !announcement.isRead" :class="$style.footer">
-						<MkButton primary @click="read(announcement)"><i class="ti ti-check"></i> {{ i18n.ts.gotIt }}</MkButton>
+						<MkButton primary :wait="readingIds.has(announcement.id)" :aria-busy="readingIds.has(announcement.id)" @click="read(announcement)">
+							<i class="ti ti-check" aria-hidden="true"></i> {{ i18n.ts.gotIt }}
+						</MkButton>
 					</div>
 				</section>
 			</MkPagination>
@@ -51,10 +53,11 @@ import MkButton from '@/components/MkButton.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { $i } from '@/i.js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 import { Paginator } from '@/utility/paginator.js';
 
 const paginator = markRaw(new Paginator('announcements', {
@@ -65,27 +68,39 @@ const paginator = markRaw(new Paginator('announcements', {
 }));
 
 const tab = ref('current');
+const readingIds = ref(new Set<string>());
 
 async function read(target: Misskey.entities.Announcement) {
-	if ($i == null) return;
+	if ($i == null || target.isRead || readingIds.value.has(target.id)) return;
+	const accountId = $i.id;
+	readingIds.value.add(target.id);
 
-	if (target.needConfirmationToRead) {
-		const confirm = await os.confirm({
-			type: 'question',
-			title: i18n.ts._announcement.readConfirmTitle,
-			text: i18n.tsx._announcement.readConfirmText({ title: target.title }),
-		});
-		if (confirm.canceled) return;
+	try {
+		if (target.needConfirmationToRead) {
+			const confirm = await os.confirm({
+				type: 'question',
+				title: i18n.ts._announcement.readConfirmTitle,
+				text: i18n.tsx._announcement.readConfirmText({ title: target.title }),
+			});
+			if (confirm.canceled) return;
+		}
+
+		await misskeyApi('i/read-announcement', { announcementId: target.id });
+		paginator.updateItem(target.id, a => ({
+			...a,
+			isRead: true,
+		}));
+		if ($i != null && $i.id === accountId) {
+			updateCurrentAccount({
+				unreadAnnouncements: $i.unreadAnnouncements.filter(a => a.id !== target.id),
+			});
+		}
+		os.toast(i18n.ts.messageRead, 'success');
+	} catch (error) {
+		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+	} finally {
+		readingIds.value.delete(target.id);
 	}
-
-	paginator.updateItem(target.id, a => ({
-		...a,
-		isRead: true,
-	}));
-	misskeyApi('i/read-announcement', { announcementId: target.id });
-	updateCurrentAccountPartial({
-		unreadAnnouncements: $i.unreadAnnouncements.filter(a => a.id !== target.id),
-	});
 }
 
 const headerTabs = computed(() => [{

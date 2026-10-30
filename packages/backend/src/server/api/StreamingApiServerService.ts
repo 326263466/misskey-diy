@@ -4,13 +4,14 @@
  */
 
 import { EventEmitter } from 'events';
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import * as WebSocket from 'ws';
 import { DI } from '@/di-symbols.js';
 import type { MiAccessToken } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
-import { MiLocalUser } from '@/models/User.js';
+import type { MiLocalUser } from '@/models/User.js';
 import { UserService } from '@/core/UserService.js';
 import { AuthenticateService, AuthenticationError } from './AuthenticateService.js';
 import MainStreamConnection, { ConnectionRequest } from './stream/Connection.js';
@@ -22,6 +23,7 @@ export class StreamingApiServerService {
 	#wss: WebSocket.WebSocketServer;
 	#connections = new Map<WebSocket.WebSocket, number>();
 	#cleanConnectionsIntervalId: NodeJS.Timeout | null = null;
+	#activeUsers = new Map<MiLocalUser['id'], { connections: number; intervalId: NodeJS.Timeout; presenceId: string; connected: Promise<void>; }>();
 
 	constructor(
 		@Inject(DI.redisForSub)
@@ -37,6 +39,8 @@ export class StreamingApiServerService {
 	public attach(server: http.Server): void {
 		this.#wss = new WebSocket.WebSocketServer({
 			noServer: true,
+			maxPayload: 1024 * 1024, // 1MiB
+			perMessageDeflate: false,
 		});
 
 		server.on('upgrade', async (request, socket, head) => {
@@ -125,19 +129,14 @@ export class StreamingApiServerService {
 
 			this.#connections.set(connection, Date.now());
 
-			const userUpdateIntervalId = user ? setInterval(() => {
-				this.usersService.updateLastActiveDate(user);
-			}, 1000 * 60 * 5) : null;
-			if (user) {
-				this.usersService.updateLastActiveDate(user);
-			}
+			if (user) this.onUserConnected(user);
 
 			connection.once('close', () => {
 				ev.removeAllListeners();
 				stream.dispose();
 				globalEv.off('message', onRedisMessage);
 				this.#connections.delete(connection);
-				if (userUpdateIntervalId) clearInterval(userUpdateIntervalId);
+				if (user) this.onUserDisconnected(user);
 			});
 
 			connection.on('pong', () => {
@@ -146,17 +145,52 @@ export class StreamingApiServerService {
 		});
 
 		// 一定期間通信が無いコネクションは実際には切断されている可能性があるため定期的にterminateする
+		// 断网、休眠时浏览器不会发送 close，靠心跳发现；约 1~1.5 分钟断开后离线，开销只是每个连接一个 ping 帧。
 		this.#cleanConnectionsIntervalId = setInterval(() => {
 			const now = Date.now();
 			for (const [connection, lastActive] of this.#connections.entries()) {
-				if (now - lastActive > 1000 * 60 * 2) {
+				if (now - lastActive > 1000 * 60) {
 					connection.terminate();
 					this.#connections.delete(connection);
 				} else {
 					connection.ping();
 				}
 			}
-		}, 1000 * 60);
+		}, 1000 * 30);
+	}
+
+	@bindThis
+	private onUserConnected(user: MiLocalUser): void {
+		const activeUser = this.#activeUsers.get(user.id);
+		if (activeUser) {
+			activeUser.connections++;
+			return;
+		}
+
+		// 共用源码的用户级定时器，同时保留本站跨进程在线状态。
+		const presenceId = randomUUID();
+		const connected = this.usersService.connectStream(user, presenceId).catch(() => {});
+		this.#activeUsers.set(user.id, {
+			connections: 1,
+			presenceId,
+			connected,
+			intervalId: setInterval(() => {
+				void connected.then(() => this.usersService.refreshStream(user, presenceId)).catch(() => {});
+			}, 1000 * 60 * 5),
+		});
+	}
+
+	@bindThis
+	private onUserDisconnected(user: MiLocalUser): void {
+		const activeUser = this.#activeUsers.get(user.id);
+		if (!activeUser) return;
+
+		activeUser.connections--;
+		if (activeUser.connections <= 0) {
+			clearInterval(activeUser.intervalId);
+			this.#activeUsers.delete(user.id);
+			void activeUser.connected.then(() => this.usersService.disconnectStream(user, activeUser.presenceId)).catch(() => {});
+		}
 	}
 
 	@bindThis

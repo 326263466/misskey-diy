@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<XQueue v-else-if="tab === 'inbox'" domain="inbox"/>
 		<br>
 		<div class="_buttons">
-			<MkButton @click="promoteAllQueues"><i class="ti ti-reload"></i> {{ i18n.ts.retryAllQueuesNow }}</MkButton>
+			<MkButton @click="promoteAllQueues"><i class="ti ti-refresh"></i> {{ i18n.ts.retryAllQueuesNow }}</MkButton>
 			<MkButton danger @click="clear"><i class="ti ti-trash"></i> {{ i18n.ts.clearQueue }}</MkButton>
 		</div>
 	</div>
@@ -38,7 +38,10 @@ function clear() {
 	}).then(({ canceled }) => {
 		if (canceled) return;
 
-		os.apiWithDialog('admin/queue/clear', { queue: tab.value, state: '*' });
+		// 失败提示由 apiWithDialog 处理
+		os.apiWithDialog('admin/queue/clear', { queue: tab.value, state: '*' }).then(() => {
+			os.toast(i18n.ts.cleared, 'success');
+		}, () => {});
 	});
 }
 
@@ -50,7 +53,10 @@ function promoteAllQueues() {
 	}).then(({ canceled }) => {
 		if (canceled) return;
 
-		os.apiWithDialog('admin/queue/promote-jobs', { queue: tab.value });
+		// 失败提示由 apiWithDialog 处理
+		os.apiWithDialog('admin/queue/promote-jobs', { queue: tab.value }).then(() => {
+			os.toast(i18n.ts._queue.jobsPromoted, 'success');
+		}, () => {});
 	});
 }
 

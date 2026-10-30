@@ -7,30 +7,45 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody">
 		<div :class="$style.root" class="_gaps_m">
-			<div :class="$style.addButton">
-				<MkButton primary @click="onAddButtonClicked">
-					<span class="ti ti-plus"></span> {{ i18n.ts._abuseReport._notificationRecipient.createRecipient }}
-				</MkButton>
-			</div>
-			<div :class="$style.subMenus" class="_gaps_s">
-				<MkSelect v-model="filterMethod" :items="filterMethodDef" style="flex: 1">
-					<template #label>{{ i18n.ts._abuseReport._notificationRecipient.recipientType }}</template>
-				</MkSelect>
-				<MkInput v-model="filterText" type="search" style="flex: 1">
-					<template #label>{{ i18n.ts._abuseReport._notificationRecipient.keywords }}</template>
-				</MkInput>
-			</div>
+			<div class="_adminPanel">
+				<div class="_adminToolbar">
+					<MkSelect v-model="filterMethod" :items="filterMethodDef" class="_adminToolbarField">
+						<template #label>{{ i18n.ts._abuseReport._notificationRecipient.recipientType }}</template>
+					</MkSelect>
+					<MkInput v-model="filterText" type="search" class="_adminToolbarField">
+						<template #label>{{ i18n.ts._abuseReport._notificationRecipient.keywords }}</template>
+					</MkInput>
+					<div class="_adminToolbarActions">
+						<MkButton primary @click="onAddButtonClicked">
+							<span class="ti ti-plus" aria-hidden="true"></span> {{ i18n.ts._abuseReport._notificationRecipient.createRecipient }}
+						</MkButton>
+					</div>
+				</div>
 
-			<MkDivider/>
-
-			<div :class="$style.recipients" class="_gaps_s">
-				<XRecipient
-					v-for="r in filteredRecipients"
-					:key="r.id"
-					:entity="r"
-					@edit="onEditButtonClicked"
-					@delete="onDeleteButtonClicked"
-				/>
+				<MkPaginationBar v-slot="{ items }" v-model:page="page" :items="filteredRecipients">
+					<div class="_adminTableContainer">
+						<table class="_adminTable">
+							<thead>
+								<tr>
+									<th scope="col">{{ i18n.ts._abuseReport._notificationRecipient.recipientType }}</th>
+									<th scope="col">{{ i18n.ts.name }}</th>
+									<th scope="col">{{ i18n.ts.recipient }}</th>
+									<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+								</tr>
+							</thead>
+							<tbody>
+								<XRecipient
+									v-for="r in items"
+									:key="r.id"
+									:entity="r"
+									@edit="onEditButtonClicked"
+									@delete="onDeleteButtonClicked"
+								/>
+								<tr v-if="filteredRecipients.length === 0"><td colspan="4" class="_adminTableEmpty">{{ i18n.ts.nothing }}</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</MkPaginationBar>
 			</div>
 		</div>
 	</div>
@@ -39,15 +54,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script setup lang="ts">
 import { entities } from 'misskey-js';
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import XRecipient from './notification-recipient.item.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import MkInput from '@/components/MkInput.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkButton from '@/components/MkButton.vue';
+import MkPaginationBar from '@/components/MkPaginationBar.vue';
 import * as os from '@/os.js';
-import MkDivider from '@/components/MkDivider.vue';
 import { i18n } from '@/i18n.js';
+import { definePage } from '@/page.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 
 const recipients = ref<entities.AbuseReportNotificationRecipient[]>([]);
@@ -88,6 +104,10 @@ const filteredRecipients = computed(() => {
 		return true;
 	});
 });
+const page = ref(1);
+
+watch([filterMethod, filterText], () => { page.value = 1; });
+
 const headerActions = computed(() => []);
 const headerTabs = computed(() => []);
 
@@ -105,7 +125,9 @@ async function onDeleteButtonClicked(id: string) {
 		title: i18n.ts._abuseReport._notificationRecipient.deleteConfirm,
 	});
 	if (!res.canceled) {
-		await misskeyApi('admin/abuse-report/notification-recipient/delete', { id: id });
+		// 失败提示由 apiWithDialog 处理
+		await os.apiWithDialog('admin/abuse-report/notification-recipient/delete', { id: id });
+		os.toast(i18n.ts.deleteSucceeded, 'success');
 		await fetchRecipients();
 	}
 }
@@ -148,6 +170,11 @@ async function fetchRecipients() {
 onMounted(async () => {
 	await fetchRecipients();
 });
+
+definePage(() => ({
+	title: i18n.ts.abuseReportNotificationSettings,
+	icon: 'ti ti-bell',
+}));
 </script>
 
 <style module lang="scss">
@@ -158,23 +185,4 @@ onMounted(async () => {
 	align-items: stretch;
 }
 
-.addButton {
-	display: flex;
-	justify-content: flex-end;
-	gap: 8px;
-}
-
-.subMenus {
-	display: flex;
-	flex-direction: row;
-	justify-content: space-between;
-	align-items: flex-end;
-}
-
-.recipients {
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start;
-	align-items: stretch;
-}
 </style>

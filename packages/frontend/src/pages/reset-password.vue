@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import MkInput from '@/components/MkInput.vue';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
@@ -39,6 +39,7 @@ async function save() {
 		token: props.token,
 		password: password.value,
 	});
+	os.toast(i18n.ts.passwordChanged, 'success');
 	mainRouter.push('/');
 }
 

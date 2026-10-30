@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root">
+<div class="_formSplit" :class="$style.root">
 	<slot></slot>
 </div>
 </template>

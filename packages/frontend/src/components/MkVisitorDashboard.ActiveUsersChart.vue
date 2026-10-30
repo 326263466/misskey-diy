@@ -4,161 +4,68 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
-	<MkLoading v-if="fetching"/>
-	<div v-show="!fetching" :class="$style.root">
-		<canvas ref="chartEl"></canvas>
+<div :class="$style.root">
+	<MkLoading v-if="raw == null"/>
+	<div v-else :class="$style.chart">
+		<MkEChart :option="option" :ariaLabel="i18n.ts._dashboard.read"/>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, useTemplateRef, ref, nextTick } from 'vue';
-import { Chart } from 'chart.js';
-import tinycolor from 'tinycolor2';
+import { computed, onMounted, onUnmounted, shallowRef } from 'vue';
+import MkEChart from '@/components/MkEChart.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { themeManager } from '@/theme.js';
-import { store } from '@/store.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
-import { chartVLine } from '@/utility/chart-vline.js';
-import { initChart } from '@/utility/init-chart.js';
+import { chartColors, chartGrid, recentDays } from '@/utility/echarts.js';
+import { formatChartDate } from '@/utility/chart-date.js';
+import { dateOnly } from '@/filters/date.js';
+import number from '@/filters/number.js';
 import { i18n } from '@/i18n.js';
 
-initChart();
-
-const chartEl = useTemplateRef('chartEl');
-const now = new Date();
-let chartInstance: Chart | null = null;
+// 访客看到的是最近一个月每天的活跃人数，数据少时柱状比折线更直观。
 const chartLimit = 30;
-const fetching = ref(true);
+const raw = shallowRef<number[] | null>(null);
+const days = recentDays(chartLimit);
+let disposed = false;
 
-const { handler: externalTooltipHandler } = useChartTooltip();
-
-async function renderChart() {
-	if (chartInstance) {
-		chartInstance.destroy();
-	}
-
-	const getDate = (ago: number) => {
-		const y = now.getFullYear();
-		const m = now.getMonth();
-		const d = now.getDate();
-
-		return new Date(y, m, d - ago);
-	};
-
-	const format = (arr: number[]) => {
-		return arr.map((v, i) => ({
-			x: getDate(i).getTime(),
-			y: v,
-		}));
-	};
-
-	const raw = await misskeyApi('charts/active-users', { limit: chartLimit, span: 'day' });
-
-	fetching.value = false;
-
-	await nextTick();
-
-	const colorWrite = '#2ecc71';
-
-	const max = Math.max(...raw.read);
-
-	if (chartEl.value == null) return;
-
-	chartInstance = new Chart(chartEl.value, {
-		type: 'bar',
-		data: {
-			datasets: [{
-				parsing: false,
-				label: i18n.ts._dashboard.read,
-				data: format(raw.read).slice().reverse(),
-				pointRadius: 0,
-				borderWidth: 0,
-				borderJoinStyle: 'round',
-				borderRadius: 4,
-				backgroundColor: () => tinycolor(themeManager.currentCompiledTheme!.accent).toHexString(),
-				barPercentage: 0.5,
-				categoryPercentage: 1,
-				fill: true,
-			}],
-		},
-		options: {
-			aspectRatio: 2.5,
-			layout: {
-				padding: {
-					left: 0,
-					right: 8,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					type: 'time',
-					offset: true,
-					time: {
-						unit: 'day',
-						displayFormats: {
-							day: 'M/d',
-							month: 'Y/M',
-						},
-					},
-					grid: {
-						display: false,
-					},
-					ticks: {
-						stepSize: 1,
-						display: true,
-						maxRotation: 0,
-						autoSkipPadding: 8,
-					},
-				},
-				y: {
-					position: 'left',
-					suggestedMax: 10,
-					grid: {
-						display: true,
-					},
-					ticks: {
-						display: true,
-						//mirror: true,
-					},
-				},
-			},
-			interaction: {
-				intersect: false,
-				mode: 'index',
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					external: externalTooltipHandler,
-				},
+const option = computed(() => {
+	const c = chartColors.value;
+	return {
+		grid: { ...chartGrid, top: 8 },
+		tooltip: {
+			trigger: 'axis', axisPointer: { type: 'shadow' },
+			formatter: (params: { dataIndex: number; marker: string; seriesName: string; value: number }[]) => {
+				const item = params[0];
+				if (item == null) return '';
+				return `<div style="margin-bottom:4px;opacity:.7">${dateOnly(days[item.dataIndex])}</div>${item.marker}${item.seriesName}: <b>${number(item.value)}</b>`;
 			},
 		},
-		plugins: [chartVLine()],
-	});
-}
+		xAxis: { type: 'category', data: days.map(day => formatChartDate(day.getTime())), axisLabel: { hideOverlap: true } },
+		yAxis: { type: 'value', minInterval: 1 },
+		series: [{
+			type: 'bar', name: i18n.ts._dashboard.read, data: (raw.value ?? []).slice(0, chartLimit).reverse(),
+			barMaxWidth: 12, itemStyle: { color: c.accent, borderRadius: [3, 3, 0, 0] },
+		}],
+	};
+});
 
-onMounted(() => {
-	renderChart();
+onMounted(async () => {
+	const result = await misskeyApi('charts/active-users', { limit: chartLimit, span: 'day' });
+	if (!disposed) raw.value = result.read;
 });
 
 onUnmounted(() => {
-	chartInstance?.destroy();
+	disposed = true;
 });
 </script>
 
 <style lang="scss" module>
 .root {
 	padding: 20px;
+}
+
+// 高度按比例预留，加载前后不改变布局。
+.chart {
+	aspect-ratio: 2.5;
 }
 </style>

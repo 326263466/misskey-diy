@@ -54,9 +54,11 @@ const sentPaginator = markRaw(new Paginator('following/requests/sent', { limit: 
 const paginator = computed(() => tab.value === 'list' ? receivedPaginator : sentPaginator);
 
 function accept(user: Misskey.entities.UserLite) {
+	// 申请会从列表中消失，补充结果提示；失败提示由 apiWithDialog 处理
 	os.apiWithDialog('following/requests/accept', { userId: user.id }).then(() => {
 		receivedPaginator.reload();
-	});
+		os.toast(i18n.ts.followRequestAcceptedDone, 'success');
+	}, () => {});
 }
 
 async function reject(user: Misskey.entities.UserLite) {
@@ -69,7 +71,8 @@ async function reject(user: Misskey.entities.UserLite) {
 
 	await os.apiWithDialog('following/requests/reject', { userId: user.id }).then(() => {
 		receivedPaginator.reload();
-	});
+		os.toast(i18n.ts.followRequestRejectedDone, 'success');
+	}, () => {});
 }
 
 async function cancel(user: Misskey.entities.UserLite) {
@@ -79,6 +82,7 @@ async function cancel(user: Misskey.entities.UserLite) {
 	try {
 		await os.apiWithDialog('following/requests/cancel', { userId: user.id });
 		sentPaginator.reload();
+		os.toast(i18n.ts.canceledDone, 'success');
 	} finally {
 		cancelingUserIds.value.delete(user.id);
 	}

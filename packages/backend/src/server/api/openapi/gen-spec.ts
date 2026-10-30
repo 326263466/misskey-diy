@@ -15,7 +15,7 @@ export function genOpenapiSpec(config: Config, includeSelfRef = false) {
 
 		info: {
 			version: config.version,
-			title: 'Misskey API',
+			title: `${config.host} API`,
 		},
 
 		externalDocs: {

@@ -103,7 +103,7 @@ const category = (key: NotificationCategory) => ({
 	indicated: false,
 });
 
-// 顺序参考主流产品：互动类在前，关注相关相邻，系统通知和站方公告放最后。
+// 顺序参考主流产品：互动类在前，关注与群聊相关通知相邻，系统通知和站方公告放最后。
 const menuItems = computed(() => [{
 	key: 'all',
 	title: i18n.ts.all,
@@ -111,6 +111,12 @@ const menuItems = computed(() => [{
 	to: '/my/notifications',
 	indicated: false,
 }, category('mentions'), category('reactions'), category('follows'), {
+	key: 'chat',
+	title: getNotificationCategoryLabel('chat'),
+	icon: getNotificationCategoryIcon('chat'),
+	to: '/my/notifications/chat',
+	indicated: false,
+}, {
 	key: 'followRequests',
 	title: i18n.ts.followRequests,
 	icon: 'ti ti-user-plus',
@@ -219,6 +225,13 @@ definePage(() => ({
 	.layout:global(._pageLayoutWithSidebar) {
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: auto minmax(0, 1fr);
+		row-gap: 0;
+
+		> .navigation {
+			padding-block: 0;
+			border-radius: var(--MI-pageHeaderRadius, var(--MI-cardRadius));
+			border-bottom: var(--MI-divider);
+		}
 
 		> :global(._pageContent) {
 			grid-column: 1;
@@ -234,6 +247,8 @@ definePage(() => ({
 	.item {
 		flex-shrink: 0;
 		white-space: nowrap;
+		min-height: var(--MI-pageTabHeight);
+		padding-block: 0;
 	}
 }
 </style>

@@ -14,49 +14,56 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.charts">
 		<div :class="$style.chart">
 			<div :class="$style.chartTitle">{{ i18n.ts._queue.process }}</div>
-			<XChart ref="chartProcess" type="process"/>
+			<XChart ref="chartProcess" type="process" :maxPoints="200"/>
 		</div>
 		<div :class="$style.chart">
 			<div :class="$style.chartTitle">{{ i18n.ts._queue.active }}</div>
-			<XChart ref="chartActive" type="active"/>
+			<XChart ref="chartActive" type="active" :maxPoints="200"/>
 		</div>
 		<div :class="$style.chart">
 			<div :class="$style.chartTitle">{{ i18n.ts._queue.delayed }}</div>
-			<XChart ref="chartDelayed" type="delayed"/>
+			<XChart ref="chartDelayed" type="delayed" :maxPoints="200"/>
 		</div>
 		<div :class="$style.chart">
 			<div :class="$style.chartTitle">{{ i18n.ts._queue.waiting }}</div>
-			<XChart ref="chartWaiting" type="waiting"/>
+			<XChart ref="chartWaiting" type="waiting" :maxPoints="200"/>
 		</div>
 	</div>
-	<MkFolder :defaultOpen="true" :max-height="250">
+	<MkFolder :defaultOpen="true">
 		<template #icon><i class="ti ti-alert-triangle"></i></template>
 		<template #label>{{ i18n.ts._queue.erroredInstances }}</template>
 		<template #suffix>{{ i18n.tsx._queue.nJobs({ n: number(jobs.reduce((a, b) => a + b[1], 0)) }) }}</template>
 
-		<div>
-			<div v-if="jobs.length > 0">
-				<div v-for="job in jobs" :key="job[0]">
-					<MkA :to="`/instance-info/${job[0]}`" behavior="window">{{ job[0] }}</MkA>
-					<span style="margin-left: 8px; color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.tsx._queue.nJobs({ n: number(job[1]) }) }}</span>
-				</div>
+		<MkPaginationBar v-slot="{ items }" v-model:page="page" :items="jobs">
+			<div v-if="jobs.length > 0" class="_adminTableContainer">
+				<table class="_adminTable">
+					<thead><tr><th scope="col">{{ i18n.ts.instance }}</th><th scope="col" class="_adminTableNumber">{{ i18n.ts.jobQueue }}</th><th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th></tr></thead>
+					<tbody>
+						<tr v-for="job in items" :key="job[0]">
+							<td class="_adminTableMain"><MkA :to="`/instance-info/${job[0]}`" behavior="window">{{ job[0] }}</MkA></td>
+							<td class="_adminTableNumber">{{ i18n.tsx._queue.nJobs({ n: number(job[1]) }) }}</td>
+							<td class="_adminTableActions"><MkA :to="`/instance-info/${job[0]}`" behavior="window" class="_textButton">{{ i18n.ts.details }}</MkA></td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 			<span v-else style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.noJobs }}</span>
-		</div>
+		</MkPaginationBar>
 	</MkFolder>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { markRaw, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
+import { markRaw, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
-import XChart from './federation-job-queue.chart.chart.vue';
+import XChart from './overview.queue.chart.vue';
 import type { ApQueueDomain } from '@/pages/admin/federation-job-queue.vue';
 import number from '@/filters/number.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useStream } from '@/stream.js';
 import { i18n } from '@/i18n.js';
 import MkFolder from '@/components/MkFolder.vue';
+import MkPaginationBar from '@/components/MkPaginationBar.vue';
 import { genId } from '@/utility/id.js';
 
 const connection = markRaw(useStream().useChannel('queueStats'));
@@ -66,6 +73,7 @@ const active = ref(0);
 const delayed = ref(0);
 const waiting = ref(0);
 const jobs = ref<Misskey.Endpoints[`admin/queue/${ApQueueDomain}-delayed`]['res']>([]);
+const page = ref(1);
 const chartProcess = useTemplateRef('chartProcess');
 const chartActive = useTemplateRef('chartActive');
 const chartDelayed = useTemplateRef('chartDelayed');
@@ -74,6 +82,8 @@ const chartWaiting = useTemplateRef('chartWaiting');
 const props = defineProps<{
 	domain: ApQueueDomain;
 }>();
+
+watch(() => props.domain, () => { page.value = 1; });
 
 function onStats(stats: Misskey.entities.QueueStats) {
 	activeSincePrevTick.value = stats[props.domain].activeSincePrevTick;
@@ -155,7 +165,7 @@ onUnmounted(() => {
 }
 
 .statusLabel {
-	font-size: 80%;
+	font-size: .9em;
 	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

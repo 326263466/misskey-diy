@@ -77,7 +77,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkCode :code="result" lang="html" :copyButton="false" :class="$style.embedCodeGenResultCode"/>
 						<MkButton :class="$style.embedCodeGenResultButtons" rounded primary @click="doCopy"><i class="ti ti-copy"></i> {{ i18n.ts.copy }}</MkButton>
 					</div>
-					<MkButton :class="$style.embedCodeGenResultButtons" rounded transparent @click="close">{{ i18n.ts.close }}</MkButton>
+					<MkButton :class="$style.embedCodeGenResultButtons" rounded @click="close">{{ i18n.ts.close }}</MkButton>
 				</div>
 			</div>
 		</Transition>
@@ -146,9 +146,10 @@ const paramsForPreview = ref<EmbedParams>(props.params ?? {});
 
 const embedPreviewUrl = computed(() => {
 	const paramClass = new URLSearchParams(normalizeEmbedParams(paramsForPreview.value));
-	if (paramClass.has('maxHeight')) {
-		const maxHeight = parseInt(paramClass.get('maxHeight')!);
-		paramClass.set('maxHeight', maxHeight === 0 ? '500' : Math.min(maxHeight, 700).toString()); // プレビューであまりにも縮小されると見づらいため、700pxまでに制限
+	if (isEmbedWithScrollbar.value || paramClass.has('maxHeight')) {
+		const height = Number(paramClass.get('maxHeight'));
+		// 预览始终限高，避免随列表增长缩放整个 iframe，让自动加载一直触底。
+		paramClass.set('maxHeight', height > 0 ? Math.min(height, 700).toString() : '500');
 	}
 	return `${url}/embed/${props.entity}/${props.id}${paramClass.toString() ? '?' + paramClass.toString() : ''}`;
 });

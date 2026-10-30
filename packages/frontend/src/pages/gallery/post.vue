@@ -4,81 +4,86 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_pageBody">
-		<div class="_root">
-			<Transition :name="prefer.s.animation ? 'fade' : ''" mode="out-in">
-				<div v-if="post" class="rkxwuolj">
-					<div class="files">
-						<div v-for="file in post.files" :key="file.id" class="file">
-							<img :src="file.url"/>
+<div ref="layoutEl" class="_pageLayout" :class="[$style.layout, { _pageLayoutWithSidebar: !narrow }]">
+	<PageWithHeader class="_pageContent" :class="$style.main" hideHeader>
+		<MkError v-if="error" @retry="fetchPost()"/>
+		<MkLoading v-else-if="!post"/>
+		<div v-else class="_gaps">
+			<section class="_panel" :class="$style.hero">
+				<div :class="$style.heroMain">
+					<div :class="$style.heroBody">
+						<h1 :class="$style.name"><Mfm :text="post.title" :plain="true"/></h1>
+						<div :class="$style.meta">
+							<span v-tooltip="i18n.ts.numberOfLikes"><i class="ti ti-heart" aria-hidden="true"></i>{{ post.likedCount }}</span>
+							<span><i class="ti ti-clock" aria-hidden="true"></i><MkTime :time="post.createdAt"/></span>
+							<button type="button" class="_textButton" :class="$style.metaButton" @click="share()"><i class="ti ti-share" aria-hidden="true"></i>{{ i18n.ts.share }}</button>
+							<span v-if="post.isSensitive" :class="$style.warn">{{ i18n.ts.sensitive }}</span>
 						</div>
 					</div>
-					<div class="body">
-						<div class="title"><Mfm :text="post.title" :plain="true"/></div>
-						<div class="description"><Mfm v-if="post.description != null" :text="post.description"/></div>
-						<div class="info">
-							<i class="ti ti-clock"></i> <MkTime :time="post.createdAt" mode="detail"/>
-						</div>
-						<div class="actions">
-							<div class="like">
-								<MkButton v-if="post.isLiked" v-tooltip="i18n.ts._gallery.unlike" class="button" primary @click="unlike()"><i class="ti ti-heart-off"></i><span v-if="post.likedCount > 0" class="count">{{ post.likedCount }}</span></MkButton>
-								<MkButton v-else v-tooltip="i18n.ts._gallery.like" class="button" @click="like()"><i class="ti ti-heart"></i><span v-if="post.likedCount > 0" class="count">{{ post.likedCount }}</span></MkButton>
-							</div>
-							<div class="other">
-								<button v-if="$i && $i.id === post.user.id" v-tooltip="i18n.ts.edit" v-click-anime class="_button _iconButton" @click="edit"><i class="ti ti-pencil ti-fw"></i></button>
-								<button v-tooltip="i18n.ts.copyLink" v-click-anime class="_button _iconButton" @click="copyLink"><i class="ti ti-link ti-fw"></i></button>
-								<button v-tooltip="i18n.ts.share" v-click-anime class="_button _iconButton" @click="share"><i class="ti ti-share ti-fw"></i></button>
-								<button v-if="$i && $i.id !== post.user.id" v-click-anime class="_button _iconButton" @click="showMenu"><i class="ti ti-dots ti-fw"></i></button>
-							</div>
-						</div>
-						<div class="user">
-							<MkAvatar :user="post.user" class="avatar" link preview/>
-							<div class="name">
-								<MkUserName :user="post.user" style="display: block;"/>
-								<MkAcct :user="post.user"/>
-							</div>
-						</div>
+					<div :class="$style.heroActions">
+						<button v-tooltip="post.isLiked ? i18n.ts._gallery.unlike : i18n.ts._gallery.like" type="button" class="_button" :class="[$style.iconButton, { [$style.iconButtonActive]: post.isLiked }]" :aria-label="post.isLiked ? i18n.ts._gallery.unlike : i18n.ts._gallery.like" :aria-pressed="post.isLiked ?? false" @click="post.isLiked ? unlike() : like()"><i :class="post.isLiked ? 'ti ti-heart-filled' : 'ti ti-heart'" aria-hidden="true"></i></button>
+						<button v-tooltip="i18n.ts.more" type="button" class="_button" :class="$style.iconButton" :aria-label="i18n.ts.more" aria-haspopup="menu" @click="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
 					</div>
-					<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
-					<MkContainer :max-height="300" :foldable="true" class="other">
-						<template #icon><i class="ti ti-clock"></i></template>
-						<template #header>{{ i18n.ts.recentPosts }}</template>
-						<MkPagination v-slot="{items}" :paginator="otherPostsPaginator">
-							<div class="sdrarzaf">
-								<MkGalleryPostPreview v-for="post in items" :key="post.id" :post="post" class="post"/>
-							</div>
-						</MkPagination>
-					</MkContainer>
 				</div>
-				<MkError v-else-if="error" @retry="fetchPost()"/>
-				<MkLoading v-else/>
-			</Transition>
+				<div v-if="post.files?.length" :class="$style.files">
+					<img v-for="file in post.files" :key="file.id" :src="file.url" :alt="file.comment ?? ''" :class="$style.file"/>
+				</div>
+			</section>
+
+			<Teleport :to="sidebarEl ?? 'body'" :disabled="narrow || !sidebarEl">
+				<aside :aria-label="i18n.ts.gallery">
+					<MkContainer v-if="post.description" :class="$style.sideCard">
+						<template #header>{{ i18n.ts.description }}</template>
+						<div :class="$style.sideBody"><Mfm :text="post.description"/></div>
+					</MkContainer>
+					<MkContainer :class="$style.sideCard">
+						<template #header>{{ i18n.ts.author }}</template>
+						<div :class="$style.sideBody">
+							<MkA :to="userPage(post.user)" :class="$style.owner" :title="post.user.name ?? post.user.username">
+								<MkAvatar :user="post.user" :class="$style.ownerAvatar" :link="false"/>
+								<MkUserName :user="post.user" :class="$style.ownerName"/>
+							</MkA>
+						</div>
+					</MkContainer>
+				</aside>
+			</Teleport>
+
+			<MkContainer :maxHeight="300" foldable :class="$style.sideCard">
+				<template #icon><i class="ti ti-clock" aria-hidden="true"></i></template>
+				<template #header>{{ i18n.ts.recentPosts }}</template>
+				<MkPagination v-slot="{ items }" :paginator="otherPostsPaginator">
+					<div :class="$style.posts">
+						<MkGalleryPostPreview v-for="item in items" :key="item.id" :post="item"/>
+					</div>
+				</MkPagination>
+			</MkContainer>
+			<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
 		</div>
-	</div>
-</PageWithHeader>
+	</PageWithHeader>
+	<div v-show="!narrow" ref="sidebarEl" class="_pageNavigation" :class="$style.sidebar"></div>
+</div>
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, ref, defineAsyncComponent, markRaw } from 'vue';
+import { computed, watch, ref, markRaw, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
+import { userPage } from '@@/js/user.js';
 import type { MenuItem } from '@/types/menu.js';
-import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import MkContainer from '@/components/MkContainer.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import MkGalleryPostPreview from '@/components/MkGalleryPostPreview.vue';
-import MkFollowButton from '@/components/MkFollowButton.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
-import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
 import { openShareDialog } from '@/utility/share-dialog.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
+import { getAbuseReportMenu } from '@/utility/abuse-report.js';
 import { useRouter } from '@/router.js';
 import { Paginator } from '@/utility/paginator.js';
+import { usePageNavigationNarrow } from '@/composables/use-page-navigation-narrow.js';
 
 const router = useRouter();
 
@@ -86,8 +91,12 @@ const props = defineProps<{
 	postId: string;
 }>();
 
+const layoutEl = useTemplateRef('layoutEl');
+const sidebarEl = useTemplateRef('sidebarEl');
+const narrow = usePageNavigationNarrow(layoutEl);
 const post = ref<Misskey.entities.GalleryPost | null>(null);
 const error = ref<any>(null);
+const isOwner = computed(() => $i != null && post.value != null && $i.id === post.value.userId);
 const otherPostsPaginator = markRaw(new Paginator('users/gallery/posts', {
 	limit: 6,
 	computedParams: computed(() => ({
@@ -96,6 +105,7 @@ const otherPostsPaginator = markRaw(new Paginator('users/gallery/posts', {
 }));
 
 function fetchPost() {
+	error.value = null;
 	post.value = null;
 	misskeyApi('gallery/posts/show', {
 		postId: props.postId,
@@ -161,31 +171,24 @@ function edit() {
 	});
 }
 
-async function reportAbuse() {
-	if (!post.value) return;
-
-	const pageUrl = `${url}/gallery/${post.value.id}`;
-
-	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
-		user: post.value.user,
-		reportTarget: { reportType: 'gallery', targetId: post.value.id },
-		context: { label: i18n.ts.gallery, text: post.value.title, url: pageUrl },
-	}, {
-		closed: () => dispose(),
-	});
-}
-
 function showMenu(ev: PointerEvent) {
 	if (!post.value) return;
+	const _post = post.value;
 
-	const menuItems: MenuItem[] = [];
+	const menuItems: MenuItem[] = [{
+		icon: 'ti ti-link',
+		text: i18n.ts.copyUrl,
+		action: copyLink,
+	}];
 
-	if ($i && $i.id !== post.value.userId) {
+	if (isOwner.value) {
 		menuItems.push({
-			icon: 'ti ti-exclamation-circle',
-			text: i18n.ts.reportAbuse,
-			action: reportAbuse,
+			icon: 'ti ti-pencil',
+			text: i18n.ts.edit,
+			action: edit,
 		});
+	} else if ($i) {
+		menuItems.push(getAbuseReportMenu({ type: 'gallery', post: _post }));
 
 		if ($i.isModerator || $i.isAdmin) {
 			menuItems.push({
@@ -198,9 +201,9 @@ function showMenu(ev: PointerEvent) {
 					type: 'warning',
 					text: i18n.ts.deleteConfirm,
 				}).then(({ canceled }) => {
-					if (canceled || !post.value) return;
+					if (canceled) return;
 
-					os.apiWithDialog('gallery/posts/delete', { postId: post.value.id });
+					os.apiWithDialog('gallery/posts/delete', { postId: _post.id });
 				}),
 			});
 		}
@@ -211,129 +214,184 @@ function showMenu(ev: PointerEvent) {
 
 watch(() => props.postId, fetchPost, { immediate: true });
 
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
-
 definePage(() => ({
 	title: post.value ? post.value.title : i18n.ts.gallery,
 	...post.value ? {
 		avatar: post.value.user,
-	} : {},
+	} : { icon: 'ti ti-library-photo' },
 }));
 </script>
 
-<style lang="scss" scoped>
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.125s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
+<style lang="scss" module>
+@use '../../styles/layout.scss' as layout;
 
-.rkxwuolj {
-	> .files {
-		> .file {
-			> img {
-				display: block;
-				max-width: 100%;
-				max-height: 500px;
-				margin: 0 auto;
-			}
+.layout:global(._pageLayoutWithSidebar) {
+	// 与频道详情一致：主列与信息栏各自滚动，列宽在资料加载前就确定。
+	grid-template-columns: minmax(0, 1fr) layout.$sidebarWidth;
 
-			& + .file {
-				margin-top: 16px;
-			}
-		}
-	}
-
-	> .body {
-		padding: var(--MI-cardPadding);
-
-		> .title {
-			font-weight: bold;
-			font-size: 1.2em;
-			margin-bottom: 16px;
-			overflow-wrap: anywhere;
-		}
-
-		> .info {
-			margin-top: 16px;
-			font-size: 90%;
-			color: var(--MI_THEME-fgTransparentWeak);
-		}
-
-		> .actions {
-			display: flex;
-			align-items: center;
-			margin-top: 16px;
-			padding: 16px 0 0 0;
-			border-top: var(--MI-divider);
-
-			> .like {
-				> .button {
-					--MI_THEME-accent: rgb(241 97 132);
-					--MI_THEME-X8: rgb(241 92 128);
-					--MI_THEME-buttonBg: rgb(216 71 106 / 5%);
-					--MI_THEME-buttonHoverBg: rgb(216 71 106 / 10%);
-					color: #ff002f;
-
-					::v-deep(.count) {
-						margin-left: 0.5em;
-					}
-				}
-			}
-
-			> .other {
-				margin-left: auto;
-
-				> button {
-					padding: 8px;
-					margin: 0 8px;
-
-					&:hover {
-						color: var(--MI_THEME-fgHighlighted);
-					}
-				}
-			}
-		}
-
-		> .user {
-			margin-top: 16px;
-			padding: 16px 0 0 0;
-			border-top: var(--MI-divider);
-			display: flex;
-			align-items: center;
-			flex-wrap: wrap;
-
-			> .avatar {
-				width: 52px;
-				height: 52px;
-			}
-
-			> .name {
-				margin: 0 0 0 12px;
-				font-size: 90%;
-			}
-
-			> .koudoku {
-				margin-left: auto;
-			}
-		}
+	> .main {
+		grid-column: 1;
 	}
 }
 
-.sdrarzaf {
+.sidebar {
+	grid-column: 2;
+	padding: 0;
+	background: none;
+}
+
+.hero {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: var(--MI-cardPadding);
+}
+
+.heroMain {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	min-width: 0;
+}
+
+.heroBody {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.name {
+	margin: 0;
+	font-size: 1.4em;
+	font-weight: 700;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 16px;
+	font-size: 0.9em;
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	> span {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	> .warn {
+		color: var(--MI_THEME-warn);
+	}
+}
+
+.metaButton {
+	color: inherit;
+
+	&:hover {
+		color: var(--MI_THEME-accent);
+	}
+}
+
+.heroActions {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.iconButton {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	color: var(--MI_THEME-fgTransparent);
+
+	&:hover {
+		background: var(--MI_THEME-buttonHoverBg);
+		color: var(--MI_THEME-fg);
+	}
+}
+
+.iconButtonActive {
+	color: var(--MI_THEME-love);
+
+	&:hover {
+		color: var(--MI_THEME-love);
+	}
+}
+
+.files {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.file {
+	display: block;
+	max-width: 100%;
+	max-height: 500px;
+	margin: 0 auto;
+	border-radius: calc(var(--MI-radius) / 2);
+}
+
+.posts {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
-	grid-gap: 12px;
-	margin: 0;
+	gap: 12px;
 	padding: var(--MI-cardPadding);
+}
 
-	> .post {
+.sideCard {
+	--MI-containerHeaderBg: var(--MI_THEME-panel);
+}
 
+.sideCard + .sideCard {
+	margin-top: var(--MI-margin);
+}
+
+.sideBody {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	// 标题栏已有下分割线，这里不再画上边框，否则两条线叠在一起。
+	padding: 14px var(--MI-cardPadding);
+	line-height: 1.7;
+	overflow-wrap: anywhere;
+}
+
+.owner {
+	display: flex;
+	flex-direction: column;
+	align-self: flex-start;
+	align-items: flex-start;
+	gap: 4px;
+	max-width: 100%;
+}
+
+.ownerAvatar {
+	width: 40px;
+	height: 40px;
+}
+
+// 侧栏卡片的内容统一用正文字号。
+.ownerName {
+	font-size: 1em;
+}
+
+@container (max-width: 500px) {
+	.heroMain {
+		flex-wrap: wrap;
+	}
+
+	.heroActions {
+		width: 100%;
 	}
 }
 </style>
+

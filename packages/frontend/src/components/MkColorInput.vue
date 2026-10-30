@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
+<div class="_formField">
 	<label :for="inputId" :class="$style.label"><slot name="label"></slot></label>
 	<div :class="[$style.input, { [$style.disabled]: disabled }]">
 		<input
@@ -59,7 +59,7 @@ function onColorInput(event: Event) {
 <style lang="scss" module>
 .label {
 	display: block;
-	font-size: 0.85em;
+	font-size: var(--MI-formLabelFontSize, 0.85em);
 	padding: 0 0 8px 0;
 	user-select: none;
 

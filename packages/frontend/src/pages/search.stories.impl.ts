@@ -88,3 +88,10 @@ export const WithUserType = {
 		type: 'user',
 	},
 } satisfies StoryObj<typeof search_>;
+
+export const WithArticleType = {
+	...Default,
+	args: {
+		type: 'article',
+	},
+} satisfies StoryObj<typeof search_>;

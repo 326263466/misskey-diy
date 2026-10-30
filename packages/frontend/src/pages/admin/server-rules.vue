@@ -54,6 +54,7 @@ async function save() {
 	await os.apiWithDialog('admin/update-meta', {
 		serverRules: serverRules.value.map(r => r.text),
 	});
+	os.toast(i18n.ts.saved, 'success');
 	fetchInstance(true);
 }
 

@@ -18,6 +18,7 @@
  * followRequestAccepted - 自分の送ったフォローリクエストが承認された
  * roleAssigned - ロールが付与された
  * chatRoomInvitationReceived - チャットルームに招待された
+ * chatRoomMemberRemoved - チャットルームから除名された
  * achievementEarned - 実績を獲得
  * exportCompleted - エクスポートが完了
  * login - ログイン
@@ -41,6 +42,7 @@ export const notificationTypes = [
 	'followRequestAccepted',
 	'roleAssigned',
 	'chatRoomInvitationReceived',
+	'chatRoomMemberRemoved',
 	'achievementEarned',
 	'exportCompleted',
 	'login',
@@ -86,8 +88,6 @@ export const moderationLogTypes = [
 	'suspend',
 	'unsuspend',
 	'updateUserNote',
-	'grantCheckinCards',
-	'revokeCheckinCards',
 	'addCustomEmoji',
 	'updateCustomEmoji',
 	'deleteCustomEmoji',
@@ -142,23 +142,6 @@ export const moderationLogTypes = [
 ] as const;
 
 export type ModerationLogPayloads = {
-	revokeCheckinCards: {
-		userId: string;
-		userUsername: string;
-		userHost: string | null;
-		batchId: string;
-		amount: number;
-		before: number;
-		after: number;
-	};
-	grantCheckinCards: {
-		userId: string;
-		userUsername: string;
-		userHost: string | null;
-		amount: number;
-		before: number;
-		after: number;
-	};
 	updateServerSettings: {
 		before: any | null;
 		after: any | null;

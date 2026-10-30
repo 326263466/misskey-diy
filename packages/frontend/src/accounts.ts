@@ -6,11 +6,12 @@
 import { defineAsyncComponent, ref, toRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import { apiUrl, host } from '@@/js/config.js';
+import { userPage } from '@@/js/user.js';
 import type { MenuItem } from '@/types/menu.js';
 import { showSuspendedDialog } from '@/utility/show-suspended-dialog.js';
 import { i18n } from '@/i18n.js';
 import { miLocalStorage } from '@/local-storage.js';
-import { waiting, popup, popupMenu, success, alert, confirm } from '@/os.js';
+import { popup, success, alert, confirm } from '@/os.js';
 import { unisonReload, reloadChannel } from '@/utility/unison-reload.js';
 import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
@@ -29,8 +30,7 @@ const accountFieldRevisions = new Map<string, number>();
 function sameAccountValue(left: unknown, right: unknown): boolean {
 	if (Object.is(left, right)) return true;
 	if (Array.isArray(left) !== Array.isArray(right)) return false;
-	// API account fields are JSON values. Compare only supplied fields, not a
-	// serialized copy of the entire account, and retain equal collection references.
+	// 保留相同集合的引用，避免每次账号同步触发无效重绘。
 	return deepEqual(toRaw(left) as Parameters<typeof deepEqual>[0], toRaw(right) as Parameters<typeof deepEqual>[1]);
 }
 
@@ -155,7 +155,7 @@ async function fetchAccount(token: string, id?: string, forceShowDialog?: boolea
 	throw error;
 }
 
-export function updateCurrentAccount(accountData: Misskey.entities.MeDetailed) {
+export function replaceCurrentAccountData(accountData: Misskey.entities.MeDetailed) {
 	if (!$i || invalidSessionRecovery) return;
 	if (accountData.id !== $i.id) return;
 	const revision = ++accountRevision;
@@ -180,7 +180,7 @@ export function updateCurrentAccount(accountData: Misskey.entities.MeDetailed) {
 	miLocalStorage.setItem('account', JSON.stringify($i));
 }
 
-export function updateCurrentAccountPartial(accountData: Partial<Misskey.entities.MeDetailed>, options: { fromStream?: boolean } = {}) {
+export function updateCurrentAccount(accountData: Partial<Misskey.entities.MeDetailed>, options: { fromStream?: boolean } = {}) {
 	if (!$i || invalidSessionRecovery) return;
 	if (accountData.id != null && accountData.id !== $i.id) return;
 	publishUserProfileUpdate($i.id, accountData);
@@ -189,8 +189,7 @@ export function updateCurrentAccountPartial(accountData: Partial<Misskey.entitie
 	for (const [key, value] of Object.entries(accountData)) {
 		if (value === undefined) continue;
 		const equal = sameAccountValue($i[key as keyof typeof $i], value);
-		// Full streaming snapshots include untouched fields; only an explicit
-		// mutation confirms an unchanged value against an in-flight refresh.
+		// 流式快照中的未变字段不阻止正在进行的账号刷新。
 		if (!equal || !options.fromStream) accountFieldRevisions.set(key, revision);
 		if (equal) continue;
 		($i[key as keyof typeof accountData] as any) = value;
@@ -208,11 +207,10 @@ export async function refreshCurrentAccount(options: { throwOnError?: boolean } 
 	const revision = accountRevision;
 	return fetchAccount($i.token, $i.id).then(account => {
 		if (revision === accountRevision) {
-			updateCurrentAccount(account);
+			replaceCurrentAccountData(account);
 		} else {
-			// A save or streaming event may have arrived while /i was in flight.
-			// Refresh other fields without rolling back these newer confirmations.
-			updateCurrentAccountPartial({
+			// 请求期间已确认的字段不被旧快照覆盖。
+			updateCurrentAccount({
 				...Object.fromEntries(Object.entries(account).filter(([key]) => (accountFieldRevisions.get(key) ?? 0) <= revision)),
 				id: account.id,
 			});
@@ -351,13 +349,8 @@ export async function getAccountMenu(opts: {
 		menuItems.push({
 			type: 'link',
 			icon: 'ti ti-user',
-			text: i18n.ts.profile,
-			to: `/@${$i.username}`,
-		}, {
-			type: 'link',
-			icon: 'ti ti-layout-dashboard',
-			text: i18n.ts._myCenter.title,
-			to: '/my',
+			text: i18n.ts.profilePage,
+			to: userPage(me),
 		}, {
 			type: 'link',
 			icon: 'ti ti-settings',

@@ -12,13 +12,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<MkUserWork :user="user"/>
 		<div>
-			<MkCwButton v-if="useCw" v-model="showContent" :text="text.trim()" :files="files" :poll="poll">
+			<MkCwButton v-if="useCw" v-model="showContent">
 				<Mfm v-if="cw != null && cw != ''" :text="cw" :author="user" :nyaize="'respect'" :i="user"/>
 			</MkCwButton>
-			<div v-show="!useCw || showContent">
+			<MkCwContent v-model="showContent" :enabled="useCw">
 				<Mfm :text="text.trim()" :parsedNodes="topics.nodes" :author="user" :nyaize="'respect'" :i="user"/>
 				<MkNoteTags v-if="topics.tags.length > 0" :tags="topics.tags" :class="$style.tags"/>
-			</div>
+			</MkCwContent>
 		</div>
 	</div>
 </div>
@@ -29,6 +29,7 @@ import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { PollEditorModelValue } from '@/components/MkPollEditor.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
+import MkCwContent from '@/components/MkCwContent.vue';
 import MkNoteTags from '@/components/MkNoteTags.vue';
 import MkUserWork from '@/components/MkUserWork.vue';
 import { getNoteTopics } from '@/utility/note-topics.js';
@@ -72,7 +73,7 @@ const topics = computed(() => getNoteTopics({ text: props.text.trim() }));
 }
 
 .tags {
-	margin-top: 8px;
+	margin-top: 4px;
 }
 
 .header {

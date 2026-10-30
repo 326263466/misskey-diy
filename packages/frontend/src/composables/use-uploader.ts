@@ -7,10 +7,10 @@ import * as Misskey from 'misskey-js';
 import { readAndCompressImage } from '@misskey-dev/browser-image-resizer';
 import isAnimated from 'is-file-animated';
 import { EventEmitter } from 'eventemitter3';
-import { computed, markRaw, onMounted, onUnmounted, ref, triggerRef } from 'vue';
+import { computed, markRaw, onUnmounted, ref, triggerRef } from 'vue';
 import type { MenuItem } from '@/types/menu.js';
 import type { WatermarkLayers, WatermarkPreset } from '@/utility/watermark/WatermarkRenderer.js';
-import type { ImageFrameParams, ImageFramePreset } from '@/utility/image-frame-renderer/ImageFrameRenderer.js';
+import type { ImageFrameParams } from '@/utility/image-frame-renderer/ImageFrameRenderer.js';
 import { genId } from '@/utility/id.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
@@ -113,8 +113,6 @@ function getCompressionSettings(level: 0 | 1 | 2 | 3) {
 
 export function useUploader(options: {
 	folderId?: string | null;
-	isManaged?: boolean;
-	draftId?: string | (() => string);
 	multiple?: boolean;
 	features?: UploaderFeatures;
 } = {}) {
@@ -564,19 +562,8 @@ export function useUploader(options: {
 		if (item.uploading || item.uploaded || !items.value.includes(item)) return;
 		item.uploadFailed = false;
 		item.uploading = true;
-		let draftId: string | undefined;
-		try {
-			draftId = typeof options.draftId === 'function' ? options.draftId() : options.draftId;
-		} catch {
-			item.uploading = false;
-			item.uploadFailed = true;
-			return;
-		}
-
 		const { filePromise, abort } = uploadFile(item.preprocessedFile ?? item.file, {
 			name: getUploadName(item),
-			isManaged: options.isManaged,
-			draftId,
 			folderId: options.folderId === undefined ? prefer.s.uploadFolder : options.folderId,
 			isSensitive: item.isSensitive ?? false,
 			caption: item.caption ?? null,

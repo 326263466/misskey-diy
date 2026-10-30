@@ -4,80 +4,49 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="note != null && !deleted && muted" :class="$style.muted" @click="muted = false">
-	<I18n :src="i18n.ts.userSaysSomething" tag="small">
-		<template #name>
-			<MkA v-user-preview="note.userId" :to="userPage(note.user)">
-				<MkUserName :user="note.user"/>
-			</MkA>
+<MkCommentThread v-if="note != null && !blocked" :nested="depth > 1" :replyCount="captured?.repliesCount ?? visibleReplies.length" :loadedCount="visibleReplies.length" :hasMore="detail && depth === 1 && hasMoreReplies && (!muted || deleted)" :loading="loadingReplies" :error="repliesError" :active="pageActive" :loadReplies="loadReplies">
+	<MkComment ref="rootEl" :user="note.user" :createdAt="note.createdAt" :authorId="threadAuthor?.id" :child="depth > 1" :deletedText="deleted ? getDeletedText(deletedBy, true) : undefined" :replyTo="replyTo" :repliesCount="captured?.repliesCount ?? 0" :likedCount="captured?.likeCount ?? 0" :isLiked="captured?.isLiked" :replyOpen="replyOpen" :likeDisabled="liking" :menuDisabled="blocking" :menuOpen="menuOpen" menu @reply="toggleReply" @like="toggleLike" @menu="showMenu">
+		<template v-if="muted && !deleted" #muted>
+			<button type="button" class="_button" @click="muted = false"><I18n :src="i18n.ts.userSaysSomething" tag="small"><template #name><MkUserName :user="note.user"/></template></I18n></button>
 		</template>
-	</I18n>
-</div>
-<div v-else-if="note != null" ref="rootEl" :class="[$style.root, { [$style.children]: depth > 1 }]">
-	<div :class="[$style.main, { [$style.mainWithReplies]: hasVisibleReplies }]">
-		<MkAvatar :class="$style.avatar" :user="note.user" link preview/>
-		<div :class="$style.body">
-			<p v-if="deleted" :class="$style.deletedContent" role="status">{{ getDeletedText(deletedBy, true) }}</p>
-			<div v-else :class="$style.headerRow">
-				<MkNoteHeader :class="$style.header" :note="note" :showAuthorBadge="isThreadAuthor"/>
-				<button v-tooltip="i18n.ts.more" type="button" class="_button" :class="[$style.action, $style.menu]" :aria-label="i18n.ts.more" @click="showMenu">
-					<i class="ti ti-dots"></i>
-				</button>
-			</div>
-			<div v-if="!deleted">
-				<MkCwButton v-if="note.cw != null" v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll">
-					<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user" :nyaize="'respect'"/>
-				</MkCwButton>
-				<div v-show="note.cw == null || showContent">
-					<MkSubNoteContent :class="$style.text" :note="note" :omitMentionOf="omitMentionOf" :relocateTags="true"/>
-				</div>
-			</div>
-			<MkReactionsViewer v-if="!deleted && captured && captured.reactionCount > 0" :noteId="note.id" :reactions="captured.reactions" :reactionEmojis="captured.reactionEmojis" :myReactions="captured.myReactions"/>
-			<MkNoteTags v-if="!deleted && (note.cw == null || showContent)" :class="$style.tags" :tags="topics.tags" :channel="note.channel"/>
-			<footer v-if="!deleted" :class="$style.footer">
-				<button v-tooltip="captured?.isLiked ? i18n.ts.unlike : i18n.ts.like" type="button" class="_button" :class="[$style.action, { [$style.liked]: captured?.isLiked }]" :aria-label="captured?.isLiked ? i18n.ts.unlike : i18n.ts.like" :aria-pressed="captured?.isLiked ?? false" :disabled="liking" @click="toggleLike">
-					<i :class="captured?.isLiked ? 'ti ti-heart-filled' : 'ti ti-heart'"></i><span v-if="captured && captured.likeCount > 0">{{ captured.likeCount }}</span>
-				</button>
-				<button v-tooltip="replyOpen ? i18n.ts._article.cancelReply : i18n.ts.reply" type="button" class="_button" :class="[$style.action, { [$style.actionActive]: replyOpen }]" :aria-label="replyOpen ? i18n.ts._article.cancelReply : i18n.ts.reply" :aria-expanded="replyOpen" @click="toggleReply">
-					<i class="ti ti-message-circle"></i><span v-if="replyOpen">{{ i18n.ts._article.cancelReply }}</span><span v-else-if="captured && captured.repliesCount > 0">{{ captured.repliesCount }}</span>
-				</button>
-			</footer>
-			<MkPostForm v-if="replyOpen && note" :class="$style.replyForm" :reply="note" :channel="note.channel" commentMode inlineReply fixed autofocus @posted="closeReply" @esc="closeReply"/>
-		</div>
-	</div>
-	<template v-if="detail && depth === 1">
-		<MkNoteSub
-			v-for="(reply, index) in replies"
-			:key="reply.id"
-			:note="reply"
-			:class="[$style.reply, { [$style.replyWithSibling]: index < replies.length - 1 }]"
-			:depth="2"
-			:threadAuthor="threadAuthor"
-			:parentComment="note"
-		/>
-		<div v-if="hasMoreReplies && !repliesError" :key="replies.length" v-appear="loadReplies" :class="$style.sentinel" aria-hidden="true"></div>
-		<MkLoading v-if="loadingReplies" :class="$style.replyLoading"/>
-		<MkError v-else-if="repliesError" :class="$style.replyError" @retry="loadReplies"/>
+		<template #metadata>
+			<span v-if="note.visibility !== 'public'" :title="i18n.ts._visibility[note.visibility]">
+				<i :class="{ 'ti ti-home': note.visibility === 'home', 'ti ti-lock': note.visibility === 'followers', 'ti ti-mail': note.visibility === 'specified' }" role="img" :aria-label="i18n.ts._visibility[note.visibility]"></i>
+			</span>
+		</template>
+		<MkCwButton v-if="note.cw != null" v-model="showContent">
+			<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user" :nyaize="'respect'"/>
+		</MkCwButton>
+		<MkCwContent v-model="showContent" :enabled="note.cw != null"><MkSubNoteContent :note="note" :omitMentionOf="omitMentionOf" :relocateTags="true"/></MkCwContent>
+		<template #contentAfter>
+			<MkReactionsViewer v-if="captured && captured.reactionCount > 0" :noteId="note.id" :reactions="captured.reactions" :reactionEmojis="captured.reactionEmojis" :myReactions="captured.myReactions"/>
+			<MkNoteTags v-if="note.cw == null || showContent" :class="$style.tags" :tags="topics.tags" :channel="channel"/>
+		</template>
+		<template v-if="replyOpen" #reply><MkPostForm :reply="note" :channel="note.channel" commentMode inlineReply fixed autofocus @posted="closeReply" @esc="closeReply"/></template>
+	</MkComment>
+	<template v-if="detail && depth === 1 && (!muted || deleted)" #replies="{ start, end }">
+		<MkNoteSub v-for="(reply, index) in visibleReplies" v-show="index >= start && index < end" :key="reply.id" :note="reply" :depth="2" :threadAuthor="threadAuthor" :parentComment="note" :replyTarget="replyTargetOf(reply)"/>
 	</template>
-</div>
+</MkCommentThread>
 </template>
 
 <script lang="ts" setup>
 import { computed, defineAsyncComponent, inject, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
-import MkNoteHeader from '@/components/MkNoteHeader.vue';
+import MkComment from '@/components/MkComment.vue';
+import MkCommentThread from '@/components/MkCommentThread.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
+import MkCwContent from '@/components/MkCwContent.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { createFlatNoteRepliesLoader } from '@/utility/flat-note-replies.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
-import { userPage } from '@@/js/user.js';
 import { checkWordMute } from '@/utility/check-word-mute.js';
 import { useNoteCapture, useNoteCaptureVisibility } from '@/composables/use-note-capture.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
 import { pleaseLogin } from '@/utility/please-login.js';
-import { getAbuseNoteMenu } from '@/utility/get-note-menu.js';
+import { getAbuseReportMenu } from '@/utility/abuse-report.js';
 import * as os from '@/os.js';
 import type { MenuItem } from '@/types/menu.js';
 import { editNote } from '@/utility/edit-note.js';
@@ -89,6 +58,7 @@ import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkNoteTags from '@/components/MkNoteTags.vue';
 import { getNoteTopics } from '@/utility/note-topics.js';
 import { activeCommentReplyId } from '@/utility/comment-reply.js';
+import { isNoteBlocked, updateUserBlocking } from '@/utility/user-blocking.js';
 
 const MkPostForm = defineAsyncComponent(() => import('@/components/MkPostForm.vue'));
 
@@ -100,21 +70,37 @@ const props = withDefaults(defineProps<{
 	depth?: number;
 	parentComment?: Misskey.entities.Note | null;
 
+	// 扁平展示时，回复的是同一线程里的其他子评论
+	replyTarget?: Misskey.entities.Note | null;
+
 	// 原帖作者。用于显示作者标签，以及省略指向作者的 @提及
 	threadAuthor?: Misskey.entities.UserLite | null;
 }>(), {
 	depth: 1,
 	parentComment: null,
+	replyTarget: null,
 	threadAuthor: null,
 });
 
 const note = props.note == null ? null : useNoteContent(props.note);
 const topics = computed(() => note == null ? { tags: [] } : getNoteTopics(note));
+const inChannel = inject(DI.inChannel, null);
+const channel = computed(() => {
+	const value = note?.channel;
+	if (value == null) return null;
+	if (inChannel?.value === value.id || props.parentComment?.channel?.id === value.id) return null;
+	return value;
+});
 
-// 作者本人的回复，在昵称后加作者标签
-const isThreadAuthor = computed(() => props.threadAuthor != null && props.note?.userId === props.threadAuthor.id);
+const replyTo = computed(() => {
+	const target = props.replyTarget;
+	if (target == null || isNoteBlocked(target)) return null;
+	return { id: target.id, text: target.isHidden ? i18n.ts.invisibleNote : target.cw ?? target.text, user: target.user, isDeleted: target.isDeleted === true };
+});
 
+// 引用行已写明回复对象，正文开头指向同一人的 @提及不再重复显示。
 const omitMentionOf = computed(() => {
+	if (replyTo.value != null) return replyTo.value.isDeleted ? null : replyTo.value.user;
 	if (props.parentComment != null) {
 		if (props.parentComment.isDeleted) return null;
 		return props.note?.replyId === props.parentComment.id ? props.parentComment.user : null;
@@ -122,27 +108,40 @@ const omitMentionOf = computed(() => {
 	return props.threadAuthor;
 });
 
+function replyTargetOf(reply: Misskey.entities.Note): Misskey.entities.Note | null {
+	if (reply.replyId == null || reply.replyId === props.note?.id) return null;
+	return replies.value.find(item => item.id === reply.replyId) ?? reply.reply ?? null;
+}
+
 const muted = ref<boolean | ReturnType<typeof checkWordMute>>(props.note && $i ? checkWordMute(props.note, $i, $i.mutedWords) : false);
+const blocked = computed(() => props.note != null && isNoteBlocked(props.note));
+const blocking = ref(false);
+const menuOpen = ref(false);
 const deleted = ref(props.note?.isDeleted === true);
 const deletedBy = ref<Misskey.entities.Note['deletedBy']>(props.note?.deletedBy ?? null);
 watch(() => [props.note?.isDeleted, props.note?.deletedBy] as const, ([value, source]) => {
 	if (value) markDeleted(source);
 });
 const rootEl = useTemplateRef('rootEl');
-const captureActive = useNoteCaptureVisibility(rootEl);
+const pageActive = inject(DI.pageActive, ref(true));
+const captureActive = useNoteCaptureVisibility(computed(() => rootEl.value?.rootEl ?? null));
 const mock = inject(DI.mock, false);
 const captured = props.note == null ? null : useNoteCapture({ note: props.note, parentNote: null, active: captureActive, mock: mock || deleted.value }).$note;
-const likeActions = note == null || captured == null ? null : useLike(note.id, captured, { disabled: () => deleted.value || note.isDeleted === true });
+const likeActions = note == null || captured == null ? null : useLike(note.id, captured, { disabled: () => deleted.value || blocked.value || note.isDeleted === true });
 const liking = likeActions?.liking ?? ref(false);
 
 function toggleLike(): void { void likeActions?.toggleLike(); }
 
-const replyOpen = computed(() => note != null && !deleted.value && activeCommentReplyId.value === note.id);
+const replyOpen = computed(() => note != null && !deleted.value && !blocked.value && activeCommentReplyId.value === note.id);
+
+watch(blocked, value => {
+	if (value && activeCommentReplyId.value === note?.id) activeCommentReplyId.value = null;
+});
 
 async function toggleReply(): Promise<void> {
-	if (note == null || deleted.value) return;
+	if (note == null || deleted.value || blocked.value) return;
 	if (replyOpen.value) return closeReply();
-	if (!await pleaseLogin() || deleted.value) return;
+	if (!await pleaseLogin() || deleted.value || blocked.value) return;
 	activeCommentReplyId.value = note.id;
 }
 
@@ -155,9 +154,11 @@ onBeforeUnmount(closeReply);
 async function deleteComment(): Promise<void> {
 	const note = props.note;
 	if (note == null || deleted.value || note.userId !== $i?.id) return;
-	const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts.noteDeleteConfirm });
-	if (canceled || deleted.value) return;
-	await os.apiWithDialog('notes/delete', { noteId: note.id });
+	try {
+		await os.apiWithDialog('notes/delete', { noteId: note.id });
+	} catch {
+		return;
+	}
 	globalEvents.emit('noteDeleted', note.id, note.replyId, note.renoteId != null && note.renote?.userId !== note.userId ? note.renoteId : null, 'author');
 }
 
@@ -167,30 +168,46 @@ async function editComment(): Promise<void> {
 
 async function showMenu(ev: PointerEvent): Promise<void> {
 	const note = props.note;
-	if (note == null || deleted.value || !await pleaseLogin() || deleted.value) return;
+	const anchor = ev.currentTarget ?? ev.target;
+	if (note == null || deleted.value || blocked.value || blocking.value || !await pleaseLogin() || deleted.value || blocked.value) return;
 	const menu: MenuItem[] = note.userId === $i?.id ? [{
 		icon: 'ti ti-edit', text: i18n.ts.edit, action: editComment,
 	}, {
 		icon: 'ti ti-trash', text: i18n.ts.delete, danger: true, action: deleteComment,
-	}] : [getAbuseNoteMenu(note, i18n.ts.reportAbuse), {
+	}] : [getAbuseReportMenu({ type: 'note', note }), {
 		icon: 'ti ti-ban', text: i18n.ts.block, danger: true,
 		action: async () => {
-			const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts.blockConfirm });
-			if (canceled) return;
-			await os.apiWithDialog('blocking/create', { userId: note.userId });
-			muted.value = true;
+			if (blocking.value || blocked.value) return;
+			blocking.value = true;
+			try {
+				const { canceled } = await os.confirm({ type: 'warning', text: i18n.ts.blockConfirm });
+				if (canceled || blocked.value) return;
+				await os.apiWithDialog('blocking/create', { userId: note.userId });
+				updateUserBlocking(note.userId, true);
+				os.toast(i18n.ts.youBlockedThisUser, 'success');
+			} catch {
+				// 接口已提示错误，失败时不隐藏评论。
+			} finally {
+				blocking.value = false;
+			}
 		},
 	}];
-	await os.popupMenu(menu, ev.currentTarget ?? ev.target);
+	menuOpen.value = true;
+	try {
+		await os.popupMenu(menu, anchor);
+	} finally {
+		menuOpen.value = false;
+	}
 }
 
 const showContent = ref(false);
 const replies = ref<Misskey.entities.Note[]>([]);
+const visibleReplies = computed(() => replies.value.filter(reply => !isNoteBlocked(reply)));
 const loadingReplies = ref(false);
 const repliesError = ref(false);
 const replyAbortController = new AbortController();
 const replyLoader = props.detail && props.depth === 1 && props.note != null
-	? createFlatNoteRepliesLoader<Misskey.entities.Note>(props.note, params => misskeyApi('notes/replies', params, undefined, replyAbortController.signal))
+	? createFlatNoteRepliesLoader<Misskey.entities.Note>(props.note, params => misskeyApi('notes/replies', params, undefined, replyAbortController.signal), { ascending: true })
 	: null;
 const hasMoreReplies = ref(replyLoader?.hasMore ?? false);
 let disposed = false;
@@ -219,15 +236,12 @@ onBeforeUnmount(() => {
 	replyAbortController.abort();
 });
 
-// 有子回复时才从头像下方接出连接线
-const hasVisibleReplies = computed(() => replies.value.length > 0);
-
-async function loadReplies(): Promise<void> {
+async function loadReplies(limit = 10): Promise<void> {
 	if (disposed || replyLoader == null || loadingReplies.value) return;
 	loadingReplies.value = true;
 	repliesError.value = false;
 	try {
-		const result = await replyLoader.loadMore();
+		const result = await replyLoader.loadMore(limit);
 		if (disposed) return;
 		replies.value.push(...result.notes.filter(note => !replies.value.some(reply => reply.id === note.id)).map(note => deletedReplySources.has(note.id) ? toDeletedNote(note, deletedReplySources.get(note.id)) : note));
 		hasMoreReplies.value = result.hasMore;
@@ -237,200 +251,8 @@ async function loadReplies(): Promise<void> {
 		if (!disposed) loadingReplies.value = false;
 	}
 }
-
-if (hasMoreReplies.value) void loadReplies();
 </script>
 
 <style lang="scss" module>
-.root {
-	--avatarSize: 40px;
-	--columnGap: 8px;
-	--threadLineWidth: 2px;
-	--replyGap: 10px;
-	display: grid;
-	grid-template-columns: var(--avatarSize) minmax(0, 1fr);
-	column-gap: var(--columnGap);
-	padding: var(--MI-cardPadding);
-	font-size: 1.05em;
-	position: relative;
-
-	&.children {
-		padding: 10px 0 0;
-		font-size: inherit;
-	}
-}
-
-.main {
-	display: grid;
-	grid-column: 1 / -1;
-	grid-template-columns: subgrid;
-	position: relative;
-}
-
-// 头像下方垂下的竖线，接到子回复的肘形上
-.mainWithReplies::after {
-	content: "";
-	position: absolute;
-	left: calc((var(--avatarSize) - var(--threadLineWidth)) / 2);
-	top: var(--avatarSize);
-	bottom: calc(-1 * var(--replyGap));
-	width: var(--threadLineWidth);
-	background: var(--MI_THEME-divider); // divider-exempt: thread connector line
-	pointer-events: none;
-}
-
-.avatar {
-	display: block;
-	width: var(--avatarSize);
-	height: var(--avatarSize);
-	border-radius: 8px;
-}
-
-.body {
-	min-width: 0;
-}
-
-.deletedContent {
-	display: flex;
-	align-items: center;
-	min-height: var(--avatarSize);
-	margin: 0;
-	color: var(--MI_THEME-fgTransparentWeak);
-	font-size: calc(1em - 1px);
-}
-
-.text {
-	margin: 0;
-	padding: 0;
-}
-
-.tags {
-	margin-top: 10px;
-}
-
-.footer {
-	display: flex;
-	align-items: center;
-	gap: 14px;
-	min-height: 32px;
-	margin-top: 6px;
-	font-size: calc(1em - 1px);
-	color: var(--MI_THEME-fgTransparentWeak);
-}
-
-.action {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-	gap: 4px;
-	min-width: 28px;
-	min-height: 32px;
-
-	&:hover, &.liked, &.actionActive {
-		color: var(--MI_THEME-accent);
-	}
-}
-
-.replyForm {
-	margin-top: 8px;
-}
-
-.menu {
-	margin-left: auto;
-	flex-shrink: 0;
-	width: 24px;
-	height: 24px;
-	min-width: 24px;
-	min-height: 24px;
-}
-
-.headerRow {
-	display: flex;
-	align-items: flex-start;
-	gap: 8px;
-}
-
-.header {
-	flex: 1;
-	min-width: 0;
-	margin-bottom: 2px;
-}
-
-.reply, .sentinel, .replyLoading, .replyError {
-	grid-column: 2;
-	min-width: 0;
-	margin-top: var(--replyGap);
-}
-
-.sentinel {
-	height: 1px;
-}
-
-// Connect the parent avatar column to the child avatar in the content column.
-.reply {
-	--threadLineLeft: calc(-1 * (var(--columnGap) + (var(--avatarSize) + var(--threadLineWidth)) / 2));
-	position: relative;
-
-	&::before {
-		content: "";
-		position: absolute;
-		box-sizing: border-box;
-		left: var(--threadLineLeft);
-		top: 0;
-		width: calc(var(--avatarSize) + var(--columnGap) + var(--threadLineWidth) / 2);
-		height: calc(10px + (var(--avatarSize) + var(--threadLineWidth)) / 2);
-		border-left: solid var(--threadLineWidth) transparent;
-		border-bottom: solid var(--threadLineWidth) var(--MI_THEME-divider); // divider-exempt: thread connector line
-		border-bottom-left-radius: 8px;
-		pointer-events: none;
-	}
-
-	// 多条同级回复时，线要穿过本条继续往下接到下一条，否则中间会断开
-	&::after {
-		content: "";
-		position: absolute;
-		left: var(--threadLineLeft);
-		top: 0;
-		bottom: calc(-1 * var(--replyGap));
-		width: var(--threadLineWidth);
-		background: var(--MI_THEME-divider); // divider-exempt: thread connector line
-		pointer-events: none;
-	}
-
-	&:not(.replyWithSibling)::after {
-		height: calc(10px + (var(--avatarSize) + var(--threadLineWidth)) / 2 - 8px);
-		bottom: auto;
-	}
-
-	&.replyWithSibling::before {
-		left: calc(var(--threadLineLeft) + var(--threadLineWidth));
-		width: calc(var(--avatarSize) + var(--columnGap) - var(--threadLineWidth) / 2);
-		border-left: none;
-		border-radius: 0;
-	}
-
-	&:not(.replyWithSibling)::before {
-		border-left-color: var(--MI_THEME-divider); // divider-exempt: thread connector line
-		clip-path: inset(calc(100% - 8px) 0 0 0);
-	}
-}
-
-@container (max-width: 450px) {
-	.root {
-
-		&.children {
-			padding: 10px 0 0;
-		}
-	}
-}
-
-.muted {
-	text-align: center;
-	padding: 8px !important;
-	border: var(--MI-divider);
-	margin: 8px 8px 0 8px;
-	border-radius: 8px;
-}
-
+.tags { margin-top: 10px; }
 </style>

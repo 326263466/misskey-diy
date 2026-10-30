@@ -7,14 +7,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :key="note.id" :class="$style.note">
 	<div class="_panel _gaps_s" :class="$style.content">
 		<div v-if="note.cw != null" :class="$style.richcontent">
-			<MkCwButton v-model="showContent" :text="note.text" :renote="note.renote" :files="note.files" :poll="note.poll">
+			<MkCwButton v-model="showContent">
 				<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user"/>
 			</MkCwButton>
-			<div v-if="showContent">
+			<MkCwContent v-model="showContent" :enabled="true">
 				<i v-if="note.replyId" class="ti ti-message-circle" role="img" :aria-label="i18n.ts.reply"></i>
 				<Mfm v-if="note.text" :text="note.text" :author="note.user"/>
 				<span v-if="note.renoteId">{{ i18n.ts.renote }}: ...</span>
-			</div>
+			</MkCwContent>
 		</div>
 		<div v-else-if="note.text || note.replyId || note.renoteId" ref="noteTextEl" :class="[$style.text, { [$style.collapsed]: shouldCollapse }]">
 			<i v-if="note.replyId" class="ti ti-message-circle" role="img" :aria-label="i18n.ts.reply"></i>
@@ -39,6 +39,7 @@ import MkReactionsViewer from '@/components/MkReactionsViewer.vue';
 import MkMediaList from '@/components/MkMediaList.vue';
 import MkPoll from '@/components/MkPoll.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
+import MkCwContent from '@/components/MkCwContent.vue';
 import { i18n } from '@/i18n.js';
 
 defineProps<{

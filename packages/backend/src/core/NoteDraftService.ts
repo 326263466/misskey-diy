@@ -188,20 +188,6 @@ export class NoteDraftService {
 	}
 
 	@bindThis
-	public async getDraft(me: MiLocalUser, draftId: MiNoteDraft['id']): Promise<MiNoteDraft> {
-		const draft = await this.noteDraftsRepository.findOneBy({
-			id: draftId,
-			userId: me.id,
-		});
-
-		if (draft == null) {
-			throw new IdentifiableError('49cd6b9d-848e-41ee-b0b9-adaca711a6b1', 'No such note draft');
-		}
-
-		return draft;
-	}
-
-	@bindThis
 	public async validate(
 		me: MiLocalUser,
 		data: Partial<NoteDraftOptions>,
@@ -262,10 +248,10 @@ export class NoteDraftService {
 			// Check blocking
 			if (renote.userId !== me.id) {
 				const blockExist = await this.blockingsRepository.exists({
-					where: {
-						blockerId: renote.userId,
-						blockeeId: me.id,
-					},
+					where: [
+						{ blockerId: renote.userId, blockeeId: me.id },
+						{ blockerId: me.id, blockeeId: renote.userId },
+					],
 				});
 				if (blockExist) {
 					throw new IdentifiableError('075ca298-e6e7-485a-b570-51a128bb5168', 'You have been blocked by the user');
@@ -314,10 +300,10 @@ export class NoteDraftService {
 			// Check blocking
 			if (reply.userId !== me.id) {
 				const blockExist = await this.blockingsRepository.exists({
-					where: {
-						blockerId: reply.userId,
-						blockeeId: me.id,
-					},
+					where: [
+						{ blockerId: reply.userId, blockeeId: me.id },
+						{ blockerId: me.id, blockeeId: reply.userId },
+					],
 				});
 				if (blockExist) {
 					throw new IdentifiableError('075ca298-e6e7-485a-b570-51a128bb5168', 'You have been blocked by the user');

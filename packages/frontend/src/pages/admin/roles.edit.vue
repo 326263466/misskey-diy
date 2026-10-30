@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_pageFooter">
+			<div class="_pageFooter _formActions">
 				<MkButton primary rounded @click="save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 			</div>
 		</div>
@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import XEditor from './roles.editor.vue';
 import { genId } from '@/utility/id.js';
@@ -32,6 +32,7 @@ import { rolesCache } from '@/cache.js';
 import { useRouter } from '@/router.js';
 
 const router = useRouter();
+const closeWindow = inject<(() => void) | null>('pageWindowClose', null);
 
 const props = defineProps<{
 	id?: string;
@@ -75,11 +76,15 @@ async function save() {
 	if (data.value === null) return;
 	rolesCache.delete();
 	if (role.value) {
+		// 失败提示由 apiWithDialog 处理
 		os.apiWithDialog('admin/roles/update', {
 			roleId: role.value.id,
 			...data.value,
-		});
-		router.push('/admin/roles/:id', {
+		}).then(() => {
+			os.toast(i18n.ts.saved, 'success');
+			closeWindow?.();
+		}, () => {});
+		if (!closeWindow) router.push('/admin/roles/:id', {
 			params: {
 				id: role.value.id,
 			},
@@ -88,7 +93,9 @@ async function save() {
 		const created = await os.apiWithDialog('admin/roles/create', {
 			...data.value,
 		});
-		router.push('/admin/roles/:id', {
+		os.toast(i18n.ts.created, 'success');
+		if (closeWindow) closeWindow();
+		else router.push('/admin/roles/:id', {
 			params: {
 				id: created.id,
 			},

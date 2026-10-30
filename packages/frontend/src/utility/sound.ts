@@ -10,8 +10,6 @@ import { getInitialPrefValue } from '@/preferences/manager.js';
 let ctx: AudioContext;
 const cache = new Map<string, AudioBuffer>();
 let canPlay = true;
-const playedMessageDeletes = new Map<string, number>();
-let lastMessageDeleteAt = -Infinity;
 
 function getAudioContext(): AudioContext {
 	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -146,58 +144,6 @@ export function playMisskeySfx(operationType: OperationType) {
 			});
 		}
 	});
-}
-
-/** 与碎片动画同步的短促碎纸声，使用聊天声音的音量与静音设置。 */
-export function playChatMessageDeleteSfx(messageId: string, signal?: AbortSignal): void {
-	const sound = prefer.s['sound.on.chatMessage'];
-	const masterVolume = prefer.s['sound.masterVolume'];
-	if (signal?.aborted || window.document.hidden || isMute() || !sound.type || masterVolume === 0 || sound.volume === 0) return;
-	if ('userActivation' in navigator && !navigator.userActivation.hasBeenActive) return;
-	const now = performance.now();
-	for (const [id, playedAt] of playedMessageDeletes) {
-		if (now - playedAt > 5000) playedMessageDeletes.delete(id);
-	}
-	if (playedMessageDeletes.has(messageId) || now - lastMessageDeleteAt < 180) return;
-
-	try {
-		const context = getAudioContext();
-		// 不排队恢复音频，避免动画结束以后突然发声。
-		if (context.state !== 'running') return;
-		let buffer = cache.get('chat-message-delete');
-		if (!buffer) {
-			const duration = 0.18;
-			buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
-			const data = buffer.getChannelData(0);
-			let smoothNoise = 0;
-			let softenedNoise = 0;
-			for (let index = 0; index < data.length; index++) {
-				const time = index / context.sampleRate;
-				const noise = Math.random() * 2 - 1;
-				// 削弱高频嘶声，保留纸张碎裂与低频机械节奏。
-				softenedNoise += (noise - softenedNoise) * 0.22;
-				smoothNoise += (softenedNoise - smoothNoise) * 0.025;
-				const teeth = 0.35 + 0.65 * Math.sin(time * Math.PI * 2 * 48) ** 2;
-				const envelope = Math.min(1, time / 0.006) * (1 - time / duration) ** 0.7;
-				data[index] = ((softenedNoise - smoothNoise) * teeth * 0.55 + Math.sin(time * Math.PI * 2 * 140) * 0.04) * envelope;
-			}
-			cache.set('chat-message-delete', buffer);
-		}
-		const { soundSource, panNode, gainNode } = createSourceNode(buffer, { volume: sound.volume * masterVolume });
-		const stop = () => { soundSource.stop(); };
-		soundSource.onended = () => {
-			signal?.removeEventListener('abort', stop);
-			soundSource.disconnect();
-			panNode.disconnect();
-			gainNode.disconnect();
-		};
-		soundSource.start();
-		signal?.addEventListener('abort', stop, { once: true });
-		playedMessageDeletes.set(messageId, now);
-		lastMessageDeleteAt = now;
-	} catch {
-		// 音频不可用时不影响已确认删除和碎片动画。
-	}
 }
 
 /**

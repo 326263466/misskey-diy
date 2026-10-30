@@ -67,7 +67,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<div :class="$style.qrBody">
 							<div v-show="!qrFailed" :class="$style.qrVisual">
-								<div v-if="qrBusy" :class="$style.qrLoading" role="status" aria-busy="true"><span>{{ i18n.ts.loading }}</span></div>
+							<div v-if="qrBusy" :class="$style.qrLoading" role="status" aria-busy="true"><MkLoading inline em/></div>
 								<div v-show="qrCode" ref="qrEl" :class="$style.qr" role="img" :aria-label="i18n.ts._share.qrCode"></div>
 							</div>
 							<div v-if="qrFailed" :class="$style.qrError">
@@ -94,6 +94,7 @@ import QRCodeStyling from 'qr-code-styling';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInfo from '@/components/MkInfo.vue';
+import MkLoading from '@/components/global/MkLoading.vue';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { deviceKind } from '@/utility/device-kind.js';

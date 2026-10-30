@@ -4,176 +4,60 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
-	<Transition :name="prefer.s.animation ? '_transition_zoom' : ''" mode="out-in">
-		<MkLoading v-if="fetching"/>
-		<div v-else-if="stats != null" :class="$style.root">
-			<div class="item _panel users">
-				<div class="icon"><i class="ti ti-users"></i></div>
-				<div class="body">
-					<div class="value">
-						<MkNumber :value="stats.originalUsersCount" style="margin-right: 0.5em;"/>
-						<MkNumberDiff v-if="usersComparedToThePrevDay != null" v-tooltip="i18n.ts.dayOverDayChanges" class="diff" :value="usersComparedToThePrevDay"></MkNumberDiff>
-					</div>
-					<div class="label">{{ i18n.ts.users }}</div>
-				</div>
-			</div>
-			<div class="item _panel notes">
-				<div class="icon"><i class="ti ti-pencil"></i></div>
-				<div class="body">
-					<div class="value">
-						<MkNumber :value="stats.originalNotesCount" style="margin-right: 0.5em;"/>
-						<MkNumberDiff v-if="notesComparedToThePrevDay != null" v-tooltip="i18n.ts.dayOverDayChanges" class="diff" :value="notesComparedToThePrevDay"></MkNumberDiff>
-					</div>
-					<div class="label">{{ i18n.ts.notes }}</div>
-				</div>
-			</div>
-			<div class="item _panel instances">
-				<div class="icon"><i class="ti ti-planet"></i></div>
-				<div class="body">
-					<div class="value">
-						<MkNumber :value="stats.instances" style="margin-right: 0.5em;"/>
-					</div>
-					<div class="label">{{ i18n.ts.instances }}</div>
-				</div>
-			</div>
-			<div class="item _panel emojis">
-				<div class="icon"><i class="ti ti-icons"></i></div>
-				<div class="body">
-					<div class="value">
-						<MkNumber :value="customEmojis.length" style="margin-right: 0.5em;"/>
-					</div>
-					<div class="label">{{ i18n.ts.customEmojis }}</div>
-				</div>
-			</div>
-			<div class="item _panel online">
-				<div class="icon"><i class="ti ti-access-point"></i></div>
-				<div class="body">
-					<div class="value">
-						<MkNumber :value="onlineUsersCount" style="margin-right: 0.5em;"/>
-					</div>
-					<div class="label">{{ i18n.ts.online }}</div>
-				</div>
-			</div>
-		</div>
-		<MkError v-else/>
-	</Transition>
-</div>
+<dl :class="$style.root" :aria-label="i18n.ts.statistics">
+	<div v-for="card in cards" :key="card.key" :class="$style.card" :aria-busy="card.value == null && !card.failed">
+		<dt :class="$style.label"><span>{{ card.label }}</span><i :class="card.icon" aria-hidden="true"></i></dt>
+		<dd :class="[$style.value, { [$style.unavailable]: card.failed && card.value == null }]">
+			<template v-if="card.value != null">{{ number(card.value) }}</template>
+			<span v-else :aria-label="card.failed ? i18n.ts.unavailable : i18n.ts.loading">{{ card.failed ? i18n.ts.unavailable : '—' }}</span>
+		</dd>
+		<dd :class="$style.growth" :title="todayHint">
+			<span>{{ i18n.ts._dashboard.todayNew }}</span>
+			<strong>{{ card.today == null ? '—' : `+${number(card.today)}` }}</strong>
+		</dd>
+		<dd :class="$style.hint">{{ card.hint }}</dd>
+	</div>
+</dl>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
-import * as Misskey from 'misskey-js';
-import { misskeyApi, misskeyApiGet } from '@/utility/misskey-api.js';
-import MkNumberDiff from '@/components/MkNumberDiff.vue';
-import MkNumber from '@/components/MkNumber.vue';
+import { computed } from 'vue';
+import type { entities } from 'misskey-js';
+import { dateTimeFormat } from '@@/js/intl-const.js';
+import number from '@/filters/number.js';
 import { i18n } from '@/i18n.js';
-import { customEmojis } from '@/custom-emojis.js';
-import { prefer } from '@/preferences.js';
 
-const stats = ref<Misskey.entities.StatsResponse | null>(null);
-const usersComparedToThePrevDay = ref<number | null>(null);
-const notesComparedToThePrevDay = ref<number | null>(null);
-const onlineUsersCount = ref(0);
-const fetching = ref(true);
+const props = defineProps<{
+	stats: entities.AdminOverviewResponse | null;
+	failed: boolean;
+}>();
 
-onMounted(async () => {
-	const [_stats, _onlineUsersCount] = await Promise.all([
-		misskeyApi('stats', {}),
-		misskeyApiGet('get-online-users-count').then(res => res.count),
-	]);
-	stats.value = _stats;
-	onlineUsersCount.value = _onlineUsersCount;
-
-	misskeyApiGet('charts/users', { limit: 2, span: 'day' }).then(chart => {
-		usersComparedToThePrevDay.value = _stats.originalUsersCount - chart.local.total[1];
-	});
-
-	misskeyApiGet('charts/notes', { limit: 2, span: 'day' }).then(chart => {
-		notesComparedToThePrevDay.value = _stats.originalNotesCount - chart.local.total[1];
-	});
-
-	fetching.value = false;
-});
+const todayHint = computed(() => props.stats ? i18n.tsx._dashboard.todaySince({ time: dateTimeFormat.format(new Date(props.stats.dayStart)) }) : i18n.ts._dashboard.todayNew);
+const cards = computed(() => [
+	{ key: 'users', label: i18n.ts._dashboard.localUsers, icon: 'ti ti-users', value: props.stats?.usersCount, today: props.stats?.today.usersCount, failed: props.failed, hint: i18n.ts._dashboard.localUsersHint },
+	{ key: 'notes', label: i18n.ts._dashboard.localNotes, icon: 'ti ti-pencil', value: props.stats?.notesCount, today: props.stats?.today.notesCount, failed: props.failed, hint: i18n.ts._dashboard.localNotesHint },
+	{ key: 'articles', label: i18n.ts._dashboard.publicArticles, icon: 'ti ti-file-text', value: props.stats?.articlesCount, today: props.stats?.today.articlesCount, failed: props.failed, hint: i18n.ts._dashboard.publicArticlesHint },
+	{ key: 'files', label: i18n.ts._dashboard.localFiles, icon: 'ti ti-cloud', value: props.stats?.filesCount, today: props.stats?.today.filesCount, failed: props.failed, hint: i18n.ts._dashboard.localFilesHint },
+]);
 </script>
 
 <style lang="scss" module>
-.root {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
-	grid-gap: 12px;
+.root { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0; min-width: 0; }
+.card { min-width: 0; padding: 20px; background: var(--MI_THEME-panel); border-radius: var(--MI-cardRadius); }
+.label { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--MI_THEME-fgTransparentWeak); font-size: .9em; }
+.label > i { color: var(--MI_THEME-accent); font-size: 1.25em; }
+.value { margin: 12px 0 8px; color: var(--MI_THEME-fgHighlighted); font-size: 2em; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.unavailable { color: var(--MI_THEME-error); font-size: 1.2em; }
+.growth { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 12px 0 8px; font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); }
+.growth strong { color: var(--MI_THEME-accent); font-variant-numeric: tabular-nums; font-weight: 600; }
+.hint { margin: 0; color: var(--MI_THEME-fgTransparentWeak); font-size: .8em; line-height: 1.5; }
 
-	&:global {
-		> .item {
-			display: flex;
-			box-sizing: border-box;
-			padding: var(--MI-cardPadding);
+@container (max-width: 760px) {
+	.root { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+	.card { padding: 16px; }
+}
 
-			> .icon {
-				display: grid;
-				place-items: center;
-				height: 100%;
-				aspect-ratio: 1;
-				margin-right: 12px;
-				background: var(--MI_THEME-accentedBg);
-				color: var(--MI_THEME-accent);
-				border-radius: 10px;
-			}
-
-			&.users {
-				> .icon {
-					background: #0088d726;
-					color: #3d96c1;
-				}
-			}
-
-			&.notes {
-				> .icon {
-					background: color-mix(in srgb, var(--MI_THEME-chartAccent, #86b300) 15%, transparent);
-					color: var(--MI_THEME-chartAccent, #86b300);
-				}
-			}
-
-			&.instances {
-				> .icon {
-					background: #e96b0026;
-					color: #d76d00;
-				}
-			}
-
-			&.emojis {
-				> .icon {
-					background: #d5ba0026;
-						color: #dfc300;
-				}
-			}
-
-			&.online {
-				> .icon {
-					background: #8a00d126;
-					color: #c01ac3;
-				}
-			}
-
-			> .body {
-				padding: 2px 0;
-
-				> .value {
-					font-size: 1.2em;
-					font-weight: bold;
-
-					> .diff {
-						font-size: 0.65em;
-						font-weight: normal;
-					}
-				}
-
-				> .label {
-					font-size: 0.8em;
-					color: var(--MI_THEME-fgTransparentWeak);
-				}
-			}
-		}
-	}
+@container (max-width: 320px) {
+	.root { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

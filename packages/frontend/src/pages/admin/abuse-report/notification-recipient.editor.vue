@@ -172,11 +172,13 @@ async function onSubmitClicked() {
 			switch (mode.value) {
 				case 'create': {
 					await misskeyApi('admin/abuse-report/notification-recipient/create', params);
+					os.toast(i18n.ts.created, 'success');
 					break;
 				}
 				case 'edit': {
 					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 					await misskeyApi('admin/abuse-report/notification-recipient/update', { id: id.value!, ...params });
+					os.toast(i18n.ts.saved, 'success');
 					break;
 				}
 			}

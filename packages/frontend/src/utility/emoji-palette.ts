@@ -51,7 +51,7 @@ export async function addToEmojiPalette(emoji: string) {
 				return p;
 			}
 		}));
-		os.success();
+		os.toast(i18n.ts.added, 'success');
 	} else {
 		const res = await os.actions({
 			type: 'warning',
@@ -89,6 +89,6 @@ export async function addToEmojiPalette(emoji: string) {
 			}
 		}));
 
-		os.success();
+		os.toast(i18n.ts.saved, 'success');
 	}
 }

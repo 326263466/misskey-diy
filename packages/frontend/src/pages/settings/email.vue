@@ -59,14 +59,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, watch, computed } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import FormSection from '@/components/form/section.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkDisableSection from '@/components/MkDisableSection.vue';
 import * as os from '@/os.js';
-import { misskeyApiWithToast } from '@/utility/misskey-api-with-toast.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
 import { ensureSignin } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
@@ -77,7 +77,7 @@ const $i = ensureSignin();
 const emailAddress = ref($i.email ?? '');
 
 function onChangeReceiveAnnouncementEmail(v: boolean) {
-	misskeyApiWithToast('i/update', {
+	misskeyApi('i/update', {
 		receiveAnnouncementEmail: v,
 	}).catch(() => {});
 }
@@ -100,7 +100,7 @@ const emailNotification_follow = ref($i.emailNotificationTypes.includes('follow'
 const emailNotification_receiveFollowRequest = ref($i.emailNotificationTypes.includes('receiveFollowRequest'));
 
 const saveNotificationSettings = () => {
-	misskeyApiWithToast('i/update', {
+	misskeyApi('i/update', {
 		emailNotificationTypes: [
 			...[emailNotification_mention.value ? 'mention' : null],
 			...[emailNotification_reply.value ? 'reply' : null],
@@ -120,10 +120,6 @@ onMounted(() => {
 		saveEmailAddress();
 	});
 });
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.email,

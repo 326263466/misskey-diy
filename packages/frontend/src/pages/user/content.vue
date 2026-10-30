@@ -4,25 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<Suspense v-if="user">
-	<XNotes v-if="page === 'notes'" :user="user"/>
-	<XFiles v-else-if="page === 'files'" :user="user"/>
-	<XActivity v-else-if="page === 'activity'" :user="user"/>
-	<XAchievements v-else-if="page === 'achievements'" :user="user"/>
-	<XReactions v-else-if="page === 'reactions'" :user="user"/>
-	<XClips v-else-if="page === 'clips'" :user="user"/>
-	<XLists v-else-if="page === 'lists'" :user="user"/>
-	<XPages v-else-if="page === 'pages'" :user="user"/>
-	<XFlashs v-else-if="page === 'flashs'" :user="user"/>
-	<XGallery v-else-if="page === 'gallery'" :user="user"/>
-	<XRaw v-else-if="page === 'raw'" :user="user"/>
-	<XHome v-else :user="user" :refreshUser="refreshUser" :singleColumn="true" @showMoreFiles="showMoreFiles"/>
-</Suspense>
+<KeepAlive :max="prefer.s.numberOfPageCache">
+	<Suspense v-if="user">
+		<TabPage :key="contentKey" :component="currentComponent" :identity="contentKey" :isSelected="isContentSelected" :pageProps="contentProps"/>
+	</Suspense>
+</KeepAlive>
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, inject } from 'vue';
+import { computed, defineAsyncComponent, inject, KeepAlive } from 'vue';
+import type { Component } from 'vue';
 import { userPageContext } from './context.js';
+import { TabPage } from '@/composables/use-tab-page.js';
+import { prefer } from '@/preferences.js';
 
 const XHome = defineAsyncComponent(() => import('./home.vue'));
 const XNotes = defineAsyncComponent(() => import('./notes.vue'));
@@ -37,11 +31,19 @@ const XFlashs = defineAsyncComponent(() => import('./flashs.vue'));
 const XGallery = defineAsyncComponent(() => import('./gallery.vue'));
 const XRaw = defineAsyncComponent(() => import('./raw.vue'));
 
-defineProps<{
+const props = defineProps<{
 	page?: string;
 }>();
 
 const context = inject(userPageContext);
 if (context == null) throw new Error('no user page context provided');
 const { user, refreshUser, showMoreFiles } = context;
+const components: Record<string, Component> = {
+	notes: XNotes, files: XFiles, activity: XActivity, achievements: XAchievements, reactions: XReactions,
+	clips: XClips, lists: XLists, pages: XPages, flashs: XFlashs, gallery: XGallery, raw: XRaw,
+};
+const currentComponent = computed(() => components[props.page ?? ''] ?? XHome);
+const contentKey = computed(() => `${user.value?.id ?? ''}:${props.page ?? 'home'}`);
+const isContentSelected = (identity: string) => identity === contentKey.value;
+const contentProps = computed(() => ({ user: user.value, refreshUser, singleColumn: true, onShowMoreFiles: showMoreFiles }));
 </script>

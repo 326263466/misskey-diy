@@ -7,17 +7,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkModalWindow ref="dialogEl" :width="480" :height="560" :closeOnBackdrop="joiningId == null" @close="close" @closed="emit('closed')">
 	<template #header>{{ i18n.ts._chat.searchRooms }}</template>
 	<div :class="$style.body">
-		<form @submit.prevent="search">
-			<MkInput v-model="query" type="search" :autofocus="true" :placeholder="i18n.ts._chat.searchRoomsPlaceholder" :maxLength="256" :disabled="joiningId != null" :class="$style.searchInput">
+		<form role="search" :class="$style.search" @submit.prevent="submitSearch">
+			<MkInput v-model="query" type="search" :autofocus="true" :placeholder="i18n.ts._chat.searchRoomsPlaceholder" :maxLength="256" :disabled="joiningId != null" :class="$style.searchInput" @enter="submitSearch">
 				<template #label>{{ i18n.ts._chat.searchRooms }}</template>
 				<template #prefix><i class="ti ti-search" aria-hidden="true"></i></template>
 			</MkInput>
 		</form>
 		<section :aria-label="i18n.ts.searchResult" :class="$style.results">
-			<div v-if="fetching" aria-busy="true"></div>
+			<MkLoading v-if="fetching"/>
 			<MkError v-else-if="failed" @retry="search"/>
 			<MkResult v-else-if="rooms.length === 0" type="empty" :text="i18n.ts._chat.noRooms"/>
-			<article v-for="room in rooms" :key="room.id" :class="$style.room">
+			<article v-for="room in rooms" :key="room.id" class="_panel _card" :class="$style.room">
 				<img v-if="room.avatarUrl" :src="room.avatarUrl" alt="" :class="$style.avatar"/>
 				<MkAvatar v-else :user="room.owner" :link="false" :preview="false" :class="$style.avatar"/>
 				<div :class="$style.roomInfo">
@@ -30,7 +30,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 				<MkButton small primary :disabled="joiningId != null || (!room.isMember && (room.joinPolicy === 'closed' || (!room.invitationExists && ((room.joinPolicy === 'approval' && room.joinRequestPending) || room.joinPolicy === 'invitation'))))" @click="select(room)">{{ joinLabel(room) }}</MkButton>
 			</article>
-			<MkButton v-if="canFetchMore && !fetching" :disabled="fetchingMore || joiningId != null" full @click="fetchMore">{{ i18n.ts.loadMore }}</MkButton>
+			<div v-if="canFetchMore && !fetching && !fetchingMore && !failedMore && joiningId == null" v-appear="fetchMore" :class="$style.sentinel" aria-hidden="true"></div>
+			<MkLoading v-if="fetchingMore"/>
+			<MkButton v-else-if="failedMore" :disabled="joiningId != null" full @click="fetchMore">{{ i18n.ts.retry }}</MkButton>
 		</section>
 	</div>
 </MkModalWindow>
@@ -65,9 +67,11 @@ useGlobalEvent('chatRoomUpdated', room => {
 const fetching = ref(false);
 const fetchingMore = ref(false);
 const failed = ref(false);
+const failedMore = ref(false);
 const canFetchMore = ref(false);
 const joiningId = ref<string | null>(null);
 let searchedQuery = '';
+let cursor: string | undefined;
 let requestRevision = 0;
 let searchTimer: number | undefined;
 let searchController: AbortController | null = null;
@@ -77,8 +81,14 @@ function close() {
 	if (joiningId.value == null) dialogEl.value?.close();
 }
 
+function submitSearch() {
+	if (searchTimer != null || query.value.trim() !== searchedQuery || failed.value) void search();
+}
+
 async function search() {
-	if (joiningId.value != null) return;
+	if (joiningId.value != null || disposed) return;
+	window.clearTimeout(searchTimer);
+	searchTimer = undefined;
 	searchController?.abort();
 	const controller = new AbortController();
 	searchController = controller;
@@ -87,12 +97,15 @@ async function search() {
 	fetching.value = true;
 	fetchingMore.value = false;
 	failed.value = false;
+	failedMore.value = false;
 	canFetchMore.value = false;
+	cursor = undefined;
 	rooms.value = [];
 	try {
 		const result = await misskeyApi('chat/rooms/search', { query: searchedQuery, limit: PAGE_SIZE }, undefined, controller.signal);
 		if (disposed || controller.signal.aborted || revision !== requestRevision) return;
 		rooms.value = result;
+		cursor = result.at(-1)?.id;
 		canFetchMore.value = result.length === PAGE_SIZE;
 	} catch {
 		if (!disposed && !controller.signal.aborted && revision === requestRevision) failed.value = true;
@@ -105,17 +118,19 @@ async function search() {
 }
 
 async function fetchMore() {
-	if (fetching.value || fetchingMore.value || !canFetchMore.value) return;
+	if (disposed || joiningId.value != null || fetching.value || fetchingMore.value || !canFetchMore.value) return;
 	const revision = requestRevision;
-	const untilId = rooms.value.at(-1)?.id;
+	const untilId = cursor;
 	fetchingMore.value = true;
+	failedMore.value = false;
 	try {
 		const result = await misskeyApiWithErrorToast('chat/rooms/search', { query: searchedQuery, limit: PAGE_SIZE, untilId });
 		if (disposed || revision !== requestRevision) return;
 		rooms.value.push(...result.filter(room => !rooms.value.some(existing => existing.id === room.id)));
 		canFetchMore.value = result.length === PAGE_SIZE && result.at(-1)?.id !== untilId;
+		cursor = result.at(-1)?.id;
 	} catch {
-		// 加载失败保留当前结果，允许重试下一页。
+		if (!disposed && revision === requestRevision) failedMore.value = true;
 	} finally {
 		if (!disposed && revision === requestRevision) fetchingMore.value = false;
 	}
@@ -141,12 +156,17 @@ async function select(room: Misskey.entities.ChatRoom) {
 	let completed = false;
 	try {
 		if (room.joinPolicy === 'approval' && !room.invitationExists) {
+			const question = room.joinQuestion?.trim() ?? '';
 			const { canceled, result } = await os.inputText({
-				title: i18n.ts._chat.requestJoin, text: i18n.ts._chat.joinRequestDescription,
-				placeholder: i18n.ts._chat.joinRequestMessage, default: '', maxLength: 500,
+				title: i18n.ts._chat.requestJoin,
+				text: question ? `${question}\n\n${i18n.ts._chat.joinRequestDescription}` : i18n.ts._chat.joinRequestDescription,
+				placeholder: question ? i18n.ts._chat.joinQuestionAnswer : i18n.ts._chat.joinRequestMessage,
+				default: '', minLength: question ? 1 : undefined, maxLength: 500,
 			});
 			if (canceled || disposed) return;
-			const updated = await misskeyApiWithErrorToast('chat/rooms/requests/create', { roomId: room.id, requestMessage: result.trim() });
+			const requestMessage = result.trim();
+			if (question && !requestMessage) return;
+			const updated = await misskeyApiWithErrorToast('chat/rooms/requests/create', { roomId: room.id, requestMessage });
 			if (disposed) return;
 			Object.assign(room, updated);
 			globalEvents.emit('chatRoomUpdated', updated);
@@ -175,6 +195,7 @@ async function select(room: Misskey.entities.ChatRoom) {
 
 function scheduleSearch() {
 	window.clearTimeout(searchTimer);
+	searchTimer = undefined;
 	requestRevision++;
 	searchController?.abort();
 	searchController = null;
@@ -187,6 +208,7 @@ function scheduleSearch() {
 	fetching.value = true;
 	fetchingMore.value = false;
 	failed.value = false;
+	failedMore.value = false;
 	canFetchMore.value = false;
 	rooms.value = [];
 	searchTimer = window.setTimeout(() => { void search(); }, SEARCH_DELAY);
@@ -208,7 +230,12 @@ onBeforeUnmount(() => {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	padding: 16px;
+	min-height: 0;
+	padding: 0;
+}
+
+.search {
+	padding: 16px 16px 0;
 }
 
 .searchInput {
@@ -219,16 +246,20 @@ onBeforeUnmount(() => {
 .results {
 	display: flex;
 	flex-direction: column;
-	gap: 1px;
+	gap: 8px;
+	min-height: 0;
+	padding: 0 16px 16px;
 }
+
+.sentinel { height: 1px; }
 
 .room {
 	display: grid;
 	grid-template-columns: 36px minmax(0, 1fr) auto;
 	align-items: center;
 	gap: 10px;
-	padding: 10px 0;
-	border-bottom: var(--MI-divider);
+	min-width: 0;
+	padding: 12px 14px;
 }
 
 .avatar {

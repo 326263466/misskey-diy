@@ -11,13 +11,13 @@
 		"lint": "pnpm typecheck && pnpm eslint"
 	},
 	"devDependencies": {
-		"@types/node": "26.4.0",
-		"@typescript-eslint/eslint-plugin": "8.68.0",
-		"@typescript-eslint/parser": "8.68.0"
+		"@types/node": "26.6.5",
+		"@typescript-eslint/eslint-plugin": "8.71.2",
+		"@typescript-eslint/parser": "8.71.2"
 	},
 	"dependencies": {
 		"@tabler/icons-webfont": "3.35.0",
-		"tsx": "4.23.13"
+		"tsx": "4.23.15"
 	},
 	"files": [
 		"built"

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<SearchMarker path="/settings/privacy" :label="i18n.ts.privacy" :keywords="['privacy']" icon="ti ti-lock-open">
+<SearchMarker path="/settings/privacy" :label="i18n.ts.privacy" :keywords="['privacy']" icon="ti ti-shield-lock">
 	<div class="_gaps_m">
 		<MkFeatureBanner icon="/fluent-emoji/1f513.png" color="#aeff00">
 			<SearchText>{{ i18n.ts._settings.privacyBanner }}</SearchText>
@@ -14,13 +14,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #label><SearchLabel>{{ i18n.ts._followApproval.groupTitle }}</SearchLabel></template>
 			<div class="_gaps_m">
 				<SearchMarker :keywords="['follow', 'lock']">
-					<MkSwitch v-model="isLocked" @update:modelValue="save()">
+					<MkSwitch v-model="isLocked" @update:modelValue="save(false)">
 						<template #label><SearchLabel>{{ i18n.ts.makeFollowManuallyApprove }}</SearchLabel></template>
 						<template #caption><SearchText>{{ i18n.ts.lockedAccountInfo }}</SearchText></template>
 					</MkSwitch>
 				</SearchMarker>
 
-				<SearchMarker :keywords="['follow', 'request', 'approval', 'age']">
+				<SearchMarker
+					:keywords="[
+						'follow', 'request', 'approval', 'age',
+						i18n.ts._followApproval.local,
+						i18n.ts._followApproval.localDescription,
+						i18n.ts._followApproval.remote,
+						i18n.ts._followApproval.remoteDescription,
+					]"
+				>
 					<FormSlot>
 						<template #label><SearchLabel>{{ i18n.ts._followApproval.title }}</SearchLabel></template>
 						<div class="_gaps_m">
@@ -30,8 +38,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<div class="_gaps_m">
 									<div v-for="setting in followApprovalSettings" :key="setting.key" class="_gaps_s">
 										<MkSelect v-model="setting.mode" :items="followApprovalModes" @update:modelValue="saveFollowApproval(setting)">
-											<template #label><SearchLabel>{{ setting.label }}</SearchLabel></template>
-											<template #caption><SearchText>{{ setting.caption }}</SearchText></template>
+											<template #label>{{ setting.label }}</template>
+											<template #caption>{{ setting.caption }}</template>
 										</MkSelect>
 										<MkInput v-if="setting.mode === 'custom'" v-model="setting.amount" type="number" :min="1 / FOLLOW_APPROVAL_UNIT_SECONDS[setting.unit]" :max="FOLLOW_APPROVAL_MAX_SECONDS / FOLLOW_APPROVAL_UNIT_SECONDS[setting.unit]" step="any" @update:modelValue="scheduleFollowApprovalSave(setting)">
 											<template #label>{{ i18n.ts._followApproval.period }}</template>
@@ -49,7 +57,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</SearchMarker>
 
 				<SearchMarker :keywords="['follow', 'auto', 'accept']">
-					<MkSwitch v-model="autoAcceptFollowed" @update:modelValue="save()">
+					<MkSwitch v-model="autoAcceptFollowed" @update:modelValue="save(false)">
 						<template #label><SearchLabel>{{ i18n.ts.autoAcceptFollowed }}</SearchLabel></template>
 						<template #caption><SearchText>{{ i18n.ts._followApproval.autoAcceptDescription }}</SearchText></template>
 					</MkSwitch>
@@ -58,7 +66,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</FormSection>
 
 		<SearchMarker :keywords="['reaction', 'public']">
-			<MkSwitch v-model="publicReactions" @update:modelValue="save()">
+			<MkSwitch v-model="publicReactions" @update:modelValue="save(false)">
 				<template #label><SearchLabel>{{ i18n.ts.makeReactionsPublic }}</SearchLabel></template>
 				<template #caption><SearchText>{{ i18n.ts.makeReactionsPublicDescription }}</SearchText></template>
 			</MkSwitch>
@@ -77,28 +85,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</SearchMarker>
 
 		<SearchMarker :keywords="['online', 'status']">
-			<MkSwitch v-model="hideOnlineStatus" @update:modelValue="save()">
+			<MkSwitch v-model="hideOnlineStatus" @update:modelValue="save(false)">
 				<template #label><SearchLabel>{{ i18n.ts.hideOnlineStatus }}</SearchLabel></template>
 				<template #caption><SearchText>{{ i18n.ts.hideOnlineStatusDescription }}</SearchText></template>
 			</MkSwitch>
 		</SearchMarker>
 
 		<SearchMarker :keywords="['crawle', 'index', 'search']">
-			<MkSwitch v-model="noCrawle" @update:modelValue="save()">
+			<MkSwitch v-model="noCrawle" @update:modelValue="save(false)">
 				<template #label><SearchLabel>{{ i18n.ts.noCrawle }}</SearchLabel></template>
 				<template #caption><SearchText>{{ i18n.ts.noCrawleDescription }}</SearchText></template>
 			</MkSwitch>
 		</SearchMarker>
 
 		<SearchMarker :keywords="['crawle', 'ai']">
-			<MkSwitch v-model="preventAiLearning" @update:modelValue="save()">
+			<MkSwitch v-model="preventAiLearning" @update:modelValue="save(false)">
 				<template #label><SearchLabel>{{ i18n.ts.preventAiLearning }}</SearchLabel></template>
 				<template #caption><SearchText>{{ i18n.ts.preventAiLearningDescription }}</SearchText></template>
 			</MkSwitch>
 		</SearchMarker>
 
 		<SearchMarker :keywords="['explore']">
-			<MkSwitch v-model="isExplorable" @update:modelValue="save()">
+			<MkSwitch v-model="isExplorable" @update:modelValue="save(false)">
 				<template #label><SearchLabel>{{ i18n.ts.makeExplorable }}</SearchLabel></template>
 				<template #caption><SearchText>{{ i18n.ts.makeExplorableDescription }}</SearchText></template>
 			</MkSwitch>
@@ -245,7 +253,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 import type { MkSelectItem } from '@/components/MkSelect.vue';
 import type { FollowApprovalPeriodUnit } from '@/utility/follow-approval.js';
 import MkSwitch from '@/components/MkSwitch.vue';
@@ -255,7 +263,6 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { enqueueProfileSave } from '@/utility/profile-save.js';
 import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import { i18n } from '@/i18n.js';
-import { instance } from '@/instance.js';
 import { ensureSignin } from '@/i.js';
 import { definePage } from '@/page.js';
 import FormSlot from '@/components/form/slot.vue';
@@ -335,7 +342,7 @@ function saveFollowApproval(setting: FollowApprovalSetting) {
 	};
 	enqueueProfileSave(async () => {
 		const account = await misskeyApi('i/update', patch);
-		updateCurrentAccountPartial(account);
+		updateCurrentAccount(account);
 	}).catch(error => {
 		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
 	});
@@ -493,20 +500,12 @@ watch([makeNotesFollowersOnlyBefore, makeNotesHiddenBefore], () => {
 	save();
 });
 
-async function update_requireSigninToViewContents(value: boolean) {
-	if (value === true && instance.federation !== 'none') {
-		const { canceled } = await os.confirm({
-			type: 'warning',
-			text: i18n.ts.acknowledgeNotesAndEnable,
-		});
-		if (canceled) return;
-	}
-
+function update_requireSigninToViewContents(value: boolean) {
 	requireSigninToViewContents.value = value;
-	save();
+	save(false);
 }
 
-function save() {
+function save(showError = true) {
 	const patch = {
 		isLocked: !!isLocked.value,
 		autoAcceptFollowed: !!autoAcceptFollowed.value,
@@ -524,18 +523,14 @@ function save() {
 	};
 	enqueueProfileSave(async () => {
 		const account = await misskeyApi('i/update', patch);
-		updateCurrentAccountPartial(account);
+		updateCurrentAccount(account);
 	}).catch(error => {
-		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+		if (showError && !isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
 	});
 }
 
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
-
 definePage(() => ({
 	title: i18n.ts.privacy,
-	icon: 'ti ti-lock-open',
+	icon: 'ti ti-shield-lock',
 }));
 </script>

@@ -11,6 +11,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:zPriority="'high'"
 	:anchorElement="anchorElement"
 	:menu="true"
+	:menuPlacement="placement"
+	:menuAlign="anchorAlign"
 	:menuMatchAnchorWidth="matchAnchorWidth"
 	:getContentHeight="getContentHeight"
 	:transparentBg="true"
@@ -24,6 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		ref="menu"
 		:items="items"
 		:align="align"
+		:style="menuStyle"
 		:width="matchAnchorWidth ? (anchorWidth ?? width) : width"
 		:max-height="maxHeight"
 		:guardInitialPointer="guardInitialPointer"
@@ -41,17 +44,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef, watch } from 'vue';
+import { onMounted, ref, useTemplateRef, watch } from 'vue';
+import type { CSSProperties } from 'vue';
 import MkModal from './MkModal.vue';
 import MkMenu from './MkMenu.vue';
 import type { MenuItem } from '@/types/menu.js';
+import type { MenuAlign, MenuSide } from '@/utility/menu-position.js';
 
 const props = defineProps<{
 	items: MenuItem[];
 	align?: 'center' | string;
+	anchorAlign?: MenuAlign;
+	placement?: MenuSide;
 	/** 菜单宽度跟随触发元素（select 类下拉），默认按内容自适应 */
 	matchAnchorWidth?: boolean;
 	width?: number;
+	menuStyle?: CSSProperties;
 	anchorElement?: HTMLElement | null;
 	returnFocusTo?: HTMLElement | null;
 	/** 打开其他菜单时由外部置为 true，以正常的关闭流程收起。 */
@@ -64,6 +72,7 @@ const emit = defineEmits<{
 	(ev: 'closed'): void;
 	(ev: 'closing'): void;
 	(ev: 'actioned'): void;
+	(ev: 'click', event?: MouseEvent): void;
 }>();
 
 const modal = useTemplateRef('modal');
@@ -75,7 +84,8 @@ function getContentHeight() {
 	return menu.value?.getContentHeight?.();
 }
 
-function click() {
+function click(event?: MouseEvent) {
+	emit('click', event);
 	close();
 }
 
@@ -113,8 +123,10 @@ function close() {
 	modal.value?.close();
 }
 
-watch(() => props.closeRequested, requested => {
-	if (requested) close();
+onMounted(() => {
+	watch(() => props.closeRequested, requested => {
+		if (requested) close();
+	}, { immediate: true });
 });
 </script>
 

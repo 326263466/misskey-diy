@@ -244,6 +244,23 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						data,
 					}];
 
+				case 'chatRoomInvitationReceived':
+					return [i18n.ts._notification.chatRoomInvitationReceived, {
+						body: data.body.invitation.room.name,
+						icon: data.body.invitation.room.avatarUrl ?? data.body.invitation.room.owner.avatarUrl ?? undefined,
+						badge: iconUrl('users'),
+						tag: `chat:invitation:${data.body.invitation.room.id}`,
+						data,
+					}];
+
+				case 'chatRoomMemberRemoved':
+					return [i18n.ts._notification.chatRoomMemberRemoved, {
+						body: data.body.roomName,
+						badge: iconUrl('users'),
+						tag: `chat:removed:${data.body.roomId}`,
+						data,
+					}];
+
 				case 'system':
 					return [i18n.ts._welcome.title, {
 						body: i18n.ts._welcome.notificationBody,
@@ -278,6 +295,17 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 				renotify: true,
 			}];
 		case 'newChatMessage':
+			if (data.body.isPoke) {
+				const pokedYou = i18n.tsx._chat.pokedYou({ name: getUserName(data.body.fromUser) });
+				return [data.body.toRoom != null ? `${data.body.toRoom.name}: ${pokedYou}` : pokedYou, {
+					icon: data.body.fromUser.avatarUrl ?? undefined,
+					badge: iconUrl('message-dots'),
+					tag: data.body.toRoom != null ? `chat:room:${data.body.toRoomId}` : `chat:user:${data.body.fromUserId}`,
+					data,
+					renotify: true,
+					vibrate: [80, 60, 80],
+				}];
+			}
 			if (data.body.toRoom != null) {
 				return [`${data.body.toRoom.name}: ${getUserName(data.body.fromUser)}: ${data.body.text}`, {
 					icon: data.body.fromUser.avatarUrl ?? undefined,
@@ -305,7 +333,7 @@ export async function createEmptyNotification(): Promise<void> {
 	await globalThis.registration.showNotification(
 		(new URL(origin)).host,
 		{
-			body: `Misskey v${_VERSION_}`,
+			body: `v${_VERSION_}`,
 			silent: true,
 			badge: iconUrl('null'),
 			tag: 'read_notification',

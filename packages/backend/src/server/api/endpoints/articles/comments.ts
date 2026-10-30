@@ -18,9 +18,10 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		articleId: { type: 'string', format: 'misskey:id' },
-		replyId: { type: 'string', format: 'misskey:id', nullable: true, description: 'Omit to list all comments, use null for top-level comments, or an ID for direct replies.' },
+		replyId: { type: 'string', format: 'misskey:id', nullable: true, description: 'Omit to list all comments, use null for top-level comments, or an ID for all visible descendants, flattened in descending ID order (ascending with sinceId).' },
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
 		untilId: { type: 'string', format: 'misskey:id' },
+		sinceId: { type: 'string', format: 'misskey:id', description: 'Return comments newer than this ID in ascending ID order. Ignored when untilId is set.' },
 	},
 	required: ['articleId'],
 } as const;
@@ -28,6 +29,6 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(private articleService: ArticleService) {
-		super(meta, paramDef, (ps, me) => this.articleService.comments(ps.articleId, me, ps.limit, ps.untilId, ps.replyId).catch(throwArticleApiError));
+		super(meta, paramDef, (ps, me) => this.articleService.comments(ps.articleId, me, ps.limit, ps.untilId, ps.replyId, ps.sinceId).catch(throwArticleApiError));
 	}
 }

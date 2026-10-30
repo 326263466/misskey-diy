@@ -4,15 +4,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root">
-	<input v-model="query" :class="$style.input" type="search" :placeholder="q">
-	<button :class="$style.button" @click="search"><i class="ti ti-search"></i> {{ i18n.ts.searchByGoogle }}</button>
-</div>
+<form :class="$style.root" role="search" :aria-label="i18n.ts.searchByGoogle" @submit.prevent="search">
+	<i class="ti ti-search" :class="$style.icon" aria-hidden="true"></i>
+	<input v-model="query" :class="$style.input" type="search" enterkeyhint="search" :placeholder="q" :aria-label="i18n.ts.searchByGoogle" @keydown="onSearchKeydown($event, search)">
+	<button type="submit" class="_button" :class="$style.button">{{ i18n.ts.searchByGoogle }}</button>
+</form>
 </template>
 
 <script lang="ts" setup>
 import { ref } from 'vue';
 import { i18n } from '@/i18n.js';
+import { onSearchKeydown } from '@/utility/search-keydown.js';
 
 const props = defineProps<{
 	q: string;
@@ -28,32 +30,22 @@ const search = () => {
 </script>
 
 <style lang="scss" module>
+@use '../styles/search.scss' as search;
+
 .root {
-	display: flex;
+	@include search.container;
 	margin: 8px 0;
 }
 
 .input {
-	flex-shrink: 1;
-	padding: 10px;
-	width: 100%;
-	height: 40px;
-	font-size: 16px;
-	border: var(--MI-divider);
-	border-radius: 4px 0 0 4px;
-	-webkit-appearance: textfield;
+	@include search.input;
+}
+
+.icon {
+	@include search.icon;
 }
 
 .button {
-	flex-shrink: 0;
-	margin: 0;
-	padding: 0 16px;
-	border: var(--MI-divider);
-	border-left: none;
-	border-radius: 0 4px 4px 0;
-
-	&:active {
-		box-shadow: 0 2px 4px rgba(#000, 0.15) inset;
-	}
+	@include search.button;
 }
 </style>

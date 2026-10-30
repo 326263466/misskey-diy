@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<span>{{ status }}</span>
 			</div>
 		</div>
-		<progress :class="$style.progress" :value="progress" :max="1" :aria-label="mode === 'focus' ? i18n.ts._widgetPomodoro.focus : i18n.ts._widgetPomodoro.rest"></progress>
+		<progress :value="progress" :max="1" :aria-label="mode === 'focus' ? i18n.ts._widgetPomodoro.focus : i18n.ts._widgetPomodoro.rest"></progress>
 		<div :class="$style.actions">
 			<button type="button" class="_button _buttonPrimary" :class="$style.start" :disabled="isPreview" @click="toggleTimer">
 				<i :class="running ? 'ti ti-player-pause' : 'ti ti-player-play'" aria-hidden="true"></i>
@@ -236,13 +236,6 @@ defineExpose<WidgetComponentExpose>({ name, configure, id: props.widget?.id ?? n
 	line-height: 1;
 	letter-spacing: -0.03em;
 	color: var(--MI_THEME-fgHighlighted);
-}
-
-.progress {
-	display: block;
-	width: 100%;
-	height: 4px;
-	border-radius: 2px;
 }
 
 .status {

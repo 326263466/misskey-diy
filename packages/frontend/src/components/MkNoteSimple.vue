@@ -11,13 +11,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 	</MkNoteHeader>
 	<div>
-		<MkCwButton v-if="note.cw != null" v-model="showContent" :text="note.text" :files="note.files" :poll="note.poll">
+		<MkCwButton v-if="note.cw != null" v-model="showContent">
 			<Mfm v-if="note.cw != ''" :text="note.cw" :author="note.user" :nyaize="'respect'" :emojiUrls="note.emojis"/>
 		</MkCwButton>
-		<div v-show="note.cw == null || showContent">
+		<MkCwContent v-model="showContent" :enabled="note.cw != null">
 			<MkSubNoteContent :class="[$style.text, { [$style.clamp]: compact }]" :note="note" :relocateTags="true"/>
-			<MkNoteTags :class="$style.tags" :tags="topics.tags" :channel="note.channel"/>
-		</div>
+			<MkNoteTags :class="$style.tags" :tags="topics.tags"/>
+		</MkCwContent>
 	</div>
 </div>
 <div v-else :class="$style.deleted">
@@ -32,7 +32,7 @@ import type { NoteEditContent } from '@/events.js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
-import { i18n } from '@/i18n.js';
+import MkCwContent from '@/components/MkCwContent.vue';
 import { useGlobalEvent } from '@/events.js';
 import MkNoteTags from '@/components/MkNoteTags.vue';
 import { getNoteTopics } from '@/utility/note-topics.js';
@@ -100,7 +100,7 @@ useGlobalEvent('noteEdited', (id, content) => {
 }
 
 .tags {
-	margin-top: 10px;
+	margin-top: 4px;
 }
 
 .deleted {

@@ -4,189 +4,38 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
-	<MkLoading v-if="fetching"/>
-	<div v-show="!fetching" class="_panel">
-		<canvas ref="chartEl"></canvas>
-		<MkChartLegend ref="legendEl" style="margin-top: 8px;"/>
-	</div>
-</div>
+<XBars :series="series" :days="chartLimit"/>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, useTemplateRef, ref } from 'vue';
-import { Chart } from 'chart.js';
+import { onMounted, onUnmounted, shallowRef } from 'vue';
 import * as Misskey from 'misskey-js';
-import gradient from 'chartjs-plugin-gradient';
-import type { ChartDataset } from 'chart.js';
+import XBars from './activity.bars.vue';
+import type { ActivityBarSeries } from './activity.bars.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { store } from '@/store.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
-import { chartVLine } from '@/utility/chart-vline.js';
-import { initChart } from '@/utility/init-chart.js';
-import { chartLegend } from '@/utility/chart-legend.js';
-import { dateOnly } from '@/filters/date.js';
 import { i18n } from '@/i18n.js';
-import MkChartLegend from '@/components/MkChartLegend.vue';
-
-initChart();
 
 const props = defineProps<{
 	user: Misskey.entities.User;
 }>();
 
-const chartEl = useTemplateRef('chartEl');
-const legendEl = useTemplateRef('legendEl');
-const now = new Date();
-let chartInstance: Chart | null = null;
-let disposed = false;
 const chartLimit = 30;
-const fetching = ref(true);
+const series = shallowRef<ActivityBarSeries[] | null>(null);
+let disposed = false;
 
-const { handler: externalTooltipHandler } = useChartTooltip();
-
-async function renderChart() {
-	if (chartEl.value == null) return;
-
-	if (chartInstance) {
-		chartInstance.destroy();
-	}
-
-	const getDate = (ago: number) => {
-		const y = now.getFullYear();
-		const m = now.getMonth();
-		const d = now.getDate();
-
-		return new Date(y, m, d - ago);
-	};
-
-	const format = (arr: number[]) => {
-		return arr.map((v, i) => ({
-			x: getDate(i).getTime(),
-			y: v,
-		}));
-	};
-
+onMounted(async () => {
 	const raw = await misskeyApi('charts/user/following', { userId: props.user.id, limit: chartLimit, span: 'day' });
-
-	if (disposed || chartEl.value == null) return;
-
-	const colorFollowLocal = '#008FFB';
-	const colorFollowRemote = '#008FFB88';
-	const colorFollowedLocal = '#2ecc71';
-	const colorFollowedRemote = '#2ecc7188';
-
-	function makeDataset(label: string, data: ChartDataset['data'], extra: Partial<ChartDataset> = {}): ChartDataset {
-		return Object.assign({
-			label: label,
-			data: data,
-			parsing: false,
-			pointRadius: 0,
-			borderWidth: 0,
-			borderJoinStyle: 'round',
-			borderRadius: 4,
-			barPercentage: 0.7,
-			categoryPercentage: 0.7,
-			fill: true,
-		/* @see <https://github.com/misskey-dev/misskey/pull/10365#discussion_r1155511107>
-		} satisfies ChartData, extra);
-		 */
-		}, extra);
-	}
-
-	chartInstance = new Chart(chartEl.value, {
-		type: 'bar',
-		data: {
-			datasets: [
-				makeDataset(i18n.ts._chartSeries.followLocal, format(raw.local.followings.inc).slice().reverse(), { backgroundColor: colorFollowLocal, stack: 'follow' }),
-				makeDataset(i18n.ts._chartSeries.followRemote, format(raw.remote.followings.inc).slice().reverse(), { backgroundColor: colorFollowRemote, stack: 'follow' }),
-				makeDataset(i18n.ts._chartSeries.followedLocal, format(raw.local.followers.inc).slice().reverse(), { backgroundColor: colorFollowedLocal, stack: 'followed' }),
-				makeDataset(i18n.ts._chartSeries.followedRemote, format(raw.remote.followers.inc).slice().reverse(), { backgroundColor: colorFollowedRemote, stack: 'followed' }),
-			],
-		},
-		options: {
-			aspectRatio: 3,
-			layout: {
-				padding: {
-					left: 0,
-					right: 8,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					type: 'time',
-					offset: true,
-					stacked: true,
-					time: {
-						unit: 'day',
-						displayFormats: {
-							day: 'M/d',
-							month: 'Y/M',
-						},
-					},
-					grid: {
-						display: false,
-					},
-					ticks: {
-						display: true,
-						maxRotation: 0,
-						autoSkipPadding: 8,
-					},
-				},
-				y: {
-					position: 'left',
-					stacked: true,
-					suggestedMax: 10,
-					grid: {
-						display: true,
-					},
-					ticks: {
-						display: true,
-						//mirror: true,
-					},
-				},
-			},
-			interaction: {
-				intersect: false,
-				mode: 'index',
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					callbacks: {
-						// 日期跟随客户端语言 (Chart.js 的 date-fns 适配器默认固定 en-US 格式)
-						title(context) {
-							return dateOnly(context[0].parsed.x as number);
-						},
-					},
-					external: externalTooltipHandler,
-				},
-				...({ // TSを黙らすため
-					gradient,
-				}),
-			},
-		},
-		plugins: [chartVLine(), chartLegend(legendEl.value)],
-	});
-
-	fetching.value = false;
-}
-
-onMounted(() => {
-	renderChart();
+	if (disposed) return;
+	series.value = [
+		// 关注和被关注各一组，本地用实色、远程用浅色。
+		{ name: i18n.ts._chartSeries.followLocal, data: raw.local.followings.inc, color: 0, stack: 'follow' },
+		{ name: i18n.ts._chartSeries.followRemote, data: raw.remote.followings.inc, color: 0, stack: 'follow', light: true },
+		{ name: i18n.ts._chartSeries.followedLocal, data: raw.local.followers.inc, color: 1, stack: 'followed' },
+		{ name: i18n.ts._chartSeries.followedRemote, data: raw.remote.followers.inc, color: 1, stack: 'followed', light: true },
+	];
 });
 
 onUnmounted(() => {
 	disposed = true;
-	chartInstance?.destroy();
 });
 </script>

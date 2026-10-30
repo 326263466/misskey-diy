@@ -27,7 +27,6 @@ export const meta = {
 		invalidContent: { message: 'An article draft must contain text or a cover.', code: 'INVALID_CONTENT', id: 'ac7cf674-0bc8-4c02-8816-b7b4582a9376' },
 		noSuchArticle: { message: 'No such owned article.', code: 'NO_SUCH_ARTICLE', id: '5f928c69-28a1-417f-b896-07f81dc706c7' },
 		invalidCover: { message: 'The cover must be an owned non-sensitive image.', code: 'INVALID_COVER', id: '12f924dd-be4d-4628-8492-6b1cacb65c93' },
-		fileUnavailable: { message: 'An attached file is no longer available.', code: 'FILE_UNAVAILABLE', id: '98158006-2bb2-4d46-b0d4-b9b608032f50' },
 		invalidTags: { message: 'Article tags are invalid.', code: 'INVALID_ARTICLE_TAGS', id: '25535e45-9259-4b42-8c08-53a78487c093' },
 	},
 } as const;
@@ -63,7 +62,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (error instanceof ArticleDraftService.InvalidContentError) throw new ApiError(meta.errors.invalidContent);
 				if (error instanceof ArticleDraftService.InvalidArticleError) throw new ApiError(meta.errors.noSuchArticle);
 				if (error instanceof ArticleDraftService.InvalidCoverError) throw new ApiError(meta.errors.invalidCover);
-				if (error instanceof ArticleDraftService.FileUnavailableError) throw new ApiError(meta.errors.fileUnavailable);
 				if (error instanceof IdentifiableError && error.id === invalidArticleTagsErrorId) throw new ApiError(meta.errors.invalidTags);
 				throw error;
 			}

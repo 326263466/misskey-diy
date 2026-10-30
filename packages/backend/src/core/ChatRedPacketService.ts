@@ -34,7 +34,7 @@ export class ChatRedPacketService {
 
 	@bindThis
 	public async assertCanReference(redPacketId: string, senderId: string, destination: { toUserId?: string | null; toRoomId?: string | null }): Promise<void> {
-		const packet = await this.redPacketService.assertCanReference(redPacketId, senderId);
+		const packet = await this.redPacketService.assertCanReference(redPacketId, senderId, destination.toRoomId);
 		if (packet.password == null) return;
 		if (packet.audience === 'room') {
 			if (destination.toRoomId !== packet.roomId || destination.toUserId != null) throw new RedPacketService.AccessDeniedError();
@@ -78,6 +78,7 @@ export class ChatRedPacketService {
 		const query = this.db.getRepository(MiRedPacket).createQueryBuilder('packet')
 			.innerJoin(MiChatMessage, 'host', 'host."redPacketId" = packet.id AND host."fromUserId" = packet."userId"')
 			.where('packet.password = :password', { password })
+			.andWhere('packet."userId" <> :userId', { userId: me.id })
 			.andWhere("packet.status = 'active' AND packet.\"expiresAt\" > CURRENT_TIMESTAMP")
 			.andWhere('(packet."startsAt" IS NULL OR packet."startsAt" <= CURRENT_TIMESTAMP)')
 			.andWhere('host.id < :messageId', { messageId })

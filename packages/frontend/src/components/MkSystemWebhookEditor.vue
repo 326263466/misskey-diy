@@ -179,6 +179,7 @@ async function onSubmitClicked() {
 			switch (mode.value) {
 				case 'create': {
 					const result = await misskeyApi('admin/system-webhook/create', params);
+					os.toast(i18n.ts.created, 'success');
 					closing.value = true;
 					dialogEl.value?.close();
 					emit('submitted', result);
@@ -187,6 +188,7 @@ async function onSubmitClicked() {
 				case 'edit': {
 					// eslint-disable-next-line
 					const result = await misskeyApi('admin/system-webhook/update', { id: id.value!, ...params });
+					os.toast(i18n.ts.saved, 'success');
 					closing.value = true;
 					dialogEl.value?.close();
 					emit('submitted', result);
@@ -233,6 +235,7 @@ async function test(type: Misskey.entities.SystemWebhook['on'][number]): Promise
 			url: url.value,
 		},
 	});
+	os.toast(i18n.ts.sent, 'success');
 }
 
 onMounted(async () => {

@@ -4,26 +4,34 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader contentCard>
 	<div class="_pageBody">
 		<div class="_gaps">
-			<div class="inputs" style="display: flex; gap: var(--MI-margin); flex-wrap: wrap;">
-				<MkSelect v-model="origin" :items="originDef" style="margin: 0; flex: 1;">
-					<template #label>{{ i18n.ts.instance }}</template>
-				</MkSelect>
-				<MkInput v-model="searchHost" type="search" style="margin: 0; flex: 1;" :disabled="paginator.computedParams?.value?.origin === 'local'">
-					<template #label>{{ i18n.ts.host }}</template>
-				</MkInput>
+			<div class="_adminPanel">
+				<div class="_adminToolbar">
+					<MkSelect v-model="origin" :items="originDef" class="_adminToolbarField">
+						<template #label>{{ i18n.ts.instance }}</template>
+					</MkSelect>
+					<MkInput v-model="searchHost" type="search" class="_adminToolbarField" :disabled="paginator.computedParams?.value?.origin === 'local'">
+						<template #label>{{ i18n.ts.host }}</template>
+					</MkInput>
+					<MkInput v-model="userId" type="search" class="_adminToolbarField">
+						<template #label>{{ i18n.ts.userId }}</template>
+					</MkInput>
+					<MkInput v-model="type" type="search" class="_adminToolbarField">
+						<template #label>{{ i18n.ts.mimeType }}</template>
+					</MkInput>
+					<div class="_adminToolbarActions">
+						<div :class="$style.viewModes">
+							<button v-tooltip.noDelay="i18n.ts.preview" type="button" class="_button" :class="[$style.viewButton, { [$style.active]: viewMode === 'grid' }]" :aria-label="i18n.ts.preview" :aria-pressed="viewMode === 'grid'" @click="viewMode = 'grid'"><i class="ti ti-layout-grid" aria-hidden="true"></i></button>
+							<button v-tooltip.noDelay="i18n.ts.details" type="button" class="_button" :class="[$style.viewButton, { [$style.active]: viewMode === 'table' }]" :aria-label="i18n.ts.details" :aria-pressed="viewMode === 'table'" @click="viewMode = 'table'"><i class="ti ti-list-details" aria-hidden="true"></i></button>
+						</div>
+						<MkButton small @click="lookupFile"><i class="ti ti-search" aria-hidden="true"></i> {{ i18n.ts.lookup }}</MkButton>
+						<MkButton small @click="clear"><i class="ti ti-trash" aria-hidden="true"></i> {{ i18n.ts.clearCachedFiles }}</MkButton>
+					</div>
+				</div>
+				<MkFileListForAdmin :paginator="paginator" :viewMode="viewMode" :class="{ _adminPanelInset: viewMode !== 'table' }"/>
 			</div>
-			<div class="inputs" style="display: flex; gap: var(--MI-margin); flex-wrap: wrap;">
-				<MkInput v-model="userId" type="search" style="margin: 0; flex: 1;">
-					<template #label>{{ i18n.ts.userId }}</template>
-				</MkInput>
-				<MkInput v-model="type" type="search" style="margin: 0; flex: 1;">
-					<template #label>{{ i18n.ts.mimeType }}</template>
-				</MkInput>
-			</div>
-			<MkFileListForAdmin :paginator="paginator" :viewMode="viewMode"/>
 		</div>
 	</div>
 </PageWithHeader>
@@ -31,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, markRaw, ref } from 'vue';
-import * as Misskey from 'misskey-js';
+import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkFileListForAdmin from '@/components/MkFileListForAdmin.vue';
@@ -60,7 +68,7 @@ const userId = ref('');
 const filteredType = useSearchQuery(type);
 const filteredHost = useSearchQuery(searchHost);
 const filteredUserId = useSearchQuery(userId);
-const viewMode = ref<'grid' | 'list'>('grid');
+const viewMode = ref<'grid' | 'table'>('grid');
 const paginator = markRaw(new Paginator('admin/drive/files', {
 	limit: 10,
 	computedParams: computed(() => ({
@@ -78,24 +86,47 @@ function clear() {
 	}).then(({ canceled }) => {
 		if (canceled) return;
 
-		os.apiWithDialog('admin/drive/clean-remote-files', {});
+		// 失败提示由 apiWithDialog 处理
+		os.apiWithDialog('admin/drive/clean-remote-files', {}).then(() => {
+			os.toast(i18n.ts.cleared, 'success');
+		}, () => {});
 	});
 }
-
-const headerActions = computed(() => [{
-	text: i18n.ts.lookup,
-	icon: 'ti ti-search',
-	handler: lookupFile,
-}, {
-	text: i18n.ts.clearCachedFiles,
-	icon: 'ti ti-trash',
-	handler: clear,
-}]);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.files,
 	icon: 'ti ti-cloud',
 }));
 </script>
+
+<style lang="scss" module>
+.viewModes {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.viewButton {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border-radius: calc(var(--MI-radius) / 3);
+	color: var(--MI_THEME-fgTransparent);
+	font-size: 1em;
+
+	&:hover {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
+
+	&.active {
+		background: var(--MI_THEME-accentedBg);
+		color: var(--MI_THEME-accent);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -2px;
+	}
+}
+</style>

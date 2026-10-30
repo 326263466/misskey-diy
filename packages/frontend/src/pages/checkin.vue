@@ -4,13 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader hideHeader>
+<PageWithHeader>
+	<template #header-actions><button type="button" class="_button _iconButton" :class="$style.rules" :aria-label="i18n.ts._checkin.rules" @click="showRules"><i class="ti ti-help-circle" aria-hidden="true"></i></button></template>
 <div class="_pageBody" :class="$style.root">
 	<section class="_panel _card" :class="$style.panel" :aria-busy="loading || posting">
-		<header :class="$style.header">
-			<h1>{{ i18n.ts._checkin.dailyCheckin }}</h1>
-			<button class="_textButton" @click="showRules"><i class="ti ti-help-circle" aria-hidden="true"></i> {{ i18n.ts._checkin.rules }}</button>
-		</header>
 		<div :class="$style.body">
 			<div v-if="error" role="alert" :class="$style.error">{{ error }} <button v-if="!posting" class="_textButton" @click="retry">{{ i18n.ts.retry }}</button></div>
 			<div :class="$style.dashboard">
@@ -18,9 +15,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkLoading v-if="!status && loading"/>
 					<template v-if="status">
 						<dl :class="$style.stats">
-							<div><dt>{{ i18n.ts._checkin.consecutiveDays }}</dt><dd>{{ status.consecutiveDays }}</dd></div>
-							<div><dt>{{ i18n.ts._checkin.totalDays }}</dt><dd>{{ status.totalDays }}</dd></div>
-							<div><dt>{{ i18n.ts._checkin.monthlyDays }}</dt><dd>{{ status.monthlyDays }}</dd></div>
+							<div><i class="ti ti-flame" :class="$style.statWatermark" aria-hidden="true"></i><dt>{{ i18n.ts._checkin.consecutiveDays }}</dt><dd>{{ status.consecutiveDays }}</dd></div>
+							<div><i class="ti ti-sparkles" :class="$style.statWatermark" aria-hidden="true"></i><dt>{{ i18n.ts._checkin.totalDays }}</dt><dd>{{ status.totalDays }}</dd></div>
+							<div><i class="ti ti-calendar-check" :class="$style.statWatermark" aria-hidden="true"></i><dt>{{ i18n.ts._checkin.monthlyDays }}</dt><dd>{{ status.monthlyDays }}</dd></div>
 						</dl>
 						<section :aria-label="i18n.ts._checkin.calendar">
 							<div :class="$style.monthNav">
@@ -36,31 +33,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</div>
 							</div>
 							<div :class="$style.calendarLegend" :aria-label="i18n.ts._checkin.calendarStates">
-								<span><i :class="$style.legendToday"></i>{{ i18n.ts._checkin.todayLabel }}</span>
-									<span><i :class="$style.legendSigned"></i>{{ i18n.ts._checkin.signed }}</span>
-									<span><i :class="$style.legendMakeup"></i>{{ i18n.ts._checkin.madeUp }}</span>
-									<span><i :class="$style.legendMissed"></i>{{ i18n.ts._checkin.notCheckedIn }}</span>
+								<span><i class="ti ti-circle-check-filled" :class="$style.legendSigned" aria-hidden="true"></i>{{ i18n.ts._checkin.signed }}</span>
+								<span><i class="ti ti-circle-dashed" :class="$style.legendUnsigned" aria-hidden="true"></i>{{ i18n.ts._checkin.notCheckedIn }}</span>
 							</div>
 							<div ref="calendarElement" :class="$style.calendar" data-testid="checkin-calendar">
 								<div v-for="weekday in weekdays" :key="weekday" :class="$style.weekday">{{ weekday }}</div>
 								<template v-for="(date, index) in dates" :key="date ?? `empty-${index}`">
 									<div v-if="date" role="group" :class="[$style.day, $style[calendarState(date)], { [$style.today]: date === status.today, [$style.selectedDay]: date === selectedDate }]" :aria-label="i18n.tsx._checkin.dateState({ date, state: dayState(date) })" :aria-current="date === status.today ? 'date' : undefined" :data-checkin-date="date" :data-day-state="calendarState(date)">
-										<button type="button" class="_button" :class="$style.daySelect" :aria-label="i18n.tsx._checkin.dateState({ date, state: dayState(date) })" :aria-pressed="date === selectedDate" :tabindex="date === selectedDate ? 0 : -1" :data-date-select="date" @click="selectedDate = date" @keydown="moveCalendarFocus($event, date)">
-											<span :class="$style.dayTop"><time :datetime="date" :class="$style.dayNumber">{{ Number(date.slice(-2)) }}</time><i :class="['ti', dayIcon(date), $style.stateIcon]" aria-hidden="true"></i></span>
+										<button type="button" class="_button" :class="$style.daySelect" :aria-label="dayLabel(date)" :aria-pressed="date === selectedDate" :tabindex="date === selectedDate ? 0 : -1" :data-date-select="date" :title="dayLabel(date)" @click="selectedDate = date" @keydown="moveCalendarFocus($event, date)">
+											<span :class="$style.dayTop"><time :datetime="date" :class="$style.dayNumber">{{ Number(date.slice(-2)) }}</time><i v-if="checkedDates.has(date) || makeupDates.has(date) || date === status.today" :class="['ti', dayIcon(date), $style.stateIcon]" aria-hidden="true"></i></span>
+											<span v-if="calendarState(date) === 'expired'" :class="$style.dayStatus">{{ i18n.ts._checkin.notCheckedIn }}</span>
 										</button>
-										<span v-if="rewardDates.has(date) || predictedRewardDates.has(date)" :class="[$style.cardReward, { [$style.predictedReward]: !rewardDates.has(date) }]" :title="rewardDates.has(date) ? i18n.ts._checkin.calendarRewardReceived : i18n.ts._checkin.calendarRewardExpected" :aria-label="rewardDates.has(date) ? i18n.ts._checkin.calendarRewardReceived : i18n.ts._checkin.calendarRewardExpected" :data-card-reward="rewardDates.has(date) ? 'received' : 'expected'"><i :class="rewardDates.has(date) ? 'ti ti-ticket' : 'ti ti-gift'" aria-hidden="true"></i>{{ rewardDates.has(date) ? i18n.ts._checkin.earned : i18n.ts._checkin.rewardPreview }}</span>
+										<span v-if="rewardDates.has(date) || predictedRewardDates.has(date)" :class="[$style.cardReward, { [$style.predictedReward]: !rewardDates.has(date) }]" :title="rewardDates.has(date) ? i18n.ts._checkin.calendarRewardReceived : i18n.ts._checkin.calendarRewardExpected" :aria-label="rewardDates.has(date) ? i18n.ts._checkin.calendarRewardReceived : i18n.ts._checkin.calendarRewardExpected" :data-card-reward="rewardDates.has(date) ? 'received' : 'expected'"><i :class="rewardDates.has(date) ? 'ti ti-ticket' : 'ti ti-gift'" aria-hidden="true"></i><span :class="$style.rewardLabel">{{ rewardDates.has(date) ? i18n.ts._checkin.earned : i18n.ts._checkin.rewardPreview }}</span></span>
 										<button v-else-if="date === status.today && !status.checkedInToday" type="button" class="_button" :class="$style.dayAction" :aria-label="i18n.ts._checkin.checkIn" :disabled="loading || posting || statusStale" @click="checkIn()"><i class="ti ti-plus" aria-hidden="true"></i>{{ i18n.ts._checkin.checkIn }}</button>
-										<button v-else-if="canMakeup(date)" type="button" class="_button" :class="[$style.dayAction, $style.makeup]" :aria-label="i18n.tsx._checkin.makeupDate({ date })" :disabled="loading || posting || statusStale" @click="selectedDate = date; makeUp(date)">{{ i18n.ts._checkin.pendingMakeup }}</button>
-										<span v-else-if="checkedDates.has(date) && !makeupDates.has(date)" :class="$style.dayReward" :aria-label="i18n.tsx._checkin.pointsEarned({ n: 1 })"><i class="ti ti-diamond-filled" aria-hidden="true"></i>+1</span>
+										<button v-else-if="canMakeup(date)" type="button" class="_button" :class="[$style.dayAction, $style.makeup]" :aria-label="i18n.tsx._checkin.makeupDate({ date })" :disabled="loading || posting || statusStale" @click="selectedDate = date; makeUp(date)">{{ i18n.ts._checkin.makeup }}</button>
+										<span v-else-if="checkedDates.has(date) && !makeupDates.has(date)" :class="$style.dayReward" :aria-label="i18n.tsx._checkin.pointsEarned({ n: 1 })"><i class="ti ti-coins" aria-hidden="true"></i>+1</span>
+										<span v-else-if="makeupDates.has(date)" :class="$style.dayStatus">{{ i18n.ts._checkin.madeUp }}</span>
 									</div>
 									<div v-else aria-hidden="true"></div>
 								</template>
 							</div>
-							<div v-if="selectedDate" :class="$style.dayDetails" data-testid="checkin-day-details" aria-live="polite">
-								<i :class="['ti', dayIcon(selectedDate), $style.detailIcon]" aria-hidden="true"></i>
-								<div><strong>{{ selectedDateLabel }}</strong><p>{{ dayState(selectedDate) }}<template v-if="rewardDates.has(selectedDate)"> · {{ i18n.ts._checkin.calendarRewardReceived }}</template><template v-else-if="predictedRewardDates.has(selectedDate)"> · {{ i18n.ts._checkin.calendarRewardExpected }}</template><template v-else-if="makeupDates.has(selectedDate)"> · {{ i18n.ts._checkin.makeupNoPoints }}</template></p></div>
-							</div>
-							<p :class="$style.rewardLegend"><i class="ti ti-ticket" aria-hidden="true"></i> {{ i18n.ts._checkin.calendarRewardLegend }}</p>
 						</section>
 					</template>
 				</div>
@@ -72,7 +64,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="status" :class="$style.rewards">
 						<p :class="$style.rewardHint">{{ i18n.ts._checkin.dailyReward }}</p>
 						<dl :class="$style.balances">
-							<div><dt><i class="ti ti-coin" aria-hidden="true"></i> {{ i18n.ts._checkin.points }}</dt><dd data-testid="checkin-points">{{ status.points }}</dd></div>
+							<div><dt><i class="ti ti-coins" aria-hidden="true"></i> {{ i18n.ts._checkin.points }}</dt><dd data-testid="checkin-points">{{ status.points }}</dd></div>
 						</dl>
 						<p data-testid="checkin-card-progress">{{ i18n.tsx._checkin.cardRewardProgress({ current: status.makeupCardProgress, target: status.makeupCardTarget }) }}</p>
 						<progress :class="$style.cardProgress" :value="status.makeupCardProgress" :max="status.makeupCardTarget" :aria-label="i18n.tsx._checkin.cardRewardProgress({ current: status.makeupCardProgress, target: status.makeupCardTarget })"></progress>
@@ -156,7 +148,6 @@ const makeupDates = computed(() => new Set(status.value?.makeupDates));
 const rewardDates = computed(() => new Set(status.value?.rewardDates));
 const predictedRewardDates = computed(() => status.value && !statusStale.value ? checkinRewardForecast(status.value) : new Set<string>());
 const dates = computed(() => status.value ? checkinCalendar(status.value.month) : []);
-const selectedDateLabel = computed(() => selectedDate.value ? new Intl.DateTimeFormat(versatileLang, { month: 'long', day: 'numeric', weekday: 'long', timeZone: 'UTC' }).format(new Date(`${selectedDate.value}T00:00:00Z`)) : '');
 watch(() => status.value?.month, () => {
 	selectedDate.value = status.value?.month === status.value?.today.slice(0, 7) ? status.value?.today ?? '' : dates.value.find((date): date is string => date !== null) ?? '';
 });
@@ -176,6 +167,12 @@ const streakEncouragement = computed(() => {
 
 function dayState(date: string): string {
 	return makeupDates.value.has(date) ? i18n.ts._checkin.madeUp : checkedDates.value.has(date) ? i18n.ts._checkin.signed : date < status.value!.registeredDate ? i18n.ts._checkin.beforeRegistration : date > status.value!.today ? i18n.ts._checkin.future : date < status.value!.makeupEarliestDate ? i18n.ts._checkin.makeupExpired : i18n.ts._checkin.notCheckedIn;
+}
+
+function dayLabel(date: string): string {
+	const label = i18n.tsx._checkin.dateState({ date, state: dayState(date) });
+	const reward = rewardDates.value.has(date) ? i18n.ts._checkin.calendarRewardReceived : predictedRewardDates.value.has(date) ? i18n.ts._checkin.calendarRewardExpected : checkedDates.value.has(date) && !makeupDates.value.has(date) ? i18n.tsx._checkin.pointsEarned({ n: 1 }) : '';
+	return reward ? `${label}，${reward}` : label;
 }
 
 function calendarState(date: string): string {
@@ -465,15 +462,11 @@ definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-
 
 <style lang="scss" module>
 @use "../styles/community.scss";
-@use "../styles/page-header.scss";
-@use '@/styles/card-header.scss';
 
 .root { max-width: var(--MI-pageWidth); margin-inline: auto; }
+.rules { display: grid; place-items: center; width: var(--MI-headerActionSize); height: var(--MI-pageHeaderHeight); }
 .panel, .achievements { overflow: hidden; }
 .panel { container-type: inline-size; }
-// パネル自身が角丸と overflow: clip を持つので、ヘッダー側は角丸なしで上端に密着させる
-.header { @include page-header.surface; @include card-header.row; --MI-pageHeaderRadius: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-inline: var(--MI-cardPadding); }
-.header h1, .header h2 { @include card-header.label; margin: 0; }
 .body { padding: var(--MI-cardPadding); }
 .dashboard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 27%); align-items: start; gap: 28px; }
 .calendarColumn, .actionColumn { min-width: 0; }
@@ -490,73 +483,80 @@ definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-
 .balances > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .balances dt { font-size: .85em; }
 .balances dd { margin: 0; font-weight: bold; font-variant-numeric: tabular-nums; }
-.cardProgress { width: 100%; height: 6px; margin-top: 8px; }
+.cardProgress { margin-top: 8px; }
 .exchange { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; width: 100%; margin-top: 16px; padding: 10px; border-radius: calc(var(--MI-radius) / 2); color: var(--MI_THEME-accent); background: var(--MI_THEME-panel); box-sizing: border-box; }
 .exchange:disabled { opacity: .5; cursor: default; }
 .makeup { max-width: 100%; min-height: 24px; padding: 0 2px; color: var(--MI_THEME-link, var(--MI_THEME-accent)); font-size: .8em; line-height: 1.35; overflow-wrap: anywhere; }
 .makeup:enabled:hover { text-decoration: underline; }
 .makeup:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; border-radius: calc(var(--MI-radius) / 4); }
 .makeup:disabled { opacity: .5; cursor: default; }
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: var(--MI-cardPadding); background: color-mix(in srgb, var(--MI_THEME-fg) 4%, var(--MI_THEME-panel)); border-radius: calc(var(--MI-radius) / 2); }
-.stats > div { display: flex; flex-direction: column-reverse; align-items: center; gap: 6px; text-align: center; }
-.stats dt { font-size: .8em; color: var(--MI_THEME-fgTransparentWeak); }
-.stats dd { font-size: 1.6em; font-weight: bold; margin: 0; font-variant-numeric: tabular-nums; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: var(--MI-cardPadding); border: 1px solid color-mix(in srgb, var(--MI_THEME-accent) 10%, var(--MI_THEME-panel)); background: linear-gradient(110deg, color-mix(in srgb, var(--MI_THEME-accent) 6%, var(--MI_THEME-panel)), var(--MI_THEME-panel)); border-radius: var(--MI-radius); overflow: hidden; }
+.stats > div { position: relative; display: flex; flex-direction: column-reverse; align-items: center; gap: 6px; text-align: center; }
+.statWatermark { position: absolute; right: 0; bottom: -12px; color: color-mix(in srgb, var(--MI_THEME-accent) 7%, transparent); font-size: 4.5em; pointer-events: none; }
+.stats dt, .stats dd { position: relative; }
+.stats dt { font-size: .8em; color: var(--MI_THEME-fgTransparent); }
+.stats dd { font-size: 1.8em; font-weight: 650; margin: 0; font-variant-numeric: tabular-nums; }
 .stats > div:first-child dd { color: var(--MI_THEME-accent); }
 .monthNav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 12px; }
 .monthControls { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; }
-.monthNav h2 { margin: 0; font-size: 1.2em; font-weight: 500; line-height: 1.5; }
+.monthNav h2 { margin: 0; padding-inline: 4px; font-size: 1.2em; font-weight: 650; line-height: 1.5; }
 .monthButton { display: grid; place-items: center; width: 24px; height: 30px; flex-shrink: 0; color: var(--MI_THEME-fgTransparentWeak); border-radius: calc(var(--MI-radius) / 4); font-size: .8em; }
 .monthButton:enabled:hover { background: var(--MI_THEME-buttonHoverBg); }
 .monthButton:disabled { opacity: .3; }
 .monthButton:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
-.thisMonth { margin-left: 8px; font-size: .75em; }
-.cardCount { display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; white-space: nowrap; }
-.cardCount > i { color: var(--MI_THEME-warn); font-size: 1.55em; transform: rotate(-12deg); }
-.cardAmount { color: var(--MI_THEME-warn); font-variant-numeric: tabular-nums; }
-.calendarLegend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 20px; color: var(--MI_THEME-fgTransparentWeak); font-size: .75em; }
+.thisMonth { margin-left: 8px; font-size: .85em; }
+.cardCount { display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 6px 9px; border-radius: var(--MI-radius); color: var(--MI_THEME-fgTransparent); background: color-mix(in srgb, var(--MI_THEME-accent) 4%, var(--MI_THEME-panel)); font-size: .8em; white-space: nowrap; }
+.cardCount > i { font-size: 1.35em; }
+.cardAmount { font-variant-numeric: tabular-nums; }
+.calendarLegend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 18px; color: var(--MI_THEME-fgTransparent); font-size: .8em; }
 .calendarLegend span { display: inline-flex; align-items: center; gap: 6px; }
-.calendarLegend i { width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; }
-.legendToday { background: var(--MI_THEME-link); }
-.legendSigned { background: var(--MI_THEME-accent); }
-.legendMakeup { background: var(--MI_THEME-warn); }
-.legendMissed { border: 1px dashed var(--MI_THEME-fgTransparentWeak); }
+.calendarLegend i { flex-shrink: 0; font-size: 1.1em; }
+.legendSigned { color: var(--MI_THEME-accent); }
+.legendUnsigned { color: var(--MI_THEME-fg); }
 .calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
-.weekday { padding: 0 0 8px; text-align: center; color: var(--MI_THEME-fgTransparentWeak); font-size: .75em; }
-.day { --dayColor: var(--MI_THEME-fgTransparentWeak); position: relative; display: flex; min-width: 0; min-height: 72px; align-items: stretch; flex-direction: column; gap: 4px; padding: 5px; border: 1px solid transparent; border-radius: calc(var(--MI-radius) / 1.5); background: color-mix(in srgb, var(--MI_THEME-fg) 3%, var(--MI_THEME-panel)); box-sizing: border-box; transition: border-color .18s, background .18s, box-shadow .18s, transform .18s; }
-.daySelect { display: flex; flex: 1; flex-direction: column; gap: 8px; padding: 5px; min-width: 0; text-align: left; border-radius: calc(var(--MI-radius) / 2); }
-.dayTop { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 2px; }
-.dayNumber { font-size: 1em; font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.stateIcon { color: var(--dayColor); font-size: .95em; }
-.dayReward, .cardReward, .dayAction { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; min-height: 23px; border-radius: calc(var(--MI-radius) / 3); font-size: .65em; line-height: 1.4; box-sizing: border-box; }
-.dayReward { color: var(--MI_THEME-accent); }
-.dayReward > i { font-size: 1.1em; }
-.dayAction { width: 100%; color: var(--dayColor); background: color-mix(in srgb, var(--dayColor) 9%, var(--MI_THEME-panel)); overflow-wrap: anywhere; }
+.weekday { padding: 0 0 8px; text-align: center; color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; }
+.day {
+	--dayColor: var(--MI_THEME-fg);
+	--daySurface: color-mix(in srgb, var(--MI_THEME-accent) 2%, var(--MI_THEME-panel));
+	--dayBorder: color-mix(in srgb, var(--MI_THEME-accent) 12%, transparent);
+	position: relative;
+	display: flex;
+	min-width: 0;
+	min-height: 72px;
+	align-items: stretch;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px;
+	border: 1px solid var(--dayBorder);
+	border-radius: var(--MI-radius);
+	background-color: var(--daySurface);
+	box-sizing: border-box;
+	transition: border-color .15s ease, background-color .15s ease;
+}
+.daySelect { display: flex; flex: 1; flex-direction: column; gap: 8px; padding: 5px 0; min-width: 0; text-align: center; }
+.dayTop { position: relative; display: grid; place-items: center; min-height: 22px; width: 100%; }
+.dayNumber { color: var(--dayColor); font-size: 1.15em; font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stateIcon { position: absolute; top: -6px; right: -2px; color: var(--MI_THEME-accent); font-size: .8em; }
+.dayStatus { display: block; margin-top: auto; padding-block: 3px; color: var(--dayColor); text-align: center; font-size: .75em; line-height: 1.4; overflow-wrap: anywhere; }
+.dayReward, .cardReward, .dayAction { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; min-height: 23px; border-radius: calc(var(--MI-radius) / 3); font-size: .85em; line-height: 1.4; box-sizing: border-box; }
+.dayReward { color: var(--dayColor); }
+.dayReward > i { color: var(--MI_THEME-accent); font-size: 1.1em; }
+.dayAction { width: 100%; color: var(--dayColor); background: transparent; overflow-wrap: anywhere; }
 .dayAction:disabled { opacity: .5; cursor: wait; }
-.cardReward { color: var(--MI_THEME-warn); background: color-mix(in srgb, var(--MI_THEME-warn) 12%, var(--MI_THEME-panel)); padding: 1px 2px; overflow-wrap: anywhere; }
-.predictedReward { background: transparent; border: 1px dashed color-mix(in srgb, var(--MI_THEME-warn) 55%, transparent); }
-.day.completed { --dayColor: var(--MI_THEME-accent); background: color-mix(in srgb, var(--MI_THEME-accent) 9%, var(--MI_THEME-panel)); }
-.day.madeUp { --dayColor: var(--MI_THEME-warn); background: color-mix(in srgb, var(--MI_THEME-warn) 8%, var(--MI_THEME-panel)); }
-.day.missed { border-color: var(--MI-dividerColor); border-style: dashed; }
-.day.expired, .day.unavailable { background: transparent; }
-.day.expired .dayNumber, .day.unavailable .dayNumber, .day.future .dayNumber { color: var(--MI_THEME-fgTransparentWeak); }
-.day.today { border-color: var(--MI_THEME-link); box-shadow: 0 0 0 2px color-mix(in srgb, var(--MI_THEME-link) 12%, transparent); }
-.day.pending { --dayColor: var(--MI_THEME-link); background: linear-gradient(145deg, color-mix(in srgb, var(--MI_THEME-link) 12%, var(--MI_THEME-panel)), var(--MI_THEME-panel)); }
-.day.pending .dayNumber { color: var(--MI_THEME-link); }
-.day.selectedDay { box-shadow: inset 0 -3px var(--dayColor); }
-.day:focus-within { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
+.cardReward { color: var(--dayColor); padding: 1px 2px; overflow-wrap: anywhere; }
+.predictedReward { border: 1px dashed color-mix(in srgb, var(--dayColor) 30%, transparent); }
+.day.completed, .day.madeUp { --daySurface: color-mix(in srgb, var(--MI_THEME-accent) 18%, var(--MI_THEME-panel)); --dayBorder: color-mix(in srgb, var(--MI_THEME-accent) 22%, transparent); }
+.day.missed { border-style: dashed; }
+.day.today { border-color: var(--MI_THEME-accent); }
+.day.selectedDay { border-color: var(--MI_THEME-accent); border-style: solid; }
+.day:has(:focus-visible) { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
 .daySelect:focus-visible { outline: none; }
 .dayAction:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
 @media (hover: hover) {
-	.day:hover { transform: translateY(-2px); border-color: var(--dayColor); box-shadow: 0 5px 14px color-mix(in srgb, var(--dayColor) 12%, transparent); }
+	.day:hover:not(.selectedDay, .today) { border-color: color-mix(in srgb, var(--dayColor) 40%, transparent); background-color: color-mix(in srgb, var(--dayColor) 5%, var(--daySurface)); }
 	.dayAction:enabled:hover { background: color-mix(in srgb, var(--dayColor) 18%, var(--MI_THEME-panel)); }
 }
-.dayDetails { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: var(--MI-cardPadding); margin-top: 12px; border-radius: calc(var(--MI-radius) / 1.5); background: color-mix(in srgb, var(--MI_THEME-link) 5%, var(--MI_THEME-panel)); border: 1px solid color-mix(in srgb, var(--MI_THEME-link) 15%, transparent); box-sizing: border-box; }
-.detailIcon { color: var(--MI_THEME-link); font-size: 1.4em; }
-.dayDetails > div { min-width: 0; flex: 1; }
-.dayDetails strong { font-size: .85em; }
-.dayDetails p { margin: 5px 0 0; color: var(--MI_THEME-fgTransparentWeak); font-size: .75em; line-height: 1.6; overflow-wrap: anywhere; }
-.rewardLegend { margin: 12px 0 0; color: var(--MI_THEME-fgTransparentWeak); font-size: .75em; line-height: 1.7; }
-@media (prefers-reduced-motion: reduce) { .day { transition: none; } .day:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .day { transition: none; } }
 .todayDate { color: var(--MI_THEME-fgTransparentWeak); font-size: .8em; line-height: 1.5; }
 .achievements { margin-top: 20px; }
 .milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: var(--MI-cardPadding); }
@@ -565,14 +565,9 @@ definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-
 .medal { flex-shrink: 0; }
 .milestoneBody { min-width: 0; flex: 1; }
 .milestone h3 { font-size: .9em; margin: 0; }
-.milestone p { font-size: .75em; color: var(--MI_THEME-fgTransparentWeak); margin: 6px 0 10px; line-height: 1.5; }
-.milestone progress {
-	display: block;
-	width: 100%;
-	height: 8px;
-	margin-bottom: 8px;
-}
-.progress, .earned { font-size: .7em; color: var(--MI_THEME-fgTransparentWeak); }
+.milestone p { font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); margin: 6px 0 10px; line-height: 1.5; }
+.milestone progress { margin-bottom: 8px; }
+.progress, .earned { font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); }
 .earned { color: var(--MI_THEME-accent); }
 @container (max-width: 760px) {
 	.dashboard { grid-template-columns: minmax(0, 1fr); gap: 24px; }
@@ -583,21 +578,24 @@ definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-
 	.stats dd { font-size: 1.4em; }
 	.monthNav { gap: 8px; }
 	.monthNav h2 { font-size: 1.1em; }
-	.cardCount { font-size: .75em; }
+	.cardCount { font-size: .85em; }
 	.calendar { gap: 4px; }
-	.day { min-height: 64px; padding: 3px; }
+	.day { min-height: 68px; padding: 3px; }
 	.daySelect { padding: 3px 0; gap: 6px; }
 	.dayNumber { font-size: 1.1em; }
 	.stateIcon { font-size: .7em; }
-	.dayAction, .cardReward, .dayReward { font-size: .6em; }
-	.dayDetails { gap: 8px; flex-wrap: wrap; }
-	.calendarLegend { gap: 8px 12px; font-size: .7em; }
+	.dayStatus { font-size: .7em; }
+	.dayAction, .cardReward, .dayReward { font-size: .75em; }
+	.calendarLegend { gap: 8px 12px; }
 }
 @media (max-width: 600px) {
 	.milestones { grid-template-columns: minmax(0, 1fr); }
 }
 @container (max-width: 360px) {
-	.dayTop { flex-direction: column; gap: 3px; }
-	.daySelect { align-items: center; text-align: center; }
+	.day { padding-inline: 2px; }
+	.dayNumber { font-size: .95em; }
+	.stateIcon { font-size: .6em; }
+	.dayStatus { font-size: .65em; }
+	.rewardLabel { display: none; }
 }
 </style>

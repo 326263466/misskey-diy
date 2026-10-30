@@ -4,50 +4,47 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkFolder>
-	<template #label>{{ entity.name || entity.url }}</template>
-	<template v-if="entity.name != null && entity.name != ''" #caption>{{ entity.url }}</template>
-	<template #icon>
-		<i v-if="!entity.isActive" class="ti ti-player-pause"></i>
-		<i v-else-if="entity.latestStatus === null" class="ti ti-circle"></i>
+<tr>
+	<td class="_adminTableMain">
+		<div>{{ entity.name || entity.url }}</div>
+		<div v-if="entity.name" class="_adminTableSecondary _selectable">{{ entity.url }}</div>
+	</td>
+	<td>
+		<span class="_adminTableStatus" :style="!entity.isActive ? { '--admin-statusColor': 'var(--MI_THEME-fgTransparentWeak)' } : undefined">{{ entity.isActive ? i18n.ts.enabled : i18n.ts.disabled }}</span>
+	</td>
+	<td>
+		<i v-if="!entity.isActive" class="ti ti-player-pause" aria-hidden="true"></i>
+		<i v-else-if="entity.latestStatus === null" class="ti ti-circle" aria-hidden="true"></i>
 		<i
 			v-else-if="[200, 201, 204].includes(entity.latestStatus)"
 			class="ti ti-check"
 			:style="{ color: 'var(--MI_THEME-success)' }"
+			aria-hidden="true"
 		></i>
-		<i v-else class="ti ti-alert-triangle" :style="{ color: 'var(--MI_THEME-error)' }"></i>
-	</template>
-	<template #suffix>
-		<MkTime v-if="entity.latestSentAt" :time="entity.latestSentAt" style="margin-right: 8px"/>
+		<i v-else class="ti ti-alert-triangle" :style="{ color: 'var(--MI_THEME-error)' }" aria-hidden="true"></i>
+		{{ entity.latestStatus ?? '-' }}
+	</td>
+	<td>
+		<MkTime v-if="entity.latestSentAt" :time="entity.latestSentAt"/>
 		<span v-else>-</span>
-	</template>
-	<template #footer>
-		<div class="_buttons">
-			<MkButton @click="onEditClick">
-				<i class="ti ti-settings"></i> {{ i18n.ts.edit }}
-			</MkButton>
-			<MkButton danger @click="onDeleteClick">
-				<i class="ti ti-trash"></i> {{ i18n.ts.delete }}
-			</MkButton>
+	</td>
+	<td class="_adminTableActions">
+		<div class="_adminTableTools">
+			<button type="button" class="_textButton" @click="onEditClick">
+				<i class="ti ti-settings" aria-hidden="true"></i> {{ i18n.ts.edit }}
+			</button>
+			<button type="button" class="_textButton" :style="{ color: 'var(--MI_THEME-error)' }" @click="onDeleteClick">
+				<i class="ti ti-trash" aria-hidden="true"></i> {{ i18n.ts.delete }}
+			</button>
 		</div>
-	</template>
-
-	<div class="_gaps">
-		<MkKeyValue>
-			<template #key>{{ i18n.ts.latestStatus }}</template>
-			<template #value>{{ entity.latestStatus ?? '-' }}</template>
-		</MkKeyValue>
-	</div>
-</MkFolder>
+	</td>
+</tr>
 </template>
 
 <script lang="ts" setup>
 import { entities } from 'misskey-js';
 import { toRefs } from 'vue';
-import MkFolder from '@/components/MkFolder.vue';
 import { i18n } from '@/i18n.js';
-import MkButton from '@/components/MkButton.vue';
-import MkKeyValue from '@/components/MkKeyValue.vue';
 
 const emit = defineEmits<{
 	(ev: 'edit', value: entities.SystemWebhook): void;
@@ -69,12 +66,3 @@ function onDeleteClick() {
 }
 
 </script>
-
-<style module lang="scss">
-.icon {
-	margin-right: 0.75em;
-	flex-shrink: 0;
-	text-align: center;
-	color: var(--MI_THEME-fgTransparentWeak);
-}
-</style>

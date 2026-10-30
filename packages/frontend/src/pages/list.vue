@@ -92,6 +92,7 @@ async function create() {
 	});
 	if (canceled || name == null) return;
 	await os.apiWithDialog('users/lists/create-from-public', { name: name, listId: list.value.id });
+	os.toast(i18n.ts.created, 'success');
 }
 
 watch(() => props.listId, fetchList, { immediate: true });

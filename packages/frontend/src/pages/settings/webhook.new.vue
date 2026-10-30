@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkInput from '@/components/MkInput.vue';
 import FormSection from '@/components/form/section.vue';
@@ -71,17 +71,16 @@ async function create(): Promise<void> {
 	if (event_reaction.value) events.push('reaction');
 	if (event_mention.value) events.push('mention');
 
+	// 失败提示由 apiWithDialog 处理
 	os.apiWithDialog('i/webhooks/create', {
 		name: name.value,
 		url: url.value,
 		secret: secret.value,
 		on: events,
-	});
+	}).then(() => {
+		os.toast(i18n.ts.created, 'success');
+	}, () => {});
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts._webhookSettings.createWebhook,

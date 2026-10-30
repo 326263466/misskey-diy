@@ -23,7 +23,7 @@ function focus() {
 
 <style lang="scss" module>
 .label {
-	font-size: 0.85em;
+	font-size: var(--MI-formLabelFontSize, 0.85em);
 	padding: 0 0 8px 0;
 	user-select: none;
 
@@ -33,7 +33,7 @@ function focus() {
 }
 
 .caption {
-	font-size: 0.85em;
+	font-size: var(--MI-formCaptionFontSize, 0.85em);
 	padding: 8px 0 0 0;
 	color: var(--MI_THEME-fgTransparentWeak);
 

@@ -4,18 +4,46 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :loading="tab === 'remote' ? remotePaginator.fetching.value : paginator.fetching.value">
-	<div class="_pageBody">
-		<div class="ogwlenmc">
-			<div v-if="tab === 'local'" class="local">
-				<MkInput v-model="query" type="search" autocapitalize="off">
+<PageWithHeader v-model:tab="tab" contentCard :actions="adminTableMode ? [] : headerActions" :tabs="headerTabs" :loading="tab === 'remote' ? remotePaginator.fetching.value : paginator.fetching.value">
+	<template v-if="adminTableMode" #header-actions>
+		<div class="_adminToolbar _adminHeaderToolbar">
+			<template v-if="tab === 'local'">
+				<MkInput v-model="query" type="search" autocapitalize="off" class="_adminToolbarField">
 					<template #prefix><i class="ti ti-search"></i></template>
 					<template #label>{{ i18n.ts.search }}</template>
 				</MkInput>
-				<MkSwitch v-model="selectMode" style="margin: 8px 0;">
+				<MkSwitch v-model="selectMode">
 					<template #label>{{ i18n.ts._customEmojisManager.selectMode }}</template>
 				</MkSwitch>
-				<div v-if="selectMode" class="_buttons">
+			</template>
+			<template v-else>
+				<MkInput v-model="queryRemote" type="search" autocapitalize="off" class="_adminToolbarField">
+					<template #prefix><i class="ti ti-search"></i></template>
+					<template #label>{{ i18n.ts.search }}</template>
+				</MkInput>
+				<MkInput v-model="host" type="search" class="_adminToolbarField">
+					<template #label>{{ i18n.ts.host }}</template>
+				</MkInput>
+			</template>
+			<div class="_adminToolbarActions">
+				<MkButton small primary @click="add"><i class="ti ti-plus" aria-hidden="true"></i> {{ i18n.ts.addEmoji }}</MkButton>
+				<MkButton small @click="menu"><i class="ti ti-dots" aria-hidden="true"></i> {{ i18n.ts.more }}</MkButton>
+			</div>
+		</div>
+	</template>
+	<div class="_pageBody">
+		<div class="ogwlenmc">
+			<div v-if="tab === 'local'" class="local" :class="{ _adminPanel: adminTableMode }">
+				<div v-if="!adminTableMode">
+					<MkInput v-model="query" type="search" autocapitalize="off">
+						<template #prefix><i class="ti ti-search"></i></template>
+						<template #label>{{ i18n.ts.search }}</template>
+					</MkInput>
+					<MkSwitch v-model="selectMode" style="margin: 8px 0;">
+						<template #label>{{ i18n.ts._customEmojisManager.selectMode }}</template>
+					</MkSwitch>
+				</div>
+				<div v-if="selectMode" class="_buttons" :class="{ _adminPanelHeader: adminTableMode }">
 					<MkButton inline @click="selectAll">{{ i18n.ts._customEmojisManager.selectAll }}</MkButton>
 					<MkButton inline @click="setCategoryBulk">{{ i18n.ts._customEmojisManager.setCategory }}</MkButton>
 					<MkButton inline @click="setTagBulk">{{ i18n.ts._customEmojisManager.setAliases }}</MkButton>
@@ -24,15 +52,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkButton inline @click="setLicenseBulk">{{ i18n.ts._customEmojisManager.setLicense }}</MkButton>
 					<MkButton inline danger @click="delBulk">{{ i18n.ts.delete }}</MkButton>
 				</div>
-				<MkPagination ref="emojisPaginationComponent" :paginator="paginator" pageEmpty>
+				<MkPagination ref="emojisPaginationComponent" :paginator="paginator" pageEmpty :class="{ _adminPanelInset: adminTableMode }">
 					<template #empty="{ fetching }"><MkResult type="empty" :text="i18n.ts.noCustomEmojis" page :loading="fetching"/></template>
 					<template #default="{items}">
 						<div class="ldhfsamy">
-							<button v-for="emoji in items" :key="emoji.id" class="emoji _panel _button" :class="{ selected: selectedEmojis.includes(emoji.id) }" @click="selectMode ? toggleSelect(emoji) : edit(emoji)">
+							<button v-for="emoji in items" :key="emoji.id" type="button" class="emoji _panel _button" :class="{ selected: selectedEmojis.includes(emoji.id) }" :aria-pressed="selectMode ? selectedEmojis.includes(emoji.id) : undefined" @click="selectMode ? toggleSelect(emoji) : edit(emoji)">
 								<img :src="emoji.url" class="img" :alt="emoji.name"/>
 								<div class="body">
 									<div class="name _monospace">{{ emoji.name }}</div>
-									<div class="info">{{ emoji.category }}</div>
+									<div class="info">{{ emoji.category || (adminTableMode ? i18n.ts.uncategorized : '') }}</div>
+									<template v-if="adminTableMode">
+										<div :class="$style.metadata" :title="`${i18n.ts._customEmojisManager._gridCommon.aliases}: ${emoji.aliases.join(', ') || i18n.ts.none}`">{{ i18n.ts._customEmojisManager._gridCommon.aliases }}: {{ emoji.aliases.join(', ') || i18n.ts.none }}</div>
+										<div :class="$style.metadata" :title="`${i18n.ts.license}: ${emoji.license || i18n.ts.notSet}`">{{ i18n.ts.license }}: {{ emoji.license || i18n.ts.notSet }}</div>
+										<div :class="$style.flags">
+											<span v-if="emoji.isSensitive" :class="[$style.flag, $style.sensitive]">{{ i18n.ts.sensitive }}</span>
+											<span v-if="emoji.localOnly" :class="$style.flag">{{ i18n.ts.localOnly }}</span>
+											<span v-if="!emoji.isSensitive && !emoji.localOnly" :class="$style.metadata">{{ i18n.ts.normal }}</span>
+										</div>
+									</template>
 								</div>
 							</button>
 						</div>
@@ -40,27 +77,32 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</MkPagination>
 			</div>
 
-			<div v-else-if="tab === 'remote'" class="remote">
-				<FormSplit>
+			<div v-else-if="tab === 'remote'" class="remote" :class="{ _adminPanel: adminTableMode }">
+				<FormSplit v-if="!adminTableMode">
 					<MkInput v-model="queryRemote" type="search" autocapitalize="off">
 						<template #prefix><i class="ti ti-search"></i></template>
 						<template #label>{{ i18n.ts.search }}</template>
 					</MkInput>
-					<MkInput v-model="host">
+					<MkInput v-model="host" type="search">
 						<template #label>{{ i18n.ts.host }}</template>
 					</MkInput>
 				</FormSplit>
-				<MkPagination :paginator="remotePaginator" pageEmpty>
+				<MkPagination :paginator="remotePaginator" pageEmpty :class="{ _adminPanelInset: adminTableMode }">
 					<template #empty="{ fetching }"><MkResult type="empty" :text="i18n.ts.noCustomEmojis" page :loading="fetching"/></template>
 					<template #default="{items}">
 						<div class="ldhfsamy">
-							<div v-for="emoji in items" :key="emoji.id" class="emoji _panel _button" @click="remoteMenu(emoji as RemoteEmoji, $event)">
+							<button v-for="emoji in items" :key="emoji.id" type="button" class="emoji _panel _button" aria-haspopup="menu" @click="remoteMenu(emoji as RemoteEmoji, $event)">
 								<img :src="getProxiedImageUrl(emoji.url, 'emoji')" class="img" :alt="emoji.name"/>
 								<div class="body">
 									<div class="name _monospace">{{ emoji.name }}</div>
 									<div class="info">{{ emoji.host }}</div>
+									<template v-if="adminTableMode">
+										<div :class="$style.metadata">{{ emoji.category || i18n.ts.uncategorized }}</div>
+										<div :class="$style.metadata" :title="`${i18n.ts._customEmojisManager._gridCommon.aliases}: ${emoji.aliases.join(', ') || i18n.ts.none}`">{{ i18n.ts._customEmojisManager._gridCommon.aliases }}: {{ emoji.aliases.join(', ') || i18n.ts.none }}</div>
+										<div :class="$style.metadata" :title="`${i18n.ts.license}: ${emoji.license || i18n.ts.notSet}`">{{ i18n.ts.license }}: {{ emoji.license || i18n.ts.notSet }}</div>
+									</template>
 								</div>
-							</div>
+							</button>
 						</div>
 					</template>
 				</MkPagination>
@@ -72,7 +114,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import * as Misskey from 'misskey-js';
-import { computed, markRaw, ref } from 'vue';
+import { computed, inject, markRaw, ref } from 'vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkPagination from '@/components/MkPagination.vue';
@@ -82,6 +124,7 @@ import FormSplit from '@/components/form/split.vue';
 import { selectFile } from '@/utility/drive.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import { getProxiedImageUrl } from '@/utility/media-proxy.js';
 import { i18n } from '@/i18n.js';
 import { iAmAdmin } from '@/i.js';
@@ -89,6 +132,7 @@ import { definePage } from '@/page.js';
 import { Paginator } from '@/utility/paginator.js';
 import { useSearchQuery } from '@/composables/use-search-query.js';
 
+const adminTableMode = inject('adminTableMode', false);
 const tab = ref('local');
 const query = ref<string | null>(null);
 const queryRemote = ref<string | null>(null);
@@ -186,9 +230,12 @@ const detailRemoteEmoji = (emoji: {
 };
 
 const importEmoji = (emojiId: string) => {
+	// 失败提示由 apiWithDialog 处理
 	os.apiWithDialog('admin/emoji/copy', {
 		emojiId: emojiId,
-	});
+	}).then(() => {
+		os.toast(i18n.ts.added, 'success');
+	}, () => {});
 };
 
 const remoteMenu = (emoji: {
@@ -225,10 +272,7 @@ const menu = (ev: PointerEvent) => {
 						text: i18n.ts.exportRequested,
 					});
 				}).catch((err) => {
-					os.alert({
-						type: 'error',
-						text: err.message,
-					});
+					if (!isAccountSessionErrorHandled(err)) os.toast(err.message || i18n.ts.somethingHappened, 'error');
 				});
 		},
 	}, ...(iAmAdmin ? [{
@@ -248,10 +292,7 @@ const menu = (ev: PointerEvent) => {
 						text: i18n.ts.importRequested,
 					});
 				}).catch((err) => {
-					os.alert({
-						type: 'error',
-						text: err.message,
-					});
+					if (!isAccountSessionErrorHandled(err)) os.toast(err.message || i18n.ts.somethingHappened, 'error');
 				});
 		},
 	}] : [])], ev.currentTarget ?? ev.target);
@@ -266,6 +307,7 @@ const setCategoryBulk = async () => {
 		ids: selectedEmojis.value,
 		category: result,
 	});
+	os.toast(i18n.ts.saved, 'success');
 	paginator.reload();
 };
 
@@ -278,6 +320,7 @@ const setLicenseBulk = async () => {
 		ids: selectedEmojis.value,
 		license: result,
 	});
+	os.toast(i18n.ts.saved, 'success');
 	paginator.reload();
 };
 
@@ -290,6 +333,7 @@ const addTagBulk = async () => {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
+	os.toast(i18n.ts.saved, 'success');
 	paginator.reload();
 };
 
@@ -302,6 +346,7 @@ const removeTagBulk = async () => {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
+	os.toast(i18n.ts.saved, 'success');
 	paginator.reload();
 };
 
@@ -314,6 +359,7 @@ const setTagBulk = async () => {
 		ids: selectedEmojis.value,
 		aliases: result.split(' '),
 	});
+	os.toast(i18n.ts.saved, 'success');
 	paginator.reload();
 };
 
@@ -326,6 +372,7 @@ const delBulk = async () => {
 	await os.apiWithDialog('admin/emoji/delete-bulk', {
 		ids: selectedEmojis.value,
 	});
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 	paginator.reload();
 };
 
@@ -459,5 +506,39 @@ definePage(() => ({
 			}
 		}
 	}
+
+	// 后台面板内由面板控制内边距
+	> ._adminPanel .ldhfsamy {
+		margin: 0;
+	}
+}
+</style>
+
+<style lang="scss" module>
+.metadata {
+	margin-top: 3px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 1em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.flags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 6px;
+}
+
+.flag {
+	padding: 2px 5px;
+	border-radius: calc(var(--MI-radius) / 4);
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
+}
+
+.sensitive {
+	color: var(--MI_THEME-warn);
 }
 </style>

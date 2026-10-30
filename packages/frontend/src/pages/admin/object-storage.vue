@@ -97,7 +97,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_pageFooter">
+			<div class="_pageFooter _formActions">
 				<MkButton primary rounded @click="save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 			</div>
 		</div>
@@ -150,7 +150,8 @@ function save() {
 		objectStorageS3ForcePathStyle: objectStorageS3ForcePathStyle.value,
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 const headerTabs = computed(() => []);

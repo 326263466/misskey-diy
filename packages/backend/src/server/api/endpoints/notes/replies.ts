@@ -4,11 +4,12 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import type { NotesRepository } from '@/models/_.js';
+import type { BlockingsRepository, NotesRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
+import { pruneBlockedNoteRelations } from '@/misc/note-comments.js';
 
 export const meta = {
 	tags: ['notes'],
@@ -45,6 +46,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
 
+		@Inject(DI.blockingsRepository)
+		private blockingsRepository: BlockingsRepository,
+
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
 	) {
@@ -62,7 +66,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const timeline = await query.limit(ps.limit).getMany();
 
-			return await this.noteEntityService.packMany(timeline, me);
+			const notes = await this.noteEntityService.packMany(timeline, me);
+			if (me) await pruneBlockedNoteRelations(notes, this.blockingsRepository, me.id);
+			return notes;
 		});
 	}
 }

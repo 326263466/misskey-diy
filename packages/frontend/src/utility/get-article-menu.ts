@@ -19,7 +19,7 @@ export function getArticleMenu(article: entities.Page, router: Router, context: 
 			action: async () => {
 				const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkTipDialog.vue').then(module => module.default), {
 					recipient: article.user,
-					target: { type: 'page', id: article.id, title: article.title },
+						target: { type: 'page', id: article.id },
 				}, { closed: () => dispose() });
 			},
 		});

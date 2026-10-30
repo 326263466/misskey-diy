@@ -5,26 +5,32 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkArticlePreview v-if="isArticle(page)" :article="page"/>
-<MkA v-else :to="`/@${page.user.username}/pages/${page.name}`" class="vhpxefrj">
-	<div v-if="page.eyeCatchingImage" class="thumbnail">
-		<MediaImage
-			:image="page.eyeCatchingImage"
-			:disableImageLink="true"
-			:controls="false"
-			:cover="true"
-			:class="$style.eyeCatchingImageRoot"
-		/>
+<MkA v-else :to="`/@${page.user.username}/pages/${page.name}`" class="_panel" :class="$style.root" :aria-label="page.title.trim() || i18n.ts.noName">
+	<div :class="$style.frame">
+		<div :class="$style.media">
+			<MediaImage
+				v-if="page.eyeCatchingImage"
+				:image="page.eyeCatchingImage"
+				:disableImageLink="true"
+				:controls="false"
+				:cover="true"
+				:class="$style.eyeCatchingImageRoot"
+			/>
+			<div v-else :class="$style.mediaFallback" aria-hidden="true">
+				<i class="ti ti-file-description"></i>
+			</div>
+		</div>
+		<article :class="$style.body">
+			<h3 :class="$style.title" :title="page.title"><Mfm :text="page.title || page.name" :plain="true"/></h3>
+			<p v-if="page.summary" :class="$style.summary" :title="page.summary"><Mfm :text="page.summary" :plain="true"/></p>
+			<footer :class="$style.footer">
+				<img v-if="avatarUrl" :class="$style.avatar" :src="avatarUrl" alt=""/>
+				<MkUserName :user="page.user" :class="$style.author"/>
+				<span v-if="page.likedCount > 0" :class="$style.likes" :title="i18n.ts.like"><i :class="page.isLiked ? 'ti ti-heart-filled' : 'ti ti-heart'" aria-hidden="true"></i>{{ page.likedCount }}</span>
+				<MkTime v-if="page.updatedAt" :class="$style.updatedAt" :time="page.updatedAt"/>
+			</footer>
+		</article>
 	</div>
-	<article>
-		<header>
-			<h1 :title="page.title"><Mfm :text="page.title" :plain="true" :nowrap="true"/></h1>
-		</header>
-		<p v-if="page.summary" :title="page.summary"><Mfm :text="page.summary" :plain="true" :nowrap="true"/></p>
-		<footer>
-			<img v-if="avatarUrl" class="icon" :src="avatarUrl"/>
-			<p><MkUserName :user="page.user"/></p>
-		</footer>
-	</article>
 </MkA>
 </template>
 
@@ -35,6 +41,7 @@ import MediaImage from '@/components/MkMediaImage.vue';
 import MkArticlePreview from '@/components/MkArticlePreview.vue';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
 import { isArticle } from '@/utility/article.js';
+import { i18n } from '@/i18n.js';
 
 const props = defineProps<{
 	page: Misskey.entities.Page;
@@ -43,154 +50,199 @@ const props = defineProps<{
 const avatarUrl = computed(() => getUserAvatar(props.page.user).avatarUrl);
 </script>
 
-<style module>
-.eyeCatchingImageRoot {
-	width: 100%;
-	height: 200px;
-	border-radius: var(--MI-radius) var(--MI-radius) 0 0;
-	overflow: hidden;
-}
-
-</style>
-
-<style lang="scss" scoped>
-.vhpxefrj {
+<style lang="scss" module>
+.root {
 	display: block;
-	position: relative;
+	height: 100%;
 	min-width: 0;
-	border-radius: var(--MI-radius);
 	overflow: clip;
+	border: 1px solid color-mix(in srgb, var(--MI_THEME-fg) 8%, transparent);
 	background: var(--MI_THEME-panel);
+	container-type: inline-size;
+	color: var(--MI_THEME-fg);
+	transition:
+		border-color .18s ease,
+		background-color .18s ease,
+		box-shadow .18s ease;
 
 	&:hover {
 		text-decoration: none;
-		color: var(--MI_THEME-accent);
-	}
+		border-color: color-mix(in srgb, var(--MI_THEME-accent) 28%, transparent);
+		background: var(--MI_THEME-panelHighlight);
+		box-shadow: 0 5px 18px color-mix(in srgb, var(--MI_THEME-shadow) 35%, transparent);
 
-	&:focus-within {
-		outline: none;
+		.title {
+			color: var(--MI_THEME-accent);
+		}
 
-		&::after {
-			content: "";
-			position: absolute;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-			border-radius: var(--MI-radius);
-			pointer-events: none;
-			box-shadow: inset 0 0 0 2px var(--MI_THEME-focus);
+		.media i {
+			transform: scale(1.06);
 		}
 	}
 
-	> .thumbnail {
-		& + article {
-			border-radius: 0 0 var(--MI-radius) var(--MI-radius);
-		}
+	&:active {
+		background: color-mix(in srgb, var(--MI_THEME-panelHighlight) 72%, var(--MI_THEME-panel));
 	}
 
-	> article {
-		background-color: var(--MI_THEME-panel);
-		padding: var(--MI-cardPadding);
-		border-radius: var(--MI-radius);
-
-		> header {
-			margin-bottom: 8px;
-
-			> h1 {
-				margin: 0;
-				overflow: hidden;
-				text-overflow: ellipsis;
-				white-space: nowrap;
-				font-size: 1em;
-				color: var(--urlPreviewTitle);
-			}
-		}
-
-		> p {
-			margin: 0;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-			color: var(--urlPreviewText);
-			font-size: 0.8em;
-		}
-
-		> footer {
-			display: flex;
-			margin-top: 8px;
-			height: 16px;
-
-			> img {
-				display: inline-block;
-				flex-shrink: 0;
-				width: 16px;
-				height: 16px;
-				margin-right: 4px;
-				vertical-align: top;
-			}
-
-			> p {
-				display: inline-block;
-				min-width: 0;
-				margin: 0;
-				overflow: hidden;
-				text-overflow: ellipsis;
-				white-space: nowrap;
-				font-size: 0.8em;
-				line-height: 16px;
-				vertical-align: top;
-			}
-		}
-	}
-
-	@media (max-width: 700px) {
-		> .thumbnail {
-			position: relative;
-			width: 100%;
-			height: 100px;
-
-			& + article {
-				left: 0;
-			}
-		}
-	}
-
-	@media (max-width: 550px) {
-		font-size: 12px;
-
-		> .thumbnail {
-			height: 80px;
-			overflow: clip;
-		}
-
-		> article {
-		}
-	}
-
-	@media (max-width: 500px) {
-		font-size: 10px;
-
-		> .thumbnail {
-			height: 70px;
-		}
-
-		> article {
-
-			> header {
-				margin-bottom: 4px;
-			}
-
-			> footer {
-				margin-top: 4px;
-
-				> img {
-					width: 12px;
-					height: 12px;
-				}
-			}
-		}
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 2px;
 	}
 }
 
+.frame {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	height: 100%;
+	min-width: 0;
+}
+
+.media {
+	position: relative;
+	aspect-ratio: 16 / 7;
+	overflow: clip;
+	background: color-mix(in srgb, var(--MI_THEME-accent) 10%, var(--MI_THEME-panelHighlight));
+	border-bottom: var(--MI-divider);
+}
+
+.eyeCatchingImageRoot {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+
+.mediaFallback {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	height: 100%;
+	background:
+		linear-gradient(135deg, color-mix(in srgb, var(--MI_THEME-accent) 17%, transparent), transparent 62%),
+		repeating-linear-gradient(135deg, transparent 0 12px, color-mix(in srgb, var(--MI_THEME-fg) 3%, transparent) 12px 13px);
+	color: var(--MI_THEME-accent);
+	font-size: 34px;
+
+	> i {
+		transition: transform .18s ease;
+	}
+}
+
+.body {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	gap: 6px;
+	min-width: 0;
+	padding: 14px 16px 16px;
+}
+
+.title {
+	display: -webkit-box;
+	margin: 0;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	font-size: 1.12em;
+	font-weight: 700;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+	transition: color .15s ease;
+}
+
+.summary {
+	display: -webkit-box;
+	margin: 0;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: .9em;
+	line-height: 1.55;
+	overflow-wrap: anywhere;
+}
+
+.footer {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	min-width: 0;
+	margin-top: auto;
+	padding-top: 3px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: .8em;
+}
+
+.avatar {
+	flex-shrink: 0;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+}
+
+.author {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.likes {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 3px;
+}
+
+.updatedAt {
+	margin-inline-start: auto;
+	white-space: nowrap;
+}
+
+@container (min-width: 560px) {
+	.frame {
+		grid-template-columns: minmax(160px, 34%) minmax(0, 1fr);
+	}
+
+	.media {
+		height: 100%;
+		min-height: 158px;
+		aspect-ratio: auto;
+		border-right: var(--MI-divider);
+		border-bottom: 0;
+	}
+
+	.body {
+		padding: 16px 18px;
+	}
+}
+
+@container (max-width: 380px) {
+	.media {
+		aspect-ratio: 16 / 8;
+	}
+
+	.body {
+		padding: 12px;
+	}
+
+	.summary {
+		-webkit-line-clamp: 1;
+	}
+
+	.updatedAt {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.root,
+	.title,
+	.mediaFallback > i {
+		transition: none;
+	}
+}
 </style>

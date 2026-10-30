@@ -5,16 +5,19 @@
 
 // NIRAX --- A lightweight router
 
-import { onBeforeUnmount, onMounted, shallowRef } from 'vue';
+import { computed, onBeforeUnmount, shallowRef } from 'vue';
 import { EventEmitter } from 'eventemitter3';
 import { safeURIDecode } from '@@/js/url.js';
-import type { Component, ShallowRef } from 'vue';
+import { createPageHistoryEntryId } from '@/utility/page-history.js';
+import type { Component, ComputedRef, ShallowRef } from 'vue';
 
 interface RouteDefBase {
 	path: string;
 	query?: Record<string, string>;
 	/** 这些参数变化时复用页面；页面需响应其更新，其余参数继续区分实例。 */
 	reuseOnPropsChange?: readonly string[];
+	/** 当前路由最终渲染的是 not-found 页面。 */
+	notFound?: boolean;
 	loginRequired?: boolean;
 	name?: string;
 	hash?: string;
@@ -33,6 +36,21 @@ export type RouteDef = RouteDefWithComponent | RouteDefWithRedirect;
 
 export type RouterFlag = 'forcePage';
 
+export type NavigationType = 'initial' | 'push' | 'replace' | 'traverse';
+
+export type NavigationState = {
+	type: NavigationType;
+	entryId: string;
+};
+
+export type NavigationContext = {
+	beforeFullPath: string;
+	fullPath: string;
+	resolved: PathResolvedResult;
+	beforeNavigation: NavigationState;
+	navigation: NavigationState;
+};
+
 type ParsedPath = (string | {
 	name: string;
 	startsWith?: string;
@@ -41,15 +59,14 @@ type ParsedPath = (string | {
 })[];
 
 export type RouterEvents = {
+	/** 在切换路由或页面状态前保存离开页面，避免 change 中的归顶覆盖原位置。 */
+	'before-change': (ctx: NavigationContext) => void;
 	/** ページ内遷移を検知した場合（analytics用） */
-	change: (ctx: {
-		beforeFullPath: string;
-		fullPath: string;
-		resolved: PathResolvedResult;
-	}) => void;
+	change: (ctx: NavigationContext) => void;
 	/** history stateのreplaceを行う場合 */
 	replace: (ctx: {
 		fullPath: string;
+		navigation: NavigationState;
 	}) => void;
 	/** location.replace相当の処理が必要な場合 */
 	forceReplace: (ctx: {
@@ -62,6 +79,7 @@ export type RouterEvents = {
 		fullPath: string;
 		route: RouteDef | null;
 		props: Map<string, string | boolean> | null;
+		navigation: NavigationState;
 	}) => void;
 	/** location.hrefへの代入相当の処理が必要な場合 */
 	forcePush: (ctx: {
@@ -86,9 +104,18 @@ export type PathResolvedResult = {
 	};
 };
 
-export function getRouteViewKey(resolved: PathResolvedResult): string {
+export type RouteHistoryEntry = {
+	entryId: string;
+	resolved: PathResolvedResult;
+};
+
+export function getRouteViewKey(resolved: PathResolvedResult, entryId: string): string {
+	if (resolved.child) {
+		// 父布局只按自身身份复用，子路由变化不能重建菜单或头像。
+		return JSON.stringify([resolved.route.path, [...resolved.props].sort(([a], [b]) => a.localeCompare(b))]);
+	}
 	const reusableProps = resolved.route.reuseOnPropsChange;
-	if (!reusableProps) return resolved._parsedRoute.fullPath;
+	if (!reusableProps) return JSON.stringify([resolved._parsedRoute.fullPath.split('#')[0], entryId]);
 	const identityProps = [...resolved.props].filter(([name]) => !reusableProps.includes(name));
 	identityProps.sort(([a], [b]) => a.localeCompare(b));
 	return JSON.stringify([resolved.route.path, identityProps]);
@@ -230,13 +257,22 @@ export class Nirax<DEF extends RouteDef[]> extends EventEmitter<RouterEvents> {
 	public current: PathResolvedResult;
 	public currentRef: ShallowRef<PathResolvedResult>;
 	public currentRoute: ShallowRef<RouteDef>;
+	public navigationRef: ShallowRef<NavigationState>;
+	public historyRef: ShallowRef<readonly RouteHistoryEntry[]>;
+	public historyIndexRef: ShallowRef<number>;
+	public canGoBack: ComputedRef<boolean>;
+	public historyTraversal: ((delta: -1 | 1) => void) | null = null;
 	private currentFullPath: string; // /foo/bar?baz=qux#hash
 	private isLoggedIn: boolean;
 	private notFoundPageComponent: Component;
 
 	public navHook: ((fullPath: string, flag?: RouterFlag) => boolean) | null = null;
+	public beforeLeave: (() => boolean | Promise<boolean>) | null = null;
+	public canNavigate: (() => boolean) | null = null;
+	private leaveDecision: Promise<boolean> | null = null;
+	private navigationAttempt = 0;
 
-	constructor(routes: DEF, currentFullPath: Nirax<DEF>['currentFullPath'], isLoggedIn: boolean, notFoundPageComponent: Component) {
+	constructor(routes: DEF, currentFullPath: Nirax<DEF>['currentFullPath'], isLoggedIn: boolean, notFoundPageComponent: Component, initialEntryId = createPageHistoryEntryId()) {
 		super();
 
 		this.routes = routes;
@@ -246,6 +282,10 @@ export class Nirax<DEF extends RouteDef[]> extends EventEmitter<RouterEvents> {
 		this.currentFullPath = currentFullPath;
 		this.isLoggedIn = isLoggedIn;
 		this.notFoundPageComponent = notFoundPageComponent;
+		this.navigationRef = shallowRef<NavigationState>({ type: 'initial', entryId: initialEntryId });
+		this.historyRef = shallowRef([{ entryId: initialEntryId, resolved: this.current }]);
+		this.historyIndexRef = shallowRef(0);
+		this.canGoBack = computed(() => this.historyIndexRef.value > 0);
 	}
 
 	public init(triggerForceReplace = false) {
@@ -258,9 +298,11 @@ export class Nirax<DEF extends RouteDef[]> extends EventEmitter<RouterEvents> {
 			});
 		}
 
-		this.navigate(res, false);
+		const navigation: NavigationState = { type: 'initial', entryId: this.navigationRef.value.entryId };
+		this.navigate(res, navigation, false);
 		this.emit('replace', {
 			fullPath: res._parsedRoute.fullPath,
+			navigation,
 		});
 	}
 
@@ -418,25 +460,48 @@ export class Nirax<DEF extends RouteDef[]> extends EventEmitter<RouterEvents> {
 	}
 
 	/** 解決された`res`に応じてrouterの状態を更新する。 */
-	private navigate(res: PathResolvedResult, emitChange = true) {
+	private navigate(res: PathResolvedResult, navigation: NavigationState, emitChange = true) {
 		const beforeFullPath = this.currentFullPath;
-		this.currentFullPath = res._parsedRoute.fullPath;
 
 		if (res.route.loginRequired && !this.isLoggedIn && 'component' in res.route) {
 			res.route.component = this.notFoundPageComponent;
+			res.route.notFound = true;
 			res.props.set('showLoginPopup', true);
 		}
 
+		const context: NavigationContext = {
+			beforeFullPath,
+			fullPath: res._parsedRoute.fullPath,
+			resolved: res,
+			beforeNavigation: this.navigationRef.value,
+			navigation,
+		};
+		if (emitChange) this.emit('before-change', context);
+		this.currentFullPath = res._parsedRoute.fullPath;
+		this.navigationRef.value = navigation;
+		const entry = { entryId: navigation.entryId, resolved: res };
+		if (navigation.type === 'push') {
+			this.historyRef.value = [...this.historyRef.value.slice(0, this.historyIndexRef.value + 1), entry];
+			this.historyIndexRef.value = this.historyRef.value.length - 1;
+		} else if (navigation.type === 'traverse') {
+			const index = this.historyRef.value.findIndex(item => item.entryId === navigation.entryId);
+			if (index === -1) {
+				// 刷新后访问此前的浏览器历史项，从该项重新建立本次会话的导航记录。
+				this.historyRef.value = [entry];
+				this.historyIndexRef.value = 0;
+			} else {
+				this.historyIndexRef.value = index;
+				this.historyRef.value = this.historyRef.value.map((item, i) => i === index ? entry : item);
+			}
+		} else {
+			this.historyRef.value = this.historyRef.value.map((item, i) => i === this.historyIndexRef.value ? entry : item);
+		}
 		this.current = res;
 		this.currentRef.value = res;
 		this.currentRoute.value = res.route;
 
 		if (emitChange && res.route.path !== '/:(*)') {
-			this.emit('change', {
-				beforeFullPath,
-				fullPath: res._parsedRoute.fullPath,
-				resolved: res,
-			});
+			this.emit('change', context);
 		}
 
 		return res;
@@ -444,6 +509,23 @@ export class Nirax<DEF extends RouteDef[]> extends EventEmitter<RouterEvents> {
 
 	public getCurrentFullPath() {
 		return this.currentFullPath;
+	}
+
+	public back() {
+		this.traverseHistory(-1);
+	}
+
+	public forward() {
+		this.traverseHistory(1);
+	}
+
+	private traverseHistory(delta: -1 | 1) {
+		if (this.historyTraversal) {
+			this.historyTraversal(delta);
+			return;
+		}
+		const entry = this.historyRef.value[this.historyIndexRef.value + delta];
+		if (entry) this.traverseByPath(entry.resolved._parsedRoute.fullPath, entry.entryId);
 	}
 
 	public push<P extends FlattenAllPaths<DEF>>(path: P, props?: GetRouterOperationProps<DEF, P>, flag?: RouterFlag | null) {
@@ -477,6 +559,44 @@ export class Nirax<DEF extends RouteDef[]> extends EventEmitter<RouterEvents> {
 			const cancel = this.navHook(fullPath, flag ?? undefined);
 			if (cancel) return;
 		}
+		this.guardNavigation(() => this.pushResolvedPath(fullPath));
+	}
+
+	private guardNavigation(navigate: () => void) {
+		if (this.canNavigate?.() === false) return;
+		const attempt = ++this.navigationAttempt;
+		const sourceId = this.navigationRef.value.entryId;
+		const commit = () => {
+			if (attempt === this.navigationAttempt && sourceId === this.navigationRef.value.entryId && this.canNavigate?.() !== false) navigate();
+		};
+		const allowed = this.checkBeforeLeave();
+		if (typeof allowed === 'boolean') {
+			if (allowed) commit();
+			return;
+		}
+		void allowed.then(result => { if (result) commit(); });
+	}
+
+	public cancelPendingNavigation() {
+		this.navigationAttempt++;
+	}
+
+	public checkBeforeLeave(): boolean | Promise<boolean> {
+		if (this.leaveDecision) return this.leaveDecision;
+		const guard = this.beforeLeave;
+		if (!guard) return true;
+		const sourceId = this.navigationRef.value.entryId;
+		const allowed = guard();
+		if (typeof allowed === 'boolean') return allowed;
+		const decision = allowed.then(result => result && sourceId === this.navigationRef.value.entryId && guard === this.beforeLeave)
+			.catch(error => { console.error('Failed to check navigation', error); return false; })
+			.finally(() => { if (this.leaveDecision === decision) this.leaveDecision = null; });
+		this.leaveDecision = decision;
+		return decision;
+	}
+
+	private pushResolvedPath(fullPath: string) {
+		const beforeFullPath = this.currentFullPath;
 		const res = this.resolveForNavigation(fullPath);
 		if (res.route.path === '/:(*)') {
 			this.emit('forcePush', {
@@ -484,18 +604,28 @@ export class Nirax<DEF extends RouteDef[]> extends EventEmitter<RouterEvents> {
 				onInit: false,
 			});
 		} else {
-			this.navigate(res);
+			const navigation: NavigationState = { type: 'push', entryId: createPageHistoryEntryId() };
+			this.navigate(res, navigation);
 			this.emit('push', {
 				beforeFullPath,
 				fullPath: res._parsedRoute.fullPath,
 				route: res.route,
 				props: res.props,
+				navigation,
 			});
 		}
 	}
 
 	/** どうしても必要な場合に使用（パスが確定している場合は `Nirax.replace` を使用すること） */
 	public replaceByPath(fullPath: string) {
+		if (fullPath !== this.currentFullPath) {
+			this.guardNavigation(() => this.replaceResolvedPath(fullPath));
+		} else {
+			this.replaceResolvedPath(fullPath);
+		}
+	}
+
+	private replaceResolvedPath(fullPath: string) {
 		const res = this.resolveForNavigation(fullPath);
 		if (res.route.path === '/:(*)') {
 			this.emit('forceReplace', {
@@ -503,10 +633,31 @@ export class Nirax<DEF extends RouteDef[]> extends EventEmitter<RouterEvents> {
 				onInit: false,
 			});
 		} else {
-			this.navigate(res);
+			const entryId = res._parsedRoute.fullPath === this.currentFullPath ? this.navigationRef.value.entryId : createPageHistoryEntryId();
+			const navigation: NavigationState = { type: 'replace', entryId };
+			this.navigate(res, navigation);
 			this.emit('replace', {
 				fullPath: res._parsedRoute.fullPath,
+				navigation,
 			});
+		}
+	}
+
+	/** 浏览器前进后退保留原历史项；不能当作普通 replace 新建页面状态。 */
+	public traverseByPath(fullPath: string, entryId: string, skipLeaveGuard = false) {
+		if (!skipLeaveGuard && entryId !== this.navigationRef.value.entryId) {
+			this.guardNavigation(() => this.traverseByPath(fullPath, entryId, true));
+			return;
+		}
+		const res = this.resolveForNavigation(fullPath);
+		if (res.route.path === '/:(*)') {
+			this.emit('forceReplace', { fullPath: res._parsedRoute.fullPath, onInit: false });
+			return;
+		}
+		const navigation: NavigationState = { type: 'traverse', entryId };
+		this.navigate(res, navigation);
+		if (res.redirected) {
+			this.emit('replace', { fullPath: res._parsedRoute.fullPath, navigation });
 		}
 	}
 

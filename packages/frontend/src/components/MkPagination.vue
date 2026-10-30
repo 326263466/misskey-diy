@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 
 			<slot v-else-if="paginator.error.value" name="error" :retry="paginator.init">
-				<MkError :page="pageEmpty" @retry="paginator.init()"/>
+				<MkError :page="pageEmpty" :text="paginator.errorMessage?.value ?? undefined" @retry="paginator.init()"/>
 			</slot>
 
 			<div v-else-if="paginator.items.value.length === 0" key="_empty_">
@@ -29,15 +29,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<div v-else key="_root_" class="_gaps">
-				<div v-if="(direction === 'up' || direction === 'both') && upButtonVisible">
-					<div :key="paginator.items.value[0]?.id" v-appear="upButtonClick" :class="$style.sentinel" aria-hidden="true"></div>
+				<p v-if="(upError || downError) && paginator.errorMessage?.value" class="_caption" role="alert">{{ paginator.errorMessage.value }}</p>
+				<div v-if="!pagedMode && (direction === 'up' || direction === 'both') && upButtonVisible">
 					<MkLoading v-if="upButtonLoading && showLoading"/>
+					<MkButton v-else-if="upError" small @click="upButtonClick">{{ i18n.ts.retry }}</MkButton>
+					<div v-else-if="active && pageActive && !fetching" v-appear="upButtonClick" :class="$style.sentinel" aria-hidden="true"></div>
 				</div>
-				<slot :items="getValue(paginator.items)" :fetching="paginator.fetching.value || paginator.fetchingOlder.value"></slot>
-				<div v-if="(direction === 'down' || direction === 'both') && downButtonVisible">
-					<div :key="paginator.items.value.at(-1)?.id" v-appear="downButtonClick" :class="$style.sentinel" aria-hidden="true"></div>
-					<MkLoading v-if="downButtonLoading && showLoading"/>
-				</div>
+				<MkPaginationBar v-if="pagedMode" v-slot="{ items }" v-model:page="page" v-model:pageSize="pageSize" :items="getValue(paginator.items)" :hasMore="downButtonVisible && !paginator.noPaging" :loadMore="loadDown" :disabled="fetching || !active || !pageActive">
+					<slot :items="items as UnwrapRef<T['items']>" :fetching="paginator.fetching.value || paginator.fetchingOlder.value"></slot>
+				</MkPaginationBar>
+				<template v-else>
+					<slot :items="getValue(paginator.items)" :fetching="paginator.fetching.value || paginator.fetchingOlder.value"></slot>
+					<div v-if="(direction === 'down' || direction === 'both') && downButtonVisible">
+						<MkLoading v-if="downButtonLoading && showLoading"/>
+						<MkButton v-else-if="downError" small @click="downButtonClick">{{ i18n.ts.retry }}</MkButton>
+						<div v-else-if="active && pageActive && !fetching" v-appear="downButtonClick" :class="$style.sentinel" aria-hidden="true"></div>
+					</div>
+				</template>
 			</div>
 		</div>
 	</div>
@@ -62,18 +70,22 @@ export type MkPaginationOptions = {
 	controlCard?: boolean;
 	/** 页面主列表的空状态；分组内列表保持紧凑。 */
 	pageEmpty?: boolean;
+	paged?: boolean;
 };
 </script>
 
 <script lang="ts" setup generic="T extends IPaginator">
 import { isLink } from '@@/js/is-link.js';
-import { onMounted, computed, watch, unref, ref, useTemplateRef } from 'vue';
+import { onActivated, onDeactivated, onMounted, computed, inject, watch, unref, ref, useTemplateRef } from 'vue';
 import type { UnwrapRef } from 'vue';
 import type { IPaginator } from '@/utility/paginator.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
 import MkPaginationControl from '@/components/MkPaginationControl.vue';
+import MkButton from '@/components/MkButton.vue';
+import MkPaginationBar, { DEFAULT_PAGE_SIZE } from '@/components/MkPaginationBar.vue';
+import { DI } from '@/di.js';
 import * as os from '@/os.js';
 
 const props = withDefaults(defineProps<MkPaginationOptions & {
@@ -86,11 +98,26 @@ const props = withDefaults(defineProps<MkPaginationOptions & {
 	withControl: false,
 	controlCard: false,
 	pageEmpty: false,
+	paged: undefined,
 });
+
+const adminTableMode = inject<boolean>('adminTableMode', false);
+const pagedMode = computed(() => props.paged ?? adminTableMode);
+const page = ref(1);
+const pageSize = ref(DEFAULT_PAGE_SIZE);
 
 const fetching = computed(() => props.paginator.fetching.value || props.paginator.fetchingOlder.value || props.paginator.fetchingNewer.value);
 const content = useTemplateRef('content');
 const loadingHeight = ref<number | null>(null);
+const active = ref(true);
+const pageActive = inject(DI.pageActive, ref(true));
+onActivated(() => { active.value = true; });
+onDeactivated(() => { active.value = false; });
+const upError = computed(() => props.paginator.order.value === 'oldest' ? props.paginator.olderError.value : props.paginator.newerError.value);
+const downError = computed(() => props.paginator.order.value === 'oldest' ? props.paginator.newerError.value : props.paginator.olderError.value);
+
+// 换列表或重新加载时回到第一页。
+watch([() => props.paginator, () => props.paginator.fetching.value], () => { page.value = 1; });
 
 watch(() => props.paginator.fetching.value, value => {
 	// 清空列表或更换标签时保留加载前的高度，避免卡片先缩到空状态再展开。
@@ -139,7 +166,7 @@ const upButtonLoading = computed(() => {
 });
 
 function upButtonClick() {
-	if (!upButtonVisible.value || upButtonLoading.value) return;
+	if (!active.value || !pageActive.value || !upButtonVisible.value || fetching.value) return;
 	if (props.paginator.order.value === 'oldest') {
 		props.paginator.fetchOlder();
 	} else {
@@ -155,12 +182,21 @@ const downButtonLoading = computed(() => {
 });
 
 function downButtonClick() {
-	if (!downButtonVisible.value || downButtonLoading.value) return;
+	if (!active.value || !pageActive.value || !downButtonVisible.value || fetching.value) return;
 	if (props.paginator.order.value === 'oldest') {
 		props.paginator.fetchNewer();
 	} else {
 		props.paginator.fetchOlder();
 	}
+}
+
+// 分页模式由分页组件按需补载；失败或没有新条目时返回 false。
+async function loadDown() {
+	const paginator = props.paginator;
+	const previousLength = paginator.items.value.length;
+	await (paginator.order.value === 'oldest' ? paginator.fetchNewer() : paginator.fetchOlder());
+	if (downError.value) os.toast(i18n.ts.somethingHappened, 'error');
+	return paginator === props.paginator && !downError.value && paginator.items.value.length > previousLength;
 }
 
 defineSlots<{

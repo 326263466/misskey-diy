@@ -43,10 +43,13 @@ export interface IPaginator<T = unknown, _T = T & MisskeyEntity> {
 	fetching: Ref<boolean>;
 	fetchingOlder: Ref<boolean>;
 	fetchingNewer: Ref<boolean>;
+	olderError: Ref<boolean>;
+	newerError: Ref<boolean>;
 	canFetchOlder: Ref<boolean>;
 	canFetchNewer: Ref<boolean>;
 	canSearch: boolean;
 	error: Ref<boolean>;
+	errorMessage?: Ref<string | null>;
 	computedParams: ComputedRef<Misskey.Endpoints[PaginatorCompatibleEndpointPaths]['req'] | null | undefined> | null;
 	initialId: MisskeyEntity['id'] | null;
 	initialDate: number | null;
@@ -84,10 +87,14 @@ export class Paginator<
 	public fetching = ref(true);
 	public fetchingOlder = ref(false);
 	public fetchingNewer = ref(false);
+	public olderError = ref(false);
+	public newerError = ref(false);
 	public canFetchOlder = ref(false);
 	public canFetchNewer = ref(false);
 	public canSearch = false;
 	public error = ref(false);
+	public errorMessage = ref<string | null>(null);
+	private getErrorMessage: (error: unknown) => string | null;
 	private endpoint: Endpoint;
 	private limit: number;
 	private params: E['req'] | (() => E['req']);
@@ -108,6 +115,7 @@ export class Paginator<
 	private aheadQueue: T[] = [];
 	private useShallowRef: SRef;
 	private requestId = 0;
+	private nextOffset = 0;
 
 	// 配列内の要素をどのような順序で並べるか
 	// newest: 新しいものが先頭 (default)
@@ -118,6 +126,7 @@ export class Paginator<
 	constructor(endpoint: Endpoint, props: {
 		limit?: number;
 		params?: E['req'] | (() => E['req']);
+		getErrorMessage?: (error: unknown) => string | null;
 		computedParams?: ComputedRef<E['req'] | null | undefined>;
 
 		/**
@@ -143,6 +152,7 @@ export class Paginator<
 		searchParamName?: keyof E['req'];
 	}) {
 		this.endpoint = endpoint;
+		this.getErrorMessage = props.getErrorMessage ?? (() => null);
 		this.useShallowRef = (props.useShallowRef ?? false) as SRef;
 		if (this.useShallowRef) {
 			this.items = shallowRef<T[]>([]);
@@ -214,12 +224,16 @@ export class Paginator<
 
 	public async init(): Promise<void> {
 		const requestId = ++this.requestId;
+		this.nextOffset = 0;
 		this.fetching.value = true;
+		this.errorMessage.value = null;
 		this.items.value = [];
 		this.aheadQueue = [];
 		this.queuedAheadItemsCount.value = 0;
 		this.fetchingOlder.value = false;
 		this.fetchingNewer.value = false;
+		this.olderError.value = false;
+		this.newerError.value = false;
 		this.canFetchOlder.value = false;
 		this.canFetchNewer.value = false;
 
@@ -240,8 +254,9 @@ export class Paginator<
 			} : {}),
 		};
 
-		const apiRes = (await misskeyApi(this.endpoint, data).catch(_ => {
+		const apiRes = (await misskeyApi(this.endpoint, data).catch(error => {
 			if (requestId !== this.requestId) return null;
+			this.errorMessage.value = this.getErrorMessage(error);
 			this.error.value = true;
 			this.fetching.value = false;
 			return null;
@@ -251,8 +266,8 @@ export class Paginator<
 			return;
 		}
 
-		// 逆順で返ってくるので
-		if ((this.initialId || this.initialDate) && this.initialDirection === 'newer') {
+		// 游标方向决定接口返回顺序，展示顺序可能与它相反。
+		if ((this.initialDirection === 'newer') !== (this.order.value === 'oldest')) {
 			apiRes.reverse();
 		}
 
@@ -265,6 +280,7 @@ export class Paginator<
 
 		const canFetchMore = await this.hasMore(data, apiRes, this.initialDirection, this.limit);
 		if (requestId !== this.requestId) return;
+		if (this.offsetMode) this.nextOffset = ((data as { offset?: number }).offset ?? 0) + apiRes.length;
 		(this.initialDirection === 'older' ? this.canFetchOlder : this.canFetchNewer).value = canFetchMore;
 
 		this.error.value = false;
@@ -278,7 +294,10 @@ export class Paginator<
 	public async fetchOlder(): Promise<void> {
 		if (!this.canFetchOlder.value || this.fetching.value || this.fetchingOlder.value || this.items.value.length === 0) return;
 		const requestId = this.requestId;
+		const oldestId = this.getOldestId();
+		const offset = this.nextOffset;
 		this.fetchingOlder.value = true;
+		this.olderError.value = false;
 
 		const data: E['req'] = {
 			...(typeof this.params === 'function' ? this.params() : this.params),
@@ -286,18 +305,21 @@ export class Paginator<
 			...(this.searchQuery.value != null && this.searchQuery.value.trim() !== '' ? { [this.searchParamName]: this.searchQuery.value } : {}),
 			limit: SECOND_FETCH_LIMIT,
 			...(this.offsetMode ? {
-				offset: this.items.value.length,
+				offset,
 			} : {
-				untilId: this.getOldestId(),
+				untilId: oldestId,
 			}),
 		};
 
-		const apiRes = (await misskeyApi<T[], Endpoint, E['req']>(this.endpoint, data).catch(_ => {
+		this.errorMessage.value = null;
+		const apiRes = (await misskeyApi<T[], Endpoint, E['req']>(this.endpoint, data).catch(error => {
+			if (requestId === this.requestId) this.errorMessage.value = this.getErrorMessage(error);
 			return null;
 		})) as T[] | null;
 
 		if (requestId !== this.requestId) return;
 		if (apiRes == null) {
+			this.olderError.value = true;
 			this.fetchingOlder.value = false;
 			return;
 		}
@@ -309,13 +331,16 @@ export class Paginator<
 
 		const canFetchMore = await this.hasMore(data, apiRes, 'older', SECOND_FETCH_LIMIT);
 		if (requestId !== this.requestId) return;
+		// offset 按原始响应推进，避免去重或展示裁剪造成重复请求。
+		if (this.offsetMode) this.nextOffset = Math.max(this.nextOffset, offset + apiRes.length);
 		if (this.order.value === 'oldest') {
 			this.unshiftItems(apiRes.toReversed(), false);
 		} else {
 			this.pushItems(apiRes);
 		}
 
-		this.canFetchOlder.value = canFetchMore;
+		// ID 游标必须前进；offset 即使遇到重复页也已消费原始结果。
+		this.canFetchOlder.value = canFetchMore && (this.offsetMode || apiRes.some(item => oldestId == null || item.id < oldestId));
 		this.fetchingOlder.value = false;
 	}
 
@@ -324,7 +349,10 @@ export class Paginator<
 	} = {}): Promise<void> {
 		if (this.noPaging || this.fetching.value || this.fetchingNewer.value) return;
 		const requestId = this.requestId;
+		const newestId = this.getNewestId();
+		const offset = this.nextOffset;
 		this.fetchingNewer.value = true;
+		this.newerError.value = false;
 
 		const data: E['req'] = {
 			...(typeof this.params === 'function' ? this.params() : this.params),
@@ -332,18 +360,21 @@ export class Paginator<
 			...(this.searchQuery.value != null && this.searchQuery.value.trim() !== '' ? { [this.searchParamName]: this.searchQuery.value } : {}),
 			limit: SECOND_FETCH_LIMIT,
 			...(this.offsetMode ? {
-				offset: this.items.value.length,
+				offset,
 			} : {
-				sinceId: this.getNewestId(),
+				sinceId: newestId,
 			}),
 		};
 
-		const apiRes = (await misskeyApi<T[], Endpoint, E['req']>(this.endpoint, data).catch(_ => {
+		this.errorMessage.value = null;
+		const apiRes = (await misskeyApi<T[], Endpoint, E['req']>(this.endpoint, data).catch(error => {
+			if (requestId === this.requestId) this.errorMessage.value = this.getErrorMessage(error);
 			return null;
 		})) as T[] | null;
 
 		if (requestId !== this.requestId) return;
 		if (apiRes == null) {
+			this.newerError.value = true;
 			this.fetchingNewer.value = false;
 			return;
 		}
@@ -357,6 +388,7 @@ export class Paginator<
 
 		const canFetchMore = await this.hasMore(data, apiRes, 'newer', SECOND_FETCH_LIMIT);
 		if (requestId !== this.requestId) return;
+		if (this.offsetMode) this.nextOffset = Math.max(this.nextOffset, offset + apiRes.length);
 		if (options.toQueue) {
 			this.aheadQueue.unshift(...apiRes.toReversed());
 			if (this.aheadQueue.length > MAX_QUEUE_ITEMS) {
@@ -371,7 +403,7 @@ export class Paginator<
 			}
 		}
 
-		this.canFetchNewer.value = canFetchMore;
+		this.canFetchNewer.value = canFetchMore && (this.offsetMode || apiRes.some(item => newestId == null || item.id > newestId));
 		this.fetchingNewer.value = false;
 	}
 
@@ -383,14 +415,24 @@ export class Paginator<
 
 	public unshiftItems(newItems: T[], trim = true): void {
 		if (newItems.length === 0) return; // これやらないと余計なre-renderが走る
-		this.items.value.unshift(...newItems.filter(x => !this.items.value.some(y => y.id === x.id))); // ストリーミングやポーリングのタイミングによっては重複することがあるため
+		const seen = new Set(this.items.value.map(item => item.id));
+		this.items.value.unshift(...newItems.filter(item => {
+			if (seen.has(item.id)) return false;
+			seen.add(item.id);
+			return true;
+		}));
 		if (trim) this.trim(true);
 		if (this.useShallowRef) triggerRef(this.items);
 	}
 
 	public pushItems(oldItems: T[]): void {
 		if (oldItems.length === 0) return; // これやらないと余計なre-renderが走る
-		this.items.value.push(...oldItems);
+		const seen = new Set(this.items.value.map(item => item.id));
+		this.items.value.push(...oldItems.filter(item => {
+			if (seen.has(item.id)) return false;
+			seen.add(item.id);
+			return true;
+		}));
 		if (this.useShallowRef) triggerRef(this.items);
 	}
 
@@ -417,9 +459,20 @@ export class Paginator<
 	}
 
 	public removeItem(id: string): void {
-		// TODO: queueからも消す
+		const queueLength = this.aheadQueue.length;
+		this.aheadQueue = this.aheadQueue.filter(item => item.id !== id);
+		if (this.aheadQueue.length !== queueLength) this.queuedAheadItemsCount.value = this.aheadQueue.length;
 
 		const index = this.items.value.findIndex(x => x.id === id);
+		if (this.offsetMode && (index !== -1 || this.aheadQueue.length !== queueLength)) {
+			if (this.fetchingOlder.value || this.fetchingNewer.value) {
+				// 在途请求仍使用删除前的 offset，重新读取并废弃旧响应，防止漏项。
+				void this.reload();
+				return;
+			}
+			// 删除已消费记录后，服务端 offset 结果会前移；重复删除不再次回退。
+			this.nextOffset = Math.max(0, this.nextOffset - 1);
+		}
 		if (index !== -1) {
 			this.items.value.splice(index, 1);
 			if (this.useShallowRef) triggerRef(this.items);
@@ -427,7 +480,8 @@ export class Paginator<
 	}
 
 	public updateItem(id: string, updater: (item: T) => T): void {
-		// TODO: queueのも更新
+		const queueIndex = this.aheadQueue.findIndex(item => item.id === id);
+		if (queueIndex !== -1) this.aheadQueue[queueIndex] = updater(this.aheadQueue[queueIndex]!);
 
 		const index = this.items.value.findIndex(x => x.id === id);
 		if (index !== -1) {

@@ -9,6 +9,7 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { MiUser } from '@/models/User.js';
 import { MiProduct } from '@/models/Product.js';
+import { MiProductImage } from '@/models/ProductImage.js';
 import {
 	COMMERCE_MAX_PRODUCTS, COMMERCE_MAX_QUANTITY, COMMERCE_REQUEST_ID_PATTERN,
 	InvalidProductError, NoSuchProductError, NotAllowedError,
@@ -84,6 +85,26 @@ export class ProductService {
 		};
 	}
 
+	private async replaceImage(manager: EntityManager, userId: string, productId: string, imageUrl: string, previousUrl = '') {
+		// 历史商品未换图时仍可编辑；新图只能使用本人的商品专用副本。
+		if (imageUrl === previousUrl) return;
+		const images = await manager.createQueryBuilder(MiProductImage, 'image')
+			.where('image.url IN (:...urls)', { urls: [imageUrl, previousUrl].filter(Boolean) })
+			.orderBy('image.id', 'ASC').setLock('pessimistic_write').getMany();
+		const now = new Date();
+		if (imageUrl) {
+			const image = images.find(row => row.url === imageUrl);
+			if (!image || image.userId !== userId || !image.ready || image.deletingAt ||
+				(image.productId !== null && image.productId !== productId) || (image.expiresAt !== null && image.expiresAt <= now)) throw new InvalidProductError();
+			await manager.update(MiProductImage, image.id, { productId, expiresAt: null });
+		}
+		const previous = images.find(row => row.url === previousUrl && row.productId === productId && row.userId === userId);
+		if (previous) {
+			// 与商品一起提交删除标记，阻止回收前被其他编辑重新采用。
+			await manager.update(MiProductImage, previous.id, { productId: null, expiresAt: now, deletingAt: now });
+		}
+	}
+
 	public async create(userId: string, input: ProductInput, requestId: string) {
 		const values = this.normalize(input);
 		if (!new RegExp(COMMERCE_REQUEST_ID_PATTERN).test(requestId)) throw new InvalidProductError();
@@ -103,7 +124,10 @@ export class ProductService {
 				const product = manager.create(MiProduct, { ...values, id: randomUUID().replaceAll('-', ''), sellerId: userId, createRequestId, createFingerprint, createdAt: now, updatedAt: now, version: randomUUID(), soldCount: 0 });
 				const [sql, parameters] = manager.createQueryBuilder().insert().into(MiProduct).values(product).getQueryAndParameters();
 				const inserted = await manager.query(`${sql} ON CONFLICT ("id") DO NOTHING RETURNING "id"`, parameters);
-				if (inserted.length > 0) return this.pack(product, userId, 0, true);
+				if (inserted.length > 0) {
+					await this.replaceImage(manager, userId, product.id, product.imageUrl);
+					return this.pack(product, userId, 0, true);
+				}
 			}
 			throw new Error('Unable to allocate a marketplace product identifier.');
 		});
@@ -118,6 +142,7 @@ export class ProductService {
 			if (!product) throw new NoSuchProductError();
 			if (product.version !== expectedVersion) throw new PriceChangedError();
 			if (values.stockLimit > 0 && values.stockLimit < Number(product.soldCount)) throw new InvalidProductError();
+			await this.replaceImage(manager, userId, product.id, values.imageUrl, product.imageUrl);
 			Object.assign(product, values, { updatedAt: new Date(), version: randomUUID() });
 			await manager.save(product);
 			return this.pack(product, userId, 0, true);

@@ -5,57 +5,57 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader class="_standalonePage" :class="[$style.page, { [$style.still]: !prefer.s.animation }]" hideHeader>
-	<section class="_panel" :class="$style.panel">
-		<header :class="$style.hero">
-			<i class="ti ti-trophy" :class="$style.heroIcon" aria-hidden="true"></i>
-			<h1>{{ i18n.ts.communityRanking }}</h1>
-			<p>{{ i18n.ts._communityRanking.description }}</p>
-			<nav :class="$style.tabs" :aria-label="i18n.ts.communityRanking">
-				<MkA v-for="tab in tabs" :key="tab.key" :to="`/community-ranking?type=${tab.key}`" :class="[$style.tab, { [$style.selected]: type === tab.key }]" :aria-current="type === tab.key ? 'page' : undefined">
-					<span>{{ tab.title }}</span>
-				</MkA>
-			</nav>
-		</header>
-		<div :class="$style.body" :aria-busy="loading">
-			<div :class="$style.summary">
-				<p>{{ displayedTab.rule }}</p>
-				<span v-if="$i && ranking" :class="$style.myRank">{{ i18n.ts._communityRanking.myRank }} <b>{{ ranking.myRank ? i18n.tsx._communityRanking.rankLabel({ rank: ranking.myRank.rank }) : i18n.ts._communityRanking.notRanked }}</b></span>
-				<span v-else-if="!$i" :class="$style.notice">{{ i18n.ts._communityRanking.signInPrompt }}</span>
+	<header class="_panel" :class="$style.head">
+		<div :class="$style.headRow">
+			<i class="ti ti-trophy" :class="$style.headIcon" aria-hidden="true"></i>
+			<div :class="$style.headText">
+				<h1>{{ i18n.ts.communityRanking }}</h1>
+				<p>{{ i18n.ts._communityRanking.description }}</p>
 			</div>
-			<div :class="$style.statusBar">
-				<span v-if="loading && nextOffset === 0" role="status" :class="$style.loadingStatus"><i class="ti ti-loader-2" aria-hidden="true"></i>{{ selectedTab.title }} · {{ i18n.ts.loading }}</span>
-				<div v-if="error" role="alert" :class="$style.error">{{ i18n.ts._communityRanking.loadFailed }} <button type="button" class="_textButton" :disabled="loading" @click="load(failedOffset)">{{ i18n.ts.retry }}</button></div>
-			</div>
-			<div :class="$style.results">
-				<div v-if="!ranking" :class="$style.placeholder" aria-hidden="true"><span v-for="place in [2, 1, 3]" :key="place" :data-rank="place"><i></i><b></b></span></div>
-				<div v-else-if="ranking && ranking.items.length === 0" :class="$style.empty"><i class="ti ti-trophy" aria-hidden="true"></i><h2>{{ i18n.ts._communityRanking.noEntries }}</h2><p>{{ i18n.ts._communityRanking.noEntriesDescription }}</p></div>
-				<template v-else-if="ranking">
-					<ol v-if="podium.length > 0" :class="$style.podium" :aria-label="i18n.ts._communityRanking.podium">
-						<li v-for="item in podium" :key="item.rank" :value="item.rank" :class="$style.podiumItem" :data-rank="item.rank">
-							<div :class="$style.spotlight" aria-hidden="true"></div>
-							<i class="ti ti-sparkles" :class="[$style.sparkle, $style.sparkleLeft]" aria-hidden="true"></i>
-							<i class="ti ti-sparkles" :class="[$style.sparkle, $style.sparkleRight]" aria-hidden="true"></i>
-							<MkA :to="userPage(item.user)" :class="$style.podiumUser">
-								<span :class="$style.podiumAvatarFrame"><i v-if="item.rank === 1" class="ti ti-crown" :class="$style.crown" aria-hidden="true"></i><MkAvatar :user="item.user" :link="false" :class="$style.podiumAvatar"/></span>
-								<MkUserName :user="item.user" :class="$style.podiumName"/>
-							</MkA>
-							<div :class="$style.podiumScore"><b>{{ formatValue(item.value) }}</b><span>{{ displayedTab.unit }}</span></div>
-							<div :class="$style.pedestal"><div :class="$style.medal"><i class="ti ti-laurel-wreath" aria-hidden="true"></i><span :aria-label="i18n.tsx._communityRanking.rankLabel({ rank: item.rank })">{{ item.rank }}</span></div><span :class="$style.pedestalLine" aria-hidden="true"></span></div>
-						</li>
-					</ol>
-					<ol v-if="remaining.length > 0" :class="$style.list" start="4" :aria-label="displayedTab.title">
-						<li v-for="item in remaining" :key="item.user.id" :value="item.rank" :class="[$style.row, { [$style.me]: item.user.id === $i?.id }]">
-							<span :class="$style.rank" :aria-label="i18n.tsx._communityRanking.rankLabel({ rank: item.rank })">{{ item.rank }}</span>
-							<MkA :to="userPage(item.user)" :class="$style.user"><MkAvatar :user="item.user" :link="false" :class="$style.avatar"/><span :class="$style.userName"><MkUserName :user="item.user"/><span :class="$style.username">@{{ item.user.username }}</span></span></MkA>
-							<div :class="$style.value"><b>{{ formatValue(item.value) }}</b><span>{{ displayedTab.unit }}</span></div>
-						</li>
-					</ol>
-					<button v-if="hasMore && !error" type="button" class="_button" :class="$style.more" :disabled="loading" @click="load(nextOffset)">{{ loading ? i18n.ts.loading : i18n.ts.loadMore }}</button>
-				</template>
-			</div>
-			<footer :class="$style.footnote"><span>{{ i18n.ts._communityRanking.rule }}</span><time v-if="ranking && updatedAt" :datetime="ranking.updatedAt">{{ i18n.tsx._communityRanking.updatedAt({ time: updatedAt }) }}</time></footer>
+			<span v-if="$i && ranking" :class="$style.myRank">{{ i18n.ts._communityRanking.myRank }} <b>{{ ranking.myRank ? i18n.tsx._communityRanking.rankLabel({ rank: ranking.myRank.rank }) : i18n.ts._communityRanking.notRanked }}</b></span>
+			<button v-else-if="!$i" type="button" class="_button" :class="$style.loginPrompt" @click="pleaseLogin({ message: '' })">
+				{{ i18n.ts._communityRanking.signInPrompt }}<i class="ti ti-login-2" aria-hidden="true"></i>
+			</button>
 		</div>
-	</section>
+		<nav :class="$style.tabs" :aria-label="i18n.ts.communityRanking">
+			<MkA v-for="tab in tabs" :key="tab.key" :to="`/community-ranking?type=${tab.key}`" :class="[$style.tab, { [$style.selected]: type === tab.key }]" :aria-current="type === tab.key ? 'page' : undefined">
+				<span>{{ tab.title }}</span>
+			</MkA>
+		</nav>
+	</header>
+	<div :class="$style.results" :aria-busy="loading">
+		<div :class="$style.summary">
+			<p>{{ displayedTab.rule }}</p>
+			<span v-if="loading && nextOffset === 0" role="status" :class="$style.loadingStatus"><i class="ti ti-loader-2" aria-hidden="true"></i>{{ selectedTab.title }} · {{ i18n.ts.loading }}</span>
+			<div v-if="error" role="alert" :class="$style.error">{{ i18n.ts._communityRanking.loadFailed }} <button type="button" class="_textButton" :disabled="loading" @click="load(failedOffset)">{{ i18n.ts.retry }}</button></div>
+		</div>
+		<div v-if="!ranking" class="_panel" :class="[$style.card, $style.placeholder]" aria-hidden="true"><span v-for="place in [2, 1, 3]" :key="place" :data-rank="place"><i></i><b></b></span></div>
+		<div v-else-if="ranking.items.length === 0" class="_panel" :class="[$style.card, $style.empty]"><i class="ti ti-trophy" aria-hidden="true"></i><h2>{{ i18n.ts._communityRanking.noEntries }}</h2><p>{{ i18n.ts._communityRanking.noEntriesDescription }}</p></div>
+		<template v-else>
+			<ol v-if="podium.length > 0" class="_panel" :class="[$style.card, $style.podium]" :aria-label="i18n.ts._communityRanking.podium">
+				<li v-for="item in podium" :key="item.rank" :value="item.rank" :class="$style.podiumItem" :data-rank="item.rank">
+					<MkA :to="userPage(item.user)" :class="$style.podiumUser">
+						<span :class="$style.podiumAvatarFrame"><i v-if="item.rank === 1" class="ti ti-crown" :class="$style.crown" aria-hidden="true"></i><MkAvatar :user="item.user" :link="false" :class="$style.podiumAvatar"/></span>
+						<MkUserName :user="item.user" :class="$style.podiumName"/>
+					</MkA>
+					<div :class="[$style.podiumScore, { [$style.points]: displayedTab.key === 'points' }]" :title="`${formatValue(item.value)} ${displayedTab.unit}`"><i v-if="displayedTab.key === 'points'" class="ti ti-coins" aria-hidden="true"></i><b>{{ formatValue(item.value) }}</b><span>{{ displayedTab.unit }}</span></div>
+					<div :class="$style.pedestal"><span :aria-label="i18n.tsx._communityRanking.rankLabel({ rank: item.rank })">{{ item.rank }}</span></div>
+				</li>
+			</ol>
+			<div v-if="remaining.length > 0" class="_panel" :class="$style.card">
+				<ol :class="$style.list" start="4" :aria-label="displayedTab.title">
+					<li v-for="item in remaining" :key="item.user.id" :value="item.rank" :class="[$style.row, { [$style.me]: item.user.id === $i?.id }]">
+						<span :class="$style.rank" :aria-label="i18n.tsx._communityRanking.rankLabel({ rank: item.rank })">{{ item.rank }}</span>
+						<MkA :to="userPage(item.user)" :class="$style.user"><MkAvatar :user="item.user" :link="false" :class="$style.avatar"/><span :class="$style.userName"><MkUserName :user="item.user"/><span :class="$style.username">@{{ item.user.username }}</span></span></MkA>
+						<div :class="[$style.value, { [$style.points]: displayedTab.key === 'points' }]"><i v-if="displayedTab.key === 'points'" class="ti ti-coins" aria-hidden="true"></i><b>{{ formatValue(item.value) }}</b><span>{{ displayedTab.unit }}</span></div>
+					</li>
+				</ol>
+				<div v-if="hasMore && !loading && !error && active && pageActive" v-appear="() => load(nextOffset)" :class="$style.sentinel" aria-hidden="true"></div>
+				<MkLoading v-if="loading && nextOffset > 0" :class="$style.loadingMore"/>
+			</div>
+		</template>
+		<footer :class="$style.footnote"><span>{{ i18n.ts._communityRanking.rule }}</span><time v-if="ranking && updatedAt" :datetime="ranking.updatedAt">{{ i18n.tsx._communityRanking.updatedAt({ time: updatedAt }) }}</time></footer>
+	</div>
 </PageWithHeader>
 </template>
 
@@ -64,12 +64,14 @@ import { computed, inject, onActivated, onDeactivated, onMounted, onUnmounted, r
 import type { entities } from 'misskey-js';
 import { versatileLang } from '@@/js/intl-const.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { pleaseLogin } from '@/utility/please-login.js';
 import { userPage } from '@@/js/user.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { DI } from '@/di.js';
 import { prefer } from '@/preferences.js';
+import { usePageHistoryRestore } from '@/composables/use-page-history-restore.js';
 
 const props = defineProps<{ type?: string }>();
 const tabs = computed(() => [
@@ -89,23 +91,28 @@ const error = ref(false);
 const hasMore = ref(false);
 const nextOffset = ref(0);
 const pageActive = inject(DI.pageActive, ref(true));
+const historyRestoring = usePageHistoryRestore();
 const podium = computed(() => ranking.value?.items.filter(item => item.rank <= 3) ?? []);
 const remaining = computed(() => ranking.value?.items.filter(item => item.rank > 3) ?? []);
 const numberFormat = new Intl.NumberFormat(versatileLang, { maximumFractionDigits: 2 });
+const pointsFormat = new Intl.NumberFormat(versatileLang, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dateFormat = new Intl.DateTimeFormat(versatileLang, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 const updatedAt = computed(() => ranking.value ? dateFormat.format(new Date(ranking.value.updatedAt)) : '');
 let request = 0;
 let failedOffset = 0;
-let active = true;
+let interrupted = false;
+const active = ref(true);
 
 function formatValue(value: number) {
-	return numberFormat.format(value);
+	return displayedTab.value.key === 'points' ? pointsFormat.format(value) : numberFormat.format(value);
 }
 
 async function load(offset = 0) {
-	if (!active || !pageActive.value) return;
+	if (!active.value || !pageActive.value || loading.value) return;
+	if (offset > 0 && (!hasMore.value || ranking.value?.type !== type.value)) return;
 	const sequence = ++request;
 	const requestedType = type.value;
+	interrupted = false;
 	failedOffset = offset;
 	loading.value = true;
 	error.value = false;
@@ -125,12 +132,21 @@ async function load(offset = 0) {
 }
 
 function invalidateRequest() {
+	interrupted ||= loading.value;
 	request++;
 	loading.value = false;
 }
 
 function refresh() {
-	if (active && pageActive.value && window.document.visibilityState !== 'hidden' && !loading.value) void load();
+	if (active.value && pageActive.value && window.document.visibilityState !== 'hidden' && !loading.value) void load();
+}
+
+function refreshOnActivation() {
+	if (historyRestoring.value && ranking.value?.type === type.value && ranking.value.items.length > 0) {
+		if (error.value || interrupted) void load(failedOffset);
+		return;
+	}
+	refresh();
 }
 
 watch(type, () => {
@@ -144,11 +160,11 @@ watch(type, () => {
 	nextOffset.value = saved?.nextOffset ?? 0;
 	if (!saved || Date.now() - saved.fetchedAt > 60_000) void load();
 }, { immediate: true });
-watch(pageActive, value => { if (value) refresh(); else invalidateRequest(); });
+watch(pageActive, value => { if (value) refreshOnActivation(); else invalidateRequest(); });
 onMounted(() => { window.addEventListener('focus', refresh); });
-onActivated(() => { if (!active) { active = true; refresh(); } });
-onDeactivated(() => { active = false; invalidateRequest(); });
-onUnmounted(() => { active = false; invalidateRequest(); window.removeEventListener('focus', refresh); });
+onActivated(() => { if (!active.value) { active.value = true; refreshOnActivation(); } });
+onDeactivated(() => { active.value = false; invalidateRequest(); });
+onUnmounted(() => { active.value = false; invalidateRequest(); window.removeEventListener('focus', refresh); });
 
 definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy' }));
 </script>
@@ -158,122 +174,140 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy' }));
 	--MI-pageHeaderBg: transparent;
 }
 
-.panel {
-	container-type: inline-size;
-	margin-bottom: var(--MI-pageGap);
+.head {
+	margin-bottom: var(--MI-margin);
 }
 
-.hero {
-	padding: 24px var(--MI-cardPadding) 0;
-	text-align: center;
-	background: radial-gradient(ellipse at top, color-mix(in srgb, var(--MI_THEME-accent) 9%, transparent), transparent 75%);
-
-	h1 { margin: 8px 0; font-size: 1.8em; }
-	p { margin: 0 0 20px; color: var(--MI_THEME-fgTransparentWeak); line-height: 1.6; }
+.headRow {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px 14px;
+	padding: 18px var(--MI-cardPadding) 14px;
 }
 
-.heroIcon {
-	font-size: 32px;
+.headIcon {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	padding: 10px;
+	box-sizing: border-box;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--MI-rankingGold) 14%, var(--MI_THEME-panel));
 	color: var(--MI-rankingGold);
+	font-size: 24px;
+}
+
+.headText {
+	flex: 1 1 200px;
+	min-width: 0;
+
+	h1 { margin: 0; font-size: 1.3em; line-height: 1.4; }
+	p { margin: 2px 0 0; color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; line-height: 1.5; }
+}
+
+.myRank {
+	flex-shrink: 0;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: .85em;
+	white-space: nowrap;
+
+	b { margin-left: 6px; color: var(--MI_THEME-accent); }
+}
+
+.loginPrompt {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
+	font-size: .85em;
+	white-space: nowrap;
+
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
 }
 
 .tabs {
 	display: flex;
-	justify-content: center;
-	gap: 12px;
-	border-bottom: var(--MI-divider);
+	gap: 4px;
+	padding: 0 calc(var(--MI-cardPadding) - 12px);
+	border-top: var(--MI-divider);
+	overflow-x: auto;
+	scrollbar-width: none;
 }
 
 .tab {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 7px;
-	min-width: 0;
-	padding: 14px 22px;
-	border-bottom: 3px solid transparent;
+	flex-shrink: 0;
+	padding: 12px;
+	border-bottom: 2px solid transparent;
 	color: var(--MI_THEME-fgTransparentWeak);
 	white-space: nowrap;
 
-	&:hover { text-decoration: none; color: var(--MI_THEME-accent); }
+	&:hover { text-decoration: none; color: var(--MI_THEME-fg); }
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 	&.selected { color: var(--MI_THEME-accent); border-bottom-color: var(--MI_THEME-accent); font-weight: bold; }
 }
-
-.body {
-	--stageHeight: 328px;
-	--stageGap: 16px;
-	--firstStepHeight: 88px;
-	--secondStepHeight: 68px;
-	--thirdStepHeight: 52px;
-	padding: 18px clamp(16px, 5cqi, 64px);
+.results {
+	--stageHeight: 280px;
+	--firstStepHeight: 64px;
+	--secondStepHeight: 48px;
+	--thirdStepHeight: 36px;
 	container-type: inline-size;
+	padding-bottom: var(--MI-pageBottomInset, var(--MI-pageGap));
 }
 
 .summary {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
 	flex-wrap: wrap;
-	gap: 10px;
+	gap: 4px 12px;
+	min-height: 22px;
+	margin: 0 4px 10px;
 	color: var(--MI_THEME-fgTransparentWeak);
 	font-size: .85em;
 	line-height: 1.6;
 
-	p { margin: 0; }
-}
-
-.myRank b { margin-left: 8px; color: var(--MI_THEME-accent); }
-.notice { font-size: inherit; }
-
-.statusBar {
-	min-height: 20px;
-	padding-top: 4px;
-	font-size: .8em;
+	p { flex: 1; margin: 0; }
 }
 
 .loadingStatus {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	color: var(--MI_THEME-fgTransparentWeak);
 
 	> i { animation: loadingSpin 1.2s linear infinite; }
 }
 
-.results { min-height: calc(var(--stageHeight) + var(--stageGap)); }
+.error { color: var(--MI_THEME-error); }
+
+.card {
+	margin-bottom: var(--MI-margin);
+}
 
 .podium {
-	position: relative;
-	isolation: isolate;
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	align-items: end;
-	gap: 12px;
-	max-width: 800px;
+	gap: 16px;
 	min-height: var(--stageHeight);
-	box-sizing: border-box;
-	margin: 0 auto var(--stageGap);
-	padding: 52px 16px 12px;
+	margin-top: 0;
+	padding: 40px clamp(16px, 6cqi, 64px) 0;
 	list-style: none;
-
-	&::after {
-		content: '';
-		position: absolute;
-		z-index: -1;
-		inset: auto 0 0;
-		height: 60px;
-		border-radius: 50%;
-		background: radial-gradient(ellipse, color-mix(in srgb, var(--MI-rankingGold) 14%, transparent), transparent 70%);
-		pointer-events: none;
-	}
 }
 
 .podiumItem {
 	--rankColor: var(--MI-rankingGold);
+	--rankInk: color-mix(in srgb, var(--rankColor) 55%, var(--MI_THEME-fg));
 	--pedestalHeight: var(--firstStepHeight);
-	position: relative;
-	isolation: isolate;
 	grid-row: 1;
 	grid-column: 2;
 	min-width: 0;
@@ -292,39 +326,12 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy' }));
 	}
 }
 
-.spotlight {
-	position: absolute;
-	z-index: -1;
-	inset: -48px 0 0;
-	overflow: hidden;
-	pointer-events: none;
-	background: radial-gradient(ellipse at 50% 44%, color-mix(in srgb, var(--rankColor) 17%, transparent), transparent 66%);
-
-	&::before, &::after {
-		content: '';
-		position: absolute;
-		inset: 0;
-		clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
-		background: linear-gradient(to bottom, color-mix(in srgb, var(--rankColor) 12%, transparent), color-mix(in srgb, var(--rankColor) 3%, transparent) 65%, transparent);
-		transform-origin: 50% 0;
-		transform: rotate(-14deg);
-	}
-
-	&::after { transform: rotate(14deg); opacity: .7; }
-}
-
-.podiumItem[data-rank='1'] .spotlight {
-	background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--rankColor) 23%, transparent), transparent 68%);
-}
-
 .podiumUser {
-	position: relative;
 	display: flex;
 	align-items: center;
 	flex-direction: column;
-	gap: 16px;
+	gap: 10px;
 	min-width: 0;
-	padding-top: 6px;
 
 	&:hover { text-decoration: none; color: var(--MI_THEME-accent); }
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 4px; border-radius: var(--MI-radius); }
@@ -333,42 +340,22 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy' }));
 .podiumAvatarFrame {
 	position: relative;
 	display: block;
-	border: 2px solid color-mix(in srgb, var(--rankColor) 80%, var(--MI_THEME-panel));
+	padding: 3px;
+	border: 2px solid var(--rankColor);
 	border-radius: 50%;
-	padding: 5px;
-	background: var(--MI_THEME-panel);
-	box-shadow: 0 0 0 5px color-mix(in srgb, var(--rankColor) 9%, transparent), 0 6px 24px color-mix(in srgb, var(--rankColor) 20%, transparent);
 }
 
-.podiumAvatar { display: block; width: 60px; height: 60px; }
-.podiumItem[data-rank='1'] .podiumAvatar { width: 72px; height: 72px; }
+.podiumAvatar { display: block; width: 56px; height: 56px; }
+.podiumItem[data-rank='1'] .podiumAvatar { width: 68px; height: 68px; }
 
 .crown {
 	position: absolute;
-	z-index: 1;
-	bottom: calc(100% + 13px);
+	bottom: calc(100% + 2px);
 	left: 50%;
 	transform: translateX(-50%) rotate(-8deg);
 	color: var(--rankColor);
-	font-size: 34px;
-	filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--rankColor) 30%, transparent));
+	font-size: 28px;
 }
-
-.sparkle {
-	position: absolute;
-	z-index: -1;
-	color: var(--rankColor);
-	pointer-events: none;
-	font-size: 16px;
-	opacity: .6;
-	animation: sparkleGlow 4s ease-in-out infinite;
-}
-
-.sparkleLeft { top: 6%; left: 14%; }
-.sparkleRight { top: 24%; right: 10%; font-size: 11px; animation-delay: -2s; }
-.podiumItem[data-rank='2'] .sparkle { animation-delay: -1s; }
-.podiumItem[data-rank='3'] .sparkle { animation-delay: -3s; }
-
 .podiumName {
 	max-width: 100%;
 	overflow: hidden;
@@ -380,83 +367,71 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy' }));
 
 .podiumScore {
 	display: flex;
-	justify-content: center;
-	align-items: baseline;
-	gap: 5px;
-	min-height: 28px;
-	margin: 4px 0 10px;
+	justify-content: safe center;
+	align-items: center;
+	gap: 4px;
+	max-width: 100%;
+	overflow-x: auto;
+	scrollbar-width: none;
+	margin: 2px 0 12px;
 	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 
-	b { font-size: clamp(1em, 2.3cqi, 1.5em); overflow-wrap: anywhere; }
-	span { flex-shrink: 0; font-size: .75em; color: var(--MI_THEME-fgTransparentWeak); }
+	b { font-size: clamp(1em, 2.4cqi, 1.3em); }
+	span { flex-shrink: 0; font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); }
+}
+
+// 积分与集市价格同样式：金币图标、强调色数字。
+.points {
+	color: var(--MI_THEME-accent);
+
+	> i { display: inline-flex; align-items: center; flex-shrink: 0; line-height: 1; }
+	b { font-weight: 600; }
+	span { color: var(--MI_THEME-fgTransparentWeak); }
 }
 
 .pedestal {
-	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: var(--pedestalHeight);
-	box-sizing: border-box;
-	border: 1px solid color-mix(in srgb, var(--rankColor) 35%, var(--MI_THEME-panel));
-	border-top: 4px solid color-mix(in srgb, var(--rankColor) 45%, var(--MI_THEME-panel));
-	border-radius: var(--MI-radius) var(--MI-radius) 4px 4px;
-	background: linear-gradient(105deg, color-mix(in srgb, var(--rankColor) 20%, var(--MI_THEME-panel)), color-mix(in srgb, var(--rankColor) 7%, var(--MI_THEME-panel)) 48%, color-mix(in srgb, var(--rankColor) 23%, var(--MI_THEME-panel)));
-	box-shadow: inset 0 1px 0 var(--MI_THEME-panel), 0 8px 16px color-mix(in srgb, var(--rankColor) 8%, transparent);
-	color: var(--rankColor);
-}
-
-.medal {
-	position: relative;
 	display: grid;
 	place-items: center;
-	width: 44px;
-	height: 44px;
-	border: 1px solid color-mix(in srgb, var(--rankColor) 42%, transparent);
-	border-radius: 50%;
-	background: linear-gradient(140deg, color-mix(in srgb, var(--rankColor) 5%, var(--MI_THEME-panel)), color-mix(in srgb, var(--rankColor) 28%, var(--MI_THEME-panel)));
-	box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--rankColor) 10%, var(--MI_THEME-panel)), 0 3px 8px color-mix(in srgb, var(--rankColor) 15%, transparent);
-
-	span { position: relative; font-size: 1.7em; font-weight: 800; }
-	i { position: absolute; inset: 0; display: block; width: 100%; height: 100%; transform: scale(1.5); opacity: .45; }
-}
-
-.pedestalLine {
-	position: absolute;
-	inset: auto 18% 10px;
-	height: 1px;
-	background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rankColor) 40%, transparent), transparent);
+	height: var(--pedestalHeight);
+	border-radius: var(--MI-radius) var(--MI-radius) 0 0;
+	// 奖座自上而下由深转浅，形成体积感。
+	background: linear-gradient(
+		to bottom,
+		color-mix(in srgb, var(--rankColor) 30%, var(--MI_THEME-panel)),
+		color-mix(in srgb, var(--rankColor) 8%, var(--MI_THEME-panel))
+	);
+	color: var(--rankInk);
+	font-size: 1.4em;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
 }
 
 .placeholder {
 	display: flex;
 	align-items: end;
 	justify-content: center;
-	gap: 12px;
+	gap: 16px;
 	min-height: var(--stageHeight);
-	padding-bottom: 28px;
-	box-sizing: border-box;
+	padding: 40px clamp(16px, 6cqi, 64px) 0;
 
-	> span { display: flex; align-items: center; flex-direction: column; width: 25%; gap: 24px; }
-	i { width: 72px; height: 72px; border-radius: 50%; background: var(--MI_THEME-buttonBg); }
+	> span { display: flex; align-items: center; flex-direction: column; flex: 1; gap: 48px; }
+	i { width: 62px; height: 62px; border-radius: 50%; background: var(--MI_THEME-buttonBg); }
 	b { width: 100%; height: var(--secondStepHeight); background: var(--MI_THEME-buttonBg); border-radius: var(--MI-radius) var(--MI-radius) 0 0; }
 	> [data-rank='1'] b { height: var(--firstStepHeight); }
 	> [data-rank='3'] b { height: var(--thirdStepHeight); }
 }
 
-@keyframes sparkleGlow {
-	0%, 100% { opacity: .35; transform: scale(.85); }
-	50% { opacity: .8; transform: scale(1.1); }
+.empty {
+	min-height: var(--stageHeight);
+	padding: 64px 16px;
+	text-align: center;
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	> i { font-size: 36px; }
+	h2 { font-size: 1.1em; }
+	p { font-size: .85em; }
 }
-
-@keyframes loadingSpin { to { transform: rotate(360deg); } }
-
-.still .sparkle, .still .loadingStatus > i { animation: none; }
-
-@media (prefers-reduced-motion: reduce) {
-	.sparkle, .loadingStatus > i { animation: none; }
-}
-
 .list {
 	margin: 0;
 	padding: 0;
@@ -464,19 +439,30 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy' }));
 }
 
 .row {
+	position: relative;
 	display: flex;
 	align-items: center;
-	gap: 18px;
-	padding: 16px 14px;
-	border-top: var(--MI-divider);
+	gap: 16px;
+	padding: 12px var(--MI-cardPadding);
+	background: var(--MI_THEME-panel);
+	transition: background-color .18s ease, box-shadow .18s ease;
 
-	&.me { background: var(--MI_THEME-accentedBg); border-radius: var(--MI-radius); }
+	& + & { border-top: var(--MI-divider); }
+	&.me { background: color-mix(in srgb, var(--MI_THEME-accentedBg) 35%, var(--MI_THEME-panel)); }
+
+	&:is(:hover, :focus-within) {
+		z-index: 1;
+		background: var(--MI_THEME-panelHighlight);
+		box-shadow: 0 4px 16px color-mix(in srgb, var(--MI_THEME-shadow) 35%, transparent);
+	}
+
+	&:active { background: color-mix(in srgb, var(--MI_THEME-panelHighlight) 72%, var(--MI_THEME-panel)); }
 }
 
 .rank {
-	flex: 0 0 32px;
+	flex: 0 0 28px;
 	text-align: center;
-	font-size: 1.15em;
+	font-size: 1.05em;
 	font-weight: bold;
 	font-variant-numeric: tabular-nums;
 	color: var(--MI_THEME-fgTransparentWeak);
@@ -489,75 +475,60 @@ definePage(() => ({ title: i18n.ts.communityRanking, icon: 'ti ti-trophy' }));
 	min-width: 0;
 	flex: 1;
 
-	&:hover { text-decoration: none; color: var(--MI_THEME-accent); }
+	&:hover { text-decoration: none; color: inherit; }
 }
 
-.avatar { width: 42px; height: 42px; flex-shrink: 0; }
+.avatar { width: 40px; height: 40px; flex-shrink: 0; }
 .userName { min-width: 0; font-weight: bold; }
 .userName > * { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.username { margin-top: 4px; color: var(--MI_THEME-fgTransparentWeak); font-size: .8em; font-weight: normal; }
+.username { margin-top: 2px; color: var(--MI_THEME-fgTransparentWeak); font-size: .8em; font-weight: normal; }
 
 .value {
 	display: flex;
-	align-items: flex-end;
-	flex-direction: column;
+	align-items: center;
 	gap: 4px;
-	max-width: 35%;
-	text-align: end;
+	flex-shrink: 0;
 	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 
-	b { overflow-wrap: anywhere; }
-	span { color: var(--MI_THEME-fgTransparentWeak); font-size: .75em; }
+	span { flex-shrink: 0; color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; }
 }
 
-.more {
-	width: 100%;
-	padding: 18px;
-	border-top: var(--MI-divider);
-	color: var(--MI_THEME-accent);
-
-	&:hover { background: var(--MI_THEME-buttonHoverBg); }
-}
-
-.empty { box-sizing: border-box; min-height: var(--stageHeight); padding: 64px 16px; text-align: center; color: var(--MI_THEME-fgTransparentWeak); }
-.empty > i { font-size: 36px; }
-.empty h2 { font-size: 1.1em; }
-.empty p { font-size: .85em; }
-.error { padding: 0; color: var(--MI_THEME-error); }
+.sentinel { height: 1px; }
+.loadingMore { padding: 18px; }
 
 .footnote {
 	display: flex;
 	justify-content: space-between;
 	flex-wrap: wrap;
-	gap: 8px 16px;
-	margin-top: 16px;
+	gap: 4px 16px;
+	margin: 0 4px;
 	color: var(--MI_THEME-fgTransparentWeak);
-	font-size: .75em;
+	font-size: .8em;
 	line-height: 1.6;
 }
 
+@keyframes loadingSpin { to { transform: rotate(360deg); } }
+
+.still .loadingStatus > i { animation: none; }
+.still .row { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+	.loadingStatus > i { animation: none; }
+	.row { transition: none; }
+}
+
 @container (max-width: 600px) {
-	.hero { padding: 20px 12px 0; }
-	.hero h1 { font-size: 1.5em; }
-	.hero p { font-size: .85em; }
-	.tabs { gap: 0; }
-	.tab { flex: 1; gap: 4px; padding: 12px 4px; font-size: .85em; }
-	.body { --stageHeight: 300px; padding: 16px 12px; }
-	.podium { gap: 6px; padding: 44px 0 10px; }
-	.podiumAvatar { width: 46px; height: 46px; }
-	.podiumItem[data-rank='1'] .podiumAvatar { width: 58px; height: 58px; }
-	.podiumAvatarFrame { padding: 3px; border-width: 2px; }
+	.podium, .placeholder { gap: 8px; padding-inline: 12px; }
+	.podiumAvatar { width: 44px; height: 44px; }
+	.podiumItem[data-rank='1'] .podiumAvatar { width: 54px; height: 54px; }
 	.podiumName { font-size: .85em; }
-	.podiumScore { gap: 3px; flex-direction: column; align-items: center; min-height: 36px; margin-bottom: 8px; }
-	.podiumScore b { font-size: clamp(.9em, 4cqi, 1.05em); }
-	.medal { width: 36px; height: 36px; }
-	.medal span { font-size: 1.4em; }
-	.crown { font-size: 28px; }
-	.sparkleLeft { left: 2%; }
-	.sparkleRight { right: 0; }
-	.placeholder i { width: 58px; height: 58px; }
-	.row { gap: 8px; padding: 14px 4px; }
-	.rank { flex-basis: 24px; }
+	.podiumScore { gap: 3px; font-size: clamp(12px, 3cqi, 14px); }
+	.podiumScore b { font-size: 1em; }
+	.crown { font-size: 24px; }
+	.placeholder i { width: 50px; height: 50px; }
+	.row { gap: 10px; padding-inline: 12px; }
+	.rank { flex-basis: 22px; }
 	.user { gap: 8px; }
 	.avatar { width: 34px; height: 34px; }
 	.userName, .value { font-size: .9em; }

@@ -4,13 +4,11 @@
  */
 
 import * as Misskey from 'misskey-js';
-import { defineAsyncComponent } from 'vue';
 import { selectDriveFolder } from './drive.js';
 import type { MenuItem } from '@/types/menu.js';
 import { i18n } from '@/i18n.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import * as os from '@/os.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
 import { globalEvents } from '@/events.js';
 
@@ -21,12 +19,14 @@ function rename(file: Misskey.entities.DriveFile) {
 		default: file.name,
 	}).then(({ canceled, result: name }) => {
 		if (canceled) return;
-		misskeyApi('drive/files/update', {
+		// 失败提示由 apiWithDialog 处理
+		os.apiWithDialog('drive/files/update', {
 			fileId: file.id,
 			name: name,
 		}).then(updated => {
 			globalEvents.emit('driveFilesUpdated', [updated]);
-		});
+			os.toast(i18n.ts.saved, 'success');
+		}, () => {});
 	});
 }
 
@@ -36,12 +36,14 @@ async function describe(file: Misskey.entities.DriveFile) {
 		file: file,
 	}, {
 		done: caption => {
-			misskeyApi('drive/files/update', {
+			// 失败提示由 apiWithDialog 处理
+			os.apiWithDialog('drive/files/update', {
 				fileId: file.id,
 				comment: caption.length === 0 ? null : caption,
 			}).then(updated => {
 				globalEvents.emit('driveFilesUpdated', [updated]);
-			});
+				os.toast(i18n.ts.saved, 'success');
+			}, () => {});
 		},
 		closed: () => dispose(),
 	});
@@ -50,39 +52,32 @@ async function describe(file: Misskey.entities.DriveFile) {
 function move(file: Misskey.entities.DriveFile) {
 	selectDriveFolder(null).then(({ canceled, folders }) => {
 		if (canceled) return;
-		misskeyApi('drive/files/update', {
+		// 失败提示由 apiWithDialog 处理
+		os.apiWithDialog('drive/files/update', {
 			fileId: file.id,
 			folderId: folders[0] ? folders[0].id : null,
 		}).then(updated => {
 			globalEvents.emit('driveFilesUpdated', [updated]);
-		});
+			os.toast(i18n.ts.moved, 'success');
+		}, () => {});
 	});
 }
 
 function toggleSensitive(file: Misskey.entities.DriveFile) {
-	misskeyApi('drive/files/update', {
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('drive/files/update', {
 		fileId: file.id,
 		isSensitive: !file.isSensitive,
 	}).then(updated => {
 		globalEvents.emit('driveFilesUpdated', [updated]);
-	}).catch(err => {
-		os.alert({
-			type: 'error',
-			title: i18n.ts.error,
-			text: err.message,
-		});
-	});
+		os.toast(updated.isSensitive ? i18n.ts.markedAsSensitive : i18n.ts.unmarkedAsSensitive, 'success');
+	}, () => {});
 }
 
 function copyUrl(file: Misskey.entities.DriveFile) {
 	copyToClipboard(file.url);
 }
 
-/*
-function addApp() {
-	alert('not implemented yet');
-}
-*/
 async function deleteFile(file: Misskey.entities.DriveFile) {
 	const { canceled } = await os.confirm({
 		type: 'warning',
@@ -93,14 +88,13 @@ async function deleteFile(file: Misskey.entities.DriveFile) {
 	await os.apiWithDialog('drive/files/delete', {
 		fileId: file.id,
 	});
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 
 	globalEvents.emit('driveFilesDeleted', [file]);
 }
 
 /** 自分のドライブファイルを操作する際のメニュー */
 export function getDriveFileMenu(file: Misskey.entities.DriveFile, folder?: Misskey.entities.DriveFolder | null): MenuItem[] {
-	const _isImage = file.type.startsWith('image/');
-
 	const menuItems: MenuItem[] = [];
 
 	menuItems.push({

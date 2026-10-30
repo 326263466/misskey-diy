@@ -18,6 +18,7 @@ import { DebounceLoader } from '@/misc/loader.js';
 import { IdService } from '@/core/IdService.js';
 import { shouldHideNoteByTime } from '@/misc/should-hide-note-by-time.js';
 import { isDeletedReply, isOrdinaryReply } from '@/misc/is-reply.js';
+import { isQuotePacked, isRenotePacked } from '@/misc/is-renote.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { CacheService } from '@/core/CacheService.js';
 import type { OnModuleInit } from '@nestjs/common';
@@ -160,6 +161,7 @@ export class NoteEntityService implements OnModuleInit {
 	@bindThis
 	public async shouldHideNote(packedNote: NoteVisibilityData, meId: MiUser['id'] | null): Promise<boolean> {
 		if (meId === packedNote.userId) return false;
+		if (meId != null && (await this.cacheService.getBlockedUserIds(meId)).has(packedNote.userId)) return true;
 		// TODO: isVisibleForMe を使うようにしても良さそう(型違うけど)
 
 		// TODO: ugcVisibilityForVisitor が local の場合も、付随するリモートのノートをリンクだけ残して内容を隠せるようにする
@@ -322,7 +324,7 @@ export class NoteEntityService implements OnModuleInit {
 	public async isContentVisible(note: MiNote, me?: { id: MiUser['id'] } | null, author?: Packed<'UserLite'>): Promise<boolean> {
 		if (isDeletedReply(note)) return false;
 		if (me?.id === note.userId) return true;
-		if (me != null && (await this.cacheService.userBlockedCache.fetch(me.id)).has(note.userId)) return false;
+		if (me != null && (await this.cacheService.getBlockedUserIds(me.id)).has(note.userId)) return false;
 		const visibilityNote: NoteVisibilityData = {
 			id: note.id, createdAt: this.idService.parse(note.id).date.toISOString(), userId: note.userId,
 			user: author ?? await this.userEntityService.pack(note.user ?? note.userId, me),
@@ -331,6 +333,23 @@ export class NoteEntityService implements OnModuleInit {
 		};
 		this.treatVisibility(visibilityNote);
 		return !await this.shouldHideNote(visibilityNote, me?.id ?? null);
+	}
+
+	@bindThis
+	public async withMyRenoteReaction(note: Packed<'Note'>, meId: MiUser['id'] | null): Promise<Packed<'Note'>> {
+		if (meId == null) return note;
+		if (!isRenotePacked(note) || isQuotePacked(note)) return note;
+		if (note.renote == null || Object.keys(note.renote.reactions).length === 0) return note;
+
+		const myReactions = await this.populateMyReactions(note.renote, meId);
+
+		return {
+			...note,
+			renote: {
+				...note.renote,
+				myReactions,
+			},
+		};
 	}
 
 	@bindThis
@@ -430,6 +449,7 @@ export class NoteEntityService implements OnModuleInit {
 
 		const meId = me ? me.id : null;
 		const note = typeof src === 'object' ? src : await this.noteLoader.load(src);
+		const blockedUserIds = meId != null && !opts.skipHide ? await this.cacheService.getBlockedUserIds(meId) : new Set<string>();
 		const host = note.userHost;
 		const deleted = isDeletedReply(note);
 		const likeStates = deleted ? null : opts._hint_?.noteLikes?.has(note.id)
@@ -556,6 +576,18 @@ export class NoteEntityService implements OnModuleInit {
 		if (!opts.skipHide && (await this.shouldHideNote(packed, meId))) {
 			this.hideNote(packed);
 		}
+		for (const relation of ['reply', 'renote'] as const) {
+			if (packed[relation] && blockedUserIds.has(packed[relation].userId)) packed[relation] = null;
+		}
+		if (blockedUserIds.has(note.userId)) {
+			packed.reply = null;
+			packed.renote = null;
+			packed.tags = undefined;
+			packed.reactions = {};
+			packed.reactionCount = 0;
+			packed.reactionEmojis = {};
+			packed.reactionAndUserPairCache = undefined;
+		}
 
 		return packed;
 	}
@@ -570,6 +602,11 @@ export class NoteEntityService implements OnModuleInit {
 		},
 	) {
 		if (notes.length === 0) return [];
+		if (me != null && !options?.skipHide) {
+			const blockedUserIds = await this.cacheService.getBlockedUserIds(me.id);
+			notes = notes.filter(note => !blockedUserIds.has(note.userId));
+			if (notes.length === 0) return [];
+		}
 
 		const bufferedReactions = this.meta.enableReactionsBuffering ? await this.reactionsBufferingService.getMany([...getReactionNoteIds(notes)]) : null;
 
@@ -696,8 +733,9 @@ export class NoteEntityService implements OnModuleInit {
 		});
 
 		const notes: MiNote[] = [];
+		const blockedUserIds = meId != null ? await this.cacheService.getBlockedUserIds(meId) : new Set<string>();
 		for (const note of fetched) {
-			if (await this.isVisibleForMe(note, meId)) {
+			if (!blockedUserIds.has(note.userId) && await this.isVisibleForMe(note, meId)) {
 				notes.push(note);
 			}
 		}

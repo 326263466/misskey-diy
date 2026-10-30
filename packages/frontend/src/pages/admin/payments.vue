@@ -9,11 +9,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<p v-if="loading" role="status">{{ i18n.ts.loading }}</p>
 		<div v-else-if="loadError" role="alert" class="_gaps_s"><p>{{ i18n.ts._payments.loadFailed }}</p><MkButton @click="load">{{ i18n.ts.retry }}</MkButton></div>
 		<form v-else class="_gaps_m" @submit.prevent="save">
-			<MkKeyValue><template #key>{{ i18n.ts._payments.platformBalance }}</template><template #value>{{ platformBalance.toLocaleString() }} {{ i18n.ts._marketplace.pointUnit }}</template></MkKeyValue>
+			<div class="_formField">
+				<div>{{ i18n.ts._payments.platformBalance }}</div>
+				<div :class="$style.value">{{ platformBalance.toLocaleString() }} {{ i18n.ts._marketplace.pointUnit }}</div>
+			</div>
 			<MkInput v-model="percentage" type="number" :min="0" :max="100" :step="0.01" :disabled="saving"><template #label>{{ i18n.ts._payments.feeRate }}</template><template #suffix>%</template><template #caption>{{ i18n.ts._payments.feeRateHint }}</template></MkInput>
-			<p v-if="!valid" role="alert" :class="$style.error">{{ i18n.ts._payments.invalidRate }}</p>
-			<p v-if="saveError" role="alert" :class="$style.error">{{ saveError }}</p>
-			<div class="_buttons"><MkButton type="submit" primary :disabled="saving || !valid || !modified" :wait="saving">{{ i18n.ts.save }}</MkButton><MkButton :disabled="saving || !modified" @click="discard">{{ i18n.ts.cancel }}</MkButton></div>
+			<div class="_formActions _gaps_s">
+				<p v-if="!valid" role="alert" :class="$style.error">{{ i18n.ts._payments.invalidRate }}</p>
+				<p v-if="saveError" role="alert" :class="$style.error">{{ saveError }}</p>
+				<div class="_buttons"><MkButton type="submit" primary :disabled="saving || !valid || !modified" :wait="saving">{{ i18n.ts.save }}</MkButton><MkButton :disabled="saving || !modified" @click="discard">{{ i18n.ts.cancel }}</MkButton></div>
+			</div>
 		</form>
 	</div>
 </PageWithHeader>
@@ -24,7 +29,6 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import type { entities } from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
-import MkKeyValue from '@/components/MkKeyValue.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -80,4 +84,5 @@ definePage(() => ({ title: i18n.ts._payments.title, icon: 'ti ti-percentage' }))
 
 <style lang="scss" module>
 .error { color: var(--MI_THEME-error); margin: 0; }
+.value { display: flex; align-items: center; min-height: var(--MI-controlHeight, 38px); font-variant-numeric: tabular-nums; }
 </style>

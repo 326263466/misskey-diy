@@ -29,34 +29,35 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span style="height: 1em; width: var(--MI-dividerWidth); background: var(--MI-dividerColor);"></span>
 					<span>{{ getSeparatorInfo(paginator.items.value[i -1].createdAt, notification.createdAt)?.nextText }} <i class="ti ti-chevron-down"></i></span>
 				</div>
-				<MkNote v-if="['reply', 'quote', 'mention'].includes(notification.type) && 'note' in notification" :class="$style.content" :note="notification.note" :withHardMute="true"/>
-				<XNotification v-else :class="$style.content" :notification="notification" :withTime="true" :full="true"/>
+				<XNotification :class="$style.content" :notification="notification" :withTime="true" :full="true"/>
 			</div>
 		</component>
 		<div v-if="canFetchMore">
-			<div :key="paginator.items.value.at(-1)?.id" v-appear="fetchMore" :class="$style.sentinel" aria-hidden="true"></div>
 			<MkLoading v-if="paginator.order.value === 'oldest' ? paginator.fetchingNewer.value : paginator.fetchingOlder.value"/>
+			<MkButton v-else-if="paginator.order.value === 'oldest' ? paginator.newerError.value : paginator.olderError.value" small @click="fetchMore">{{ i18n.ts.retry }}</MkButton>
+			<div v-else-if="liveActive && !fetching" v-appear="fetchMore" :class="$style.sentinel" aria-hidden="true"></div>
 		</div>
 	</div>
 </component>
 </template>
 
 <script lang="ts" setup>
-import { onUnmounted, onMounted, computed, useTemplateRef, TransitionGroup, markRaw, watch } from 'vue';
+import { onActivated, onDeactivated, onUnmounted, onMounted, computed, inject, ref, useTemplateRef, TransitionGroup, markRaw, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { notificationTypes } from 'misskey-js';
 import { useInterval } from '@@/js/use-interval.js';
 import { useDocumentVisibility } from '@@/js/use-document-visibility.js';
 import { getScrollContainer, scrollToTop } from '@@/js/scroll.js';
 import XNotification from '@/components/MkNotification.vue';
-import MkNote from '@/components/MkNote.vue';
 import { useStream } from '@/stream.js';
 import { i18n } from '@/i18n.js';
 import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
+import MkButton from '@/components/MkButton.vue';
 import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
 import { isSeparatorNeeded, getSeparatorInfo } from '@/utility/timeline-date-separate.js';
 import { NotificationPaginator } from '@/utility/notification-paginator.js';
+import { DI } from '@/di.js';
 
 const props = withDefaults(defineProps<{
 	excludeTypes?: typeof notificationTypes[number][] | null;
@@ -66,6 +67,12 @@ const props = withDefaults(defineProps<{
 });
 
 const rootEl = useTemplateRef('rootEl');
+const pageActive = inject(DI.pageActive, ref(true));
+const restorePending = inject(DI.routeScrollPending, ref(false));
+const activated = ref(true);
+const liveActive = computed(() => pageActive.value && activated.value && !restorePending.value);
+onActivated(() => { activated.value = true; });
+onDeactivated(() => { activated.value = false; });
 
 const paginator = prefer.s.useGroupedNotifications ? markRaw(new NotificationPaginator('i/notifications-grouped', {
 	limit: 20,
@@ -85,6 +92,7 @@ const canFetchMore = computed(() => paginator.order.value === 'oldest' ? paginat
 const fetching = computed(() => paginator.fetching.value || paginator.fetchingOlder.value || paginator.fetchingNewer.value);
 
 function fetchMore() {
+	if (!liveActive.value) return;
 	return paginator.order.value === 'oldest' ? paginator.fetchNewer() : paginator.fetchOlder();
 }
 
@@ -94,7 +102,7 @@ function isLive(): boolean {
 
 function canMarkAllAsRead(): boolean {
 	// The API and stream read receipts clear every category, including hidden ones.
-	return isLive() && !props.excludeTypes?.length;
+	return liveActive.value && isLive() && !props.excludeTypes?.length;
 }
 
 const MIN_POLLING_INTERVAL = 1000 * 10;
@@ -106,9 +114,9 @@ const POLLING_INTERVAL =
 
 if (!store.s.realtimeMode) {
 	useInterval(async () => {
-		if (!isLive()) return;
+		if (!liveActive.value || !isLive()) return;
 		paginator.fetchNewer({
-			toQueue: false,
+			toQueue: !isTop() || isPausingUpdate,
 		});
 	}, POLLING_INTERVAL, {
 		immediate: false,
@@ -125,7 +133,7 @@ function isTop() {
 }
 
 function releaseQueue() {
-	if (!isLive()) return;
+	if (!liveActive.value || !isLive()) return;
 	paginator.releaseQueue();
 	scrollToTop(rootEl.value!);
 }
@@ -133,7 +141,7 @@ function releaseQueue() {
 let scrollContainer: HTMLElement | null = null;
 
 function onScrollContainerScroll() {
-	if (isTop()) {
+	if (liveActive.value && isTop()) {
 		paginator.releaseQueue();
 	}
 }
@@ -154,7 +162,7 @@ watch(visibility, () => {
 		isPausingUpdate = true;
 	} else { // 'visible'
 		isPausingUpdate = false;
-		if (isTop()) {
+		if (liveActive.value && isTop()) {
 			releaseQueue();
 		}
 	}
@@ -170,7 +178,7 @@ function onNotification(notification: Misskey.entities.Notification) {
 	}
 
 	if (!isMuted && isLive()) {
-		if (isTop() && !isPausingUpdate) {
+		if (liveActive.value && isTop() && !isPausingUpdate) {
 			paginator.prepend(notification);
 		} else {
 			paginator.enqueue(notification);
@@ -196,7 +204,7 @@ onMounted(() => {
 	if (store.s.realtimeMode) {
 		connection = useStream().useChannel('main');
 		connection.on('notification', onNotification);
-		connection.on('notificationFlushed', reload);
+		connection.on('notificationFlushed', () => { if (liveActive.value) void reload(); });
 	}
 });
 

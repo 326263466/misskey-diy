@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, ref, useTemplateRef } from 'vue';
+import { computed, watch, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkStreamingNotesTimeline from '@/components/MkStreamingNotesTimeline.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -60,7 +60,7 @@ const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: list.value ? list.value.name : i18n.ts.lists,
-	icon: 'ti ti-list',
+	icon: 'ti ti-users-group',
 }));
 </script>
 

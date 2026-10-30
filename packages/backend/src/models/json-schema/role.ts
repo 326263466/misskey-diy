@@ -208,15 +208,19 @@ export const packedRolePoliciesSchema = {
 			type: 'boolean',
 			optional: false, nullable: false,
 		},
+		canUseTranslator: {
+			type: 'boolean',
+			optional: false, nullable: false,
+		},
 		canSearchNotes: {
 			type: 'boolean',
 			optional: false, nullable: false,
 		},
-		canSearchUsers: {
+		canSearchArticles: {
 			type: 'boolean',
 			optional: false, nullable: false,
 		},
-		canUseTranslator: {
+		canSearchUsers: {
 			type: 'boolean',
 			optional: false, nullable: false,
 		},

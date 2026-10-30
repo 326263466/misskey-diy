@@ -4,13 +4,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<Suspense :timeout="0">
-	<component :is="currentPageComponent" :key="key" v-bind="Object.fromEntries(currentPageProps)"/>
+<KeepAlive :max="prefer.s.numberOfPageCache">
+	<Suspense :timeout="0">
+		<RoutePage :key="key" :router="router" :resolved="currentPage" :component="currentPageComponent" :viewKey="key" :depth="currentDepth"/>
 
-	<template #fallback>
-		<MkLoading v-if="!hideLoading"/>
-	</template>
-</Suspense>
+		<template #fallback>
+			<MkLoading v-if="!hideLoading" data-splash-gate/>
+		</template>
+	</Suspense>
+</KeepAlive>
 </template>
 
 <script lang="ts" setup>
@@ -21,6 +23,8 @@ import MkLoadingPage from '@/pages/_loading_.vue';
 import { DI } from '@/di.js';
 import { deepEqual } from '@/utility/deep-equal.js';
 import { getRouteViewKey } from '@/lib/nirax.js';
+import { prefer } from '@/preferences.js';
+import { RoutePage } from '@/composables/use-route-page.js';
 
 const props = defineProps<{
 	router?: Router;
@@ -60,16 +64,18 @@ function resolveNested(current: PathResolvedResult, d = 0): PathResolvedResult |
 const current = resolveNested(router.current) ?? resolveNested(ownerRoute)!;
 const currentPageComponent = shallowRef('component' in current.route ? current.route.component : props.hideLoading ? 'div' : MkLoadingPage);
 const currentPageProps = ref(current.props);
+const currentPage = shallowRef(current);
 let currentRoutePath = current.route.path;
-const key = ref(getRouteViewKey(current));
+const key = ref(getRouteViewKey(current, router.navigationRef.value.entryId));
 
 router.useListener('change', ({ resolved }) => {
 	const current = resolveNested(resolved);
 	if (current == null || 'redirect' in current.route) return;
-	if (current.route.path === currentRoutePath && deepEqual(current.props, currentPageProps.value)) return;
+	if (current.route.path === currentRoutePath && deepEqual(current.props, currentPageProps.value) && getRouteViewKey(current, router.navigationRef.value.entryId) === key.value) return;
 	currentPageComponent.value = current.route.component;
 	currentPageProps.value = current.props;
+	currentPage.value = current;
 	currentRoutePath = current.route.path;
-	key.value = getRouteViewKey(current);
+	key.value = getRouteViewKey(current, router.navigationRef.value.entryId);
 });
 </script>

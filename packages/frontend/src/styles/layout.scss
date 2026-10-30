@@ -1,0 +1,23 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+// 全站布局宽度只在这里定义：style.scss 据此生成 --MI-* 变量供页面使用，
+// 媒体查询无法读取 CSS 变量，断点计算直接引用这里的 SCSS 值，改一处即全局生效。
+
+// 列宽：三栏 = 左栏 + 间距 + 中栏 + 间距 + 右栏
+$dockWidth: 180px;
+$columnGap: 20px;
+$streamWidth: 720px;
+$sidebarWidth: 260px;
+$threeColumnWidth: $dockWidth + $columnGap + $streamWidth + $columnGap + $sidebarWidth;
+
+// 页面宽度
+$narrowPageWidth: 500px; // 登录、授权、邮箱验证等单卡片表单
+$pageWidth: 1000px; // 单栏页面
+$navigationPageWidth: 1040px; // 左菜单右内容的双列页面
+$headerWidth: 1440px; // 顶栏内侧
+
+$pageNavigationWidth: 220px;
+$bodySideMargin: 16px; // 与 --MI-marginFull 相同

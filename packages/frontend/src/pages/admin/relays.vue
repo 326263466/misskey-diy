@@ -8,15 +8,42 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_pageBody">
 		<SearchMarker path="/admin/relays" :label="i18n.ts.relays" :keywords="['relays']" icon="ti ti-planet">
 			<div class="_gaps">
-				<div v-for="relay in relays" :key="relay.inbox" class="relaycxt" style="padding-block: var(--MI-cardPadding); border-top: var(--MI-divider);">
-					<div>{{ relay.inbox }}</div>
-					<div style="margin: 8px 0;">
-						<i v-if="relay.status === 'accepted'" class="ti ti-check" :class="$style.icon" style="color: var(--MI_THEME-success);"></i>
-						<i v-else-if="relay.status === 'rejected'" class="ti ti-ban" :class="$style.icon" style="color: var(--MI_THEME-error);"></i>
-						<i v-else class="ti ti-clock" :class="$style.icon"></i>
-						<span>{{ i18n.ts._relayStatus[relay.status] }}</span>
+				<div class="_adminPanel">
+					<div class="_adminToolbar">
+						<MkButton small primary @click="addRelay"><i class="ti ti-plus" aria-hidden="true"></i> {{ i18n.ts.addRelay }}</MkButton>
 					</div>
-					<MkButton class="button" inline danger @click="remove(relay.inbox)"><i class="ti ti-trash"></i> {{ i18n.ts.remove }}</MkButton>
+					<MkPaginationBar v-slot="{ items }" :items="relays">
+						<div class="_adminTableContainer">
+							<table class="_adminTable">
+								<thead>
+									<tr>
+										<th scope="col">{{ i18n.ts.inboxUrl }}</th>
+										<th scope="col">{{ i18n.ts.state }}</th>
+										<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr v-if="relays.length === 0">
+										<td colspan="3" class="_adminTableEmpty">{{ i18n.ts.nothing }}</td>
+									</tr>
+									<tr v-for="relay in items" :key="relay.inbox">
+										<td class="_adminTableMain _monospace _selectable">{{ relay.inbox }}</td>
+										<td>
+											<span class="_adminTableStatus" :style="{ '--admin-statusColor': relay.status === 'accepted' ? 'var(--MI_THEME-success)' : relay.status === 'rejected' ? 'var(--MI_THEME-error)' : 'var(--MI_THEME-fgTransparentWeak)' }">
+												<i v-if="relay.status === 'accepted'" class="ti ti-check" aria-hidden="true"></i>
+												<i v-else-if="relay.status === 'rejected'" class="ti ti-ban" aria-hidden="true"></i>
+												<i v-else class="ti ti-clock" aria-hidden="true"></i>
+												{{ i18n.ts._relayStatus[relay.status] }}
+											</span>
+										</td>
+										<td class="_adminTableActions">
+											<button type="button" class="_button _textButton" style="color: var(--MI_THEME-error)" @click="remove(relay.inbox)"><i class="ti ti-trash" aria-hidden="true"></i> {{ i18n.ts.remove }}</button>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</MkPaginationBar>
 				</div>
 			</div>
 		</SearchMarker>
@@ -28,6 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
+import MkPaginationBar from '@/components/MkPaginationBar.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
@@ -42,29 +70,23 @@ async function addRelay() {
 		placeholder: i18n.ts.inboxUrl,
 	});
 	if (canceled || inbox == null) return;
-	misskeyApi('admin/relays/add', {
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('admin/relays/add', {
 		inbox,
 	}).then(() => {
+		os.toast(i18n.ts.added, 'success');
 		refresh();
-	}).catch((err: any) => {
-		os.alert({
-			type: 'error',
-			text: err.message || err,
-		});
-	});
+	}, () => {});
 }
 
 function remove(inbox: string) {
-	misskeyApi('admin/relays/remove', {
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('admin/relays/remove', {
 		inbox,
 	}).then(() => {
+		os.toast(i18n.ts.removed, 'success');
 		refresh();
-	}).catch((err: any) => {
-		os.alert({
-			type: 'error',
-			text: err.message || err,
-		});
-	});
+	}, () => {});
 }
 
 function refresh() {
@@ -75,12 +97,7 @@ function refresh() {
 
 refresh();
 
-const headerActions = computed(() => [{
-	asFullButton: true,
-	icon: 'ti ti-plus',
-	text: i18n.ts.addRelay,
-	handler: addRelay,
-}]);
+const headerActions = computed(() => []);
 
 const headerTabs = computed(() => []);
 
@@ -89,9 +106,3 @@ definePage(() => ({
 	icon: 'ti ti-planet',
 }));
 </script>
-
-<style lang="scss" module>
-.icon {
-	margin-right: 0.75em;
-}
-</style>

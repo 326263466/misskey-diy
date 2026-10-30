@@ -5,12 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
-	<div :class="$style.scrollArea">
+	<div ref="scrollAreaEl" :class="$style.scrollArea">
 		<div v-for="block in blocks" :key="block.id" :class="[$style.block, { [$style.code]: block.type === 'code' }]" :data-chat-code="block.type === 'code' ? '' : undefined">
 			<div v-if="block.type === 'code'" :class="$style.codeHeader">
 				<span :class="$style.language">{{ block.language || i18n.ts.code }}</span>
 				<button type="button" class="_button _iconButton" :class="$style.action" :disabled="!block.text" :aria-label="i18n.ts.copy" :title="i18n.ts.copy" @click="copyCode(block.text)"><i class="ti ti-copy" aria-hidden="true"></i></button>
-				<button type="button" class="_button" :class="$style.action" :disabled="disabled || readonly" @click="exitCode(block)">{{ i18n.ts._chat.continueText }}</button>
+				<button type="button" class="_textButton" :class="$style.action" :disabled="disabled || readonly" @click="exitCode(block)">{{ i18n.ts._chat.continueText }}</button>
 			</div>
 			<textarea
 				:ref="element => setInput(block, element)"
@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:class="[$style.input, { [$style.codeInput]: block.type === 'code' }]"
 				class="_mfm"
 				:rows="block.type === 'code' ? 2 : 1"
-				:placeholder="block.type === 'code' ? i18n.ts._chat.inputCode : i18n.ts.inputMessageHere"
+				:placeholder="placeholder ?? (block.type === 'code' ? i18n.ts._chat.inputCode : i18n.ts.inputMessageHere)"
 				:aria-label="block.type === 'code' ? i18n.ts._chat.inputCode : i18n.ts.inputMessageHere"
 				:readonly="readonly"
 				:disabled="disabled"
@@ -37,7 +37,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowReactive, toRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowReactive, toRef, useTemplateRef, watch } from 'vue';
+import getCaretCoordinates from 'textarea-caret';
 import { CONTENT_LIMITS } from 'misskey-js';
 import type { ComponentPublicInstance } from 'vue';
 import type { ChatDraftBlock } from './composer.js';
@@ -56,6 +57,7 @@ const textLength = computed(() => Array.from(model.value).length);
 const props = defineProps<{
 	disabled?: boolean;
 	readonly?: boolean;
+	placeholder?: string;
 }>();
 const emit = defineEmits<{
 	(ev: 'submit'): void;
@@ -70,6 +72,7 @@ function identify(block: ChatDraftBlock): EditorBlock {
 
 const blocks = ref<EditorBlock[]>(parseChatDraft(model.value).map(identify));
 const inputs = shallowReactive(new Map<number, HTMLTextAreaElement>());
+const scrollAreaEl = useTemplateRef('scrollAreaEl');
 const autocompletes = new Map<number, Autocomplete>();
 let activeBlockId = blocks.value[0].id;
 let published = model.value;
@@ -80,7 +83,7 @@ watch(blocks, () => {
 	void nextTick(adjustHeights);
 }, { deep: true });
 
-// 输入框随内容精确增减高度；上限由 CSS max-height 控制后内部滚动，操作按钮行不随内容重排。
+// 内容在固定编辑区内滚动，不撑高输入栏或挤动消息。
 function adjustHeights() {
 	for (const block of blocks.value) {
 		const input = inputs.get(block.id);
@@ -122,8 +125,18 @@ function getSelection(): EditorSelection {
 async function restoreSelection(selection: EditorSelection) {
 	await nextTick();
 	const input = inputs.get(selection.blockId);
-	input?.focus({ preventScroll: true });
-	input?.setSelectionRange(selection.start, selection.end);
+	if (!input?.isConnected || input.disabled || input.readOnly || input.getClientRects().length === 0) return;
+	input.focus({ preventScroll: true });
+	input.setSelectionRange(selection.start, selection.end);
+	const scrollArea = scrollAreaEl.value;
+	if (!scrollArea) return;
+	// 仅滚动编辑器内部的光标行，不让焦点改变外部聊天的阅读位置。
+	const caret = getCaretCoordinates(input, selection.end);
+	const bounds = scrollArea.getBoundingClientRect();
+	const scale = bounds.height / scrollArea.offsetHeight;
+	const top = (input.getBoundingClientRect().top - bounds.top) / scale + caret.top - input.scrollTop;
+	if (top < 0) scrollArea.scrollTop += top;
+	else if (top + caret.height > scrollArea.clientHeight) scrollArea.scrollTop += top + caret.height - scrollArea.clientHeight;
 }
 
 function focus() {
@@ -260,15 +273,20 @@ defineExpose({ focus, focusText, getSelection, restoreSelection, insertText });
 <style lang="scss" module>
 .root {
 	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
 	margin: 0;
 	border-radius: 0;
 	background: transparent;
 }
 
 .scrollArea {
-	max-height: min(40vh, 320px);
+	flex: 1;
+	min-height: 0;
 	overflow-y: auto;
-	padding: 4px 2px;
+	scrollbar-gutter: stable;
+	padding: var(--chat-editor-scroll-padding, 4px 2px);
 }
 
 .block {
@@ -288,16 +306,12 @@ defineExpose({ focus, focusText, getSelection, restoreSelection, insertText });
 	outline: none;
 	box-shadow: none;
 	resize: none;
-	// 增高由脚本按内容精确计算，不依赖 field-sizing：保证增减都可预期，超限后内部滚动。
-	max-height: min(40vh, 200px);
-	overflow-y: auto;
+	// 正文只在编辑区内滚动，输入增高不改变聊天视口。
+	overflow-y: hidden;
 	font: inherit;
-	line-height: 1.5;
+	line-height: inherit;
 	color: var(--MI_THEME-fg);
 	background: transparent;
-	&:focus-visible {
-		box-shadow: inset 0 -2px var(--MI_THEME-focus);
-	}
 }
 
 .code {
@@ -338,5 +352,6 @@ defineExpose({ focus, focusText, getSelection, restoreSelection, insertText });
 	font-family: Consolas, Monaco, monospace;
 	tab-size: 4;
 	white-space: pre;
+	overflow-x: auto;
 }
 </style>

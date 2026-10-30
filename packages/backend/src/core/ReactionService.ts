@@ -108,7 +108,7 @@ export class ReactionService {
 	public async create(user: { id: MiUser['id']; host: MiUser['host']; isBot: MiUser['isBot'] }, note: MiNote, _reaction?: string | null) {
 		// Check blocking
 		if (note.userId !== user.id) {
-			const blocked = await this.userBlockingService.checkBlocked(note.userId, user.id);
+			const blocked = await this.userBlockingService.isBlockedEither(note.userId, user.id);
 			if (blocked) {
 				throw new IdentifiableError('e70412a4-7197-4726-8e74-f3e0deb92aa7');
 			}
@@ -137,7 +137,9 @@ export class ReactionService {
 					});
 
 				if (emoji) {
-					if (emoji.roleIdsThatCanBeUsedThisEmojiAsReaction.length === 0 || (await this.roleService.getUserRoles(user.id)).some(r => emoji.roleIdsThatCanBeUsedThisEmojiAsReaction.includes(r.id))) {
+					const canUseLocalOnlyEmoji = note.userHost === reacterHost && (note.renoteUserHost == null || note.renoteUserHost === reacterHost);
+
+					if ((!emoji.localOnly || canUseLocalOnlyEmoji) && (emoji.roleIdsThatCanBeUsedThisEmojiAsReaction.length === 0 || (await this.roleService.getUserRoles(user.id)).some(r => emoji.roleIdsThatCanBeUsedThisEmojiAsReaction.includes(r.id)))) {
 						reaction = reacterHost ? `:${name}@${reacterHost}:` : `:${name}:`;
 
 						// センシティブ

@@ -9,8 +9,12 @@ import MkMarkdown from '@/components/MkMarkdown.vue';
 import type { MarkdownHeading } from '@/components/MkMarkdown.vue';
 import ArticleToc from '@/pages/articles/article.toc.vue';
 
-vi.mock('@/store.js', () => ({ store: { s: { darkMode: false } } }));
+vi.mock('@/store.js', async () => {
+	const { ref } = await import('vue');
+	return { store: { r: { darkMode: ref(false) } } };
+});
 vi.mock('@/utility/external-link.js', () => ({ confirmExternalLink: vi.fn() }));
+vi.mock('@/os.js', () => ({ popupMenu: vi.fn() }));
 
 afterEach(cleanup);
 

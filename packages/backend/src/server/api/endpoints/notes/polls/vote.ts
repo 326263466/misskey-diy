@@ -118,7 +118,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// Check blocking
 			if (note.userId !== me.id) {
-				const blocked = await this.userBlockingService.checkBlocked(note.userId, me.id);
+				const blocked = await this.userBlockingService.isBlockedEither(note.userId, me.id);
 				if (blocked) {
 					throw new ApiError(meta.errors.youHaveBeenBlocked);
 				}

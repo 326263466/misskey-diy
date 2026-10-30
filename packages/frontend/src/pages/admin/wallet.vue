@@ -4,19 +4,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader>
+<PageWithHeader contentCard>
 	<div class="_pageBody _gaps_m">
-		<section class="_panel _gaps" :class="$style.section">
-			<h2>{{ i18n.ts._wallet.adjust }}</h2>
+		<section class="_gaps" :class="$style.section">
 			<p :class="$style.caption">{{ i18n.ts._wallet.adjustDescription }}</p>
 			<MkInfo v-if="pending">{{ i18n.ts._wallet.pending }}</MkInfo>
-			<MkButton :disabled="adjusting || selecting || pending != null" @click="selectUser"><i class="ti ti-user-search" aria-hidden="true"></i> {{ i18n.ts.selectUser }}</MkButton>
-			<MkUserCardMini v-if="user" :user="user" :withChart="false"/>
-			<p v-else-if="pending" class="_selectable">{{ pending.username }}</p>
+			<div class="_formField">
+				<div>{{ i18n.ts.user }}</div>
+				<div :class="$style.userSelection">
+					<MkUserCardMini v-if="user" :user="user" :withChart="false" :class="$style.selectedUser"/>
+					<p v-else-if="pending" class="_selectable">{{ pending.username }}</p>
+					<MkButton small :disabled="adjusting || selecting || pending != null" @click="selectUser"><i class="ti ti-user-search" aria-hidden="true"></i> {{ i18n.ts.selectUser }}</MkButton>
+				</div>
+			</div>
 			<MkInput v-model="amount" type="number" :min="-2000000000" :max="2000000000" :step="0.01" :disabled="adjusting || pending != null"><template #label>{{ i18n.ts._wallet.amount }}</template></MkInput>
-			<MkTextarea v-model="reason" :max="500" :counterMaxLength="500" :disabled="adjusting || pending != null"><template #label>{{ i18n.ts._wallet.reason }}</template></MkTextarea>
-			<MkButton primary :disabled="adjusting || (!user && !pending)" :wait="adjusting" @click="adjust">{{ pending ? i18n.ts.retry : adjustmentAction }}</MkButton>
-			<p v-if="notice" role="status" :class="$style.success">{{ notice }}</p>
+			<MkTextarea v-model="reason" :counterMaxLength="500" :disabled="adjusting || pending != null"><template #label>{{ i18n.ts._wallet.reason }}</template></MkTextarea>
+			<div class="_formActions _gaps_s">
+				<div class="_buttons"><MkButton small primary :disabled="adjusting || (!user && !pending)" :wait="adjusting" @click="adjust">{{ pending ? i18n.ts.retry : adjustmentAction }}</MkButton></div>
+				<p v-if="notice" role="status" :class="$style.success">{{ notice }}</p>
+			</div>
 		</section>
 	</div>
 </PageWithHeader>
@@ -111,9 +117,10 @@ definePage(() => ({ title: i18n.ts._wallet.adminTitle, icon: 'ti ti-wallet' }));
 </script>
 
 <style lang="scss" module>
-.section { padding: var(--MI-cardPadding); }
-.section h2, .section p { margin: 0; }
-.section h2 { font-size: 1.1em; }
-.caption { font-size: .85em; line-height: 1.7; color: var(--MI_THEME-fgTransparentWeak); }
+.section { min-width: 0; font-size: 1em; }
+.section p { margin: 0; }
+.caption { font-size: 1em; line-height: 1.7; color: var(--MI_THEME-fgTransparentWeak); }
+.userSelection { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.selectedUser { flex: 1 1 220px; min-width: 0; padding: 0; background: transparent; border-radius: 0; }
 .success { color: var(--MI_THEME-success); }
 </style>

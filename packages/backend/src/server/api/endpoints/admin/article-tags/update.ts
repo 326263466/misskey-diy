@@ -7,7 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { CONTENT_LIMITS } from 'misskey-js';
 import { MetaService } from '@/core/MetaService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 
@@ -62,8 +62,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private moderationLogService: ModerationLogService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const name = normalizeForSearch(ps.name).trim();
-			const newName = ps.newName === undefined ? undefined : normalizeForSearch(ps.newName).trim();
+			const name = normalizeTag(ps.name).trim();
+			const newName = ps.newName === undefined ? undefined : normalizeTag(ps.newName).trim();
 			if ([name, ...(newName === undefined ? [] : [newName])].some(tag => !tag || tag.includes('\u0000') || Array.from(tag).length > 100)
 				|| (ps.action === 'create' && Array.from(name).length > CONTENT_LIMITS.articleTag)
 				|| (newName !== undefined && Array.from(newName).length > CONTENT_LIMITS.articleTag)

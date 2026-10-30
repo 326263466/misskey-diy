@@ -12,8 +12,8 @@ import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
 import type { Config } from '@/config.js';
 import { ReversiService } from '@/core/ReversiService.js';
+import { ProductImageService } from '@/core/product/ProductImageService.js';
 import { QueueLoggerService } from '../QueueLoggerService.js';
-import type * as Bull from 'bullmq';
 
 @Injectable()
 export class CleanProcessorService {
@@ -34,6 +34,7 @@ export class CleanProcessorService {
 
 		private queueLoggerService: QueueLoggerService,
 		private reversiService: ReversiService,
+		private productImageService: ProductImageService,
 		private idService: IdService,
 	) {
 		this.logger = this.queueLoggerService.logger.createSubLogger('clean');
@@ -68,6 +69,7 @@ export class CleanProcessorService {
 		}
 
 		this.reversiService.cleanOutdatedGames();
+		await this.productImageService.cleanupExpired();
 
 		this.logger.succ('Cleaned.');
 	}

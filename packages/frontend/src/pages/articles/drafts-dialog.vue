@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<section v-show="tab === 'local'" :id="`${id}-local-panel`" role="tabpanel" :aria-labelledby="`${id}-local-tab`" tabindex="0">
 				<p :class="$style.info">{{ i18n.ts._article.localDraftsInfo }}</p>
-				<p v-if="drafts.length === 0" :class="$style.empty">{{ i18n.ts._article.noDrafts }}</p>
+				<MkResult v-if="drafts.length === 0" type="empty" :text="i18n.ts._article.noDrafts"/>
 				<ul v-else :class="$style.list">
 					<li v-for="entry in drafts" :key="entry.key" :class="$style.draft">
 						<div :class="$style.heading">
@@ -41,12 +41,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div :class="$style.cloudActions">
 					<MkButton small :disabled="busy || cloudLoading" @click="emit('reloadCloud')"><i class="ti ti-refresh" aria-hidden="true"></i> {{ i18n.ts.reload }}</MkButton>
 				</div>
-				<p v-if="cloudLoading" :class="$style.empty" role="status">{{ i18n.ts.loading }}</p>
+				<div v-if="cloudLoading" :class="$style.empty"><MkLoading/></div>
 				<div v-else-if="cloudFailed" :class="$style.failure" role="alert">
 					<p>{{ i18n.ts._article.cloudDraftsFailed }}</p>
 					<MkButton small :disabled="busy" @click="emit('reloadCloud')">{{ i18n.ts.retry }}</MkButton>
 				</div>
-				<p v-else-if="cloudDrafts.length === 0" :class="$style.empty">{{ i18n.ts._article.noDrafts }}</p>
+				<MkResult v-else-if="cloudDrafts.length === 0" type="empty" :text="i18n.ts._article.noDrafts"/>
 				<ul v-else :class="$style.list">
 					<li v-for="draft in cloudDrafts" :key="draft.id" :class="$style.draft">
 						<h3 :class="$style.title">{{ draft.title.trim() || i18n.ts._article.untitledDraft }}</h3>

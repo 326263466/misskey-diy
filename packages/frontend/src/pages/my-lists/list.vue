@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts.settings }}</template>
 
 				<div class="_gaps">
-					<MkInput v-model="name" :counterMaxLength="100">
+					<MkInput v-model="name" :maxLength="Misskey.CONTENT_LIMITS.collectionName">
 						<template #label>{{ i18n.ts.name }}</template>
 					</MkInput>
 					<MkSwitch v-model="isPublic">{{ i18n.ts.public }}</MkSwitch>
@@ -57,6 +57,7 @@ import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { userPage } from '@@/js/user.js';
@@ -81,7 +82,7 @@ const props = defineProps<{
 const list = ref<Misskey.entities.UserList | null>(null);
 const isPublic = ref(false);
 const name = ref('');
-const validName = computed(() => name.value.trim() !== '' && Array.from(name.value).length <= 100);
+const validName = computed(() => name.value.trim() !== '' && (name.value === list.value?.name || Array.from(name.value).length <= Misskey.CONTENT_LIMITS.collectionName));
 const membershipsPaginator = markRaw(new Paginator('users/lists/get-memberships', {
 	limit: 30,
 	computedParams: computed(() => ({
@@ -110,9 +111,10 @@ function addUser() {
 			if (list.value?.id === listId && !list.value.userIds?.includes(user.id)) {
 				list.value.userIds?.push(user.id);
 			}
+			os.toast(i18n.ts.added, 'success');
 			membershipsPaginator.reload();
 			userListsCache.delete();
-		});
+		}, () => {}); // 失败提示由 apiWithDialog 处理
 	});
 }
 
@@ -124,7 +126,8 @@ async function removeUser(item: Misskey.entities.UsersListsGetMembershipsRespons
 		action: async () => {
 			if (!list.value) return;
 			const listId = list.value.id;
-			misskeyApi('users/lists/pull', {
+			// 失败提示由 apiWithDialog 处理
+			os.apiWithDialog('users/lists/pull', {
 				listId,
 				userId: item.userId,
 			}).then(() => {
@@ -132,9 +135,10 @@ async function removeUser(item: Misskey.entities.UsersListsGetMembershipsRespons
 					const index = list.value.userIds?.indexOf(item.userId) ?? -1;
 					if (index !== -1) list.value.userIds?.splice(index, 1);
 				}
+				os.toast(i18n.ts.removed, 'success');
 				membershipsPaginator.removeItem(item.id);
 				userListsCache.delete();
-			});
+			}, () => {});
 		},
 	}], ev.currentTarget ?? ev.target);
 }
@@ -149,7 +153,13 @@ async function showMembershipMenu(item: Misskey.entities.UsersListsGetMembership
 		ref: withRepliesRef,
 	}], ev.currentTarget ?? ev.target);
 
+	// 开关成功不提示；失败时提示并还原开关
+	let reverting = false;
 	watch(withRepliesRef, withReplies => {
+		if (reverting) {
+			reverting = false;
+			return;
+		}
 		misskeyApi('users/lists/update-membership', {
 			listId: list.value!.id,
 			userId: item.userId,
@@ -159,6 +169,10 @@ async function showMembershipMenu(item: Misskey.entities.UsersListsGetMembership
 				...old,
 				withReplies,
 			}));
+		}, error => {
+			if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+			reverting = true;
+			withRepliesRef.value = !withReplies;
 		});
 	});
 }
@@ -174,6 +188,7 @@ async function deleteList() {
 	await os.apiWithDialog('users/lists/delete', {
 		listId: list.value.id,
 	});
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 	userListsCache.delete();
 	router.push('/my/lists');
 }
@@ -186,6 +201,7 @@ async function updateSettings() {
 		name: name.value,
 		isPublic: isPublic.value,
 	});
+	os.toast(i18n.ts.saved, 'success');
 
 	userListsCache.delete();
 
@@ -211,7 +227,7 @@ const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: list.value ? list.value.name : i18n.ts.lists,
-	icon: 'ti ti-list',
+	icon: 'ti ti-users-group',
 }));
 </script>
 

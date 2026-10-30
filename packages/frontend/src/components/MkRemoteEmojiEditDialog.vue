@@ -59,8 +59,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, ref, useTemplateRef } from 'vue';
 import MkKeyValue from '@/components/MkKeyValue.vue';
 import MkButton from '@/components/MkButton.vue';
-import MkInput from '@/components/MkInput.vue';
-import MkTextarea from '@/components/MkTextarea.vue';
 import MkWindow from '@/components/MkWindow.vue';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
@@ -92,6 +90,7 @@ async function done() {
 	await os.apiWithDialog('admin/emoji/copy', {
 		emojiId: props.emoji.id,
 	});
+	os.toast(i18n.ts.added, 'success');
 
 	emit('done');
 	windowEl.value?.close();

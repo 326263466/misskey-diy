@@ -13,7 +13,6 @@ import { GetterService } from '@/server/api/GetterService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
-import { SearchService } from '@/core/SearchService.js';
 import { HashtagService } from '@/core/HashtagService.js';
 import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ApDeliverManagerService } from '@/core/activitypub/ApDeliverManagerService.js';
@@ -23,7 +22,8 @@ import { ApiLoggerService } from '@/server/api/ApiLoggerService.js';
 import { UtilityService } from '@/core/UtilityService.js';
 import { extractCustomEmojisFromMfm } from '@/misc/extract-custom-emojis-from-mfm.js';
 import { extractHashtags } from '@/misc/extract-hashtags.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { extractUrlsForKeyWordCheck } from '@/misc/extract-urls-for-keyword-check.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { DB_MAX_NOTE_TEXT_LENGTH } from '@/const.js';
 import { CONTENT_LIMITS } from 'misskey-js';
@@ -151,7 +151,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteCreateService: NoteCreateService,
 		private noteEntityService: NoteEntityService,
 		private globalEventService: GlobalEventService,
-		private searchService: SearchService,
 		private hashtagService: HashtagService,
 		private apRendererService: ApRendererService,
 		private apDeliverManagerService: ApDeliverManagerService,
@@ -195,13 +194,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (this.noteCreateService.checkProhibitedWordsContain({ text, cw })) {
 				throw new ApiError(meta.errors.containsProhibitedWords);
 			}
-			if (note.visibility === 'public' && note.channelId == null && this.utilityService.isKeyWordIncluded(cw ?? text ?? '', this.serverSettings.sensitiveWords)) {
+			const sensitiveWordsTarget = cw ?? text ?? '';
+			if (note.visibility === 'public' && note.channelId == null && this.serverSettings.sensitiveWords.length > 0 && this.utilityService.isKeyWordIncluded([sensitiveWordsTarget, ...extractUrlsForKeyWordCheck(sensitiveWordsTarget)].join('\n'), this.serverSettings.sensitiveWords)) {
 				throw new ApiError(meta.errors.containsSensitiveWords);
 			}
 
 			const poll = note.hasPoll ? await this.pollsRepository.findOneByOrFail({ noteId: note.id }) : null;
 			const tokens = mfm.parse(text ?? '').concat(cw ? mfm.parse(cw) : [], poll?.choices.flatMap(choice => mfm.parse(choice)) ?? []);
-			const tags = extractHashtags(tokens).filter(tag => Array.from(tag).length <= 128).slice(0, 32).map(normalizeForSearch);
+			const tags = extractHashtags(tokens).filter(tag => Array.from(tag).length <= 128).slice(0, 32).map(normalizeTag);
 			const emojis = extractCustomEmojisFromMfm(tokens);
 			const values: Partial<Pick<MiNote, 'text' | 'cw' | 'tags' | 'emojis' | 'fileIds' | 'attachedFileTypes' | 'reactionAcceptance'>> = {
 				text,
@@ -252,11 +252,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			});
 
 			// Side-effect failures must not make a successfully saved edit look unsaved.
-			await (updated.text == null && updated.cw == null
-				? this.searchService.unindexNote(updated)
-				: this.searchService.indexNote(updated)).catch(err => {
-				this.apiLoggerService.logger.error('Failed to index edited note', { noteId: note.id, err });
-			});
 			if (['public', 'home'].includes(updated.visibility)) {
 				await this.hashtagService.updateHashtags(me, tags.filter(tag => !note.tags.includes(tag))).catch(err => {
 					this.apiLoggerService.logger.error('Failed to update edited note hashtags', { noteId: note.id, err });

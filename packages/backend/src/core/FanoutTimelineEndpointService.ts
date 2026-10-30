@@ -35,7 +35,6 @@ type TimelineOptions = {
 	redisTimelines: FanoutTimelineName[],
 	noteFilter?: NoteFilter,
 	alwaysIncludeMyNotes?: boolean;
-	ignoreAuthorFromBlock?: boolean;
 	ignoreAuthorFromMute?: boolean;
 	ignoreAuthorFromInstanceBlock?: boolean;
 	ignoreAuthorChannelFromMute?: boolean;
@@ -114,22 +113,22 @@ export class FanoutTimelineEndpointService {
 				const [
 					userIdsWhoMeMuting,
 					userIdsWhoMeMutingRenotes,
-					userIdsWhoBlockingMe,
+					blockedUserIds,
 					userMutedInstances,
 					userMutedChannels,
 				] = await Promise.all([
 					this.cacheService.userMutingsCache.fetch(ps.me.id),
 					this.cacheService.renoteMutingsCache.fetch(ps.me.id),
-					this.cacheService.userBlockedCache.fetch(ps.me.id),
+					this.cacheService.getBlockedUserIds(ps.me.id),
 					this.cacheService.userProfileCache.fetch(me.id).then(p => new Set(p.mutedInstances)),
 					this.channelMutingService.mutingChannelsCache.fetch(me.id),
 				]);
 
 				const parentFilter = filter;
 				filter = (note) => {
-					if (isUserRelated(note, userIdsWhoBlockingMe, ps.ignoreAuthorFromBlock)) return false;
+					if (isUserRelated(note, blockedUserIds)) return false;
 					if (isUserRelated(note, userIdsWhoMeMuting, ps.ignoreAuthorFromMute)) return false;
-					if (isUserRelated(note.renote, userIdsWhoBlockingMe, ps.ignoreAuthorFromBlock)) return false;
+					if (isUserRelated(note.renote, blockedUserIds)) return false;
 					if (isUserRelated(note.renote, userIdsWhoMeMuting, ps.ignoreAuthorFromMute)) return false;
 					if (!ps.ignoreAuthorFromMute && isRenote(note) && !isQuote(note) && userIdsWhoMeMutingRenotes.has(note.userId)) return false;
 					if (isInstanceMuted(note, userMutedInstances)) return false;

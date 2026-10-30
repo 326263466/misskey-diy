@@ -12,6 +12,8 @@ export type AbuseReportResolveType = 'accept' | 'reject';
 export const abuseReportReasons = ['spam', 'scam', 'sexualContent', 'violence', 'harassment', 'hateSpeech', 'privacyViolation', 'impersonation', 'misinformation', 'copyrightViolation', 'inciting', 'other'] as const;
 export type AbuseReportReason = typeof abuseReportReasons[number];
 
+export const abuseReportTypes = ['user', 'note', 'chat', 'page', 'article', 'article_comment', 'gallery', 'play'] as const;
+
 export type AbuseReportEvidenceArchive = {
 	storage: 'local' | 'object';
 	key: string;
@@ -25,8 +27,13 @@ export type AbuseReportEvidenceArchive = {
 export type AbuseReportSnapshot = {
 	version: 1;
 	capturedAt: string;
-	type: 'user' | 'note' | 'chat' | 'page' | 'gallery' | 'play';
+	type: typeof abuseReportTypes[number];
 	sourceUrl: string;
+	federation?: {
+		activityId: string | null;
+		actorUri: string;
+		objectUris: string[];
+	};
 	user: {
 		id: string;
 		username: string;

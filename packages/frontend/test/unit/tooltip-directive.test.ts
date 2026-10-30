@@ -8,18 +8,20 @@ import { cleanup, render } from '@testing-library/vue';
 import { defineComponent, h, nextTick, ref, withDirectives } from 'vue';
 import type { Ref } from 'vue';
 import { tooltipDirective } from '@/directives/tooltip.js';
+import MkTooltip from '@/components/MkTooltip.vue';
 
 type TooltipPopupProps = {
 	showing: Ref<boolean>;
-	text: string;
+	text?: string;
 	asMfm?: boolean;
-	direction: string;
-	anchorElement: HTMLElement;
+	direction?: string;
+	anchorElement?: HTMLElement;
 };
 
 const mocks = vi.hoisted(() => ({
 	popup: vi.fn<(component: unknown, props: TooltipPopupProps, events: { closed: () => void }) => { dispose: () => void }>(),
 	alert: vi.fn(),
+	claimZIndex: vi.fn(() => 3000100),
 }));
 
 vi.mock('@/os.js', () => mocks);
@@ -221,5 +223,62 @@ describe('tooltip directive', () => {
 		enter(view.trigger);
 		expect(mocks.popup).toHaveBeenCalledOnce();
 		view.trigger.remove();
+	});
+});
+
+describe('tooltip overlay host', () => {
+	let host: HTMLElement;
+	let fullscreenTarget: Element | null;
+	const fullscreenDescriptor = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
+
+	beforeEach(() => {
+		host = document.createElement('div');
+		host.style.contain = 'strict';
+		host.style.overflow = 'clip';
+		document.body.appendChild(host);
+		fullscreenTarget = null;
+		Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fullscreenTarget });
+		mocks.claimZIndex.mockClear();
+		vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(1);
+		vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		cleanup();
+		host.remove();
+		vi.restoreAllMocks();
+		if (fullscreenDescriptor) Object.defineProperty(document, 'fullscreenElement', fullscreenDescriptor);
+		else Reflect.deleteProperty(document, 'fullscreenElement');
+	});
+
+	test.each([false, true])('renders above the clipping host while preserving tooltip attributes (fullscreen=%s)', async fullscreen => {
+		if (fullscreen) fullscreenTarget = host;
+		const view = render(MkTooltip, {
+			container: host,
+			baseElement: document.body,
+			props: { showing: true, text: 'Visible hint', x: 100, y: 100 },
+			attrs: { id: 'hint-id', class: 'custom-tooltip', style: { '--MI-tooltip-padding': '12px' } },
+		});
+		await nextTick();
+		const hint = view.getByRole('tooltip');
+		expect(hint.parentElement).toBe(fullscreen ? host : document.body);
+		expect(hint.id).toBe('hint-id');
+		expect(hint.classList.contains('custom-tooltip')).toBe(true);
+		expect(hint.style.getPropertyValue('--MI-tooltip-padding')).toBe('12px');
+		expect(hint.style.visibility).not.toBe('hidden');
+		expect(mocks.claimZIndex).toHaveBeenCalledExactlyOnceWith('high');
+		if (fullscreen) expect(hint.style.position).toBe('fixed');
+
+		fullscreenTarget = fullscreen ? null : host;
+		document.dispatchEvent(new Event('fullscreenchange'));
+		expect(view.emitted('closed')).toHaveLength(1);
+	});
+
+	test('keeps initially hidden tooltip disposal and cancels the positioning loop on unmount', async () => {
+		const view = render(MkTooltip, { container: host, props: { showing: false, text: 'Hint', x: 100, y: 100 } });
+		expect(view.emitted('closed')).toHaveLength(1);
+		view.unmount();
+		await nextTick();
+		expect(window.requestAnimationFrame).not.toHaveBeenCalled();
 	});
 });

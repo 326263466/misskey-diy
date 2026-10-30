@@ -70,7 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_pageFooter">
+			<div class="_pageFooter _formActions">
 				<div class="_buttons">
 					<MkButton primary rounded @click="save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 					<MkButton rounded @click="testEmail"><i class="ti ti-send"></i> {{ i18n.ts.testEmail }}</MkButton>
@@ -114,11 +114,14 @@ async function testEmail() {
 		minLength: 1,
 	});
 	if (canceled) return;
+	// 失败提示由 apiWithDialog 处理
 	os.apiWithDialog('admin/send-email', {
 		to: destination,
 		subject: i18n.ts.testEmail,
 		text: i18n.ts._email.testEmailBody,
-	});
+	}).then(() => {
+		os.toast(i18n.ts.sent, 'success');
+	}, () => {});
 }
 
 function save() {
@@ -132,7 +135,8 @@ function save() {
 		smtpPass: smtpPass.value,
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 const headerTabs = computed(() => []);

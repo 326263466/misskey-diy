@@ -24,7 +24,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { QueueService } from '@/core/QueueService.js';
-import type { UsersRepository, NotesRepository, FollowingsRepository, AbuseUserReportsRepository, FollowRequestsRepository, MiMeta } from '@/models/_.js';
+import type { UsersRepository, NotesRepository, FollowingsRepository, FollowRequestsRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
@@ -425,14 +425,14 @@ export class ApInboxService {
 		});
 
 		if (isPost(object)) {
-			await this.createNote(resolver, actor, object, false, activity);
+			await this.createNote(resolver, actor, object);
 		} else {
 			return `Unknown type: ${getApType(object)}`;
 		}
 	}
 
 	@bindThis
-	private async createNote(resolver: Resolver, actor: MiRemoteUser, note: IObject, silent = false, activity?: ICreate): Promise<string> {
+	private async createNote(resolver: Resolver, actor: MiRemoteUser, note: IObject): Promise<string> {
 		const uri = getApId(note);
 
 		if (typeof note === 'object') {
@@ -455,7 +455,7 @@ export class ApInboxService {
 			const exist = await this.apNoteService.fetchNote(note);
 			if (exist) return 'skip: note exists';
 
-			await this.apNoteService.createNote(note, actor, resolver, silent);
+			await this.apNoteService.createNote(note, actor, resolver);
 			return 'ok';
 		} catch (err) {
 			if (err instanceof StatusError && !err.isRetryable) {
@@ -581,6 +581,11 @@ export class ApInboxService {
 				comment: activity.content ?? '',
 				reason: null,
 				target,
+				federation: {
+					activityId: activity.id ?? null,
+					actorUri: actor.uri,
+					objectUris: [...uris],
+				},
 			}));
 		}));
 

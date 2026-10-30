@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
+import type { ClipsRepository } from '@/models/_.js';
+import { DI } from '@/di-symbols.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ClipEntityService } from '@/core/entities/ClipEntityService.js';
 import { ClipService } from '@/core/ClipService.js';
@@ -19,6 +23,7 @@ export const meta = {
 	kind: 'write:account',
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: 'd105c870-2ec7-48fc-8fc9-fdaf4918529f' },
 		noSuchClip: {
 			message: 'No such clip.',
 			code: 'NO_SUCH_CLIP',
@@ -37,9 +42,9 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		clipId: { type: 'string', format: 'misskey:id' },
-		name: { type: 'string', minLength: 1, maxLength: 100 },
+		name: { type: 'string', minLength: 1 },
 		isPublic: { type: 'boolean' },
-		description: { type: 'string', nullable: true, maxLength: 2048 },
+		description: { type: 'string', nullable: true },
 	},
 	required: ['clipId'],
 } as const;
@@ -47,15 +52,22 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
+		@Inject(DI.clipsRepository)
+		private clipsRepository: ClipsRepository,
+
 		private clipService: ClipService,
 
 		private clipEntityService: ClipEntityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
+			const clip = await this.clipsRepository.findOneBy({ id: ps.clipId, userId: me.id });
+			if (clip == null) throw new ApiError(meta.errors.noSuchClip);
+			if (isContentTooLong(ps.name, CONTENT_LIMITS.collectionName, clip.name) ||
+				isContentTooLong(ps.description, CONTENT_LIMITS.clipDescription, clip.description)) {
+				throw new ApiError(meta.errors.contentTooLong);
+			}
 			try {
-				// 空文字列をnullにしたいので??は使わない
-				// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-				await this.clipService.update(me, ps.clipId, ps.name, ps.isPublic, ps.description || null);
+				await this.clipService.update(me, ps.clipId, ps.name, ps.isPublic, ps.description === '' ? null : ps.description);
 			} catch (e) {
 				if (e instanceof ClipService.NoSuchClipError) {
 					throw new ApiError(meta.errors.noSuchClip);

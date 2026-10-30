@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #value><span class="_monospace"><MkTime :time="file.createdAt" mode="detail" style="display: block;"/></span></template>
 				</MkKeyValue>
 			</div>
-			<MkA v-if="file.user" class="user" :to="`/admin/user/${file.user.id}`">
+			<MkA v-if="file.user" class="user" :to="`/admin/user/${file.user.id}`" behavior="window">
 				<MkUserCardMini :user="file.user"/>
 			</MkA>
 
@@ -115,9 +115,12 @@ async function del() {
 	});
 	if (canceled) return;
 
+	// 失败提示由 apiWithDialog 处理
 	os.apiWithDialog('drive/files/delete', {
 		fileId: props.file.id,
-	});
+	}).then(() => {
+		os.toast(i18n.ts.deleteSucceeded, 'success');
+	}, () => {});
 }
 
 async function toggleSensitive() {
@@ -129,9 +132,12 @@ async function toggleSensitive() {
 	if (canceled) return;
 	isSensitive.value = !isSensitive.value;
 
+	// 按钮状态即为成功反馈；失败提示由 apiWithDialog 处理，并还原状态
 	os.apiWithDialog('drive/files/update', {
 		fileId: props.file.id,
 		isSensitive: !props.file.isSensitive,
+	}).catch(() => {
+		isSensitive.value = !isSensitive.value;
 	});
 }
 

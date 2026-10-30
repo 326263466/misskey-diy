@@ -10,11 +10,41 @@ import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import * as os from '@/os.js';
 import { forgetChatConversationSetting, loadChatConversationSettings } from '@/utility/chat-conversation-settings.js';
+import { prefer } from '@/preferences.js';
 
 type RecentConversation = { user: Misskey.entities.UserLite; updatedAt: string };
 type RecentConversations = Record<string, RecentConversation[]>;
 type ChatConversationTitle = { name: string; user: Misskey.entities.UserLite | null };
 const conversationTitles = new Map<string, ChatConversationTitle>();
+// 整页和浮窗可能同时打开同一会话，按次数记录。
+const viewingConversations = new Map<string, number>();
+
+export function markChatConversationViewing(conversationKey: string): () => void {
+	viewingConversations.set(conversationKey, (viewingConversations.get(conversationKey) ?? 0) + 1);
+	let released = false;
+	return () => {
+		if (released) return;
+		released = true;
+		const count = (viewingConversations.get(conversationKey) ?? 1) - 1;
+		if (count > 0) viewingConversations.set(conversationKey, count);
+		else viewingConversations.delete(conversationKey);
+	};
+}
+
+export function isChatConversationViewing(conversationKey: string): boolean {
+	return viewingConversations.has(conversationKey);
+}
+
+export function nudgeChatEntry(element: HTMLElement | null | undefined): void {
+	if (!element || typeof element.animate !== 'function' || !prefer.s.animation || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+	element.animate([
+		{ rotate: '0deg' },
+		{ rotate: '-14deg', offset: 0.2 },
+		{ rotate: '10deg', offset: 0.45 },
+		{ rotate: '-6deg', offset: 0.7 },
+		{ rotate: '0deg' },
+	], { duration: 500, easing: 'ease-in-out' });
+}
 
 export function cacheChatConversationTitle(accountId: string, conversation: { user?: Misskey.entities.UserLite | null; room?: Pick<Misskey.entities.ChatRoom, 'id' | 'name'> | null }) {
 	const { user, room } = conversation;
@@ -42,11 +72,8 @@ export function forgetChatRoom(accountId: string, roomId: string) {
 		miLocalStorage.removeItem(`chat-hidden-members:${accountId}:${roomId}`);
 		const pins = JSON.parse(miLocalStorage.getItem(`chat-pinned:${accountId}`) ?? '[]');
 		if (Array.isArray(pins)) miLocalStorage.setItem(`chat-pinned:${accountId}`, JSON.stringify(pins.filter(id => id !== key)));
-		const drafts = JSON.parse(miLocalStorage.getItem('chatMessageDrafts') ?? '{}');
-		if (drafts && typeof drafts === 'object' && !Array.isArray(drafts)) {
-			delete drafts[`${accountId}:${key}`];
-			miLocalStorage.setItem('chatMessageDrafts', JSON.stringify(drafts));
-		}
+		const draftPrefix = `misskey:chatDraft:${accountId}:${key}:`;
+		for (const draftKey of Object.keys(localStorage)) if (draftKey.startsWith(draftPrefix)) localStorage.removeItem(draftKey);
 	} catch { /* 本地缓存损坏不影响退出和即时移除。 */ }
 	globalEvents.emit('chatPinsUpdated');
 	globalEvents.emit('chatDraftUpdated');
@@ -58,6 +85,17 @@ export function getRecentChatConversations(accountId: string): RecentConversatio
 		const entries = JSON.parse(miLocalStorage.getItem('chatRecentConversations') ?? '{}')[accountId];
 		return Array.isArray(entries) ? entries.filter(entry => typeof entry?.user?.id === 'string' && typeof entry?.user?.username === 'string' && typeof entry?.updatedAt === 'string').slice(0, 100) : [];
 	} catch { return []; }
+}
+
+// 最近会话只存在本机，账号已不存在时服务端无法记录“移除”，直接从本机删除。
+export function forgetRecentChatConversation(accountId: string, userId: string) {
+	conversationTitles.delete(`${accountId}:user:${userId}`);
+	try {
+		const all = JSON.parse(miLocalStorage.getItem('chatRecentConversations') ?? '{}');
+		if (all == null || Array.isArray(all) || typeof all !== 'object' || !Array.isArray(all[accountId])) return;
+		all[accountId] = all[accountId].filter(entry => entry?.user?.id !== userId);
+		miLocalStorage.setItem('chatRecentConversations', JSON.stringify(all));
+	} catch { /* 本地缓存损坏时只从当前列表移除。 */ }
 }
 
 export function rememberChatConversation(accountId: string, user: Misskey.entities.UserLite) {
@@ -80,7 +118,7 @@ export async function setChatRoomMuted(room: Misskey.entities.ChatRoom, mute: bo
 	let duration: number | undefined;
 	if (mute) {
 		const { canceled, result } = await os.select({
-			title: i18n.ts.mutePeriod,
+			title: i18n.ts._chat.doNotDisturbPeriod,
 			items: [
 				{ value: 3600, label: i18n.ts.oneHour },
 				{ value: 600, label: i18n.ts.tenMinutes },

@@ -155,7 +155,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 											<MkUserCardMini :user="item.blockee"/>
 										</MkA>
 										<button class="_button _iconButton" :class="$style.userToggle" @click="toggleBlockItem(item)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
-										<button class="_button _iconButton" :class="$style.remove" @click="unblock(item.blockee, $event)"><i class="ti ti-x"></i></button>
+										<button type="button" class="_button _iconButton" :class="$style.remove" :aria-label="i18n.ts.unblock" :disabled="unblocking.has(item.blockee.id)" @click="unblock(item.blockee, $event)"><i class="ti ti-x" aria-hidden="true"></i></button>
 									</div>
 									<div v-if="expandedBlockItems.includes(item.id)" :class="$style.userItemSub">
 										<div>{{ i18n.ts._settings.blockedAt }}: <MkTime :time="item.createdAt" mode="detail"/></div>
@@ -172,7 +172,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch, markRaw } from 'vue';
+import { ref, watch, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import XEmojiMute from './mute-block.emoji-mute.vue';
 import XInstanceMute from './mute-block.instance-mute.vue';
@@ -192,6 +192,7 @@ import { prefer } from '@/preferences.js';
 import MkFeatureBanner from '@/components/MkFeatureBanner.vue';
 import { Paginator } from '@/utility/paginator.js';
 import { suggestReload } from '@/utility/reload-suggest.js';
+import { updateUserBlocking } from '@/utility/user-blocking.js';
 
 const $i = ensureSignin();
 
@@ -210,6 +211,7 @@ const blockingPaginator = markRaw(new Paginator('blocking/list', {
 const expandedRenoteMuteItems = ref<string[]>([]);
 const expandedMuteItems = ref<string[]>([]);
 const expandedBlockItems = ref<string[]>([]);
+const unblocking = ref(new Set<string>());
 
 const showSoftWordMutedWord = prefer.model('showSoftWordMutedWord');
 
@@ -225,6 +227,7 @@ async function unrenoteMute(user: Misskey.entities.UserDetailed, ev: PointerEven
 		icon: 'ti ti-x',
 		action: async () => {
 			await os.apiWithDialog('renote-mute/delete', { userId: user.id });
+			os.toast(i18n.ts.removed, 'success');
 			//role.users = role.users.filter(u => u.id !== user.id);
 		},
 	}], ev.currentTarget ?? ev.target);
@@ -236,18 +239,35 @@ async function unmute(user: Misskey.entities.UserDetailed, ev: PointerEvent) {
 		icon: 'ti ti-x',
 		action: async () => {
 			await os.apiWithDialog('mute/delete', { userId: user.id });
+			os.toast(i18n.ts.removed, 'success');
 			//role.users = role.users.filter(u => u.id !== user.id);
 		},
 	}], ev.currentTarget ?? ev.target);
 }
 
 async function unblock(user: Misskey.entities.UserDetailed, ev: PointerEvent) {
+	if (unblocking.value.has(user.id)) return;
 	os.popupMenu([{
 		text: i18n.ts.unblock,
 		icon: 'ti ti-x',
 		action: async () => {
-			await os.apiWithDialog('blocking/delete', { userId: user.id });
-			//role.users = role.users.filter(u => u.id !== user.id);
+			if (unblocking.value.has(user.id)) return;
+			unblocking.value.add(user.id);
+			try {
+				await os.apiWithDialog('blocking/delete', { userId: user.id });
+				for (const item of blockingPaginator.items.value.filter(item => item.blockee.id === user.id)) {
+					blockingPaginator.removeItem(item.id);
+					expandedBlockItems.value = expandedBlockItems.value.filter(id => id !== item.id);
+				}
+				// 让拉黑删除前发出的分页响应失效，避免列表项被旧快照加回。
+				if (blockingPaginator.fetching.value || blockingPaginator.fetchingOlder.value || blockingPaginator.fetchingNewer.value) void blockingPaginator.reload();
+				updateUserBlocking(user.id, false);
+				os.toast(i18n.ts.unblocked, 'success');
+			} catch {
+				// 接口已提示错误，失败时保留列表项。
+			} finally {
+				unblocking.value.delete(user.id);
+			}
 		},
 	}], ev.currentTarget ?? ev.target);
 }
@@ -285,10 +305,6 @@ async function saveHardMutedWords(hardMutedWords: (string | string[])[]) {
 	await os.apiWithDialog('i/update', { hardMutedWords });
 	os.toast(i18n.ts.saved, 'success');
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.muteAndBlock,

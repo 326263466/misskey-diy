@@ -53,6 +53,7 @@ export const packedChatRoomSchema = {
 			optional: false, nullable: false,
 			enum: ['public', 'approval', 'invitation', 'closed'],
 		},
+		joinQuestion: { type: 'string', optional: false, nullable: false },
 		isMember: {
 			type: 'boolean',
 			optional: true, nullable: false,

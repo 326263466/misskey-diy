@@ -31,7 +31,7 @@ import { i18n } from '@/i18n.js';
 
 import type { Theme } from '@@/js/theme.js';
 
-console.log('Misskey Embed');
+console.log('Embed');
 
 const imageFade = initializeImageFade({ animationsEnabled: () => true });
 import.meta.hot?.dispose(() => imageFade.disconnect());

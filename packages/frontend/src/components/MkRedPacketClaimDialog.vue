@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModal ref="modal" preferType="dialog" @click="close" @esc="close" @closed="emit('closed')">
-	<section :class="[$style.card, { [$style.unopened]: unopened }]" role="dialog" aria-modal="true" :aria-label="i18n.ts._redPacket.claim">
+<MkModal v-if="canViewDetails" ref="modal" preferType="dialog" @click="close" @esc="close" @closed="emit('closed')">
+	<section :class="[$style.card, { [$style.unopened]: unopened }]" role="dialog" aria-modal="true" :aria-label="canClaim ? i18n.ts._redPacket.claim : i18n.ts._redPacket.viewClaimDetails">
 		<button type="button" class="_button" :class="$style.close" :disabled="claiming" :aria-label="i18n.ts.close" @click="close"><i class="ti ti-x" aria-hidden="true"></i></button>
 		<header :class="[$style.hero, { [$style.customCover]: packet.coverUrl && !coverFailed }]">
 			<img v-if="packet.coverUrl && !coverFailed" :key="packet.coverUrl" :src="packet.coverUrl" :alt="i18n.ts._redPacket.cover" :class="$style.coverImage" @error="coverFailed = true">
@@ -16,29 +16,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span v-else :class="$style.senderAvatarPlaceholder" aria-hidden="true"></span>
 					<p :class="$style.senderText">
 						<span v-if="sender" :class="$style.senderName"><MkUserName :user="sender"/></span>
-						<span>{{ i18n.ts._redPacket.senderSuffix }}</span>
+						<span>{{ exclusive ? i18n.ts._redPacket.exclusiveSenderSuffix : i18n.ts._redPacket.senderSuffix }}</span>
 						<span v-if="!unopened && packet.password" :class="$style.modeBadge" :title="i18n.ts._redPacket.passwordPacket">{{ i18n.ts._redPacket.password }}</span>
 						<span v-else-if="!unopened && packet.mode === 'random'" :class="$style.modeBadge" :title="i18n.ts._redPacket.random">{{ i18n.ts._redPacket.luckBadge }}</span>
 					</p>
 				</div>
-				<p :class="$style.greeting"><Mfm :text="greetingText" :plain="true" :nowrap="true" :noEmojiTooltip="true" style="white-space: nowrap;"/></p>
+				<p :class="$style.greeting"><Mfm :text="greetingText" :plain="true" :noEmojiTooltip="true"/></p>
+				<div v-if="exclusive" :class="$style.recipient">
+					<MkAvatar v-if="recipient" :user="recipient" :class="$style.recipientAvatar"/>
+					<span v-else :class="[$style.recipientAvatar, $style.recipientAvatarPlaceholder]" aria-hidden="true"></span>
+					<I18n :src="i18n.ts._redPacket.recipientOnly" tag="p" :class="$style.recipientText">
+						<template #name><MkUserName v-if="recipient" :user="recipient" :nowrap="false"/><span v-else>{{ i18n.ts._redPacket.selectedAudience }}</span></template>
+					</I18n>
+				</div>
 			</div>
 		</header>
 
 		<div v-if="unopened" :class="$style.envelope">
-			<button type="button" class="_button" :class="$style.seal" :aria-label="i18n.ts._redPacket.claim" :disabled="loading || claiming || !details" @click="claim">
+			<button v-if="canClaim" type="button" class="_button" :class="$style.seal" :aria-label="i18n.ts._redPacket.claim" :disabled="loading || claiming || !details" @click="claim">
 				<span>{{ i18n.ts._redPacket.openSeal }}</span>
 			</button>
-			<button v-if="failed" type="button" class="_textButton" :class="$style.textAction" :disabled="loading || claiming" @click="load">{{ i18n.ts.retry }} <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
-			<button type="button" class="_textButton" :class="$style.textAction" :disabled="loading || claiming" @click="showDetails = true">{{ i18n.ts._redPacket.viewClaimDetails }} <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+			<button v-if="failed" type="button" class="_textButton" :class="$style.textAction" :disabled="loading || claiming" @click="load">{{ i18n.ts.retry }}</button>
+			<button type="button" class="_textButton" :class="$style.textAction" :disabled="loading || claiming" @click="showDetails = true">{{ i18n.ts._redPacket.viewClaimDetails }}</button>
 		</div>
 
-		<div v-else :class="$style.details">
+		<div v-else :class="[$style.details, { [$style.scrollableClaims]: scrollableClaims }]">
 			<p v-if="packet.claimedCoins != null" role="status" :aria-label="resultMessage" :class="[$style.result, $style.resultClaimed]">
 				<strong :class="$style.receivedAmount">{{ formatCoins(packet.claimedCoins) }}</strong>
 				<span :class="$style.receivedUnit">{{ i18n.ts._transfer.coinUnit }}</span>
 			</p>
-			<p v-else-if="resultMessage" role="status" :class="$style.result">{{ resultMessage }}</p>
+			<p v-else-if="resultMessage" role="status" :class="[$style.result, $style.resultStatus]">{{ resultMessage }}</p>
 			<p v-if="packet.startsAt"><span>{{ i18n.ts._redPacket.startsAt }}: </span><MkTime :time="packet.startsAt" mode="detail"/></p>
 			<p v-if="!$i" :class="$style.notice">{{ i18n.ts._redPacket.signinRequired }}</p>
 			<div :class="$style.summary">
@@ -50,7 +57,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<p :class="[$style.notice, $style.emptyClaims]">{{ i18n.ts._redPacket.noClaims }}</p>
 			</div>
 			<div v-else-if="details" :class="$style.claimsFrame">
-				<ul :class="$style.claims" tabindex="0" :aria-label="i18n.ts._redPacket.claims">
+				<ul :class="$style.claims" :tabindex="scrollableClaims ? 0 : undefined" :aria-label="i18n.ts._redPacket.claims">
 					<li v-for="entry in details.claims" :key="entry.id" :class="$style.claim">
 						<MkAvatar v-if="entry.user" :user="entry.user" :class="$style.claimAvatar"/>
 						<span v-else :class="[$style.claimAvatar, $style.claimAvatarDeleted]" aria-hidden="true"><i class="ti ti-user-off"></i></span>
@@ -64,7 +71,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</li>
 				</ul>
 			</div>
-			<button v-if="failed" type="button" class="_textButton" :class="$style.textAction" :disabled="loading || claiming" @click="load">{{ i18n.ts.retry }} <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+			<button v-if="failed" type="button" class="_textButton" :class="$style.textAction" :disabled="loading || claiming" @click="load">{{ i18n.ts.retry }}</button>
 			<div v-if="canClaim" :class="$style.actions">
 				<MkButton primary rounded :disabled="loading || claiming || !details" :wait="claiming" @click="claim">{{ i18n.ts._redPacket.claim }}</MkButton>
 			</div>
@@ -91,6 +98,7 @@ const modal = useTemplateRef('modal');
 
 const packet = ref(props.redPacket);
 const details = ref<entities.RedPacketsShowResponse | null>(null);
+const scrollableClaims = computed(() => (details.value?.claims.length ?? 0) > 5);
 const showDetails = ref(false);
 const loading = ref(false);
 const claiming = ref(false);
@@ -100,13 +108,18 @@ const coverFailed = ref(false);
 const sender = ref<entities.UserLite | null>(
 	props.author != null && props.author.id === (props.redPacket.senderId ?? props.authorId) ? props.author : null,
 );
+const recipient = computed(() => packet.value.recipient ?? null);
 let timer: number | undefined;
 let request = 0;
 watch(() => props.redPacket, value => { packet.value = value; });
 watch(() => packet.value.coverUrl, () => { coverFailed.value = false; });
 const state = computed(() => packet.value.status);
-const canClaim = computed(() => $i && !$i.isSuspended && !packet.value.password && state.value === 'active' && packet.value.claimedCoins == null);
-const unopened = computed(() => canClaim.value && !showDetails.value);
+const exclusive = computed(() => packet.value.kind === 'direct' && packet.value.audience === 'room');
+const ownPacket = computed(() => $i?.id === (packet.value.senderId ?? props.authorId));
+const canViewDetails = computed(() => !exclusive.value || ($i != null && (ownPacket.value || recipient.value?.id === $i.id)));
+// 原领取人退群后仍可查看记录，领取按钮必须等待服务端确认当前资格。
+const canClaim = computed(() => $i && !ownPacket.value && !$i.isSuspended && !packet.value.password && (!exclusive.value || (details.value?.canClaim === true && packet.value.roomId != null && recipient.value?.id === $i.id)) && state.value === 'active' && packet.value.claimedCoins == null);
+const unopened = computed(() => !showDetails.value && (canClaim.value || (exclusive.value && state.value === 'active' && packet.value.claimedCoins == null)));
 // 口令红包的祝福语位置展示口令，与聊天气泡的展示规则一致
 const greetingText = computed(() => packet.value.password || packet.value.message || i18n.ts._redPacket.defaultMessage);
 
@@ -149,7 +162,7 @@ function applyResult(result: entities.RedPacketsShowResponse) {
 }
 
 async function load() {
-	if (!$i || loading.value || claiming.value) return;
+	if (!$i || !canViewDetails.value || loading.value || claiming.value) return;
 	const sequence = ++request;
 	loading.value = true;
 	failed.value = false;
@@ -201,7 +214,7 @@ async function claim() {
 
 function scheduleExpiry() {
 	window.clearTimeout(timer);
-	if (!['active', 'scheduled'].includes(packet.value.status)) return;
+	if (!canViewDetails.value || !['active', 'scheduled'].includes(packet.value.status)) return;
 	const boundary = packet.value.status === 'scheduled' ? packet.value.startsAt : packet.value.expiresAt;
 	const delay = Date.parse(boundary ?? '') - Date.parse(packet.value.serverTime);
 	if (Number.isFinite(delay)) timer = window.setTimeout(() => { void load(); }, Math.min(Math.max(delay + 50, 1000), 2147483647));
@@ -209,6 +222,7 @@ function scheduleExpiry() {
 
 watch(() => packet.value, scheduleExpiry);
 onMounted(() => {
+	if (!canViewDetails.value) return;
 	scheduleExpiry();
 	void load();
 	if (sender.value == null) {
@@ -231,6 +245,7 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	max-width: calc(100vw - 32px);
 	max-height: calc(100dvh - 32px);
 	overflow: auto;
+	overscroll-behavior: contain;
 	display: flex;
 	flex-direction: column;
 	border-radius: var(--MI-radius);
@@ -281,7 +296,7 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	// 未领取与已领取的顶部样式一致：内容贴顶、留白与弧线相同
 	align-items: start;
 	min-height: 156px;
-	padding: 44px 24px 36px;
+	padding: 40px 24px 30px;
 	background: linear-gradient(160deg, var(--MI-redPacketStart), var(--MI-redPacketEnd));
 	color: var(--MI-redPacketGold);
 	// 底缘向下凸出的椭圆弧，呈现信封开口的形状
@@ -317,7 +332,7 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	flex-shrink: 0;
 	flex-direction: column;
 	align-items: center;
-	gap: 18px;
+	gap: 14px;
 	text-align: center;
 }
 
@@ -377,7 +392,7 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	height: 1.45em;
 	padding: 0 5px;
 	border-radius: 4px;
-	font-size: .75em;
+	font-size: .85em;
 	line-height: 1;
 	background: var(--MI-redPacketGold);
 	color: var(--MI-redPacketEnd);
@@ -386,14 +401,42 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 .greeting {
 	margin: 0;
 	max-width: 100%;
-	font-size: clamp(16px, 4.5vw, 20px);
+	font-size: clamp(15px, 4.2vw, 18px);
 	font-weight: 700;
 	letter-spacing: .04em;
-	line-height: 1.5;
+	line-height: 1.45;
 	color: inherit;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+
+.recipient {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	margin-top: clamp(12px, 4vw, 24px);
+	max-width: 100%;
+}
+
+.recipientAvatar {
+	width: 56px;
+	height: 56px;
+	flex-shrink: 0;
+}
+
+.recipientAvatarPlaceholder {
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--MI-redPacketGold) 25%, transparent);
+}
+
+.recipientText {
+	margin: 0;
+	max-width: 100%;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+
+	:global(._userName) { padding-block: 0; }
 }
 
 .envelope {
@@ -403,7 +446,7 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	gap: 24px;
 	flex-shrink: 0;
 	// 底部留白与封面顶部一致，保证卡片上下内边距对称
-	padding: 0 24px 44px;
+	padding: 18px 24px 44px;
 
 	:global(._textButton) {
 		color: inherit;
@@ -418,7 +461,7 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 
 .seal {
 	position: relative;
-	margin-top: calc(var(--MI-redPacketSealSize) / -2);
+	margin-top: calc(var(--MI-redPacketSealSize) / -2 - 18px);
 	display: grid;
 	place-items: center;
 	width: var(--MI-redPacketSealSize);
@@ -429,15 +472,34 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	color: var(--MI-redPacketGold);
 	font-size: calc(var(--MI-redPacketSealSize) * .4);
 	font-weight: 400;
-	box-shadow: 0 3px 6px color-mix(in srgb, var(--MI-redPacketShade) 30%, transparent);
-	transition: background-color 160ms ease, transform 160ms ease-out;
+	transition: background-color 180ms ease, border-color 180ms ease;
 
-	&:hover:not(:disabled) {
-		background: var(--MI-redPacketStart);
+	&::before,
+	&::after {
+		content: '';
+		position: absolute;
+		inset: -1px;
+		border: 1px solid color-mix(in srgb, var(--MI-redPacketGold) 58%, transparent);
+		border-radius: inherit;
+		background: color-mix(in srgb, var(--MI-redPacketGold) 5%, transparent);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 180ms ease;
+		will-change: transform, opacity;
 	}
 
-	&:active {
-		transform: scale(.96);
+	&:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--MI-redPacketStart) 84%, var(--MI-redPacketGold) 16%);
+		border-color: color-mix(in srgb, var(--MI-redPacketGold) 84%, white);
+	}
+
+	&:is(:hover, :focus-visible):not(:disabled)::before,
+	&:is(:hover, :focus-visible):not(:disabled)::after {
+		animation: sealRipple 1600ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+	}
+
+	&:is(:hover, :focus-visible):not(:disabled)::after {
+		animation-delay: 800ms;
 	}
 
 	&:disabled {
@@ -450,9 +512,30 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	}
 }
 
+@keyframes sealRipple {
+	0% {
+		opacity: 0;
+		transform: scale(1);
+	}
+
+	12% {
+		opacity: .46;
+	}
+
+	70% {
+		opacity: .12;
+	}
+
+	100% {
+		opacity: 0;
+		transform: scale(1.4);
+	}
+}
+
 .details {
 	display: flex;
 	flex-direction: column;
+	flex-shrink: 0;
 	min-height: 160px;
 	gap: 0;
 	--MI-redPacketDetailsInline: 20px;
@@ -477,6 +560,13 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	overflow-wrap: anywhere;
 }
 
+.resultStatus {
+	font-size: .95em;
+	font-weight: 400;
+	line-height: 1.55;
+	color: var(--MI_THEME-fgTransparent);
+}
+
 .resultClaimed {
 	display: flex;
 	flex-wrap: wrap;
@@ -496,6 +586,13 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 .receivedUnit {
 	font-size: 13px;
 	color: var(--MI-redPacketAmount);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.seal:is(:hover, :focus-visible):not(:disabled)::before,
+	.seal:is(:hover, :focus-visible):not(:disabled)::after {
+		animation: none;
+	}
 }
 
 .notice {
@@ -518,6 +615,7 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 .summary {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
 	padding: 8px 0;
@@ -553,15 +651,23 @@ onUnmounted(() => { window.clearTimeout(timer); request++; });
 	margin: 0 calc(-1 * var(--MI-redPacketDetailsInline)) 0 0;
 	padding: 0;
 	min-height: var(--MI-redPacketClaimHeight);
-	max-height: calc(var(--MI-redPacketClaimHeight) * 5);
-	overflow-x: hidden;
-	overflow-y: auto;
-	overscroll-behavior: contain;
+	// 头像装饰的溢出不应让五条以内的记录出现滚动条。
+	overflow: clip;
 
 	// 列表伸到弹窗右缘，自身描边会把滚动条框进去，焦点框改由 .claimsFrame 绘制。
 	&:focus,
 	&:focus-visible {
 		outline: none;
+	}
+}
+
+.scrollableClaims {
+	flex-shrink: 1;
+
+	.claims {
+		max-height: calc(var(--MI-redPacketClaimHeight) * 5);
+		overflow-x: hidden;
+		overflow-y: auto;
 	}
 }
 

@@ -13,15 +13,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-if="!self">
 		<span :class="$style.schema">{{ schema }}//</span>
 		<span :class="$style.hostname">{{ hostname }}</span>
-		<span v-if="port != ''">:{{ port }}</span>
+		<span v-if="port != ''" :class="$style.hostname">:{{ port }}</span>
 	</template>
 	<template v-if="pathname === '/' && self">
 		<span :class="$style.self">{{ hostname }}</span>
 	</template>
-	<span v-if="pathname != ''" :class="$style.pathname">{{ self ? pathname.substring(1) : pathname }}</span>
+	<span v-if="pathname != ''">{{ self ? pathname.substring(1) : pathname }}</span>
 	<span :class="$style.query">{{ query }}</span>
 	<span :class="$style.hash">{{ hash }}</span>
-	<i v-if="target === '_blank'" :class="$style.icon" class="ti ti-external-link"></i>
+	<i v-if="target === '_blank'" :class="$style.icon" class="ti ti-external-link" aria-hidden="true"></i>
 </component>
 </template>
 
@@ -50,11 +50,14 @@ const { schema, hostname, port, pathname, query, hash } = parseUrlForDisplay(pro
 const el = ref();
 
 if (props.showUrlPreview && isEnabledUrlPreview.value) {
-	useTooltip(el, (showing) => {
+	useTooltip(el, (showing, pointerPosition) => {
+		const anchorElement = el.value instanceof HTMLElement ? el.value : el.value?.$el;
+		if (anchorElement == null) return;
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUrlPreviewPopup.vue')), {
 			showing,
 			url: props.url,
-			anchorElement: el.value instanceof HTMLElement ? el.value : el.value?.$el,
+			anchorElement,
+			pointerPosition,
 		}, {
 			closed: () => dispose(),
 		});
@@ -68,6 +71,8 @@ const target = self ? null : '_blank';
 <style lang="scss" module>
 .root {
 	word-break: break-all;
+	// 正文网址整体弱化，只保留域名的链接色用于区分。
+	color: color-mix(in srgb, var(--MI_THEME-link) 45%, var(--MI_THEME-fgTransparentWeak));
 }
 
 .icon {
@@ -76,26 +81,23 @@ const target = self ? null : '_blank';
 }
 
 .self {
-	font-weight: bold;
+	color: var(--MI_THEME-link);
 }
 
 .schema {
-	color: color(from currentcolor srgb r g b / 0.5); // DOMノード全体をopacityで半透明化するより文字色を半透明化した方が若干レンダリングパフォーマンスが良い
+	color: color-mix(in srgb, var(--MI_THEME-link) 30%, var(--MI_THEME-fgTransparentWeak));
 }
 
 .hostname {
-	font-weight: bold;
-}
-
-.pathname {
-	color: color(from currentcolor srgb r g b / 0.8); // DOMノード全体をopacityで半透明化するより文字色を半透明化した方が若干レンダリングパフォーマンスが良い
+	color: var(--MI_THEME-link);
 }
 
 .query {
-	color: color(from currentcolor srgb r g b / 0.5); // DOMノード全体をopacityで半透明化するより文字色を半透明化した方が若干レンダリングパフォーマンスが良い
+	color: color-mix(in srgb, var(--MI_THEME-link) 30%, var(--MI_THEME-fgTransparentWeak));
 }
 
 .hash {
+	color: color-mix(in srgb, var(--MI_THEME-link) 30%, var(--MI_THEME-fgTransparentWeak));
 	font-style: italic;
 }
 </style>

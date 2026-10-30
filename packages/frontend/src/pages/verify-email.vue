@@ -29,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div :class="$style.mainText">{{ i18n.ts.emailVerified }}</div>
 					<div>
 						<MkButton large rounded type="routerLink" to="/" linkBehavior="browser" style="margin: 0 auto;">
-							{{ i18n.ts.goToMisskey }}
+							{{ i18n.tsx.goToMisskey({ name: instanceName }) }}
 						</MkButton>
 					</div>
 				</div>
@@ -42,6 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { ref } from 'vue';
 import MkButton from '@/components/MkButton.vue';
+import { instanceName } from '@@/js/config.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -105,7 +106,7 @@ function submit() {
 	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 	overflow: clip;
 	width: 100%;
-	max-width: 500px;
+	max-width: var(--MI-narrowPageWidth);
 }
 
 .banner {

@@ -4,13 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" :class="$style.root">
-	<header :class="$style.header" class="_button" @click="showBody = !showBody">
-		<div :class="$style.title"><div><slot name="header"></slot></div></div>
-		<div :class="$style.divider"></div>
-		<button class="_button" :class="$style.button">
-			<template v-if="showBody"><i class="ti ti-chevron-up"></i></template>
-			<template v-else><i class="ti ti-chevron-down"></i></template>
+<div ref="rootEl" :class="$style.root" :data-expanded="showBody">
+	<header :class="$style.header" class="_button" data-foldable-section-header @click="showBody = !showBody">
+		<div :id="titleId" :class="$style.title" data-foldable-section-title><div><slot name="header"></slot></div></div>
+		<div :class="$style.divider" data-foldable-section-divider></div>
+		<button type="button" class="_button" :class="$style.button" data-foldable-section-toggle :aria-expanded="showBody" :aria-controls="bodyId" :aria-labelledby="titleId">
+			<i v-if="showBody" class="ti ti-chevron-up" aria-hidden="true"></i>
+			<i v-else class="ti ti-chevron-down" aria-hidden="true"></i>
 		</button>
 	</header>
 	<Transition
@@ -19,9 +19,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:enterFromClass="prefer.s.animation ? $style.folderToggleEnterFrom : ''"
 		:leaveToClass="prefer.s.animation ? $style.folderToggleLeaveTo : ''"
 	>
-		<div v-show="showBody" :class="$style.body">
-			<div :class="$style.bodyInner">
-				<div :class="$style.bodyPadding">
+		<div v-show="showBody" :id="bodyId" :class="$style.body" data-foldable-section-body>
+			<div :class="$style.bodyInner" data-foldable-section-body-inner>
+				<div :class="$style.bodyPadding" data-foldable-section-body-padding>
 					<slot></slot>
 				</div>
 			</div>
@@ -36,6 +36,7 @@ import { miLocalStorage } from '@/local-storage.js';
 import { prefer } from '@/preferences.js';
 import { themeManager } from '@/theme.js';
 import { getBgColor } from '@/utility/get-bg-color.js';
+import { genId } from '@/utility/id.js';
 
 const miLocalStoragePrefix = 'ui:folder:' as const;
 
@@ -48,6 +49,8 @@ const props = withDefaults(defineProps<{
 });
 
 const rootEl = useTemplateRef('rootEl');
+const titleId = `foldable-title-${genId()}`;
+const bodyId = `foldable-body-${genId()}`;
 const parentBg = ref<string | null>(null);
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const showBody = ref((props.persistKey && miLocalStorage.getItem(`${miLocalStoragePrefix}${props.persistKey}`)) ? (miLocalStorage.getItem(`${miLocalStoragePrefix}${props.persistKey}`) === 't') : props.expanded);

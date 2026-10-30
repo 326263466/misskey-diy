@@ -4,6 +4,7 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
 import type { UserListsRepository } from '@/models/_.js';
 import { IdService } from '@/core/IdService.js';
 import type { MiUserList } from '@/models/UserList.js';
@@ -42,7 +43,7 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		name: { type: 'string', minLength: 1, maxLength: 100 },
+		name: { type: 'string', minLength: 1, maxLength: CONTENT_LIMITS.collectionName },
 	},
 	required: ['name'],
 } as const;

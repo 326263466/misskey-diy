@@ -5,215 +5,91 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div ref="rootEl">
-	<MkLoading v-if="fetching"/>
-	<div v-else>
-		<canvas ref="chartEl"></canvas>
+	<MkLoading v-if="rows == null"/>
+	<div v-else :class="$style.canvas" :style="{ height: `${rows.length * 26 + 40}px` }">
+		<MkEChart :option="option" :ariaLabel="i18n.ts._dashboard.retentionRate"/>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, nextTick, useTemplateRef, ref } from 'vue';
-import { Chart } from 'chart.js';
+import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef } from 'vue';
+import MkEChart from '@/components/MkEChart.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { store } from '@/store.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
-import { alpha } from '@/utility/color.js';
-import { initChart } from '@/utility/init-chart.js';
+import { chartColors } from '@/utility/echarts.js';
 import { formatChartDate } from '@/utility/chart-date.js';
-import { i18n } from '@/i18n.js';
 import { dateOnly } from '@/filters/date.js';
-import { themeManager } from '@/theme.js';
+import { i18n } from '@/i18n.js';
 
-initChart();
+type Row = { createdAt: string; users: number; retained: number[] };
 
 const rootEl = useTemplateRef('rootEl');
-const chartEl = useTemplateRef('chartEl');
-let chartInstance: Chart | null = null;
-const fetching = ref(true);
+const rows = shallowRef<Row[] | null>(null);
+const maxDays = ref(7);
+let disposed = false;
 
-const { handler: externalTooltipHandler } = useChartTooltip({
-	position: 'middle',
+// 每行是一批注册日的用户，第 n 列是注册后第 n 天仍活跃的比例；格子越深留存越高。
+const option = computed(() => {
+	const c = chartColors.value;
+	const list = rows.value ?? [];
+	const data = list.flatMap((row, y) => row.retained.slice(0, maxDays.value).map((count, index) => ({
+		value: [index, y, row.users === 0 ? 0 : count / row.users],
+		count, row,
+		day: index + 1,
+	})));
+	return {
+		grid: { left: 4, right: 4, top: 24, bottom: 4, outerBoundsMode: 'same', outerBoundsContain: 'axisLabel' },
+		tooltip: {
+			trigger: 'item',
+			formatter: ({ data: d }: { data: (typeof data)[number] }) => {
+				const date = new Date(new Date(d.row.createdAt).getTime() + d.day * 86400000);
+				const rate = d.row.users === 0 ? '-' : `${Math.round(d.value[2] * 100)}%`;
+				return `${dateOnly(date)}<br>${i18n.tsx._dashboard.nDaysLater({ n: d.day })}<br>${i18n.ts._dashboard.retained}: <b>${d.count}</b> (${rate})`;
+			},
+		},
+		xAxis: {
+			type: 'category', position: 'top', name: i18n.ts._dashboard.daysLater, nameLocation: 'middle', nameGap: 20,
+			nameTextStyle: { color: c.weak, fontSize: 11 },
+			data: Array.from({ length: maxDays.value }, (_, index) => index + 1),
+			axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
+			axisLabel: { color: c.weak, fontSize: 11 },
+		},
+		yAxis: {
+			type: 'category', inverse: true, data: list.map(row => formatChartDate(new Date(row.createdAt).getTime())),
+			axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
+			axisLabel: { color: c.weak, fontSize: 11 },
+		},
+		visualMap: {
+			show: false, type: 'continuous', dimension: 2, min: 0, max: 1,
+			inRange: { color: [c.fade(c.accent, 0.08), c.accent] },
+		},
+		series: [{
+			type: 'heatmap', data,
+			itemStyle: { borderColor: c.panel, borderWidth: 3, borderRadius: 4 },
+			emphasis: { itemStyle: { borderColor: c.fg, borderWidth: 1 } },
+		}],
+	};
 });
 
-async function renderChart() {
-	if (rootEl.value == null) return;
-	if (chartInstance) {
-		chartInstance.destroy();
-	}
-
-	const wide = rootEl.value.offsetWidth > 600;
-	const narrow = rootEl.value.offsetWidth < 400;
-
-	const maxDays = wide ? 10 : narrow ? 5 : 7;
-
-	let raw = await misskeyApi('retention', { });
-
-	raw = raw.slice(0, maxDays + 1);
-
-	const data: {
-		x: number;
-		y: string;
-		v: number;
-	}[] = [];
-
-	for (const record of raw) {
-		data.push({
-			x: 0,
-			y: record.createdAt,
-			v: record.users,
-		});
-
-		let i = 1;
-		for (const date of Object.keys(record.data).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())) {
-			data.push({
-				x: i,
-				y: record.createdAt,
-				v: record.data[date],
-			});
-			i++;
-		}
-	}
-
-	fetching.value = false;
-
-	await nextTick();
-
-	const color = () => themeManager.currentCompiledTheme?.chartAccent ?? (store.s.darkMode ? '#b4e900' : '#86b300');
-
-	const max = (createdAt: string) => raw.find(x => x.createdAt === createdAt)!.users;
-
-	const marginEachCell = 12;
-
-	if (chartEl.value == null) return;
-
-	chartInstance = new Chart(chartEl.value, {
-		type: 'matrix',
-		data: {
-			datasets: [{
-				label: i18n.ts._dashboard.retained,
-				data: data as any,
-				borderWidth: 0,
-				borderRadius: 3,
-				backgroundColor(c: any) {
-					if (c.type !== 'data') return 'transparent';
-					const v = c.dataset.data[c.dataIndex] as unknown as typeof data[0];
-					if (v == null) return 'transparent';
-					const value = v.v;
-					const m = max(v.y);
-					if (m === 0) {
-						return alpha(color(), 0);
-					} else {
-						const a = value / m;
-						return alpha(color(), a);
-					}
-				},
-				width(c) {
-					const a = c.chart.chartArea ?? {};
-					return (a.right - a.left) / maxDays - marginEachCell;
-				},
-				height(c) {
-					const a = c.chart.chartArea ?? {};
-					return (a.bottom - a.top) / maxDays - (marginEachCell / 1.5);
-				},
-			}],
-		},
-		options: {
-			aspectRatio: wide ? 2 : narrow ? 2 : 2,
-			layout: {
-				padding: {
-					left: 8,
-					right: 0,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					position: 'top',
-					suggestedMax: maxDays,
-					grid: {
-						display: false,
-					},
-					ticks: {
-						display: true,
-						padding: 0,
-						maxRotation: 0,
-						autoSkipPadding: 0,
-						autoSkip: false,
-						callback: (value, index, values) => value,
-					},
-					title: {
-						display: true,
-						text: i18n.ts._dashboard.daysLater,
-					},
-				},
-				y: {
-					type: 'time',
-					offset: true,
-					reverse: true,
-					position: 'left',
-					time: {
-						unit: 'day',
-						round: 'day',
-					},
-					grid: {
-						display: false,
-					},
-					ticks: {
-						maxRotation: 0,
-						autoSkip: true,
-						padding: 1,
-						font: {
-							size: 9,
-						},
-						callback: value => formatChartDate(value),
-					},
-				},
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					callbacks: {
-						title(context) {
-							const v = context[0].dataset.data[context[0].dataIndex] as unknown as typeof data[0];
-							return dateOnly(new Date(new Date(v.y).getTime() + (v.x * 86400000)));
-						},
-						label(context) {
-							const v = context.dataset.data[context.dataIndex] as unknown as typeof data[0];
-							const m = max(v.y);
-							if (m === 0) {
-								return [`${i18n.ts._dashboard.retained}: ${v.v} (-%)`];
-							} else {
-								return [`${i18n.ts._dashboard.retained}: ${v.v} (${Math.round((v.v / m) * 100)}%)`];
-							}
-						},
-					},
-					//mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					external: externalTooltipHandler,
-				},
-			},
-		},
-	});
-}
-
-function updateThemeColor() {
-	chartInstance?.update('none');
-}
-
-onMounted(() => {
-	themeManager.on('themeChanging', updateThemeColor);
-	renderChart();
+onMounted(async () => {
+	const width = rootEl.value?.offsetWidth ?? 0;
+	maxDays.value = width > 600 ? 10 : width < 400 ? 5 : 7;
+	const raw = await misskeyApi('retention', {});
+	if (disposed) return;
+	rows.value = raw.slice(0, maxDays.value + 1).map(record => ({
+		createdAt: record.createdAt,
+		users: record.users,
+		retained: Object.keys(record.data).sort((a, b) => new Date(a).getTime() - new Date(b).getTime()).map(date => record.data[date]),
+	}));
 });
 
 onUnmounted(() => {
-	themeManager.off('themeChanging', updateThemeColor);
-	chartInstance?.destroy();
+	disposed = true;
 });
 </script>
+
+<style lang="scss" module>
+.canvas {
+	min-width: 0;
+}
+</style>

@@ -39,7 +39,7 @@ function toolsMenuItems(): MenuItem[] {
 	}, {
 		type: 'link',
 		to: '/clicker',
-		text: '🍪👈',
+		text: i18n.ts.cookieClicker,
 		icon: 'ti ti-cookie',
 	}];
 

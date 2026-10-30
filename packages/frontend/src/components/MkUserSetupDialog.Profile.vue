@@ -41,7 +41,7 @@ import FormSlot from '@/components/form/slot.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import * as os from '@/os.js';
 import { ensureSignin } from '@/i.js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 
 const $i = ensureSignin();
 
@@ -101,7 +101,7 @@ async function setAvatar(ev: PointerEvent) {
 	const i = await os.apiWithDialog('i/update', {
 		avatarId: driveFile.id,
 	});
-	updateCurrentAccountPartial({
+	updateCurrentAccount({
 		avatarId: i.avatarId,
 		avatarUrl: i.avatarUrl,
 		avatarBlurhash: i.avatarBlurhash,

@@ -5,7 +5,31 @@
 
 import type { EntityManager, Repository } from 'typeorm';
 import { MiNote } from '@/models/Note.js';
+import type { MiBlocking } from '@/models/Blocking.js';
 import type { GlobalEventService } from '@/core/GlobalEventService.js';
+import type { Packed } from '@/misc/json-schema.js';
+
+export async function pruneBlockedNoteRelations(notes: Packed<'Note'>[], blockingsRepository: Repository<MiBlocking>, meId: string): Promise<void> {
+	if (notes.length === 0) return;
+	const blockings = await blockingsRepository.find({
+		where: [{ blockerId: meId }, { blockeeId: meId }],
+		select: { blockerId: true, blockeeId: true },
+	});
+	if (blockings.length === 0) return;
+	const blockedUserIds = new Set(blockings.map(blocking => blocking.blockerId === meId ? blocking.blockeeId : blocking.blockerId));
+
+	// 只裁剪关联内容，保留 SQL 筛选后的顶层条数和分页游标。
+	function prune(note: Packed<'Note'>): void {
+		for (const relation of ['reply', 'renote'] as const) {
+			const relatedNote = note[relation];
+			if (relatedNote == null) continue;
+			if (blockedUserIds.has(relatedNote.userId)) note[relation] = null;
+			else prune(relatedNote);
+		}
+	}
+
+	for (const note of notes) prune(note);
+}
 
 export async function getNoteReplyAncestors(notesRepository: Repository<MiNote>, replyId: string): Promise<MiNote[]> {
 	const rows = await notesRepository.query<MiNote[]>(`

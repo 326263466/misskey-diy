@@ -8,6 +8,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { MetricsTime, type JobType } from 'bullmq';
 import type { IActivity } from '@/core/activitypub/type.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
+import type { MiAnnouncement } from '@/models/Announcement.js';
 import type { MiWebhook, WebhookEventTypes } from '@/models/Webhook.js';
 import type { MiSystemWebhook, SystemWebhookEventType } from '@/models/SystemWebhook.js';
 import type { Config } from '@/config.js';
@@ -20,6 +21,7 @@ import type { Packed } from '@/misc/json-schema.js';
 import { type UserWebhookPayload } from './UserWebhookService.js';
 import type {
 	DbJobData,
+	ArchiveAnnouncementJobData,
 	DeliverJobData,
 	RelationshipJobData,
 	SystemWebhookDeliverJobData,
@@ -115,6 +117,10 @@ export class QueueService {
 		@Inject('queue:userWebhookDeliver') public userWebhookDeliverQueue: UserWebhookDeliverQueue,
 		@Inject('queue:systemWebhookDeliver') public systemWebhookDeliverQueue: SystemWebhookDeliverQueue,
 	) {
+		const searchSync = {
+			name: 'syncSearchIndex',
+			every: config.fulltextSearch.provider === 'meilisearch' ? 5000 : 60000,
+		};
 		for (const def of REPEATABLE_SYSTEM_JOB_DEF) {
 			this.systemQueue.upsertJobScheduler(def.name, {
 				pattern: def.pattern,
@@ -132,11 +138,20 @@ export class QueueService {
 				},
 			});
 		}
+		this.systemQueue.upsertJobScheduler(searchSync.name, { every: searchSync.every }, {
+			name: searchSync.name,
+			opts: {
+				attempts: 3,
+				backoff: { type: 'exponential', delay: 10000 },
+				removeOnComplete: true,
+				removeOnFail: { age: 3600 * 24 * 7 },
+			},
+		});
 
 		// 古いバージョンで作成され現在使われなくなったrepeatableジョブをクリーンアップ
 		this.systemQueue.getJobSchedulers().then(schedulers => {
 			for (const scheduler of schedulers) {
-				if (!REPEATABLE_SYSTEM_JOB_DEF.some(def => def.name === scheduler.key)) {
+				if (scheduler.key !== searchSync.name && !REPEATABLE_SYSTEM_JOB_DEF.some(def => def.name === scheduler.key)) {
 					this.systemQueue.removeJobScheduler(scheduler.key);
 				}
 			}
@@ -245,6 +260,42 @@ export class QueueService {
 				count: 100,
 			},
 		});
+	}
+
+	private announcementArchiveJobId(announcementId: MiAnnouncement['id'], autoArchiveAt: Date): string {
+		return `archiveAnnouncement-${announcementId}-${autoArchiveAt.getTime()}`;
+	}
+
+	@bindThis
+	public async scheduleAnnouncementArchive(announcementId: MiAnnouncement['id'], autoArchiveAt: Date): Promise<void> {
+		const jobId = this.announcementArchiveJobId(announcementId, autoArchiveAt);
+		const existingJob = await this.systemQueue.getJob(jobId);
+		if (existingJob != null) {
+			const state = await existingJob.getState();
+			if (state !== 'completed' && state !== 'failed') return;
+			await this.systemQueue.remove(jobId);
+		}
+
+		const data: ArchiveAnnouncementJobData = {
+			announcementId,
+			autoArchiveAt: autoArchiveAt.getTime(),
+		};
+
+		await this.systemQueue.add('archiveAnnouncement', data, {
+			jobId,
+			delay: Math.max(0, autoArchiveAt.getTime() - Date.now()),
+			removeOnComplete: {
+				age: 3600 * 24 * 7, // keep up to 7 days
+			},
+			removeOnFail: {
+				age: 3600 * 24 * 7, // keep up to 7 days
+			},
+		});
+	}
+
+	@bindThis
+	public async clearAnnouncementArchive(announcementId: MiAnnouncement['id'], autoArchiveAt: Date): Promise<void> {
+		await this.systemQueue.remove(this.announcementArchiveJobId(announcementId, autoArchiveAt));
 	}
 
 	@bindThis
@@ -785,12 +836,17 @@ export class QueueService {
 	public async queueRetryJob(queueType: typeof QUEUE_TYPES[number], jobId: string) {
 		const queue = this.getQueue(queueType);
 		const job = await queue.getJob(jobId);
-		if (job != null) {
-			if (job.finishedOn != null) {
-				await job.retry();
-			} else {
-				await job.promote();
-			}
+		if (job == null) {
+			throw new Error(`Job not found: ${jobId}`);
+		}
+
+		const state = await job.getState();
+		if (state === 'failed' || state === 'completed') {
+			await job.retry(state);
+		} else if (state === 'delayed') {
+			await job.promote();
+		} else {
+			throw new Error(`Job ${jobId} cannot be retried from the ${state} state`);
 		}
 	}
 

@@ -22,6 +22,10 @@ function hasValidTimestamp(entry: CachedTrend, now: number): boolean {
 	return Number.isFinite(entry.fetchedAt) && now >= entry.fetchedAt;
 }
 
+function isCount(n: unknown): n is number {
+	return typeof n === 'number' && Number.isFinite(n) && n >= 0;
+}
+
 function normalizeStats(input: unknown): Misskey.entities.HashtagsTrendResponse {
 	if (!Array.isArray(input)) return [];
 	const result: Misskey.entities.HashtagsTrendResponse = [];
@@ -29,9 +33,9 @@ function normalizeStats(input: unknown): Misskey.entities.HashtagsTrendResponse 
 	for (const entry of input) {
 		if (entry == null || typeof entry !== 'object') continue;
 		if (typeof entry.tag !== 'string' || entry.tag.length === 0 || seen.has(entry.tag)) continue;
-		if (typeof entry.usersCount !== 'number' || !Number.isFinite(entry.usersCount) || entry.usersCount < 0) continue;
-		if (!Array.isArray(entry.chart) || !entry.chart.every((n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0)) continue;
-		result.push({ tag: entry.tag, usersCount: entry.usersCount, chart: entry.chart.slice(-20) });
+		if (!isCount(entry.usersCount) || !isCount(entry.totalUsersCount)) continue;
+		if (!Array.isArray(entry.chart) || !entry.chart.every(isCount)) continue;
+		result.push({ tag: entry.tag, usersCount: entry.usersCount, totalUsersCount: entry.totalUsersCount, chart: entry.chart.slice(-20) });
 		seen.add(entry.tag);
 		if (result.length === MAX_TRENDS) break;
 	}
@@ -60,7 +64,7 @@ export function readTrendsCache(now = Date.now()): TrendsSnapshot | null {
 		const stored = miLocalStorage.getItem('trendsCache');
 		if (stored == null) return null;
 		const parsed = JSON.parse(stored);
-		if (parsed?.version !== 2 || parsed.origin !== local || !Array.isArray(parsed.entries)) return null;
+		if (parsed?.version !== 3 || parsed.origin !== local || !Array.isArray(parsed.entries)) return null;
 		const entries: CachedTrend[] = [];
 		const seen = new Set<string>();
 		for (const item of parsed.entries) {
@@ -84,7 +88,7 @@ export function saveTrendsCache(snapshot: TrendsSnapshot): void {
 		if (snapshot.entries.length === 0) {
 			miLocalStorage.removeItem('trendsCache');
 		} else {
-			miLocalStorage.setItem('trendsCache', JSON.stringify({ version: 2, origin: local, ...snapshot }));
+			miLocalStorage.setItem('trendsCache', JSON.stringify({ version: 3, origin: local, ...snapshot }));
 		}
 	} catch {
 		// A disabled or full storage must not prevent showing the fetched trends.

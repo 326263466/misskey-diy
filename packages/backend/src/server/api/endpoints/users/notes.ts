@@ -92,10 +92,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.withReplies && ps.withFiles) throw new ApiError(meta.errors.bothWithRepliesAndWithFiles);
 
-			// early return if me is blocked by requesting user
+			// 双方存在拉黑关系时不显示对方的内容
 			if (me != null) {
-				const userIdsWhoBlockingMe = await this.cacheService.userBlockedCache.fetch(me.id);
-				if (userIdsWhoBlockingMe.has(ps.userId)) {
+				const blockedUserIds = await this.cacheService.getBlockedUserIds(me.id);
+				if (blockedUserIds.has(ps.userId)) {
 					return [];
 				}
 			}

@@ -4,6 +4,7 @@
  */
 
 import { Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
 import { TipService } from '@/core/TipService.js';
 import { WALLET_REQUEST_ID_PATTERN, WalletService } from '@/core/WalletService.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
@@ -35,7 +36,7 @@ export const paramDef = {
 	properties: {
 		userId: { type: 'string', format: 'misskey:id' },
 		amount: { type: 'number', minimum: 1, maximum: 1000 },
-		message: { type: 'string', maxLength: 100, default: '' },
+		message: { type: 'string', maxLength: CONTENT_LIMITS.tipMessage, default: '' },
 		requestId: { type: 'string', pattern: WALLET_REQUEST_ID_PATTERN },
 	},
 	required: ['userId', 'amount', 'requestId'],

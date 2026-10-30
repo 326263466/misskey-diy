@@ -4,17 +4,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :contentCard="tab !== 'featured'" :tabs="narrow ? headerTabs : []" :swipable="true">
-	<div v-if="tab === 'featured'" data-page-body>
-		<XFeatured/>
-	</div>
-	<XUsers v-else-if="tab === 'users'"/>
-	<XRoles v-else-if="tab === 'roles'"/>
+<PageWithHeader v-model:tab="tab" :contentCard="tab !== 'featured'" :tabs="narrow ? headerTabs : []" :hideHeader="!narrow" hideTitle :swipable="true">
+	<KeepAlive :max="prefer.s.numberOfPageCache">
+		<TabPage :key="tab" :component="currentComponent" :identity="tab" :isSelected="isTabSelected"/>
+	</KeepAlive>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, ref } from 'vue';
+import { computed, inject, KeepAlive, ref } from 'vue';
 import XFeatured from './explore.featured.vue';
 import XUsers from './explore.users.vue';
 import XRoles from './explore.roles.vue';
@@ -22,13 +20,15 @@ import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { useRouter } from '@/router.js';
 import { DI } from '@/di.js';
+import { prefer } from '@/preferences.js';
+import { TabPage } from '@/composables/use-tab-page.js';
 
 const props = defineProps<{
 	initialTab?: string;
 }>();
 
 const router = useRouter();
-// 不在左侧菜单布局内使用时保留顶部标签
+// 不在左侧菜单布局内使用时保留顶部标签；宽屏时左侧菜单已说明当前位置，不显示重复的标题栏
 const narrow = inject(DI.pageNavigationNarrow, ref(true));
 
 const tab = computed<'featured' | 'users' | 'roles'>({
@@ -38,6 +38,8 @@ const tab = computed<'featured' | 'users' | 'roles'>({
 		else router.push('/explore/:initialTab?', { params: { initialTab: value } });
 	},
 });
+const currentComponent = computed(() => ({ featured: XFeatured, users: XUsers, roles: XRoles })[tab.value]);
+const isTabSelected = (identity: string) => identity === tab.value;
 
 const headerTabs = computed(() => [{
 	key: 'featured',

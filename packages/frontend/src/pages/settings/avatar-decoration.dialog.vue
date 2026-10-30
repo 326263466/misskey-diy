@@ -63,6 +63,7 @@ const props = defineProps<{
 		url: string;
 		name: string;
 		roleIdsThatCanBeUsedThisDecoration: string[];
+		scale?: number;
 	};
 }>();
 
@@ -96,11 +97,11 @@ const decorationsForPreview = computed(() => {
 	const decoration = {
 		id: props.decoration.id,
 		url: props.decoration.url,
+		scale: props.decoration.scale,
 		angle: angle.value,
 		flipH: flipH.value,
 		offsetX: offsetX.value,
 		offsetY: offsetY.value,
-		blink: true,
 	};
 	const decorations = [...$i.avatarDecorations];
 	if (props.usingIndex != null) {

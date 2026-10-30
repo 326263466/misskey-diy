@@ -1,0 +1,41 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+// 输入框悬停和聚焦时保持底色；多行输入仅保留聚焦描边，校验失败显示错误描边。
+// 透明边框常驻，状态切换只换颜色，避免 1px 位移。颜色变量见 style.scss 的 --MI-input*。
+
+@mixin states {
+	border: 1px solid transparent;
+	background: var(--MI-inputFill);
+	transition: border-color .1s ease-out, background-color .1s ease-out;
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
+}
+
+// 直接作用于 input / textarea。
+@mixin field {
+	@include states;
+	outline: none;
+
+	&:where(textarea):focus {
+		border-color: var(--MI-inputFocusBorder);
+	}
+
+	&:user-invalid,
+	&[aria-invalid='true'] {
+		border-color: var(--MI-inputErrorBorder);
+	}
+}
+
+// 作用于包住输入框的容器，例如带图标或按钮的搜索框。
+@mixin field-within {
+	@include states;
+
+	&:has(:user-invalid, [aria-invalid='true']) {
+		border-color: var(--MI-inputErrorBorder);
+	}
+}

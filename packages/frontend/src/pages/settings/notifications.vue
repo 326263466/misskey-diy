@@ -86,7 +86,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { useTemplateRef, computed, ref, markRaw } from 'vue';
+import { useTemplateRef, computed, markRaw } from 'vue';
 import { notificationTypes } from 'misskey-js';
 import * as Misskey from 'misskey-js';
 import XNotificationConfig from './notifications.notification-config.vue';
@@ -121,7 +121,8 @@ async function showNotifyMenu(user: Misskey.entities.UserDetailed, ev: PointerEv
 				notify: user.notify === 'normal' ? 'none' : 'normal',
 			}).then(() => {
 				user.notify = user.notify === 'normal' ? 'none' : 'normal';
-			});
+				os.toast(i18n.ts.saved, 'success');
+			}, () => {}); // 失败提示由 apiWithDialog 处理
 		},
 	}], ev.currentTarget ?? ev.target);
 }
@@ -145,7 +146,10 @@ const sendReadMessage = computed(() => pushRegistrationInServer.value?.sendReadM
 const userLists = await misskeyApi('users/lists/list');
 
 async function readAllNotifications() {
-	await os.apiWithDialog('notifications/mark-all-as-read', {});
+	// 失败提示由 apiWithDialog 处理
+	await os.apiWithDialog('notifications/mark-all-as-read', {}).then(() => {
+		os.toast(i18n.ts.allMarkedAsRead, 'success');
+	}, () => {});
 }
 
 async function updateReceiveConfig(type: typeof notificationTypes[number], value: NotificationConfig) {
@@ -156,23 +160,25 @@ async function updateReceiveConfig(type: typeof notificationTypes[number], value
 		},
 	}).then(i => {
 		$i.notificationRecieveConfig = i.notificationRecieveConfig;
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function onChangeSendReadMessage(v: boolean) {
 	if (!pushRegistrationInServer.value) return;
 
-	os.apiWithDialog('sw/update-registration', {
+	misskeyApi('sw/update-registration', {
 		endpoint: pushRegistrationInServer.value.endpoint,
 		sendReadMessage: v,
 	}).then(res => {
 		if (!allowButton.value)	return;
 		allowButton.value.pushRegistrationInServer = res;
-	});
+	}, () => {});
 }
 
 function testNotification(): void {
-	misskeyApi('notifications/test-notification');
+	// 收到测试通知即为成功反馈，失败提示由 apiWithDialog 处理
+	os.apiWithDialog('notifications/test-notification', {}).catch(() => {});
 }
 
 async function flushNotification() {
@@ -183,12 +189,11 @@ async function flushNotification() {
 
 	if (canceled) return;
 
-	os.apiWithDialog('notifications/flush', {});
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('notifications/flush', {}).then(() => {
+		os.toast(i18n.ts.cleared, 'success');
+	}, () => {});
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.notifications,

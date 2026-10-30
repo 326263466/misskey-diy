@@ -4,20 +4,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_selectable">
+<div class="_selectable _formField">
 	<div :id="`${id}-label`" :class="$style.label" @click="focus"><slot name="label"></slot></div>
-	<div :class="[$style.input, { [$style.inline]: inline, [$style.disabled]: disabled, [$style.focused]: focused }]" @mouseleave="onLeave">
-		<div ref="prefixEl" :class="$style.prefix"><slot name="prefix"></slot></div>
+	<div :class="[$style.input, { [$style.search]: type === 'search', [$style.inline]: inline, [$style.disabled]: disabled, [$style.focused]: focused }]">
+		<div ref="prefixEl" :class="$style.prefix"><slot name="prefix"><i v-if="type === 'search'" class="ti ti-search" aria-hidden="true"></i></slot></div>
 		<input
 			ref="inputEl"
 			v-model="displayValue"
-			v-adaptive-border
 			:class="$style.inputCore"
 			:type="pickerType ? 'text' : type"
 			:disabled="disabled"
 			:required="required"
 			:readonly="readonly || pickerType != null"
-			:aria-label="pickerType && !$slots.label ? i18n.ts._datePicker.title : undefined"
+			:aria-label="!$slots.label ? pickerType ? i18n.ts._datePicker.title : type === 'search' ? placeholder || i18n.ts.search : undefined : undefined"
+			:enterkeyhint="type === 'search' ? 'search' : undefined"
 			:aria-expanded="pickerType ? pickerOpen : undefined"
 			:aria-haspopup="pickerType ? 'dialog' : undefined"
 			:placeholder="placeholder"
@@ -34,9 +34,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:max="max"
 			@click="openPicker"
 			@focus="focused = true"
-			@blur="onBlur"
+			@blur="focused = false"
 			@compositionstart="composing = true"
-			@compositionend="onCompositionEnd"
+			@compositionend="composing = false"
 			@keydown="onKeydown($event)"
 			@input="onInput"
 		>
@@ -54,7 +54,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</Teleport>
 	<div :class="$style.caption"><slot name="caption"></slot></div>
 
-	<MkButton v-if="manualSave && !saveOnLeave && changed" primary :class="$style.save" @click="updated"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
+	<MkButton v-if="manualSave && changed" primary :class="$style.save" :disabled="overLimit" @click="updated"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 </div>
 </template>
 
@@ -106,7 +106,6 @@ const props = defineProps<{
 	debounce?: boolean | number;
 	throttle?: boolean | number;
 	manualSave?: boolean;
-	saveOnLeave?: (value: ModelValueType<T>) => Promise<void>;
 	small?: boolean;
 	large?: boolean;
 }>();
@@ -122,9 +121,10 @@ const emit = defineEmits<{
 const { modelValue } = toRefs(props);
 const v = ref<ModelValueType<T> | null>(modelValue.value);
 const textLength = computed(() => Array.from(String(v.value ?? '')).length);
+// 计数只给需要用户掌握篇幅的文本内容；maxLength 只做输入限制。搜索、网址、密码等不计数。
 const counterLimit = computed(() => {
-	const limit = props.counterMaxLength ?? props.maxLength;
-	return ['text', 'password', 'email', 'url', 'tel', 'search'].includes(props.type ?? 'text')
+	const limit = props.counterMaxLength;
+	return (props.type ?? 'text') === 'text'
 		&& limit != null && Number.isInteger(limit) && limit >= 0 ? limit : null;
 });
 const id = genId();
@@ -172,12 +172,7 @@ watch(() => props.disabled || props.readonly, locked => {
 
 const changed = ref(false);
 const composing = ref(false);
-let saveAfterComposition = false;
-let savingOnLeave = false;
-let saveAfterPending = false;
-let retrySave = false;
 const invalid = ref(false);
-const filled = computed(() => v.value !== '' && v.value != null);
 // MFM 内容需要和预览使用相同的自定义表情图案；其他输入类型（尤其是密码框）必须保留原生显示
 const emojiOverlay = computed(() => !!props.mfmAutocomplete && (props.type == null || props.type === 'text'));
 const inputEl = useTemplateRef('inputEl');
@@ -186,6 +181,7 @@ const suffixEl = useTemplateRef('suffixEl');
 const height =
 	props.small ? 33 :
 	props.large ? 39 :
+	props.type === 'search' ? 40 :
 	36;
 let autocompleteWorker: Autocomplete | null = null;
 
@@ -195,7 +191,13 @@ const onInput = (event: InputEvent) => {
 	emit('change', event);
 };
 const onKeydown = (ev: KeyboardEvent) => {
-	if (composing.value || ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
+	if (composing.value || ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) {
+		if (props.type === 'search' && (ev.key === 'Enter' || ev.code === 'Enter')) {
+			ev.preventDefault();
+			ev.stopPropagation();
+		}
+		return;
+	}
 	if (pickerOpen.value && ev.key === 'Escape') {
 		ev.preventDefault();
 		ev.stopPropagation();
@@ -209,14 +211,13 @@ const onKeydown = (ev: KeyboardEvent) => {
 		return;
 	}
 
+	if (props.type === 'search' && (ev.key === 'Enter' || ev.code === 'Enter')) {
+		ev.preventDefault();
+		ev.stopPropagation();
+	}
 	emit('keydown', ev);
 
 	if (ev.key === 'Enter' || ev.code === 'Enter') {
-		if (props.saveOnLeave) {
-			ev.preventDefault();
-			void onLeave();
-			inputEl.value?.blur();
-		}
 		emit('enter', ev);
 	}
 };
@@ -230,54 +231,7 @@ const updated = () => {
 		value = (v.value ?? '') as ModelValueType<T>;
 	}
 	emit('update:modelValue', value);
-	return value;
 };
-
-async function onLeave(): Promise<void> {
-	if (!props.saveOnLeave || props.disabled || props.readonly || !changed.value) return;
-	if (composing.value) {
-		saveAfterComposition = true;
-		return;
-	}
-	if (savingOnLeave) {
-		saveAfterPending = true;
-		return;
-	}
-	if (!retrySave && v.value === modelValue.value) {
-		changed.value = false;
-		return;
-	}
-	if (inputEl.value && !inputEl.value.validity.valid) return;
-	const value = updated();
-	savingOnLeave = true;
-	retrySave = false;
-	try {
-		await props.saveOnLeave(value);
-	} catch {
-		changed.value = true;
-		retrySave = true;
-	} finally {
-		savingOnLeave = false;
-		if (saveAfterPending) {
-			saveAfterPending = false;
-			void onLeave();
-		}
-	}
-}
-
-function onBlur(): void {
-	focused.value = false;
-	void onLeave();
-}
-
-async function onCompositionEnd(): Promise<void> {
-	composing.value = false;
-	await nextTick();
-	if (saveAfterComposition) {
-		saveAfterComposition = false;
-		void onLeave();
-	}
-}
 
 const throttledUpdated = throttle(typeof props.throttle === 'number' ? props.throttle : 1000, updated);
 const debouncedUpdated = debounce(typeof props.debounce === 'number' ? props.debounce : 1000, updated);
@@ -287,7 +241,7 @@ watch(modelValue, newValue => {
 });
 
 watch(v, () => {
-	if (!props.manualSave && !props.saveOnLeave) {
+	if (!props.manualSave) {
 		if (props.throttle === true || typeof props.throttle === 'number') {
 			throttledUpdated();
 		} else if (props.debounce === true || typeof props.debounce === 'number') {
@@ -300,8 +254,11 @@ watch(v, () => {
 	invalid.value = inputEl.value?.validity.badInput ?? true;
 }, { flush: 'sync' });
 
-watch([changed, invalid], ([newChanged, newInvalid]) => {
-	emit('savingStateChange', newChanged, newInvalid);
+// 超出计数上限视为无效，表单据此禁用保存；提示只靠计数变红，不额外插入文字。
+const overLimit = computed(() => counterLimit.value != null && textLength.value > counterLimit.value);
+
+watch([changed, invalid, overLimit], ([newChanged, newInvalid, newOverLimit]) => {
+	emit('savingStateChange', newChanged, newInvalid || newOverLimit);
 }, { immediate: true });
 
 // このコンポーネントが作成された時、非表示状態である場合がある
@@ -355,6 +312,9 @@ defineExpose({
 </script>
 
 <style lang="scss" module>
+@use '../styles/search.scss' as search;
+@use '../styles/input.scss' as input;
+
 .pickerPanel {
 	width: min(296px, calc(100vw - 32px));
 	margin: 0;
@@ -362,7 +322,7 @@ defineExpose({
 }
 
 .label {
-	font-size: 0.85em;
+	font-size: var(--MI-formLabelFontSize, 0.85em);
 	padding: 0 0 8px 0;
 	user-select: none;
 
@@ -372,7 +332,7 @@ defineExpose({
 }
 
 .caption {
-	font-size: 0.85em;
+	font-size: var(--MI-formCaptionFontSize, 0.85em);
 	padding: 8px 0 0 0;
 	color: var(--MI_THEME-fgTransparentWeak);
 
@@ -389,12 +349,6 @@ defineExpose({
 		margin: 0;
 	}
 
-	&.focused {
-		> .inputCore {
-			border-color: var(--MI_THEME-accent) !important;
-		}
-	}
-
 	&.disabled {
 		opacity: 0.7;
 
@@ -406,10 +360,11 @@ defineExpose({
 }
 
 .inputCore {
+	@include input.field;
 	appearance: none;
 	-webkit-appearance: none;
 	display: block;
-	height: v-bind("height + 'px'");
+	height: var(--MI-controlHeight, v-bind("height + 'px'"));
 	width: 100%;
 	margin: 0;
 	padding: 0 12px;
@@ -417,21 +372,37 @@ defineExpose({
 	font-weight: normal;
 	font-size: 1em;
 	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-bg);
-	border: solid 1px transparent;
-	border-radius: 6px;
+	border-radius: var(--MI-adminRadius, 6px);
 	outline: none;
 	box-shadow: none;
 	box-sizing: border-box;
-	transition: border-color 0.1s ease-out;
+}
 
-	&:hover {
-		border-color: var(--MI_THEME-inputBorderHover) !important;
+.input.search {
+	@include search.frame;
+	--MI-searchHeight: var(--MI-controlHeight, v-bind("height + 'px'"));
+
+	// 描边由外层 frame 负责，内层输入框聚焦时不再画第二道边框。
+	&.focused > .inputCore,
+	> .inputCore,
+	> .inputCore:focus {
+		@include search.input;
+		padding: 0 12px;
+		border-color: transparent !important;
 	}
 
-	&:focus {
-		border-color: var(--MI_THEME-accent) !important;
-		outline: none;
+	> .prefix,
+	> .suffix {
+		height: 100%;
+		color: var(--MI_THEME-fgTransparentWeak);
+	}
+
+	> .suffix {
+		padding-inline: 4px;
+	}
+
+	> .prefix {
+		padding-right: 8px;
 	}
 }
 
@@ -452,7 +423,7 @@ defineExpose({
 	top: 0;
 	padding: 0 12px;
 	font-size: 1em;
-	height: v-bind("height + 'px'");
+	height: var(--MI-controlHeight, v-bind("height + 'px'"));
 	min-width: 16px;
 	max-width: 150px;
 	overflow: hidden;

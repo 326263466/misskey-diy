@@ -39,7 +39,6 @@ export const Default = {
 	},
 	args: {
 		channel: channel(),
-		full: true,
 	},
 	async play({ canvasElement }) {
 		const canvas = within(canvasElement);
@@ -47,7 +46,7 @@ export const Default = {
 		await expect(buttonElement).toHaveTextContent(i18n.ts.follow);
 		await userEvent.click(buttonElement);
 		await sleep(1000);
-		await expect(buttonElement).toHaveTextContent(i18n.ts.unfollow);
+		await expect(buttonElement).toHaveTextContent(i18n.ts.youFollowing);
 		await userEvent.click(buttonElement);
 	},
 	parameters: {

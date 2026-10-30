@@ -35,6 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { onActivated, computed, ref } from 'vue';
+import { CONTENT_LIMITS } from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkAvatars from '@/components/MkAvatars.vue';
 import * as os from '@/os.js';
@@ -42,12 +43,14 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { userListsCache } from '@/cache.js';
 import { ensureSignin } from '@/i.js';
+import { usePageHistoryRestore } from '@/composables/use-page-history-restore.js';
 
 const $i = ensureSignin();
 
 const items = computed(() => userListsCache.value.value ?? []);
 const fetching = ref(false);
 const error = ref(false);
+const historyRestoring = usePageHistoryRestore();
 let requestId = 0;
 
 async function _fetch_() {
@@ -70,10 +73,11 @@ async function create() {
 	const { canceled, result: name } = await os.inputText({
 		title: i18n.ts.enterListName,
 		minLength: 1,
-		maxLength: 100,
+		maxLength: CONTENT_LIMITS.collectionName,
 	});
 	if (canceled || name == null) return;
 	await os.apiWithDialog('users/lists/create', { name: name });
+	os.toast(i18n.ts.created, 'success');
 	userListsCache.delete();
 	_fetch_();
 }
@@ -90,10 +94,13 @@ const headerActions = computed(() => [{
 
 definePage(() => ({
 	title: i18n.ts.manageLists,
-	icon: 'ti ti-list',
+	icon: 'ti ti-users-group',
 }));
 
-onActivated(_fetch_);
+onActivated(() => {
+	if (fetching.value || (historyRestoring.value && !error.value && items.value.length > 0)) return;
+	void _fetch_();
+});
 </script>
 
 <style lang="scss" module>

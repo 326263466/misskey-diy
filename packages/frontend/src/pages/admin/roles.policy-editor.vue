@@ -131,23 +131,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</XFolder>
 
-		<XFolder v-if="matchQuery([i18n.ts._role._options.canSearchNotes, 'canSearchNotes'])" v-model:policyMeta="policyMetaModel.canSearchNotes" :isBaseRole="isBaseRole" :readonly="readonly">
-			<template #label>{{ i18n.ts._role._options.canSearchNotes }}</template>
-			<template #valueText>{{ valuesModel.canSearchNotes ? i18n.ts.yes : i18n.ts.no }}</template>
+		<XFolder v-if="matchQuery([i18n.ts._role._options.searchableContent, ...searchOptions.flatMap(option => [option.label, option.key])])" v-model:policyMeta="searchPolicyMeta" :isBaseRole="isBaseRole" :readonly="readonly">
+			<template #label>{{ i18n.ts._role._options.searchableContent }}</template>
+			<template #valueText>{{ searchOptions.filter(option => selectedSearchPolicies.includes(option.key)).map(option => option.label).join(' / ') || i18n.ts.disabled }}</template>
 			<template #default="{ disabled }">
-				<MkSwitch v-model="valuesModel.canSearchNotes" :disabled="disabled">
-					<template #label>{{ i18n.ts.enable }}</template>
-				</MkSwitch>
-			</template>
-		</XFolder>
-
-		<XFolder v-if="matchQuery([i18n.ts._role._options.canSearchUsers, 'canSearchUsers'])" v-model:policyMeta="policyMetaModel.canSearchUsers" :isBaseRole="isBaseRole" :readonly="readonly">
-			<template #label>{{ i18n.ts._role._options.canSearchUsers }}</template>
-			<template #valueText>{{ valuesModel.canSearchUsers ? i18n.ts.yes : i18n.ts.no }}</template>
-			<template #default="{ disabled }">
-				<MkSwitch v-model="valuesModel.canSearchUsers" :disabled="disabled">
-					<template #label>{{ i18n.ts.enable }}</template>
-				</MkSwitch>
+				<div class="_gaps_s">
+					<div :class="$style.searchOptions" role="group" :aria-label="i18n.ts._role._options.searchableContent">
+						<label v-for="option in searchOptions" :key="option.key" :class="$style.searchOption">
+							<input v-model="selectedSearchPolicies" type="checkbox" :value="option.key" :disabled="disabled">
+							<span>{{ option.label }}</span>
+						</label>
+					</div>
+					<div class="_caption">{{ i18n.ts._role._options.searchableContentDescription }}</div>
+					<div v-if="!isBaseRole && searchPrioritiesMixed" class="_caption">{{ i18n.ts._role._options.searchableContentMixedPriority }}</div>
+				</div>
 			</template>
 		</XFolder>
 
@@ -465,6 +462,49 @@ watch(() => props.policiesMeta, () => {
 	policyMetaModel.value = setPolicyMeta(props.policiesMeta);
 }, { deep: true });
 
+const searchOptions = [
+	{ key: 'canSearchArticles', label: i18n.ts._article.article },
+	{ key: 'canSearchNotes', label: i18n.ts.notes },
+	{ key: 'canSearchUsers', label: i18n.ts.users },
+] as const;
+type SearchPolicy = typeof searchOptions[number]['key'];
+
+function searchAllowed(key: SearchPolicy): boolean {
+	return !props.isBaseRole && policyMetaModel.value[key].useDefault ? instance.policies[key] : valuesModel.value[key];
+}
+
+const selectedSearchPolicies = computed<SearchPolicy[]>({
+	get: () => searchOptions.filter(option => searchAllowed(option.key)).map(option => option.key),
+	set: (selected) => {
+		for (const { key } of searchOptions) {
+			const allowed = selected.includes(key);
+			if (allowed === searchAllowed(key)) continue;
+			valuesModel.value[key] = allowed;
+			if (!props.isBaseRole) policyMetaModel.value[key].useDefault = false;
+		}
+	},
+});
+
+const searchPolicyMeta = computed<PolicyMeta>({
+	get: () => ({
+		useDefault: searchOptions.every(option => policyMetaModel.value[option.key].useDefault),
+		priority: Math.max(...searchOptions.map(option => policyMetaModel.value[option.key].priority)),
+	}),
+	set: (value) => {
+		const previous = searchPolicyMeta.value;
+		for (const { key } of searchOptions) {
+			const meta = policyMetaModel.value[key];
+			if (value.useDefault !== previous.useDefault) {
+				valuesModel.value[key] = searchAllowed(key);
+				meta.useDefault = value.useDefault;
+			}
+			if (value.priority !== previous.priority) meta.priority = value.priority;
+		}
+	},
+});
+
+const searchPrioritiesMixed = computed(() => new Set(searchOptions.map(option => policyMetaModel.value[option.key].priority)).size > 1);
+
 function matchQuery(keywords: string[]): boolean {
 	if (props.roleQuery == null || props.roleQuery.trim().length === 0) return true;
 	return keywords.some(keyword => keyword.toLowerCase().includes(props.roleQuery!.toLowerCase()));
@@ -481,3 +521,42 @@ function updateAvatarDecorationLimit(value: string | number) {
 	avatarDecorationLimit.value = Number(value);
 }
 </script>
+
+<style lang="scss" module>
+.searchOptions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.searchOption {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border: 1px solid var(--MI_THEME-divider);
+	border-radius: 6px;
+	cursor: pointer;
+
+	&:has(input:checked) {
+		color: var(--MI_THEME-accent);
+		background: var(--MI_THEME-accentedBg);
+		border-color: var(--MI_THEME-accent);
+	}
+
+	&:has(input:disabled) {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	&:focus-within {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 2px;
+	}
+
+	input {
+		margin: 0;
+		accent-color: var(--MI_THEME-accent);
+	}
+}
+</style>

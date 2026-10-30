@@ -21,6 +21,7 @@ export const Default = {
 	},
 	args: {
 		url: 'https://www.bilibili.com/video/BV1SUhe6XEM2/?share_source=copy_web',
+		linkTitle: 'Video title',
 	},
 	parameters: {
 		layout: 'centered',
@@ -31,6 +32,7 @@ export const LongUrl = {
 	...Default,
 	args: {
 		url: `https://example.com/watch?source=${'a'.repeat(300)}&title=%E5%8B%95%E7%94%BB`,
+		linkTitle: 'A long video title for checking wrapping and URL scrolling in the dialog',
 	},
 } satisfies StoryObj<typeof MkExternalLinkDialog>;
 

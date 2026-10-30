@@ -115,12 +115,21 @@ const glyph = computed(() => {
 		--MI-statusGradient: linear-gradient(140deg, var(--MI-statusInvisibleStart), var(--MI-statusInvisibleEnd));
 	}
 
+	// 离线用纯灰色实心圆点，与在线的实心圆点同一形态，只靠颜色区分。
+	&.offline,
+	&.unknown {
+		--MI-statusColor: var(--MI-statusOffline, var(--MI_THEME-fgTransparentWeak));
+		--MI-statusGradient: none;
+	}
+
 	> .glyph {
 		font-size: 70cqi;
 	}
 
 	&.online > .glyph,
-	&.active > .glyph {
+	&.active > .glyph,
+	&.offline > .glyph,
+	&.unknown > .glyph {
 		visibility: hidden;
 	}
 
@@ -164,11 +173,6 @@ const glyph = computed(() => {
 				linear-gradient(45deg, transparent 45%, currentColor 45%, currentColor 55%, transparent 55%),
 				radial-gradient(circle closest-side, transparent 75%, currentColor 77%);
 		}
-	}
-
-	&.offline,
-	&.unknown {
-		color: var(--MI_THEME-panel);
 	}
 }
 </style>

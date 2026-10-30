@@ -32,6 +32,8 @@ import { ref } from 'vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
+import * as os from '@/os.js';
 
 const props = defineProps<{
 	user: Misskey.entities.UserDetailed;
@@ -43,6 +45,10 @@ async function follow() {
 	isFollowing.value = true;
 	misskeyApi('following/create', {
 		userId: props.user.id,
+	}).catch(error => {
+		// 按钮状态即为成功反馈；失败时恢复按钮并提示
+		isFollowing.value = false;
+		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
 	});
 }
 </script>

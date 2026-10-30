@@ -197,7 +197,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<FormLink to="/settings/theme/manage"><template #icon><i class="ti ti-tool"></i></template>{{ i18n.ts._theme.manage }}<template #suffix>{{ themesCount }}</template></FormLink>
 				<FormLink to="https://assets.misskey.io/theme/list" external><template #icon><i class="ti ti-world"></i></template>{{ i18n.ts._theme.explore }}</FormLink>
 				<FormLink to="/settings/theme/install"><template #icon><i class="ti ti-download"></i></template>{{ i18n.ts._theme.install }}</FormLink>
-				<FormLink to="/theme-editor"><template #icon><i class="ti ti-paint"></i></template>{{ i18n.ts._theme.make }}</FormLink>
+				<FormLink to="/settings/theme/editor"><template #icon><i class="ti ti-paint"></i></template>{{ i18n.ts.themeEditor }}</FormLink>
 			</div>
 		</FormSection>
 	</div>
@@ -218,7 +218,7 @@ import FormLink from '@/components/form/link.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import MkThemePreview from '@/components/MkThemePreview.vue';
 import MkInfo from '@/components/MkInfo.vue';
-import { handleThemeInstallError, installTheme, removeTheme } from '@/theme.js';
+import { handleThemeInstallError, installTheme, removeTheme, toggleDarkMode } from '@/theme.js';
 import { getBuiltinThemes } from '@@/js/theme.js';
 import { isDeviceDarkmode } from '@/utility/is-device-darkmode.js';
 import { store } from '@/store.js';
@@ -228,7 +228,7 @@ import { uniqueBy } from '@/utility/array.js';
 import { definePage } from '@/page.js';
 import { prefer } from '@/preferences.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
-import { checkDragDataType, getDragData, getPlainDragData, setDragData, setPlainDragData } from '@/drag-and-drop.js';
+import { getPlainDragData, setPlainDragData } from '@/drag-and-drop.js';
 
 const installedThemes = prefer.r.themes;
 const builtinThemes = ref<Theme[]>([]);
@@ -279,22 +279,6 @@ watch(syncDeviceDarkMode, () => {
 		store.set('darkMode', isDeviceDarkmode());
 	}
 });
-
-async function toggleDarkMode() {
-	const value = !store.r.darkMode.value;
-	if (syncDeviceDarkMode.value) {
-		const { canceled } = await os.confirm({
-			type: 'question',
-			text: i18n.tsx.switchDarkModeManuallyWhenSyncEnabledConfirm({ x: i18n.ts.syncDeviceDarkMode }),
-		});
-		if (canceled) return;
-
-		syncDeviceDarkMode.value = false;
-		store.set('darkMode', value);
-	} else {
-		store.set('darkMode', value);
-	}
-}
 
 const themesSyncEnabled = ref(prefer.isSyncEnabled('themes'));
 
@@ -361,10 +345,6 @@ async function onDrop(ev: DragEvent) {
 		}
 	}
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.theme,

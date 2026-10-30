@@ -1,0 +1,46 @@
+<!--
+SPDX-FileCopyrightText: syuilo and misskey-project
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="250" viewBox="0 0 1200 250">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#f8eedc"/>
+			<stop offset="1" stop-color="#e8ceb2"/>
+		</linearGradient>
+		<pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+			<circle cx="3" cy="3" r="2" fill="#9a5537" opacity=".14"/>
+		</pattern>
+		<clipPath id="clip">
+			<rect width="1200" height="250" rx="18"/>
+		</clipPath>
+	</defs>
+	<g clip-path="url(#clip)">
+		<rect width="1200" height="250" fill="url(#bg)"/>
+		<rect width="1200" height="250" fill="url(#dots)"/>
+		<path d="M704 0h496v250H704z" fill="#9eb49a"/>
+		<path d="M742 250V77c0-39 31-70 70-70h239c39 0 70 31 70 70v173z" fill="#f7e7c8"/>
+		<path d="M764 250V84c0-30 24-54 54-54h225c30 0 54 24 54 54v166z" fill="#c67a54"/>
+		<circle cx="1055" cy="56" r="34" fill="#efb950"/>
+		<path d="M772 191h388" stroke="#3f342c" stroke-width="7" stroke-linecap="round"/>
+		<path d="M841 191v-67h119v67M842 124h117" fill="none" stroke="#3f342c" stroke-width="7"/>
+		<path d="M866 154c17-42 50-51 72 0" fill="none" stroke="#3f342c" stroke-width="7" stroke-linecap="round"/>
+		<path d="M982 191v-89h84v89M1013 102V77M1037 102V77" fill="none" stroke="#3f342c" stroke-width="7"/>
+		<path d="M1002 158c8-19 36-19 44 0" fill="#f7e7c8" stroke="#3f342c" stroke-width="6"/>
+		<path d="M746 24c33 15 54 43 57 82" fill="none" stroke="#3f342c" stroke-width="6" stroke-linecap="round"/>
+		<path d="M745 34l-8 34 34-9" fill="#d85f3f" stroke="#3f342c" stroke-width="5" stroke-linejoin="round"/>
+		<path d="M742 58c48 10 72 34 74 77" fill="none" stroke="#f4c76a" stroke-width="15" stroke-linecap="round" stroke-dasharray="2 24"/>
+		<path d="M1164 185c-44-11-55-48-35-81 25-40 66-30 71 18 4 37-6 59-36 63z" fill="#47806e" stroke="#3f342c" stroke-width="6"/>
+		<path d="M1142 183c-21-21-26-45-16-72" fill="none" stroke="#f5e7cf" stroke-width="5" stroke-linecap="round"/>
+		<rect x="80" y="38" width="210" height="38" rx="19" fill="#3f342c"/>
+		<text x="185" y="63" text-anchor="middle" fill="#fff8ea" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="18" font-weight="700" letter-spacing="2">本周六 · 河边旧厂房</text>
+		<text x="80" y="140" fill="#3f342c" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="64" font-weight="900" letter-spacing="-4">周末手作市集</text>
+		<text x="82" y="181" fill="#765543" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="26" font-weight="700" letter-spacing="3">器物 · 织物 · 私人书单</text>
+		<rect x="80" y="203" width="273" height="31" rx="15.5" fill="#d85f3f"/>
+		<text x="216.5" y="224" text-anchor="middle" fill="#fff8ea" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="17" font-weight="700" letter-spacing="1">13:00—20:00 · 一起逛摊</text>
+		<path d="M599 78c30-31 72-31 102 0M574 94c48-38 104-38 152 0" fill="none" stroke="#3f342c" stroke-width="5" stroke-linecap="round"/>
+		<path d="M599 141h101l-14 88h-73z" fill="#f7e7c8" stroke="#3f342c" stroke-width="7"/>
+		<path d="M611 141c5-28 18-44 39-44s34 16 39 44" fill="none" stroke="#3f342c" stroke-width="7"/>
+		<path d="M620 163h60M620 183h60M620 203h60" stroke="#c67a54" stroke-width="5" opacity=".7"/>
+	</g>
+</svg>

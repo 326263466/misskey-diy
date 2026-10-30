@@ -3,17 +3,18 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-$padding: 6px;
-$compactPadding: 4px;
+$padding: 12px;
+$compactPadding: 8px;
 
 @mixin label {
 	font-size: 16px;
-	font-weight: normal;
-	line-height: 1.4;
+	font-weight: 600;
+	line-height: 1.5;
 }
 
 @mixin row {
 	padding-block: $padding;
+	border-bottom: var(--MI-divider);
 }
 
 // 标题独占一行时使用 title；带操作按钮的标题栏分别使用 row 和 label。

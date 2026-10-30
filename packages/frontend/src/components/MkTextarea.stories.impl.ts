@@ -22,12 +22,7 @@ export const Default = {
 	parameters: { layout: 'centered' },
 } satisfies StoryObj<typeof MkTextarea>;
 
-export const Collapsible = {
-	...Default,
-	args: { ...Default.args, collapsible: true, collapsedPlaceholder: i18n.ts.addModerationNote },
-} satisfies StoryObj<typeof MkTextarea>;
-
 export const WithNote = {
-	...Collapsible,
-	args: { ...Collapsible.args, modelValue: 'First line\nSecond line\nThird line' },
+	...Default,
+	args: { ...Default.args, modelValue: 'First line\nSecond line\nThird line' },
 } satisfies StoryObj<typeof MkTextarea>;

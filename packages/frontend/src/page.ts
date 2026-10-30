@@ -4,7 +4,7 @@
  */
 
 import * as Misskey from 'misskey-js';
-import { inject, isRef, onActivated, onBeforeUnmount, provide, ref, toValue, watch } from 'vue';
+import { inject, onActivated, onBeforeUnmount, provide, ref, toValue, watch } from 'vue';
 import { DI } from './di.js';
 import type { MaybeRefOrGetter, Ref } from 'vue';
 
@@ -37,22 +37,23 @@ export const definePage = (maybeRefOrGetterMetadata: MaybeRefOrGetter<PageMetada
 	const metadataRef = ref(toValue(maybeRefOrGetterMetadata));
 	const metadataGetter = () => metadataRef.value;
 	const receiver = getReceiver();
+	const active = inject(DI.pageActive, ref(true));
+	const publish = () => { if (active.value) receiver?.(metadataGetter); };
 
 	// setup handler
-	receiver?.(metadataGetter);
+	publish();
 
 	// update handler
 	onBeforeUnmount(watch(
 		() => toValue(maybeRefOrGetterMetadata),
 		(metadata) => {
 			metadataRef.value = metadata;
-			receiver?.(metadataGetter);
+			publish();
 		},
 		{ deep: true },
 	));
-	onActivated(() => {
-		receiver?.(metadataGetter);
-	});
+	onActivated(publish);
+	watch(active, value => { if (value) publish(); }, { flush: 'post' });
 
 	provide(DI.pageMetadata, metadataRef);
 };

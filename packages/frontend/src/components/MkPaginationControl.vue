@@ -8,9 +8,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.toolbar">
 		<div v-if="$slots.header" :class="$style.header"><slot name="header"></slot></div>
 		<div :class="$style.control">
-			<MkButton :class="$style.order" transparent rounded @click="toggleOrder">
-				<span :class="$style.orderContent"><i class="ti" :class="order === 'newest' ? 'ti-sort-descending' : 'ti-sort-ascending'" aria-hidden="true"></i><span>{{ orderLabel }}</span></span>
-			</MkButton>
+			<button type="button" class="_button" :class="[$style.order, { [$style.active]: order === 'oldest' }]" @click="toggleOrder">
+				<i class="ti" :class="order === 'newest' ? 'ti-sort-descending' : 'ti-sort-ascending'" aria-hidden="true"></i>
+				<span>{{ orderLabel }}</span>
+			</button>
 			<MkButton v-if="paginator.canSearch" :aria-label="searchLabel" iconOnly transparent rounded :active="!!paginator.searchQuery.value" @click="selectSearch"><i class="ti ti-search"></i></MkButton>
 			<MkButton v-if="canFilter" :aria-label="i18n.ts.filter" iconOnly transparent rounded :active="filterOpened" @click="filterOpened = !filterOpened"><i class="ti ti-filter"></i></MkButton>
 			<MkButton :aria-label="dateLabel" iconOnly transparent rounded :active="date != null" @click="selectDate"><i class="ti ti-calendar-clock"></i></MkButton>
@@ -127,7 +128,7 @@ function selectSearch() {
 	const paginator = props.paginator;
 	const { dispose } = os.popup(MkDialog, {
 		title: i18n.ts.search,
-		input: { type: 'text', default: paginator.searchQuery.value ?? '' },
+		input: { type: 'search', default: paginator.searchQuery.value ?? '' },
 		okText: i18n.ts.apply,
 	}, {
 		done: ({ canceled, result }) => {
@@ -182,6 +183,8 @@ function selectSearch() {
 }
 
 .toolbar {
+	// 标签、排序和按钮同一行时字号一致；只作用于工具栏，不影响展开后的筛选表单。
+	--MI-toolbarFontSize: 1em;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -195,15 +198,24 @@ function selectSearch() {
 
 .order {
 	flex: none;
-	min-height: 32px;
-	padding: 6px 8px;
-	white-space: nowrap;
-}
-
-.orderContent {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+	height: 32px;
+	padding: 0 12px;
+	border-radius: 4px;
+	color: var(--MI_THEME-fgTransparent);
+	white-space: nowrap;
+
+	&.active,
+	&:hover {
+		color: var(--MI_THEME-accent);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 2px;
+	}
 }
 
 .compact {

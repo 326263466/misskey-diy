@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.searchBox">
 				<i class="ti ti-search" aria-hidden="true"></i>
 				<input :id="inputId" ref="input" v-model="query" :class="$style.input" :disabled="disabled" :placeholder="i18n.ts._topics.search" :aria-label="i18n.ts._topics.search" role="combobox" aria-autocomplete="list" :aria-expanded="true" :aria-controls="listId" :aria-activedescendant="activeIndex >= 0 && options[activeIndex] ? `${listId}-${activeIndex}` : undefined" :aria-describedby="hintId" autocomplete="off" autocapitalize="off" spellcheck="false" @keydown="onKeydown" @compositionstart="composing = true" @compositionend="composing = false">
-				<span v-if="loading" :class="$style.loading" role="status">{{ i18n.ts.loading }}</span>
+				<MkLoading v-if="loading" inline em :class="$style.loading"/>
 			</div>
 			<p :id="hintId" :class="[$style.hint, { [$style.invalid]: invalid }]">{{ invalid ? i18n.ts._topics.invalid : selected.length >= MAX_TOPICS ? i18n.ts._topics.singleLimit : i18n.ts._topics.hint }}</p>
 		</div>
@@ -40,6 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue';
 import MkModal from '@/components/MkModal.vue';
+import MkLoading from '@/components/global/MkLoading.vue';
 import { i18n } from '@/i18n.js';
 import { MAX_TOPICS, TOPIC_RESULT_LIMIT, TOPIC_SEARCH_DELAY, parseTopic, searchTopics, topicKey, uniqueTopics } from '@/utility/topic-picker.js';
 

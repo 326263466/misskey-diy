@@ -15,7 +15,7 @@ export type ArticleDraft = {
 	articleCategoryId: string | null;
 	articleTags?: string[];
 	cover: entities.DriveFile | null;
-	fileProtectionId?: string;
+	sessionId?: string;
 	updatedAt: string;
 	articleId?: string;
 	cloudId?: string;
@@ -61,7 +61,7 @@ function restoreCover(value: unknown): entities.DriveFile | null {
 	return { ...value, url, thumbnailUrl: imageUrl(value.thumbnailUrl), isSensitive: false } as entities.DriveFile;
 }
 
-function parseDraft(value: unknown, key: string, accountId: string): ArticleDraft | null {
+function parseDraft(value: unknown): ArticleDraft | null {
 	// 本地恢复沿用历史上限并按码点计数，避免丢弃含 emoji 或尚待修正的旧稿。
 	if (!isRecord(value) || value.version !== 1 ||
 		typeof value.title !== 'string' || Array.from(value.title).length > 256 ||
@@ -69,9 +69,7 @@ function parseDraft(value: unknown, key: string, accountId: string): ArticleDraf
 		typeof value.text !== 'string' || Array.from(value.text).length > 100000 ||
 		typeof value.name !== 'string' || !/^[^\s:/?#\[\]@!$&'()*+,;=\\%\x00-\x20]{1,256}$/u.test(value.name)) return null;
 
-	const suffix = key.slice(accountPrefix(accountId).length);
-	const legacyArticleId = suffix.startsWith(':edit:') ? suffix.slice(':edit:'.length).split(':')[0] : undefined;
-	const articleId = legacyArticleId || (typeof value.articleId === 'string' && value.articleId ? value.articleId : undefined);
+	const articleId = typeof value.articleId === 'string' && value.articleId ? value.articleId : undefined;
 	return {
 		version: 1,
 		title: value.title,
@@ -81,8 +79,8 @@ function parseDraft(value: unknown, key: string, accountId: string): ArticleDraf
 		articleCategoryId: typeof value.articleCategoryId === 'string' && value.articleCategoryId ? value.articleCategoryId : null,
 		articleTags: Array.isArray(value.articleTags) ? [...new Set(value.articleTags.filter((tag): tag is string => typeof tag === 'string' && tag.length > 0 && Array.from(tag).length <= 100))].slice(0, 3) : [],
 		cover: restoreCover(value.cover),
-		...(typeof value.fileProtectionId === 'string' && /^composer:[a-zA-Z0-9_-]+$/.test(value.fileProtectionId) && value.fileProtectionId.length <= 100
-			? { fileProtectionId: value.fileProtectionId } : {}),
+		...(typeof value.sessionId === 'string' && /^composer:[a-zA-Z0-9_-]+$/.test(value.sessionId) && value.sessionId.length <= 100
+			? { sessionId: value.sessionId } : {}),
 		updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : '',
 		...(articleId ? { articleId } : {}),
 		...(typeof value.cloudId === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(value.cloudId) && Number.isInteger(value.cloudRevision) && Number(value.cloudRevision) >= 0 && Number(value.cloudRevision) <= 2147483647
@@ -99,7 +97,7 @@ export function listArticleDrafts(accountId: string): StoredArticleDraft[] {
 		if (raw == null) continue;
 		let value: unknown;
 		try { value = JSON.parse(raw); } catch { continue; }
-		const draft = parseDraft(value, key, accountId);
+		const draft = parseDraft(value);
 		if (draft) drafts.push({ key, raw, draft });
 	}
 	return drafts.sort((a, b) => b.draft.updatedAt.localeCompare(a.draft.updatedAt));
@@ -112,7 +110,7 @@ export function hasArticleDraftContent(draft: Partial<Pick<ArticleDraft, 'title'
 
 export function writeArticleDraft(accountId: string, key: string, draft: ArticleDraft): string {
 	if (!belongsToAccount(key, accountId)) throw new TypeError('Article draft key belongs to another account');
-	if (!parseDraft(draft, key, accountId)) throw new TypeError('Invalid article draft');
+	if (!parseDraft(draft)) throw new TypeError('Invalid article draft');
 	const raw = JSON.stringify(draft);
 	localStorage.setItem(key, raw);
 	return raw;

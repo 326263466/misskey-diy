@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 			<MkButton rounded full @click="emit('showMore')">{{ i18n.ts.showMore }} <i class="ti ti-arrow-right" aria-hidden="true"></i></MkButton>
 		</div>
-		<p v-if="!fetching && notes.length == 0">{{ i18n.ts.nothing }}</p>
+		<MkResult v-if="!fetching && notes.length == 0" type="empty"/>
 	</div>
 </MkContainer>
 </template>

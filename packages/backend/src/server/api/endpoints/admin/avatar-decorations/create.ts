@@ -59,6 +59,10 @@ export const meta = {
 				type: 'string',
 				optional: false, nullable: true,
 			},
+			scale: {
+				type: 'number',
+				optional: false, nullable: false,
+			},
 		},
 	},
 } as const;
@@ -73,6 +77,7 @@ export const paramDef = {
 			type: 'string',
 		} },
 		category: { type: 'string', nullable: true },
+		scale: { type: 'number', minimum: 0.5, maximum: 1.5 },
 	},
 	required: ['name', 'description', 'url'],
 } as const;
@@ -90,6 +95,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				url: ps.url,
 				roleIdsThatCanBeUsedThisDecoration: ps.roleIdsThatCanBeUsedThisDecoration,
 				category: ps.category,
+				scale: ps.scale,
 			}, me);
 
 			return {
@@ -101,6 +107,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				url: created.url,
 				roleIdsThatCanBeUsedThisDecoration: created.roleIdsThatCanBeUsedThisDecoration,
 				category: created.category,
+				scale: created.scale,
 			};
 		});
 	}

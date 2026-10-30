@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" class="_panel" :class="[$style.root, { [$style.naked]: naked, [$style.thin]: thin, [$style.scrollable]: scrollable, [$style.flatBody]: !showHeader || !foldable }]">
+<div ref="rootEl" class="_panel _card" :class="[$style.root, { [$style.naked]: naked, [$style.thin]: thin, [$style.scrollable]: scrollable, [$style.stickyHeader]: stickyHeader, [$style.flatBody]: !showHeader || !foldable }]">
 	<header v-if="showHeader" ref="headerEl" :class="$style.header">
 		<h2 :class="$style.title">
 			<span :class="$style.titleIcon"><slot name="icon"></slot></span>
@@ -47,11 +47,13 @@ const props = withDefaults(defineProps<{
 	naked?: boolean;
 	foldable?: boolean;
 	scrollable?: boolean;
+	stickyHeader?: boolean;
 	expanded?: boolean;
 	maxHeight?: number | null;
 }>(), {
 	expanded: true,
 	showHeader: true,
+	stickyHeader: true,
 	maxHeight: null,
 });
 
@@ -126,6 +128,7 @@ onUnmounted(() => {
 	&.naked {
 		background: transparent !important;
 		box-shadow: none !important;
+		border: 0;
 
 		> .content {
 			background: transparent !important;
@@ -149,34 +152,38 @@ onUnmounted(() => {
 
 	&.thin {
 		> .header {
-			> .title {
-				padding-block: card-header.$compactPadding;
-			}
+			padding-block: card-header.$compactPadding;
 		}
 	}
 }
 
 .header {
+	@include card-header.row;
 	display: flex;
-	position: sticky;
-	top: var(--MI-stickyTop, 0px);
-	left: 0;
-	color: var(--MI_THEME-panelHeaderFg);
-	// 各容器可经 --MI-containerHeaderBg 单独覆盖（如趋势组件要求与卡片同色）
-	background: var(--MI-containerHeaderBg, var(--MI_THEME-panelHeaderBg));
+	align-items: center;
+	gap: 8px;
+	position: relative;
+	padding-inline: var(--MI-cardPadding);
+	color: var(--MI_THEME-fg);
+	background: var(--MI-containerHeaderBg, var(--MI_THEME-panel));
 	z-index: 2;
 	line-height: 1.4em;
 }
 
+.stickyHeader > .header {
+	position: sticky;
+	top: var(--MI-stickyTop, 0px);
+	left: 0;
+}
+
 .title {
-	@include card-header.title;
+	@include card-header.label;
 	flex: 1;
 	min-width: 0;
 	display: flex;
 	align-items: center;
 	box-sizing: border-box;
 	margin: 0;
-	padding-inline: var(--MI-cardPadding, 18px);
 
 	&:empty {
 		display: none;
@@ -199,12 +206,22 @@ onUnmounted(() => {
 .headerSub {
 	display: flex;
 	flex-shrink: 0;
+	align-items: center;
 	align-self: stretch;
 	z-index: 2;
+
+	&:empty {
+		display: none;
+	}
 }
 
 .headerButton {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	align-self: stretch;
 	width: 42px;
+	min-height: 24px;
 }
 
 .flatBody {
@@ -256,6 +273,8 @@ onUnmounted(() => {
 }
 
 .bodyInner {
+	// 网格项默认按内容最小宽度撑开，长文本会越过卡片内边距；设 0 才能让内部省略号生效。
+	min-width: 0;
 	min-height: 0;
 	display: flow-root;
 }

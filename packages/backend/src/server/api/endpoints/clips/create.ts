@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { MiClip } from '@/models/_.js';
 import { ClipEntityService } from '@/core/entities/ClipEntityService.js';
@@ -37,9 +38,9 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		name: { type: 'string', minLength: 1, maxLength: 100 },
+		name: { type: 'string', minLength: 1, maxLength: CONTENT_LIMITS.collectionName },
 		isPublic: { type: 'boolean', default: false },
-		description: { type: 'string', nullable: true, maxLength: 2048 },
+		description: { type: 'string', nullable: true, maxLength: CONTENT_LIMITS.clipDescription },
 	},
 	required: ['name'],
 } as const;

@@ -4,7 +4,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader v-model:tab="tab" :class="$style.adminScope" contentCard :actions="headerActions" :tabs="headerTabs">
+	<template v-if="(tab === 'roles' && user.host == null) || tab === 'announcements'" #header-actions>
+		<div class="_adminToolbar _adminHeaderToolbar">
+			<MkButton v-if="tab === 'roles'" small primary @click="assignRole"><i class="ti ti-plus" aria-hidden="true"></i> {{ i18n.ts.assign }}</MkButton>
+			<template v-else>
+				<MkSelect v-model="announcementsStatus" :items="announcementsStatusDef" class="_adminToolbarField">
+					<template #label>{{ i18n.ts.filter }}</template>
+				</MkSelect>
+				<div class="_adminToolbarActions">
+					<MkButton small primary @click="createAnnouncement"><i class="ti ti-plus" aria-hidden="true"></i> {{ i18n.ts.createNew }}</MkButton>
+				</div>
+			</template>
+		</div>
+	</template>
 	<div class="_pageBody">
 		<div v-if="tab === 'overview'" class="_gaps_m">
 			<div class="aeakzknw">
@@ -89,46 +102,113 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 
 		<div v-else-if="tab === 'roles'" class="_gaps">
-			<MkButton v-if="user.host == null" primary rounded @click="assignRole"><i class="ti ti-plus"></i> {{ i18n.ts.assign }}</MkButton>
-
-			<div v-for="role in info.roles" :key="role.id">
-				<div :class="$style.roleItemMain">
-					<MkRolePreview :class="$style.role" :role="role" :forModeration="true"/>
-					<button class="_button _iconButton" @click="toggleRoleItem(role)"><i class="ti ti-chevron-down"></i></button>
-					<button v-if="role.target === 'manual'" class="_button _iconButton" :class="$style.roleUnassign" @click="unassignRole(role, $event)"><i class="ti ti-x"></i></button>
-					<button v-else class="_button" :class="$style.roleUnassign" disabled><i class="ti ti-ban"></i></button>
-				</div>
-				<div v-if="expandedRoleIds.includes(role.id)" :class="$style.roleItemSub">
-					<div>{{ i18n.ts._role.assignedAt }}: <MkTime :time="info.roleAssigns.find(a => a.roleId === role.id)!.createdAt" mode="detail"/></div>
-					<div v-if="info.roleAssigns.find(a => a.roleId === role.id)!.expiresAt">{{ i18n.ts.expirationDate }}: {{ new Date(info.roleAssigns.find(a => a.roleId === role.id)!.expiresAt!).toLocaleString() }}</div>
-					<div v-else>{{ i18n.ts.expirationDate }}: {{ i18n.ts.indefinitely }}</div>
-				</div>
+			<div class="_adminPanel">
+				<MkPaginationBar v-slot="{ items }" :items="roleRows">
+					<div class="_adminTableContainer">
+						<table class="_adminTable" :class="$style.roleTable" :aria-label="i18n.ts.roles">
+							<colgroup>
+								<col :class="$style.roleNameColumn"/>
+								<col :class="$style.typeColumn"/>
+								<col :class="$style.permissionColumn"/>
+								<col :class="$style.typeColumn"/>
+								<col :class="$style.dateColumn"/>
+								<col :class="$style.dateColumn"/>
+								<col :class="$style.roleActionsColumn"/>
+							</colgroup>
+							<thead>
+								<tr>
+									<th scope="col">{{ i18n.ts._role.name }}</th>
+									<th scope="col">{{ i18n.ts._role.assignTarget }}</th>
+									<th scope="col">{{ i18n.ts._role.permission }}</th>
+									<th scope="col">{{ i18n.ts.visibility }}</th>
+									<th scope="col">{{ i18n.ts._role.assignedAt }}</th>
+									<th scope="col">{{ i18n.ts.expirationDate }}</th>
+									<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr v-for="{ role, assignment } in items" :key="role.id">
+									<td>
+										<button type="button" class="_button _textButton _adminTableIdentity" :class="$style.roleName" :style="{ '--role-color': role.color ?? 'var(--MI_THEME-fgTransparentWeak)' }" @click="os.pageWindow(`/admin/roles/${role.id}`)">
+											<img v-if="role.iconUrl" :class="$style.roleBadge" :src="role.iconUrl" alt="" loading="lazy" decoding="async"/>
+											<i v-else-if="role.isAdministrator" class="ti ti-crown" aria-hidden="true"></i>
+											<i v-else-if="role.isModerator" class="ti ti-shield" aria-hidden="true"></i>
+											<i v-else class="ti ti-user" aria-hidden="true"></i>
+											<Mfm :text="role.name" :plain="true" :nowrap="true"/>
+										</button>
+										<div v-if="role.description" class="_adminTableSecondary" :class="$style.ellipsis" :title="role.description"><Mfm :text="role.description" :plain="true" :nowrap="true"/></div>
+									</td>
+									<td>{{ role.target === 'manual' ? i18n.ts._role.manual : i18n.ts._role.conditional }}</td>
+									<td>{{ role.isAdministrator ? i18n.ts.administrator : role.isModerator ? i18n.ts.moderator : i18n.ts.normal }}</td>
+									<td><span class="_adminTableStatus" :style="{ '--admin-statusColor': role.isPublic ? 'var(--MI_THEME-success)' : 'var(--MI_THEME-fgTransparentWeak)' }">{{ role.isPublic ? i18n.ts.public : i18n.ts.private }}</span></td>
+									<td><MkTime v-if="assignment" :time="assignment.createdAt" mode="detail"/><span v-else class="_adminTableSecondary">{{ i18n.ts.notSet }}</span></td>
+									<td><MkTime v-if="assignment?.expiresAt" :time="assignment.expiresAt" mode="detail"/><span v-else-if="assignment">{{ i18n.ts.indefinitely }}</span><span v-else class="_adminTableSecondary">-</span></td>
+									<td class="_adminTableActions">
+										<div class="_adminTableTools">
+											<button type="button" class="_button _textButton" @click="os.pageWindow(`/admin/roles/${role.id}`)">{{ i18n.ts.details }}</button>
+											<button v-if="role.target === 'manual'" type="button" class="_button _textButton" :class="$style.dangerAction" @click="unassignRole(role, $event)">{{ i18n.ts.unassign }}</button>
+										</div>
+									</td>
+								</tr>
+								<tr v-if="roleRows.length === 0"><td colspan="7" class="_adminTableEmpty">{{ i18n.ts.nothing }}</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</MkPaginationBar>
 			</div>
 		</div>
 
 		<div v-else-if="tab === 'announcements'" class="_gaps">
-			<MkButton primary rounded @click="createAnnouncement"><i class="ti ti-plus"></i> {{ i18n.ts.createNew }}</MkButton>
-
-			<MkSelect v-model="announcementsStatus" :items="announcementsStatusDef">
-				<template #label>{{ i18n.ts.filter }}</template>
-			</MkSelect>
-
-			<MkPagination :paginator="announcementsPaginator">
-				<template #default="{ items }">
-					<div class="_gaps_s">
-						<div v-for="announcement in items" :key="announcement.id" :class="$style.announcementItem" @click="editAnnouncement(announcement)">
-							<span v-if="'icon' in announcement" style="margin-right: 0.5em;">
-								<i v-if="announcement.icon === 'info'" class="ti ti-info-circle"></i>
-								<i v-else-if="announcement.icon === 'warning'" class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);"></i>
-								<i v-else-if="announcement.icon === 'error'" class="ti ti-circle-x" style="color: var(--MI_THEME-error);"></i>
-								<i v-else-if="announcement.icon === 'success'" class="ti ti-check" style="color: var(--MI_THEME-success);"></i>
-							</span>
-							<span>{{ announcement.title }}</span>
-							<span v-if="announcement.reads > 0" style="margin-left: auto; color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.messageRead }}</span>
+			<div class="_adminPanel">
+				<MkPagination :paginator="announcementsPaginator" paged>
+					<template #default="{ items }">
+						<div class="_adminTableContainer">
+							<table class="_adminTable" :class="$style.announcementTable" :aria-label="i18n.ts.announcements">
+								<colgroup>
+									<col :class="$style.announcementTitleColumn"/>
+									<col :class="$style.permissionColumn"/>
+									<col :class="$style.typeColumn"/>
+									<col :class="$style.typeColumn"/>
+									<col :class="$style.dateColumn"/>
+									<col :class="$style.dateColumn"/>
+									<col :class="$style.announcementActionsColumn"/>
+								</colgroup>
+								<thead>
+									<tr>
+										<th scope="col">{{ i18n.ts.title }}</th>
+										<th scope="col">{{ i18n.ts.display }}</th>
+										<th scope="col">{{ i18n.ts.state }}</th>
+										<th scope="col" class="_adminTableNumber">{{ i18n.ts.messageRead }}</th>
+										<th scope="col">{{ i18n.ts.createdAt }}</th>
+										<th scope="col">{{ i18n.ts.updatedAt }}</th>
+										<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr v-for="announcement in items" :key="announcement.id">
+										<td>
+											<button type="button" class="_button _textButton _adminTableIdentity" :class="$style.announcementTitle" @click="editAnnouncement(announcement)">
+												<i v-if="announcement.icon === 'info'" class="ti ti-info-circle" aria-hidden="true"></i>
+												<i v-else-if="announcement.icon === 'warning'" class="ti ti-alert-triangle" style="color: var(--MI_THEME-warn);" aria-hidden="true"></i>
+												<i v-else-if="announcement.icon === 'error'" class="ti ti-circle-x" style="color: var(--MI_THEME-error);" aria-hidden="true"></i>
+												<i v-else-if="announcement.icon === 'success'" class="ti ti-check" style="color: var(--MI_THEME-success);" aria-hidden="true"></i>
+												<span :class="$style.ellipsis" :title="announcement.title">{{ announcement.title }}</span>
+											</button>
+											<div class="_adminTableSecondary" :class="$style.announcementText" :title="announcement.text">{{ announcement.text }}</div>
+										</td>
+										<td>{{ announcement.display === 'normal' ? i18n.ts._announcement.normalDisplay : announcement.display === 'banner' ? i18n.ts.banner : i18n.ts.dialog }}</td>
+										<td><span class="_adminTableStatus" :style="announcement.isActive ? undefined : { '--admin-statusColor': 'var(--MI_THEME-fgTransparentWeak)' }">{{ announcement.isActive ? i18n.ts._announcement.active : i18n.ts.archived }}</span></td>
+										<td class="_adminTableNumber">{{ i18n.tsx.nUsersRead({ n: announcement.reads }) }}</td>
+										<td><MkTime :time="announcement.createdAt" mode="detail"/></td>
+										<td><MkTime v-if="announcement.updatedAt" :time="announcement.updatedAt" mode="detail"/><span v-else class="_adminTableSecondary">-</span></td>
+										<td class="_adminTableActions"><button type="button" class="_button _textButton" @click="editAnnouncement(announcement)"><i class="ti ti-pencil" aria-hidden="true"></i> {{ i18n.ts.edit }}</button></td>
+									</tr>
+								</tbody>
+							</table>
 						</div>
-					</div>
-				</template>
-			</MkPagination>
+					</template>
+				</MkPagination>
+			</div>
 		</div>
 
 		<div v-else-if="tab === 'drive'" class="_gaps">
@@ -162,10 +242,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, watch, ref, markRaw } from 'vue';
+import { computed, watch, ref, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import { url } from '@@/js/config.js';
-import type { ChartSrc } from '@/components/MkChart.vue';
 import MkChart from '@/components/MkChart.vue';
 import MkObjectView from '@/components/MkObjectView.vue';
 import MkModerationNote from '@/components/MkModerationNote.vue';
@@ -180,13 +259,14 @@ import MkFileListForAdmin from '@/components/MkFileListForAdmin.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import { acct } from '@@/js/user.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 import { ensureSignin, iAmAdmin, iAmModerator } from '@/i.js';
-import MkRolePreview from '@/components/MkRolePreview.vue';
 import MkPagination from '@/components/MkPagination.vue';
+import MkPaginationBar from '@/components/MkPaginationBar.vue';
 import { Paginator } from '@/utility/paginator.js';
 
 const $i = ensureSignin();
@@ -244,7 +324,10 @@ const announcementsPaginator = markRaw(new Paginator('admin/announcements/list',
 		status: announcementsStatus.value,
 	})),
 }));
-const expandedRoleIds = ref<(typeof info.value.roles[number]['id'])[]>([]);
+const roleRows = computed(() => {
+	const assignments = new Map(info.value.roleAssigns.map(assignment => [assignment.roleId, assignment]));
+	return info.value.roles.map(role => ({ role, assignment: assignments.get(role.id) }));
+});
 
 function _fetch_() {
 	return Promise.all([misskeyApi('users/show', {
@@ -277,11 +360,6 @@ async function refreshUser() {
 	moderationNote.value = info.value.moderationNote ?? '';
 }
 
-async function updateRemoteUser() {
-	await os.apiWithDialog('federation/update-remote-user', { userId: user.value.id });
-	refreshUser();
-}
-
 async function resetPassword() {
 	const confirm = await os.confirm({
 		type: 'warning',
@@ -311,6 +389,7 @@ async function unsetMfa() {
 		await os.apiWithDialog('admin/unset-mfa', {
 			userId: user.value.id,
 		});
+		os.toast(i18n.ts._adminUser.mfaUnset, 'success');
 	}
 }
 
@@ -322,7 +401,14 @@ async function toggleSuspend(v: boolean) {
 	if (confirm.canceled) {
 		suspended.value = !v;
 	} else {
-		await misskeyApi(v ? 'admin/suspend-user' : 'admin/unsuspend-user', { userId: user.value.id });
+		// 开关成功不提示；失败时提示并还原开关
+		try {
+			await misskeyApi(v ? 'admin/suspend-user' : 'admin/unsuspend-user', { userId: user.value.id });
+		} catch (error) {
+			suspended.value = !v;
+			if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+			return;
+		}
 		await refreshUser();
 	}
 }
@@ -335,13 +421,10 @@ async function unsetUserAvatar() {
 	if (confirm.canceled) return;
 	const process = async () => {
 		await misskeyApi('admin/unset-user-avatar', { userId: user.value.id });
-		os.success();
+		os.toast(i18n.ts.removed, 'success');
 	};
 	await process().catch(err => {
-		os.alert({
-			type: 'error',
-			text: err.toString(),
-		});
+		if (!isAccountSessionErrorHandled(err)) os.toast(err?.message || i18n.ts.somethingHappened, 'error');
 	});
 	refreshUser();
 }
@@ -354,34 +437,12 @@ async function unsetUserBanner() {
 	if (confirm.canceled) return;
 	const process = async () => {
 		await misskeyApi('admin/unset-user-banner', { userId: user.value.id });
-		os.success();
+		os.toast(i18n.ts.removed, 'success');
 	};
 	await process().catch(err => {
-		os.alert({
-			type: 'error',
-			text: err.toString(),
-		});
+		if (!isAccountSessionErrorHandled(err)) os.toast(err?.message || i18n.ts.somethingHappened, 'error');
 	});
 	refreshUser();
-}
-
-async function deleteAllFiles() {
-	const confirm = await os.confirm({
-		type: 'warning',
-		text: i18n.ts.deleteAllFilesConfirm,
-	});
-	if (confirm.canceled) return;
-	const process = async () => {
-		await misskeyApi('admin/delete-all-files-of-a-user', { userId: user.value.id });
-		os.success();
-	};
-	await process().catch(err => {
-		os.alert({
-			type: 'error',
-			text: err.toString(),
-		});
-	});
-	await refreshUser();
 }
 
 async function deleteAccount() {
@@ -400,6 +461,7 @@ async function deleteAccount() {
 		await os.apiWithDialog('admin/delete-account', {
 			userId: user.value.id,
 		});
+		os.toast(i18n.ts._accountDelete.started, 'success');
 	} else {
 		os.alert({
 			type: 'error',
@@ -442,6 +504,7 @@ async function assignRole() {
 		: null;
 
 	await os.apiWithDialog('admin/roles/assign', { roleId, userId: user.value.id, expiresAt });
+	os.toast(i18n.ts.added, 'success');
 	refreshUser();
 }
 
@@ -452,23 +515,17 @@ async function unassignRole(role: typeof info.value.roles[number], ev: PointerEv
 		danger: true,
 		action: async () => {
 			await os.apiWithDialog('admin/roles/unassign', { roleId: role.id, userId: user.value.id });
+			os.toast(i18n.ts.removed, 'success');
 			refreshUser();
 		},
 	}], ev.currentTarget ?? ev.target);
-}
-
-function toggleRoleItem(role: typeof info.value.roles[number]) {
-	if (expandedRoleIds.value.includes(role.id)) {
-		expandedRoleIds.value = expandedRoleIds.value.filter(x => x !== role.id);
-	} else {
-		expandedRoleIds.value.push(role.id);
-	}
 }
 
 async function createAnnouncement() {
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkUserAnnouncementEditDialog.vue').then(x => x.default), {
 		user: user.value,
 	}, {
+		done: () => announcementsPaginator.reload(),
 		closed: () => dispose(),
 	});
 }
@@ -478,6 +535,7 @@ async function editAnnouncement(announcement: Misskey.entities.AdminAnnouncement
 		user: user.value,
 		announcement,
 	}, {
+		done: () => announcementsPaginator.reload(),
 		closed: () => dispose(),
 	});
 }
@@ -488,7 +546,7 @@ watch(user, () => {
 	}).then(res => {
 		ap.value = res;
 	});
-});
+}, { immediate: true });
 
 const headerActions = computed(() => []);
 
@@ -618,6 +676,10 @@ definePage(() => ({
 </style>
 
 <style lang="scss" module>
+@use './admin/table.scss' as admin-table;
+
+@include admin-table.styles;
+
 .ip {
 	display: flex;
 	word-break: break-all;
@@ -631,35 +693,83 @@ definePage(() => ({
 	}
 }
 
-.roleItemMain {
-	display: flex;
+.roleTable,
+.announcementTable {
+	table-layout: fixed;
+	min-width: 900px;
 }
 
-.role {
-	flex: 1;
+.roleNameColumn {
+	width: 230px;
+}
+
+.announcementTitleColumn {
+	width: 300px;
+}
+
+.typeColumn {
+	width: 90px;
+}
+
+.permissionColumn {
+	width: 110px;
+}
+
+.dateColumn {
+	width: 160px;
+}
+
+.roleActionsColumn {
+	width: 140px;
+}
+
+.announcementActionsColumn {
+	width: 80px;
+}
+
+.roleName,
+.announcementTitle {
+	width: 100%;
+	text-align: start;
+
+	> i {
+		flex-shrink: 0;
+	}
+
+	> :last-child {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+}
+
+.roleName {
+	color: var(--role-color);
+}
+
+.roleBadge {
+	flex-shrink: 0;
+	width: 1.3em;
+	height: 1.3em;
+	object-fit: contain;
+}
+
+.ellipsis {
 	min-width: 0;
-	margin-right: 8px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
-.roleItemSub {
-	padding: 6px 12px;
-	font-size: 85%;
-	color: var(--MI_THEME-fgTransparentWeak);
+.announcementText {
+	display: -webkit-box;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow-wrap: anywhere;
 }
 
-.roleUnassign {
-	width: 32px;
-	height: 32px;
-	margin-left: 8px;
-	align-self: center;
-}
-
-.announcementItem {
-	display: flex;
-	background: var(--MI_THEME-panel);
-	border: var(--MI-divider);
-	padding: var(--MI-cardPadding);
-	border-radius: 6px;
-	cursor: pointer;
+.dangerAction {
+	color: var(--MI_THEME-error);
 }
 </style>

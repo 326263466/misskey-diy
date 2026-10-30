@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:id="previewId"
 	:class="$style.root"
 	:modelValue="text"
-	:theme="store.s.darkMode ? 'dark' : 'light'"
+	:theme="store.r.darkMode.value ? 'dark' : 'light'"
 	:sanitize="sanitizeMarkdown"
 	:mdHeadingId="headingId"
 	noHighlight noKatex noMermaid noEcharts
@@ -53,10 +53,10 @@ function updateCatalog(headings: HeadList[]) {
 </script>
 
 <style lang="scss" module>
+@use "../styles/markdown.scss";
+
 .root {
-	--md-bk-color: var(--MI_THEME-panel);
-	--md-color: var(--MI_THEME-fg);
-	--md-theme-color: var(--MI_THEME-accent);
+	@include markdown.theme;
 	min-width: 0;
 	background: transparent;
 	color: var(--MI_THEME-fg);

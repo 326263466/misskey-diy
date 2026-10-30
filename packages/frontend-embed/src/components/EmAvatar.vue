@@ -69,8 +69,9 @@ function getDecorationAngle(decoration: Omit<Misskey.entities.UserDetailed['avat
 }
 
 function getDecorationScale(decoration: Omit<Misskey.entities.UserDetailed['avatarDecorations'][number], 'id'>) {
-	const scaleX = decoration.flipH ? -1 : 1;
-	return scaleX === 1 ? undefined : `${scaleX} 1`;
+	const scale = decoration.scale ?? 1;
+	const scaleX = decoration.flipH ? -scale : scale;
+	return scaleX === 1 ? undefined : `${scaleX} ${scale}`;
 }
 
 function getDecorationOffset(decoration: Omit<Misskey.entities.UserDetailed['avatarDecorations'][number], 'id'>) {
@@ -170,6 +171,8 @@ function getDecorationOffset(decoration: Omit<Misskey.entities.UserDetailed['ava
 	top: -50%;
 	left: -50%;
 	width: 200%;
+	// 延迟加载前图片没有尺寸，保留方形区域，避免高度为 0 时可视检测落到头像上方而不加载。
+	aspect-ratio: auto 1;
 	pointer-events: none;
 }
 </style>

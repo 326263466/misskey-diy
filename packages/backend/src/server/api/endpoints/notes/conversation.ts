@@ -11,6 +11,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
 import { GetterService } from '@/server/api/GetterService.js';
+import { CacheService } from '@/core/CacheService.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -58,6 +59,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private noteEntityService: NoteEntityService,
 		private getterService: GetterService,
+		private cacheService: CacheService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			if (me == null && getVisitorContentVisibility(this.serverSettings) === 'none') return [];
@@ -67,14 +69,21 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw err;
 			});
 
+			const blockedUserIds = me ? await this.cacheService.getBlockedUserIds(me.id) : new Set<string>();
 			const conversation: MiNote[] = [];
 			let i = 0;
 
 			const get = async (id: any) => {
-				i++;
 				const p = await this.notesRepository.findOneBy({ id });
 				if (p == null) return;
 
+				// 跳过拉黑关系中的帖子，但继续向上追溯，保留其余上下文。
+				if (blockedUserIds.has(p.userId)) {
+					if (p.replyId) await get(p.replyId);
+					return;
+				}
+
+				i++;
 				if (i > ps.offset!) {
 					conversation.push(p);
 				}

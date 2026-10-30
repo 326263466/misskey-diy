@@ -13,6 +13,7 @@ export const packedRedPacketSummarySchema = {
 		kind: { type: 'string', enum: ['direct', 'group'], optional: false, nullable: false },
 		audience: { type: 'string', enum: ['public', 'recipients', 'room'], optional: false, nullable: false },
 		roomId: { type: 'string', format: 'id', optional: false, nullable: true },
+		recipient: { type: 'object', ref: 'UserLite', optional: true, nullable: true, description: 'The designated recipient of an exclusive group packet, or null if the account was deleted.' },
 		mode: { type: 'string', enum: ['equal', 'random'], optional: false, nullable: false },
 		message: { type: 'string', optional: false, nullable: false },
 		password: { type: 'string', optional: false, nullable: true },
@@ -35,6 +36,7 @@ export const packedRedPacketSchema = {
 	...packedRedPacketSummarySchema,
 	properties: {
 		...packedRedPacketSummarySchema.properties,
+		canClaim: { type: 'boolean', optional: true, nullable: false, description: 'Whether the viewer can currently claim an exclusive group packet. Only included in exclusive group packet details.' },
 		claims: {
 			type: 'array', optional: false, nullable: false,
 			items: {

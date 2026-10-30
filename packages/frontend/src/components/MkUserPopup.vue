@@ -27,41 +27,42 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else-if="user != null">
 			<div class="_imageContainer" :class="$style.banner">
 				<img v-if="user.bannerUrl" class="_imageBackground" :src="prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(user.bannerUrl) : user.bannerUrl" alt=""/>
-				<span v-if="$i && $i.id != user.id && user.isFollowed" :class="$style.followed">{{ i18n.ts.followsYou }}</span>
 			</div>
-			<svg viewBox="0 0 128 128" :class="$style.avatarBack">
-				<g transform="matrix(1.6,0,0,1.6,-38.4,-51.2)">
-					<path d="M64,32C81.661,32 96,46.339 96,64C95.891,72.184 104,72 104,72C104,72 74.096,80 64,80C52.755,80 24,72 24,72C24,72 31.854,72.018 32,64C32,46.339 46.339,32 64,32Z" style="fill: var(--MI_THEME-popup);"/>
-				</g>
-			</svg>
-			<MkA :to="userPage(user)">
-				<MkAvatar :class="$style.avatar" :user="user" indicator/>
-			</MkA>
-			<div :class="$style.title">
-				<MkA :class="$style.name" :to="userPage(user)"><MkUserName :user="user" :nowrap="false"/></MkA>
-				<div :class="$style.username"><MkAcct :user="user"/></div>
-				<MkUserWork :user="user" :class="$style.work"/>
+			<div :class="$style.actions">
+				<MkFollowButton v-if="user.id !== $i?.id" :user="user" :class="[$style.action, $style.follow]" @update:user="sourceUser = $event"/>
+				<button v-tooltip="i18n.ts.more" class="_button" :class="[$style.action, $style.menu]" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
 			</div>
-			<div :class="$style.description">
-				<Mfm v-if="user.description" :class="$style.mfm" :text="user.description" :author="user"/>
-				<div v-else style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts.noAccountDescription }}</div>
-			</div>
-			<div :class="$style.status">
-				<MkA :class="$style.statusItem" :to="userPage(user, 'notes')">
-					<div :class="$style.statusItemLabel">{{ i18n.ts.notes }}</div>
-					<div>{{ number(user.notesCount) }}</div>
+			<div :class="$style.main">
+				<MkA :to="userPage(user)" :class="$style.avatarLink">
+					<MkAvatar :class="$style.avatar" :user="user" indicator/>
 				</MkA>
-				<MkA v-if="isFollowingVisibleForMe(user)" :class="$style.statusItem" :to="userPage(user, 'following')">
-					<div :class="$style.statusItemLabel">{{ i18n.ts.following }}</div>
-					<div>{{ number(user.followingCount) }}</div>
-				</MkA>
-				<MkA v-if="isFollowersVisibleForMe(user)" :class="$style.statusItem" :to="userPage(user, 'followers')">
-					<div :class="$style.statusItemLabel">{{ i18n.ts.followers }}</div>
-					<div>{{ number(user.followersCount) }}</div>
-				</MkA>
+				<div :class="$style.title">
+					<div :class="$style.nameRow">
+						<MkA :class="$style.name" :to="userPage(user)"><MkUserName :user="user" :nowrap="false"/></MkA>
+						<span v-if="$i && user.memo" v-tooltip="`${i18n.ts.memo}: ${user.memo}`" :class="$style.memo">{{ user.memo }}</span>
+					</div>
+					<div :class="$style.username">
+						<MkAcct :user="user"/>
+						<span v-if="$i && $i.id != user.id && user.isFollowed" :class="$style.followed">{{ i18n.ts.followsYou }}</span>
+					</div>
+					<MkUserWork :user="user" :class="$style.work"/>
+				</div>
+				<div :class="$style.description">
+					<Mfm v-if="user.description" :class="$style.mfm" :text="user.description" :author="user"/>
+					<span v-else :class="$style.noDescription">{{ i18n.ts.noAccountDescription }}</span>
+				</div>
+				<div :class="$style.status">
+					<MkA :class="$style.statusItem" :to="userPage(user, 'notes')">
+						<b>{{ number(user.notesCount) }}</b>{{ i18n.ts.notes }}
+					</MkA>
+					<MkA v-if="isFollowingVisibleForMe(user)" :class="$style.statusItem" :to="userPage(user, 'following')">
+						<b>{{ number(user.followingCount) }}</b>{{ i18n.ts.following }}
+					</MkA>
+					<MkA v-if="isFollowersVisibleForMe(user)" :class="$style.statusItem" :to="userPage(user, 'followers')">
+						<b>{{ number(user.followersCount) }}</b>{{ i18n.ts.followers }}
+					</MkA>
+				</div>
 			</div>
-			<MkFollowButton v-if="$i && user.id != $i.id" :user="user" :class="$style.follow" mini @update:user="sourceUser = $event"/>
-			<button v-tooltip="i18n.ts.more" class="_button _iconButton" :class="[$style.menu, $style.glass]" :aria-label="i18n.ts.more" @click="showMenu"><i class="ti ti-dots"></i></button>
 		</div>
 		<div v-else>
 			<MkLoading/>
@@ -134,6 +135,7 @@ function showMenu(ev: PointerEvent) {
 			actioned = true;
 			if (props.showing) emit('close');
 		},
+		onBackdropClick: onOutsideClick,
 	}).finally(() => {
 		menuShown = false;
 		cleanup();
@@ -258,147 +260,169 @@ onUnmounted(() => {
 }
 
 .banner {
-	height: 78px;
-	background-color: rgba(0, 0, 0, 0.1);
+	height: 84px;
+	background: linear-gradient(135deg, color-mix(in srgb, var(--MI_THEME-accent) 55%, var(--MI_THEME-popup)), color-mix(in srgb, var(--MI_THEME-accent) 20%, var(--MI_THEME-popup)));
 }
 
-.followed {
-	position: absolute;
-	top: 12px;
-	left: 12px;
-	padding: 4px 8px;
-	color: #fff;
-	background: rgba(0, 0, 0, 0.7);
-	font-size: 0.7em;
-	border-radius: 6px;
+.main {
+	padding: 0 16px 14px;
 }
 
-.avatarBack {
-	width: 100px;
-	position: absolute;
-	top: 28px;
-	left: 0;
-	right: 0;
-	margin: 0 auto;
+.avatarLink {
+	position: relative;
+	z-index: 1;
+	display: block;
+	width: fit-content;
+	margin-top: -32px;
 }
 
 .avatar {
 	display: block;
-	position: absolute;
-	top: 38px;
-	left: 0;
-	right: 0;
-	margin: 0 auto;
-	z-index: 2;
-	width: 58px;
-	height: 58px;
+	width: 64px;
+	height: 64px;
+	box-shadow: 0 0 0 3px var(--MI_THEME-popup);
 }
 
 .title {
-	position: relative;
-	z-index: 3;
-	display: block;
-	padding: 8px 26px 16px 26px;
-	margin-top: 16px;
-	text-align: center;
+	margin-top: 10px;
+	min-width: 0;
+}
+
+.nameRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 2px 8px;
+	min-width: 0;
 }
 
 .name {
-	display: inline-block;
+	font-size: 1.05em;
 	font-weight: bold;
 	word-break: break-all;
 }
 
+// 备注用浅色标签和用户名区分，样式与“关注了你”一致。
+.memo {
+	max-width: 12em;
+	padding: 1px 6px;
+	border-radius: 4px;
+	font-size: .8em;
+	line-height: 1.5;
+	color: var(--MI_THEME-fgTransparent);
+	background: var(--MI_THEME-buttonBg);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .username {
-	display: block;
-	font-size: 0.8em;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin-top: 2px;
+	font-size: .85em;
 	color: var(--MI_THEME-fgTransparentWeak);
 }
 
-.description {
+.followed {
+	padding: 1px 6px;
+	border-radius: 4px;
+	font-size: .9em;
 	color: var(--MI_THEME-fgTransparent);
-	// 与个人主页信息区一致, 用画布灰做圆角内嵌底
-	margin: 0 16px 12px;
-	padding: 12px 16px;
-	font-size: 0.8em;
-	text-align: center;
-	background: var(--MI_THEME-bg);
-	border-radius: var(--MI-cardRadius);
+	background: var(--MI_THEME-buttonBg);
 }
 
 .work {
-	justify-content: center;
-	margin-top: 5px;
+	margin-top: 6px;
+}
+
+.description {
+	margin-top: 10px;
+	font-size: .9em;
+	line-height: 1.6;
+	color: var(--MI_THEME-fgTransparent);
 }
 
 .mfm {
 	display: -webkit-box;
-	-webkit-line-clamp: 5;
+	-webkit-line-clamp: 3;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
 
-.status {
-	margin: 0 16px 16px;
-	padding: 12px;
-	background: var(--MI_THEME-bg);
-	border-radius: var(--MI-cardRadius);
-}
-
-.statusItem {
-	color: var(--MI_THEME-fgTransparent);
-	display: inline-block;
-	width: 33%;
-	text-align: center;
-}
-
-.statusItemLabel {
-	font-size: 0.7em;
+.noDescription {
 	color: var(--MI_THEME-fgTransparentWeak);
 }
 
-.menu {
+.status {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: var(--MI-divider);
+	font-size: .85em;
+}
+
+.statusItem {
+	color: var(--MI_THEME-fgTransparentWeak);
+
+	b {
+		margin-right: 4px;
+		color: var(--MI_THEME-fg);
+		font-variant-numeric: tabular-nums;
+	}
+
+	&:hover {
+		color: var(--MI_THEME-fg);
+	}
+}
+
+// 与源码一致，操作按钮浮在横幅右上角。
+.actions {
 	position: absolute;
 	top: 8px;
 	right: 8px;
-	display: grid;
-	place-items: center;
-	width: 31px;
-	height: 31px;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+// 横幅上的按钮比默认尺寸小一号；关注按钮的状态配色由 MkFollowButton 统一提供。
+.actions > .action.action {
+	height: 26px;
 	border-radius: 999px;
+	font-size: 12px;
+}
+
+.actions > .follow.follow {
+	min-width: 56px;
+	padding: 0 12px;
+}
+
+.actions > .menu.menu {
+	display: inline-grid;
+	place-items: center;
+	width: 26px;
+	font-size: 14px;
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-buttonBg);
+	transition: background-color .15s ease;
+
+	&:hover {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
 
 	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
 		outline-offset: 2px;
 	}
 }
 
-.follow {
-	// 图标色与右侧"…"玻璃按钮一致（含已关注状态），不用主题色
-	--MI-followButton-fg: light-dark(var(--MI_THEME-panel), var(--MI_THEME-fg));
-	--MI-followButton-bg: color(from var(--MI_THEME-modalBg) srgb r g b / 0.55);
-	--MI-followButton-backdropFilter: var(--MI-blur, blur(8px));
-	position: absolute !important;
-	top: 8px;
-	right: 44px;
-}
-
-.root .glass {
-	color: light-dark(var(--MI_THEME-panel), var(--MI_THEME-fg));
-	background: color(from var(--MI_THEME-modalBg) srgb r g b / 0.55);
-	-webkit-backdrop-filter: var(--MI-blur, blur(8px));
-	backdrop-filter: var(--MI-blur, blur(8px));
-	text-shadow: 0 0 8px var(--MI_THEME-shadow);
-}
-
-.menu, .follow {
-	:global(.ti) {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.28em;
-		height: 1.28em;
-		line-height: 1;
-		vertical-align: 0;
-	}
+@media (prefers-reduced-motion: reduce) {
+	.actions > .menu.menu { transition: none; }
 }
 </style>

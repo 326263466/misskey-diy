@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<div v-if="!fetching" class="_gaps_m">
 					<div>
-						<div :class="$style.meter"><div :class="$style.meterValue" :style="meterStyle"></div></div>
+						<progress :class="$style.capacityProgress" :value="usage ?? 0" :max="capacity || 1" :style="meterStyle" :aria-label="i18n.ts.inUse"></progress>
 					</div>
 					<FormSplit>
 						<MkKeyValue>
@@ -199,7 +199,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, ref } from 'vue';
+import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import tinycolor from 'tinycolor2';
 import XWatermarkItem from './drive.WatermarkItem.vue';
@@ -214,7 +214,6 @@ import MkKeyValue from '@/components/MkKeyValue.vue';
 import FormSplit from '@/components/form/split.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { misskeyApiWithToast } from '@/utility/misskey-api-with-toast.js';
 import bytes from '@/filters/bytes.js';
 import MkChart from '@/components/MkChart.vue';
 import { i18n } from '@/i18n.js';
@@ -226,7 +225,6 @@ import MkFeatureBanner from '@/components/MkFeatureBanner.vue';
 import { selectDriveFolder } from '@/utility/drive.js';
 import MkFolder from '@/components/MkFolder.vue';
 import MkButton from '@/components/MkButton.vue';
-import { genId } from '@/utility/id.js';
 
 const $i = ensureSignin();
 
@@ -240,8 +238,7 @@ const autoSensitive = ref($i.autoSensitive);
 const meterStyle = computed(() => {
 	if (!capacity.value || !usage.value) return {};
 	return {
-		width: `${usage.value / capacity.value * 100}%`,
-		background: tinycolor({
+		'--MI-progressFill': tinycolor({
 			h: 180 - (usage.value / capacity.value * 180),
 			s: 0.7,
 			l: 0.5,
@@ -300,7 +297,7 @@ function chooseUploadFolder() {
 	selectDriveFolder(null).then(async ({ canceled, folders }) => {
 		if (canceled) return;
 		prefer.commit('uploadFolder', folders[0] ? folders[0].id : null);
-		os.success();
+		os.toast(i18n.ts.saved, 'success');
 		if (prefer.s.uploadFolder) {
 			uploadFolder.value = await misskeyApi('drive/folders/show', {
 				folderId: prefer.s.uploadFolder,
@@ -384,17 +381,15 @@ async function addImageFramePreset() {
 }
 
 function saveProfile() {
-	misskeyApiWithToast('i/update', {
+	misskeyApi('i/update', {
 		alwaysMarkNsfw: !!alwaysMarkNsfw.value,
 		autoSensitive: !!autoSensitive.value,
 	}).catch(() => {
-		alwaysMarkNsfw.value = true;
+		// 保存失败时还原为账户中的值
+		alwaysMarkNsfw.value = $i.alwaysMarkNsfw;
+		autoSensitive.value = $i.autoSensitive;
 	});
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.drive,
@@ -403,15 +398,7 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
-.meter {
-	height: 10px;
-	background: var(--MI_THEME-bg);
-	border-radius: 999px;
-	overflow: clip;
-}
-
-.meterValue {
-	height: 100%;
-	border-radius: 999px;
+.capacityProgress {
+	--MI-progressHeight: 10px;
 }
 </style>

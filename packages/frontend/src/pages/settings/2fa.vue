@@ -93,9 +93,10 @@ import FormSection from '@/components/form/section.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import MkLink from '@/components/MkLink.vue';
 import * as os from '@/os.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
 import { ensureSignin } from '@/i.js';
 import { i18n } from '@/i18n.js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 
 const $i = ensureSignin();
 
@@ -126,16 +127,11 @@ async function unregisterTOTP(): Promise<void> {
 	os.apiWithDialog('i/2fa/unregister', {
 		password: auth.result.password,
 		token: auth.result.token,
-	}).then(res => {
-		updateCurrentAccountPartial({
+	}).then(() => {
+		updateCurrentAccount({
 			twoFactorEnabled: false,
 		});
-	}).catch(error => {
-		os.alert({
-			type: 'error',
-			text: error,
-		});
-	});
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function renewTOTP(): void {
@@ -167,7 +163,7 @@ async function unregisterKey(key: NonNullable<Misskey.entities.MeDetailedOnly['s
 		token: auth.result.token,
 		credentialId: key.id,
 	});
-	os.success();
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 }
 
 async function renameKey(key: NonNullable<Misskey.entities.MeDetailedOnly['securityKeysList']>[number]) {
@@ -184,6 +180,7 @@ async function renameKey(key: NonNullable<Misskey.entities.MeDetailedOnly['secur
 		name: name.result,
 		credentialId: key.id,
 	});
+	os.toast(i18n.ts.saved, 'success');
 }
 
 async function addSecurityKey() {
@@ -221,11 +218,12 @@ async function addSecurityKey() {
 		name: name.result,
 		credential: credential,
 	});
+	os.toast(i18n.ts.added, 'success');
 }
 
 async function updatePasswordLessLogin(value: boolean) {
-	await os.apiWithDialog('i/2fa/password-less', {
+	await misskeyApi('i/2fa/password-less', {
 		value,
-	});
+	}).catch(() => {});
 }
 </script>

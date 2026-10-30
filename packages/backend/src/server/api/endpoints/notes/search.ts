@@ -11,12 +11,14 @@ import { SearchService } from '@/core/SearchService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { IdService } from '@/core/IdService.js';
+import { searchTimeoutError, searchProviderErrors } from '@/misc/search-query.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
 	tags: ['notes'],
 
 	requireCredential: false,
+	limit: { duration: 60 * 1000, max: 60 },
 
 	res: {
 		type: 'array',
@@ -29,6 +31,8 @@ export const meta = {
 	},
 
 	errors: {
+		...searchProviderErrors,
+		searchTimeout: searchTimeoutError,
 		unavailable: {
 			message: 'Search of notes unavailable.',
 			code: 'UNAVAILABLE',
@@ -40,7 +44,7 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		query: { type: 'string' },
+		query: { type: 'string', minLength: 1, maxLength: 512 },
 		rangeStartAt: { type: 'integer', nullable: true },
 		rangeEndAt: { type: 'integer', nullable: true },
 		sinceId: { type: 'string', format: 'misskey:id' },
@@ -51,7 +55,7 @@ export const paramDef = {
 		offset: { type: 'integer', minimum: 0, default: 0 },
 		sort: {
 			type: 'string', enum: ['time', 'popularity'],
-			description: 'Sort the full matching set before offset pagination. Explicit sorting uses database text matching, including when Meilisearch is configured. Popularity is the sum of reactions, replies and renotes.',
+			description: 'Sort matching notes before offset pagination with the selected search provider. Popularity is the sum of reactions, replies and renotes.',
 		},
 		order: { type: 'string', enum: ['asc', 'desc'], description: 'Direction for explicit sorting (default: desc). Use offset for subsequent sorted pages.' },
 		host: {

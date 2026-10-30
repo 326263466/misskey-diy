@@ -6,7 +6,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Brackets, type FindOptionsWhere } from 'typeorm';
 import type { NoteReactionsRepository } from '@/models/_.js';
-import type { MiNoteReaction } from '@/models/NoteReaction.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { NoteReactionEntityService } from '@/core/entities/NoteReactionEntityService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
@@ -70,7 +69,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw err;
 			});
 
-			if (!await this.noteEntityService.isVisibleForMe(note, me ? me.id : null)) {
+			if (!await this.noteEntityService.isContentVisible(note, me)) {
 				throw new ApiError(meta.errors.noSuchNote);
 			}
 
@@ -78,6 +77,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				.andWhere('reaction.noteId = :noteId', { noteId: note.id })
 				.leftJoinAndSelect('reaction.user', 'user')
 				.leftJoinAndSelect('reaction.note', 'note');
+			if (me) this.queryService.generateBlockQueryForUsers(query, me);
 
 			if (ps.type) {
 				// ローカルリアクションはホスト名が . とされているが

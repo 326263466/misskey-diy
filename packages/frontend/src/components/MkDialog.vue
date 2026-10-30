@@ -4,14 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModal ref="modal" :preferType="'dialog'" :zPriority="'high'" :closeOnBackdrop="(closeOnBackdrop ?? (!input || !!dateType)) && cancelableByBgClick" @click="cancel()" @closed="emit('closed')" @esc="cancel()">
+<MkModal ref="modal" :preferType="'dialog'" :zPriority="'high'" :useHistory="useHistory" :closeOnBackdrop="(closeOnBackdrop ?? (!input || !!dateType)) && cancelableByBgClick" @click="cancel()" @closed="emit('closed')" @esc="cancel()">
 	<div :class="[$style.root, { [$style.dateDialog]: dateType }]">
-		<div v-if="icon" :class="$style.icon">
+		<div v-if="icon" :class="[$style.icon, $style[type]]">
 			<i :class="icon"></i>
 		</div>
 		<div
 			v-else-if="!input && !select"
-			:class="[$style.icon]"
+			:class="[$style.icon, $style[type]]"
 		>
 			<MkSystemIcon v-if="type === 'success'" :class="$style.iconInner" style="width: 45px;" type="success"/>
 			<MkSystemIcon v-else-if="type === 'error'" :class="$style.iconInner" style="width: 45px;" type="error"/>
@@ -23,15 +23,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<header v-if="title" :class="$style.title" class="_selectable"><Mfm :text="title"/></header>
 		<div v-if="text" :class="$style.text" class="_selectable"><Mfm :text="text"/></div>
 		<div v-if="progress" :class="$style.progressBlock">
-			<progress :class="$style.progress" :value="progress.value" :max="progress.max" :aria-label="progress.label ?? undefined"></progress>
+			<progress :value="progress.value" :max="progress.max" :aria-label="progress.label ?? undefined"></progress>
 			<span v-if="progress.label" :class="$style.progressLabel">{{ progress.label }}</span>
 		</div>
 		<MkDatePicker v-if="dateType" :modelValue="String(inputValue ?? '')" :type="dateType" embedded @update:modelValue="inputValue = $event" @validity="dateValid = $event" @close="cancel"/>
-		<MkInput v-else-if="input" v-model="inputValue" autofocus :type="input.type || 'text'" :placeholder="input.placeholder || undefined" :autocomplete="input.autocomplete" :counterMaxLength="input.maxLength" @keydown="onInputKeydown">
+		<MkInput v-else-if="input" v-model="inputValue" autofocus :type="input.type || 'text'" :placeholder="input.placeholder || undefined" :autocomplete="input.autocomplete" :maxLength="input.maxLength" @keydown="onInputKeydown">
 			<template v-if="input.type === 'password'" #prefix><i class="ti ti-lock"></i></template>
-			<template #caption>
-				<span v-if="okButtonDisabledReason === 'charactersExceeded'" v-text="i18n.tsx._dialog.charactersExceeded({ current: Array.from(String(inputValue ?? '')).length, max: input.maxLength ?? 'NaN' })"></span>
-				<span v-else-if="okButtonDisabledReason === 'charactersBelow'" v-text="i18n.tsx._dialog.charactersBelow({ current: Array.from(String(inputValue ?? '')).length, min: input.minLength ?? 'NaN' })"></span>
+			<!-- maxLength 已限制输入，不会超出；字数不足的提示预留固定位置，出现和消失都不挤动布局。只要求非空时禁用确定按钮即可，不占位。 -->
+			<template v-if="input.minLength && input.minLength > 1" #caption>
+				<span :style="{ visibility: okButtonDisabledReason === 'charactersBelow' ? 'visible' : 'hidden' }" v-text="i18n.tsx._dialog.charactersBelow({ current: Array.from(String(inputValue ?? '')).length, min: input.minLength })"></span>
 			</template>
 		</MkInput>
 		<MkSelect v-if="select" v-model="selectedValue" :items="selectDef" autofocus></MkSelect>
@@ -100,6 +100,7 @@ const props = withDefaults(defineProps<{
 	showCancelButton?: boolean;
 	cancelableByBgClick?: boolean;
 	closeOnBackdrop?: boolean;
+	useHistory?: boolean;
 	okText?: string;
 	cancelText?: string;
 }>(), {
@@ -195,9 +196,32 @@ function onInputKeydown(evt: KeyboardEvent) {
 .icon {
 	font-size: 24px;
 
+	&.info,
+	&.question,
+	&.waiting {
+		color: var(--MI_THEME-accent);
+	}
+
+	&.success {
+		color: var(--MI_THEME-success);
+	}
+
+	&.warning {
+		color: var(--MI_THEME-warn);
+	}
+
+	&.error {
+		color: var(--MI_THEME-error);
+	}
+
 	& + .title {
 		margin-top: 8px;
 	}
+}
+
+// 仅覆盖弹窗内图标的默认色，不影响其他页面的 MkSystemIcon。
+.root .icon > .iconInner {
+	color: inherit;
 }
 
 .dateDialog {
@@ -232,11 +256,6 @@ function onInputKeydown(evt: KeyboardEvent) {
 	flex-direction: column;
 	gap: 8px;
 	align-items: center;
-}
-
-.progress {
-	width: 100%;
-	height: 6px;
 }
 
 .progressLabel {

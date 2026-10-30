@@ -66,6 +66,7 @@ async function onSubmit() {
 		username: username.value,
 		email: email.value,
 	});
+	os.toast(i18n.ts.sent, 'success');
 	emit('done');
 	dialog.value?.close();
 }

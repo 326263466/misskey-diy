@@ -9,8 +9,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	draggable="true"
 	:title="title"
 	@contextmenu.stop="onContextmenu"
-	@mouseover="onMouseover"
-	@mouseout="onMouseout"
 	@dragover.prevent.stop="onDragover"
 	@dragenter.prevent="onDragenter"
 	@dragleave="onDragleave"
@@ -18,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@dragstart="onDragstart"
 	@dragend="onDragend"
 >
-	<svg :class="[$style.shape]" viewBox="0 0 200 150" preserveAspectRatio="none">
+	<svg :class="[$style.shape]" viewBox="0 0 200 150" preserveAspectRatio="none" aria-hidden="true">
 		<path d="M190,25C195.523,25 200,29.477 200,35C200,58.415 200,116.585 200,140C200,145.523 195.523,150 190,150C155.86,150 44.14,150 10,150C4.477,150 0,145.523 0,140C0,112.727 0,37.273 0,10C0,4.477 4.477,0 10,-0C26.642,0 59.332,0 70.858,0C73.51,-0 76.054,1.054 77.929,2.929C82.74,7.74 92.26,17.26 97.071,22.071C98.946,23.946 101.49,25 104.142,25C118.808,25 168.535,25 190,25Z" style="fill:var(--MI_THEME-accentedBg);"/>
 	</svg>
 	<div :class="$style.name">{{ folder.name }}</div>
@@ -32,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, ref } from 'vue';
+import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { MenuItem } from '@/types/menu.js';
 import * as os from '@/os.js';
@@ -44,6 +42,7 @@ import { prefer } from '@/preferences.js';
 import { globalEvents } from '@/events.js';
 import { checkDragDataType, getDragData, setDragData } from '@/drag-and-drop.js';
 import { selectDriveFolder } from '@/utility/drive.js';
+import { deviceKind } from '@/utility/device-kind.js';
 
 const props = withDefaults(defineProps<{
 	folder: Misskey.entities.DriveFolder;
@@ -62,7 +61,6 @@ const emit = defineEmits<{
 	(ev: 'dragend'): void;
 }>();
 
-const hover = ref(false);
 const draghover = ref(false);
 const isDragging = ref(false);
 
@@ -74,14 +72,6 @@ function checkboxClicked() {
 	} else {
 		emit('chosen', props.folder);
 	}
-}
-
-function onMouseover() {
-	hover.value = true;
-}
-
-function onMouseout() {
-	hover.value = false;
 }
 
 function onDragover(ev: DragEvent) {
@@ -273,13 +263,9 @@ function deleteFolder() {
 	});
 }
 
-function setAsUploadFolder() {
-	prefer.commit('uploadFolder', props.folder.id);
-}
-
 function onContextmenu(ev: PointerEvent) {
-	let menu: MenuItem[];
-	menu = [{
+	let menu: MenuItem[] = [];
+	if (deviceKind !== 'smartphone' && window.innerWidth > 500) menu.push({
 		text: i18n.ts.openInWindow,
 		icon: 'ti ti-app-window',
 		action: async () => {
@@ -289,7 +275,8 @@ function onContextmenu(ev: PointerEvent) {
 				closed: () => dispose(),
 			});
 		},
-	}, { type: 'divider' }, {
+	}, { type: 'divider' });
+	menu.push({
 		text: i18n.ts.rename,
 		icon: 'ti ti-forms',
 		action: rename,
@@ -302,7 +289,7 @@ function onContextmenu(ev: PointerEvent) {
 		icon: 'ti ti-trash',
 		danger: true,
 		action: deleteFolder,
-	}];
+	});
 	if (prefer.s.devMode) {
 		menu = menu.concat([{ type: 'divider' }, {
 			icon: 'ti ti-hash',
@@ -345,6 +332,7 @@ function onContextmenu(ev: PointerEvent) {
 	left: 0;
 	width: 100%;
 	height: 100%;
+	pointer-events: none;
 }
 
 .checkboxWrapper {
@@ -360,7 +348,7 @@ function onContextmenu(ev: PointerEvent) {
 		width: 18px;
 		height: 18px;
 		background: var(--MI_THEME-panel);
-		border: solid 2px var(--MI_THEME-divider); // divider-exempt: checkbox control outline
+		border: solid 2px var(--MI_THEME-divider); // divider-exempt: folder checkbox outline
 		border-radius: 4px;
 		box-sizing: border-box;
 
@@ -386,16 +374,12 @@ function onContextmenu(ev: PointerEvent) {
 }
 
 .name {
+	position: relative;
 	font-size: 0.9em;
 }
 
-.icon {
-	margin-right: 4px;
-	margin-left: 2px;
-	text-align: left;
-}
-
 .upload {
+	position: relative;
 	font-size: 0.8em;
 	text-align: right;
 }

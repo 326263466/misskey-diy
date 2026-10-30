@@ -7,6 +7,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { describe, beforeEach, beforeAll, afterEach, afterAll, vi, test, expect } from 'vitest';
 import { In } from 'typeorm';
 import { UserSearchService } from '@/core/UserSearchService.js';
+import { SearchIndexService } from '@/core/SearchIndexService.js';
+import { LoggerService } from '@/core/LoggerService.js';
 import { FollowingsRepository, MiUser, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalModule } from '@/GlobalModule.js';
@@ -91,6 +93,8 @@ describe('UserSearchService', () => {
 				],
 				providers: [
 					UserSearchService,
+					SearchIndexService,
+					LoggerService,
 					{
 						provide: UserEntityService, useFactory: vi.fn(() => ({
 							// とりあえずIDが返れば確認が出来るので

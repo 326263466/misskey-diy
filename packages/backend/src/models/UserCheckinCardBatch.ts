@@ -22,7 +22,7 @@ export class MiUserCheckinCardBatch {
 	public user: MiUser | null;
 
 	@Column('varchar', { length: 16 })
-	public source: 'admin' | 'exchange' | 'reward' | 'legacy' | 'redemption';
+	public source: 'exchange' | 'reward' | 'legacy' | 'redemption';
 
 	@Column('timestamp with time zone')
 	public createdAt: Date;
@@ -38,11 +38,4 @@ export class MiUserCheckinCardBatch {
 
 	@Column('integer', { default: 0 })
 	public revoked: number;
-
-	@Index('IDX_checkin_card_batch_grant_log', { unique: true })
-	@Column({ ...id(), nullable: true })
-	public grantLogId: string | null;
-
-	@Column({ ...id(), nullable: true })
-	public adminId: MiUser['id'] | null;
 }

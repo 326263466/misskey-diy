@@ -32,6 +32,12 @@ export class MiUser {
 	})
 	public lastActiveDate: Date | null;
 
+	/** 最后一个流式连接断开的时间；晚于 lastActiveDate 时视为离线。 */
+	@Column('timestamp with time zone', {
+		nullable: true,
+	})
+	public lastDisconnectedAt: Date | null;
+
 	@Column('boolean', {
 		default: false,
 	})

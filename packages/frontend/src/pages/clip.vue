@@ -119,6 +119,7 @@ const headerActions = computed<PageHeaderItem[] | null>(() => clip.value && isOw
 				type: 'string',
 				label: i18n.ts.name,
 				default: clip.value.name,
+				maxLength: Misskey.CONTENT_LIMITS.collectionName,
 			},
 			description: {
 				type: 'string',
@@ -127,6 +128,7 @@ const headerActions = computed<PageHeaderItem[] | null>(() => clip.value && isOw
 				treatAsMfm: true,
 				label: i18n.ts.description,
 				default: clip.value.description,
+				maxLength: Misskey.CONTENT_LIMITS.clipDescription,
 			},
 			isPublic: {
 				type: 'boolean',
@@ -137,10 +139,13 @@ const headerActions = computed<PageHeaderItem[] | null>(() => clip.value && isOw
 
 		if (canceled) return;
 
+		// 失败提示由 apiWithDialog 处理
 		os.apiWithDialog('clips/update', {
 			clipId: clip.value.id,
 			...result,
-		});
+		}).then(() => {
+			os.toast(i18n.ts.saved, 'success');
+		}, () => {});
 
 		clipsCache.delete();
 	},
@@ -172,6 +177,7 @@ const headerActions = computed<PageHeaderItem[] | null>(() => clip.value && isOw
 		await os.apiWithDialog('clips/delete', {
 			clipId: clip.value.id,
 		});
+		os.toast(i18n.ts.deleteSucceeded, 'success');
 
 		clipsCache.delete();
 	},
@@ -179,7 +185,7 @@ const headerActions = computed<PageHeaderItem[] | null>(() => clip.value && isOw
 
 definePage(() => ({
 	title: clip.value ? clip.value.name : i18n.ts.clip,
-	icon: 'ti ti-paperclip',
+	icon: 'ti ti-bookmarks',
 }));
 </script>
 

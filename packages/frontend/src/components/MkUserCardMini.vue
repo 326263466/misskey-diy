@@ -36,7 +36,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 			<div v-if="user.id !== $i?.id" :class="$style.actions">
-				<MkFollowButton v-if="detailedUser" :class="[$style.action, $style.followAction]" :user="detailedUser" full textOnly @update:user="sourceUser = $event"/>
+				<MkFollowButton v-if="followUser" :class="[$style.action, $style.followAction]" :user="followUser" @update:user="sourceUser = $event"/>
 				<MkA v-if="canChat" :class="[$style.action, $style.messageAction]" :to="`/chat/user/${user.id}`">{{ i18n.ts.directMessage }}</MkA>
 			</div>
 		</div>
@@ -102,16 +102,21 @@ const bannerUrl = computed(() => {
 	const url = detailedUser.value ? detailedUser.value.bannerUrl : cachedCard.value?.bannerUrl;
 	return url && prefer.s.disableShowingAnimatedImages ? getStaticImageUrl(url) : url;
 });
-const canChat = computed(() => $i?.policies.chatAvailability === 'available' && detailedUser.value?.canChat && user.value.host == null);
+// 资料返回前按缓存的关系显示按钮；同一个按钮实例随后换成最新资料，不重新挂载。
+const cachedRelation = computed(() => cachedCard.value?.relation ?? null);
+const followUser = computed(() => detailedUser.value ?? (cachedRelation.value ? { ...user.value, ...cachedRelation.value } as Misskey.entities.UserDetailed : null));
+const canChat = computed(() => $i?.policies.chatAvailability === 'available' && (detailedUser.value ?? cachedRelation.value)?.canChat && user.value.host == null);
 
-watch(() => [props.user, props.author] as const, ([value, author], previous, onCleanup) => {
+// 按用户 ID 监听：缓存的作者换成文章返回的同一作者时不中断请求，关注、私信按钮不再推迟出现。
+watch(() => [props.user.id, props.author, props.preview] as const, ([id, author, preview], previous, onCleanup) => {
+	const value = props.user;
 	// 同一用户重新加载时保留已取得的资料和统计，避免关注、私信按钮闪烁。
-	const sameUser = previous?.[0].id === value.id && previous[1] === author;
+	const sameUser = previous?.[0] === id && previous[1] === author;
 	if (!sameUser) {
 		sourceUser.value = author && 'bannerUrl' in value ? value : null;
-		articleStats.value = cachedCard.value?.user.id === value.id ? cachedCard.value.stats : null;
+		articleStats.value = cachedCard.value?.user.id === id ? cachedCard.value.stats : null;
 	}
-	if (!author || props.preview) return;
+	if (!author || preview) return;
 
 	const controller = new AbortController();
 	onCleanup(() => controller.abort());
@@ -125,7 +130,11 @@ watch(() => [props.user, props.author] as const, ([value, author], previous, onC
 
 watch([detailedUser, articleStats], ([value, stats]) => {
 	if (!props.cachePath || !value || props.preview) return;
-	saveAuthorCard({ path: props.cachePath, user: value, bannerUrl: value.bannerUrl, description: value.description, stats, followersCount: isFollowersVisibleForMe(value) ? value.followersCount : null });
+	saveAuthorCard({
+		path: props.cachePath, user: value, bannerUrl: value.bannerUrl, description: value.description, stats,
+		followersCount: isFollowersVisibleForMe(value) ? value.followersCount : null,
+		relation: { isFollowing: value.isFollowing, hasPendingFollowRequestFromYou: value.hasPendingFollowRequestFromYou, isLocked: value.isLocked, canChat: value.canChat },
+	});
 });
 
 onMounted(() => {
@@ -326,7 +335,7 @@ $bodyInfoHieght: 16px;
 	margin-top: auto;
 }
 
-// 叠加类名提高优先级，覆盖 MkFollowButton 自带的尺寸、背景和模糊效果。
+// 叠加类名提高优先级，覆盖 MkFollowButton 的默认尺寸；关注按钮的状态配色由其统一提供。
 .actions > .action.action {
 	flex: 1;
 	display: flex;
@@ -340,7 +349,6 @@ $bodyInfoHieght: 16px;
 	border: 1px solid transparent;
 	border-radius: 999px;
 	font-size: 1em;
-	font-weight: 600;
 	text-decoration: none;
 	-webkit-backdrop-filter: none;
 	backdrop-filter: none;
@@ -349,31 +357,6 @@ $bodyInfoHieght: 16px;
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
 	&:not(:disabled):active { transform: scale(.96); }
 	&:disabled { cursor: progress; opacity: .7; }
-}
-
-// 关注：实心主按钮，悬停提亮并带主题色投影。
-.actions > .followAction.followAction {
-	color: var(--MI_THEME-fgOnAccent);
-	background: var(--MI_THEME-accent);
-
-	&:not(:disabled):hover {
-		background: hsl(from var(--MI_THEME-accent) h s calc(l + 6));
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--MI_THEME-accent) 35%, transparent);
-	}
-}
-
-// 已关注、已申请：退为描边次按钮，悬停变为警示色提示可撤销。
-.actions > .followAction.followAction:is([data-state="following"], [data-state="pending"]) {
-	color: var(--MI_THEME-fgTransparentWeak);
-	background: transparent;
-	border-color: var(--MI_THEME-divider);
-
-	&:not(:disabled):is(:hover, :focus-visible) {
-		color: var(--MI_THEME-error);
-		background: color-mix(in srgb, var(--MI_THEME-error) 8%, transparent);
-		border-color: color-mix(in srgb, var(--MI_THEME-error) 40%, transparent);
-		box-shadow: none;
-	}
 }
 
 // 私信：主题色描边，悬停填充浅主题色。

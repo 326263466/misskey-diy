@@ -69,7 +69,6 @@ defineProps<{
 	padding: 12px var(--MI-cardPadding);
 	background: var(--MI_THEME-folderHeaderBg);
 	border-radius: var(--MI-formGroupRadius, 6px);
-	font-size: 0.9em;
 
 	&:hover {
 		text-decoration: none;

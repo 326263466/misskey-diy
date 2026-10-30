@@ -3,14 +3,27 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { abuseReportTypes } from '@/models/AbuseUserReport.js';
+
 export const abuseReportSnapshotSchema = {
 	type: 'object',
 	nullable: false, optional: false,
 	properties: {
 		version: { type: 'number', nullable: false, optional: false },
 		capturedAt: { type: 'string', format: 'date-time', nullable: false, optional: false },
-		type: { type: 'string', enum: ['user', 'note', 'chat', 'page', 'gallery', 'play'], nullable: false, optional: false },
+		type: { type: 'string', enum: abuseReportTypes, nullable: false, optional: false },
 		sourceUrl: { type: 'string', nullable: false, optional: false },
+		federation: {
+			type: 'object', nullable: false, optional: true,
+			properties: {
+				activityId: { type: 'string', nullable: true, optional: false },
+				actorUri: { type: 'string', nullable: false, optional: false },
+				objectUris: {
+					type: 'array', nullable: false, optional: false,
+					items: { type: 'string', nullable: false, optional: false },
+				},
+			},
+		},
 		user: {
 			type: 'object', nullable: false, optional: false,
 			properties: {

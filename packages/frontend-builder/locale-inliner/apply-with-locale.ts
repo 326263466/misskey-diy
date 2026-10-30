@@ -29,10 +29,16 @@ export function applyWithLocale(
 				break;
 			case 'localized': {
 				const accessed = getPropertyByPath(localeJson, modification.localizationKey);
+				const serialized = JSON.stringify(accessed);
 				if (accessed == null) {
 					fileLogger.warn(`Cannot find localization key ${modification.localizationKey.join('.')}`);
 				}
-				sourceCode.update(modification.begin, modification.end, JSON.stringify(accessed));
+				// Object literals need parentheses when replacing a member expression,
+				// otherwise arrow functions can parse them as blocks.
+				const replacement = typeof accessed === 'object' && accessed !== null
+					? `(${serialized})`
+					: serialized;
+				sourceCode.update(modification.begin, modification.end, replacement ?? 'null');
 				break;
 			}
 			case 'parameterized-function': {

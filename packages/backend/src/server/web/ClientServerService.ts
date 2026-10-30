@@ -16,6 +16,7 @@ import vary from 'vary';
 import type { Config } from '@/config.js';
 import { DI } from '@/di-symbols.js';
 import * as Acct from '@/misc/acct.js';
+import { canReadArticle, isArticle } from '@/misc/article-access.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { PageEntityService } from '@/core/entities/PageEntityService.js';
@@ -35,7 +36,6 @@ import type {
 	UserProfilesRepository,
 	UsersRepository,
 } from '@/models/_.js';
-import type Logger from '@/logger.js';
 import { handleRequestRedirectToOmitSearch } from '@/misc/fastify-hook-handlers.js';
 import { htmlSafeJsonStringify } from '@/misc/json-stringify-html-safe.js';
 import { bindThis } from '@/decorators.js';
@@ -48,6 +48,7 @@ import { ClientLoggerService } from './ClientLoggerService.js';
 import { HtmlTemplateService } from './HtmlTemplateService.js';
 
 import { BasePage } from './views/base.js';
+import { htmlToPlainText } from '@/misc/html-to-plain-text.js';
 import { UserPage } from './views/user.js';
 import { NotePage } from './views/note.js';
 import { PagePage } from './views/page.js';
@@ -409,7 +410,7 @@ export class ClientServerService {
 
 		// OpenSearch XML
 		fastify.get('/opensearch.xml', async (request, reply) => {
-			const name = this.meta.name ?? 'Misskey';
+			const name = this.meta.name ?? this.config.host;
 			let content = '';
 			content += '<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">';
 			content += `<ShortName>${name}</ShortName>`;
@@ -429,8 +430,8 @@ export class ClientServerService {
 			reply.header('Cache-Control', 'public, max-age=30');
 			return await HtmlTemplateService.replyHtml(reply, BasePage({
 				img: this.meta.bannerUrl ?? undefined,
-				title: this.meta.name ?? 'Misskey',
-				desc: this.meta.description ?? undefined,
+				title: this.meta.name ?? this.config.host,
+				desc: this.meta.description == null ? undefined : htmlToPlainText(this.meta.description),
 				...(await this.htmlTemplateService.getCommonData()),
 				...data,
 			}));
@@ -625,6 +626,8 @@ export class ClientServerService {
 			});
 
 			if (page) {
+				// 文章的旧 Page 地址也必须遵守匿名阅读权限，不能泄露受限预览。
+				if (isArticle(page) && !await canReadArticle(page, null, this.pagesRepository.manager)) return await renderBase(reply);
 				const _page = await this.pageEntityService.pack(page);
 				const profile = await this.userProfilesRepository.findOneByOrFail({ userId: page.userId });
 				if (['public'].includes(page.visibility)) {
@@ -644,6 +647,33 @@ export class ClientServerService {
 			} else {
 				return await renderBase(reply);
 			}
+		});
+
+		// Article：只为公开文章输出预览信息，避免链接预览泄露受限内容。
+		fastify.get<{ Params: { id: string; } }>('/articles/:id', async (request, reply) => {
+			const page = await this.pagesRepository.findOne({
+				where: {
+					id: request.params.id, visibility: 'public',
+					user: { isSuspended: false, isDeleted: false, requireSigninToViewContents: false },
+				},
+				relations: { user: true },
+			});
+
+			if (page == null || !isArticle(page)) return await renderBase(reply);
+
+			const _page = await this.pageEntityService.pack(page);
+			const profile = await this.userProfilesRepository.findOneByOrFail({ userId: page.userId });
+			reply.header('Cache-Control', 'public, max-age=15');
+			if (profile.preventAiLearning) {
+				reply.header('X-Robots-Tag', 'noimageai');
+				reply.header('X-Robots-Tag', 'noai');
+			}
+			return await HtmlTemplateService.replyHtml(reply, PagePage({
+				page: _page,
+				profile,
+				url: `${this.config.url}/articles/${page.id}`,
+				...(await this.htmlTemplateService.getCommonData()),
+			}));
 		});
 
 		// Flash
@@ -802,7 +832,7 @@ export class ClientServerService {
 
 			reply.header('Cache-Control', 'public, max-age=3600');
 			return await HtmlTemplateService.replyHtml(reply, BaseEmbed({
-				title: this.meta.name ?? 'Misskey',
+				title: this.meta.name ?? this.config.host,
 				...(await this.htmlTemplateService.getCommonData()),
 				embedCtxJson: htmlSafeJsonStringify({
 					user: _user,
@@ -832,7 +862,7 @@ export class ClientServerService {
 
 			reply.header('Cache-Control', 'public, max-age=3600');
 			return await HtmlTemplateService.replyHtml(reply, BaseEmbed({
-				title: this.meta.name ?? 'Misskey',
+				title: this.meta.name ?? this.config.host,
 				...(await this.htmlTemplateService.getCommonData()),
 				embedCtxJson: htmlSafeJsonStringify({
 					note: _note,
@@ -853,7 +883,7 @@ export class ClientServerService {
 
 			reply.header('Cache-Control', 'public, max-age=3600');
 			return await HtmlTemplateService.replyHtml(reply, BaseEmbed({
-				title: this.meta.name ?? 'Misskey',
+				title: this.meta.name ?? this.config.host,
 				...(await this.htmlTemplateService.getCommonData()),
 				embedCtxJson: htmlSafeJsonStringify({
 					clip: _clip,
@@ -866,7 +896,7 @@ export class ClientServerService {
 
 			reply.header('Cache-Control', 'public, max-age=3600');
 			return await HtmlTemplateService.replyHtml(reply, BaseEmbed({
-				title: this.meta.name ?? 'Misskey',
+				title: this.meta.name ?? this.config.host,
 				...(await this.htmlTemplateService.getCommonData()),
 			}));
 		});

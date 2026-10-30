@@ -31,6 +31,7 @@ export const meta = {
 			...orderFeeProperties,
 			purchased: { type: 'boolean', optional: false, nullable: false },
 			orderId: { ...orderIdSchema, optional: false, nullable: false },
+			orderNumber: { type: 'string', optional: false, nullable: false },
 			deliveryText: { type: 'string', optional: false, nullable: false },
 			redemptionCode: redemptionCodeSchema,
 		},

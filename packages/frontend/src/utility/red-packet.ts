@@ -36,7 +36,7 @@ export function createRedPacketDraft(kind: RedPacketDraft['kind'] = 'group', rec
 export function redPacketValidation(draft: RedPacketDraft, balance?: number | null, options: { recovering?: boolean } = {}): string | null {
 	if (!['direct', 'group'].includes(draft.kind) || !Array.isArray(draft.recipientIds) || draft.recipientIds.some(id => typeof id !== 'string' || !id)) return i18n.ts._redPacket.invalidDraft;
 	if (!['public', 'recipients', 'room'].includes(draft.audience) || (draft.audience === 'recipients' && draft.recipientIds.length === 0) || (draft.audience === 'public' && (draft.kind !== 'group' || draft.recipientIds.length > 0))) return i18n.ts._redPacket.invalidDraft;
-	if ((draft.audience === 'room' && (draft.kind !== 'group' || !draft.roomId || draft.recipientIds.length > 0)) || (draft.audience !== 'room' && draft.roomId != null)) return i18n.ts._redPacket.invalidDraft;
+	if ((draft.audience === 'room' && (!draft.roomId || (draft.kind === 'group' ? draft.recipientIds.length > 0 : draft.recipientIds.length !== 1 || draft.password != null))) || (draft.audience !== 'room' && draft.roomId != null)) return i18n.ts._redPacket.invalidDraft;
 	if (draft.kind !== 'group' && (draft.recipientIds.length !== 1 || draft.count !== 1 || (draft.password == null && draft.mode !== 'equal'))) return i18n.ts._redPacket.invalidDraft;
 	const passwordLimit = options.recovering ? 32 : CONTENT_LIMITS.redPacketPassword;
 	if (draft.password != null && (typeof draft.password !== 'string' || draft.password.trim().length === 0 || Array.from(draft.password.trim()).length > passwordLimit || draft.audience === 'public' || draft.mode !== 'random' || (draft.audience === 'recipients' && draft.recipientIds.length !== 1))) return i18n.ts._redPacket.passwordInvalid;

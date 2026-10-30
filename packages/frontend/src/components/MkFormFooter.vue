@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.text">{{ i18n.tsx.thereAreNChanges({ n: form.modifiedCount.value }) }}</div>
 	<div style="margin-left: auto;" class="_buttons">
 		<MkButton danger rounded @click="form.discard"><i class="ti ti-x"></i> {{ i18n.ts.discard }}</MkButton>
-		<MkButton primary rounded :disabled="!canSaving" @click="form.save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
+		<MkButton primary rounded :disabled="!canSaving" @click="save"><i class="ti ti-check"></i> {{ i18n.ts.save }}</MkButton>
 	</div>
 </div>
 </template>
@@ -18,6 +18,7 @@ import { } from 'vue';
 import MkButton from './MkButton.vue';
 import type { useForm } from '@/composables/use-form.js';
 import { i18n } from '@/i18n.js';
+import * as os from '@/os.js';
 
 const props = withDefaults(defineProps<{
 	form: ReturnType<typeof useForm>;
@@ -25,6 +26,13 @@ const props = withDefaults(defineProps<{
 }>(), {
 	canSaving: true,
 });
+
+// 保存后底栏会直接消失，补充成功提示；失败提示由各表单的保存函数（apiWithDialog）处理
+function save() {
+	props.form.save().then(() => {
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {});
+}
 </script>
 
 <style lang="scss" module>

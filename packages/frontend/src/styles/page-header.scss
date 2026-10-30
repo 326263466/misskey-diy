@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-@use './window-header.scss';
-
 @mixin surface {
-	--height: var(--MI-pageHeaderHeight, 50px);
+	--height: var(--MI-pageHeaderHeight);
 	box-sizing: border-box;
 	width: 100%;
 	font-size: 1rem;
@@ -20,16 +18,17 @@
 }
 
 @mixin action {
-	@include window-header.iconHover(8px);
 	display: flex;
 	flex-shrink: 0;
 	align-items: center;
 	justify-content: center;
 	height: var(--height);
-	width: calc(var(--height) - 8px);
+	width: var(--MI-headerActionSize);
 	box-sizing: border-box;
 	border-radius: 5px;
 	color: var(--MI_THEME-fgTransparentWeak);
 	transition: color 0.1s;
 
+	&:not(:disabled):hover { color: var(--MI_THEME-fg); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }

@@ -14,7 +14,7 @@ import type { Packed } from '@/misc/json-schema.js';
 import type { Promiseable } from '@/misc/prelude/await-all.js';
 import { awaitAll } from '@/misc/prelude/await-all.js';
 import { isUserFollowCountVisible } from '@/misc/is-user-follow-count-visible.js';
-import { getUserCustomStatus, getUserOnlineStatus } from '@/misc/user-online-status.js';
+import { getUserCustomStatus, getUserOnlineStatus, getUserPublicLastActiveDate } from '@/misc/user-online-status.js';
 import type { MiLocalUser, MiPartialLocalUser, MiPartialRemoteUser, MiRemoteUser, MiUser } from '@/models/User.js';
 import {
 	birthdaySchema,
@@ -452,7 +452,7 @@ export class UserEntityService implements OnModuleInit {
 		}
 
 		let pins: MiUserNotePining[] = [];
-		if (isDetailed) {
+		if (isDetailed && !relation?.isBlocking && !relation?.isBlocked) {
 			if (opts.pinNotes) {
 				pins = opts.pinNotes.get(user.id) ?? [];
 			} else {
@@ -486,14 +486,19 @@ export class UserEntityService implements OnModuleInit {
 			host: user.host,
 			avatarUrl: (user.avatarId == null ? null : user.avatarUrl) ?? this.getIdenticonUrl(user),
 			avatarBlurhash: (user.avatarId == null ? null : user.avatarBlurhash),
-			avatarDecorations: user.avatarDecorations.length > 0 ? this.avatarDecorationService.getAll().then(decorations => user.avatarDecorations.filter(ud => decorations.some(d => d.id === ud.id)).map(ud => ({
-				id: ud.id,
-				angle: ud.angle || undefined,
-				flipH: ud.flipH || undefined,
-				offsetX: ud.offsetX || undefined,
-				offsetY: ud.offsetY || undefined,
-				url: decorations.find(d => d.id === ud.id)!.url,
-			}))) : [],
+			avatarDecorations: user.avatarDecorations.length > 0 ? this.avatarDecorationService.getAll().then(decorations => user.avatarDecorations.flatMap(ud => {
+				const decoration = decorations.find(d => d.id === ud.id);
+				if (decoration == null) return [];
+				return [{
+					id: ud.id,
+					angle: ud.angle || undefined,
+					flipH: ud.flipH || undefined,
+					offsetX: ud.offsetX || undefined,
+					offsetY: ud.offsetY || undefined,
+					scale: decoration.scale === 1 ? undefined : decoration.scale,
+					url: decoration.url,
+				}];
+			})) : [],
 			isBot: user.isBot,
 			isCat: user.isCat,
 			requireSigninToViewContents: user.requireSigninToViewContents === false ? undefined : true,
@@ -536,6 +541,7 @@ export class UserEntityService implements OnModuleInit {
 				createdAt: this.idService.parse(user.id).date.toISOString(),
 				updatedAt: user.updatedAt ? user.updatedAt.toISOString() : null,
 				lastFetchedAt: user.lastFetchedAt ? user.lastFetchedAt.toISOString() : null,
+				lastActiveAt: getUserPublicLastActiveDate(user)?.toISOString() ?? null,
 				bannerUrl: user.bannerId == null ? null : user.bannerUrl,
 				bannerBlurhash: user.bannerId == null ? null : user.bannerBlurhash,
 				isLocked: user.isLocked,

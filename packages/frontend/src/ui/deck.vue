@@ -87,7 +87,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, ref, useTemplateRef } from 'vue';
+import { defineAsyncComponent, onUnmounted, ref, useTemplateRef } from 'vue';
 import XCommon from './_common_/common.vue';
 import { genId } from '@/utility/id.js';
 import XSidebar from '@/ui/_common_/navbar.vue';
@@ -109,6 +109,7 @@ import XTlColumn from '@/ui/deck/tl-column.vue';
 import XAntennaColumn from '@/ui/deck/antenna-column.vue';
 import XListColumn from '@/ui/deck/list-column.vue';
 import XChannelColumn from '@/ui/deck/channel-column.vue';
+import XClipColumn from '@/ui/deck/clip-column.vue';
 import XNotificationsColumn from '@/ui/deck/notifications-column.vue';
 import XWidgetsColumn from '@/ui/deck/widgets-column.vue';
 import XMentionsColumn from '@/ui/deck/mentions-column.vue';
@@ -133,6 +134,7 @@ const columnComponents = {
 	tl: XTlColumn,
 	list: XListColumn,
 	channel: XChannelColumn,
+	clip: XClipColumn,
 	antenna: XAntennaColumn,
 	mentions: XMentionsColumn,
 	direct: XDirectColumn,
@@ -140,7 +142,8 @@ const columnComponents = {
 	chat: XChatColumn,
 };
 
-mainRouter.navHook = (path, flag): boolean => {
+const previousNavHook = mainRouter.navHook;
+const deckNavHook: NonNullable<typeof mainRouter.navHook> = (path, flag): boolean => {
 	if (flag === 'forcePage') return false;
 	const noMainColumn = !columns.value.some(x => x.type === 'main');
 	if (prefer.s['deck.navWindow'] || noMainColumn) {
@@ -149,11 +152,17 @@ mainRouter.navHook = (path, flag): boolean => {
 	}
 	return false;
 };
+mainRouter.navHook = deckNavHook;
+onUnmounted(() => { if (mainRouter.navHook === deckNavHook) mainRouter.navHook = previousNavHook; });
 
 const isMobile = ref(window.innerWidth <= 500);
-window.addEventListener('resize', () => {
+
+function onResize() {
 	isMobile.value = window.innerWidth <= 500;
-});
+}
+
+window.addEventListener('resize', onResize);
+onUnmounted(() => window.removeEventListener('resize', onResize));
 
 // ポインターイベント非対応用に初期値はUAから出す
 const snapScroll = ref(deviceKind === 'smartphone' || deviceKind === 'tablet');
@@ -161,13 +170,6 @@ const withWallpaper = prefer.s['deck.wallpaper'] != null;
 const drawerMenuShowing = ref(false);
 const widgetsShowing = ref(false);
 const gap = prefer.r['deck.columnGap'];
-
-/*
-const route = 'TODO';
-watch(route, () => {
-	drawerMenuShowing.value = false;
-});
-*/
 
 function showSettings() {
 	os.pageWindow('/settings/deck');
@@ -209,6 +211,7 @@ function pointerEvent(ev: PointerEvent) {
 }
 
 window.document.addEventListener('pointerdown', pointerEvent, { passive: true });
+onUnmounted(() => window.document.removeEventListener('pointerdown', pointerEvent));
 
 function onWheel(ev: WheelEvent) {
 	// WheelEvent はマウスからしか発火しないのでスナップスクロールは無効化する
@@ -229,7 +232,7 @@ async function deleteProfile() {
 
 	await deleteProfile_(prefer.s['deck.profile']);
 
-	os.success();
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 }
 
 function showTour() {

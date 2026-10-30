@@ -120,32 +120,39 @@ defineExpose({ buttonEl });
 }
 
 .sized {
-	--MI-reactionEmojiSize: 20px;
-	border-radius: 6px;
+	// 统一使用固定尺寸，避免帖子和聊天的字号差异影响回应。
+	--MI-reactionEmojiSize: 22px;
 
 	> .icon {
+		// 固定高度但不锁死宽度，宽幅自定义表情仍能保持可读比例。
 		width: auto;
+		min-width: var(--MI-reactionEmojiSize);
 		height: var(--MI-reactionEmojiSize);
 		font-size: var(--MI-reactionEmojiSize);
 		line-height: 1;
 
 		> * {
 			width: auto;
-			height: 100%;
-			max-width: none;
+			height: 100% !important;
+			max-width: 100%;
+			object-fit: contain;
 		}
 	}
 
+	> .count {
+		height: var(--MI-reactionEmojiSize);
+		line-height: var(--MI-reactionEmojiSize);
+		font-size: max(14px, calc(var(--MI-reactionEmojiSize) * .65));
+	}
+
 	&.small {
-		--MI-reactionEmojiSize: 16px;
+		--MI-reactionEmojiSize: 18px;
 		height: 24px;
-		border-radius: 4px;
 	}
 
 	&.large {
 		--MI-reactionEmojiSize: 24px;
-		height: 32px;
-		border-radius: 8px;
+		height: 30px;
 	}
 
 	&.limitWidth > .icon > * {

@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:is="component"
 	ref="el"
 	class="_button"
-	:class="[$style.root, { [$style.inline]: inline, [$style.primary]: primary, [$style.gradate]: gradate, [$style.danger]: danger, [$style.rounded]: rounded, [$style.full]: full, [$style.small]: small, [$style.large]: large, [$style.transparent]: transparent, [$style.asLike]: asLike, [$style.iconOnly]: iconOnly, [$style.wait]: wait, [$style.active]: active }]"
+	:class="[$style.root, { _buttonRounded: rounded, [$style.inline]: inline, [$style.primary]: primary, [$style.gradate]: gradate, [$style.danger]: danger, [$style.rounded]: rounded, [$style.full]: full, [$style.small]: small, [$style.large]: large, [$style.transparent]: transparent, [$style.asLike]: asLike, [$style.iconOnly]: iconOnly, [$style.wait]: wait, [$style.active]: active }]"
 	v-bind="cProps"
 	@click="emit('click', $event)"
 	@mousedown="onMousedown"
@@ -140,11 +140,12 @@ function onMousedown(evt: MouseEvent): void {
 	padding: 7px 14px;
 	text-align: center;
 	font-weight: normal;
-	font-size: 95%;
+	// 工具栏通过 --MI-toolbarFontSize 统一一行内的字号；表单页用 --MI-formButtonFontSize 让普通按钮与正文同大。
+	font-size: var(--MI-toolbarFontSize, var(--MI-formButtonFontSize, 95%));
 	box-shadow: none;
 	text-decoration: none;
 	background: var(--MI_THEME-buttonBg);
-	border-radius: 5px;
+	border-radius: var(--MI-adminRadius, 5px);
 	overflow: clip;
 	box-sizing: border-box;
 	transition: background 0.1s ease;
@@ -168,12 +169,12 @@ function onMousedown(evt: MouseEvent): void {
 	}
 
 	&.small {
-		font-size: 90%;
+		font-size: var(--MI-toolbarFontSize, 90%);
 		padding: 6px 12px;
 	}
 
 	&.large {
-		font-size: 100%;
+		font-size: var(--MI-toolbarFontSize, 100%);
 		padding: 8px 16px;
 	}
 
@@ -302,7 +303,7 @@ function onMousedown(evt: MouseEvent): void {
 	left: 0;
 	width: 100%;
 	height: 100%;
-	border-radius: 6px;
+	border-radius: var(--MI-adminRadius, 6px);
 	overflow: clip;
 	pointer-events: none;
 }

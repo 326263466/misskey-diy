@@ -7,15 +7,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div
 	:class="[
 		$style.root,
-		tail === 'left' ? $style.left : $style.right,
+		tail === 'left' && $style.left,
+		tail === 'right' && $style.right,
 		negativeMargin === true && $style.negativeMargin,
 		shadow === true && $style.shadow,
 		accented === true && $style.accented,
 		fullWidth === true && $style.fullWidth,
 	]"
 >
-	<div :class="$style.bg">
-		<svg v-if="tail !== 'none'" :class="$style.tail" version="1.1" viewBox="0 0 14.597 14.58" xmlns="http://www.w3.org/2000/svg">
+	<div :class="$style.bg" data-target-highlight-surface>
+		<svg v-if="tail !== 'none'" :class="$style.tail" version="1.1" viewBox="0 0 14.597 14.58" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-target-highlight-fill>
 			<g transform="translate(-173.71 -87.184)">
 				<path d="m188.19 87.657c-1.469 2.3218-3.9315 3.8312-6.667 4.0865-2.2309-1.7379-4.9781-2.6816-7.8061-2.6815h-5.1e-4v12.702h12.702v-5.1e-4c2e-5 -1.9998-0.47213-3.9713-1.378-5.754 2.0709-1.6834 3.2732-4.2102 3.273-6.8791-6e-5 -0.49375-0.0413-0.98662-0.1235-1.4735z" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round" stroke-width=".33225" style="paint-order:stroke fill markers"/>
 			</g>
@@ -50,11 +51,12 @@ withDefaults(defineProps<{
 
 	position: relative;
 	display: inline-block;
+	box-sizing: border-box;
 	min-height: calc(var(--fukidashi-radius) * 2);
 	padding-top: calc(var(--fukidashi-radius) * .13);
 
 	&.accented {
-		--fukidashi-bg: color-mix(in srgb, var(--MI_THEME-accent), var(--MI_THEME-panel) 85%);
+		--fukidashi-bg: color-mix(in srgb, var(--MI_THEME-accent) 12%, var(--MI_THEME-panel));
 	}
 
 	&.shadow {
@@ -79,10 +81,6 @@ withDefaults(defineProps<{
 
 	&.fullWidth {
 		width: 100%;
-
-		&.content {
-			width: 100%;
-		}
 	}
 }
 
@@ -91,18 +89,6 @@ withDefaults(defineProps<{
 	height: 100%;
 	background: var(--fukidashi-bg);
 	border-radius: var(--fukidashi-radius);
-}
-
-.content {
-	position: relative;
-	padding: 10px 14px;
-	box-sizing: border-box;
-}
-
-@container (max-width: 450px) {
-	.content {
-		padding: 8px 12px;
-	}
 }
 
 .tail {
@@ -121,5 +107,17 @@ withDefaults(defineProps<{
 
 .right .tail {
 	right: 0;
+}
+
+.content {
+	position: relative;
+	padding: var(--fukidashi-padding, 10px 14px);
+	box-sizing: border-box;
+}
+
+@container (max-width: 450px) {
+	.content {
+		padding: var(--fukidashi-padding, 8px 12px);
+	}
 }
 </style>

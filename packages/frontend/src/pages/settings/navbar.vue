@@ -29,7 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</FormSlot>
 		<div class="_buttons">
 			<MkButton @click="addItem"><i class="ti ti-plus"></i> {{ i18n.ts.addItem }}</MkButton>
-			<MkButton danger @click="reset"><i class="ti ti-reload"></i> {{ i18n.ts.default }}</MkButton>
+			<MkButton danger @click="reset"><i class="ti ti-refresh"></i> {{ i18n.ts.default }}</MkButton>
 			<MkButton primary class="save" @click="save"><i class="ti ti-device-floppy"></i> {{ i18n.ts.save }}</MkButton>
 		</div>
 
@@ -104,7 +104,7 @@ function removeItem(itemId: string) {
 
 function save() {
 	prefer.commit('menu', itemTypeValues.value);
-	os.success();
+	os.toast(i18n.ts.saved, 'success');
 }
 
 function reset() {
@@ -113,10 +113,6 @@ function reset() {
 		type: x,
 	}));
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.navbar,

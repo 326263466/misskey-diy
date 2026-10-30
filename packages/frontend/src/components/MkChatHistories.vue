@@ -22,12 +22,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkAvatar v-else-if="item.room" :class="$style.messageAvatar" :user="item.room.owner" :preview="false" :link="false"/>
 			<MkAvatar v-else-if="item.other" :class="$style.messageAvatar" :user="item.other" indicator :preview="false"/>
 			<div :class="$style.messageBody">
-				<header v-if="item.room" :class="$style.messageHeader">
-					<span :class="$style.messageHeaderName"><Mfm :text="item.room.name" :plain="true" :nowrap="true"/></span>
-				</header>
-				<header v-else :class="$style.messageHeader">
-					<MkUserName :class="$style.messageHeaderName" :user="item.other!"/>
-					<MkAcct v-if="!compact" :class="$style.messageHeaderUsername" :user="item.other!"/>
+				<header :class="$style.messageHeader">
+					<span v-if="item.room" :class="$style.messageHeaderName"><Mfm :text="item.room.name" :plain="true" :nowrap="true"/></span>
+					<template v-else>
+						<MkUserName :class="$style.messageHeaderName" :user="item.other!"/>
+						<MkAcct v-if="!compact" :class="$style.messageHeaderUsername" :user="item.other!"/>
+					</template>
+					<MkTime v-if="compact && item.message" :time="item.message.createdAt" :class="$style.messageHeaderTime"/>
 				</header>
 				<div :class="$style.messageBodyText">
 					<div :class="$style.preview">
@@ -53,17 +54,34 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</span>
 				</div>
 			</div>
-			<MkTime v-if="item.message" :time="item.message.createdAt" :class="$style.messageHeaderTime"/>
+			<MkTime v-if="!compact && item.message" :time="item.message.createdAt" :class="$style.messageHeaderTime"/>
 		</MkA>
 	</div>
+	<button v-if="all && failed && history.length > 0 && !fetching" type="button" class="_button" :class="[$style.emptyAction, $style.emptySecondary]" @click="fetchHistory(true)"><i class="ti ti-refresh" aria-hidden="true"></i>{{ i18n.ts.retry }}</button>
 	<MkError v-if="failed && history.length === 0" @retry="fetchHistory"/>
-	<MkResult v-else-if="!initializing && displayHistory.length === 0 && (roomsOnly || assistantOpen || assistantHistory.length === 0)" type="empty" :text="roomsOnly ? i18n.ts._chat.noRooms : i18n.ts._chat.noHistory"/>
+	<MkResult v-else-if="!initializing && !compact && displayHistory.length === 0 && (roomsOnly || assistantOpen || assistantHistory.length === 0)" type="empty" :text="roomsOnly ? i18n.ts._chat.noRooms : i18n.ts._chat.noHistory"/>
+	<div v-else-if="!initializing && compact && displayHistory.length === 0 && (roomsOnly || assistantOpen || assistantHistory.length === 0)" :class="$style.emptyState">
+		<span :class="$style.emptyIcon"><i :class="roomsOnly ? 'ti ti-users' : 'ti ti-message-circle'" aria-hidden="true"></i></span>
+		<span :class="$style.emptyTitle">{{ roomsOnly ? i18n.ts._chat.noRooms : i18n.ts._chat.noHistory }}</span>
+		<span :class="$style.emptyDescription">{{ roomsOnly ? i18n.ts._chat.roomChat_description : i18n.ts._chat.individualChat_description }}</span>
+		<div v-if="quickActions" :class="$style.emptyActions">
+			<button type="button" class="_button" :class="[$style.emptyAction, $style.emptyPrimary]" @click="roomsOnly ? quickActions.createRoom() : quickActions.startDirectMessage()">
+				<i :class="roomsOnly ? 'ti ti-users-plus' : 'ti ti-message-plus'" aria-hidden="true"></i>
+				{{ roomsOnly ? i18n.ts._chat.createRoom : i18n.ts._chat.newDirectMessage }}
+			</button>
+			<button v-if="roomsOnly" type="button" class="_button" :class="[$style.emptyAction, $style.emptySecondary]" @click="quickActions.joinRoom()">
+				<i class="ti ti-login-2" aria-hidden="true"></i>
+				{{ i18n.ts._chat.joinRoom }}
+			</button>
+		</div>
+	</div>
 	<MkLoading v-if="initializing && !hideLoading"/>
 </slot>
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, inject, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
+import type { Ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { useInterval } from '@@/js/use-interval.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -71,7 +89,7 @@ import { i18n } from '@/i18n.js';
 import { ensureSignin } from '@/i.js';
 import { globalEvents, useGlobalEvent } from '@/events.js';
 import * as os from '@/os.js';
-import { cacheChatConversationTitle, forgetChatRoom, getRecentChatConversations } from '@/utility/chat-conversations.js';
+import { cacheChatConversationTitle, forgetChatRoom, forgetRecentChatConversation, getRecentChatConversations } from '@/utility/chat-conversations.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { chatNotificationOptions, getChatConversationSetting, getChatNotificationMode, loadChatConversationSettings, updateChatConversation } from '@/utility/chat-conversation-settings.js';
@@ -79,9 +97,16 @@ import type { ChatConversationTarget } from '@/utility/chat-conversation-setting
 import type { MenuItem } from '@/types/menu.js';
 import { useRouter } from '@/router.js';
 import { useStream } from '@/stream.js';
+import { deviceKind } from '@/utility/device-kind.js';
 
 const $i = ensureSignin();
 const router = useRouter();
+const mobileLayout = inject<Readonly<Ref<boolean>>>('chatMobileLayout', computed(() => deviceKind === 'smartphone' || window.innerWidth <= 500));
+const quickActions = inject<{
+	startDirectMessage: () => void;
+	createRoom: () => void;
+	joinRoom: () => void;
+} | null>('chatQuickActions', null);
 
 function systemMessagePreview(message: NonNullable<ChatHistoryItem['message']>): string {
 	const event = message.systemEvent;
@@ -179,8 +204,8 @@ function showConversationMenu(event: MouseEvent | KeyboardEvent, item: ChatHisto
 			if (item.message) item.message.isRead = true;
 			if (unread) { unreadCounts.value[item.id] = 0; unreadVersions.set(item.id, ++requestSequence); }
 		}) },
-		{ text: i18n.ts._chat.openChatWindow, icon: 'ti ti-app-window', action: () => os.pageWindow(item.to) },
 	];
+	if (!mobileLayout.value) menu.push({ text: i18n.ts._chat.openChatWindow, icon: 'ti ti-app-window', action: () => os.pageWindow(item.to) });
 	if (item.room) {
 		menu.push({ type: 'parent', text: i18n.ts._chat.messageSettings, icon: 'ti ti-users', children: [
 			...chatNotificationOptions().map(option => ({ type: 'button' as const, text: option.label, icon: mode === option.value ? 'ti ti-check' : undefined, active: mode === option.value, actionOnActive: true, action: () => mode === option.value ? undefined : saveSetting(target, { notificationMode: option.value }) })),
@@ -190,10 +215,20 @@ function showConversationMenu(event: MouseEvent | KeyboardEvent, item: ChatHisto
 	} else {
 		menu.push({ text: mode === 'all' ? i18n.ts._chat.enableDoNotDisturb : i18n.ts._chat.disableDoNotDisturb, icon: 'ti ti-bell-off', action: () => saveSetting(target, { notificationMode: mode === 'all' ? 'silent' : 'all' }) });
 	}
-	menu.push({ type: 'divider' }, { text: i18n.ts._chat.removeFromList, icon: 'ti ti-trash', action: () => saveSetting(target, { hidden: true }, () => {
+	const removed = () => {
 		if (pinnedIds.value.includes(item.id)) togglePin(item);
 		if (item.to === props.selectedTo) router.push('/chat');
-	}) });
+	};
+	menu.push({ type: 'divider' }, { text: i18n.ts._chat.removeFromList, icon: 'ti ti-trash', action: () => {
+		// 只在本机记录、没有消息的会话直接移除；账号已失效时服务端也查不到它。
+		if (!item.room && item.message == null) {
+			forgetRecentChatConversation($i.id, item.other!.id);
+			history.value = history.value.filter(entry => entry.id !== item.id);
+			removed();
+			return;
+		}
+		void saveSetting(target, { hidden: true }, removed);
+	} });
 	if (event.type === 'contextmenu') os.contextMenu(menu, event as PointerEvent);
 	else os.popupMenu(menu, event.currentTarget as HTMLElement);
 }
@@ -220,14 +255,27 @@ function isUnread(item: ChatHistoryItem) {
 	return item.message?.isRead === false;
 }
 
-const drafts = ref<Record<string, { data?: { text?: string; redPacket?: unknown } }>>({});
+const drafts = ref<Record<string, { updatedAt?: string; data?: { text?: string; redPacket?: unknown } }>>({});
 
 function refreshDrafts() {
-	try { drafts.value = JSON.parse(miLocalStorage.getItem('chatMessageDrafts') ?? '{}'); } catch { drafts.value = {}; }
+	const prefix = `misskey:chatDraft:${$i.id}:`;
+	const snapshots: typeof drafts.value = {};
+	try {
+		for (const key of Object.keys(localStorage)) {
+			if (!key.startsWith(prefix)) continue;
+			try {
+				const draft = JSON.parse(localStorage.getItem(key) ?? 'null');
+				if (!draft?.data || typeof draft.sessionId !== 'string' || !key.endsWith(`:${draft.sessionId}`)) continue;
+				const conversation = key.slice(prefix.length, -(draft.sessionId.length + 1));
+				if (!snapshots[conversation] || String(draft.updatedAt) > String(snapshots[conversation].updatedAt)) snapshots[conversation] = draft;
+			} catch { /* 跳过损坏的单条快照，不隐藏其他会话草稿。 */ }
+		}
+	} catch { /* 存储不可用时不显示草稿标识。 */ }
+	drafts.value = snapshots;
 }
 
 function draftPreview(item: ChatHistoryItem): string {
-	const data = drafts.value?.[`${$i.id}:${item.id}`]?.data;
+	const data = drafts.value[item.id]?.data;
 	return data?.text || (data?.redPacket ? i18n.ts._redPacket.title : '');
 }
 
@@ -288,6 +336,7 @@ const initializing = ref(true);
 const fetching = ref(false);
 const failed = ref(false);
 let disposed = false;
+let initialHistoryCompleted = false;
 let lastFullRefresh: number | null = null;
 let refreshQueued = false;
 const deletedMessageIds = new Set<string>();
@@ -425,10 +474,11 @@ mainConnection.on('chatReadState', ({ hasUnreadChatMessages }) => {
 mainConnection.on('chatRoomLeft', ({ roomId }) => forgetChatRoom($i.id, roomId));
 stream.on('_connected_', onConnected);
 
-async function fetchMessages(room: boolean, allPages: boolean): Promise<Misskey.entities.ChatMessage[]> {
-	const messages: Misskey.entities.ChatMessage[] = [];
+async function fetchMessages(room: boolean, allPages: boolean, firstPage?: Misskey.entities.ChatMessage[]): Promise<Misskey.entities.ChatMessage[]> {
+	const messages = firstPage?.slice() ?? [];
 	const limit = props.all ? 100 : props.limit;
-	let previousLastId: string | undefined;
+	if (firstPage && (!allPages || firstPage.length < limit)) return messages;
+	let previousLastId = messages.at(-1)?.id;
 	do {
 		const batch = await misskeyApi('chat/history', { room, limit, ...(allPages ? { offset: messages.length } : {}) });
 		if (disposed) return [];
@@ -440,9 +490,10 @@ async function fetchMessages(room: boolean, allPages: boolean): Promise<Misskey.
 	return [];
 }
 
-async function fetchAllPages<T extends { id: string }>(request: (untilId?: string) => Promise<T[]>): Promise<T[]> {
-	const items: T[] = [];
-	let untilId: string | undefined;
+async function fetchAllPages<T extends { id: string }>(request: (untilId?: string) => Promise<T[]>, firstPage?: T[]): Promise<T[]> {
+	const items = firstPage?.slice() ?? [];
+	if (firstPage && firstPage.length < 100) return items;
+	let untilId = items.at(-1)?.id;
 	do {
 		const batch = await request(untilId);
 		if (disposed) return [];
@@ -455,6 +506,64 @@ async function fetchAllPages<T extends { id: string }>(request: (untilId?: strin
 	return [];
 }
 
+type ChatHistorySnapshot = {
+	userMessages: Misskey.entities.ChatMessage[];
+	roomMessages: Misskey.entities.ChatMessage[];
+	ownedRooms: Misskey.entities.ChatRoom[];
+	memberships: Misskey.entities.ChatRoomMembership[];
+};
+
+function applyHistorySnapshot({ userMessages, roomMessages, ownedRooms, memberships }: ChatHistorySnapshot, sequence: number, refreshAll: boolean) {
+	// 仅退群之后发起的成员快照可以证明已重新加入，旧响应不能解除退群标记。
+	for (const room of [...ownedRooms, ...memberships.flatMap(membership => membership.room ? [membership.room] : [])]) {
+		if ((leftRooms.get(room.id) ?? Infinity) < sequence) leftRooms.delete(room.id);
+	}
+	const conversations = new Map<string, ChatHistoryItem>(props.all && !refreshAll ? history.value.map(item => [item.id, item]) : []);
+	for (const room of [...ownedRooms, ...memberships.flatMap(membership => membership.room ? [membership.room] : [])]) {
+		conversations.set(`room:${room.id}`, { id: `room:${room.id}`, to: `/chat/room/${room.id}`, room, other: null, isMe: false, message: null });
+	}
+	for (const message of [...userMessages, ...roomMessages]
+		.filter(message => !deletedMessageIds.has(message.id))
+		.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+		const other = message.toRoomId ? null : (message.fromUserId === $i.id ? message.toUser : message.fromUser);
+		if (!message.toRoomId && !other) continue;
+		const id = message.toRoomId ? `room:${message.toRoomId}` : `user:${other!.id}`;
+		conversations.set(id, {
+			id,
+			to: message.toRoomId ? `/chat/room/${message.toRoomId}` : `/chat/user/${other!.id}`,
+			message,
+			room: message.toRoom ?? conversations.get(id)?.room ?? null,
+			other,
+			isMe: message.fromUserId === $i.id,
+		});
+	}
+	// 定向刷新期间保留已收到的新状态，慢速全量请求不能覆盖即时预览。
+	for (const [id, item] of pendingHistoryUpdates) conversations.set(id, item);
+	for (const item of history.value) {
+		if ((appliedSequences.get(item.id) ?? 0) > sequence) conversations.set(item.id, item);
+	}
+	// 保存群资料后，进行中的旧列表请求不能把头像和名称改回去。
+	for (const item of conversations.values()) {
+		if (item.room && pendingRoomUpdates.has(item.room.id)) item.room = pendingRoomUpdates.get(item.room.id)!;
+	}
+	for (const room of pendingRoomUpdates.values()) {
+		if (props.all && (room.ownerId === $i.id || room.isMember === true) && !conversations.has(`room:${room.id}`)) {
+			conversations.set(`room:${room.id}`, { id: `room:${room.id}`, to: `/chat/room/${room.id}`, room, other: null, isMe: false, message: null });
+		}
+	}
+	if (props.all) {
+		for (const { user } of getRecentChatConversations($i.id)) {
+			if (!conversations.has(`user:${user.id}`)) conversations.set(`user:${user.id}`, { id: `user:${user.id}`, to: `/chat/user/${user.id}`, room: null, other: user, isMe: false, message: null });
+		}
+	}
+	history.value = sortHistory([...conversations.values()].filter(item => !item.room || !leftRooms.has(item.room.id)));
+	for (const item of history.value) {
+		if ((unreadVersions.get(item.id) ?? 0) <= sequence) void refreshUnread(item);
+	}
+	for (const item of history.value) appliedSequences.set(item.id, Math.max(sequence, appliedSequences.get(item.id) ?? 0));
+	return conversations;
+}
+
 async function fetchHistory(forceFull = false) {
 	if (disposed) return;
 	if (fetching.value) {
@@ -463,6 +572,8 @@ async function fetchHistory(forceFull = false) {
 	}
 
 	fetching.value = true;
+	failed.value = false;
+	if (props.all && !initialHistoryCompleted) initializing.value = true;
 	const sequence = ++requestSequence;
 	pendingRoomUpdates.clear();
 	pendingHistoryUpdates.clear();
@@ -470,10 +581,10 @@ async function fetchHistory(forceFull = false) {
 	const refreshAll = props.all && (forceFull || lastFullRefresh == null || Date.now() - lastFullRefresh >= 5 * 60 * 1000);
 	try {
 		const [usersResult, roomsResult, ownedResult, membershipsResult, settingsResult] = await Promise.allSettled([
-			fetchMessages(false, refreshAll),
-			fetchMessages(true, refreshAll),
-			refreshAll ? fetchAllPages(untilId => misskeyApi('chat/rooms/owned', { limit: 100, untilId })) : [],
-			refreshAll ? fetchAllPages(untilId => misskeyApi('chat/rooms/joining', { limit: 100, untilId })) : [],
+			fetchMessages(false, false),
+			fetchMessages(true, false),
+			refreshAll ? misskeyApi('chat/rooms/owned', { limit: 100 }) : [],
+			refreshAll ? misskeyApi('chat/rooms/joining', { limit: 100 }) : [],
 			props.all ? loadChatConversationSettings() : undefined,
 		]);
 		if (disposed) return;
@@ -482,57 +593,31 @@ async function fetchHistory(forceFull = false) {
 		if (ownedResult.status === 'rejected') throw ownedResult.reason;
 		if (membershipsResult.status === 'rejected') throw membershipsResult.reason;
 		if (settingsResult.status === 'rejected') throw settingsResult.reason;
-		const userMessages = usersResult.value;
-		const roomMessages = roomsResult.value;
-		const ownedRooms = ownedResult.value;
-		const memberships = membershipsResult.value;
-		// 仅退群之后发起的成员快照可以证明已重新加入，旧响应不能解除退群标记。
-		for (const room of [...ownedRooms, ...memberships.flatMap(membership => membership.room ? [membership.room] : [])]) {
-			if ((leftRooms.get(room.id) ?? Infinity) < sequence) leftRooms.delete(room.id);
-		}
-		const conversations = new Map<string, ChatHistoryItem>(props.all && !refreshAll ? history.value.map(item => [item.id, item]) : []);
-		for (const room of [...ownedRooms, ...memberships.flatMap(membership => membership.room ? [membership.room] : [])]) {
-			conversations.set(`room:${room.id}`, { id: `room:${room.id}`, to: `/chat/room/${room.id}`, room, other: null, isMe: false, message: null });
-		}
-		for (const message of [...userMessages, ...roomMessages]
-			.filter(message => !deletedMessageIds.has(message.id))
-			.toSorted((a, b) => a.createdAt.localeCompare(b.createdAt))) {
-			const other = message.toRoomId ? null : (message.fromUserId === $i.id ? message.toUser : message.fromUser);
-			if (!message.toRoomId && !other) continue;
-			const id = message.toRoomId ? `room:${message.toRoomId}` : `user:${other!.id}`;
-			conversations.set(id, {
-				id,
-				to: message.toRoomId ? `/chat/room/${message.toRoomId}` : `/chat/user/${other!.id}`,
-				message,
-				room: message.toRoom ?? conversations.get(id)?.room ?? null,
-				other,
-				isMe: message.fromUserId === $i.id,
-			});
-		}
-		// 定向刷新期间保留已收到的新状态，慢速全量请求不能覆盖即时预览。
-		for (const [id, item] of pendingHistoryUpdates) conversations.set(id, item);
-		for (const item of history.value) {
-			if ((appliedSequences.get(item.id) ?? 0) > sequence) conversations.set(item.id, item);
-		}
-		// 保存群资料后，进行中的旧列表请求不能把头像和名称改回去。
-		for (const item of conversations.values()) {
-			if (item.room && pendingRoomUpdates.has(item.room.id)) item.room = pendingRoomUpdates.get(item.room.id)!;
-		}
-		for (const room of pendingRoomUpdates.values()) {
-			if (props.all && (room.ownerId === $i.id || room.isMember === true) && !conversations.has(`room:${room.id}`)) {
-				conversations.set(`room:${room.id}`, { id: `room:${room.id}`, to: `/chat/room/${room.id}`, room, other: null, isMe: false, message: null });
+		let snapshot: ChatHistorySnapshot = {
+			userMessages: usersResult.value,
+			roomMessages: roomsResult.value,
+			ownedRooms: ownedResult.value,
+			memberships: membershipsResult.value,
+		};
+		if (refreshAll && Object.values(snapshot).some(items => items.length === 100)) {
+			// 设置与首批会话就绪后先显示，剩余分页不能阻塞首屏，也不能提前清理置顶。
+			if (initializing.value) {
+				applyHistorySnapshot(snapshot, sequence, refreshAll);
 			}
+			const [allUsers, allRooms, allOwned, allMemberships] = await Promise.allSettled([
+				fetchMessages(false, true, snapshot.userMessages),
+				fetchMessages(true, true, snapshot.roomMessages),
+				fetchAllPages(untilId => misskeyApi('chat/rooms/owned', { limit: 100, untilId }), snapshot.ownedRooms),
+				fetchAllPages(untilId => misskeyApi('chat/rooms/joining', { limit: 100, untilId }), snapshot.memberships),
+			]);
+			if (disposed) return;
+			if (allUsers.status === 'rejected') throw allUsers.reason;
+			if (allRooms.status === 'rejected') throw allRooms.reason;
+			if (allOwned.status === 'rejected') throw allOwned.reason;
+			if (allMemberships.status === 'rejected') throw allMemberships.reason;
+			snapshot = { userMessages: allUsers.value, roomMessages: allRooms.value, ownedRooms: allOwned.value, memberships: allMemberships.value };
 		}
-		if (props.all) {
-			for (const { user } of getRecentChatConversations($i.id)) {
-				if (!conversations.has(`user:${user.id}`)) conversations.set(`user:${user.id}`, { id: `user:${user.id}`, to: `/chat/user/${user.id}`, room: null, other: user, isMe: false, message: null });
-			}
-		}
-		history.value = sortHistory([...conversations.values()].filter(item => !item.room || !leftRooms.has(item.room.id)));
-		for (const item of history.value) {
-			if ((unreadVersions.get(item.id) ?? 0) <= sequence) void refreshUnread(item);
-		}
-		for (const item of history.value) appliedSequences.set(item.id, Math.max(sequence, appliedSequences.get(item.id) ?? 0));
+		const conversations = applyHistorySnapshot(snapshot, sequence, refreshAll);
 		if (refreshAll) {
 			const pins = readPins();
 			const availablePins = pins.filter(id => conversations.has(id));
@@ -545,6 +630,7 @@ async function fetchHistory(forceFull = false) {
 			}
 		}
 		if (refreshAll) lastFullRefresh = Date.now();
+		initialHistoryCompleted = true;
 		failed.value = false;
 	} catch {
 		if (!disposed) failed.value = true;
@@ -563,7 +649,9 @@ async function fetchHistory(forceFull = false) {
 let isActivated = true;
 
 onActivated(() => {
+	const returning = !isActivated;
 	isActivated = true;
+	if (returning) void fetchHistory(true);
 });
 
 onDeactivated(() => {
@@ -578,10 +666,6 @@ useInterval(() => {
 }, 1000 * 10, {
 	immediate: false,
 	afterMounted: true,
-});
-
-onActivated(() => {
-	fetchHistory(true);
 });
 
 onMounted(() => {
@@ -620,11 +704,9 @@ onBeforeUnmount(() => {
 }
 
 .compactList {
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
-	min-height: 0;
-	padding: 6px 0;
+	display: block;
+	// 全部行共用滚动绘制层，悬停重绘不再让上方文字与头像分别取整位置。
+	transform: translateZ(0);
 }
 
 .assistantButton {
@@ -634,33 +716,128 @@ onBeforeUnmount(() => {
 	width: calc(100% - 8px);
 	margin: 4px;
 	padding: 10px;
-	border-radius: 8px;
+	border-radius: 6px;
 	color: var(--MI_THEME-fgTransparentWeak);
 	&:hover { background: var(--MI_THEME-buttonHoverBg); }
 	> span { margin-left: auto; }
 }
 
-.message.compact {
-	flex: none;
+.emptyState {
+	display: flex;
+	flex-direction: column;
 	align-items: center;
-	align-content: center;
-	grid-template-rows: repeat(2, 20px);
-	row-gap: 4px;
+	justify-content: center;
+	min-height: 100%;
+	padding: 32px 20px;
 	box-sizing: border-box;
-	padding: 8px 10px;
-	margin: 0 4px;
-	border-radius: var(--MI-radius);
+	text-align: center;
+}
+
+.emptyIcon {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	margin-bottom: 14px;
+	border-radius: 14px;
+	background: color-mix(in srgb, var(--MI_THEME-accent) 9%, var(--MI_THEME-panel));
+	color: var(--MI_THEME-accent);
+	font-size: 20px;
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--MI_THEME-accent) 10%, transparent);
+}
+
+.emptyTitle {
+	color: var(--MI_THEME-fg);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.5;
+}
+
+.emptyDescription {
+	max-width: 232px;
+	margin-top: 4px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+.emptyActions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.emptyAction {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 32px;
+	padding: 0 12px;
+	box-sizing: border-box;
+	border-radius: 7px;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
+
+	> i { font-size: 14px; }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
+	@media (prefers-reduced-motion: no-preference) {
+		transition: background-color 0.15s, border-color 0.15s, transform 0.12s ease-out;
+		&:active { transform: scale(0.96); }
+	}
+}
+
+.emptyPrimary {
+	background: var(--MI_THEME-accent);
+	color: var(--MI_THEME-fgOnAccent);
+
+	&:hover { background: var(--MI_THEME-accentHover); }
+}
+
+.emptySecondary {
+	border: var(--MI-divider);
+	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-fg);
+
+	&:hover { background: var(--MI_THEME-buttonHoverBg); }
+}
+
+.message.compact {
+	display: flex;
+	align-items: center;
+	height: 64px;
+	box-sizing: border-box;
+	padding: 10px 14px;
+	margin: 0;
+	border-radius: 0;
 	background: transparent;
 	font-size: 14px;
+	transition: background-color 0.15s;
 
 	.messageAvatar {
+		flex: 0 0 40px;
 		width: 40px;
 		height: 40px;
-		margin-right: 10px;
+		margin-right: 12px;
+	}
+
+	.messageBody {
+		// 实体内容盒子隔离两行文字，头像加载和预览更新不再参与行轨道计算。
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
 	}
 
 	.messageHeaderTime {
-		font-size: 12px;
+		flex: none;
+		margin-left: auto;
+		padding-left: 8px;
+		font-size: 11px;
 	}
 
 	.messageHeader,
@@ -670,6 +847,11 @@ onBeforeUnmount(() => {
 		height: 20px;
 		min-height: 0;
 		line-height: 20px;
+	}
+
+	.messageHeader,
+	.messageBodyText {
+		flex: 0 0 20px;
 	}
 
 	.messageHeaderName {
@@ -701,10 +883,18 @@ onBeforeUnmount(() => {
 		background: var(--MI_THEME-buttonHoverBg);
 	}
 
+	&:active:not(.selected) {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
+
 	&.selected {
 		background: var(--MI_THEME-accentedBg);
-		box-shadow: inset 3px 0 var(--MI_THEME-accent);
+
+		&:hover {
+			background: color-mix(in srgb, var(--MI_THEME-accent) 12%, var(--MI_THEME-panel));
+		}
 	}
+
 }
 
 @container (max-width: 500px) {
@@ -808,14 +998,14 @@ onBeforeUnmount(() => {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 20px;
-	height: 20px;
+	min-width: 18px;
+	height: 18px;
 	padding: 0 5px;
 	box-sizing: border-box;
 	border-radius: 999px;
 	background: var(--MI_THEME-accent);
 	color: var(--MI_THEME-fgOnAccent);
-	font-size: 12px;
+	font-size: 11px;
 	font-variant-numeric: tabular-nums;
 	line-height: 1;
 

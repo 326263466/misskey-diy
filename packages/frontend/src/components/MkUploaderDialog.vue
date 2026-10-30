@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 
 	<div :class="$style.root">
-		<div :class="[$style.overallProgress, canRetry ? $style.overallProgressError : null]" :style="{ '--op': `${overallProgress}%` }"></div>
+		<progress :class="[$style.overallProgress, { [$style.overallProgressError]: canRetry }]" :value="overallProgress" max="100" :aria-label="i18n.tsx.uploadNFiles({ n: files.length })"></progress>
 
 		<div class="_gaps_s _spacer _spacerCard">
 			<MkTip k="uploader">
@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkButton v-if="uploader.uploading.value" rounded @click="abortWithConfirm()"><i class="ti ti-x"></i> {{ i18n.ts.abort }}</MkButton>
 			<MkButton v-else-if="!firstUploadAttempted" primary rounded :disabled="!uploader.readyForUpload.value" @click="upload()"><i class="ti ti-upload"></i> {{ i18n.ts.upload }}</MkButton>
 
-			<MkButton v-if="canRetry" rounded @click="upload()"><i class="ti ti-reload"></i> {{ i18n.ts.retry }}</MkButton>
+				<MkButton v-if="canRetry" rounded @click="upload()"><i class="ti ti-refresh"></i> {{ i18n.ts.retry }}</MkButton>
 			<MkButton v-if="canDone" rounded @click="done()"><i class="ti ti-arrow-right"></i> {{ i18n.ts.done }}</MkButton>
 		</div>
 	</template>
@@ -65,8 +65,6 @@ const $i = ensureSignin();
 const props = withDefaults(defineProps<{
 	files: File[];
 	folderId?: string | null;
-	isManaged?: boolean;
-	draftId?: string;
 	multiple?: boolean;
 	features?: UploaderFeatures;
 }>(), {
@@ -84,8 +82,6 @@ const dialog = useTemplateRef('dialog');
 const uploader = useUploader({
 	multiple: props.multiple,
 	folderId: props.folderId,
-	isManaged: props.isManaged,
-	draftId: props.draftId,
 	features: props.features,
 });
 
@@ -193,14 +189,9 @@ function showPerItemMenuViaContextmenu(item: UploaderItem, ev: PointerEvent) {
 	position: absolute;
 	top: 0;
 	left: 0;
-	width: var(--op);
-	height: 4px;
-	background: var(--MI_THEME-accent);
-	border-radius: 0 999px 999px 0;
-	transition: width 0.2s ease;
 
 	&.overallProgressError {
-		background: var(--MI_THEME-warn);
+		--MI-progressFill: var(--MI_THEME-warn);
 	}
 }
 </style>

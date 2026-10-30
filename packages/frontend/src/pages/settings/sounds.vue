@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<SearchMarker path="/settings/sounds" :label="i18n.ts.sounds" :keywords="['sounds']" icon="ti ti-music">
+<SearchMarker path="/settings/sounds" :label="i18n.ts.sounds" :keywords="['sounds']" icon="ti ti-volume">
 	<div class="_gaps_m">
 		<MkFeatureBanner icon="/fluent-emoji/1f50a.png" color="#ff006f">
 			<SearchText>{{ i18n.ts._settings.soundsBanner }}</SearchText>
@@ -52,13 +52,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</FormSection>
 
-		<MkButton danger @click="reset()"><i class="ti ti-reload"></i> {{ i18n.ts.default }}</MkButton>
+		<MkButton danger @click="reset()"><i class="ti ti-refresh"></i> {{ i18n.ts.default }}</MkButton>
 	</div>
 </SearchMarker>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import XSound from './sounds.sound.vue';
 import type { Ref } from 'vue';
 import type { SoundType, OperationType } from '@/utility/sound.js';
@@ -73,7 +73,6 @@ import { definePage } from '@/page.js';
 import { operationTypes } from '@/utility/sound.js';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkPreferenceContainer from '@/components/MkPreferenceContainer.vue';
-import { PREF_DEF } from '@/preferences/def.js';
 import MkFeatureBanner from '@/components/MkFeatureBanner.vue';
 import { getInitialPrefValue } from '@/preferences/manager.js';
 
@@ -132,12 +131,8 @@ function reset() {
 	resetKey.value++;
 }
 
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
-
 definePage(() => ({
 	title: i18n.ts.sounds,
-	icon: 'ti ti-music',
+	icon: 'ti ti-volume',
 }));
 </script>

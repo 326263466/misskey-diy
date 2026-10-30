@@ -39,7 +39,8 @@ export class NoteLikeService {
 	) {}
 
 	public async setLike(noteId: MiNote['id'], me: { id: MiUser['id'] }, liked: boolean): Promise<Packed<'LikeState'>> {
-		const note = await this.resolveNote(noteId, me);
+		// 拉黑后仍可撤回自己的旧点赞，但不返回对方内容的统计。
+		const note = await this.resolveNote(noteId, me, liked, !liked);
 		const changed = await this.db.transaction(async manager => {
 			// 加锁复查，避免与并发删除交错后把点赞写到已删除的帖子上
 			const current = await manager.findOne(MiNote, { where: { id: noteId }, lock: { mode: 'pessimistic_write' } });
@@ -53,6 +54,7 @@ export class NoteLikeService {
 			return (await manager.delete(MiNoteLike, { noteId, userId: me.id })).affected !== 0;
 		});
 		if (changed) this.globalEventService.publishNoteStream(note, 'statsUpdated', null);
+		if (!liked && !await this.noteEntityService.isContentVisible(note, me)) return emptyLikeState();
 		return (await this.getStates([noteId], me)).get(noteId) ?? emptyLikeState();
 	}
 
@@ -65,6 +67,7 @@ export class NoteLikeService {
 			.addSelect('BOOL_OR(noteLike.userId = :viewerId) OVER (PARTITION BY noteLike.noteId)', 'isLiked')
 			.addSelect('ROW_NUMBER() OVER (PARTITION BY noteLike.noteId ORDER BY noteLike.id DESC)', 'position')
 			.where('noteLike.noteId IN (:...noteIds)', { noteIds, viewerId: me?.id ?? null });
+		if (me) this.queryService.generateBlockedUserQuery(ranked, me, 'noteLike.userId');
 		const rows = await this.noteLikesRepository.manager.createQueryBuilder()
 			.select('ranked.*').from(`(${ranked.getQuery()})`, 'ranked')
 			.where('ranked.position <= 3').setParameters(ranked.getParameters())
@@ -90,18 +93,19 @@ export class NoteLikeService {
 		const query = this.queryService.makePaginationQuery(this.noteLikesRepository.createQueryBuilder('noteLike'), params.sinceId, params.untilId)
 			.andWhere('noteLike.noteId = :noteId', { noteId })
 			.innerJoinAndSelect('noteLike.user', 'user');
+		if (me) this.queryService.generateBlockQueryForUsers(query, me);
 		const likes = await query.limit(params.limit).getMany();
 		// 列表要渲染关注按钮，需要 UserDetailed 携带的关注关系字段
 		const users = new Map((await this.userEntityService.packMany(likes.map(like => like.user!), me, { schema: 'UserDetailed' })).map(user => [user.id, user]));
 		return likes.map(like => ({ id: like.id, createdAt: this.idService.parse(like.id).date.toISOString(), user: users.get(like.userId)! }));
 	}
 
-	private async resolveNote(noteId: MiNote['id'], me: { id: MiUser['id'] } | null): Promise<MiNote> {
+	private async resolveNote(noteId: MiNote['id'], me: { id: MiUser['id'] } | null, interact = false, allowInvisible = false): Promise<MiNote> {
 		const note = await this.notesRepository.findOneBy({ id: noteId });
-		if (note == null || isDeletedReply(note) || !await this.noteEntityService.isContentVisible(note, me)) {
+		if (note == null || isDeletedReply(note) || (!allowInvisible && !await this.noteEntityService.isContentVisible(note, me))) {
 			throw new IdentifiableError('like-target-unavailable', 'Content unavailable');
 		}
-		if (me != null && note.userId !== me.id && await this.userBlockingService.checkBlocked(note.userId, me.id)) {
+		if (interact && me != null && await this.userBlockingService.isBlockedEither(note.userId, me.id)) {
 			throw new IdentifiableError('like-target-unavailable', 'Content unavailable');
 		}
 		return note;

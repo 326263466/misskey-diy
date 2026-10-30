@@ -4,38 +4,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div class="_panel _shadow" :class="$style.root">
-	<div :class="$style.header">
-		<div :class="$style.icon">
-			<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message-heart" width="24" height="24" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-				<path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-				<path d="M8 9h8"></path>
-				<path d="M8 13h3.5"></path>
-				<path d="M10.48 19.512l-2.48 1.488v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v4"></path>
-				<path d="M18 22l3.35 -3.284a2.143 2.143 0 0 0 .005 -3.071a2.242 2.242 0 0 0 -3.129 -.006l-.224 .22l-.223 -.22a2.242 2.242 0 0 0 -3.128 -.006a2.143 2.143 0 0 0 -.006 3.071l3.355 3.296z"></path>
-			</svg>
+<section :class="$style.root" role="dialog" :aria-labelledby="titleId" :aria-describedby="textId">
+	<img :class="$style.character" src="/client-assets/tutorial/ai-tip.webp" alt="" width="192" height="252">
+	<div :class="$style.bubble">
+		<div :class="$style.header">
+			<h2 :id="titleId" :class="$style.title">{{ i18n.ts.didYouLikeMisskey }}</h2>
 		</div>
-		<div :class="$style.title">{{ i18n.ts.didYouLikeMisskey }}</div>
-	</div>
-	<div :class="$style.text">
-		<I18n :src="i18n.ts.pleaseDonate" tag="span">
-			<template #host>
-				{{ instance.name ?? host }}
-			</template>
-		</I18n>
-		<div>
-			<MkA :class="$style.feedbackLink" to="/feedback" @click="close">{{ i18n.ts.feedback }}<i class="ti ti-arrow-right"></i></MkA>
+		<p :id="textId" :class="$style.text">
+			<I18n :src="i18n.ts.pleaseDonate" tag="span">
+				<template #host>{{ instance.name ?? host }}</template>
+			</I18n>
+		</p>
+		<div :class="$style.actions">
+			<MkButton small rounded :class="[$style.action, $style.secondaryAction]" @click="neverShow">{{ i18n.ts.neverShow }}</MkButton>
+			<MkButton small rounded :class="[$style.action, $style.secondaryAction]" @click="close">{{ i18n.ts.remindMeLater }}</MkButton>
+			<MkButton small rounded primary type="routerLink" to="/feedback" :class="$style.action" @click="close">{{ i18n.ts.feedback }}</MkButton>
 		</div>
 	</div>
-	<div class="_buttons" :class="$style.buttons">
-		<MkButton small rounded primary @click="close">{{ i18n.ts.remindMeLater }}</MkButton>
-		<MkButton small rounded @click="neverShow">{{ i18n.ts.neverShow }}</MkButton>
-	</div>
-	<button class="_button" :class="$style.close" @click="close"><i class="ti ti-x"></i></button>
-</div>
+</section>
 </template>
 
 <script lang="ts" setup>
+import { useId } from 'vue';
 import { host } from '@@/js/config.js';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
@@ -48,6 +38,8 @@ const emit = defineEmits<{
 }>();
 
 const zIndex = os.claimZIndex('low');
+const titleId = useId();
+const textId = useId();
 
 function close() {
 	miLocalStorage.setItem('latestDonationInfoShownAt', Date.now().toString());
@@ -64,168 +56,120 @@ function neverShow() {
 .root {
 	position: fixed;
 	z-index: v-bind(zIndex);
-	bottom: var(--MI-margin);
+	bottom: calc(var(--MI-margin) + env(safe-area-inset-bottom, 0px));
 	left: 0;
 	right: 0;
-	margin: auto;
+	--MI-donation-character: 128px;
 	box-sizing: border-box;
-	width: calc(100% - (var(--MI-margin) * 2));
+	width: min(480px, calc(100% - var(--MI-margin) * 2));
 	max-width: 480px;
-	padding: 18px 44px 18px 20px;
-	border: solid 1px color-mix(in srgb, var(--MI_THEME-accent) 22%, transparent);
-	border-radius: 16px;
-	background: color-mix(in srgb, var(--MI_THEME-panel) 88%, transparent);
-	-webkit-backdrop-filter: blur(16px) saturate(1.5);
-	backdrop-filter: blur(16px) saturate(1.5);
-	box-shadow: 0 12px 40px rgb(0 0 0 / .14), 0 2px 8px rgb(0 0 0 / .06);
-	animation: cardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+	margin: auto;
+	animation: slideIn .35s cubic-bezier(.16, 1, .3, 1) both;
+	// 与人物引导气泡（MkTip）同色，深底白字。
+	--MI-donation-surface: var(--MI-ctaBg);
+	--MI-donation-text: var(--MI-ctaFg);
 }
 
-@keyframes cardIn {
-	from {
-		opacity: 0;
-		transform: translateY(24px) scale(0.96);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0) scale(1);
-	}
+// 人物固定宽度、底边与弹窗对齐，头部高出弹窗；弹窗左上角落在人物身体后面，不露出圆角。
+.character {
+	position: absolute;
+	z-index: 1;
+	bottom: 0;
+	left: 0;
+	display: block;
+	width: var(--MI-donation-character);
+	height: auto;
+	pointer-events: none;
+	user-select: none;
+}
+
+.bubble {
+	min-width: 0;
+	margin-inline-start: calc(var(--MI-donation-character) * 0.45);
+	padding: 14px 14px 12px calc(var(--MI-donation-character) * 0.55 + 8px);
+	border-radius: var(--MI-ctaRadius);
+	background: var(--MI-donation-surface);
+	color: var(--MI-donation-text);
+	// 近处一层收紧边缘，远处一层托起浮层，与页面拉开层级。
+	box-shadow:
+		0 2px 6px color-mix(in srgb, var(--MI-ctaBg) 20%, transparent),
+		0 12px 32px color-mix(in srgb, var(--MI-ctaBg) 28%, transparent);
 }
 
 .header {
 	display: flex;
-	align-items: center;
-	gap: 12px;
+	align-items: start;
 }
 
-.icon {
-	position: relative;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-	width: 44px;
-	height: 44px;
-	border-radius: 14px;
-	color: var(--MI_THEME-fgOnAccent);
-	background: linear-gradient(135deg, color-mix(in srgb, var(--MI_THEME-accent), white 24%), var(--MI_THEME-accent) 60%, color-mix(in srgb, var(--MI_THEME-accent), black 12%));
-	box-shadow: 0 4px 14px color-mix(in srgb, var(--MI_THEME-accent) 38%, transparent);
-	overflow: hidden;
-}
-
-// 高光沿徽章对角线扫过，间歇循环
-.icon::after {
-	content: "";
-	position: absolute;
-	inset: -40%;
-	background: linear-gradient(115deg, transparent 42%, rgb(255 255 255 / .45) 50%, transparent 58%);
-	transform: translateX(-120%);
-	animation: sheen 4.2s ease-in-out 1.2s infinite;
-}
-
-@keyframes sheen {
-	0% {
-		transform: translateX(-120%);
-	}
-	32%,
-	100% {
-		transform: translateX(120%);
-	}
+@keyframes slideIn {
+	from { opacity: 0; transform: translateY(12px); }
 }
 
 .title {
-	font-weight: 700;
-	font-size: 1.05em;
-	letter-spacing: 0.01em;
-	background: linear-gradient(90deg, var(--MI_THEME-fg) 30%, color-mix(in srgb, var(--MI_THEME-accent) 65%, var(--MI_THEME-fg)));
-	-webkit-background-clip: text;
-	background-clip: text;
-	color: transparent;
-}
-
-@supports not (-webkit-background-clip: text) {
-	.title {
-		background: none;
-		color: var(--MI_THEME-fg);
-	}
+	min-width: 0;
+	margin: 0;
+	font-size: 1em;
+	font-weight: bold;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
 }
 
 .text {
-	margin-top: 8px;
-	font-size: 0.95em;
-	color: color-mix(in srgb, var(--MI_THEME-fg) 82%, transparent);
+	margin: 5px 0 0;
+	font-size: .9em;
+	line-height: 1.6;
+	color: color-mix(in srgb, var(--MI-donation-text) 82%, var(--MI-donation-surface));
+	overflow-wrap: anywhere;
 }
 
-.feedbackLink {
-	display: inline-flex;
-	align-items: center;
-	gap: 3px;
-	margin-top: 8px;
-	padding: 2px 10px;
-	border-radius: 999px;
-	font-weight: 600;
-	font-size: 0.95em;
-	color: var(--MI_THEME-accent);
-	background: color-mix(in srgb, var(--MI_THEME-accent) 12%, transparent);
-	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--MI_THEME-accent) 25%, transparent);
-	transition: background-color 0.2s, box-shadow 0.2s, transform 0.15s;
-}
-
-.feedbackLink:hover {
-	background: color-mix(in srgb, var(--MI_THEME-accent) 20%, transparent);
-	transform: translateY(-1px);
-	box-shadow:
-		inset 0 0 0 1px color-mix(in srgb, var(--MI_THEME-accent) 35%, transparent),
-		0 3px 10px color-mix(in srgb, var(--MI_THEME-accent) 22%, transparent);
-}
-
-.feedbackLink i {
-	font-size: 0.9em;
-	transition: transform 0.15s;
-}
-
-.feedbackLink:hover i {
-	transform: translateX(2px);
-}
-
-.buttons {
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 6px;
 	margin-top: 12px;
 }
 
-.close {
-	position: absolute;
-	top: 10px;
-	right: 10px;
-	padding: 7px;
-	border-radius: 999px;
-	color: color-mix(in srgb, var(--MI_THEME-fg) 55%, transparent);
-	transition: background-color 0.2s, color 0.2s;
+.action.action {
+	min-width: 0;
 }
 
-.close:hover {
-	background: color-mix(in srgb, var(--MI_THEME-fg) 8%, transparent);
-	color: var(--MI_THEME-fg);
+// 深底上次要按钮用透明底和浅色描边，与引导气泡的关闭按钮一致。
+.secondaryAction.secondaryAction {
+	background: transparent;
+	color: var(--MI-donation-text) !important;
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--MI-donation-text) 30%, transparent);
+
+	&:not(:disabled):hover {
+		background: color-mix(in srgb, var(--MI-donation-text) 12%, transparent);
+	}
+}
+
+@media (max-width: 700px) {
+	.root {
+		bottom: calc(var(--MI-minBottomSpacingMobile) + var(--MI-margin));
+	}
+}
+
+// 窄屏时收紧按钮，三个按钮排在一行，弹窗不长高，人物头部仍高出弹窗。
+@media (max-width: 480px) {
+	.bubble {
+		padding-inline-end: 12px;
+	}
+
+	.action.action {
+		padding-inline: 8px;
+	}
+}
+
+// 更窄时按钮只能换行，弹窗会高过人物；左上角改为直角，不露出圆角。
+@media (max-width: 360px) {
+	.bubble {
+		border-start-start-radius: 0;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.root {
-		animation: none;
-	}
-
-	.icon::after {
-		display: none;
-	}
-}
-
-@media (max-width: 450px) {
-	.root {
-		padding: 14px 40px 14px 14px;
-	}
-
-	.icon {
-		width: 38px;
-		height: 38px;
-		border-radius: 11px;
-	}
+	.root { animation: none; }
 }
 </style>

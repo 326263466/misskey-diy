@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import { DI } from '@/di-symbols.js';
 import { ChatService } from '@/core/ChatService.js';
 import { ChatEntityService } from '@/core/entities/ChatEntityService.js';
 import { ApiError } from '@/server/api/error.js';
@@ -75,11 +74,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			const readUntilId = ps.markAsRead ? ps.readUntilId ?? await this.chatService.getUnreadLastMessageId(me.id, 'room', room.id) : null;
-			const messages = await this.chatService.roomTimeline(room.id, ps.limit, sinceId, untilId);
+			const messages = await this.chatService.roomTimeline(room.id, ps.limit, sinceId, untilId, me.id);
 			await this.chatService.clearManualUnread(me.id, { roomId: room.id });
 			if (ps.markAsRead) await this.chatService.readRoomChatMessage(me.id, room.id, readUntilId);
 
-			return await this.chatEntityService.packMessagesLiteForRoom(messages);
+			return await this.chatEntityService.packMessagesLiteForRoom(messages, me);
 		});
 	}
 }

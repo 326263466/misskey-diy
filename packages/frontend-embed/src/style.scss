@@ -19,7 +19,7 @@
 	--MI-margin: var(--MI-marginFull);
 
 	// 全站统一分割线：颜色、粗细只在这里定义，组件一律用 var(--MI-divider) 等变量，scripts/check-divider-style.mjs 会拦截自定义写法。
-	--MI-dividerWidth: 0.8px;
+	--MI-dividerWidth: 1px;
 	--MI-dividerColor: color-mix(in srgb, var(--MI_THEME-divider) 30%, transparent);
 	--MI-divider: var(--MI-dividerWidth) solid var(--MI-dividerColor);
 }

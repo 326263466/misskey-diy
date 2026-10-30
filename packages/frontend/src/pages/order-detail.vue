@@ -4,10 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader contentCard hideHeader>
+<PageWithHeader contentCard :displayBackButton="true">
 	<div class="_pageBody _gaps_m" :aria-busy="loading">
-		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title"><MkA to="/my/orders"><i class="ti ti-arrow-left" aria-hidden="true"></i> {{ i18n.ts._marketplace.orders }}</MkA><MkA to="/my/sales">{{ i18n.ts._marketplace.sales }}</MkA></nav>
-		<h1 :class="$style.heading">{{ i18n.ts._marketplace.orderDetails }}</h1>
 		<p v-if="loading" role="status">{{ i18n.ts.loading }}</p>
 		<div v-else-if="loadError" role="alert" class="_gaps_s"><p>{{ i18n.ts._marketplace.orderLoadFailed }}</p><MkButton @click="load">{{ i18n.ts.retry }}</MkButton></div>
 		<XOrder v-else-if="order" :order="order" :sales="order.seller?.id === account.id" embedded/>
@@ -19,7 +17,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { onBeforeUnmount, ref } from 'vue';
 import type { entities } from 'misskey-js';
 import XOrder from './order.vue';
-import MkA from '@/components/global/MkA.vue';
 import MkButton from '@/components/MkButton.vue';
 import { ensureSignin } from '@/i.js';
 import { i18n } from '@/i18n.js';
@@ -49,8 +46,3 @@ void load();
 onBeforeUnmount(() => { disposed = true; });
 definePage(() => ({ title: i18n.ts._marketplace.orderDetails, icon: 'ti ti-receipt' }));
 </script>
-
-<style lang="scss" module>
-.navigation { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-.heading { margin: 0; font-size: 1.35em; }
-</style>

@@ -13,7 +13,6 @@ import type { MiDriveFile } from '@/models/DriveFile.js';
 import type { MiNote } from '@/models/Note.js';
 import { EmailService } from '@/core/EmailService.js';
 import { bindThis } from '@/decorators.js';
-import { SearchService } from '@/core/SearchService.js';
 import { PageService } from '@/core/PageService.js';
 import { RedPacketService } from '@/core/RedPacketService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
@@ -47,7 +46,6 @@ export class DeleteAccountProcessorService {
 		private pageService: PageService,
 		private emailService: EmailService,
 		private queueLoggerService: QueueLoggerService,
-		private searchService: SearchService,
 		private redPacketService: RedPacketService,
 		private globalEventService: GlobalEventService,
 	) {
@@ -86,7 +84,6 @@ export class DeleteAccountProcessorService {
 				await this.notesRepository.delete(notes.map(note => note.id));
 
 				for (const note of notes) {
-					await this.searchService.unindexNote(note);
 				}
 			}
 

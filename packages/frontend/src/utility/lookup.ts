@@ -15,6 +15,7 @@ export async function lookup(router?: Router) {
 
 	const { canceled, result: temp } = await os.inputText({
 		title: i18n.ts.lookup,
+		type: 'search',
 	});
 	const query = temp ? temp.trim() : '';
 	if (canceled || query.length <= 1) return;

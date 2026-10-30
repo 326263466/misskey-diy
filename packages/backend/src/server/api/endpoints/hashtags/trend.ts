@@ -37,6 +37,12 @@ export const meta = {
 				usersCount: {
 					type: 'number',
 					optional: false, nullable: false,
+					description: 'Peak unique users per 10-minute window in the recent chart range.',
+				},
+				totalUsersCount: {
+					type: 'number',
+					optional: false, nullable: false,
+					description: 'Unique users who have ever posted notes with this hashtag.',
 				},
 			},
 		},
@@ -58,12 +64,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async () => {
 			const ranking = await this.hashtagService.backfillHashtagsRanking(await this.featuredService.getHashtagsRanking(10));
 
-			const charts = ranking.length === 0 ? {} : await this.hashtagService.getCharts(ranking, 20);
+			if (ranking.length === 0) return [];
+
+			const [charts, totals] = await Promise.all([
+				this.hashtagService.getCharts(ranking, 20),
+				this.hashtagService.getTotalUsersCounts(ranking),
+			]);
 
 			const stats = ranking.map(tag => ({
 				tag,
 				chart: charts[tag],
 				usersCount: Math.max(...charts[tag]),
+				totalUsersCount: totals[tag],
 			}));
 
 			return stats;

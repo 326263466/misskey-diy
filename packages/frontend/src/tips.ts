@@ -34,11 +34,3 @@ export function closeTip(tip: typeof TIPS[number]) {
 export function resetAllTips() {
 	store.set('tips', {});
 }
-
-export function hideAllTips() {
-	const v = {} as Record<typeof TIPS[number], boolean>;
-	for (const k of TIPS) {
-		v[k] = true;
-	}
-	store.set('tips', v);
-}

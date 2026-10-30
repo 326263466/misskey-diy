@@ -36,7 +36,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="iconUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._brandingImages.icon }}</SearchLabel></template>
-						<template #caption>{{ i18n.ts._brandingImages.iconDescription }}</template>
+						<template #suffix><button type="button" class="_button _textButton" :class="$style.imageButton" :aria-label="`${i18n.ts._brandingImages.chooseImage}: ${i18n.ts._brandingImages.icon}`" aria-haspopup="menu" @click="chooseImage($event, 'iconUrl')"><i class="ti ti-upload" aria-hidden="true"></i>{{ i18n.ts._brandingImages.chooseImage }}</button></template>
+						<template #caption>{{ i18n.ts._brandingImages.imageInputHint }} {{ i18n.ts._brandingImages.iconDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
@@ -44,7 +45,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="app192IconUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._brandingImages.appIconSmall }}</SearchLabel></template>
+						<template #suffix><button type="button" class="_button _textButton" :class="$style.imageButton" :aria-label="`${i18n.ts._brandingImages.chooseImage}: ${i18n.ts._brandingImages.appIconSmall}`" aria-haspopup="menu" @click="chooseImage($event, 'app192IconUrl')"><i class="ti ti-upload" aria-hidden="true"></i>{{ i18n.ts._brandingImages.chooseImage }}</button></template>
 						<template #caption>
+							<div>{{ i18n.ts._brandingImages.imageInputHint }}</div>
 							<div>{{ i18n.tsx._serverSettings.appIconDescription({ host: instance.name ?? host }) }}</div>
 							<div>({{ i18n.ts._serverSettings.appIconUsageExample }})</div>
 							<div>{{ i18n.ts._serverSettings.appIconStyleRecommendation }}</div>
@@ -57,7 +60,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="app512IconUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._brandingImages.appIconLarge }}</SearchLabel></template>
+						<template #suffix><button type="button" class="_button _textButton" :class="$style.imageButton" :aria-label="`${i18n.ts._brandingImages.chooseImage}: ${i18n.ts._brandingImages.appIconLarge}`" aria-haspopup="menu" @click="chooseImage($event, 'app512IconUrl')"><i class="ti ti-upload" aria-hidden="true"></i>{{ i18n.ts._brandingImages.chooseImage }}</button></template>
 						<template #caption>
+							<div>{{ i18n.ts._brandingImages.imageInputHint }}</div>
 							<div>{{ i18n.tsx._serverSettings.appIconDescription({ host: instance.name ?? host }) }}</div>
 							<div>({{ i18n.ts._serverSettings.appIconUsageExample }})</div>
 							<div>{{ i18n.ts._serverSettings.appIconStyleRecommendation }}</div>
@@ -70,7 +75,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="bannerUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._brandingImages.banner }}</SearchLabel></template>
-						<template #caption>{{ i18n.ts._brandingImages.bannerDescription }}</template>
+						<template #suffix><button type="button" class="_button _textButton" :class="$style.imageButton" :aria-label="`${i18n.ts._brandingImages.chooseImage}: ${i18n.ts._brandingImages.banner}`" aria-haspopup="menu" @click="chooseImage($event, 'bannerUrl')"><i class="ti ti-upload" aria-hidden="true"></i>{{ i18n.ts._brandingImages.chooseImage }}</button></template>
+						<template #caption>{{ i18n.ts._brandingImages.imageInputHint }} {{ i18n.ts._brandingImages.bannerDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
@@ -78,7 +84,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="backgroundImageUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._brandingImages.background }}</SearchLabel></template>
-						<template #caption>{{ i18n.ts._brandingImages.backgroundDescription }}</template>
+						<template #suffix><button type="button" class="_button _textButton" :class="$style.imageButton" :aria-label="`${i18n.ts._brandingImages.chooseImage}: ${i18n.ts._brandingImages.background}`" aria-haspopup="menu" @click="chooseImage($event, 'backgroundImageUrl')"><i class="ti ti-upload" aria-hidden="true"></i>{{ i18n.ts._brandingImages.chooseImage }}</button></template>
+						<template #caption>{{ i18n.ts._brandingImages.imageInputHint }} {{ i18n.ts._brandingImages.backgroundDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
@@ -86,7 +93,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="notFoundImageUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._brandingImages.notFound }}</SearchLabel></template>
-						<template #caption>{{ i18n.ts._brandingImages.notFoundDescription }}</template>
+						<template #suffix><button type="button" class="_button _textButton" :class="$style.imageButton" :aria-label="`${i18n.ts._brandingImages.chooseImage}: ${i18n.ts._brandingImages.notFound}`" aria-haspopup="menu" @click="chooseImage($event, 'notFoundImageUrl')"><i class="ti ti-upload" aria-hidden="true"></i>{{ i18n.ts._brandingImages.chooseImage }}</button></template>
+						<template #caption>{{ i18n.ts._brandingImages.imageInputHint }} {{ i18n.ts._brandingImages.notFoundDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
@@ -94,7 +102,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="infoImageUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._brandingImages.empty }}</SearchLabel></template>
-						<template #caption>{{ i18n.ts._brandingImages.emptyDescription }}</template>
+						<template #suffix><button type="button" class="_button _textButton" :class="$style.imageButton" :aria-label="`${i18n.ts._brandingImages.chooseImage}: ${i18n.ts._brandingImages.empty}`" aria-haspopup="menu" @click="chooseImage($event, 'infoImageUrl')"><i class="ti ti-upload" aria-hidden="true"></i>{{ i18n.ts._brandingImages.chooseImage }}</button></template>
+						<template #caption>{{ i18n.ts._brandingImages.imageInputHint }} {{ i18n.ts._brandingImages.emptyDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
@@ -102,7 +111,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkInput v-model="serverErrorImageUrl" type="url">
 						<template #prefix><i class="ti ti-link"></i></template>
 						<template #label><SearchLabel>{{ i18n.ts._brandingImages.error }}</SearchLabel></template>
-						<template #caption>{{ i18n.ts._brandingImages.errorDescription }}</template>
+						<template #suffix><button type="button" class="_button _textButton" :class="$style.imageButton" :aria-label="`${i18n.ts._brandingImages.chooseImage}: ${i18n.ts._brandingImages.error}`" aria-haspopup="menu" @click="chooseImage($event, 'serverErrorImageUrl')"><i class="ti ti-upload" aria-hidden="true"></i>{{ i18n.ts._brandingImages.chooseImage }}</button></template>
+						<template #caption>{{ i18n.ts._brandingImages.imageInputHint }} {{ i18n.ts._brandingImages.errorDescription }}</template>
 					</MkInput>
 				</SearchMarker>
 
@@ -151,7 +161,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<template #footer>
 		<div :class="$style.footer">
-			<div class="_pageFooter">
+			<div class="_pageFooter _formActions">
 				<MkButton primary rounded :wait="saving" :aria-busy="saving" @click="save">
 					<i class="ti ti-check" aria-hidden="true"></i>
 					<span aria-live="polite">{{ saving ? i18n.ts._brandingImages.saving : saved ? i18n.ts.saved : i18n.ts.save }}</span>
@@ -164,6 +174,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import type { Ref } from 'vue';
 import JSON5 from 'json5';
 import * as Misskey from 'misskey-js';
 import { host } from '@@/js/config.js';
@@ -171,6 +182,7 @@ import MkInput from '@/components/MkInput.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { selectFile } from '@/utility/drive.js';
 import { instance, fetchInstance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
@@ -199,6 +211,12 @@ const defaultDarkTheme = ref(meta.defaultDarkTheme);
 const serverErrorImageUrl = ref(meta.serverErrorImageUrl);
 const infoImageUrl = ref(meta.infoImageUrl);
 const notFoundImageUrl = ref(meta.notFoundImageUrl);
+const imageFields = { iconUrl, app192IconUrl, app512IconUrl, bannerUrl, backgroundImageUrl, notFoundImageUrl, infoImageUrl, serverErrorImageUrl };
+const imageSelections = new Map<Ref<string | null>, symbol>();
+
+for (const field of Object.values(imageFields)) {
+	watch(field, () => imageSelections.delete(field), { flush: 'sync' });
+}
 // Treat the inherited upstream links as empty defaults; keep custom addresses.
 const repositoryUrl = ref(meta.repositoryUrl === 'https://github.com/misskey-dev/misskey' ? null : meta.repositoryUrl);
 const feedbackUrl = ref(meta.feedbackUrl === 'https://github.com/misskey-dev/misskey/issues/new' ? null : meta.feedbackUrl);
@@ -226,6 +244,25 @@ onBeforeUnmount(() => {
 	window.clearTimeout(savedTimer);
 });
 
+async function chooseImage(event: PointerEvent, name: keyof typeof imageFields) {
+	const field = imageFields[name];
+	const selection = Symbol();
+	imageSelections.set(field, selection);
+	try {
+		const selected: Promise<Misskey.entities.DriveFile | undefined> = selectFile({ anchorElement: event.currentTarget ?? event.target, multiple: false });
+		const file = await selected;
+		// 手填链接或重新选图后，旧选择结果不再写回。
+		if (disposed || imageSelections.get(field) !== selection || file == null) return;
+		if (!file.type.startsWith('image/')) {
+			await os.alert({ type: 'error', text: i18n.ts._brandingImages.imageOnly });
+			return;
+		}
+		field.value = file.url;
+	} catch {
+		// 选择和上传失败由公共流程提示，保留原值，不阻止再次选择。
+	}
+}
+
 async function save() {
 	if (saving.value) return;
 	saved.value = false;
@@ -247,11 +284,11 @@ async function save() {
 				showTimelineForVisitor: showTimelineForVisitor.value,
 				showActivitiesForVisitor: showActivitiesForVisitor.value,
 			},
-			iconUrl: iconUrl.value,
-			app192IconUrl: app192IconUrl.value,
-			app512IconUrl: app512IconUrl.value,
-			bannerUrl: bannerUrl.value,
-			backgroundImageUrl: backgroundImageUrl.value,
+			iconUrl: iconUrl.value === '' ? null : iconUrl.value,
+			app192IconUrl: app192IconUrl.value === '' ? null : app192IconUrl.value,
+			app512IconUrl: app512IconUrl.value === '' ? null : app512IconUrl.value,
+			bannerUrl: bannerUrl.value === '' ? null : bannerUrl.value,
+			backgroundImageUrl: backgroundImageUrl.value === '' ? null : backgroundImageUrl.value,
 			themeColor: themeColor.value === '' ? null : themeColor.value,
 			defaultLightTheme: defaultLightTheme.value === '' ? null : defaultLightTheme.value,
 			defaultDarkTheme: defaultDarkTheme.value === '' ? null : defaultDarkTheme.value,
@@ -283,6 +320,17 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.imageButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 2px;
+	}
+}
+
 .footer {
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));

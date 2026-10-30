@@ -6,7 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { CONTENT_LIMITS } from 'misskey-js';
 import { ArticleService } from '@/core/ArticleService.js';
-import { DriveFileLifecycleService } from '@/core/DriveFileLifecycleService.js';
+import { DriveFileValidationService } from '@/core/DriveFileValidationService.js';
 import { ApiError } from '@/server/api/error.js';
 import { packedArticleCommentSchema } from '@/models/json-schema/article-comment.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
@@ -34,7 +34,7 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(private articleService: ArticleService) {
 		super(meta, paramDef, (ps, me) => this.articleService.createComment(ps.articleId, me, ps.text, ps.replyId, ps.fileIds).catch(error => {
-			if (DriveFileLifecycleService.isInvalidImagesError(error)) throw new ApiError(meta.errors.invalidFiles);
+			if (error instanceof DriveFileValidationService.InvalidImagesError) throw new ApiError(meta.errors.invalidFiles);
 			throwArticleApiError(error);
 		}));
 	}

@@ -35,7 +35,10 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
+		sinceId: { type: 'string', format: 'misskey:id' },
 		untilId: { type: 'string', format: 'misskey:id' },
+		sinceDate: { type: 'integer' },
+		untilDate: { type: 'integer' },
 		channelId: { type: 'string', nullable: true, format: 'misskey:id' },
 	},
 	required: [],
@@ -69,43 +72,50 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 			}
 
-			noteIds.sort((a, b) => a > b ? -1 : 1);
-			if (ps.untilId) {
-				noteIds = noteIds.filter(id => id < ps.untilId!);
-			}
 			if (noteIds.length === 0) {
 				return [];
 			}
 
 			const [
 				userIdsWhoMeMuting,
-				userIdsWhoBlockingMe,
+				blockedUserIds,
 			] = me ? await Promise.all([
 				this.cacheService.userMutingsCache.fetch(me.id),
-				this.cacheService.userBlockedCache.fetch(me.id),
+				this.cacheService.getBlockedUserIds(me.id),
 			]) : [new Set<string>(), new Set<string>()];
 
-			const query = this.notesRepository.createQueryBuilder('note')
-				.where('note.id IN (:...noteIds)', { noteIds: noteIds })
-				.innerJoinAndSelect('note.user', 'user')
-				.leftJoinAndSelect('note.reply', 'reply')
-				.leftJoinAndSelect('note.renote', 'renote')
-				.leftJoinAndSelect('reply.user', 'replyUser')
-				.leftJoinAndSelect('renote.user', 'renoteUser')
-				.leftJoinAndSelect('note.channel', 'channel');
+			const loadNotes = async (rankingIds: string[]) => {
+				if (rankingIds.length === 0) return [];
+				const query = this.queryService.makePaginationQuery(this.notesRepository.createQueryBuilder('note'), ps.sinceId, ps.untilId, ps.sinceDate, ps.untilDate)
+					.andWhere('note.id IN (:...noteIds)', { noteIds: rankingIds })
+					.innerJoinAndSelect('note.user', 'user')
+					.leftJoinAndSelect('note.reply', 'reply')
+					.leftJoinAndSelect('note.renote', 'renote')
+					.leftJoinAndSelect('reply.user', 'replyUser')
+					.leftJoinAndSelect('renote.user', 'renoteUser')
+					.leftJoinAndSelect('note.channel', 'channel');
 
-			this.queryService.generateBlockedHostQueryForNote(query);
-			this.queryService.generateSuspendedUserQueryForNote(query);
-			if (me == null) this.queryService.generateUgcVisibilityQueryForVisitor(query);
+				this.queryService.generateBlockedHostQueryForNote(query);
+				this.queryService.generateSuspendedUserQueryForNote(query);
+				if (me == null) this.queryService.generateUgcVisibilityQueryForVisitor(query);
 
-			const notes = (await query.getMany()).filter(note => {
-				if (me && isUserRelated(note, userIdsWhoBlockingMe)) return false;
-				if (me && isUserRelated(note, userIdsWhoMeMuting)) return false;
+				return (await query.getMany()).filter(note => {
+					if (me && isUserRelated(note, blockedUserIds)) return false;
+					if (me && isUserRelated(note.renote, blockedUserIds)) return false;
+					if (me && isUserRelated(note, userIdsWhoMeMuting)) return false;
 
-				return true;
-			});
+					return true;
+				});
+			};
 
-			notes.sort((a, b) => a.id > b.id ? -1 : 1);
+			let notes = await loadNotes(noteIds);
+			// 开发环境重置数据后，缓存可能仍指向已删除的帖子；此时立即读取一次新的精选排行。
+			if (notes.length === 0 && !ps.channelId && noteIds.length > 0) {
+				noteIds = await this.featuredService.getGlobalNotesRanking(100);
+				this.globalNotesRankingCache = noteIds;
+				this.globalNotesRankingCacheLastFetchedAt = Date.now();
+				notes = await loadNotes(noteIds);
+			}
 
 			return await this.noteEntityService.packMany(notes.slice(0, ps.limit), me);
 		});

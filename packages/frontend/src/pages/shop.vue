@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="pendingPurchase" :class="[$style.feedback, $style.pending]">
 			<div role="status" :class="$style.pendingText">
 				<p>{{ i18n.ts._marketplace.pendingResult }}</p>
-				<p>{{ i18n.tsx._marketplace.pendingSummary({ name: pendingPurchase.name, quantity: pendingPurchase.request.quantity, unit: pendingPurchase.unit, amount: (pendingPurchase.request.expectedPrice * pendingPurchase.request.quantity).toLocaleString() }) }}</p>
+				<p>{{ i18n.tsx._marketplace.pendingSummary({ name: pendingPurchase.name, quantity: pendingPurchase.request.quantity, amount: (pendingPurchase.request.expectedPrice * pendingPurchase.request.quantity).toLocaleString() }) }}</p>
 			</div>
 			<MkButton :disabled="purchasing" :wait="purchasing" @click="retryPurchase">{{ i18n.ts._marketplace.retryPurchase }}</MkButton>
 		</div>
@@ -44,14 +44,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<section v-else :aria-busy="loading || purchasing">
 			<h1 :class="$style.srOnly">{{ i18n.ts._marketplace.title }}</h1>
-			<div :class="$style.toolbar" role="search" :aria-label="i18n.ts._marketplace.search">
+			<div :class="$style.toolbar">
 				<div :class="$style.searchRow">
-					<div :class="$style.searchBox">
-						<i class="ti ti-search" aria-hidden="true"></i>
-						<input v-model="query" type="search" enterkeyhint="search" :placeholder="i18n.ts._marketplace.search" :aria-label="i18n.ts._marketplace.search">
-						<button v-if="query !== ''" v-tooltip="i18n.ts.clear" type="button" class="_button" :class="$style.clearButton" :aria-label="i18n.ts.clear" @click="query = ''"><i class="ti ti-x" aria-hidden="true"></i></button>
-					</div>
-					<button type="button" class="_button" :class="$style.sortButton" :aria-label="`${i18n.ts.sort}: ${sortLabel}`" aria-haspopup="menu" @click="openSortMenu">
+					<form :class="$style.search" role="search" :aria-label="i18n.ts._marketplace.search" @submit.prevent="search">
+						<i class="ti ti-search" :class="$style.searchIcon" aria-hidden="true"></i>
+						<input v-model="searchQuery" :class="$style.searchInput" type="search" enterkeyhint="search" :placeholder="i18n.ts._marketplace.search" :aria-label="i18n.ts._marketplace.search" @keydown="onSearchKeydown($event, search)">
+						<button type="submit" class="_button" :class="$style.searchButton" :disabled="searchQuery.trim() === ''">{{ i18n.ts.search }}</button>
+					</form>
+					<button type="button" class="_button" :class="[$style.sortButton, { [$style.active]: sort !== 'latest' }]" :aria-label="`${i18n.ts.sort}: ${sortLabel}`" aria-haspopup="menu" :aria-expanded="sortMenuOpen" @click="showSortMenu">
 						<i class="ti ti-arrows-sort" aria-hidden="true"></i>
 						<span>{{ sortLabel }}</span>
 						<i class="ti ti-chevron-down" aria-hidden="true"></i>
@@ -61,14 +61,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div :class="$style.segmented" role="group" :aria-label="i18n.ts._marketplace.productType">
 						<button v-for="option in typeOptions" :key="option.value" type="button" class="_button" :class="[$style.segment, { [$style.active]: productType === option.value }]" :aria-pressed="productType === option.value" @click="productType = option.value">{{ option.label }}</button>
 					</div>
-					<div v-if="categories.length > 0" :class="$style.chips" role="group" :aria-label="i18n.ts._marketplace.categoryLabel">
-						<button v-for="value in categories" :key="value" type="button" class="_button" :class="[$style.chip, { [$style.active]: category === value }]" :aria-pressed="category === value" @click="category = category === value ? null : value">{{ value }}</button>
+					<div v-if="categories.length > 0" :class="[$style.categoryArea, { [$style.categoriesExpanded]: categoriesExpanded }]">
+						<div :id="categoryListId" ref="categoryList" :class="$style.chips" role="group" :aria-label="i18n.ts._marketplace.categoryLabel">
+							<button v-for="value in categories" :key="value" type="button" class="_button" :class="[$style.chip, { [$style.active]: category === value }]" :aria-pressed="category === value" @click="category = category === value ? null : value">{{ value }}</button>
+						</div>
+						<button v-if="categoriesOverflow || categoriesExpanded" type="button" class="_button" :class="$style.moreCategories" :aria-expanded="categoriesExpanded" :aria-controls="categoryListId" @click="categoriesExpanded = !categoriesExpanded">
+							{{ categoriesExpanded ? i18n.ts.showLess : i18n.ts._marketplace.moreCategories }}<i :class="categoriesExpanded ? 'ti ti-chevron-up' : 'ti ti-chevron-down'" aria-hidden="true"></i>
+						</button>
 					</div>
 				</div>
 			</div>
 
-			<div v-if="loading && !products.length" role="status" :aria-label="i18n.ts.loading" :class="$style.productGrid"><div v-for="index in 6" :key="index" :class="$style.skeleton" aria-hidden="true"></div></div>
-			<div v-else-if="loadError" role="alert" :class="$style.stateCard"><i class="ti ti-cloud-off" aria-hidden="true"></i><h2>{{ i18n.ts._marketplace.loadFailed }}</h2><MkButton small @click="load">{{ i18n.ts.retry }}</MkButton></div>
+			<div v-if="loadError" role="alert" :class="$style.stateCard"><i class="ti ti-cloud-off" aria-hidden="true"></i><h2>{{ i18n.ts._marketplace.loadFailed }}</h2><MkButton small @click="load">{{ i18n.ts.retry }}</MkButton></div>
+			<div v-else-if="!listLoaded" :class="$style.loadingState"><MkLoading/></div>
 			<div v-else-if="!products.length" :class="$style.stateCard"><i class="ti ti-shopping-bag" aria-hidden="true"></i><h2>{{ i18n.ts._marketplace.emptyTitle }}</h2></div>
 			<div v-else-if="!cards.length" role="status" :class="$style.stateCard"><i class="ti ti-search-off" aria-hidden="true"></i><h2>{{ i18n.ts._marketplace.noResults }}</h2><MkButton small @click="clearFilters">{{ i18n.ts._marketplace.clearFilters }}</MkButton></div>
 			<div v-else :class="$style.productGrid">
@@ -90,21 +95,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<span><i :class="product.type === 'physical' ? 'ti ti-truck-delivery' : 'ti ti-bolt'" aria-hidden="true"></i> {{ product.type === 'physical' ? i18n.ts._marketplace.physicalDelivery : i18n.ts._marketplace.automaticDelivery }}</span>
 						</div>
 						<footer :class="$style.footer">
-							<span :class="$style.price"><i class="ti ti-coins" aria-hidden="true"></i><span><strong>{{ product.price.toLocaleString() }}</strong> {{ i18n.ts._marketplace.pointUnit }}<small> / {{ i18n.tsx._marketplace.pricePerUnit({ unit: product.unit }) }}</small></span></span>
+							<span :class="$style.price"><i class="ti ti-coins" aria-hidden="true"></i><strong>{{ product.price.toLocaleString() }}</strong><span>{{ i18n.ts._marketplace.pointUnit }}</span></span>
 							<button type="button" class="_button" :class="$style.redeem" :disabled="!canPurchase(product)" @click="purchase(product)">{{ purchaseLabel(product) }}</button>
 						</footer>
 					</div>
 				</article>
 			</div>
-			<div v-if="moreError" role="alert" :class="$style.more"><span>{{ i18n.ts._marketplace.loadFailed }}</span><MkButton :disabled="loadingMore" @click="loadMore">{{ i18n.ts.retry }}</MkButton></div>
-			<MkButton v-else-if="nextId" :class="$style.more" :disabled="loading || loadingMore" :wait="loadingMore" @click="loadMore">{{ i18n.ts.loadMore }}</MkButton>
+			<div v-if="moreError" role="alert" :class="$style.more"><span>{{ i18n.ts._marketplace.loadFailed }}</span><MkButton :disabled="loading || loadingMore || purchasing" @click="loadMore">{{ i18n.ts.retry }}</MkButton></div>
+			<MkLoading v-else-if="loadingMore"/>
+			<div v-else-if="!loading && !purchasing && !loadError && nextId && pageActive" :key="nextId" v-appear="loadMore" :class="$style.sentinel" aria-hidden="true"></div>
 		</section>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, inject, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useId, useTemplateRef, watch } from 'vue';
 import type { entities } from 'misskey-js';
 import XProductDetail from './product-detail.vue';
 import XOrder from './order.vue';
@@ -119,19 +125,22 @@ import * as os from '@/os.js';
 import { prefer } from '@/preferences.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { DI } from '@/di.js';
+import { onSearchKeydown } from '@/utility/search-keydown.js';
+import { appearDirective as vAppear } from '@/directives/appear.js';
+import { usePageHistoryRestore } from '@/composables/use-page-history-restore.js';
 
 type Product = entities.ProductsListResponse['products'][number];
 type PendingPurchase = {
 	request: entities.OrdersPurchaseRequest;
 	name: string;
-	unit: string;
 	type: Product['type'];
 };
-type Receipt = Pick<entities.OrdersListResponse[number], 'id' | 'name' | 'type' | 'quantity' | 'unit' | 'total' | 'deliveryText' | 'redemptionCode'>;
+type Receipt = Pick<entities.OrdersListResponse[number], 'id' | 'orderNumber' | 'name' | 'type' | 'quantity' | 'total' | 'deliveryText' | 'redemptionCode'>;
 const props = defineProps<{ productId?: string }>();
 const account = ensureSignin();
 const storageKey = `order-purchase:${account.id}` as const;
 const pageActive = inject(DI.pageActive, ref(true));
+const historyRestoring = usePageHistoryRestore();
 const products = ref<Product[]>([]);
 const detailProduct = ref<Product | null>(null);
 const currentProduct = computed(() => detailProduct.value?.id === props.productId ? detailProduct.value : products.value.find(product => product.id === props.productId));
@@ -142,6 +151,8 @@ const points = ref(0);
 const quantities = ref<Record<string, number>>(Object.create(null));
 const failedImages = ref<Record<string, boolean>>(Object.create(null));
 const loading = ref(false);
+// 列表首次成功返回前不判断空状态；之后的后台刷新保留当前列表
+const listLoaded = ref(false);
 const purchasing = ref(false);
 const loadError = ref(false);
 const purchaseError = ref('');
@@ -150,7 +161,9 @@ const receipt = ref<Receipt | null>(null);
 const receiptEl = useTemplateRef('receiptEl');
 const pendingPurchase = ref<PendingPurchase | null>(null);
 const query = ref('');
-const sort = ref<'default' | 'priceAsc' | 'priceDesc'>('default');
+const searchQuery = ref('');
+const sort = ref<'latest' | 'priceAsc' | 'priceDesc'>('latest');
+const sortMenuOpen = ref(false);
 const productType = ref<'all' | Product['type']>('all');
 const category = ref<string | null>(null);
 let active = true;
@@ -168,11 +181,11 @@ function readPending(): PendingPurchase | null {
 		|| request.expectedPrice * request.quantity > 2000000000
 		|| typeof request.expectedVersion !== 'string' || request.expectedVersion.length < 1 || request.expectedVersion.length > 64
 		|| typeof request.requestId !== 'string' || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(request.requestId)
-		|| typeof saved.name !== 'string' || typeof saved.unit !== 'string'
+		|| typeof saved.name !== 'string'
 		|| !['physical', 'virtual'].includes(saved.type)) {
 		throw new Error('Invalid pending purchase');
 	}
-	return { name: saved.name, unit: saved.unit, type: saved.type, request: {
+	return { name: saved.name, type: saved.type, request: {
 		productId: request.productId, quantity: request.quantity, expectedPrice: request.expectedPrice,
 		expectedVersion: request.expectedVersion, requestId: request.requestId,
 	} };
@@ -196,24 +209,61 @@ restorePending();
 
 // 分类标签再点一次即取消，回到不限分类
 const categories = computed(() => [...new Set(products.value.map(product => product.category).filter(Boolean))]);
+
+// 分类默认只占一行，放不下时在右侧显示“更多”，展开后换行显示全部。
+const categoryListId = useId();
+const categoryList = useTemplateRef('categoryList');
+const categoriesExpanded = ref(false);
+const categoriesOverflow = ref(false);
+const categoryResizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measureCategories);
+
+function measureCategories() {
+	const el = categoryList.value;
+	if (el == null || categoriesExpanded.value) return;
+	categoriesOverflow.value = el.scrollWidth > el.clientWidth + 1;
+}
+
+watch(categoryList, (el, previous) => {
+	if (previous) categoryResizeObserver?.unobserve(previous);
+	if (el) {
+		categoryResizeObserver?.observe(el);
+		measureCategories();
+	}
+}, { flush: 'post' });
+watch([categories, categoriesExpanded], () => { void nextTick(measureCategories); });
 const typeOptions = [
 	{ value: 'all', label: i18n.ts._marketplace.allProducts },
 	{ value: 'virtual', label: i18n.ts._marketplace.virtualType },
 	{ value: 'physical', label: i18n.ts._marketplace.physicalType },
 ] as const;
 const sortOptions = [
-	{ value: 'default', label: i18n.ts._marketplace.defaultSort },
+	{ value: 'latest', label: i18n.ts._marketplace.defaultSort },
 	{ value: 'priceAsc', label: i18n.ts._marketplace.priceAsc },
 	{ value: 'priceDesc', label: i18n.ts._marketplace.priceDesc },
 ] as const;
-const sortLabel = computed(() => sortOptions.find(option => option.value === sort.value)?.label ?? i18n.ts._marketplace.defaultSort);
+const sortLabel = computed(() => sortOptions.find(option => option.value === sort.value)!.label);
 
-function openSortMenu(ev: MouseEvent) {
-	os.popupMenu(sortOptions.map(option => ({
-		text: option.label,
-		active: sort.value === option.value,
-		action: () => { sort.value = option.value; },
-	})), (ev.currentTarget ?? ev.target) as HTMLElement);
+function search() {
+	query.value = searchQuery.value.trim();
+}
+
+watch(searchQuery, value => {
+	if (value.trim() === '') query.value = '';
+});
+
+async function showSortMenu(ev: MouseEvent) {
+	if (sortMenuOpen.value) return;
+	sortMenuOpen.value = true;
+	try {
+		await os.popupMenu(sortOptions.map(option => ({
+			type: 'radioOption',
+			text: option.label,
+			active: computed(() => sort.value === option.value),
+			action: () => { sort.value = option.value; },
+		})), ev.currentTarget ?? ev.target);
+	} finally {
+		sortMenuOpen.value = false;
+	}
 }
 
 const visibleProducts = computed(() => {
@@ -222,9 +272,8 @@ const visibleProducts = computed(() => {
 		(keyword === '' || product.name.toLowerCase().includes(keyword) || product.description.toLowerCase().includes(keyword) || product.category.toLowerCase().includes(keyword))
 		&& (productType.value === 'all' || productType.value === product.type)
 		&& (category.value === null || category.value === product.category));
-	if (sort.value === 'priceAsc') return [...list].sort((a, b) => a.price - b.price);
-	if (sort.value === 'priceDesc') return [...list].sort((a, b) => b.price - a.price);
-	return list;
+	if (sort.value === 'latest') return list;
+	return [...list].sort((a, b) => sort.value === 'priceAsc' ? a.price - b.price : b.price - a.price);
 });
 
 function statusBadge(product: Product): { label: string; tone: string } | null {
@@ -239,7 +288,8 @@ const cards = computed(() => visibleProducts.value.map(product => ({ product, ba
 
 function clearFilters() {
 	query.value = '';
-	sort.value = 'default';
+	searchQuery.value = '';
+	sort.value = 'latest';
 	productType.value = 'all';
 	category.value = null;
 }
@@ -282,7 +332,9 @@ function purchaseLabel(product: Product) {
 	return i18n.ts._marketplace.redeemNow;
 }
 
-async function load() {
+function load() { return loadCatalog(false); }
+
+async function loadCatalog(preserveCatalog: boolean) {
 	if (!active || !pageActive.value) return;
 	const generation = ++loadGeneration;
 	loading.value = true;
@@ -298,37 +350,42 @@ async function load() {
 				throw error;
 			}) : Promise.resolve(null),
 		]);
-		if (!active || generation !== loadGeneration) return;
-		products.value = shop.products;
+		if (!active || !pageActive.value || generation !== loadGeneration) return;
+		if (preserveCatalog) {
+			const updates = new Map(shop.products.map(product => [product.id, product]));
+			products.value = products.value.map(product => updates.get(product.id) ?? product);
+		} else {
+			products.value = shop.products;
+			nextId.value = shop.nextId;
+			failedImages.value = Object.create(null);
+		}
 		detailProduct.value = detail;
-		nextId.value = shop.nextId;
 		points.value = shop.points;
-		failedImages.value = Object.create(null);
+		listLoaded.value = true;
 		if (!pendingPurchase.value) {
 			for (const product of [...shop.products, ...(detail ? [detail] : [])]) quantities.value[product.id] = Math.max(1, Math.min(getQuantity(product), product.maxQuantity));
 		}
 	} catch {
-		if (active && generation === loadGeneration) loadError.value = true;
+		if (active && pageActive.value && generation === loadGeneration) loadError.value = true;
 	} finally {
 		if (generation === loadGeneration) loading.value = false;
 	}
 }
 
 async function loadMore() {
-	if (!active || !pageActive.value || loading.value || loadingMore.value || !nextId.value) return;
+	if (!active || !pageActive.value || props.productId || loading.value || loadingMore.value || purchasing.value || loadError.value || !nextId.value) return;
 	const generation = loadGeneration;
 	const untilId = nextId.value;
 	loadingMore.value = true;
 	moreError.value = false;
 	try {
 		const shop = await misskeyApi('products/list', { untilId });
-		if (!active || generation !== loadGeneration) return;
-		const knownIds = new Set(products.value.map(product => product.id));
-		products.value.push(...shop.products.filter(product => !knownIds.has(product.id)));
-		nextId.value = shop.nextId;
+		if (!active || !pageActive.value || generation !== loadGeneration) return;
+		products.value = [...new Map([...products.value, ...shop.products].map(product => [product.id, product])).values()];
+		nextId.value = shop.nextId !== untilId ? shop.nextId : null;
 		points.value = shop.points;
 	} catch {
-		if (active && generation === loadGeneration) moreError.value = true;
+		if (active && pageActive.value && generation === loadGeneration) moreError.value = true;
 	} finally {
 		if (generation === loadGeneration) loadingMore.value = false;
 	}
@@ -355,12 +412,12 @@ async function purchase(product: Product) {
 	}
 	purchasing.value = true;
 	const pending: PendingPurchase = {
-		name: product.name, unit: product.unit, type: product.type,
+		name: product.name, type: product.type,
 		request: { productId: product.id, quantity: getQuantity(product), expectedPrice: product.price, expectedVersion: product.version, requestId: crypto.randomUUID() },
 	};
 	try {
 		const { quantity, expectedPrice } = pending.request;
-		const { canceled } = await os.confirm({ type: 'question', title: pending.name, text: i18n.tsx._marketplace.confirmProduct({ name: pending.name, unit: pending.unit, amount: (expectedPrice * quantity).toLocaleString(), quantity: quantity.toLocaleString() }) });
+		const { canceled } = await os.confirm({ type: 'question', title: pending.name, text: i18n.tsx._marketplace.confirmProduct({ amount: (expectedPrice * quantity).toLocaleString(), quantity: quantity.toLocaleString() }) });
 		if (canceled || !active || !pageActive.value) return;
 		await withPurchaseLock(() => submit(pending, false));
 	} catch (cause) { purchaseError.value = purchaseErrorMessage(cause); } finally { purchasing.value = false; }
@@ -404,8 +461,8 @@ async function submit(pending: PendingPurchase, retrying: boolean) {
 		if (disposed) return;
 		clearPending(pending.request.requestId);
 		receipt.value = {
-			id: result.orderId, name: pending.name, type: pending.type,
-			quantity: result.quantity, unit: pending.unit, total: pending.request.expectedPrice * result.quantity, deliveryText: result.deliveryText,
+			id: result.orderId, orderNumber: result.orderNumber, name: pending.name, type: pending.type,
+			quantity: result.quantity, total: pending.request.expectedPrice * result.quantity, deliveryText: result.deliveryText,
 			redemptionCode: result.redemptionCode,
 		};
 		points.value = result.points;
@@ -429,20 +486,27 @@ function refresh() {
 	void load();
 }
 
+function refreshOnActivation() {
+	if (!active || !pageActive.value || purchasing.value || loading.value) return;
+	restorePending();
+	const preserveCatalog = historyRestoring.value && !props.productId && listLoaded.value && products.value.length > 0;
+	void loadCatalog(preserveCatalog);
+}
+
 function onStorage(event: StorageEvent) { if (event.key === storageKey || event.key === null) refresh(); }
 
 function invalidateLoad() { loadGeneration++; loading.value = false; loadingMore.value = false; }
 
 function deactivate() { active = false; invalidateLoad(); }
 
-watch(pageActive, value => { if (value) refresh(); else invalidateLoad(); });
+watch(pageActive, value => { if (value) refreshOnActivation(); else invalidateLoad(); });
 watch(() => props.productId, () => { void load(); });
 onMounted(() => {
 	window.addEventListener('focus', refresh);
 	window.addEventListener('online', refresh);
 	window.addEventListener('storage', onStorage);
 });
-onActivated(() => { const wasInactive = !active; active = true; if (wasInactive) refresh(); });
+onActivated(() => { const wasInactive = !active; active = true; if (wasInactive) refreshOnActivation(); });
 onDeactivated(deactivate);
 onBeforeUnmount(() => {
 	disposed = true;
@@ -450,17 +514,20 @@ onBeforeUnmount(() => {
 	window.removeEventListener('focus', refresh);
 	window.removeEventListener('online', refresh);
 	window.removeEventListener('storage', onStorage);
+	categoryResizeObserver?.disconnect();
 });
 void load();
 definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.title, icon: 'ti ti-shopping-bag' }));
 </script>
 
 <style lang="scss" module>
+@use '../styles/search.scss' as search;
+
 .root {
 	container-type: inline-size;
 	max-width: var(--MI-pageWidth);
 	margin-inline: auto;
-	padding-bottom: 32px;
+	padding-bottom: var(--MI-pageBottomInset, 32px);
 	box-sizing: border-box;
 }
 
@@ -490,6 +557,7 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 .pendingText p { margin: 0; overflow-wrap: anywhere; }
 .receipt { margin-bottom: var(--MI-margin); }
 .more { margin-top: var(--MI-margin); display: flex; align-items: center; gap: 12px; }
+.sentinel { height: 1px; }
 
 .notice { color: var(--MI_THEME-success); background: color-mix(in srgb, var(--MI_THEME-success) 10%, var(--MI_THEME-panel)); }
 .error { color: var(--MI_THEME-error); background: color-mix(in srgb, var(--MI_THEME-error) 10%, var(--MI_THEME-panel)); }
@@ -507,51 +575,26 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 
 .searchRow {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
+	gap: 12px;
 }
 
-.searchBox {
-	flex: 1;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	min-width: 0;
-	height: 40px;
-	padding: 0 6px 0 14px;
-	box-sizing: border-box;
-	border: 1px solid var(--MI_THEME-inputBorder);
-	border-radius: 999px;
-	background: var(--MI_THEME-bg);
-	color: var(--MI_THEME-fgTransparent);
-	transition: border-color .15s;
-
-	&:hover { border-color: var(--MI_THEME-inputBorderHover); }
-	&:focus-within { border-color: var(--MI_THEME-accent); }
-
-	> input {
-		flex: 1;
-		min-width: 0;
-		height: 100%;
-		padding: 0;
-		border: none;
-		outline: none;
-		background: none;
-		color: var(--MI_THEME-fg);
-		font: inherit;
-
-		&::-webkit-search-cancel-button { display: none; }
-	}
+.search {
+	@include search.container;
+	flex: 1 1 240px;
 }
 
-.clearButton {
-	display: grid;
-	place-items: center;
-	flex-shrink: 0;
-	width: 28px;
-	height: 28px;
-	border-radius: 50%;
-	color: var(--MI_THEME-fgTransparentWeak);
+.searchIcon {
+	@include search.icon;
+}
+
+.searchInput {
+	@include search.input;
+}
+
+.searchButton {
+	@include search.button;
 }
 
 .sortButton {
@@ -559,18 +602,20 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	height: 40px;
+	margin-inline-start: auto;
+	height: 32px;
 	padding: 0 12px;
-	border-radius: 999px;
+	border-radius: 4px;
 	color: var(--MI_THEME-fgTransparent);
 	white-space: nowrap;
 
-	> .ti-chevron-down { font-size: .85em; }
+	&.active { color: var(--MI_THEME-accent); }
+	&:hover { color: var(--MI_THEME-accent); }
 }
 
 .facets {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 12px;
 	min-width: 0;
 }
@@ -578,53 +623,93 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 .segmented {
 	flex-shrink: 0;
 	display: inline-flex;
-	padding: 3px;
-	border-radius: 999px;
-	background: var(--MI_THEME-bg);
+	align-items: center;
+	gap: 4px;
 }
 
 .segment {
-	min-height: 30px;
+	display: inline-flex;
+	align-items: center;
+	height: 32px;
 	padding: 0 14px;
-	border-radius: 999px;
+	border-radius: 4px;
 	color: var(--MI_THEME-fgTransparent);
 	white-space: nowrap;
 	transition: color .15s, background .15s;
 
 	&.active {
-		color: var(--MI_THEME-fgOnAccent);
-		background: var(--MI_THEME-accent);
+		color: var(--MI_THEME-accent);
+		background: var(--MI_THEME-accentedBg);
 	}
+	&:hover { color: var(--MI_THEME-accent); }
 }
 
-// 分类多时横向滚动，不撑高工具栏
-.chips {
+// 分类默认只占一行，超出部分隐藏，由右侧“更多”展开
+.categoryArea {
 	display: flex;
+	flex: 1;
+	align-items: flex-start;
 	gap: 8px;
 	min-width: 0;
 	padding-left: 12px;
 	border-left: var(--MI-divider);
-	overflow-x: auto;
-	scrollbar-width: none;
+}
 
-	&::-webkit-scrollbar { display: none; }
+.chips {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.categoriesExpanded .chips {
+	flex-wrap: wrap;
+
+	.chip {
+		max-width: 100%;
+		min-height: 32px;
+		height: auto;
+		padding-block: 6px;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		text-align: start;
+	}
+}
+
+.moreCategories {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 4px;
+	height: 32px;
+	padding: 0 10px;
+	border-radius: 4px;
+	color: var(--MI_THEME-accent);
+	white-space: nowrap;
+
+	&:hover { color: var(--MI_THEME-accentHover); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
 }
 
 .chip {
+	display: inline-flex;
+	align-items: center;
 	flex-shrink: 0;
-	min-height: 30px;
+	height: 32px;
+	box-sizing: border-box;
 	padding: 0 12px;
-	border: 1px solid var(--MI_THEME-divider);
-	border-radius: 999px;
+	border-radius: 4px;
 	color: var(--MI_THEME-fgTransparent);
 	white-space: nowrap;
-	transition: color .15s, border-color .15s, background .15s;
+	transition: color .15s, background .15s;
 
 	&.active {
-		border-color: transparent;
 		color: var(--MI_THEME-accent);
 		background: var(--MI_THEME-accentedBg);
 	}
+	&:hover { color: var(--MI_THEME-accent); }
 }
 
 .productGrid {
@@ -665,7 +750,7 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 }
 
 .glyph { display: grid; place-items: center; color: var(--MI_THEME-accent); font-size: 48px; }
-.visualBadges { position: absolute; inset: 10px 10px auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.visualBadges { position: absolute; inset: 10px 10px auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
 .typeBadge, .statusBadge { max-width: 100%; padding: 3px 7px; border-radius: calc(var(--MI-radius) / 3); font-size: .8em; font-weight: 600; overflow-wrap: anywhere; }
 .typeBadge { color: var(--MI_THEME-infoWarnFg); background: var(--MI_THEME-infoWarnBg); }
 .badgeDanger { color: var(--MI_THEME-error); background: var(--MI_THEME-panel); }
@@ -732,9 +817,10 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 .footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: var(--MI-divider); }
 .price { display: inline-flex; align-items: center; gap: 6px; color: var(--MI_THEME-accent); font-size: .85em; font-variant-numeric: tabular-nums; }
 .price strong { font-size: 1.4em; font-weight: 600; }
-.price small { color: var(--MI_THEME-fgTransparent); font-size: .9em; }
-
 .redeem {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	max-width: 100%;
 	min-height: 32px;
 	padding: 6px 10px;
@@ -752,7 +838,7 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 	}
 }
 
-.segment:focus-visible, .chip:focus-visible, .sortButton:focus-visible, .clearButton:focus-visible, .visual:focus-visible, .body h2 a:focus-visible, .redeem:focus-visible {
+.segment:focus-visible, .chip:focus-visible, .sortButton:focus-visible, .visual:focus-visible, .body h2 a:focus-visible, .redeem:focus-visible {
 	outline: 2px solid var(--MI_THEME-focus);
 	outline-offset: 2px;
 }
@@ -774,16 +860,19 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 
 	> i { color: var(--MI_THEME-fgTransparentWeak); font-size: 36px; }
 	h2 { margin: 0; font-size: 1em; font-weight: 600; }
-	p { max-width: 340px; margin: 0; color: var(--MI_THEME-fgTransparent); line-height: 1.6; }
 }
 
-.skeleton { min-height: 310px; border: var(--MI-divider); border-radius: var(--MI-cardRadius); background: var(--MI_THEME-panel); }
+.loadingState {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 260px;
+}
 
 @media (hover: hover) {
 	.card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px color-mix(in srgb, var(--MI_THEME-fg) 8%, transparent); }
 	.card:hover .visual > img { transform: scale(1.035); }
-	.segment:not(.active):hover, .chip:not(.active):hover, .sortButton:hover, .clearButton:hover, .body h2 a:hover { color: var(--MI_THEME-accent); }
-	.sortButton:hover, .clearButton:hover { background: var(--MI_THEME-buttonHoverBg); }
+	.body h2 a:hover { color: var(--MI_THEME-accent); }
 	.redeem:not(:disabled):hover { background: color-mix(in srgb, var(--MI_THEME-accent) 18%, var(--MI_THEME-panel)); }
 }
 
@@ -798,7 +887,8 @@ definePage(() => ({ title: currentProduct.value?.name ?? i18n.ts._marketplace.ti
 
 	.segmented { align-self: flex-start; }
 
-	.chips {
+	.categoryArea {
+		margin-top: 0;
 		padding-left: 0;
 		border-left: none;
 	}

@@ -20,7 +20,6 @@ import { ApRendererService } from '@/core/activitypub/ApRendererService.js';
 import { ApDeliverManagerService } from '@/core/activitypub/ApDeliverManagerService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
-import { SearchService } from '@/core/SearchService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { DELETED_REPLY_THREAD_PREFIX, getNoteThreadId, isDeletedReply } from '@/misc/is-reply.js';
@@ -53,7 +52,6 @@ export class NoteDeleteService {
 		private federatedInstanceService: FederatedInstanceService,
 		private apRendererService: ApRendererService,
 		private apDeliverManagerService: ApDeliverManagerService,
-		private searchService: SearchService,
 		private moderationLogService: ModerationLogService,
 		private notesChart: NotesChart,
 		private perUserNotesChart: PerUserNotesChart,
@@ -134,7 +132,6 @@ export class NoteDeleteService {
 			const targetDeletedBy = target.id === note.id ? deletedBy : target.deletedBy ?? undefined;
 			if (!quiet) this.globalEventService.publishNoteStream(target, 'deleted', { deletedAt, deletedBy: targetDeletedBy });
 			if (!quiet && author != null && !isDeletedReply(target)) await this.postDelete(author, target);
-			await this.searchService.unindexNote(target);
 		}
 
 		if (deleter && (note.userId !== deleter.id)) {
@@ -171,7 +168,6 @@ export class NoteDeleteService {
 			this.globalEventService.publishNoteStream(note, 'deleted', { deletedAt: new Date(), deletedBy });
 			await this.postDelete(user, note);
 		}
-		await this.searchService.unindexNote(note);
 		if (deleter && note.userId !== deleter.id) {
 			const author = await this.usersRepository.findOneByOrFail({ id: note.userId });
 			this.moderationLogService.log(deleter, 'deleteNote', {

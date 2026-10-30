@@ -38,7 +38,7 @@
 	}
 
 	.urlPreview + .urlPreview {
-		margin-top: 4px;
+		margin-top: 2px;
 	}
 
 	.quoteNote {
@@ -48,13 +48,13 @@
 		overflow: clip;
 	}
 
-	// 话题标签与点赞者同行，行高锁定 24px，点赞出现/消失不改变卡片高度
+	// 话题标签属于正文，沿用内容块的 4px 间距；行高与标签同为 20px，点赞出现/消失不改变卡片高度
 	.tagsAndLikeRow {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		min-height: 24px;
-		margin-top: 12px;
+		min-height: 20px;
+		margin-top: 4px;
 
 		&:empty {
 			display: none;
@@ -68,7 +68,9 @@
 		gap: 12px;
 		align-items: center;
 		min-height: 20px;
-		margin-top: 12px;
+		// 内容块间距 4px 再加 2px，操作行与上方内容稍作区分
+		margin-top: 8px;
+		container-type: inline-size;
 	}
 
 	.footerButtonSlot {
@@ -84,7 +86,6 @@
 	}
 
 	.footerButton {
-		--MI-noteActionColor: var(--MI_THEME-accent);
 		position: relative;
 		flex: 0 0 auto;
 		display: flex;
@@ -127,11 +128,12 @@
 			}
 		}
 
+		// 所有操作悬停统一用主题色；已转发、已点赞保持各自状态色
 		&:is(:hover, :focus-visible) {
-			color: var(--MI-noteActionColor);
+			color: var(--MI_THEME-accent);
 
 			> i::after {
-				background: color-mix(in srgb, var(--MI-noteActionColor) 10%, transparent);
+				background: var(--MI_THEME-accentedBg);
 			}
 		}
 
@@ -140,17 +142,6 @@
 
 			> i::after {
 				box-shadow: 0 0 0 2px var(--MI_THEME-focus);
-			}
-		}
-
-		&.footerButtonWithCount {
-			> i::after {
-				content: none;
-			}
-
-			&:focus-visible {
-				outline: 2px solid var(--MI_THEME-focus);
-				outline-offset: 4px;
 			}
 		}
 	}
@@ -165,23 +156,27 @@
 		}
 	}
 
-	.renoteButton {
-		--MI-noteActionColor: var(--MI_THEME-renote);
-	}
-
-	.likeButton {
-		--MI-noteActionColor: var(--MI_THEME-love);
-	}
-
-	.renoted {
+	.footerButton.renoted {
 		color: var(--MI_THEME-renote);
 	}
 
-	.footerButtonCount {
+	.footerButton.liked {
+		color: var(--MI_THEME-love);
+	}
+
+	.footerButtonCount,
+	.footerButtonLabel {
 		margin: 0;
 		font-size: 12px;
 		white-space: nowrap;
 		pointer-events: none;
+	}
+
+	// 窄卡片放不下文字时只留图标，避免操作行换行
+	@container (max-width: 360px) {
+		.footerButtonLabel {
+			display: none;
+		}
 	}
 
 }

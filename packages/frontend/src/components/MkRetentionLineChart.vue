@@ -4,133 +4,86 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<canvas ref="chartEl"></canvas>
+<div :class="$style.root">
+	<MkLoading v-if="cohorts == null"/>
+	<MkEChart v-else :option="option" :ariaLabel="i18n.ts._dashboard.retentionRate"/>
+</div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, useTemplateRef } from 'vue';
-import { Chart } from 'chart.js';
-import type { ScatterDataPoint } from 'chart.js';
-import tinycolor from 'tinycolor2';
-import { store } from '@/store.js';
-import { themeManager } from '@/theme.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
-import { chartVLine } from '@/utility/chart-vline.js';
-import { alpha } from '@/utility/color.js';
-import { initChart } from '@/utility/init-chart.js';
+import { computed, onMounted, onUnmounted, shallowRef } from 'vue';
+import MkEChart from '@/components/MkEChart.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { i18n } from '@/i18n.js';
+import { chartColors, chartGrid } from '@/utility/echarts.js';
 import { dateOnly } from '@/filters/date.js';
+import { i18n } from '@/i18n.js';
 
-interface RetentionPoint extends ScatterDataPoint {
-	x: number;
-	y: number;
-	d: string;
-}
+type Cohort = { label: string; rates: number[] };
 
-initChart();
+const cohorts = shallowRef<Cohort[] | null>(null);
+let disposed = false;
 
-const chartEl = useTemplateRef('chartEl');
-
-const { handler: externalTooltipHandler } = useChartTooltip();
-
-let chartInstance: Chart | null = null;
-
-const getDate = (ymd: string) => {
+const toDate = (ymd: string) => {
 	const [y, m, d] = ymd.split('-').map(x => parseInt(x, 10));
-	const date = new Date(y, m + 1, d, 0, 0, 0, 0);
-	return date;
+	return new Date(y, m - 1, d);
 };
 
+// 每条线是一批注册日的用户：越新的批次颜色越深，便于比较留存是否在改善。
+const option = computed(() => {
+	const c = chartColors.value;
+	const list = cohorts.value ?? [];
+	const days = Math.max(0, ...list.map(item => item.rates.length));
+	return {
+		grid: { ...chartGrid, top: 24, bottom: 24 },
+		tooltip: {
+			trigger: 'axis',
+			formatter: (params: { dataIndex: number; marker: string; seriesName: string; value: number }[]) => {
+				const rows = params.map(item => `<div style="display:flex;gap:16px;justify-content:space-between"><span>${item.marker}${item.seriesName}</span><b>${Math.round(item.value)}%</b></div>`);
+				return `<div style="margin-bottom:4px;opacity:.7">${i18n.tsx._dashboard.nDaysLater({ n: params[0]?.dataIndex ?? 0 })}</div>${rows.join('')}`;
+			},
+		},
+		xAxis: {
+			type: 'category', boundaryGap: false, data: Array.from({ length: days }, (_, index) => index),
+			name: i18n.ts._dashboard.daysLater, nameLocation: 'middle', nameGap: 24, nameTextStyle: { color: c.weak, fontSize: 11 },
+		},
+		yAxis: {
+			type: 'value', min: 0, max: 100,
+			name: i18n.ts._dashboard.retentionRateAxis, nameTextStyle: { color: c.weak, fontSize: 11, align: 'left' },
+			axisLabel: { formatter: (value: number) => `${value}%` },
+		},
+		series: list.map((item, index) => {
+			const color = c.fade(c.accent, Math.max(0.15, 1 - index / Math.max(1, list.length)));
+			return {
+				type: 'line', name: item.label, data: item.rates,
+				smooth: 0.4, showSymbol: false, symbolSize: 6,
+				lineStyle: { width: 2, color }, itemStyle: { color },
+				emphasis: { focus: 'series' },
+			};
+		}),
+	};
+});
+
 onMounted(async () => {
-	let raw = await misskeyApi('retention', { });
-
-	if (chartEl.value == null) return;
-
-	chartInstance = new Chart(chartEl.value, {
-		type: 'line',
-		data: {
-			labels: [],
-			datasets: raw.map((record, i) => ({
-				label: dateOnly(new Date(record.createdAt)),
-				pointRadius: 0,
-				borderWidth: 2,
-				borderJoinStyle: 'round',
-				borderColor: () => alpha(tinycolor(themeManager.currentCompiledTheme!.accent).toHexString(), Math.min(1, (raw.length - (i - 1)) / raw.length)),
-				fill: false,
-				tension: 0.4,
-				data: [{
-					x: 0,
-					y: 100,
-					d: dateOnly(new Date(record.createdAt)),
-				}, ...Object.entries(record.data).sort((a, b) => getDate(a[0]) > getDate(b[0]) ? 1 : -1).map(([k, v], i) => ({
-					x: i + 1,
-					y: (v / record.users) * 100,
-					d: dateOnly(new Date(record.createdAt)),
-				}))],
-			})),
-		},
-		options: {
-			aspectRatio: 2.5,
-			layout: {
-				padding: {
-					left: 0,
-					right: 0,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					title: {
-						display: true,
-						text: i18n.ts._dashboard.daysLater,
-					},
-				},
-				y: {
-					title: {
-						display: true,
-						text: i18n.ts._dashboard.retentionRateAxis,
-					},
-					ticks: {
-						callback: (value, index, values) => value + '%',
-					},
-					min: 0,
-				},
-			},
-			interaction: {
-				intersect: false,
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					callbacks: {
-						title(context) {
-							const v = context[0].dataset.data[context[0].dataIndex] as RetentionPoint;
-							return i18n.tsx._dashboard.nDaysLater({ n: v.x });
-						},
-						label(context) {
-							const v = context.dataset.data[context.dataIndex] as RetentionPoint;
-							const p = Math.round(v.y) + '%';
-							return `${v.d} ${p}`;
-						},
-					},
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					external: externalTooltipHandler,
-				},
-			},
-		},
-		plugins: [chartVLine()],
-	});
+	const raw = await misskeyApi('retention', {});
+	if (disposed) return;
+	cohorts.value = raw.map(record => ({
+		label: dateOnly(new Date(record.createdAt)),
+		// 第 0 天固定为 100%。
+		rates: [100, ...Object.entries(record.data)
+			.sort((a, b) => toDate(a[0]).getTime() - toDate(b[0]).getTime())
+			.map(([, count]) => record.users === 0 ? 0 : (count / record.users) * 100)],
+	}));
 });
 
 onUnmounted(() => {
-	chartInstance?.destroy();
+	disposed = true;
 });
 </script>
+
+<style lang="scss" module>
+// 高度按比例预留，加载前后不改变布局。
+.root {
+	aspect-ratio: 2.5;
+	min-height: 200px;
+}
+</style>

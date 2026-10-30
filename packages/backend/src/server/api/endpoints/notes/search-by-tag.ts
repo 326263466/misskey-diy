@@ -7,7 +7,7 @@ import { Brackets } from 'typeorm';
 import { Inject, Injectable } from '@nestjs/common';
 import type { NotesRepository } from '@/models/_.js';
 import { safeForSql } from '@/misc/safe-for-sql.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { QueryService } from '@/core/QueryService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
@@ -27,36 +27,24 @@ export const meta = {
 	},
 } as const;
 
+const tagSchema = { type: 'string', minLength: 1, maxLength: 128 } as const;
+const tagQuerySchema = {
+	type: 'array',
+	description: 'The outer arrays are chained with OR, the inner arrays are chained with AND.',
+	items: {
+		type: 'array',
+		items: tagSchema,
+		minItems: 1,
+	},
+	minItems: 1,
+} as const;
+
 export const paramDef = {
 	allOf: [
 		{
 			anyOf: [
-				{
-					type: 'object',
-					properties: {
-						tag: { type: 'string', minLength: 1 },
-					},
-					required: ['tag'],
-				},
-				{
-					type: 'object',
-					properties: {
-						query: {
-							type: 'array',
-							description: 'The outer arrays are chained with OR, the inner arrays are chained with AND.',
-							items: {
-								type: 'array',
-								items: {
-									type: 'string',
-									minLength: 1,
-								},
-								minItems: 1,
-							},
-							minItems: 1,
-						},
-					},
-					required: ['query'],
-				},
+				{ type: 'object', properties: { tag: tagSchema, query: tagQuerySchema }, required: ['tag'] },
+				{ type: 'object', properties: { tag: tagSchema, query: tagQuerySchema }, required: ['query'] },
 			],
 		},
 		{
@@ -102,16 +90,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			this.queryService.generateBaseNoteFilteringQuery(query, me);
 
 			try {
-				if ('tag' in ps) {
-					if (!safeForSql(normalizeForSearch(ps.tag))) throw new Error('Injection');
-					query.andWhere(':tag <@ note.tags', { tag: [normalizeForSearch(ps.tag)] });
-				} else {
+				if (ps.tag != null) {
+					if (!safeForSql(normalizeTag(ps.tag))) throw new Error('Injection');
+					query.andWhere(':tag <@ note.tags', { tag: [normalizeTag(ps.tag)] });
+				} else if (ps.query != null) {
+					const tagQueries = ps.query;
 					query.andWhere(new Brackets(qb => {
-						for (const tags of ps.query) {
+						for (const tags of tagQueries) {
 							qb.orWhere(new Brackets(qb => {
 								for (const tag of tags) {
-									if (!safeForSql(normalizeForSearch(tag))) throw new Error('Injection');
-									qb.andWhere(':tag <@ note.tags', { tag: [normalizeForSearch(tag)] });
+									if (!safeForSql(normalizeTag(tag))) throw new Error('Injection');
+									qb.andWhere(':tag <@ note.tags', { tag: [normalizeTag(tag)] });
 								}
 							}));
 						}

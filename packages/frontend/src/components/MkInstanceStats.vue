@@ -39,14 +39,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<MkFoldableSection v-if="shouldShowFederation" class="item">
 		<template #header>{{ i18n.ts.federation }}</template>
 		<div :class="$style.federation">
-			<div class="pies">
+			<MkLoading v-if="fedStats == null"/>
+			<div v-else class="pies">
 				<div class="sub">
 					<div class="title">{{ i18n.ts.subscribing }}</div>
-					<canvas ref="subDoughnutEl"></canvas>
+					<MkInstanceRanking :items="fedStats.topSubInstances.map(x => ({ host: x.host, value: x.followersCount }))" :other="fedStats.otherFollowersCount" :label="i18n.ts.subscribing"/>
 				</div>
 				<div class="pub">
 					<div class="title">{{ i18n.ts.publishing }}</div>
-					<canvas ref="pubDoughnutEl"></canvas>
+					<MkInstanceRanking :items="fedStats.topPubInstances.map(x => ({ host: x.host, value: x.followingCount }))" :other="fedStats.otherFollowingCount" :label="i18n.ts.publishing"/>
 				</div>
 			</div>
 		</div>
@@ -55,15 +56,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, computed, useTemplateRef } from 'vue';
-import { Chart } from 'chart.js';
+import { onMounted, onUnmounted, computed, shallowRef } from 'vue';
+import type * as Misskey from 'misskey-js';
 import type { MkSelectItem, ItemOption } from '@/components/MkSelect.vue';
 import type { ChartSrc } from '@/components/MkChart.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkChart from '@/components/MkChart.vue';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
 import { $i } from '@/i.js';
-import * as os from '@/os.js';
 import { misskeyApiGet } from '@/utility/misskey-api.js';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
@@ -71,11 +70,8 @@ import MkHeatmap from '@/components/MkHeatmap.vue';
 import MkFoldableSection from '@/components/MkFoldableSection.vue';
 import MkRetentionHeatmap from '@/components/MkRetentionHeatmap.vue';
 import MkRetentionLineChart from '@/components/MkRetentionLineChart.vue';
-import { initChart } from '@/utility/init-chart.js';
+import MkInstanceRanking from '@/components/MkInstanceRanking.vue';
 import { useMkSelect } from '@/composables/use-mkselect.js';
-import { themeManager } from '@/theme.js';
-
-initChart();
 
 const shouldShowFederation = computed(() => instance.federation !== 'none' || $i?.isModerator);
 
@@ -164,122 +160,18 @@ const {
 	initialValue: 'active-users',
 });
 
-const subDoughnutEl = useTemplateRef('subDoughnutEl');
-const pubDoughnutEl = useTemplateRef('pubDoughnutEl');
+const fedStats = shallowRef<Misskey.entities.FederationStatsResponse | null>(null);
+let disposed = false;
 
-let subDoughnutChartInstance: Chart | null = null;
-let pubDoughnutChartInstance: Chart | null = null;
-
-const { handler: externalTooltipHandler1 } = useChartTooltip({
-	position: 'middle',
-});
-const { handler: externalTooltipHandler2 } = useChartTooltip({
-	position: 'middle',
-});
-
-type ChartData = {
-	name: string,
-	color: string,
-	value: number,
-	onClick?: () => void,
-}[];
-
-function createDoughnut(chartEl: HTMLCanvasElement, tooltip: ReturnType<typeof useChartTooltip>['handler'], data: ChartData) {
-	const chartInstance = new Chart(chartEl, {
-		type: 'doughnut',
-		data: {
-			labels: data.map(x => x.name),
-			datasets: [{
-				backgroundColor: data.map(x => x.color),
-				borderColor: () => themeManager.currentCompiledTheme!.panel,
-				borderWidth: 2,
-				hoverOffset: 0,
-				data: data.map(x => x.value),
-			}],
-		},
-		options: {
-			maintainAspectRatio: false,
-			layout: {
-				padding: {
-					left: 16,
-					right: 16,
-					top: 16,
-					bottom: 16,
-				},
-			},
-			onClick: (ev) => {
-				if (ev.native == null) return;
-				const hit = chartInstance.getElementsAtEventForMode(ev.native, 'nearest', { intersect: true }, false)[0];
-				if (hit != null) {
-					data[hit.index].onClick?.();
-				}
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					external: tooltip,
-				},
-			},
-		},
-	});
-
-	return chartInstance;
-}
-
-onMounted(() => {
-	misskeyApiGet('federation/stats', { limit: 30 }).then(fedStats => {
-		const subs: ChartData = fedStats.topSubInstances.map(x => ({
-			name: x.host,
-			color: x.themeColor ?? '#888888',
-			value: x.followersCount,
-			onClick: () => {
-				os.pageWindow(`/instance-info/${x.host}`);
-			},
-		}));
-
-		subs.push({
-			name: i18n.ts.other,
-			color: '#80808080',
-			value: fedStats.otherFollowersCount,
-		});
-
-		if (subDoughnutEl.value != null) {
-			subDoughnutChartInstance = createDoughnut(subDoughnutEl.value, externalTooltipHandler1, subs);
-		}
-
-		const pubs: ChartData = fedStats.topPubInstances.map(x => ({
-			name: x.host,
-			color: x.themeColor ?? '#888888',
-			value: x.followingCount,
-			onClick: () => {
-				os.pageWindow(`/instance-info/${x.host}`);
-			},
-		}));
-
-		pubs.push({
-			name: i18n.ts.other,
-			color: '#80808080',
-			value: fedStats.otherFollowingCount,
-		});
-
-		if (pubDoughnutEl.value != null) {
-			pubDoughnutChartInstance = createDoughnut(pubDoughnutEl.value, externalTooltipHandler2, pubs);
-		}
-	});
+onMounted(async () => {
+	if (!shouldShowFederation.value) return;
+	const res = await misskeyApiGet('federation/stats', { limit: 30 });
+	if (!disposed) fedStats.value = res;
 });
 
 onUnmounted(() => {
-	subDoughnutChartInstance?.destroy();
-	pubDoughnutChartInstance?.destroy();
-});
-</script>
+	disposed = true;
+}); </script>
 
 <style lang="scss" module>
 .root {
@@ -325,12 +217,9 @@ onUnmounted(() => {
 				background: var(--MI_THEME-panel);
 				border-radius: var(--MI-radius);
 				padding: var(--MI-cardPadding);
-				max-height: 300px;
 
 				> .title {
-					position: absolute;
-					top: var(--MI-cardPadding);
-					left: var(--MI-cardPadding);
+					margin-bottom: 8px;
 				}
 			}
 

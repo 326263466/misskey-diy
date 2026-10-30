@@ -13,6 +13,7 @@ import { i18n } from '@/i18n.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import { $i, iAmAdmin, iAmModerator } from '@/i.js';
 import { notesSearchAvailable, canSearchNonLocalNotes } from '@/utility/check-permissions.js';
 import { antennasCache, userListsCache } from '@/cache.js';
@@ -21,19 +22,26 @@ import { genEmbedCode } from '@/utility/get-embed-code.js';
 import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
 import { openShareDialog } from '@/utility/share-dialog.js';
+import { globalEvents } from '@/events.js';
+import { getUserBlockingState, updateUserBlocking } from '@/utility/user-blocking.js';
+import { getAbuseReportMenu } from '@/utility/abuse-report.js';
+import { editUserMemo } from '@/utility/user-memo.js';
 
 export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router = mainRouter) {
 	const meId = $i ? $i.id : null;
+	user.isBlocking = getUserBlockingState(user.id) ?? user.isBlocking;
 
 	const cleanups = [] as (() => void)[];
 
+	// 菜单关闭后看不到状态变化，需要成功提示；失败提示由 apiWithDialog 处理
 	async function toggleMute() {
 		if (user.isMuted) {
 			os.apiWithDialog('mute/delete', {
 				userId: user.id,
 			}).then(() => {
 				user.isMuted = false;
-			});
+				os.toast(i18n.ts.unmuted, 'success');
+			}, () => {});
 		} else {
 			const { canceled, result: period } = await os.select({
 				title: i18n.ts.mutePeriod,
@@ -64,7 +72,8 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 				expiresAt,
 			}).then(() => {
 				user.isMuted = true;
-			});
+				os.toast(i18n.ts.muted, 'success');
+			}, () => {});
 		}
 	}
 
@@ -73,17 +82,27 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			userId: user.id,
 		}).then(() => {
 			user.isRenoteMuted = !user.isRenoteMuted;
-		});
+			os.toast(user.isRenoteMuted ? i18n.ts.renoteMuted : i18n.ts.renoteUnmuted, 'success');
+		}, () => {});
 	}
 
-	async function toggleBlock() {
-		if (!await getConfirmed(user.isBlocking ? i18n.ts.unblockConfirm : i18n.ts.blockConfirm)) return;
+	let changingBlock = false;
 
-		os.apiWithDialog(user.isBlocking ? 'blocking/delete' : 'blocking/create', {
-			userId: user.id,
-		}).then(() => {
-			user.isBlocking = !user.isBlocking;
-		});
+	async function toggleBlock() {
+		if (changingBlock) return;
+		changingBlock = true;
+		try {
+			const blocking = !(getUserBlockingState(user.id) ?? user.isBlocking);
+			if (!await getConfirmed(blocking ? i18n.ts.blockConfirm : i18n.ts.unblockConfirm)) return;
+			await os.apiWithDialog(blocking ? 'blocking/create' : 'blocking/delete', { userId: user.id });
+			user.isBlocking = blocking;
+			updateUserBlocking(user.id, blocking);
+			os.toast(blocking ? i18n.ts.youBlockedThisUser : i18n.ts.unblocked, 'success');
+		} catch {
+			// 接口已提示错误，失败时保留拉黑状态。
+		} finally {
+			changingBlock = false;
+		}
 	}
 
 	async function toggleNotify() {
@@ -92,16 +111,8 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			notify: user.notify === 'normal' ? 'none' : 'normal',
 		}).then(() => {
 			user.notify = user.notify === 'normal' ? 'none' : 'normal';
-		});
-	}
-
-	async function reportAbuse() {
-		const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAbuseReportWindow.vue').then(x => x.default), {
-			user: user,
-			reportTarget: { reportType: 'user' },
-		}, {
-			closed: () => dispose(),
-		});
+			os.toast(user.notify === 'normal' ? i18n.ts.notifyNotesEnabled : i18n.ts.notifyNotesDisabled, 'success');
+		}, () => {});
 	}
 
 	async function getConfirmed(text: string): Promise<boolean> {
@@ -117,7 +128,9 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 	async function userInfoUpdate() {
 		os.apiWithDialog('federation/update-remote-user', {
 			userId: user.id,
-		});
+		}).then(() => {
+			os.toast(i18n.ts.updated, 'success');
+		}, () => {});
 	}
 
 	async function invalidateFollow() {
@@ -127,30 +140,23 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			userId: user.id,
 		}).then(() => {
 			user.isFollowed = !user.isFollowed;
-		});
+			os.toast(i18n.ts.followerRemoved, 'success');
+		}, () => {});
 	}
 
 	async function editMemo(): Promise<void> {
-		const userDetailed = await misskeyApi('users/show', {
-			userId: user.id,
-		});
+		let userDetailed: Misskey.entities.UserDetailed;
+		try {
+			userDetailed = await misskeyApi('users/show', {
+				userId: user.id,
+			});
+		} catch (error) {
+			if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+			return;
+		}
 
-		const { canceled, result } = await os.form(i18n.ts.editMemo, {
-			memo: {
-				type: 'string',
-				required: true,
-				multiline: true,
-				label: i18n.ts.memo,
-				default: userDetailed.memo,
-			},
-		});
-
-		if (canceled) return;
-
-		os.apiWithDialog('users/update-memo', {
-			memo: result.memo,
-			userId: user.id,
-		});
+		const memo = await editUserMemo(user.id, userDetailed.memo);
+		if (memo != null) user.memo = memo;
 	}
 
 	const menuItems: MenuItem[] = [];
@@ -245,14 +251,15 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 		});
 	}
 
-	if (notesSearchAvailable && (user.host == null || canSearchNonLocalNotes)) {
+	if (notesSearchAvailable.value && (user.host == null || canSearchNonLocalNotes)) {
 		menuItems.push({
 			icon: 'ti ti-search',
 			text: i18n.ts.searchThisUsersNotes,
 			action: () => {
 				const query = {
 						username: user.username,
-					} as { username: string, host?: string };
+						type: 'note',
+					} as { username: string, type: string, host?: string };
 
 				if (user.host !== null) {
 					query.host = user.host;
@@ -272,27 +279,37 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			action: editMemo,
 		}, {
 			type: 'parent',
-			icon: 'ti ti-list',
+			icon: 'ti ti-users-group',
 			text: i18n.ts.addToList,
 			children: async () => {
 				const lists = await userListsCache.fetch();
 				return lists.map(list => {
 					const isListed = ref(list.userIds?.includes(user.id) ?? false);
+					// 开关成功不提示；失败时由 apiWithDialog 提示，并还原开关
+					let reverting = false;
+					const revert = () => {
+						reverting = true;
+						isListed.value = !isListed.value;
+					};
 					cleanups.push(watch(isListed, () => {
+						if (reverting) {
+							reverting = false;
+							return;
+						}
 						if (isListed.value) {
 							os.apiWithDialog('users/lists/push', {
 								listId: list.id,
 								userId: user.id,
 							}).then(() => {
 								list.userIds?.push(user.id);
-							});
+							}, revert);
 						} else {
 							os.apiWithDialog('users/lists/pull', {
 								listId: list.id,
 								userId: user.id,
 							}).then(() => {
 								list.userIds?.splice(list.userIds.indexOf(user.id), 1);
-							});
+							}, revert);
 						}
 					}));
 
@@ -305,7 +322,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			},
 		}, {
 			type: 'parent',
-			icon: 'ti ti-antenna',
+			icon: 'ti ti-rss',
 			text: i18n.ts.addToAntenna,
 			children: async () => {
 				const antennas = await antennasCache.fetch();
@@ -325,6 +342,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 							withReplies: antenna.withReplies,
 							withFile: antenna.withFile,
 						});
+						os.toast(i18n.ts.added, 'success');
 						antennasCache.delete();
 					},
 				}));
@@ -359,7 +377,9 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 								return;
 							}
 							if (!value) {
-								await os.apiWithDialog('admin/roles/unassign', { roleId: r.id, userId: user.id }).catch(revert);
+								await os.apiWithDialog('admin/roles/unassign', { roleId: r.id, userId: user.id }).then(() => {
+									globalEvents.emit('userRolesUpdated', user.id);
+								}, revert);
 								return;
 							}
 							const { canceled, result: period } = await os.select({
@@ -386,7 +406,9 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 								: period === 'oneMonth' ? Date.now() + (1000 * 60 * 60 * 24 * 30)
 								: null;
 
-							await os.apiWithDialog('admin/roles/assign', { roleId: r.id, userId: user.id, expiresAt }).catch(revert);
+							await os.apiWithDialog('admin/roles/assign', { roleId: r.id, userId: user.id, expiresAt }).then(() => {
+								globalEvents.emit('userRolesUpdated', user.id);
+							}, revert);
 						}));
 
 						// 与服务端规则一致：审核员只能调整允许审核员管理成员的角色。
@@ -418,14 +440,24 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			action: toggleNotify,
 		});
 
-		watch(withRepliesRef, (withReplies) => {
+		// 开关成功不提示；失败时提示并还原开关
+		let revertingWithReplies = false;
+		cleanups.push(watch(withRepliesRef, (withReplies) => {
+			if (revertingWithReplies) {
+				revertingWithReplies = false;
+				return;
+			}
 			misskeyApi('following/update', {
 				userId: user.id,
 				withReplies,
 			}).then(() => {
 				user.withReplies = withReplies;
+			}, error => {
+				if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+				revertingWithReplies = true;
+				withRepliesRef.value = !withReplies;
 			});
-		});
+		}));
 		//}
 
 		menuItems.push({ type: 'divider' }, {
@@ -468,11 +500,7 @@ export function getUserMenu(user: Misskey.entities.UserDetailed, router: Router 
 			});
 		}
 
-		menuItems.push({ type: 'divider' }, {
-			icon: 'ti ti-exclamation-circle',
-			text: i18n.ts.reportAbuse,
-			action: reportAbuse,
-		});
+		menuItems.push({ type: 'divider' }, getAbuseReportMenu({ type: 'user', user }));
 	}
 
 	if ($i != null && user.host !== null) {

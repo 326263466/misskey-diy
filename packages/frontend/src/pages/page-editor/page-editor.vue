@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #label>{{ i18n.ts._pages.summary }}</template>
 				</MkInput>
 
-				<MkInput v-model="name" :counterMaxLength="256">
+				<MkInput v-model="name" :maxLength="256">
 					<template #prefix>{{ url }}/@{{ author?.username ?? '???' }}/pages/</template>
 					<template #label>{{ i18n.ts._pages.url }}</template>
 				</MkInput>

@@ -5,7 +5,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	ref="playerEl"
 	:class="[
 		$style.root,
 		(audio.isSensitive && prefer.s.highlightSensitiveMedia) && $style.sensitive,
@@ -79,7 +78,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import bytes from '@/filters/bytes.js';
 import { i18n } from '@/i18n.js';
@@ -96,11 +95,17 @@ const emit = defineEmits<{
 	(event: 'mediaClick', ev: PointerEvent | KeyboardEvent): void;
 }>();
 
-// eslint-disable-next-line vue/no-setup-props-reactivity-loss
-const hide = ref(shouldHideFileByDefault(props.audio));
+const hide = ref(true);
+let revealVersion = 0;
+
+watch([() => props.audio.id, () => props.audio.isSensitive], ([id, sensitive], [previousId, previousSensitive]) => {
+	revealVersion++;
+	hide.value = (id === previousId && sensitive && !previousSensitive) || shouldHideFileByDefault(props.audio);
+}, { immediate: true, flush: 'sync' });
 
 async function reveal() {
-	if (!(await canRevealFile(props.audio))) {
+	const version = revealVersion;
+	if (!(await canRevealFile(props.audio)) || version !== revealVersion) {
 		return;
 	}
 

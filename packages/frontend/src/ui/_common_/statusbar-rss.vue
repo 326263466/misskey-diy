@@ -101,7 +101,7 @@ useInterval(tick, Math.max(5000, props.refreshIntervalSec * 1000), {
 
 .divider {
 	display: inline-block;
-	width: 0.5px;
+	width: var(--MI-dividerWidth);
 	height: var(--height);
 	margin: 0 3em;
 	background: currentColor;

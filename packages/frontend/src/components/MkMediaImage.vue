@@ -56,8 +56,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-if="image.comment" :class="$style.indicator">ALT</div>
 			<div v-if="image.isSensitive" :class="$style.indicator" style="color: var(--MI_THEME-warn);" :title="i18n.ts.sensitive"><i class="ti ti-eye-exclamation"></i></div>
 		</div>
-		<button :class="[$style.menu, $style.menuBottom]" class="_button _iconButton" @click.stop="showMenu"><i class="ti ti-dots" aria-hidden="true"></i></button>
-		<button :class="[$style.menu, $style.menuTop]" class="_button _iconButton" @click.stop="hide = true"><i class="ti ti-eye-off" aria-hidden="true"></i></button>
+		<button :class="[$style.menu, $style.menuBottom]" class="_button" @click.stop="showMenu"><i class="ti ti-dots" style="vertical-align: middle;" aria-hidden="true"></i></button>
+		<button :class="[$style.menu, $style.menuTop]" class="_button" @click.stop="hide = true"><i class="ti ti-eye-off" style="vertical-align: middle;" aria-hidden="true"></i></button>
 	</template>
 </div>
 </template>
@@ -94,6 +94,7 @@ const emit = defineEmits<{
 }>();
 
 const hide = ref(true);
+let revealVersion = 0;
 
 const previewUrl = computed(() => (props.raw || prefer.s.loadRawImages)
 	? props.image.url
@@ -121,7 +122,8 @@ async function onClick(ev: PointerEvent) {
 
 	if (hide.value) {
 		ev.stopPropagation();
-		if (!(await canRevealFile(props.image))) {
+		const version = revealVersion;
+		if (!(await canRevealFile(props.image)) || version !== revealVersion) {
 			return;
 		}
 
@@ -131,13 +133,11 @@ async function onClick(ev: PointerEvent) {
 	}
 }
 
-// Plugin:register_note_view_interruptor を使って書き換えられる可能性があるためwatchする
-watch(() => props.image, (newImage) => {
-	hide.value = shouldHideFileByDefault(newImage);
-}, {
-	deep: true,
-	immediate: true,
-});
+// 元数据更新保留显示选择；文件替换或新增敏感标记时重新隐藏。
+watch([() => props.image.id, () => props.image.isSensitive], ([id, sensitive], [previousId, previousSensitive]) => {
+	revealVersion++;
+	hide.value = (id === previousId && sensitive && !previousSensitive) || shouldHideFileByDefault(props.image);
+}, { immediate: true, flush: 'sync' });
 
 function showMenu(ev: PointerEvent) {
 	os.popupMenu(getFileMenu(props.image, (newHide) => { hide.value = newHide; }), (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);

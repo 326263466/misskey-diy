@@ -6,17 +6,17 @@
 import { createApp, defineAsyncComponent, markRaw } from 'vue';
 import { ui } from '@@/js/config.js';
 import * as Misskey from 'misskey-js';
-import { compareVersions } from 'compare-versions';
 import { common } from './common.js';
 import type { Component } from 'vue';
 import type { Keymap } from '@/utility/hotkey.js';
 import { i18n } from '@/i18n.js';
-import { alert, confirm, popup, post } from '@/os.js';
+import { alert, popup, post } from '@/os.js';
 import { useStream } from '@/stream.js';
 import * as sound from '@/utility/sound.js';
 import { $i } from '@/i.js';
 import { instance } from '@/instance.js';
 import { store } from '@/store.js';
+import { toggleDarkMode } from '@/theme.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { claimAchievement, claimedAchievements } from '@/utility/achievements.js';
@@ -26,15 +26,16 @@ import { mainRouter } from '@/router.js';
 import { makeHotkey } from '@/utility/hotkey.js';
 import { addCustomEmoji, removeCustomEmojis, updateCustomEmojis } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
-import { refreshCurrentAccount, updateCurrentAccountPartial } from '@/accounts.js';
+import { refreshCurrentAccount, updateCurrentAccount } from '@/accounts.js';
 import { initializeAccountReconnectSync } from '@/utility/account-reconnect-sync.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { isBirthday } from '@/utility/is-birthday.js';
 import { initializeUserStatisticsSync } from '@/composables/use-user-statistics.js';
-import { resumeDraftFileProtection } from '@/utility/draft-file-protection.js';
+import { globalEvents } from '@/events.js';
+import { isChatConversationViewing } from '@/utility/chat-conversations.js';
 
 export async function mainBoot() {
-	const { isClientUpdated, lastVersion } = await common(async () => {
+	const { isClientUpdated } = await common(async () => {
 		let uiStyle = ui;
 		const searchParams = new URLSearchParams(window.location.search);
 
@@ -67,7 +68,6 @@ export async function mainBoot() {
 	reactionPicker.init();
 	emojiPicker.init();
 	initializeUserStatisticsSync();
-	if ($i) resumeDraftFileProtection($i);
 
 	if (isClientUpdated && $i) {
 		const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkUpdated.vue')), {}, {
@@ -282,7 +282,7 @@ export async function mainBoot() {
 		const latestDonationInfoShownAt = miLocalStorage.getItem('latestDonationInfoShownAt');
 		const neverShowDonationInfo = miLocalStorage.getItem('neverShowDonationInfo');
 		if (neverShowDonationInfo !== 'true' && (createdAt.getTime() < (Date.now() - (1000 * 60 * 60 * 24 * 3))) && !window.location.pathname.startsWith('/miauth')) {
-			if (latestDonationInfoShownAt == null || (new Date(latestDonationInfoShownAt).getTime() < (Date.now() - (1000 * 60 * 60 * 24 * 30)))) {
+			if (latestDonationInfoShownAt == null || (Number(latestDonationInfoShownAt) < (Date.now() - (1000 * 60 * 60 * 24 * 30)))) {
 				const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkDonation.vue')), {}, {
 					closed: () => dispose(),
 				});
@@ -292,25 +292,6 @@ export async function mainBoot() {
 		if (store.s.realtimeMode) {
 			const stream = useStream();
 			initializeAccountReconnectSync(stream, () => refreshCurrentAccount({ throwOnError: true }));
-
-			let reloadDialogShowing = false;
-			stream.on('_disconnected_', async () => {
-				if (prefer.s.serverDisconnectedBehavior === 'reload') {
-					window.location.reload();
-				} else if (prefer.s.serverDisconnectedBehavior === 'dialog') {
-					if (reloadDialogShowing) return;
-					reloadDialogShowing = true;
-					const { canceled } = await confirm({
-						type: 'warning',
-						title: i18n.ts.disconnectedFromServer,
-						text: i18n.ts.reloadConfirm,
-					});
-					reloadDialogShowing = false;
-					if (!canceled) {
-						window.location.reload();
-					}
-				}
-			});
 
 			stream.on('emojiAdded', emojiData => {
 				addCustomEmoji(emojiData.emoji);
@@ -330,12 +311,12 @@ export async function mainBoot() {
 
 			// 自分の情報が更新されたとき
 			main.on('meUpdated', i => {
-				updateCurrentAccountPartial(i, { fromStream: true });
+				updateCurrentAccount(i, { fromStream: true });
 			});
 			initializeUserStatisticsSync(main);
 
 			main.on('readAllNotifications', () => {
-				updateCurrentAccountPartial({
+				updateCurrentAccount({
 					hasUnreadNotification: false,
 					unreadNotificationsCount: 0,
 				});
@@ -343,22 +324,24 @@ export async function mainBoot() {
 
 			main.on('unreadNotification', () => {
 				const unreadNotificationsCount = ($i?.unreadNotificationsCount ?? 0) + 1;
-				updateCurrentAccountPartial({
+				updateCurrentAccount({
 					hasUnreadNotification: true,
 					unreadNotificationsCount,
 				});
 			});
 
-			main.on('newChatMessage', () => {
-				updateCurrentAccountPartial({ hasUnreadChatMessages: true });
-				if ($i?.onlineStatusOverride !== 'doNotDisturb') sound.playMisskeySfx('chatMessage');
-			});
-			main.on('chatReadState', state => {
-				updateCurrentAccountPartial({ hasUnreadChatMessages: state.hasUnreadChatMessages });
+			main.on('newChatMessage', message => {
+				updateCurrentAccount({ hasUnreadChatMessages: true });
+				sound.playMisskeySfx('chatMessage');
+				if (!message.isPoke || $i == null || message.pokeUserId !== $i.id || $i.onlineStatusOverride === 'doNotDisturb') return;
+				// 正在看这个会话时由会话内提示，不再重复弹出。
+				const key = message.toRoomId ? `room:${message.toRoomId}` : `user:${message.fromUserId}`;
+				if (!window.document.hidden && isChatConversationViewing(key)) return;
+				globalEvents.emit('chatPoked', message);
 			});
 
 			main.on('readAllAnnouncements', () => {
-				updateCurrentAccountPartial({ hasUnreadAnnouncement: false });
+				updateCurrentAccount({ hasUnreadAnnouncement: false });
 			});
 
 			// 個人宛てお知らせが発行されたとき
@@ -374,21 +357,7 @@ export async function mainBoot() {
 			if ($i == null) return;
 			post();
 		},
-		'd': async () => {
-			const value = !store.s.darkMode;
-			if (prefer.s.syncDeviceDarkMode) {
-				const { canceled } = await confirm({
-					type: 'question',
-					text: i18n.tsx.switchDarkModeManuallyWhenSyncEnabledConfirm({ x: i18n.ts.syncDeviceDarkMode }),
-				});
-				if (canceled) return;
-
-				prefer.commit('syncDeviceDarkMode', false);
-				store.set('darkMode', value);
-			} else {
-				store.set('darkMode', value);
-			}
-		},
+		'd': toggleDarkMode,
 		's': () => {
 			mainRouter.push('/search');
 		},

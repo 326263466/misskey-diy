@@ -8,7 +8,7 @@ import * as Redis from 'ioredis';
 import { DataSource } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { MiUser } from '@/models/User.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 import { IdService } from '@/core/IdService.js';
 import { MiHashtag } from '@/models/Hashtag.js';
 import type { HashtagsRepository, MiMeta } from '@/models/_.js';
@@ -72,7 +72,7 @@ export class HashtagService {
 
 	@bindThis
 	public async updateHashtag(user: { id: MiUser['id']; host: MiUser['host']; }, tag: string, isUserAttached = false, inc = true) {
-		tag = normalizeForSearch(tag);
+		tag = normalizeTag(tag);
 
 		// TODO: サンプリング
 		this.updateHashtagsRanking(tag, user.id);
@@ -201,7 +201,7 @@ export class HashtagService {
 	}
 
 	private isRecommendedHashtag(hashtag: string): boolean {
-		return !this.meta.hiddenTags.some(tag => normalizeForSearch(tag) === hashtag)
+		return !this.meta.hiddenTags.some(tag => normalizeTag(tag) === hashtag)
 			&& !this.utilityService.isKeyWordIncluded(hashtag, this.meta.sensitiveWords);
 	}
 
@@ -209,7 +209,7 @@ export class HashtagService {
 	public async backfillHashtagsRanking(ranking: string[], minimum = 5): Promise<string[]> {
 		if (ranking.length >= minimum) return ranking;
 		const result = [...ranking];
-		const seen = new Set(ranking.map(normalizeForSearch));
+		const seen = new Set(ranking.map(normalizeTag));
 		const batchSize = 50;
 		let cursor: Pick<MiHashtag, 'id' | 'mentionedUsersCount'> | undefined;
 
@@ -228,7 +228,7 @@ export class HashtagService {
 				}
 				const candidates = await query.getMany();
 				for (const candidate of candidates) {
-					const tag = normalizeForSearch(candidate.name);
+					const tag = normalizeTag(candidate.name);
 					if (seen.has(tag) || !this.isRecommendedHashtag(tag)) continue;
 					result.push(candidate.name);
 					seen.add(tag);
@@ -243,6 +243,26 @@ export class HashtagService {
 			logger.warn('Could not backfill hashtag trends from history.');
 			return ranking;
 		}
+	}
+
+	@bindThis
+	public async getTotalUsersCounts(hashtags: string[]): Promise<Record<string, number>> {
+		const counts: Record<string, number> = {};
+		for (const tag of hashtags) counts[tag] = 0;
+		if (hashtags.length === 0) return counts;
+
+		try {
+			const rows = await this.hashtagsRepository.createQueryBuilder('tag')
+				.select(['tag.name', 'tag.mentionedUsersCount'])
+				.where('tag.name IN (:...names)', { names: hashtags.map(normalizeTag) })
+				.getMany();
+			const byName = new Map(rows.map(row => [row.name, row.mentionedUsersCount]));
+			for (const tag of hashtags) counts[tag] = byName.get(normalizeTag(tag)) ?? 0;
+		} catch {
+			// 累计人数只用于展示，查询失败时不影响实时排行
+			logger.warn('Could not load hashtag total users counts.');
+		}
+		return counts;
 	}
 
 	@bindThis

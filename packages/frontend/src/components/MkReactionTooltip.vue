@@ -6,7 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkTooltip :id="tooltipId" class="_shadow" :class="$style.tooltip" :showing="showing" :anchorElement="anchorElement" :maxWidth="360" direction="top" @closed="emit('closed')">
 	<div :class="$style.content">
-		<MkReactionIcon :reaction="iconReaction" :withTooltip="false" :noStyle="true" :alignVisualCenter="true" :emojiUrl="emojiUrl" :class="$style.icon" aria-hidden="true"/>
+		<span :class="$style.icon" aria-hidden="true">
+			<MkReactionIcon :reaction="iconReaction" :withTooltip="false" :noStyle="true" :alignVisualCenter="true" :emojiUrl="emojiUrl"/>
+		</span>
 		<div :class="$style.details">
 			<div :class="$style.name">{{ reactionName }}</div>
 			<div v-if="count > 0" :class="$style.users">{{ i18n.tsx._chat.reactionUsers({ users: participants }) }}</div>
@@ -57,7 +59,7 @@ const participants = computed(() => {
 
 <style lang="scss" module>
 .tooltip {
-	padding: 12px;
+	--MI-tooltip-padding: 12px;
 	border-radius: 8px;
 	font-size: 13px;
 	line-height: 1.5;
@@ -73,14 +75,24 @@ const participants = computed(() => {
 }
 
 .icon {
-	display: block;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	flex-shrink: 0;
 	width: 52px;
 	height: 52px;
 	font-size: 52px;
 	line-height: 1;
-	object-fit: contain;
 	pointer-events: none;
+
+	// 预留固定图片区域，表情样式和加载前后的原始尺寸不影响面板。
+	> img,
+	> span {
+		display: block;
+		width: 100%;
+		height: 100% !important;
+		object-fit: contain;
+	}
 }
 
 .details {

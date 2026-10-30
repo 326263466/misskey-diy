@@ -15,21 +15,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-else class="ti ti-bolt-off ti-fw"></i>
 			</button>
 			<button v-if="!iconOnly && showWidgetButton" v-tooltip.right="i18n.ts.widgets" class="_button _iconButton" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
-				<i class="ti ti-apps ti-fw"></i>
+				<i class="ti-fw" :class="navigationIcons.widgets"></i>
 			</button>
 		</div>
 		<div :class="$style.middle">
 			<MkA v-tooltip.right="iconOnly ? i18n.ts.communityRanking : null" class="_button" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.communityRanking" to="/community-ranking">
-				<i :class="$style.itemIcon" class="ti ti-trophy ti-fw" style="view-transition-name: navbar-communityRanking;"></i><span :class="$style.itemText">{{ i18n.ts.communityRanking }}</span>
+				<i :class="[$style.itemIcon, navigationIcons.communityRanking]" class="ti-fw" style="view-transition-name: navbar-communityRanking;"></i><span :class="$style.itemText">{{ i18n.ts.communityRanking }}</span>
 			</MkA>
 			<div :class="$style.divider"></div>
 			<MkA v-tooltip.right="iconOnly ? i18n.ts.home : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.home" to="/" exact>
-				<i :class="$style.itemIcon" class="ti ti-home ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.home }}</span>
+				<i :class="[$style.itemIcon, navigationIcons.home]" class="ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.home }}</span>
 			</MkA>
 			<MkA v-tooltip.right="iconOnly ? i18n.ts.timeline : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.timeline" to="/timeline">
-				<i :class="$style.itemIcon" class="ti ti-messages ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
+				<i :class="[$style.itemIcon, navigationIcons.timeline]" class="ti-fw"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 			</MkA>
-			<template v-for="item in prefer.r.menu.value.filter(item => item !== 'communityRanking')">
+			<template v-for="item in menuItems">
 				<div v-if="item === '-'" :class="$style.divider"></div>
 				<component
 					:is="navbarItemDef[item].to ? 'MkA' : 'button'"
@@ -51,19 +51,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<div :class="$style.divider"></div>
 			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip.right="iconOnly ? i18n.ts.controlPanel : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.controlPanel" to="/admin">
-				<i :class="$style.itemIcon" class="ti ti-adjustments ti-fw" style="view-transition-name: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
+				<i :class="[$style.itemIcon, navigationIcons.controlPanel]" class="ti-fw" style="view-transition-name: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
 			</MkA>
 			<button v-tooltip.right="iconOnly ? i18n.ts.more : null" class="_button" :class="$style.item" :aria-label="i18n.ts.more" @click="more">
-				<i :class="$style.itemIcon" class="ti ti-grid-dots ti-fw" style="view-transition-name: navbar-more;"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>
+				<i :class="[$style.itemIcon, navigationIcons.more]" class="ti-fw" style="view-transition-name: navbar-more;"></i><span :class="$style.itemText">{{ i18n.ts.more }}</span>
 				<span v-if="otherMenuItemIndicated" :class="$style.itemIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
 			</button>
-			<MkA v-tooltip.right="iconOnly ? i18n.ts.settings : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.settings" to="/settings">
-				<i :class="$style.itemIcon" class="ti ti-settings ti-fw" style="view-transition-name: navbar-settings;"></i><span :class="$style.itemText">{{ i18n.ts.settings }}</span>
+			<MkA v-tooltip.right="iconOnly ? i18n.ts.userSettings : null" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.userSettings" to="/settings">
+				<i :class="[$style.itemIcon, navigationIcons.settings]" class="ti-fw" style="view-transition-name: navbar-settings;"></i><span :class="$style.itemText">{{ i18n.ts.userSettings }}</span>
 			</MkA>
 		</div>
 		<div :class="$style.bottom">
 			<button v-if="iconOnly && showWidgetButton" v-tooltip.right="i18n.ts.widgets" class="_button _iconButton" :class="[$style.widget]" :aria-label="i18n.ts.widgets" @click="() => emit('widgetButtonClick')">
-				<i class="ti ti-apps ti-fw"></i>
+				<i class="ti-fw" :class="navigationIcons.widgets"></i>
 			</button>
 			<button v-if="iconOnly" v-tooltip.right="i18n.ts.realtimeMode" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" :aria-label="i18n.ts.realtimeMode" :aria-pressed="store.r.realtimeMode.value" @click="toggleRealtimeMode">
 				<i v-if="store.r.realtimeMode.value" class="ti ti-bolt ti-fw"></i>
@@ -112,10 +112,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, ref, unref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, unref, watch } from 'vue';
 import { openInstanceMenu, toggleRealtimeMode } from './common.js';
 import * as os from '@/os.js';
 import { launchPadExcludedItems, navbarItemDef } from '@/navbar.js';
+import { navigationIcons } from '@/navigation-icons.js';
 import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
@@ -143,9 +144,14 @@ const iconOnly = computed(() => {
 	return !props.asDrawer && (forceIconOnly.value || (store.r.menuDisplay.value === 'sideIcon'));
 });
 
+// 手机底栏已有聊天入口，抽屉不重复显示，也不改动用户的菜单配置。
+const duplicatedItems = computed(() => ['communityRanking', ...(props.asDrawer ? ['chat'] : [])]);
+const menuItems = computed(() => prefer.r.menu.value.filter(item => !duplicatedItems.value.includes(item)));
+
 const otherMenuItemIndicated = computed(() => {
 	for (const def in navbarItemDef) {
-		if (prefer.r.menu.value.includes(def)) continue;
+		// “更多”中不显示的项目，不应让“更多”闪烁提示。
+		if (prefer.r.menu.value.includes(def) || launchPadExcludedItems.includes(def) || duplicatedItems.value.includes(def)) continue;
 		if (navbarItemDef[def].indicated) return true;
 	}
 	return false;
@@ -156,6 +162,7 @@ function calcViewState() {
 }
 
 window.addEventListener('resize', calcViewState);
+onBeforeUnmount(() => window.removeEventListener('resize', calcViewState));
 
 watch(store.r.menuDisplay, () => {
 	calcViewState();
@@ -184,8 +191,7 @@ async function more(ev: PointerEvent) {
 	if (!target) return;
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkLaunchPad.vue').then(x => x.default), {
 		anchorElement: target,
-		// 社区排行榜已固定在抽屉顶部
-		excludedItems: [...launchPadExcludedItems, 'communityRanking'],
+		excludedItems: [...launchPadExcludedItems, ...duplicatedItems.value],
 	}, {
 		closed: () => dispose(),
 	});
@@ -209,7 +215,6 @@ async function signup() {
 .root {
 	--nav-width: 250px;
 	--nav-icon-only-width: 80px;
-	--nav-bg-transparent: color(from var(--MI_THEME-navBg) srgb r g b / 0.5);
 
 	--subButtonWidth: 20px;
 
@@ -802,11 +807,6 @@ async function signup() {
 				bottom: 1px;
 				left: 8px;
 				border-radius: var(--MI-radius);
-			}
-
-			> .icon,
-			> .text {
-				opacity: 1;
 			}
 		}
 

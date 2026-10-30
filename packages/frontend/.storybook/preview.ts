@@ -7,11 +7,12 @@ import { FORCE_RE_RENDER, FORCE_REMOUNT } from '@storybook/core-events';
 import { addons } from '@storybook/preview-api';
 import { type Preview, setup } from '@storybook/vue3';
 import isChromatic from 'chromatic/isChromatic';
-import { initialize, mswLoader } from 'msw-storybook-addon';
+import { setupWorker } from 'msw/browser';
+import { mswLoader } from 'msw-storybook-addon/csf3';
 import { watch } from 'vue';
 import { initializeImageFade } from '@@/js/image-fade.js';
 import { userDetailed } from './fakes.js';
-import { commonHandlers, onUnhandledRequest } from './mocks.js';
+import { commonHandlers, onUnhandledFrame } from './mocks.js';
 import themes from './themes.js';
 import '../src/style.scss';
 import 'virtual:tabler-icons.css';
@@ -59,9 +60,6 @@ function initLocalStorage() {
 	}));
 }
 
-initialize({
-	onUnhandledRequest,
-});
 initLocalStorage();
 queueMicrotask(() => {
 	Promise.all([
@@ -71,7 +69,7 @@ queueMicrotask(() => {
 		import('../src/theme.js'),
 		import('../src/preferences.js'),
 		import('../src/os.js'),
-	]).then(([{ default: components }, { default: directives }, { default: widgets }, { applyTheme }, { prefer }, os]) => {
+	]).then(([{ default: components }, { default: directives }, { default: widgets }, { themeManager }, { prefer }, os]) => {
 		const imageFade = initializeImageFade({ animationsEnabled: () => prefer.s.animation });
 		const stopImageFadeWatch = watch(prefer.r.animation, () => imageFade.refresh());
 		import.meta.hot?.dispose(() => {
@@ -84,7 +82,7 @@ queueMicrotask(() => {
 				return;
 			}
 			app[appInitialized] = true;
-			loadTheme(applyTheme);
+			loadTheme(themeManager);
 			components(app);
 			directives(app);
 			widgets(app);
@@ -138,12 +136,16 @@ const preview = {
 					};
 				},
 				template:
-					'<component :is="popup.component" v-for="popup in popups" :key="popup.id" v-bind="popup.props" v-on="popup.events"/>' +
+					'<div id="misskey-popups" style="display: contents"><component :is="popup.component" v-for="popup in popups" :key="popup.id" v-bind="popup.props" v-on="popup.events"/></div>' +
 					'<story />',
 			};
 		},
 	],
-	loaders: [mswLoader],
+	loaders: [mswLoader(async () => {
+		const worker = setupWorker();
+		await worker.start({ onUnhandledFrame });
+		return worker;
+	})],
 	parameters: {
 		controls: {
 			exclude: /^__/,

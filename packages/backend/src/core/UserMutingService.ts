@@ -11,6 +11,7 @@ import type { MiUser } from '@/models/User.js';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import { CacheService } from '@/core/CacheService.js';
+import { GlobalEventService } from '@/core/GlobalEventService.js';
 
 @Injectable()
 export class UserMutingService {
@@ -20,6 +21,7 @@ export class UserMutingService {
 
 		private idService: IdService,
 		private cacheService: CacheService,
+		private globalEventService: GlobalEventService,
 	) {
 	}
 
@@ -32,7 +34,8 @@ export class UserMutingService {
 			muteeId: target.id,
 		});
 
-		this.cacheService.userMutingsCache.refresh(user.id);
+		await this.cacheService.userMutingsCache.refresh(user.id);
+		this.globalEventService.publishInternalEvent('mute', { muterId: user.id, muteeId: target.id });
 	}
 
 	@bindThis
@@ -45,7 +48,10 @@ export class UserMutingService {
 
 		const muterIds = [...new Set(mutings.map(m => m.muterId))];
 		for (const muterId of muterIds) {
-			this.cacheService.userMutingsCache.refresh(muterId);
+			await this.cacheService.userMutingsCache.refresh(muterId);
+		}
+		for (const muting of mutings) {
+			this.globalEventService.publishInternalEvent('unmute', { muterId: muting.muterId, muteeId: muting.muteeId });
 		}
 	}
 }

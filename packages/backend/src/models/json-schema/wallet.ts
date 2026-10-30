@@ -28,6 +28,11 @@ export const walletTransactionSchema = {
 	type: 'object', optional: false, nullable: false,
 	properties: {
 		id: { type: 'string', format: 'id', optional: false, nullable: false },
+		number: { type: 'string', optional: false, nullable: false },
+		businessName: { type: 'string', optional: false, nullable: true },
+		businessNumber: { type: 'string', optional: false, nullable: true },
+		businessCreatedAt: { type: 'string', format: 'date-time', optional: false, nullable: true },
+		businessExpiresAt: { type: 'string', format: 'date-time', optional: false, nullable: true },
 		createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
 		type: { type: 'string', enum: WALLET_TRANSACTION_TYPES, optional: false, nullable: false },
 		// Historical coin rows are normalized to points before they reach clients.

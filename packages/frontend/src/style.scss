@@ -11,27 +11,70 @@
 @use '../../frontend-shared/styles/scrollbar.scss';
 @use '../../frontend-shared/styles/image-fade.scss';
 @use './styles/red-packet-icon.scss';
-@use './styles/window-header.scss';
+@use './styles/layout.scss';
+@use './styles/progress.scss';
+
+::highlight(misskey-search) {
+	color: var(--MI_THEME-fg);
+	background-color: color-mix(in srgb, var(--MI_THEME-warn) 40%, var(--MI_THEME-panel));
+}
 
 :root {
 	--MI-radius: 6px;
 	--MI-cardRadius: var(--MI-radius);
+	// 需要突出圆角的弹窗（交易凭证等）用这个，避免硬编码像素。
+	--MI-dialogRadius: 16px;
 	--MI-cardPadding: 18px;
 	--MI-userBannerBg: #4c5e6d;
-	--MI-marginFull: 16px;
+	// 引导气泡固定使用深灰和白色，不随页面主题变成信息提示条。
+	--MI-ctaBg: #303030;
+	--MI-ctaFg: #fff;
+	--MI-ctaRadius: 10px;
+	--MI-marginFull: #{layout.$bodySideMargin};
 	--MI-marginHalf: 10px;
 
 	--MI-margin: var(--MI-marginFull);
 	--MI-pageGap: 18px;
 	--MI-contentHeaderGap: 20px;
-	--MI-pageWidth: 1000px;
-	--MI-navigationPageWidth: 1040px;
-	--MI-pageNavigationWidth: 220px;
+	--MI-mobileHeaderHeight: 48px;
+	--MI-mobileTabHeight: 44px;
+	--MI-mobileTouchTarget: 44px;
+	--MI-mobileSearchHeight: 36px;
+	--MI-mobileFooterHeight: 56px;
+	--MI-mobileFooterInset: 10px;
+	--MI-pageHeaderHeight: 50px;
+	--MI-pageHeaderThinHeight: 40px;
+	--MI-pageTabHeight: 44px;
+	--MI-tabHeight: 40px;
+	--MI-headerActionSize: 42px;
+	--MI-chatHeaderHeight: 56px;
+	--MI-chatHeaderActionSize: 28px;
+	--MI-chatPlainActionSize: 24px;
+	--MI-globalHeaderHeight: 60px;
+	--MI-globalHeaderControlHeight: 36px;
+	// 宽度数值统一在 styles/layout.scss 修改，页面只引用这些变量。
+	--MI-narrowPageWidth: #{layout.$narrowPageWidth};
+	--MI-pageWidth: #{layout.$pageWidth};
+	// 双列页统一用 navigationPageWidth；threeColumnWidth 只用于首页三栏。
+	--MI-navigationPageWidth: #{layout.$navigationPageWidth};
+	--MI-threeColumnWidth: #{layout.$threeColumnWidth};
+	--MI-headerWidth: #{layout.$headerWidth};
+	--MI-pageNavigationWidth: #{layout.$pageNavigationWidth};
 
 	// 全站统一分割线：颜色、粗细只在这里定义，组件一律用 var(--MI-divider) 等变量，scripts/check-divider-style.mjs 会拦截自定义写法。
-	--MI-dividerWidth: 0.8px;
-	--MI-dividerColor: color-mix(in srgb, var(--MI_THEME-divider) 30%, transparent);
+	--MI-dividerWidth: 1px;
+	--MI-dividerColor: color-mix(in srgb, var(--MI_THEME-divider) 50%, transparent);
 	--MI-divider: var(--MI-dividerWidth) solid var(--MI-dividerColor);
+
+	// 全站文本输入框（输入框、多行输入、选择框、搜索框）的状态颜色，组件通过 styles/input.scss 使用。
+	// 链接卡片和输入框聚焦描边使用同一组主题色，保证交互状态在各处一致。
+	--MI-inputFill: color-mix(in srgb, var(--MI_THEME-fg) 6%, transparent);
+	--MI-inputHoverFill: color-mix(in srgb, var(--MI_THEME-fg) 10%, transparent);
+	--MI-accentBorder: color-mix(in srgb, var(--MI_THEME-accent) 20%, transparent);
+	--MI-inputFocusBorder: var(--MI-accentBorder);
+	--MI-inputErrorBorder: color-mix(in srgb, var(--MI_THEME-error) 70%, var(--MI_THEME-fg));
+	// 占位文字比输入内容浅，但比 fgTransparentWeak 深，便于阅读。
+	--MI-inputPlaceholder: color-mix(in srgb, var(--MI_THEME-fg) 70%, transparent);
 
 	// Classic red packets keep their red and gold identity in every theme.
 	--MI-redPacketStart: #c93632;
@@ -54,6 +97,8 @@
 	--MI-tipPurple: #a855f7;
 	--MI-tipGold: #d79c28;
 	--MI-tipRed: #e05c65;
+	// 打赏按钮参考微信赞赏的红色，不随主题主色改变。
+	--MI-tipButton: #fa5151;
 
 	// Presence colors stay recognizable independently of the selected accent color.
 	--MI-statusOnline: #22e58a;
@@ -62,6 +107,7 @@
 	--MI-statusAway: #bbbec8;
 	--MI-statusAwayStart: #c8cbd3;
 	--MI-statusAwayEnd: #afb2be;
+	--MI-statusOffline: #9ca3af;
 	--MI-statusBusy: #ff738b;
 	--MI-statusBusyStart: #ff8ea1;
 	--MI-statusBusyEnd: #ff5a77;
@@ -91,7 +137,7 @@
 	--MI-statusSunEnd: #f6ae38;
 
 	// switch dynamically
-	--MI-minBottomSpacingMobile: calc(72px + max(12px, env(safe-area-inset-bottom, 0px)));
+	--MI-minBottomSpacingMobile: calc(var(--MI-mobileFooterHeight) + max(var(--MI-mobileFooterInset), env(safe-area-inset-bottom)) + var(--MI-mobileFooterInset));
 	--MI-minBottomSpacing: var(--MI-minBottomSpacingMobile);
 
 	@media (max-width: 500px) {
@@ -202,12 +248,6 @@ a {
 	}
 }
 
-// 正文中的文字链接（网址、话题标签）悬停显示下划线。链接卡片渲染在正文之外，不受影响；
-// 含头像的提及标签也不加下划线。
-._mfm a:not(:has(img)):hover {
-	text-decoration: underline;
-}
-
 textarea, input {
 	tap-highlight-color: transparent;
 	-webkit-tap-highlight-color: transparent;
@@ -234,31 +274,6 @@ hr {
 
 rt {
 	white-space: initial;
-}
-
-// 进度条统一自绘：消除浏览器原生控件的默认渲染（含 hover 等交互态差异）。
-// 基础层只定外观基调，各使用处按需覆盖尺寸、颜色（color 同时决定进度条填充色）
-progress {
-	appearance: none;
-	border: 0;
-	border-radius: 999px;
-	overflow: hidden;
-	background: var(--MI_THEME-accentedBg);
-	color: var(--MI_THEME-accent);
-
-	&::-webkit-progress-bar {
-		background: var(--MI_THEME-accentedBg);
-	}
-
-	&::-webkit-progress-value {
-		background: currentColor;
-		border-radius: 999px;
-	}
-
-	&::-moz-progress-bar {
-		background: currentColor;
-		border-radius: 999px;
-	}
 }
 
 :focus-visible {
@@ -339,7 +354,7 @@ progress {
 ._pageBody {
 	width: 100%;
 	min-width: 0;
-	padding: 0 0 var(--MI-pageGap);
+	padding: 0 0 var(--MI-pageBottomInset, var(--MI-pageGap));
 	box-sizing: border-box;
 	container-type: inline-size;
 }
@@ -360,7 +375,7 @@ progress {
 	overscroll-behavior: contain;
 	// 折叠/展开等内容高度变化会翻转滚动条的有无，内容宽度随之跳变，
 	// 让 450px 的容器查询来回命中、头像和字号反复切换，因此始终预留滚动条槽位
-	scrollbar-gutter: stable;
+	scrollbar-gutter: var(--MI-pageScrollbarGutter, stable);
 }
 
 ._pageLayout {
@@ -369,18 +384,19 @@ progress {
 	grid-template-columns: minmax(0, 1fr);
 	grid-template-rows: minmax(0, 1fr);
 	width: 100%;
-	max-width: calc(var(--MI-pageWidth) + var(--MI-pageSideInset, var(--MI-margin)) * 2);
+	max-width: var(--MI-pageWidth);
 	height: 100%;
 	min-height: 0;
 	margin: 0 auto;
-	padding: var(--MI-pageGap) var(--MI-pageSideInset, var(--MI-margin));
+	padding: var(--MI-pageTopInset, var(--MI-pageGap)) var(--MI-pageSideInset, var(--MI-margin)) var(--MI-pageBottomInset, var(--MI-pageGap));
 	box-sizing: border-box;
 	overflow: clip;
 }
 
 ._pageLayout._pageLayoutWithSidebar {
-	height: calc(100% - var(--MI-pageGap) * 2);
-	margin-block: var(--MI-pageGap);
+	// 两列共用到底边的可用高度，不再单独补高正文列。
+	height: calc(100% - var(--MI-pageTopInset, var(--MI-pageGap)));
+	margin-block: var(--MI-pageTopInset, var(--MI-pageGap)) 0;
 	padding-block: 0;
 	grid-template-columns: var(--MI-pageNavigationWidth) minmax(0, 1fr);
 	gap: var(--MI-pageGap);
@@ -388,6 +404,7 @@ progress {
 
 	> ._pageContent {
 		grid-column: 2;
+		align-self: start;
 		border-radius: var(--MI-pageHeaderRadius, var(--MI-cardRadius));
 	}
 }
@@ -402,6 +419,7 @@ progress {
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	background: var(--MI_THEME-panel);
+	// 左侧导航是页面直接显示的卡片，统一使用页面卡片圆角。
 	border-radius: var(--MI-cardRadius);
 }
 
@@ -431,7 +449,7 @@ progress {
 }
 
 ._standalonePage {
-	padding-top: var(--MI-pageGap);
+	padding-top: var(--MI-pageTopInset, var(--MI-pageGap));
 	box-sizing: border-box;
 	container-type: size;
 }
@@ -542,7 +560,8 @@ progress {
 }
 
 ._iconButton {
-	@include window-header.iconHover;
+	&:not(:disabled):not([aria-disabled="true"]):hover { color: var(--MI_THEME-accent); }
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }
 
 ._buttonPrimary {
@@ -573,19 +592,16 @@ progress {
 	}
 }
 
-._help {
-	color: var(--MI_THEME-accent);
-	cursor: help;
-}
-
 ._textButton {
 	@extend ._button;
+	display: inline-flex;
+	align-items: center;
+	gap: .35em;
 	color: var(--MI_THEME-accent);
 
 	&:focus-visible {
 		outline-offset: 2px;
 	}
-
 }
 
 // 文字操作用装饰箭头反馈，普通正文链接和用户名不参与。
@@ -621,19 +637,19 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left
 		--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
 	}
 
-	// 已有箭头复用原元素；图标按钮不增加额外内容。
-	&:not(._textButtonIcon):not(:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left)))::after {
-		@include text-action-arrow-motion;
-		content: '';
-		width: 1em;
-		height: 1em;
-		margin-inline-start: .35em;
-		vertical-align: -.125em;
-		background: currentColor;
-		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14m-7-7 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
-	}
-
 	> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left) { @include text-action-arrow-motion; }
+}
+
+// 文字按钮默认不带箭头；需要时手动放入箭头图标，或明确使用 _textAction。
+._textAction:not(:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left)))::after {
+	@include text-action-arrow-motion;
+	content: '';
+	width: 1em;
+	height: 1em;
+	margin-inline-start: .35em;
+	vertical-align: -.125em;
+	background: currentColor;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14m-7-7 7 7-7 7'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 ._textButtonIcon {
@@ -647,7 +663,10 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left
 	--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
 }
 
+// 返回、翻页按钮的直接子图标与 MkButton、图片预览中的嵌套图标共用动画。
+._button > :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left),
 ._button > div > :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left) { @include text-action-arrow-motion; }
+._button:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) > :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left),
 ._button:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) > div > :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left) {
 	--MI-textActionAnimation: global-text-action-arrow 900ms ease-in-out infinite;
 }
@@ -661,6 +680,7 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left
 }
 
 ._panel {
+	box-sizing: border-box;
 	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-cardRadius);
 	overflow: clip;
@@ -671,8 +691,9 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left
 	}
 }
 
-// 统一卡片圆角；只对明确添加此类的外层容器生效
+// 独立卡片只统一圆角；边界由背景与留白区分，不额外描边。
 ._card {
+	box-sizing: border-box;
 	border-radius: var(--MI-cardRadius) !important;
 }
 
@@ -700,8 +721,17 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left
 
 ._buttons {
 	display: flex;
+	align-items: center;
 	gap: 8px;
 	flex-wrap: wrap;
+}
+
+// 提示条和提示卡内的操作只显示文字，避免在提示背景上叠加胶囊。
+._textButtons {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--MI-marginHalf);
 }
 
 ._buttonsCenter {
@@ -750,7 +780,7 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left
 	color: var(--MI_THEME-accent);
 	border: solid 1px var(--MI_THEME-accent);
 	border-radius: 4px;
-	vertical-align: top;
+	vertical-align: middle;
 }
 
 ._modified {
@@ -760,7 +790,7 @@ a:has(> :is(.ti-arrow-right, .ti-chevron-right, .ti-arrow-left, .ti-chevron-left
 	color: var(--MI_THEME-warn);
 	border: solid 1px var(--MI_THEME-warn);
 	border-radius: 4px;
-	vertical-align: top;
+	vertical-align: middle;
 }
 
 ._table {
@@ -828,6 +858,15 @@ html[data-color-scheme=dark] ._woodenFrame {
 	--MI_THEME-bg: #1d0c02;
 	--MI_THEME-fg: #F1E8DC;
 	--MI_THEME-panel: #192320;
+}
+
+// 自定义变量在 :root 计算，局部改了文字色时需重新按新文字色计算输入框颜色。
+._woodenFrame {
+	--MI-inputFill: color-mix(in srgb, var(--MI_THEME-fg) 6%, transparent);
+	--MI-inputHoverFill: color-mix(in srgb, var(--MI_THEME-fg) 10%, transparent);
+	--MI-inputFocusBorder: var(--MI-accentBorder);
+	--MI-inputErrorBorder: color-mix(in srgb, var(--MI_THEME-error) 70%, var(--MI_THEME-fg));
+	--MI-inputPlaceholder: color-mix(in srgb, var(--MI_THEME-fg) 70%, transparent);
 }
 
 ._woodenFrameH {
@@ -922,6 +961,7 @@ html[data-color-scheme=dark] ._woodenFrame {
 
 // MFM -----------------------------
 
+// 汉字与字母、数字之间的小间隙交给浏览器排版，输入框和正文共用同一宽度，内容本身不插入字符。
 ._mfm {
 	text-autospace: normal;
 
@@ -966,7 +1006,9 @@ html[data-color-scheme=dark] ._woodenFrame {
 	}
 }
 
-._mfmRainbow {
+// 关闭动画时 MFM 渲染器改用 _mfm_rainbow_fallback_，静态彩色与动画版一致。
+._mfmRainbow,
+._mfm_rainbow_fallback_ {
 	// 先为文字提供彩色底色；只旋转色相无法改变黑白文字。明度跟随主题，避免亮色主题中的浅黄字失去对比。
 	background-image: linear-gradient(to right,
 		oklch(from var(--MI_THEME-fg) clamp(0.45, l, 0.78) 0.18 25),
@@ -1100,16 +1142,7 @@ html[data-color-scheme=dark] ._woodenFrame {
 	color: var(--MI_THEME-error);
 }
 
-// Text entry uses its existing border for focus, without a second outer ring.
-input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='button'], [type='submit'], [type='reset']):focus,
-textarea:focus {
-	outline: none !important;
-	box-shadow: none !important;
-	border-color: var(--MI_THEME-accent);
-}
-
-// 清除输入框容器的聚焦环时，保留弹层自身的阴影。
-:not(._popup, ._shadow):has(> input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']):focus, > textarea:focus) {
-	outline: none !important;
-	box-shadow: none !important;
+::placeholder {
+	color: var(--MI-inputPlaceholder);
+	opacity: 1;
 }

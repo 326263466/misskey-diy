@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
 import { shouldHideFileByDefault, canRevealFile } from '@/utility/sensitive-file.js';
@@ -32,10 +32,17 @@ const props = defineProps<{
 	media: Misskey.entities.DriveFile;
 }>();
 
-const hide = ref(shouldHideFileByDefault(props.media));
+const hide = ref(true);
+let revealVersion = 0;
+
+watch([() => props.media.id, () => props.media.isSensitive], ([id, sensitive], [previousId, previousSensitive]) => {
+	revealVersion++;
+	hide.value = (id === previousId && sensitive && !previousSensitive) || shouldHideFileByDefault(props.media);
+}, { immediate: true, flush: 'sync' });
 
 async function reveal() {
-	if (!(await canRevealFile(props.media))) {
+	const version = revealVersion;
+	if (!(await canRevealFile(props.media)) || version !== revealVersion) {
 		return;
 	}
 
@@ -78,8 +85,4 @@ async function reveal() {
 	line-height: 1;
 }
 
-.audio {
-	border-radius: 8px;
-	overflow: clip;
-}
 </style>

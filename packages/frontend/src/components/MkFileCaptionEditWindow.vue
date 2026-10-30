@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:width="400"
 	:height="450"
 	:withOkButton="true"
-	:okButtonDisabled="false"
+	:okButtonDisabled="tooLong"
 	@ok="ok()"
 	@close="dialog?.close()"
 	@closed="emit('closed')"
@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template #header>{{ i18n.ts.describeFile }}</template>
 	<div class="_spacer _spacerCard">
 		<MkDriveFileThumbnail v-if="file" :file="file" fit="contain" style="height: 100px; margin-bottom: 16px;"/>
-	<MkTextarea v-model="caption" :counterMaxLength="512" autofocus :placeholder="i18n.ts.inputNewDescription">
+	<MkTextarea v-model="caption" :counterMaxLength="Misskey.CONTENT_LIMITS.fileCaption" autofocus :placeholder="i18n.ts.inputNewDescription">
 			<template #label>{{ i18n.ts.caption }}</template>
 		</MkTextarea>
 	</div>
@@ -26,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { useTemplateRef, ref } from 'vue';
+import { computed, useTemplateRef, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
@@ -46,8 +46,10 @@ const emit = defineEmits<{
 const dialog = useTemplateRef('dialog');
 
 const caption = ref(props.default ?? '');
+const tooLong = computed(() => Array.from(caption.value).length > Misskey.CONTENT_LIMITS.fileCaption);
 
 async function ok() {
+	if (tooLong.value) return;
 	emit('done', caption.value);
 	dialog.value?.close();
 }

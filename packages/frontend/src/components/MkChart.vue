@@ -5,8 +5,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
-	<canvas ref="chartEl"></canvas>
-	<MkChartLegend ref="legendEl" style="margin-top: 8px;"/>
+	<!-- 高度按比例预留，加载前后不改变布局。 -->
+	<div :class="$style.chart" :style="{ aspectRatio: String(aspectRatio ?? 2.5) }">
+		<MkEChart :option="option" :ariaLabel="ariaLabel"/>
+	</div>
 	<div v-if="fetching" :class="$style.fetching">
 		<MkLoading/>
 	</div>
@@ -45,24 +47,16 @@ export type ChartSrc =
 </script>
 
 <script lang="ts" setup>
-
-import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
-import { Chart } from 'chart.js';
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import * as Misskey from 'misskey-js';
+import MkEChart from '@/components/MkEChart.vue';
 import { misskeyApiGet } from '@/utility/misskey-api.js';
-import { store } from '@/store.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
-import { chartVLine } from '@/utility/chart-vline.js';
-import { alpha } from '@/utility/color.js';
+import { areaGradient, chartColors, chartGrid } from '@/utility/echarts.js';
 import date, { dateOnly } from '@/filters/date.js';
 import bytes from '@/filters/bytes.js';
-import { initChart } from '@/utility/init-chart.js';
+import number from '@/filters/number.js';
 import { formatChartDate } from '@/utility/chart-date.js';
-import { chartLegend } from '@/utility/chart-legend.js';
 import { i18n } from '@/i18n.js';
-import MkChartLegend from '@/components/MkChartLegend.vue';
-
-initChart();
 
 const props = withDefaults(defineProps<{
 	src: ChartSrc;
@@ -94,46 +88,34 @@ const props = withDefaults(defineProps<{
 	nowForChromatic: undefined,
 });
 
-const legendEl = useTemplateRef('legendEl');
+/** 颜色用主题语义：数字是分类配色序号（0 为主题色），其余对应成功、警告、错误等状态色。 */
+type SeriesColor = number | 'warn' | 'error' | 'muted';
+
+type ChartData = {
+	series: {
+		name: string;
+		/** line 只画线，用于合计、净值等参考线；area 带填充，用于构成部分。 */
+		type: 'line' | 'area';
+		color?: SeriesColor;
+		dashed?: boolean;
+		hidden?: boolean;
+		/** 接口返回的原始顺序：最新的在前。 */
+		data: number[];
+	}[];
+	bytes?: boolean;
+};
 
 const sum = (...arr: number[][]) => arr.reduce((r, a) => r.map((b, i) => a[i] + b));
 const negate = (arr: number[]) => arr.map((x) => -x);
-
-const colors = {
-	blue: '#008FFB',
-	green: '#00E396',
-	yellow: '#FEB019',
-	red: '#FF4560',
-	purple: '#e300db',
-	orange: '#fe6919',
-	lime: '#bde800',
-	cyan: '#00e0e0',
-};
-const colorSets = [colors.blue, colors.green, colors.yellow, colors.red, colors.purple];
-const getColor = (i: number) => {
-	return colorSets[i % colorSets.length];
-};
+// 各数据源直接沿用接口数组，渲染时再统一配上日期。
+const values = (arr: number[]) => arr;
 
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const now = props.nowForChromatic != null ? new Date(props.nowForChromatic) : new Date();
-let chartInstance: Chart | null = null;
-let chartData: {
-	series: {
-		name: string;
-		type: 'line' | 'area';
-		color?: string;
-		dashed?: boolean;
-		hidden?: boolean;
-		data: {
-			x: number;
-			y: number;
-		}[];
-	}[];
-	bytes?: boolean;
-} | null = null;
-
-const chartEl = useTemplateRef('chartEl');
+const chartData = shallowRef<ChartData | null>(null);
 const fetching = ref(true);
+let request = 0;
+let disposed = false;
 
 const getDate = (ago: number) => {
 	const y = now.getFullYear();
@@ -144,318 +126,237 @@ const getDate = (ago: number) => {
 	return props.span === 'day' ? new Date(y, m, d - ago) : new Date(y, m, d, h - ago);
 };
 
-const format = (arr: number[]) => {
-	return arr.map((v, i) => ({
-		x: getDate(i).getTime(),
-		y: v,
-	}));
-};
+const ariaLabel = computed(() => chartData.value?.series.map(x => x.name).join('，') ?? '');
 
-const { handler: externalTooltipHandler } = useChartTooltip();
+const formatValue = (value: number) => chartData.value?.bytes ? bytes(value * 1000, 1) : number(value);
 
-const render = () => {
-	if (chartData == null || chartEl.value == null) return;
-	if (chartInstance) {
-		chartInstance.destroy();
-	}
+// 按天看时横轴标日期；按小时看时零点标日期，其余标整点。
+function axisLabel(value: number) {
+	const time = new Date(value);
+	if (props.span === 'day' || (time.getHours() === 0 && time.getMinutes() === 0)) return formatChartDate(value);
+	return `${time.getHours()}:00`;
+}
 
-	const maxes = chartData.series.map((x, i) => Math.max(...x.data.map(d => d.y)));
-
-	chartInstance = new Chart(chartEl.value, {
-		type: props.bar ? 'bar' : 'line',
-		data: {
-			labels: new Array(props.limit).fill(0).map((_, i) => date(getDate(i))).slice().reverse(),
-			datasets: chartData.series.map((x, i) => ({
-				parsing: false,
-				label: x.name,
-				data: x.data.slice().reverse(),
-				tension: 0.3,
-				pointRadius: 0,
-				borderWidth: props.bar ? 0 : 2,
-				borderColor: x.color ? x.color : getColor(i),
-				borderDash: x.dashed ? [5, 5] : [],
-				borderJoinStyle: 'round',
-				borderRadius: props.bar ? 3 : undefined,
-				backgroundColor: props.bar ? (x.color ? x.color : getColor(i)) : alpha(x.color ? x.color : getColor(i), 0.1),
-				gradient: props.bar ? undefined : {
-					backgroundColor: {
-						axis: 'y',
-						colors: {
-							0: alpha(x.color ? x.color : getColor(i), 0),
-							[maxes[i]]: alpha(x.color ? x.color : getColor(i), 0.35),
-						},
-					},
-				},
-				barPercentage: 0.9,
-				categoryPercentage: 0.9,
-				fill: x.type === 'area',
-				clip: 8,
-				hidden: !!x.hidden,
-			})),
-		},
-		options: {
-			aspectRatio: props.aspectRatio || 2.5,
-			layout: {
-				padding: {
-					left: 0,
-					right: 8,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					type: 'time',
-					stacked: props.stacked,
-					offset: false,
-					time: {
-						unit: props.span === 'day' ? 'month' : 'day',
-					},
-					grid: {
-					},
-					ticks: {
-						stepSize: 1,
-						display: props.detailed,
-						maxRotation: 0,
-						autoSkipPadding: 16,
-						callback: value => formatChartDate(value, props.span === 'day' ? 'month' : 'day'),
-					},
-					min: getDate(props.limit).getTime(),
-				},
-				y: {
-					position: 'left',
-					stacked: props.stacked,
-					suggestedMax: 50,
-					grid: {
-					},
-					ticks: {
-						display: props.detailed,
-						//mirror: true,
-					},
-				},
-			},
-			interaction: {
-				intersect: false,
-				mode: 'index',
-			},
-			elements: {
-				point: {
-					hoverRadius: 5,
-					hoverBorderWidth: 2,
-				},
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					external: externalTooltipHandler,
-					callbacks: {
-						title: (items) => props.span === 'day' ? dateOnly(items[0].parsed.x) : date(items[0].parsed.x),
-						label: (item) => `${item.dataset.label}: ${chartData?.bytes ? bytes(item.parsed.y * 1000, 1) : item.parsed.y.toString()}`,
-					},
-				},
-				zoom: props.detailed ? {
-					pan: {
-						enabled: true,
-					},
-					zoom: {
-						wheel: {
-							enabled: true,
-						},
-						pinch: {
-							enabled: true,
-						},
-						drag: {
-							enabled: false,
-						},
-						mode: 'x',
-					},
-					limits: {
-						x: {
-							min: 'original',
-							max: 'original',
-						},
-						y: {
-							min: 'original',
-							max: 'original',
-						},
-					},
-				} : undefined,
-			},
-		},
-		plugins: [chartVLine(), ...(props.detailed && legendEl.value ? [chartLegend(legendEl.value)] : [])],
+const option = computed(() => {
+	const c = chartColors.value;
+	const data = chartData.value;
+	const colorOf = (color: SeriesColor | undefined, index: number) => {
+		if (color === 'warn' || color === 'error') return c[color];
+		if (color === 'muted') return c.weak;
+		const n = color ?? index;
+		return n === 0 ? c.accent : c.series(n);
+	};
+	const series = (data?.series ?? []).map((x, index) => {
+		const color = colorOf(x.color, index);
+		// 接口数据从新到旧，画图时从旧到新。
+		const points = x.data.slice(0, props.limit).map((value, ago) => [getDate(ago).getTime(), value]).reverse();
+		if (props.bar) {
+			return {
+				type: 'bar', name: x.name, data: points, stack: props.stacked ? 'total' : undefined,
+				barMaxWidth: 12, itemStyle: { color, borderRadius: props.stacked ? 0 : [2, 2, 0, 0] },
+				emphasis: { focus: 'series' },
+			};
+		}
+		return {
+			type: 'line', name: x.name, data: points, stack: props.stacked ? 'total' : undefined,
+			smooth: 0.3, smoothMonotone: 'x', showSymbol: false, symbolSize: 6,
+			lineStyle: { width: 2, color, type: x.dashed ? 'dashed' : 'solid' }, itemStyle: { color },
+			// 多条面积叠在一起时降低填充，避免互相遮住。
+			areaStyle: x.type === 'area' ? { color: areaGradient(color, (data?.series.length ?? 0) > 3 ? 0.15 : 0.25) } : undefined,
+		};
 	});
-};
-
-const exportData = () => {
-	// TODO
-};
-
-const fetchFederationChart = async (): Promise<typeof chartData> => {
+	return {
+		// 详细模式底部留出图例位置。
+		grid: { ...chartGrid, left: props.detailed ? 4 : 0, right: props.detailed ? 12 : 0, top: 8, bottom: props.detailed ? 32 : 0 },
+		legend: props.detailed ? {
+			type: 'scroll', bottom: 0,
+			selected: Object.fromEntries((data?.series ?? []).map(x => [x.name, !x.hidden])),
+		} : { show: false },
+		tooltip: {
+			trigger: 'axis',
+			axisPointer: { type: props.bar ? 'shadow' : 'line' },
+			formatter: (params: { axisValue: number; marker: string; seriesName: string; value: [number, number] }[]) => {
+				const time = params[0]?.axisValue;
+				const title = time == null ? '' : props.span === 'day' ? dateOnly(time) : date(time);
+				const rows = params.map(item => `<div style="display:flex;gap:16px;justify-content:space-between"><span>${item.marker}${item.seriesName}</span><b>${formatValue(item.value[1])}</b></div>`);
+				return `<div style="margin-bottom:4px;opacity:.7">${title}</div>${rows.join('')}`;
+			},
+		},
+		// 详细模式支持滚轮缩放、拖动平移，替代原来的缩放插件。
+		dataZoom: props.detailed ? [{ type: 'inside', filterMode: 'none' }] : [],
+		xAxis: {
+			type: 'time',
+			axisLabel: { show: props.detailed, hideOverlap: true, formatter: axisLabel },
+			axisLine: { show: props.detailed },
+			splitLine: { show: false },
+		},
+		yAxis: {
+			type: 'value',
+			axisLabel: { show: props.detailed, formatter: formatValue },
+			splitLine: { show: props.detailed },
+		},
+		series,
+	};
+});
+const fetchFederationChart = async (): Promise<ChartData | null> => {
 	const raw = await misskeyApiGet('charts/federation', { limit: props.limit, span: props.span });
 	return {
 		series: [{
 			name: i18n.ts._chartSeries.federationReceived,
 			type: 'area',
-			data: format(raw.inboxInstances),
-			color: colors.blue,
+			data: values(raw.inboxInstances),
+			color: 0,
 		}, {
 			name: i18n.ts._chartSeries.federationDelivered,
 			type: 'area',
-			data: format(raw.deliveredInstances),
-			color: colors.green,
+			data: values(raw.deliveredInstances),
+			color: 1,
 		}, {
 			name: i18n.ts._chartSeries.federationStalled,
 			type: 'area',
-			data: format(raw.stalled),
-			color: colors.red,
+			data: values(raw.stalled),
+			color: 'error',
 		}, {
 			name: i18n.ts._chartSeries.federationPubActive,
 			type: 'line',
-			data: format(raw.pubActive),
-			color: colors.purple,
+			data: values(raw.pubActive),
+			color: 2,
 		}, {
 			name: i18n.ts._chartSeries.federationSubActive,
 			type: 'line',
-			data: format(raw.subActive),
-			color: colors.orange,
+			data: values(raw.subActive),
+			color: 3,
 		}, {
 			name: i18n.ts._chartSeries.federationPubSub,
 			type: 'line',
-			data: format(raw.pubsub),
+			data: values(raw.pubsub),
 			dashed: true,
-			color: colors.cyan,
+			color: 5,
 		}, {
 			name: i18n.ts._chartSeries.federationPub,
 			type: 'line',
-			data: format(raw.pub),
+			data: values(raw.pub),
 			dashed: true,
-			color: colors.purple,
+			color: 2,
 		}, {
 			name: i18n.ts._chartSeries.federationSub,
 			type: 'line',
-			data: format(raw.sub),
+			data: values(raw.sub),
 			dashed: true,
-			color: colors.orange,
+			color: 3,
 		}],
 	};
 };
 
-const fetchApRequestChart = async (): Promise<typeof chartData> => {
+const fetchApRequestChart = async (): Promise<ChartData | null> => {
 	const raw = await misskeyApiGet('charts/ap-request', { limit: props.limit, span: props.span });
 	return {
 		series: [{
 			name: i18n.ts._dashboard.apIn,
 			type: 'area',
-			color: '#008FFB',
-			data: format(raw.inboxReceived),
+			color: 0,
+			data: values(raw.inboxReceived),
 		}, {
 			name: i18n.ts._dashboard.apOutSucceeded,
 			type: 'area',
-			color: '#00E396',
-			data: format(raw.deliverSucceeded),
+			color: 1,
+			data: values(raw.deliverSucceeded),
 		}, {
 			name: i18n.ts._dashboard.apOutFailed,
 			type: 'area',
-			color: '#FEB019',
-			data: format(raw.deliverFailed),
+			color: 'error',
+			data: values(raw.deliverFailed),
 		}],
 	};
 };
 
-const fetchNotesChart = async (type: 'local' | 'remote' | 'combined'): Promise<typeof chartData> => {
+const fetchNotesChart = async (type: 'local' | 'remote' | 'combined'): Promise<ChartData | null> => {
 	const raw = await misskeyApiGet('charts/notes', { limit: props.limit, span: props.span });
 	return {
 		series: [{
 			name: i18n.ts.all,
 			type: 'line',
-			data: format(type === 'combined'
+			data: values(type === 'combined'
 				? sum(raw.local.inc, negate(raw.local.dec), raw.remote.inc, negate(raw.remote.dec))
 				: sum(raw[type].inc, negate(raw[type].dec)),
 			),
-			color: '#888888',
+			color: 'muted',
 		}, {
 			name: i18n.ts.renotes,
 			type: 'area',
-			data: format(type === 'combined'
+			data: values(type === 'combined'
 				? sum(raw.local.diffs.renote, raw.remote.diffs.renote)
 				: raw[type].diffs.renote,
 			),
-			color: colors.green,
+			color: 1,
 		}, {
 			name: i18n.ts.replies,
 			type: 'area',
-			data: format(type === 'combined'
+			data: values(type === 'combined'
 				? sum(raw.local.diffs.reply, raw.remote.diffs.reply)
 				: raw[type].diffs.reply,
 			),
-			color: colors.yellow,
+			color: 'warn',
 		}, {
 			name: i18n.ts._chartSeries.notesNormal,
 			type: 'area',
-			data: format(type === 'combined'
+			data: values(type === 'combined'
 				? sum(raw.local.diffs.normal, raw.remote.diffs.normal)
 				: raw[type].diffs.normal,
 			),
-			color: colors.blue,
+			color: 0,
 		}, {
 			name: i18n.ts._chartSeries.notesWithFile,
 			type: 'area',
-			data: format(type === 'combined'
+			data: values(type === 'combined'
 				? sum(raw.local.diffs.withFile, raw.remote.diffs.withFile)
 				: raw[type].diffs.withFile,
 			),
-			color: colors.purple,
+			color: 2,
 		}],
 	};
 };
 
-const fetchNotesTotalChart = async (): Promise<typeof chartData> => {
+const fetchNotesTotalChart = async (): Promise<ChartData | null> => {
 	const raw = await misskeyApiGet('charts/notes', { limit: props.limit, span: props.span });
 	return {
 		series: [{
 			name: i18n.ts._chartSeries.combined,
 			type: 'line',
-			data: format(sum(raw.local.total, raw.remote.total)),
+			data: values(sum(raw.local.total, raw.remote.total)),
 		}, {
 			name: i18n.ts.local,
 			type: 'area',
-			data: format(raw.local.total),
+			data: values(raw.local.total),
 		}, {
 			name: i18n.ts.remote,
 			type: 'area',
-			data: format(raw.remote.total),
+			data: values(raw.remote.total),
 		}],
 	};
 };
 
-const fetchUsersChart = async (total: boolean): Promise<typeof chartData> => {
+const fetchUsersChart = async (total: boolean): Promise<ChartData | null> => {
 	const raw = await misskeyApiGet('charts/users', { limit: props.limit, span: props.span });
 	return {
 		series: [{
 			name: i18n.ts._chartSeries.combined,
 			type: 'line',
-			data: format(total
+			data: values(total
 				? sum(raw.local.total, raw.remote.total)
 				: sum(raw.local.inc, negate(raw.local.dec), raw.remote.inc, negate(raw.remote.dec)),
 			),
 		}, {
 			name: i18n.ts.local,
 			type: 'area',
-			data: format(total
+			data: values(total
 				? raw.local.total
 				: sum(raw.local.inc, negate(raw.local.dec)),
 			),
 		}, {
 			name: i18n.ts.remote,
 			type: 'area',
-			data: format(total
+			data: values(total
 				? raw.remote.total
 				: sum(raw.remote.inc, negate(raw.remote.dec)),
 			),
@@ -463,59 +364,50 @@ const fetchUsersChart = async (total: boolean): Promise<typeof chartData> => {
 	};
 };
 
-const fetchActiveUsersChart = async (): Promise<typeof chartData> => {
+const fetchActiveUsersChart = async (): Promise<ChartData | null> => {
 	const raw = await misskeyApiGet('charts/active-users', { limit: props.limit, span: props.span });
 	return {
 		series: [{
 			name: i18n.ts._chartSeries.activeReadWrite,
 			type: 'area',
-			data: format(raw.readWrite),
-			color: colors.orange,
+			data: values(raw.readWrite),
 		}, {
 			name: i18n.ts._dashboard.write,
 			type: 'area',
-			data: format(raw.write),
-			color: colors.lime,
+			data: values(raw.write),
 		}, {
 			name: i18n.ts._dashboard.read,
 			type: 'area',
-			data: format(raw.read),
-			color: colors.blue,
+			data: values(raw.read),
 		}, {
 			name: i18n.ts._chartSeries.activeRegisteredWithinWeek,
 			type: 'area',
-			data: format(raw.registeredWithinWeek),
-			color: colors.green,
+			data: values(raw.registeredWithinWeek),
 		}, {
 			name: i18n.ts._chartSeries.activeRegisteredWithinMonth,
 			type: 'area',
-			data: format(raw.registeredWithinMonth),
-			color: colors.yellow,
+			data: values(raw.registeredWithinMonth),
 		}, {
 			name: i18n.ts._chartSeries.activeRegisteredWithinYear,
 			type: 'area',
-			data: format(raw.registeredWithinYear),
-			color: colors.red,
+			data: values(raw.registeredWithinYear),
 		}, {
 			name: i18n.ts._chartSeries.activeRegisteredOutsideWeek,
 			type: 'area',
-			data: format(raw.registeredOutsideWeek),
-			color: colors.yellow,
+			data: values(raw.registeredOutsideWeek),
 		}, {
 			name: i18n.ts._chartSeries.activeRegisteredOutsideMonth,
 			type: 'area',
-			data: format(raw.registeredOutsideMonth),
-			color: colors.red,
+			data: values(raw.registeredOutsideMonth),
 		}, {
 			name: i18n.ts._chartSeries.activeRegisteredOutsideYear,
 			type: 'area',
-			data: format(raw.registeredOutsideYear),
-			color: colors.purple,
+			data: values(raw.registeredOutsideYear),
 		}],
 	};
 };
 
-const fetchDriveChart = async (): Promise<typeof chartData> => {
+const fetchDriveChart = async (): Promise<ChartData | null> => {
 	const raw = await misskeyApiGet('charts/drive', { limit: props.limit, span: props.span });
 	return {
 		bytes: true,
@@ -523,7 +415,7 @@ const fetchDriveChart = async (): Promise<typeof chartData> => {
 			name: i18n.ts.all,
 			type: 'line',
 			dashed: true,
-			data: format(
+			data: values(
 				sum(
 					raw.local.incSize,
 					negate(raw.local.decSize),
@@ -534,31 +426,31 @@ const fetchDriveChart = async (): Promise<typeof chartData> => {
 		}, {
 			name: i18n.ts._chartSeries.localInc,
 			type: 'area',
-			data: format(raw.local.incSize),
+			data: values(raw.local.incSize),
 		}, {
 			name: i18n.ts._chartSeries.localDec,
 			type: 'area',
-			data: format(negate(raw.local.decSize)),
+			data: values(negate(raw.local.decSize)),
 		}, {
 			name: i18n.ts._chartSeries.remoteInc,
 			type: 'area',
-			data: format(raw.remote.incSize),
+			data: values(raw.remote.incSize),
 		}, {
 			name: i18n.ts._chartSeries.remoteDec,
 			type: 'area',
-			data: format(negate(raw.remote.decSize)),
+			data: values(negate(raw.remote.decSize)),
 		}],
 	};
 };
 
-const fetchDriveFilesChart = async (): Promise<typeof chartData> => {
+const fetchDriveFilesChart = async (): Promise<ChartData | null> => {
 	const raw = await misskeyApiGet('charts/drive', { limit: props.limit, span: props.span });
 	return {
 		series: [{
 			name: i18n.ts.all,
 			type: 'line',
 			dashed: true,
-			data: format(
+			data: values(
 				sum(
 					raw.local.incCount,
 					negate(raw.local.decCount),
@@ -569,24 +461,24 @@ const fetchDriveFilesChart = async (): Promise<typeof chartData> => {
 		}, {
 			name: i18n.ts._chartSeries.localInc,
 			type: 'area',
-			data: format(raw.local.incCount),
+			data: values(raw.local.incCount),
 		}, {
 			name: i18n.ts._chartSeries.localDec,
 			type: 'area',
-			data: format(negate(raw.local.decCount)),
+			data: values(negate(raw.local.decCount)),
 		}, {
 			name: i18n.ts._chartSeries.remoteInc,
 			type: 'area',
-			data: format(raw.remote.incCount),
+			data: values(raw.remote.incCount),
 		}, {
 			name: i18n.ts._chartSeries.remoteDec,
 			type: 'area',
-			data: format(negate(raw.remote.decCount)),
+			data: values(negate(raw.remote.decCount)),
 		}],
 	};
 };
 
-const fetchInstanceRequestsChart = async (): Promise<typeof chartData> => {
+const fetchInstanceRequestsChart = async (): Promise<ChartData | null> => {
 	const host = props.args?.host;
 	if (host == null) return { series: [] };
 
@@ -595,23 +487,23 @@ const fetchInstanceRequestsChart = async (): Promise<typeof chartData> => {
 		series: [{
 			name: i18n.ts._dashboard.apIn,
 			type: 'area',
-			color: '#008FFB',
-			data: format(raw.requests.received),
+			color: 0,
+			data: values(raw.requests.received),
 		}, {
 			name: i18n.ts._dashboard.apOutSucceeded,
 			type: 'area',
-			color: '#00E396',
-			data: format(raw.requests.succeeded),
+			color: 1,
+			data: values(raw.requests.succeeded),
 		}, {
 			name: i18n.ts._dashboard.apOutFailed,
 			type: 'area',
-			color: '#FEB019',
-			data: format(raw.requests.failed),
+			color: 'error',
+			data: values(raw.requests.failed),
 		}],
 	};
 };
 
-const fetchInstanceUsersChart = async (total: boolean): Promise<typeof chartData> => {
+const fetchInstanceUsersChart = async (total: boolean): Promise<ChartData | null> => {
 	const host = props.args?.host;
 	if (host == null) return { series: [] };
 
@@ -620,8 +512,8 @@ const fetchInstanceUsersChart = async (total: boolean): Promise<typeof chartData
 		series: [{
 			name: i18n.ts.users,
 			type: 'area',
-			color: '#008FFB',
-			data: format(total
+			color: 0,
+			data: values(total
 				? raw.users.total
 				: sum(raw.users.inc, negate(raw.users.dec)),
 			),
@@ -629,7 +521,7 @@ const fetchInstanceUsersChart = async (total: boolean): Promise<typeof chartData
 	};
 };
 
-const fetchInstanceNotesChart = async (total: boolean): Promise<typeof chartData> => {
+const fetchInstanceNotesChart = async (total: boolean): Promise<ChartData | null> => {
 	const host = props.args?.host;
 	if (host == null) return { series: [] };
 
@@ -638,8 +530,8 @@ const fetchInstanceNotesChart = async (total: boolean): Promise<typeof chartData
 		series: [{
 			name: i18n.ts.notes,
 			type: 'area',
-			color: '#008FFB',
-			data: format(total
+			color: 0,
+			data: values(total
 				? raw.notes.total
 				: sum(raw.notes.inc, negate(raw.notes.dec)),
 			),
@@ -647,7 +539,7 @@ const fetchInstanceNotesChart = async (total: boolean): Promise<typeof chartData
 	};
 };
 
-const fetchInstanceFfChart = async (total: boolean): Promise<typeof chartData> => {
+const fetchInstanceFfChart = async (total: boolean): Promise<ChartData | null> => {
 	const host = props.args?.host;
 	if (host == null) return { series: [] };
 
@@ -656,16 +548,16 @@ const fetchInstanceFfChart = async (total: boolean): Promise<typeof chartData> =
 		series: [{
 			name: i18n.ts.following,
 			type: 'area',
-			color: '#008FFB',
-			data: format(total
+			color: 0,
+			data: values(total
 				? raw.following.total
 				: sum(raw.following.inc, negate(raw.following.dec)),
 			),
 		}, {
 			name: i18n.ts.followers,
 			type: 'area',
-			color: '#00E396',
-			data: format(total
+			color: 1,
+			data: values(total
 				? raw.followers.total
 				: sum(raw.followers.inc, negate(raw.followers.dec)),
 			),
@@ -673,7 +565,7 @@ const fetchInstanceFfChart = async (total: boolean): Promise<typeof chartData> =
 	};
 };
 
-const fetchInstanceDriveUsageChart = async (total: boolean): Promise<typeof chartData> => {
+const fetchInstanceDriveUsageChart = async (total: boolean): Promise<ChartData | null> => {
 	const host = props.args?.host;
 	if (host == null) return { series: [] };
 
@@ -683,8 +575,8 @@ const fetchInstanceDriveUsageChart = async (total: boolean): Promise<typeof char
 		series: [{
 			name: i18n.ts.driveUsage,
 			type: 'area',
-			color: '#008FFB',
-			data: format(total
+			color: 0,
+			data: values(total
 				? sum(raw.drive.incUsage)
 				: sum(raw.drive.incUsage, negate(raw.drive.decUsage)),
 			),
@@ -692,7 +584,7 @@ const fetchInstanceDriveUsageChart = async (total: boolean): Promise<typeof char
 	};
 };
 
-const fetchInstanceDriveFilesChart = async (total: boolean): Promise<typeof chartData> => {
+const fetchInstanceDriveFilesChart = async (total: boolean): Promise<ChartData | null> => {
 	const host = props.args?.host;
 	if (host == null) return { series: [] };
 
@@ -701,8 +593,8 @@ const fetchInstanceDriveFilesChart = async (total: boolean): Promise<typeof char
 		series: [{
 			name: i18n.ts._chartSeries.driveFiles,
 			type: 'area',
-			color: '#008FFB',
-			data: format(total
+			color: 0,
+			data: values(total
 				? raw.drive.totalFiles
 				: sum(raw.drive.incFiles, negate(raw.drive.decFiles)),
 			),
@@ -710,42 +602,43 @@ const fetchInstanceDriveFilesChart = async (total: boolean): Promise<typeof char
 	};
 };
 
-const fetchPerUserNotesChart = async (): Promise<typeof chartData> => {
+const fetchPerUserNotesChart = async (): Promise<ChartData | null> => {
 	const userId = props.args?.user?.id;
 	if (userId == null) return { series: [] };
 
 	const raw = await misskeyApiGet('charts/user/notes', { userId: userId, limit: props.limit, span: props.span });
+	const all: ChartData['series'] = props.args?.withoutAll ? [] : [{
+		name: i18n.ts.all,
+		type: 'line',
+		data: values(sum(raw.inc, negate(raw.dec))),
+		color: 'muted',
+	}];
 	return {
-		series: [...(props.args?.withoutAll ? [] : [{
-			name: i18n.ts.all,
-			type: 'line' as const,
-			data: format(sum(raw.inc, negate(raw.dec))),
-			color: '#888888',
-		}]), {
+		series: [...all, {
 			name: i18n.ts._chartSeries.notesWithFile,
 			type: 'area',
-			data: format(raw.diffs.withFile),
-			color: colors.purple,
+			data: values(raw.diffs.withFile),
+			color: 2,
 		}, {
 			name: i18n.ts.renotes,
 			type: 'area',
-			data: format(raw.diffs.renote),
-			color: colors.green,
+			data: values(raw.diffs.renote),
+			color: 1,
 		}, {
 			name: i18n.ts.replies,
 			type: 'area',
-			data: format(raw.diffs.reply),
-			color: colors.yellow,
+			data: values(raw.diffs.reply),
+			color: 'warn',
 		}, {
 			name: i18n.ts._chartSeries.notesNormal,
 			type: 'area',
-			data: format(raw.diffs.normal),
-			color: colors.blue,
+			data: values(raw.diffs.normal),
+			color: 0,
 		}],
 	};
 };
 
-const fetchPerUserPvChart = async (): Promise<typeof chartData> => {
+const fetchPerUserPvChart = async (): Promise<ChartData | null> => {
 	const userId = props.args?.user?.id;
 	if (userId == null) return { series: [] };
 
@@ -754,28 +647,28 @@ const fetchPerUserPvChart = async (): Promise<typeof chartData> => {
 		series: [{
 			name: i18n.ts._chartSeries.uniquePvUser,
 			type: 'area',
-			data: format(raw.upv.user),
-			color: colors.purple,
+			data: values(raw.upv.user),
+			color: 2,
 		}, {
 			name: i18n.ts._chartSeries.pvUser,
 			type: 'area',
-			data: format(raw.pv.user),
-			color: colors.green,
+			data: values(raw.pv.user),
+			color: 1,
 		}, {
 			name: i18n.ts._chartSeries.uniquePvVisitor,
 			type: 'area',
-			data: format(raw.upv.visitor),
-			color: colors.yellow,
+			data: values(raw.upv.visitor),
+			color: 'warn',
 		}, {
 			name: i18n.ts._chartSeries.pvVisitor,
 			type: 'area',
-			data: format(raw.pv.visitor),
-			color: colors.blue,
+			data: values(raw.pv.visitor),
+			color: 0,
 		}],
 	};
 };
 
-const fetchPerUserFollowingChart = async (): Promise<typeof chartData> => {
+const fetchPerUserFollowingChart = async (): Promise<ChartData | null> => {
 	const userId = props.args?.user?.id;
 	if (userId == null) return { series: [] };
 
@@ -784,16 +677,16 @@ const fetchPerUserFollowingChart = async (): Promise<typeof chartData> => {
 		series: [{
 			name: i18n.ts.local,
 			type: 'area',
-			data: format(raw.local.followings.total),
+			data: values(raw.local.followings.total),
 		}, {
 			name: i18n.ts.remote,
 			type: 'area',
-			data: format(raw.remote.followings.total),
+			data: values(raw.remote.followings.total),
 		}],
 	};
 };
 
-const fetchPerUserFollowersChart = async (): Promise<typeof chartData> => {
+const fetchPerUserFollowersChart = async (): Promise<ChartData | null> => {
 	const userId = props.args?.user?.id;
 	if (userId == null) return { series: [] };
 
@@ -802,16 +695,16 @@ const fetchPerUserFollowersChart = async (): Promise<typeof chartData> => {
 		series: [{
 			name: i18n.ts.local,
 			type: 'area',
-			data: format(raw.local.followers.total),
+			data: values(raw.local.followers.total),
 		}, {
 			name: i18n.ts.remote,
 			type: 'area',
-			data: format(raw.remote.followers.total),
+			data: values(raw.remote.followers.total),
 		}],
 	};
 };
 
-const fetchPerUserDriveChart = async (): Promise<typeof chartData> => {
+const fetchPerUserDriveChart = async (): Promise<ChartData | null> => {
 	const userId = props.args?.user?.id;
 	if (userId == null) return { series: [] };
 
@@ -821,55 +714,59 @@ const fetchPerUserDriveChart = async (): Promise<typeof chartData> => {
 		series: [{
 			name: i18n.ts._chartSeries.inc,
 			type: 'area',
-			data: format(raw.incSize),
+			data: values(raw.incSize),
 		}, {
 			name: i18n.ts._chartSeries.dec,
 			type: 'area',
-			data: format(raw.decSize),
+			data: values(raw.decSize),
 		}],
 	};
 };
 
-const fetchAndRender = async () => {
-	const fetchData = () => {
-		switch (props.src) {
-			case 'federation': return fetchFederationChart();
-			case 'ap-request': return fetchApRequestChart();
-			case 'users': return fetchUsersChart(false);
-			case 'users-total': return fetchUsersChart(true);
-			case 'active-users': return fetchActiveUsersChart();
-			case 'notes': return fetchNotesChart('combined');
-			case 'local-notes': return fetchNotesChart('local');
-			case 'remote-notes': return fetchNotesChart('remote');
-			case 'notes-total': return fetchNotesTotalChart();
-			case 'drive': return fetchDriveChart();
-			case 'drive-files': return fetchDriveFilesChart();
-			case 'instance-requests': return fetchInstanceRequestsChart();
-			case 'instance-users': return fetchInstanceUsersChart(false);
-			case 'instance-users-total': return fetchInstanceUsersChart(true);
-			case 'instance-notes': return fetchInstanceNotesChart(false);
-			case 'instance-notes-total': return fetchInstanceNotesChart(true);
-			case 'instance-ff': return fetchInstanceFfChart(false);
-			case 'instance-ff-total': return fetchInstanceFfChart(true);
-			case 'instance-drive-usage': return fetchInstanceDriveUsageChart(false);
-			case 'instance-drive-usage-total': return fetchInstanceDriveUsageChart(true);
-			case 'instance-drive-files': return fetchInstanceDriveFilesChart(false);
-			case 'instance-drive-files-total': return fetchInstanceDriveFilesChart(true);
+async function fetchData(): Promise<ChartData | null> {
+	switch (props.src) {
+		case 'federation': return fetchFederationChart();
+		case 'ap-request': return fetchApRequestChart();
+		case 'users': return fetchUsersChart(false);
+		case 'users-total': return fetchUsersChart(true);
+		case 'active-users': return fetchActiveUsersChart();
+		case 'notes': return fetchNotesChart('combined');
+		case 'local-notes': return fetchNotesChart('local');
+		case 'remote-notes': return fetchNotesChart('remote');
+		case 'notes-total': return fetchNotesTotalChart();
+		case 'drive': return fetchDriveChart();
+		case 'drive-files': return fetchDriveFilesChart();
+		case 'instance-requests': return fetchInstanceRequestsChart();
+		case 'instance-users': return fetchInstanceUsersChart(false);
+		case 'instance-users-total': return fetchInstanceUsersChart(true);
+		case 'instance-notes': return fetchInstanceNotesChart(false);
+		case 'instance-notes-total': return fetchInstanceNotesChart(true);
+		case 'instance-ff': return fetchInstanceFfChart(false);
+		case 'instance-ff-total': return fetchInstanceFfChart(true);
+		case 'instance-drive-usage': return fetchInstanceDriveUsageChart(false);
+		case 'instance-drive-usage-total': return fetchInstanceDriveUsageChart(true);
+		case 'instance-drive-files': return fetchInstanceDriveFilesChart(false);
+		case 'instance-drive-files-total': return fetchInstanceDriveFilesChart(true);
 
-			case 'per-user-notes': return fetchPerUserNotesChart();
-			case 'per-user-pv': return fetchPerUserPvChart();
-			case 'per-user-following': return fetchPerUserFollowingChart();
-			case 'per-user-followers': return fetchPerUserFollowersChart();
-			case 'per-user-drive': return fetchPerUserDriveChart();
+		case 'per-user-notes': return fetchPerUserNotesChart();
+		case 'per-user-pv': return fetchPerUserPvChart();
+		case 'per-user-following': return fetchPerUserFollowingChart();
+		case 'per-user-followers': return fetchPerUserFollowersChart();
+		case 'per-user-drive': return fetchPerUserDriveChart();
 
-			default: return null;
-		}
-	};
+		default: return null;
+	}
+}
+
+async function fetchAndRender() {
+	const current = ++request;
 	fetching.value = true;
-	chartData = await fetchData();
+	const result = await fetchData();
+	// 切换数据源时只采用最后一次请求的结果。
+	if (disposed || current !== request) return;
+	chartData.value = result;
 	fetching.value = false;
-	render();
-};
+}
 
 watch(() => [props.src, props.span], fetchAndRender);
 
@@ -878,13 +775,18 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-	chartInstance?.destroy();
+	disposed = true;
 });
 </script>
 
 <style lang="scss" module>
 .root {
 	position: relative;
+}
+
+.chart {
+	width: 100%;
+	min-height: 0;
 }
 
 .fetching {

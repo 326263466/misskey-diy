@@ -7,20 +7,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkModal
 	ref="modal"
 	:preferType="'dialog'"
-	:fullScreen="maximized"
+	:fullScreen="mobileLayout || maximized"
 	:closeOnBackdrop="false"
 	@closed="onModalClosed()"
 	@esc="onEsc"
 >
-	<div :class="[$style.form, { [$style.maximized]: maximized }]" class="_popup">
+	<div :class="[$style.form, { [$style.maximized]: mobileLayout || maximized }]" class="_popup">
 		<MkPostForm
 			ref="form"
-			v-model:maximized="maximized"
 			:class="$style.editor"
 			v-bind="props"
 			:autofocus="false"
 			freezeAfterPosted
-			canMaximize
+			:canMaximize="!mobileLayout"
+			:maximized="mobileLayout || maximized"
+			@update:maximized="maximized = $event"
 			@posted="onPosted"
 			@cancel="_close()"
 			@esc="_close()"
@@ -30,10 +31,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, ref, useTemplateRef } from 'vue';
 import type { PostFormProps } from '@/types/post-form.js';
 import MkModal from '@/components/MkModal.vue';
 import MkPostForm from '@/components/MkPostForm.vue';
+import { deviceKind } from '@/utility/device-kind.js';
 
 const props = withDefaults(defineProps<PostFormProps & {
 	instant?: boolean;
@@ -49,6 +51,12 @@ const emit = defineEmits<{
 
 const modal = useTemplateRef('modal');
 const form = useTemplateRef('form');
+const narrowViewport = window.matchMedia('(max-width: 500px)');
+const narrow = ref(narrowViewport.matches);
+const mobileLayout = computed(() => deviceKind === 'smartphone' || narrow.value);
+const onViewportChange = (event: MediaQueryListEvent) => { narrow.value = event.matches; };
+narrowViewport.addEventListener('change', onViewportChange);
+onBeforeUnmount(() => narrowViewport.removeEventListener('change', onViewportChange));
 
 // 最大化时要解除这里的宽度上限，所以状态与表单双向共享
 const maximized = ref(false);

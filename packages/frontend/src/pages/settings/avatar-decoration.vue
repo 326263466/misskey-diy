@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <SearchMarker path="/settings/avatar-decoration" :label="i18n.ts.avatarDecorations" :keywords="['avatar', 'icon', 'decoration']" icon="ti ti-sparkles">
 	<div>
-		<div v-if="!loading" class="_gaps">
+		<div v-if="!loading && !loadError" class="_gaps">
 			<MkAvatar :class="$style.avatar" :user="$i" forceShowDecoration/>
 
 			<div v-if="$i.avatarDecorations.length > 0" :class="$style.current" class="_gaps_s">
@@ -27,18 +27,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<MkButton danger @click="detachAllDecorations">{{ i18n.ts.detachAll }}</MkButton>
 			</div>
-			<MkFoldableSection v-for="category in Object.keys(groupedDecorations)" :key="category" :expanded="true">
-				<template #header>{{ category || i18n.ts.other }}</template>
+			<MkFoldableSection v-for="category in Object.keys(visibleDecorations)" :key="category" :expanded="true">
+				<template #header>{{ category || i18n.ts.uncategorized }}</template>
 				<div :class="$style.decorations">
 					<XDecoration
-						v-for="avatarDecoration in groupedDecorations[category]"
+						v-for="avatarDecoration in visibleDecorations[category]"
 						:key="avatarDecoration.id"
 						:decoration="avatarDecoration"
 						@click="openDecoration(avatarDecoration)"
 					/>
 				</div>
 			</MkFoldableSection>
+			<div v-if="visibleCount < orderedDecorations.length && !rendering && active && pageActive" v-appear="revealDecorations" :class="$style.sentinel" aria-hidden="true"></div>
 		</div>
+		<MkError v-else-if="loadError" @retry="load"/>
 		<div v-else>
 			<MkLoading/>
 		</div>
@@ -47,7 +49,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, defineAsyncComponent, computed } from 'vue';
+import { ref, defineAsyncComponent, computed, inject, nextTick, onActivated, onBeforeUnmount, onDeactivated, shallowRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import XDecoration from './avatar-decoration.decoration.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -56,22 +58,59 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { ensureSignin } from '@/i.js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 import { definePage } from '@/page.js';
 import { groupAvatarDecorations } from '@/utility/group-avatar-decorations.js';
 import { enqueueProfileSave } from '@/utility/profile-save.js';
+import { DI } from '@/di.js';
 
 const XDialog = defineAsyncComponent(() => import('./avatar-decoration.dialog.vue'));
 const $i = ensureSignin();
 
-const loading = ref(true);
-const avatarDecorations = ref<Misskey.entities.GetAvatarDecorationsResponse>([]);
+const loading = ref(false);
+const loadError = ref(false);
+const avatarDecorations = shallowRef<Misskey.entities.GetAvatarDecorationsResponse>([]);
 const groupedDecorations = computed(() => groupAvatarDecorations(avatarDecorations.value));
+const orderedDecorations = computed(() => Object.values(groupedDecorations.value).flat());
+const batchSize = 24;
+const visibleCount = ref(batchSize);
+// 先按完整分类排序，续显只追加卡片，不把新项插到已浏览的位置。
+const visibleDecorations = computed(() => groupAvatarDecorations(orderedDecorations.value.slice(0, visibleCount.value)));
+const rendering = ref(false);
+const active = ref(true);
+const pageActive = inject(DI.pageActive, ref(true));
+let disposed = false;
 
-misskeyApi('get-avatar-decorations').then(_avatarDecorations => {
-	avatarDecorations.value = _avatarDecorations;
-	loading.value = false;
-});
+async function load() {
+	if (loading.value || disposed) return;
+	loading.value = true;
+	loadError.value = false;
+	try {
+		const result = await misskeyApi('get-avatar-decorations');
+		if (disposed) return;
+		avatarDecorations.value = result;
+		visibleCount.value = batchSize;
+	} catch {
+		if (!disposed) loadError.value = true;
+	} finally {
+		if (!disposed) loading.value = false;
+	}
+}
+
+async function revealDecorations() {
+	if (disposed || !active.value || !pageActive.value || rendering.value || loading.value || loadError.value) return;
+	rendering.value = true;
+	visibleCount.value = Math.min(orderedDecorations.value.length, visibleCount.value + batchSize);
+	await nextTick();
+	if (!disposed) rendering.value = false;
+}
+
+void load();
+onActivated(() => { active.value = true; });
+onDeactivated(() => { active.value = false; });
+onBeforeUnmount(() => { disposed = true; active.value = false; });
+
+let dialogOpen = false;
 
 function openAttachedDecoration(index: number) {
 	openDecoration(avatarDecorations.value.find(d => d.id === $i.avatarDecorations[index].id) ?? { id: '', url: '', name: '?', roleIdsThatCanBeUsedThisDecoration: [] }, index);
@@ -82,7 +121,11 @@ async function openDecoration(avatarDecoration: {
 	url: string;
 	name: string;
 	roleIdsThatCanBeUsedThisDecoration: string[];
+	scale?: number;
 }, index?: number) {
+	// 弹窗组件异步加载，遮罩出现前连点会打开多个。
+	if (dialogOpen) return;
+	dialogOpen = true;
 	const originalDecorations = JSON.stringify($i.avatarDecorations);
 
 	function canEditAttachedDecoration(): boolean {
@@ -109,7 +152,7 @@ async function openDecoration(avatarDecoration: {
 				const user = await os.apiWithDialog('i/update', {
 					avatarDecorations: [decoration],
 				});
-				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
+				updateCurrentAccount({ avatarDecorations: user.avatarDecorations });
 				return true;
 			}, complete);
 		},
@@ -129,7 +172,7 @@ async function openDecoration(avatarDecoration: {
 				const user = await os.apiWithDialog('i/update', {
 					avatarDecorations: update,
 				});
-				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
+				updateCurrentAccount({ avatarDecorations: user.avatarDecorations });
 				return true;
 			}, complete);
 		},
@@ -141,22 +184,28 @@ async function openDecoration(avatarDecoration: {
 				const user = await os.apiWithDialog('i/update', {
 					avatarDecorations: update,
 				});
-				updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
+				updateCurrentAccount({ avatarDecorations: user.avatarDecorations });
 				return true;
 			}, complete);
 		},
-		closed: () => dispose(),
+		closed: () => {
+			dispose();
+			dialogOpen = false;
+		},
 	});
 }
 
 async function saveDecoration(save: () => Promise<boolean>, complete?: (saved: boolean) => void) {
+	let result: boolean;
 	try {
-		const result = await enqueueProfileSave(save);
-		complete?.(result);
+		result = await enqueueProfileSave(save);
 	} catch {
 		// apiWithDialog 已显示错误，保留编辑内容供重试。
 		complete?.(false);
+		return;
 	}
+	complete?.(result);
+	if (result) os.toast(i18n.ts.saved, 'success');
 }
 
 function detachAllDecorations() {
@@ -169,14 +218,12 @@ function detachAllDecorations() {
 			const user = await os.apiWithDialog('i/update', {
 				avatarDecorations: [],
 			});
-			updateCurrentAccountPartial({ avatarDecorations: user.avatarDecorations });
-		});
+			updateCurrentAccount({ avatarDecorations: user.avatarDecorations });
+		}).then(() => {
+			os.toast(i18n.ts.removed, 'success');
+		}, () => {}); // 失败提示由 apiWithDialog 处理
 	});
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.avatarDecorations,
@@ -185,6 +232,8 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.sentinel { height: 1px; }
+
 .avatar {
 	display: inline-block;
 	width: 72px;

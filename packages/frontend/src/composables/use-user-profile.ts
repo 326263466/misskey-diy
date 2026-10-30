@@ -50,7 +50,7 @@ export function publishUserProfileUpdate(userId: string, accountData: Partial<Mi
 	if (patch.verifiedLinks) patch.verifiedLinks = [...patch.verifiedLinks];
 	if (patch.emojis) patch.emojis = { ...patch.emojis };
 	if (patch.avatarDecorations) {
-		patch.avatarDecorations = patch.avatarDecorations.map(({ id, url, angle, flipH, offsetX, offsetY }) => ({ id, url, angle, flipH, offsetX, offsetY }));
+		patch.avatarDecorations = patch.avatarDecorations.map(({ id, url, angle, flipH, offsetX, offsetY, scale }) => ({ id, url, angle, flipH, offsetX, offsetY, scale }));
 	}
 	const previous = confirmedProfiles.get(userId);
 	const changed = Object.fromEntries(Object.entries(patch).filter(([field, value]) => (

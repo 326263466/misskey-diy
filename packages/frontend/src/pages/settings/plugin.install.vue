@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { nextTick, ref, computed } from 'vue';
+import { ref } from 'vue';
 import MkCodeEditor from '@/components/MkCodeEditor.vue';
 import MkButton from '@/components/MkButton.vue';
 import FormInfo from '@/components/MkInfo.vue';
@@ -36,7 +36,7 @@ async function install() {
 
 	try {
 		await installPlugin(code.value);
-		os.success();
+		os.toast(i18n.ts.installed, 'success');
 		code.value = null;
 
 		router.push('/settings/plugin');
@@ -48,10 +48,6 @@ async function install() {
 		});
 	}
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts._plugin.install,

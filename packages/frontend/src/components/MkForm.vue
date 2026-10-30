@@ -11,11 +11,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #label><span v-text="v.label || k"></span><span v-if="v.required === false"> ({{ i18n.ts.optional }})</span></template>
 			<template v-if="v.description" #caption>{{ v.description }}</template>
 		</MkInput>
-		<MkInput v-else-if="v.type === 'string' && !v.multiline" v-model="values[k]" type="text" :mfmAutocomplete="v.treatAsMfm" :manualSave="v.manualSave" @savingStateChange="(changed, invalid) => onSavingStateChange(k, changed, invalid)">
+		<MkInput v-else-if="v.type === 'string' && !v.multiline" v-model="values[k]" type="text" :maxLength="v.maxLength" :mfmAutocomplete="v.treatAsMfm" :manualSave="v.manualSave" @savingStateChange="(changed, invalid) => onSavingStateChange(k, changed, invalid)">
 			<template #label><span v-text="v.label || k"></span><span v-if="v.required === false"> ({{ i18n.ts.optional }})</span></template>
 			<template v-if="v.description" #caption>{{ v.description }}</template>
 		</MkInput>
-		<MkTextarea v-else-if="v.type === 'string' && v.multiline" v-model="values[k]" :mfmAutocomplete="v.treatAsMfm" :mfmPreview="v.treatAsMfm" :manualSave="v.manualSave" @savingStateChange="(changed, invalid) => onSavingStateChange(k, changed, invalid)">
+		<MkTextarea v-else-if="v.type === 'string' && v.multiline" v-model="values[k]" :counterMaxLength="v.maxLength" :mfmAutocomplete="v.treatAsMfm" :mfmPreview="v.treatAsMfm" :manualSave="v.manualSave" @savingStateChange="(changed, invalid) => onSavingStateChange(k, changed, invalid)">
 			<template #label><span v-text="v.label || k"></span><span v-if="v.required === false"> ({{ i18n.ts.optional }})</span></template>
 			<template v-if="v.description" #caption>{{ v.description }}</template>
 		</MkTextarea>

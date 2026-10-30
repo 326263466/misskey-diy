@@ -260,6 +260,12 @@ export class FileServerProxyHandler {
 	}
 
 	private async getStreamAndTypeFromUrl(url: string): Promise<ProxySource> {
+		// 头像等字段本身就是本站代理地址；再经代理取图会被防循环检查拒绝，直接取其中的原图。
+		if (url.startsWith(`${this.config.url}/proxy/`)) {
+			const inner = new URL(url).searchParams.get('url');
+			if (inner && !inner.startsWith(`${this.config.url}/proxy/`)) return await this.getStreamAndTypeFromUrl(inner);
+		}
+
 		if (url.startsWith(`${this.config.url}/files/`)) {
 			const key = url.replace(`${this.config.url}/files/`, '').split('/').shift();
 			if (!key) throw new StatusError('Invalid File Key', 400, 'Invalid File Key');

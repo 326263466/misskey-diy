@@ -26,6 +26,8 @@ export interface StringFormItem extends FormItemBase {
 	multiline?: boolean;
 	treatAsMfm?: boolean;
 	manualSave?: boolean;
+	/** 单行直接限制长度；多行显示计数，超出时禁用确定。 */
+	maxLength?: number;
 }
 
 export interface NumberFormItem extends FormItemBase {

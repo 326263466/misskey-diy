@@ -25,6 +25,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkSelect v-model="joinPolicy" :items="joinPolicyItems" :disabled="saving || createdRoom != null">
 			<template #label>{{ i18n.ts._chat.joinPolicy }}</template>
 		</MkSelect>
+		<MkTextarea v-if="joinPolicy === 'approval'" v-model="joinQuestion" :rows="2" :counterMaxLength="200" :disabled="saving || createdRoom != null">
+			<template #label>{{ i18n.ts._chat.joinQuestion }}</template>
+			<template #caption>{{ i18n.ts._chat.joinQuestionDescription }}</template>
+		</MkTextarea>
 		<div :class="$style.actions">
 			<MkButton :disabled="saving" @click="close">{{ i18n.ts.cancel }}</MkButton>
 			<MkButton type="submit" primary :disabled="!canCreate">{{ createdRoom ? i18n.ts.retry : i18n.ts.create }}</MkButton>
@@ -66,8 +70,9 @@ const defaultName = computed(() => Array.from(i18n.tsx._chat.defaultRoomName({ n
 const name = ref('');
 const description = ref('');
 const joinPolicy = ref<Misskey.entities.ChatRoom['joinPolicy']>('public');
+const joinQuestion = ref('');
 const saving = ref(false);
-const canCreate = computed(() => Array.from(name.value).length <= CONTENT_LIMITS.chatRoomName && Array.from(description.value).length <= CONTENT_LIMITS.chatRoomDescription && !saving.value && !selectingAvatar.value);
+const canCreate = computed(() => Array.from(name.value).length <= CONTENT_LIMITS.chatRoomName && Array.from(description.value).length <= CONTENT_LIMITS.chatRoomDescription && (joinPolicy.value !== 'approval' || Array.from(joinQuestion.value.trim()).length <= 200) && !saving.value && !selectingAvatar.value);
 const joinPolicyItems = computed(() => [
 	{ value: 'public' as const, label: i18n.ts._chat.joinPolicyPublic },
 	{ value: 'approval' as const, label: i18n.ts._chat.joinPolicyApproval },
@@ -85,7 +90,7 @@ async function selectAvatar() {
 	if (saving.value || selectingAvatar.value) return;
 	selectingAvatar.value = true;
 	try {
-		const [file] = await chooseDriveFile({ multiple: false });
+		const [file] = await chooseDriveFile({ multiple: false, resolveOnCancel: true });
 		if (disposed || !file) return;
 		if (!file.type.startsWith('image/')) {
 			os.toast(i18n.ts._chat.avatarImageOnly, 'error');
@@ -94,7 +99,7 @@ async function selectAvatar() {
 		avatarId.value = file.id;
 		avatarUrl.value = file.url;
 	} catch {
-		// 取消文件选择时保留已有头像。
+		// 文件选择失败时保留已有头像。
 	} finally {
 		selectingAvatar.value = false;
 	}
@@ -113,6 +118,7 @@ async function create() {
 			name: name.value.trim() || defaultName.value,
 			description: description.value,
 			joinPolicy: joinPolicy.value,
+			joinQuestion: joinPolicy.value === 'approval' ? joinQuestion.value.trim() : undefined,
 			avatarId: avatarId.value,
 		});
 		createdRoom.value = room;

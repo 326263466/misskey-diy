@@ -4,10 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" :class="$style.root" role="group" :aria-expanded="opened">
+<div ref="rootEl" :class="[$style.root, { [$style.plainCanvas]: plainCanvas }]" role="group" :aria-expanded="opened">
 	<MkStickyContainer>
 		<template #header>
-			<button :class="[$style.header, { [$style.opened]: opened }]" class="_button" role="button" data-testid="folder-header" @click="toggle">
+			<button :class="[$style.header, { [$style.opened]: opened }]" class="_button" role="button" data-testid="folder-header" data-target-highlight-surface @click="toggle">
 				<div :class="$style.headerIcon"><slot name="icon"></slot></div>
 				<div :class="$style.headerText">
 					<div :class="$style.headerTextMain">
@@ -94,7 +94,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, inject, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { prefer } from '@/preferences.js';
 import { pageFolderTeleportCount, popup } from '@/os.js';
 import MkFolderPage from '@/components/MkFolderPage.vue';
@@ -122,6 +122,7 @@ const emit = defineEmits<{
 }>();
 
 const rootEl = useTemplateRef('rootEl');
+const plainCanvas = inject('pagePlainCanvas', false);
 const bgSame = ref(false);
 const asPage = props.canPage && deviceKind === 'smartphone' && prefer.s['experimental.enableFolderPageView'];
 const spacerStyle = computed(() => ({
@@ -151,14 +152,17 @@ async function toggle(ev: PointerEvent) {
 		openedAtLeastOnce.value = true;
 	}
 
-	nextTick(() => {
-		opened.value = !opened.value;
-	});
+	opened.value = !opened.value;
 }
 
 onMounted(() => {
-	const parentBg = getBgColor(rootEl.value?.parentElement) ?? 'transparent';
-	bgSame.value = parentBg === themeManager.currentCompiledTheme!.panel;
+	const el = rootEl.value;
+	if (el == null) return;
+	const parentBg = getBgColor(el.parentElement) ?? 'transparent';
+	// 首屏可能只恢复了主题 CSS，ThemeManager 仍未完成初始化。
+	const panel = themeManager.currentCompiledTheme?.panel
+		?? window.getComputedStyle(el).getPropertyValue('--MI_THEME-panel').trim();
+	bgSame.value = panel !== '' && parentBg === panel;
 });
 
 watch(opened, (isOpened) => {
@@ -171,6 +175,8 @@ watch(opened, (isOpened) => {
 </script>
 
 <style lang="scss" module>
+@use '@/styles/card-header.scss';
+
 .transition_toggle_enterActive,
 .transition_toggle_leaveActive {
 	// 创建滚动容器会改变内部 sticky 头部的定位基准
@@ -191,11 +197,12 @@ watch(opened, (isOpened) => {
 }
 
 .header {
+	@include card-header.row;
 	display: flex;
 	align-items: center;
 	width: 100%;
 	box-sizing: border-box;
-	padding: 12px var(--MI-cardPadding);
+	padding-inline: var(--MI-cardPadding);
 	background: var(--MI_THEME-folderHeaderBg);
 	-webkit-backdrop-filter: var(--MI-blur, blur(15px));
 	backdrop-filter: var(--MI-blur, blur(15px));
@@ -237,6 +244,8 @@ watch(opened, (isOpened) => {
 }
 
 .headerIcon {
+	display: flex;
+	align-items: center;
 	margin-right: 0.75em;
 	flex-shrink: 0;
 	text-align: center;
@@ -270,6 +279,8 @@ watch(opened, (isOpened) => {
 }
 
 .headerRight {
+	display: flex;
+	align-items: center;
 	margin-left: auto;
 	color: var(--MI_THEME-fgTransparentWeak);
 	white-space: nowrap;
@@ -325,5 +336,48 @@ watch(opened, (isOpened) => {
 	background-size: auto auto;
 	background-image: repeating-linear-gradient(135deg, transparent, transparent 5px, var(--MI_THEME-panel) 5px, var(--MI_THEME-panel) 10px);
 	border-radius: 0 0 var(--MI-formGroupRadius, var(--MI-cardRadius)) var(--MI-formGroupRadius, var(--MI-cardRadius));
+}
+
+.plainCanvas {
+	--MI-formGroupRadius: var(--MI-cardRadius);
+	font-size: 1em;
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-cardRadius);
+	overflow: clip;
+
+	.header {
+		padding-inline: var(--MI-cardPadding);
+		background: var(--MI_THEME-panel);
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+
+		&:focus-visible {
+			outline-offset: -2px;
+		}
+
+		&:hover {
+			background: var(--MI_THEME-buttonHoverBg);
+		}
+	}
+
+	.body,
+	.body.bgSame {
+		background: transparent;
+		border-radius: 0;
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+	}
+
+	.inBodyHeader,
+	.inBodyFooter {
+		background: var(--MI_THEME-panel);
+		border-radius: 0;
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+	}
+
+	.inBodyFooter {
+		border-top: var(--MI-divider);
+	}
 }
 </style>

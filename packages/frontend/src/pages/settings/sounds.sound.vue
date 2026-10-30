@@ -73,7 +73,7 @@ if (type.value === '_driveFile_' && fileId.value) {
 		fileId: fileId.value,
 	}).then((res) => {
 		fileName.value = res.name;
-	}).catch((res) => {
+	}).catch(() => {
 		driveFileError.value = true;
 	});
 }
@@ -134,7 +134,7 @@ function selectSound(ev: PointerEvent) {
 	});
 }
 
-watch([type, volume], ([typeTo, volumeTo], [typeFrom, volumeFrom]) => {
+watch([type, volume], ([typeTo], [typeFrom]) => {
 	if (typeFrom !== typeTo && typeTo !== '_driveFile_') {
 		fileUrl.value = undefined;
 		fileName.value = '';
@@ -190,7 +190,7 @@ function save() {
 		volume: volume.value,
 	});
 
-	os.success();
+	os.toast(i18n.ts.saved, 'success');
 }
 </script>
 

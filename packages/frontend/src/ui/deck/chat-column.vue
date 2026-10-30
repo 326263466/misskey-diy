@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <XColumn :column="column" :isStacked="isStacked">
-	<template #header><i class="ti ti-message-circle" style="margin-right: 8px;"></i><Mfm :text="column.name || i18n.ts.chat" :plain="true" :nowrap="true"/></template>
+	<template #header><i :class="navigationIcons.chat" style="margin-right: 8px;" aria-hidden="true"></i><Mfm :text="column.name || i18n.ts.chat" :plain="true" :nowrap="true"/></template>
 
 	<div style="padding: 8px;" class="_gaps">
 		<MkInfo v-if="$i.policies.chatAvailability === 'readonly'">{{ i18n.ts._chat.chatIsReadOnlyForThisAccountOrServer }}</MkInfo>
@@ -17,6 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ensureSignin } from '@/i.js';
+import { navigationIcons } from '@/navigation-icons.js';
 import { i18n } from '../../i18n.js';
 import XColumn from './column.vue';
 import type { Column } from '@/deck.js';

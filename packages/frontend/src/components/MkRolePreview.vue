@@ -71,16 +71,18 @@ const preload = useImagePreload(iconRoot, () => false);
 
 .bodyTitle {
 	display: flex;
+	align-items: center;
 }
 
 .bodyIcon {
+	display: flex;
+	align-items: center;
 	margin-right: 8px;
 	min-width: 1.3em;
 }
 
 .bodyBadge {
 	height: 1.3em;
-	vertical-align: -0.275em;
 }
 
 .bodyName {

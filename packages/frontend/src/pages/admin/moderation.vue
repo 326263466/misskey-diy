@@ -6,10 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader contentCard :tabs="headerTabs">
 	<div class="_pageBody">
-		<SearchMarker path="/admin/moderation" :label="i18n.ts.moderation" :keywords="['moderation']" icon="ti ti-shield" :inlining="['serverRules']">
+		<SearchMarker path="/admin/moderation" :label="i18n.ts.moderationSettings" :keywords="['moderation']" icon="ti ti-shield" :inlining="['serverRules']">
 			<div class="_gaps_m">
 				<SearchMarker :keywords="['open', 'registration']">
-					<MkSwitch :modelValue="enableRegistration" @update:modelValue="onChange_enableRegistration">
+					<MkSwitch :modelValue="enableRegistration" :disabled="registrationSaving" @update:modelValue="onChange_enableRegistration">
 						<template #label><SearchLabel>{{ i18n.ts._serverSettings.openRegistration }}</SearchLabel></template>
 						<template #caption>
 							<div><SearchText>{{ i18n.ts._serverSettings.thisSettingWillAutomaticallyOffWhenModeratorsInactive }}</SearchText></div>
@@ -162,10 +162,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
-import * as Misskey from 'misskey-js';
 import XServerRules from './server-rules.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
-import MkInput from '@/components/MkInput.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -174,13 +172,13 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 import MkButton from '@/components/MkButton.vue';
-import FormLink from '@/components/form/link.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import MkSelect from '@/components/MkSelect.vue';
 
 const meta = await misskeyApi('admin/meta');
 
 const enableRegistration = ref(!meta.disableRegistration);
+const registrationSaving = ref(false);
 const emailRequiredForSignup = ref(meta.emailRequiredForSignup);
 const {
 	model: ugcVisibilityForVisitor,
@@ -204,42 +202,67 @@ const silencedHosts = ref(meta.silencedHosts?.join('\n') ?? '');
 const mediaSilencedHosts = ref(meta.mediaSilencedHosts.join('\n'));
 
 async function onChange_enableRegistration(value: boolean) {
+	if (registrationSaving.value || value === enableRegistration.value) return;
+	// 同源码：开启注册前先确认说明。
 	if (value) {
 		const { canceled } = await os.confirm({
 			type: 'warning',
 			text: i18n.ts.acknowledgeNotesAndEnable,
 		});
-		if (canceled) return;
+		if (canceled || registrationSaving.value) return;
 	}
-
+	const previousValue = enableRegistration.value;
+	registrationSaving.value = true;
 	enableRegistration.value = value;
+	let saved = false;
 
-	os.apiWithDialog('admin/update-meta', {
-		disableRegistration: !value,
-	}).then(() => {
-		fetchInstance(true);
-	});
+	try {
+		await os.apiWithDialog('admin/update-meta', {
+			disableRegistration: !value,
+		}, undefined, undefined, { toastOnInternalError: true });
+		saved = true;
+		const updatedMeta = await fetchInstance(true);
+		enableRegistration.value = !updatedMeta.disableRegistration;
+	} catch {
+		// 保存失败由公共流程提示；刷新失败不反转已保存的新值。
+		if (!saved) enableRegistration.value = previousValue;
+	} finally {
+		registrationSaving.value = false;
+	}
 }
 
 function onChange_emailRequiredForSignup(value: boolean) {
+	// 成功不提示；失败原因由公共流程提示，并还原开关。
 	os.apiWithDialog('admin/update-meta', {
 		emailRequiredForSignup: value,
-	}).then(() => {
+	}, undefined, undefined, { toastOnInternalError: true }).then(() => {
 		fetchInstance(true);
+	}, () => {
+		emailRequiredForSignup.value = !value;
 	});
 }
 
 async function onChange_openGuestAccess(value: boolean) {
-	await os.apiWithDialog('admin/update-meta', { clientOptions: { openGuestAccess: value } });
-	openGuestAccess.value = value;
-	await fetchInstance(true);
+	try {
+		await os.apiWithDialog('admin/update-meta', { clientOptions: { openGuestAccess: value } }, undefined, undefined, { toastOnInternalError: true });
+		openGuestAccess.value = value;
+		await fetchInstance(true);
+	} catch {
+		// 保存失败时值尚未更新；公共流程已提示原因。
+	}
 }
 
+let savedUgcVisibilityForVisitor = ugcVisibilityForVisitor.value;
+
 function onChange_ugcVisibilityForVisitor(value: typeof ugcVisibilityForVisitor.value) {
+	// 选择成功不提示；失败提示由 apiWithDialog 处理，并还原选择
 	os.apiWithDialog('admin/update-meta', {
 		ugcVisibilityForVisitor: value,
 	}).then(() => {
+		savedUgcVisibilityForVisitor = value;
 		fetchInstance(true);
+	}, () => {
+		ugcVisibilityForVisitor.value = savedUgcVisibilityForVisitor;
 	});
 }
 
@@ -248,7 +271,8 @@ function save_preservedUsernames() {
 		preservedUsernames: preservedUsernames.value.split('\n'),
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function save_sensitiveWords() {
@@ -256,7 +280,8 @@ function save_sensitiveWords() {
 		sensitiveWords: sensitiveWords.value.split('\n'),
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function save_prohibitedWords() {
@@ -264,7 +289,8 @@ function save_prohibitedWords() {
 		prohibitedWords: prohibitedWords.value.split('\n'),
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function save_prohibitedWordsForNameOfUser() {
@@ -272,7 +298,8 @@ function save_prohibitedWordsForNameOfUser() {
 		prohibitedWordsForNameOfUser: prohibitedWordsForNameOfUser.value.split('\n'),
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function save_hiddenTags() {
@@ -280,7 +307,8 @@ function save_hiddenTags() {
 		hiddenTags: hiddenTags.value.split('\n'),
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function save_blockedHosts() {
@@ -288,7 +316,8 @@ function save_blockedHosts() {
 		blockedHosts: blockedHosts.value.split('\n') || [],
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function save_silencedHosts() {
@@ -296,7 +325,8 @@ function save_silencedHosts() {
 		silencedHosts: silencedHosts.value.split('\n') || [],
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 function save_mediaSilencedHosts() {
@@ -304,13 +334,14 @@ function save_mediaSilencedHosts() {
 		mediaSilencedHosts: mediaSilencedHosts.value.split('\n') || [],
 	}).then(() => {
 		fetchInstance(true);
-	});
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {}); // 失败提示由 apiWithDialog 处理
 }
 
 const headerTabs = computed(() => []);
 
 definePage(() => ({
-	title: i18n.ts.moderation,
+	title: i18n.ts.moderationSettings,
 	icon: 'ti ti-shield',
 }));
 </script>

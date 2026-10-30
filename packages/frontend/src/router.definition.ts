@@ -21,13 +21,19 @@ function chatPage(...args: Parameters<typeof page>) {
 
 const chatRoomPage = chatPage(() => import('@/pages/chat/room.vue'));
 
+// 旧注册表地址转到设置页内；路由取参时已解码，需逐段重新编码。
+function registryPath(kind: 'keys' | 'value', props: Map<string, string | boolean>) {
+	const encode = (segment: string) => encodeURIComponent(segment).replace(/%40/g, '@').replace(/%3A/gi, ':');
+	const path = String(props.get('path') ?? '').split('/').filter(Boolean).map(encode).join('/');
+	return `/settings/registry/${kind}/${encode(String(props.get('domain')))}${path ? `/${path}` : ''}`;
+}
+
 export const ROUTE_DEF = [{
 	// 个人中心：外层保留左侧菜单，只切换右侧页面。
 	name: 'my',
 	path: '/my',
 	component: page(() => import('@/pages/my/index.vue')),
 	loginRequired: true,
-	reuseOnPropsChange: [],
 	children: [{
 		path: '/wallet/transactions', name: 'transactions', component: page(() => import('@/pages/user/wallet.transactions.vue')),
 	}, {
@@ -79,7 +85,9 @@ export const ROUTE_DEF = [{
 	}, {
 		path: '/achievements', name: 'achievements', component: page(() => import('@/pages/achievements.vue')),
 	}, {
-		path: '/', component: page(() => import('@/pages/_empty_.vue')),
+		path: '/menu', component: page(() => import('@/pages/_empty_.vue')),
+	}, {
+		path: '/', name: 'home', component: page(() => import('@/pages/my/home.vue')),
 	}],
 }, {
 	// 以下旧地址已并入个人中心，保留跳转以兼容收藏和已分享的链接。
@@ -122,10 +130,6 @@ export const ROUTE_DEF = [{
 }, {
 	path: '/wallet/transfers',
 	redirect: '/my/wallet/transfers',
-	loginRequired: true,
-}, {
-	path: '/wallet/benefits',
-	redirect: '/my/benefits',
 	loginRequired: true,
 }, {
 	path: '/wallet',
@@ -183,9 +187,12 @@ export const ROUTE_DEF = [{
 	path: '/articles/:articleId',
 	component: page(() => import('@/pages/articles/article.vue')),
 }, {
+	path: '/compose',
+	component: page(() => import('@/pages/compose.vue')),
+	loginRequired: true,
+}, {
 	path: '/timeline',
 	component: page(() => import('@/pages/timeline/index.vue')),
-	reuseOnPropsChange: [],
 	children: [{
 		path: '/:initialTab?',
 		component: PageTimeline,
@@ -218,9 +225,10 @@ export const ROUTE_DEF = [{
 		reuseOnPropsChange: ['page'],
 	}],
 }, {
-	// 帖子不再有单独页面；分享、通知和外部链接仍使用该地址，打开后转到作者主页。
+	// 帖子卡片不跳转到这里，只有复制或分享的链接会打开详情页。
+	name: 'note',
 	path: '/notes/:noteId',
-	component: page(() => import('@/pages/note-redirect.vue')),
+	component: page(() => import('@/pages/note.vue')),
 }, {
 	name: 'list',
 	path: '/list/:listId',
@@ -261,6 +269,14 @@ export const ROUTE_DEF = [{
 		path: '/user/:userId',
 		name: 'chat-user',
 		component: chatRoomPage,
+	}, {
+		path: '/room/:roomId/members',
+		name: 'chat-room-members',
+		component: chatPage(() => import('@/pages/chat/room.members-page.vue')),
+	}, {
+		path: '/room/:roomId/announcement',
+		name: 'chat-room-announcement',
+		component: chatPage(() => import('@/pages/chat/room.announcement-page.vue')),
 	}, {
 		path: '/room/:roomId',
 		name: 'chat-room',
@@ -327,6 +343,10 @@ export const ROUTE_DEF = [{
 		name: 'theme',
 		component: page(() => import('@/pages/settings/theme.manage.vue')),
 	}, {
+		path: '/theme/editor',
+		name: 'theme',
+		component: page(() => import('@/pages/settings/theme.editor.vue')),
+	}, {
 		path: '/theme',
 		name: 'theme',
 		component: page(() => import('@/pages/settings/theme.vue')),
@@ -391,6 +411,18 @@ export const ROUTE_DEF = [{
 		name: 'accounts',
 		component: page(() => import('@/pages/settings/accounts.vue')),
 	}, {
+		path: '/registry/keys/:domain/:path(*)?',
+		name: 'other',
+		component: page(() => import('@/pages/registry.keys.vue')),
+	}, {
+		path: '/registry/value/:domain/:path(*)?',
+		name: 'other',
+		component: page(() => import('@/pages/registry.value.vue')),
+	}, {
+		path: '/registry',
+		name: 'other',
+		component: page(() => import('@/pages/registry.vue')),
+	}, {
 		path: '/other',
 		name: 'other',
 		component: page(() => import('@/pages/settings/other.vue')),
@@ -434,11 +466,12 @@ export const ROUTE_DEF = [{
 }, {
 	path: '/ads',
 	component: page(() => import('@/pages/ads.vue')),
-}, {
-	path: '/theme-editor',
-	component: page(() => import('@/pages/theme-editor.vue')),
-	loginRequired: true,
-}, {
+	}, {
+		// 旧地址，主题编辑器已并入设置页，保留跳转以兼容收藏和已分享的链接。
+		path: '/theme-editor',
+		redirect: '/settings/theme/editor',
+		loginRequired: true,
+	}, {
 	path: '/roles/:roleId',
 	component: page(() => import('@/pages/role.vue')),
 }, {
@@ -447,7 +480,6 @@ export const ROUTE_DEF = [{
 }, {
 	path: '/explore',
 	component: page(() => import('@/pages/explore/index.vue')),
-	reuseOnPropsChange: [],
 	children: [{
 		path: '/:initialTab?',
 		component: page(() => import('@/pages/explore.vue')),
@@ -521,8 +553,22 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/page-editor/page-editor.vue')),
 	loginRequired: true,
 }, {
+	// 左侧菜单项各有独立子路由，外框不随子页面重建
 	path: '/pages',
-	component: page(() => import('@/pages/pages.vue')),
+	component: page(() => import('@/pages/pages-layout.vue')),
+	children: [{
+		path: '/my',
+		name: 'my',
+		component: page(() => import('@/pages/pages.vue')),
+	}, {
+		path: '/liked',
+		name: 'liked',
+		component: page(() => import('@/pages/pages.vue')),
+	}, {
+		path: '/',
+		name: 'featured',
+		component: page(() => import('@/pages/pages.vue')),
+	}],
 }, {
 	path: '/play/:id/edit',
 	component: page(() => import('@/pages/flash/flash-edit.vue')),
@@ -532,11 +578,31 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/flash/flash-edit.vue')),
 	loginRequired: true,
 }, {
+	// 子路径写死并排在 /play/:id 前面，其余路径仍按作品 ID 解析
+	path: '/play',
+	component: page(() => import('@/pages/flash/flash-layout.vue')),
+	children: [{
+		path: '/search',
+		name: 'search',
+		component: page(() => import('@/pages/flash/flash-index.vue')),
+		query: { q: 'query' },
+	}, {
+		path: '/my',
+		name: 'my',
+		component: page(() => import('@/pages/flash/flash-index.vue')),
+	}, {
+		path: '/liked',
+		name: 'liked',
+		component: page(() => import('@/pages/flash/flash-index.vue')),
+	}, {
+		path: '/',
+		name: 'featured',
+		component: page(() => import('@/pages/flash/flash-index.vue')),
+	}],
+}, {
 	path: '/play/:id',
 	component: page(() => import('@/pages/flash/flash.vue')),
-}, {
-	path: '/play',
-	component: page(() => import('@/pages/flash/flash-index.vue')),
+	reuseOnPropsChange: ['id'],
 }, {
 	path: '/gallery/:postId/edit',
 	component: page(() => import('@/pages/gallery/edit.vue')),
@@ -546,11 +612,25 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/gallery/edit.vue')),
 	loginRequired: true,
 }, {
+	// 同 /play，子路径排在 /gallery/:postId 前面
+	path: '/gallery',
+	component: page(() => import('@/pages/gallery/layout.vue')),
+	children: [{
+		path: '/liked',
+		name: 'liked',
+		component: page(() => import('@/pages/gallery/index.vue')),
+	}, {
+		path: '/my',
+		name: 'my',
+		component: page(() => import('@/pages/gallery/index.vue')),
+	}, {
+		path: '/',
+		name: 'explore',
+		component: page(() => import('@/pages/gallery/index.vue')),
+	}],
+}, {
 	path: '/gallery/:postId',
 	component: page(() => import('@/pages/gallery/post.vue')),
-}, {
-	path: '/gallery',
-	component: page(() => import('@/pages/gallery/index.vue')),
 }, {
 	path: '/channels/:channelId/edit',
 	component: page(() => import('@/pages/channel-editor.vue')),
@@ -566,11 +646,11 @@ export const ROUTE_DEF = [{
 	// 子路径写死，避免与 /channels/:channelId 冲突；结构同设置页，外框不随子页面重建
 	path: '/channels',
 	component: page(() => import('@/pages/channels/index.vue')),
-	reuseOnPropsChange: [],
 	children: [{
 		path: '/search',
 		name: 'search',
 		component: page(() => import('@/pages/channels/search.vue')),
+		query: { q: 'query', type: 'type' },
 	}, {
 		path: '/favorites',
 		name: 'favorites',
@@ -600,13 +680,13 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/avatar-decorations.vue')),
 }, {
 	path: '/registry/keys/:domain/:path(*)?',
-	component: page(() => import('@/pages/registry.keys.vue')),
+	redirect: props => registryPath('keys', props),
 }, {
 	path: '/registry/value/:domain/:path(*)?',
-	component: page(() => import('@/pages/registry.value.vue')),
+	redirect: props => registryPath('value', props),
 }, {
 	path: '/registry',
-	component: page(() => import('@/pages/registry.vue')),
+	redirect: '/settings/registry',
 }, {
 	path: '/install-extentions',
 	redirect: '/install-extensions',
@@ -616,14 +696,9 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/install-extensions.vue')),
 	loginRequired: true,
 }, {
-	path: '/admin/user/:userId',
-	component: iAmModerator ? page(() => import('@/pages/admin-user.vue')) : page(() => import('@/pages/not-found.vue')),
-}, {
-	path: '/admin/file/:fileId',
-	component: iAmModerator ? page(() => import('@/pages/admin-file.vue')) : page(() => import('@/pages/not-found.vue')),
-}, {
 	path: '/admin',
 	component: iAmModerator ? page(() => import('@/pages/admin/index.vue')) : page(() => import('@/pages/not-found.vue')),
+	notFound: !iAmModerator,
 	children: [{
 		path: '/overview',
 		name: 'overview',
@@ -633,16 +708,23 @@ export const ROUTE_DEF = [{
 		name: 'users',
 		component: page(() => import('@/pages/admin/users.vue')),
 	}, {
-		path: '/checkin',
-		redirect: '/admin/benefits',
+		path: '/user/:userId',
+		name: 'users',
+		component: page(() => import('@/pages/admin-user.vue')),
+	}, {
+		path: '/file/:fileId',
+		name: 'files',
+		component: page(() => import('@/pages/admin-file.vue')),
 	}, {
 		path: '/wallet',
 		name: 'wallet',
 		component: iAmAdmin ? page(() => import('@/pages/admin/wallet.vue')) : page(() => import('@/pages/not-found.vue')),
+		notFound: !iAmAdmin,
 	}, {
 		path: '/benefits',
 		name: 'benefits',
-		component: iAmAdmin ? page(() => import('@/pages/admin/benefits.vue')) : page(() => import('@/pages/not-found.vue')),
+		component: iAmAdmin ? page(() => import('@/pages/admin/redemption-codes.vue')) : page(() => import('@/pages/not-found.vue')),
+		notFound: !iAmAdmin,
 	}, {
 		path: '/emojis',
 		name: 'emojis',
@@ -716,6 +798,10 @@ export const ROUTE_DEF = [{
 		name: 'article-categories',
 		component: page(() => import('@/pages/admin/article-categories.vue')),
 	}, {
+		path: '/article-tags',
+		name: 'article-tags',
+		component: page(() => import('@/pages/admin/article-tags.vue')),
+	}, {
 		path: '/payments',
 		name: 'payments',
 		component: page(() => import('@/pages/admin/payments.vue')),
@@ -766,13 +852,17 @@ export const ROUTE_DEF = [{
 	}, {
 		path: '/',
 		component: page(() => import('@/pages/_empty_.vue')),
+	}, {
+		path: '/:(*)',
+		name: 'adminNotFound',
+		component: page(() => import('@/pages/admin/not-found.vue')),
+		notFound: true,
 	}],
 }, {
 	path: '/my/notifications',
 	name: 'notifications',
 	component: page(() => import('@/pages/notifications/index.vue')),
 	loginRequired: true,
-	reuseOnPropsChange: [],
 	// 具体路径必须排在 /:initialTab? 前面，否则会被当作通知分类。
 	children: [{
 		path: '/follow-requests',
@@ -833,4 +923,5 @@ export const ROUTE_DEF = [{
 }, {
 	path: '/:(*)',
 	component: page(() => import('@/pages/not-found.vue')),
+	notFound: true,
 }] as const satisfies RouteDef[];

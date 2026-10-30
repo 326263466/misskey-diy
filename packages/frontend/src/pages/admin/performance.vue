@@ -53,7 +53,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<SearchMarker>
 					<MkFolder :defaultOpen="true">
 						<template #icon><SearchIcon><i class="ti ti-bolt"></i></SearchIcon></template>
-						<template #label><SearchLabel>Misskey® Fan-out Timeline Technology™ (FTT)</SearchLabel></template>
+						<template #label><SearchLabel>Fan-out Timeline Technology (FTT)</SearchLabel></template>
 						<template v-if="fttForm.savedState.enableFanoutTimeline" #suffix>{{ i18n.ts.enabled }}</template>
 						<template v-else #suffix>{{ i18n.ts.disabled }}</template>
 						<template v-if="fttForm.modified.value" #footer>
@@ -187,51 +187,64 @@ const enableStatsForFederatedInstances = ref(meta.enableStatsForFederatedInstanc
 const enableChartsForFederatedInstances = ref(meta.enableChartsForFederatedInstances);
 const showRoleBadgesOfRemoteUsers = ref(meta.showRoleBadgesOfRemoteUsers);
 
+// 成功不提示；失败原因由公共流程提示，并还原开关。
 function onChange_enableServerMachineStats(value: boolean) {
 	os.apiWithDialog('admin/update-meta', {
 		enableServerMachineStats: value,
-	}).then(() => {
+	}, undefined, undefined, { toastOnInternalError: true }).then(() => {
 		fetchInstance(true);
+	}, () => {
+		enableServerMachineStats.value = !value;
 	});
 }
 
 function onChange_enableIdenticonGeneration(value: boolean) {
 	os.apiWithDialog('admin/update-meta', {
 		enableIdenticonGeneration: value,
-	}).then(() => {
+	}, undefined, undefined, { toastOnInternalError: true }).then(() => {
 		fetchInstance(true);
+	}, () => {
+		enableIdenticonGeneration.value = !value;
 	});
 }
 
 function onChange_enableChartsForRemoteUser(value: boolean) {
 	os.apiWithDialog('admin/update-meta', {
 		enableChartsForRemoteUser: value,
-	}).then(() => {
+	}, undefined, undefined, { toastOnInternalError: true }).then(() => {
 		fetchInstance(true);
+	}, () => {
+		enableChartsForRemoteUser.value = !value;
 	});
 }
 
 function onChange_enableStatsForFederatedInstances(value: boolean) {
 	os.apiWithDialog('admin/update-meta', {
 		enableStatsForFederatedInstances: value,
-	}).then(() => {
+	}, undefined, undefined, { toastOnInternalError: true }).then(() => {
 		fetchInstance(true);
+	}, () => {
+		enableStatsForFederatedInstances.value = !value;
 	});
 }
 
 function onChange_enableChartsForFederatedInstances(value: boolean) {
 	os.apiWithDialog('admin/update-meta', {
 		enableChartsForFederatedInstances: value,
-	}).then(() => {
+	}, undefined, undefined, { toastOnInternalError: true }).then(() => {
 		fetchInstance(true);
+	}, () => {
+		enableChartsForFederatedInstances.value = !value;
 	});
 }
 
 function onChange_showRoleBadgesOfRemoteUsers(value: boolean) {
 	os.apiWithDialog('admin/update-meta', {
 		showRoleBadgesOfRemoteUsers: value,
-	}).then(() => {
+	}, undefined, undefined, { toastOnInternalError: true }).then(() => {
 		fetchInstance(true);
+	}, () => {
+		showRoleBadgesOfRemoteUsers.value = !value;
 	});
 }
 

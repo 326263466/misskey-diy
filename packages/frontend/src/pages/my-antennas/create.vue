@@ -29,6 +29,6 @@ const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.createAntenna,
-	icon: 'ti ti-antenna',
+	icon: 'ti ti-rss',
 }));
 </script>

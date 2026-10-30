@@ -169,7 +169,7 @@ export class NotificationEntityService implements OnModuleInit {
 		}
 
 		const needsChatRoomInvitation = notification.type === 'chatRoomInvitationReceived';
-		const chatRoomInvitation = needsChatRoomInvitation ? await this.chatEntityService.packRoomInvitation(notification.invitationId, { id: meId }).catch(() => null) : undefined;
+		const chatRoomInvitation = needsChatRoomInvitation ? await this.chatEntityService.packRoomInvitation(notification.invitationId, { id: meId }, { onlyPending: true }).catch(() => null) : undefined;
 		// if the invitation has been deleted, don't show this notification
 		if (needsChatRoomInvitation && !chatRoomInvitation) {
 			return null;
@@ -190,6 +190,10 @@ export class NotificationEntityService implements OnModuleInit {
 			} : {}),
 			...(notification.type === 'chatRoomInvitationReceived' ? {
 				invitation: chatRoomInvitation,
+			} : {}),
+			...(notification.type === 'chatRoomMemberRemoved' ? {
+				roomId: notification.roomId,
+				roomName: notification.roomName,
 			} : {}),
 			...(notification.type === 'followRequestAccepted' ? {
 				message: notification.message,
@@ -313,16 +317,16 @@ export class NotificationEntityService implements OnModuleInit {
 	/**
 	 * notifierが存在するか、ミュートされていないか、サスペンドされていないかを確認するvalidator
 	 */
-	#validateNotifier <T extends MiNotification | MiGroupedNotification> (
-		notification: T,
+	#validateNotifier(
+		notifierId: MiUser['id'] | undefined,
 		userIdsWhoMeMuting: Set<MiUser['id']>,
 		userMutedInstances: Set<string>,
 		notifiers: MiUser[],
 	): boolean {
-		if (!('notifierId' in notification)) return true;
-		if (userIdsWhoMeMuting.has(notification.notifierId)) return false;
+		if (notifierId == null) return true;
+		if (userIdsWhoMeMuting.has(notifierId)) return false;
 
-		const notifier = notifiers.find(x => x.id === notification.notifierId) ?? null;
+		const notifier = notifiers.find(x => x.id === notifierId) ?? null;
 
 		if (notifier == null) return false;
 		if (notifier.host && userMutedInstances.has(notifier.host)) return false;
@@ -352,21 +356,37 @@ export class NotificationEntityService implements OnModuleInit {
 		const [
 			userIdsWhoMeMuting,
 			userMutedInstances,
+			blockedUserIds,
 		] = await Promise.all([
 			this.cacheService.userMutingsCache.fetch(meId),
 			this.cacheService.userProfileCache.fetch(meId).then(p => new Set(p.mutedInstances)),
+			this.cacheService.getBlockedUserIds(meId),
 		]);
+		const hiddenUserIds = new Set([...userIdsWhoMeMuting, ...blockedUserIds]);
 
-		const notifierIds = notifications.map(notification => 'notifierId' in notification ? notification.notifierId : null).filter(x => x != null);
+		const notifierIds = [...new Set(notifications.flatMap(notification => {
+			if (notification.type === 'reaction:grouped') return notification.reactions.map(reaction => reaction.userId);
+			if (notification.type === 'renote:grouped') return notification.userIds;
+			return 'notifierId' in notification ? [notification.notifierId] : [];
+		}))];
 		const notifiers = notifierIds.length > 0 ? await this.usersRepository.find({
 			where: { id: In(notifierIds) },
 		}) : [];
 
-		const filteredNotifications = ((await Promise.all(notifications.map(async (notification) => {
-			const isValid = this.#validateNotifier(notification, userIdsWhoMeMuting, userMutedInstances, notifiers);
-			return isValid ? notification : null;
-		}))) as [T | null] ).filter(x => x != null);
-
-		return filteredNotifications;
+		const visible = (userId: string | undefined) => this.#validateNotifier(userId, hiddenUserIds, userMutedInstances, notifiers);
+		return notifications.flatMap(notification => {
+			if (notification.type === 'chatRoomMemberRemoved') {
+				return notifiers.some(notifier => notifier.id === notification.notifierId) ? [notification] : [];
+			}
+			if (notification.type === 'reaction:grouped') {
+				const reactions = notification.reactions.filter(reaction => visible(reaction.userId));
+				return reactions.length > 0 ? [{ ...notification, reactions }] : [];
+			}
+			if (notification.type === 'renote:grouped') {
+				const userIds = notification.userIds.filter(visible);
+				return userIds.length > 0 ? [{ ...notification, userIds }] : [];
+			}
+			return visible('notifierId' in notification ? notification.notifierId : undefined) ? [notification] : [];
+		});
 	}
 }

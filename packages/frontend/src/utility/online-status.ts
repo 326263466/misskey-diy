@@ -6,7 +6,7 @@
 import { computed, defineAsyncComponent } from 'vue';
 import type * as Misskey from 'misskey-js';
 import type { MenuItem } from '@/types/menu.js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { popup, toast } from '@/os.js';
@@ -14,19 +14,18 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import type { CustomStatus } from '@/utility/status-icons.js';
 import type { AutoReplyStatus } from '@/utility/status-auto-reply.js';
-import { getUserStatusDisplay } from '@/utility/user-status.js';
 
+// 菜单和头像会立即显示新状态，成功时不再额外提示。
 async function updateStatus(params: Misskey.entities.IUpdateRequest): Promise<void> {
 	try {
 		const user = await misskeyApi('i/update', params);
-		updateCurrentAccountPartial({
+		updateCurrentAccount({
 			hideOnlineStatus: user.hideOnlineStatus,
 			onlineStatusOverride: user.onlineStatusOverride,
 			onlineStatus: user.onlineStatus,
 			customStatus: user.customStatus,
 			onlineStatusAutoReplies: user.onlineStatusAutoReplies,
 		});
-		toast(i18n.ts.saved, 'success');
 	} catch (error) {
 		if (!isAccountSessionErrorHandled(error)) toast(i18n.ts.somethingHappened, 'error');
 		throw error;
@@ -63,9 +62,9 @@ function configureAutoReply(status: AutoReplyStatus): void {
 }
 
 export function getOnlineStatusMenu(): MenuItem {
-	// 默认值 online 表示跟随活动自动显示，不代表始终在线。
+	// 他人看到所选状态；隐身或客户端断开约 10 分钟后，他人看到离线。
 	const choices = [
-		{ value: 'online', text: i18n.ts._onlineStatus.auto },
+		{ value: 'online', text: i18n.ts._onlineStatus.online },
 		{ value: 'away', text: i18n.ts._onlineStatus.away },
 		{ value: 'busy', text: i18n.ts._onlineStatus.busy },
 		{ value: 'doNotDisturb', text: i18n.ts._onlineStatus.doNotDisturb },
@@ -78,10 +77,10 @@ export function getOnlineStatusMenu(): MenuItem {
 		type: 'parent',
 		text: i18n.ts.onlineStatus,
 		truncateCaption: true,
-		// 自动模式显示他人实际看到的状态（在线、最近活跃、离线或未知），自定义状态优先。
+		// 显示自己选择的状态。账户里的活跃状态只是加载时的快照，正在使用时也可能是“未知”或“最近活跃”。
 		caption: computed(() => !$i ? undefined
-			: selected.value !== 'online' ? choices.find(choice => choice.value === selected.value)?.text
-			: customStatus.value?.text ?? getUserStatusDisplay({ ...$i, customStatus: null })?.text ?? i18n.ts._onlineStatus._display.unknown),
+			: customSelected.value ? customStatus.value!.text
+			: choices.find(choice => choice.value === selected.value)?.text),
 		icon: 'ti ti-user-circle',
 		children: [{
 			type: 'grid',

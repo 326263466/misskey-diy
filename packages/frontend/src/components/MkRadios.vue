@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="{ [$style.vertical]: vertical }">
+<div class="_formField" :class="{ [$style.vertical]: vertical }">
 	<div :class="$style.label">
 		<slot name="label"></slot>
 	</div>
@@ -93,7 +93,7 @@ function toggle(o: MkRadiosOption): void {
 
 <style lang="scss" module>
 .label {
-	font-size: 0.85em;
+	font-size: var(--MI-formLabelFontSize, 0.85em);
 	padding: 0 0 8px 0;
 	user-select: none;
 
@@ -109,7 +109,7 @@ function toggle(o: MkRadiosOption): void {
 }
 
 .caption {
-	font-size: 0.85em;
+	font-size: var(--MI-formCaptionFontSize, 0.85em);
 	padding: 8px 0 0 0;
 	color: var(--MI_THEME-fgTransparentWeak);
 
@@ -134,7 +134,6 @@ function toggle(o: MkRadiosOption): void {
 	background-clip: padding-box !important;
 	border: solid 1px transparent;
 	border-radius: 6px;
-	font-size: 90%;
 	transition: all 0.2s;
 	user-select: none;
 
@@ -215,7 +214,7 @@ function toggle(o: MkRadiosOption): void {
 }
 
 .optionCaption {
-	font-size: 0.85em;
+	font-size: var(--MI-formCaptionFontSize, 0.85em);
 	padding: 2px 0 0 0;
 	color: var(--MI_THEME-fgTransparentWeak);
 	transition: all 0.2s;

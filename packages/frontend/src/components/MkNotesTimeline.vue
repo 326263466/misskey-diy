@@ -11,19 +11,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="[$style.root, { [$style.noGap]: noGap, '_gaps': !noGap }, noGap ? '_card' : null]">
 			<template v-for="(note, i) in notes" :key="note.id">
 				<div
-					v-if="i > 0 && isSeparatorNeeded(paginator.items.value[i - 1].createdAt, note.createdAt)"
+					v-if="i > 0 && isSeparatorNeeded(notes[i - 1].createdAt, note.createdAt)"
 					:data-scroll-anchor="note.id"
 					:class="[{ '_gaps': !noGap }, { [$style.lastNoteItem]: i === notes.length - 1 }]"
 				>
 					<MkNote :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_card' : null]" :note="note" :withHardMute="true"/>
-					<div v-if="note._shouldInsertAd_" :class="$style.ad">
-						<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
+					<div v-if="note._shouldInsertAd_" :class="[$style.ad, !noGap ? '_card' : null]">
+						<MkAd edgeToEdge :preferForms="['horizontal', 'horizontal-big']"/>
 					</div>
 				</div>
 				<div v-else-if="note._shouldInsertAd_" :class="[{ '_gaps': !noGap }, { [$style.lastNoteItem]: i === notes.length - 1 }]" :data-scroll-anchor="note.id">
 					<MkNote :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_card' : null]" :note="note" :withHardMute="true"/>
-					<div :class="$style.ad">
-						<MkAd :preferForms="['horizontal', 'horizontal-big']"/>
+					<div :class="[$style.ad, !noGap ? '_card' : null]">
+						<MkAd edgeToEdge :preferForms="['horizontal', 'horizontal-big']"/>
 					</div>
 				</div>
 				<MkNote v-else :class="[$style.note, { [$style.lastNote]: i === notes.length - 1 }, !noGap ? '_card' : null]" :note="note" :withHardMute="true" :data-scroll-anchor="note.id"/>
@@ -90,9 +90,6 @@ defineExpose({
 		}
 
 		.ad {
-			padding: 8px;
-			background-size: auto auto;
-			background-image: repeating-linear-gradient(45deg, transparent, transparent 8px, var(--MI_THEME-bg) 8px, var(--MI_THEME-bg) 14px);
 			border-bottom: var(--MI-divider);
 		}
 	}
@@ -103,6 +100,24 @@ defineExpose({
 		.note {
 			background: var(--MI_THEME-panel);
 			border-radius: var(--MI-cardRadius);
+		}
+
+		.ad {
+			overflow: clip;
+		}
+	}
+
+	.note {
+		position: relative;
+
+		&:hover {
+			z-index: 1;
+			background: var(--MI_THEME-panelHighlight);
+			box-shadow: 0 4px 16px color-mix(in srgb, var(--MI_THEME-shadow) 35%, transparent);
+		}
+
+		&:active {
+			background: color-mix(in srgb, var(--MI_THEME-panelHighlight) 72%, var(--MI_THEME-panel));
 		}
 	}
 }

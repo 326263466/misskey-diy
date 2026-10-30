@@ -4,27 +4,49 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="scrollContainer" class="_pageScrollable">
-	<MkDrive @cd="x => folder = x"/>
+<div class="_pageScrollable">
+	<MkDrive ref="drive" :initialFolder="props.folder ?? null" contentCard controlledNavigation @cd="onCd" @navigate="navigateFolder" @openFile="openFile"/>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, useTemplateRef } from 'vue';
+import { ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkDrive from '@/components/MkDrive.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
-import { useScrollToTop } from '@/composables/use-scroll-to-top.js';
+import { useRouter } from '@/router.js';
 
-const scrollContainer = useTemplateRef('scrollContainer');
-useScrollToTop(scrollContainer);
+const props = defineProps<{
+	folder?: string;
+}>();
+
+const router = useRouter();
+const drive = useTemplateRef('drive');
 
 const folder = ref<Misskey.entities.DriveFolder | null>(null);
 
-const headerActions = computed(() => []);
+function onCd(target: Misskey.entities.DriveFolder | null) {
+	folder.value = target;
+}
 
-const headerTabs = computed(() => []);
+// 只有用户点击写入历史；请求完成和浏览器前进后退只同步内容。
+function navigateFolder(folderId: string | null) {
+	const currentPath = router.currentRef.value._parsedRoute.fullPath.split(/[?#]/)[0];
+	const pagePath = props.folder ? `/my/drive/folder/${encodeURIComponent(props.folder)}` : '/my/drive';
+	if (currentPath !== pagePath) return;
+	const path = folderId ? `/my/drive/folder/${encodeURIComponent(folderId)}` : '/my/drive';
+	if (currentPath === path) {
+		drive.value?.cd(folderId);
+		return;
+	}
+	if (folderId) router.push('/my/drive/folder/:folder', { params: { folder: folderId } });
+	else router.push('/my/drive');
+}
+
+function openFile(file: Misskey.entities.DriveFile) {
+	router.push('/my/drive/file/:fileId', { params: { fileId: file.id } });
+}
 
 definePage(() => ({
 	title: folder.value ? folder.value.name : i18n.ts.drive,

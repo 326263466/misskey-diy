@@ -13,6 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:class="[$style.scrollBox, { [$style.scrollIntro]: scrollState === 'intro', [$style.scrollLoop]: scrollState === 'loop' }]"
 		:aria-hidden="copy === 2 ? true : undefined"
 		:inert="copy === 2"
+		:style="{ animationDuration: scrollDuration }"
 		@animationend.self="changeScrollState"
 	>
 		<template v-for="repeat in repeats" :key="repeat">
@@ -27,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import type * as Misskey from 'misskey-js';
-import { nextTick, onMounted, onBeforeUnmount, onUpdated, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, onBeforeUnmount, onUpdated, ref, useTemplateRef } from 'vue';
 import { getScrollContainer } from '@@/js/scroll.js';
 import XNote from '@/pages/welcome.timeline.note.vue';
 import MkArticlePreview from '@/components/MkArticlePreview.vue';
@@ -37,6 +38,8 @@ import { instance } from '@/instance.js';
 type WelcomeItem = { type: 'article'; content: Misskey.entities.Page } | { type: 'note'; content: Misskey.entities.Note };
 const items = ref<WelcomeItem[]>([]);
 const repeats = ref(1);
+// 重复补足视口后按每份内容 30 秒计时，保持与源码相同的滚动速度。
+const scrollDuration = computed(() => `${30 * repeats.value}s`);
 const isScrolling = ref(false);
 const scrollState = ref<null | 'intro' | 'loop'>(null);
 const rootEl = useTemplateRef('rootEl');

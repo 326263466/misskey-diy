@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<SearchMarker path="/settings/accounts" :label="i18n.ts.accounts" :keywords="['accounts']" icon="ti ti-users">
+<SearchMarker path="/settings/accounts" :label="i18n.ts.manageAccounts" :keywords="['accounts']" icon="ti ti-users">
 	<div class="_gaps">
 		<div class="_buttons">
 			<MkButton primary @click="addAccount"><i class="ti ti-plus"></i> {{ i18n.ts.addAccount }}</MkButton>
@@ -18,24 +18,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
-import * as Misskey from 'misskey-js';
 import type { MenuItem } from '@/types/menu.js';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
-import { $i } from '@/i.js';
 import { switchAccount, removeAccount, login, getAccountWithSigninDialog, getAccountWithSignupDialog, getAccounts } from '@/accounts.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import MkUserCardMini from '@/components/MkUserCardMini.vue';
-import { prefer } from '@/preferences.js';
 
 const accounts = await getAccounts();
-
-function refreshAllAccounts() {
-	// TODO
-}
 
 function showMenu(host: string, id: string, ev: PointerEvent) {
 	let menu: MenuItem[];
@@ -47,7 +38,11 @@ function showMenu(host: string, id: string, ev: PointerEvent) {
 	}, {
 		text: i18n.ts.remove,
 		icon: 'ti ti-trash',
-		action: () => removeAccount(host, id),
+		action: () => removeAccount(host, id).then(() => {
+			os.toast(i18n.ts.removed, 'success');
+		}, () => {
+			os.toast(i18n.ts.somethingHappened, 'error');
+		}),
 	}];
 
 	os.popupMenu(menu, ev.currentTarget ?? ev.target);
@@ -66,7 +61,7 @@ function addAccount(ev: PointerEvent) {
 function addExistingAccount() {
 	getAccountWithSigninDialog().then((res) => {
 		if (res != null) {
-			os.success();
+			os.toast(i18n.ts.added, 'success');
 		}
 	});
 }
@@ -79,12 +74,8 @@ function createAccount() {
 	});
 }
 
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
-
 definePage(() => ({
-	title: i18n.ts.accounts,
+	title: i18n.ts.manageAccounts,
 	icon: 'ti ti-users',
 }));
 </script>

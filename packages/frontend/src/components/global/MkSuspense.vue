@@ -7,15 +7,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div v-if="pending">
 	<MkLoading/>
 </div>
-<div v-else-if="resolved">
+<!-- 加载完成后不再包一层 div，页面根组件才能直接占满路由容器并负责滚动 -->
+<template v-else-if="resolved">
 	<slot :result="result as T"></slot>
-</div>
+</template>
 <div v-else>
 	<div :class="$style.error">
 		<slot name="error" :error="error">
 			<div><i class="ti ti-alert-triangle"></i> {{ i18n.ts.somethingHappened }}</div>
 			<div v-if="error">{{ JSON.stringify(error) }}</div>
-			<MkButton inline style="margin-top: 16px;" @click="retry"><i class="ti ti-reload"></i> {{ i18n.ts.retry }}</MkButton>
+			<MkButton inline style="margin-top: 16px;" @click="retry"><i class="ti ti-refresh"></i> {{ i18n.ts.retry }}</MkButton>
 		</slot>
 	</div>
 </div>

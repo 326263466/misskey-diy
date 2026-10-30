@@ -26,7 +26,7 @@ export const Default = {
 		msw: {
 			handlers: [
 				...commonHandlers,
-				http.post('/api/hashtags/trend', () => HttpResponse.json(tags.map(tag => ({ tag, chart: [], usersCount: 10 })))),
+				http.post('/api/hashtags/trend', () => HttpResponse.json(tags.map(tag => ({ tag, chart: [], usersCount: 10, totalUsersCount: 10 })))),
 				http.post('/api/hashtags/search', async ({ request }) => {
 					const { query } = await request.json() as { query: string };
 					return HttpResponse.json(tags.filter(tag => tag.toLowerCase().startsWith(query.toLowerCase())));

@@ -57,6 +57,7 @@ export const paramDef = {
 		name: { type: 'string', maxLength: CONTENT_LIMITS.chatRoomName },
 		description: { type: 'string', maxLength: CONTENT_LIMITS.chatRoomDescription },
 		joinPolicy: { type: 'string', enum: ['public', 'approval', 'invitation', 'closed'], default: 'public' },
+		joinQuestion: { type: 'string', maxLength: 200 },
 		avatarId: { type: 'string', format: 'misskey:id', nullable: true },
 		initialUserIds: { type: 'array', minItems: 2, maxItems: 49, uniqueItems: true, items: { type: 'string', format: 'misskey:id' } },
 	},
@@ -83,6 +84,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				name: ps.name,
 				description: ps.description ?? '',
 				joinPolicy: ps.joinPolicy,
+				joinQuestion: ps.joinQuestion,
 				avatarId: ps.avatarId,
 				initialUserIds: ps.initialUserIds,
 			}).catch(error => {

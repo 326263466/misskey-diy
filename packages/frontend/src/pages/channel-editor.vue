@@ -46,8 +46,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 					>
 						<template #default="{ item, dragStart }">
 							<div :class="$style.pinnedNote">
-						<button class="_button _iconButton" :class="$style.pinnedNoteHandle" tabindex="-1" :draggable="true" @dragstart.stop="dragStart"><i class="ti ti-menu"></i></button>
-								{{ item.id }}
+								<button class="_button _iconButton" :class="$style.pinnedNoteHandle" tabindex="-1" :draggable="true" @dragstart.stop="dragStart"><i class="ti ti-menu"></i></button>
+								<div :class="$style.pinnedNoteBody">
+									<div :class="$style.pinnedNoteTitle">
+										<template v-if="pinnedNotes.get(item.id) != null">
+											<span :class="$style.pinnedNoteAuthor"><MkUserName :user="pinnedNotes.get(item.id)!.user"/></span>
+											<span :class="$style.pinnedNoteTime"><MkTime :time="pinnedNotes.get(item.id)!.createdAt"/></span>
+										</template>
+										<template v-else>{{ item.id }}</template>
+									</div>
+									<div :class="$style.pinnedNoteText">{{ pinnedNoteSummary(item.id) }}</div>
+								</div>
 								<button class="_button _iconButton" :class="$style.pinnedNoteRemove" @click="removePinnedNote(item.id)"><i class="ti ti-x"></i></button>
 							</div>
 						</template>
@@ -75,6 +84,7 @@ import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import { selectFile } from '@/utility/drive.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
 import * as os from '@/os.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
@@ -82,6 +92,8 @@ import MkFolder from '@/components/MkFolder.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import MkDraggable from '@/components/MkDraggable.vue';
+import MkUserName from '@/components/global/MkUserName.vue';
+import MkTime from '@/components/global/MkTime.vue';
 import { useRouter } from '@/router.js';
 
 const router = useRouter();
@@ -110,6 +122,7 @@ const color = ref(defaultAccent());
 const isSensitive = ref(false);
 const allowRenoteToExternal = ref(true);
 const pinnedNoteIds = ref<Misskey.entities.Note['id'][]>([]);
+const pinnedNotes = ref(new Map<Misskey.entities.Note['id'], Misskey.entities.Note>());
 const pendingAction = ref<'save' | 'archive' | null>(null);
 const saving = computed(() => pendingAction.value !== null);
 const actionStatus = ref<'saved' | 'archived' | 'error' | null>(null);
@@ -128,6 +141,7 @@ function applyChannel(result: Misskey.entities.Channel) {
 	pinnedNoteIds.value = result.pinnedNoteIds;
 	color.value = result.color ?? defaultAccent();
 	allowRenoteToExternal.value = result.allowRenoteToExternal;
+	fetchPinnedNotes();
 
 	channel.value = result;
 }
@@ -147,6 +161,7 @@ watch(() => props.channelId, async (channelId, _, onCleanup) => {
 		isSensitive.value = false;
 		allowRenoteToExternal.value = true;
 		pinnedNoteIds.value = [];
+		pinnedNotes.value = new Map();
 		return;
 	}
 	try {
@@ -167,6 +182,34 @@ async function addPinnedNote() {
 		noteId: fromUrl ?? value,
 	});
 	pinnedNoteIds.value.unshift(note.id);
+	setPinnedNote(note);
+}
+
+function setPinnedNote(note: Misskey.entities.Note): void {
+	pinnedNotes.value = new Map(pinnedNotes.value).set(note.id, note);
+}
+
+// 置顶列表只保存 ID；预览需要单独拉取帖子详情，失效时保留 ID 便于管理员确认和修正。
+async function fetchPinnedNotes(): Promise<void> {
+	const ids = [...pinnedNoteIds.value];
+	const missing = ids.filter(id => !pinnedNotes.value.has(id));
+	if (missing.length === 0) return;
+
+	const notes = await Promise.allSettled(missing.map(id => misskeyApi('notes/show', { noteId: id })));
+	for (const [index, result] of notes.entries()) {
+		const id = missing[index];
+		if (result.status === 'fulfilled' && pinnedNoteIds.value.includes(id)) setPinnedNote(result.value);
+	}
+}
+
+function pinnedNoteSummary(id: string): string {
+	const note = pinnedNotes.value.get(id);
+	if (note == null) return i18n.ts.loading;
+	if (note.cw != null) return note.cw;
+	if (note.text != null) return note.text.replace(/\s+/g, ' ').trim();
+	if ((note.files?.length ?? 0) > 0) return i18n.ts.withFiles;
+	if (note.poll != null) return i18n.ts.poll;
+	return i18n.ts.renote;
 }
 
 function removePinnedNote(id: string) {
@@ -243,7 +286,7 @@ async function archive() {
 		applyChannel(updated);
 		actionStatus.value = isArchived ? 'archived' : 'saved';
 		if (isArchived) {
-			os.toast(i18n.ts.archived);
+			os.toast(i18n.ts.archived, 'success');
 		} else {
 			os.success(i18n.ts.saved);
 		}
@@ -277,7 +320,7 @@ const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: props.channelId ? i18n.ts._channel.edit : i18n.ts._channel.create,
-	icon: 'ti ti-device-tv',
+	icon: 'ti ti-broadcast',
 }));
 </script>
 
@@ -302,29 +345,63 @@ definePage(() => ({
 
 .pinnedNote {
 	position: relative;
-	display: block;
-	line-height: 2.85rem;
-	text-overflow: ellipsis;
-	overflow: hidden;
-	white-space: nowrap;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	padding: 6px 0;
 	color: var(--MI_THEME-navFg);
 }
 
+.pinnedNoteBody {
+	flex: 1;
+	min-width: 0;
+}
+
+.pinnedNoteTitle {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	font-size: .9em;
+}
+
+.pinnedNoteAuthor {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 700;
+}
+
+.pinnedNoteTime {
+	flex-shrink: 0;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: .9em;
+}
+
+.pinnedNoteText {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: .9em;
+}
+
 .pinnedNoteRemove {
-	position: absolute;
-	z-index: 10000;
+	flex-shrink: 0;
 	width: 32px;
 	height: 32px;
 	color: #ff2a2a;
-	right: 8px;
 	opacity: 0.8;
 }
 
 .pinnedNoteHandle {
 	cursor: move;
+	flex-shrink: 0;
 	width: 32px;
 	height: 32px;
-	margin: 0 8px;
+	margin-left: 8px;
 	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

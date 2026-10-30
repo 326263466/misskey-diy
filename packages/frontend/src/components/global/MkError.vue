@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkResult type="error" :page="props.page">
+<MkResult type="error" :page="props.page" :text="props.text">
 	<div :class="$style.actions">
 		<MkButton rounded @click="() => emit('retry')">{{ i18n.ts.retry }}</MkButton>
 		<slot></slot>
@@ -18,6 +18,7 @@ import { i18n } from '@/i18n.js';
 
 const props = defineProps<{
 	page?: boolean;
+	text?: string;
 }>();
 
 const emit = defineEmits<{

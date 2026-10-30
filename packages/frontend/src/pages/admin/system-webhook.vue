@@ -6,19 +6,43 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody">
-		<SearchMarker path="/admin/system-webhook" label="SystemWebhook" :keywords="['webhook']" icon="ti ti-webhook">
+		<SearchMarker path="/admin/system-webhook" :label="i18n.ts.systemWebhook" :keywords="['webhook']" icon="ti ti-webhook">
 			<div class="_gaps_m">
-				<SearchMarker>
-					<MkButton primary @click="onCreateWebhookClicked">
-						<i class="ti ti-plus"></i> <SearchLabel>{{ i18n.ts._webhookSettings.createWebhook }}</SearchLabel>
-					</MkButton>
-				</SearchMarker>
-
-				<FormSection>
-					<div class="_gaps">
-						<XItem v-for="item in webhooks" :key="item.id" :entity="item" @edit="onEditButtonClicked" @delete="onDeleteButtonClicked"/>
+				<div class="_adminPanel">
+					<div class="_adminToolbar">
+						<MkInput v-model="filterText" class="_adminToolbarField" type="search">
+							<template #prefix><i class="ti ti-search" aria-hidden="true"></i></template>
+							<template #label>{{ i18n.ts.search }}</template>
+						</MkInput>
+						<div class="_adminToolbarActions">
+							<SearchMarker>
+								<MkButton small primary @click="onCreateWebhookClicked">
+									<i class="ti ti-plus" aria-hidden="true"></i> <SearchLabel>{{ i18n.ts._webhookSettings.createWebhook }}</SearchLabel>
+								</MkButton>
+							</SearchMarker>
+						</div>
 					</div>
-				</FormSection>
+
+					<MkPaginationBar v-slot="{ items }" v-model:page="page" :items="filteredWebhooks">
+							<div class="_adminTableContainer">
+								<table class="_adminTable">
+									<thead>
+										<tr>
+											<th scope="col">{{ i18n.ts.name }}</th>
+											<th scope="col">{{ i18n.ts.state }}</th>
+											<th scope="col">{{ i18n.ts.latestStatus }}</th>
+											<th scope="col">{{ i18n.ts.lastCommunication }}</th>
+											<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+										</tr>
+									</thead>
+									<tbody>
+										<XItem v-for="item in items" :key="item.id" :entity="item" @edit="onEditButtonClicked" @delete="onDeleteButtonClicked"/>
+										<tr v-if="filteredWebhooks.length === 0"><td colspan="5" class="_adminTableEmpty">{{ i18n.ts.nothing }}</td></tr>
+									</tbody>
+								</table>
+							</div>
+					</MkPaginationBar>
+				</div>
 			</div>
 		</SearchMarker>
 	</div>
@@ -26,18 +50,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { entities } from 'misskey-js';
 import XItem from './system-webhook.item.vue';
-import FormSection from '@/components/form/section.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import MkButton from '@/components/MkButton.vue';
+import MkInput from '@/components/MkInput.vue';
+import MkPaginationBar from '@/components/MkPaginationBar.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { showSystemWebhookEditorDialog } from '@/components/MkSystemWebhookEditor.impl.js';
 import * as os from '@/os.js';
 
 const webhooks = ref<entities.SystemWebhook[]>([]);
+const filterText = ref('');
+const page = ref(1);
+const filteredWebhooks = computed(() => {
+	const query = filterText.value.trim().toLowerCase();
+	return query === '' ? webhooks.value : webhooks.value.filter(webhook => `${webhook.name} ${webhook.url}`.toLowerCase().includes(query));
+});
+
+watch(filterText, () => { page.value = 1; });
 
 const headerActions = computed(() => []);
 const headerTabs = computed(() => []);
@@ -65,9 +98,11 @@ async function onDeleteButtonClicked(webhook: entities.SystemWebhook) {
 		title: i18n.ts._webhookSettings.deleteConfirm,
 	});
 	if (!result.canceled) {
-		await misskeyApi('admin/system-webhook/delete', {
+		// 失败提示由 apiWithDialog 处理
+		await os.apiWithDialog('admin/system-webhook/delete', {
 			id: webhook.id,
 		});
+		os.toast(i18n.ts.deleteSucceeded, 'success');
 		await fetchWebhooks();
 	}
 }
@@ -82,7 +117,7 @@ onMounted(async () => {
 });
 
 definePage(() => ({
-	title: 'SystemWebhook',
+	title: i18n.ts.systemWebhook,
 	icon: 'ti ti-webhook',
 }));
 </script>

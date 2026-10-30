@@ -22,6 +22,7 @@ export function notArticleCondition(alias: string): string {
 export async function canReadArticle(page: MiPage, viewer: { id: MiUser['id'] } | null | undefined, manager: EntityManager): Promise<boolean> {
 	const author = await manager.findOneBy(MiUser, { id: page.userId, isSuspended: false, isDeleted: false });
 	if (!author) return false;
+	if (!viewer && author.requireSigninToViewContents) return false;
 	if (viewer?.id === page.userId) return true;
 	if (viewer && await manager.existsBy(MiBlocking, [
 		{ blockerId: viewer.id, blockeeId: page.userId },

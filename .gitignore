@@ -29,6 +29,9 @@ packages/frontend/test/e2e/artifacts
 # Coverage
 coverage
 
+# Local agent diagnostics
+/.codex-tmp/
+
 # config
 /.config/*
 !/.config/example.yml

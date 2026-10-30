@@ -8,7 +8,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Brackets, ObjectLiteral } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { MiUser } from '@/models/User.js';
-import type { UserProfilesRepository, FollowingsRepository, ChannelFollowingsRepository, BlockingsRepository, NoteThreadMutingsRepository, MutingsRepository, RenoteMutingsRepository, MiMeta } from '@/models/_.js';
+import type { UserProfilesRepository, FollowingsRepository, BlockingsRepository, NoteThreadMutingsRepository, MutingsRepository, RenoteMutingsRepository, MiMeta } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { IdService } from '@/core/IdService.js';
 import { DELETED_REPLY_THREAD_PREFIX, HIDDEN_REPLY_THREAD_PREFIX } from '@/misc/is-reply.js';
@@ -22,9 +22,6 @@ export class QueryService {
 
 		@Inject(DI.followingsRepository)
 		private followingsRepository: FollowingsRepository,
-
-		@Inject(DI.channelFollowingsRepository)
-		private channelFollowingsRepository: ChannelFollowingsRepository,
 
 		@Inject(DI.blockingsRepository)
 		private blockingsRepository: BlockingsRepository,
@@ -132,7 +129,19 @@ export class QueryService {
 		}
 	}
 
-	// ここでいうBlockedは被Blockedの意
+	@bindThis
+	public generateBlockedUserQuery(q: SelectQueryBuilder<any>, me: { id: MiUser['id'] }, userIdColumn: string): void {
+		const blockedQuery = this.blockingsRepository.createQueryBuilder('blocking')
+			.select('CASE WHEN blocking.blockerId = :blockingMeId THEN blocking.blockeeId ELSE blocking.blockerId END')
+			.where('blocking.blockerId = :blockingMeId OR blocking.blockeeId = :blockingMeId', { blockingMeId: me.id });
+
+		q.andWhere(new Brackets(qb => {
+			qb.where(`${userIdColumn} IS NULL`)
+				.orWhere(`${userIdColumn} NOT IN (${blockedQuery.getQuery()})`);
+		}));
+		q.setParameters(blockedQuery.getParameters());
+	}
+
 	@bindThis
 	public generateBlockedUserQueryForNotes(
 		q: SelectQueryBuilder<any>,
@@ -143,48 +152,24 @@ export class QueryService {
 			noteColumn?: string,
 		} = {},
 	): void {
-		const blockingQuery = this.blockingsRepository.createQueryBuilder('blocking')
-			.select('blocking.blockerId')
-			.where('blocking.blockeeId = :blockeeId', { blockeeId: me.id });
-
-		// 投稿の作者にブロックされていない かつ
-		// 投稿の返信先の作者にブロックされていない かつ
-		// 投稿の引用元の作者にブロックされていない
-		q
-			.andWhere(new Brackets(qb => {
-				qb
-					.where(`${noteColumn}.userId IS NULL`)
-					.orWhere(`${noteColumn}.userId NOT IN (${ blockingQuery.getQuery() })`);
-			}))
-			.andWhere(new Brackets(qb => {
-				qb
-					.where(`${noteColumn}.replyUserId IS NULL`)
-					.orWhere(`${noteColumn}.replyUserId NOT IN (${ blockingQuery.getQuery() })`);
-			}))
-			.andWhere(new Brackets(qb => {
-				qb
-					.where(`${noteColumn}.renoteUserId IS NULL`)
-					.orWhere(`${noteColumn}.renoteUserId NOT IN (${ blockingQuery.getQuery() })`);
-			}));
-
-		q.setParameters(blockingQuery.getParameters());
+		for (const column of ['userId', 'replyUserId', 'renoteUserId']) {
+			this.generateBlockedUserQuery(q, me, `${noteColumn}.${column}`);
+		}
 	}
 
 	@bindThis
 	public generateBlockQueryForUsers(q: SelectQueryBuilder<any>, me: { id: MiUser['id'] }): void {
-		const blockingQuery = this.blockingsRepository.createQueryBuilder('blocking')
-			.select('blocking.blockeeId')
-			.where('blocking.blockerId = :blockerId', { blockerId: me.id });
+		this.generateBlockedUserQuery(q, me, 'user.id');
+	}
 
-		const blockedQuery = this.blockingsRepository.createQueryBuilder('blocking')
-			.select('blocking.blockerId')
-			.where('blocking.blockeeId = :blockeeId', { blockeeId: me.id });
-
-		q.andWhere(`user.id NOT IN (${ blockingQuery.getQuery() })`);
-		q.setParameters(blockingQuery.getParameters());
-
-		q.andWhere(`user.id NOT IN (${ blockedQuery.getQuery() })`);
-		q.setParameters(blockedQuery.getParameters());
+	@bindThis
+	public generateMutedUserQuery(q: SelectQueryBuilder<any>, me: { id: MiUser['id'] }, userIdColumn: string): void {
+		const mutingQuery = this.mutingsRepository.createQueryBuilder('muting')
+			.select('muting.muteeId')
+			.where('muting.muterId = :muterId', { muterId: me.id });
+		q.andWhere(new Brackets(qb => {
+			qb.where(`${userIdColumn} IS NULL`).orWhere(`${userIdColumn} NOT IN (${mutingQuery.getQuery()})`);
+		})).setParameters(mutingQuery.getParameters());
 	}
 
 	@bindThis

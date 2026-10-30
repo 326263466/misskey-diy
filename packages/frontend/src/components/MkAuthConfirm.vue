@@ -191,7 +191,7 @@ function clickAddAccount(ev: PointerEvent) {
 		action: () => {
 			getAccountWithSigninDialog().then(async (res) => {
 				if (res != null) {
-					os.success();
+					os.toast(i18n.ts.added, 'success');
 					await init();
 					if (users.value.has(res.id)) {
 						selectedUser.value = res.id;
@@ -204,7 +204,7 @@ function clickAddAccount(ev: PointerEvent) {
 		action: () => {
 			getAccountWithSignupDialog().then(async (res) => {
 				if (res != null) {
-					os.success();
+					os.toast(i18n.ts.added, 'success');
 					await init();
 					if (users.value.has(res.id)) {
 						selectedUser.value = res.id;

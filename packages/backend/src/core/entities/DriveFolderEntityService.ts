@@ -163,8 +163,9 @@ export class DriveFolderEntityService {
 					.groupBy('file.folderId')
 					.getRawMany<{ folderId: string; count: string }>();
 
-				foldersCountMap = new Map(folderCounts.map(row => [row.parentId, Number(row.count)]));
-				filesCountMap = new Map(fileCounts.map(row => [row.folderId, Number(row.count)]));
+				// 没有子项的文件夹也要记为 0，否则 pack 会为每个空文件夹再单独查询一次。
+				foldersCountMap = new Map([...ids.map(id => [id, 0] as const), ...folderCounts.map(row => [row.parentId, Number(row.count)] as const)]);
+				filesCountMap = new Map([...ids.map(id => [id, 0] as const), ...fileCounts.map(row => [row.folderId, Number(row.count)] as const)]);
 			} else {
 				foldersCountMap = new Map();
 				filesCountMap = new Map();

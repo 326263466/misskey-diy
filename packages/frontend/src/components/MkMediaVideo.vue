@@ -5,7 +5,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	ref="playerEl"
 	tabindex="0"
 	:class="[
 		$style.root,
@@ -48,7 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { MediaComponentExposes } from '@/types/media-component.js';
 import bytes from '@/filters/bytes.js';
@@ -66,11 +65,17 @@ const emit = defineEmits<{
 	(event: 'mediaClick', ev: PointerEvent): void;
 }>();
 
-// eslint-disable-next-line vue/no-setup-props-reactivity-loss
-const hide = ref(shouldHideFileByDefault(props.video));
+const hide = ref(true);
+let revealVersion = 0;
+
+watch([() => props.video.id, () => props.video.isSensitive], ([id, sensitive], [previousId, previousSensitive]) => {
+	revealVersion++;
+	hide.value = (id === previousId && sensitive && !previousSensitive) || shouldHideFileByDefault(props.video);
+}, { immediate: true, flush: 'sync' });
 
 async function reveal() {
-	if (!(await canRevealFile(props.video))) {
+	const version = revealVersion;
+	if (!(await canRevealFile(props.video)) || version !== revealVersion) {
 		return;
 	}
 

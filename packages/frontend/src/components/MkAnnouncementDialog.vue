@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModal ref="modal" :zPriority="'middle'" :preferType="'dialog'" :closeOnBackdrop="hasReachedBottom && !announcement.needConfirmationToRead" @click="ok" @closed="emit('closed')">
+<MkModal ref="modal" :zPriority="'middle'" :preferType="'dialog'" :closeOnBackdrop="hasReachedBottom && !announcement.needConfirmationToRead && !reading" @click="ok" @esc="close" @closed="emit('closed')">
 	<div ref="rootEl" :class="$style.root" @scroll.passive="checkReachedBottom">
 		<div :class="$style.header">
 			<i v-if="announcement.icon === 'info'" :class="$style.icon" class="ti ti-info-circle" aria-hidden="true"></i>
@@ -19,6 +19,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				primary
 				full
 				:disabled="!hasReachedBottom"
+				:wait="reading"
+				:aria-busy="reading"
 				@click="ok"
 			>{{ hasReachedBottom ? i18n.ts.close : i18n.ts.scrollToClose }}</MkButton>
 		</div>
@@ -31,11 +33,12 @@ import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import MkModal from '@/components/MkModal.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 
 const props = defineProps<{
 	announcement: Misskey.entities.Announcement;
@@ -47,22 +50,42 @@ const emit = defineEmits<{
 
 const rootEl = useTemplateRef('rootEl');
 const modal = useTemplateRef('modal');
+const reading = ref(false);
+let closingAfterRead = false;
+
+function close() {
+	if (!reading.value) modal.value?.close();
+}
 
 async function ok() {
-	if (props.announcement.needConfirmationToRead) {
-		const confirm = await os.confirm({
-			type: 'question',
-			title: i18n.ts._announcement.readConfirmTitle,
-			text: i18n.tsx._announcement.readConfirmText({ title: props.announcement.title }),
-		});
-		if (confirm.canceled) return;
-	}
+	if ($i == null || !hasReachedBottom.value || reading.value) return;
+	const accountId = $i.id;
+	reading.value = true;
 
-	modal.value?.close();
-	misskeyApi('i/read-announcement', { announcementId: props.announcement.id });
-	updateCurrentAccountPartial({
-		unreadAnnouncements: $i!.unreadAnnouncements.filter(a => a.id !== props.announcement.id),
-	});
+	try {
+		if (props.announcement.needConfirmationToRead) {
+			const confirm = await os.confirm({
+				type: 'question',
+				title: i18n.ts._announcement.readConfirmTitle,
+				text: i18n.tsx._announcement.readConfirmText({ title: props.announcement.title }),
+			});
+			if (confirm.canceled) return;
+		}
+
+		await misskeyApi('i/read-announcement', { announcementId: props.announcement.id });
+		if ($i != null && $i.id === accountId) {
+			updateCurrentAccount({
+				unreadAnnouncements: $i.unreadAnnouncements.filter(a => a.id !== props.announcement.id),
+			});
+		}
+		closingAfterRead = true;
+		modal.value?.close();
+		os.toast(i18n.ts.messageRead, 'success');
+	} catch (error) {
+		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+	} finally {
+		if (!closingAfterRead) reading.value = false;
+	}
 }
 
 const hasReachedBottom = ref(false);

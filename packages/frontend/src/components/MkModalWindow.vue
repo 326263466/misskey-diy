@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkModal ref="modal" v-slot="{ type }" :preferType="deviceKind === 'smartphone' ? 'drawer' : 'dialog'" :closeOnBackdrop="closeOnBackdrop" @click="onBgClick" @closed="emit('closed')" @esc="onEsc">
-	<div ref="rootEl" data-popup-boundary :class="[$style.root, type === 'drawer' ? $style.asDrawer : null, autoHeight ? $style.autoHeight : null]" :style="type === 'drawer' ? undefined : rootStyle">
+	<div ref="rootEl" data-popup-boundary :class="[$style.root, { [$style.plainCanvas]: plainCanvas }, type === 'drawer' ? $style.asDrawer : null, autoHeight ? $style.autoHeight : null]" :style="type === 'drawer' ? undefined : rootStyle">
 		<div :class="[$style.header, { [$style.closeButtonRight]: closeButtonRight }]">
 			<button v-if="withCloseButton" :class="$style.headerButton" class="_button" :aria-label="i18n.ts.close" data-testid="modal-window-close" @click="requestClose"><i class="ti ti-x" aria-hidden="true"></i></button>
 			<span :class="$style.title" data-testid="modal-window-title">
@@ -28,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, useTemplateRef, getCurrentInstance } from 'vue';
+import { computed, useTemplateRef, getCurrentInstance, inject } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import MkButton from '@/components/MkButton.vue';
 import { i18n } from '@/i18n';
@@ -69,6 +69,7 @@ const emit = defineEmits<{
 
 const modal = useTemplateRef('modal');
 const instance = getCurrentInstance()!;
+const plainCanvas = inject('pagePlainCanvas', false);
 
 const rootStyle = computed(() => ({
 	width: `${props.width}px`,
@@ -112,6 +113,11 @@ defineExpose({
 
 	--MI_THEME-headerHeight: 46px;
 	--MI_THEME-headerHeightNarrow: 40px;
+
+	&.plainCanvas {
+		--MI-formLabelFontSize: 1em;
+		--MI-formCaptionFontSize: 0.9em;
+	}
 
 	&.asDrawer {
 		height: calc(100dvh - 30px);

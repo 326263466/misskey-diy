@@ -10,7 +10,7 @@ import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { MetaService } from '@/core/MetaService.js';
 import { articleCategoryIdSchema } from '@/models/Page.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -702,7 +702,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			if (ps.articleTags !== undefined) {
-				const tags = ps.articleTags.map(tag => normalizeForSearch(tag).trim());
+				const tags = ps.articleTags.map(tag => normalizeTag(tag).trim());
 				if (tags.some(tag => !tag || Array.from(tag).length > 100) || new Set(tags).size !== tags.length) {
 					throw new ApiError(meta.errors.invalidArticleTags);
 				}

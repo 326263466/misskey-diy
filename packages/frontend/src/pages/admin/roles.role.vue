@@ -7,57 +7,81 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody">
 		<div class="_gaps">
-			<div class="_buttons">
-				<MkButton primary rounded @click="edit"><i class="ti ti-pencil"></i> {{ i18n.ts.edit }}</MkButton>
-				<MkButton danger rounded @click="del"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
-			</div>
-			<MkFolder>
-				<template #icon><i class="ti ti-info-circle"></i></template>
-				<template #label>{{ i18n.ts.info }}</template>
-				<XEditor :modelValue="role" readonly/>
-			</MkFolder>
-			<MkFolder v-if="role.target === 'manual'" defaultOpen>
-				<template #icon><i class="ti ti-users"></i></template>
-				<template #label>{{ i18n.ts.users }}</template>
-				<template #suffix>{{ role.usersCount }}</template>
-				<div class="_gaps">
-					<MkButton primary rounded @click="assign"><i class="ti ti-plus"></i> {{ i18n.ts.assign }}</MkButton>
-
+			<div class="_adminPanel">
+				<div class="_adminToolbar" :class="$style.userToolbar">
+					<h2 v-if="role.target === 'manual'" :class="$style.usersTitle"><i class="ti ti-users" aria-hidden="true"></i> {{ i18n.ts.users }} <span class="_adminTableSecondary">{{ role.usersCount }}</span></h2>
+					<MkButton small primary @click="edit"><i class="ti ti-pencil"></i> {{ i18n.ts.edit }}</MkButton>
+					<MkButton small @click="openInfoDialog($event)"><i class="ti ti-info-circle" aria-hidden="true"></i> {{ i18n.ts.info }}</MkButton>
+					<MkButton small danger @click="del"><i class="ti ti-trash"></i> {{ i18n.ts.delete }}</MkButton>
+					<MkButton v-if="role.target === 'manual'" small primary @click="assign"><i class="ti ti-plus"></i> {{ i18n.ts.assign }}</MkButton>
+				</div>
+				<section v-if="role.target === 'manual'">
 					<MkPagination :paginator="usersPaginator">
 						<template #empty><MkResult type="empty" :text="i18n.ts.noUsers"/></template>
 
 						<template #default="{ items }">
-							<div class="_gaps_s">
-								<div v-for="item in items" :key="item.user.id" :class="[$style.userItem, { [$style.userItemOpened]: expandedItemIds.includes(item.id) }]">
-									<div :class="$style.userItemMain">
-										<MkA :class="$style.userItemMainBody" :to="`/admin/user/${item.user.id}`">
-											<MkUserCardMini :user="item.user"/>
-										</MkA>
-										<button class="_button _iconButton" :class="$style.userToggle" @click="toggleItem(item.id)"><i :class="$style.chevron" class="ti ti-chevron-down"></i></button>
-										<button class="_button _iconButton" :class="$style.unassign" @click="unassign(item.user.id, $event)"><i class="ti ti-x"></i></button>
-									</div>
-									<div v-if="expandedItemIds.includes(item.id)" :class="$style.userItemSub">
-										<div>{{ i18n.ts._role.assignedAt }}: <MkTime :time="item.createdAt" mode="detail"/></div>
-										<div v-if="item.expiresAt">{{ i18n.ts.period }}: {{ new Date(item.expiresAt).toLocaleString() }}</div>
-										<div v-else>{{ i18n.ts.period }}: {{ i18n.ts.indefinitely }}</div>
-									</div>
-								</div>
+							<div class="_adminTableContainer">
+								<table class="_adminTable">
+									<thead>
+										<tr>
+											<th scope="col">{{ i18n.ts.user }}</th>
+											<th scope="col">{{ i18n.ts._role.assignedAt }}</th>
+											<th scope="col">{{ i18n.ts.period }}</th>
+											<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr v-for="item in items" :key="item.id">
+											<td class="_adminTableMain">
+												<MkA :class="$style.user" :to="`/admin/user/${item.user.id}`" behavior="window">
+													<MkUserCardMini :class="$style.userCard" :user="item.user"/>
+												</MkA>
+											</td>
+											<td :class="$style.date"><MkTime :time="item.createdAt" mode="detail"/></td>
+											<td :class="$style.date">{{ item.expiresAt ? new Date(item.expiresAt).toLocaleString() : i18n.ts.indefinitely }}</td>
+											<td class="_adminTableActions">
+												<div class="_adminTableTools">
+													<MkA class="_textButton" :to="`/admin/user/${item.user.id}`" behavior="window">{{ i18n.ts.details }}</MkA>
+													<button type="button" class="_button _textButton" style="color: var(--MI_THEME-error)" @click="unassign(item.user.id, $event)"><i class="ti ti-x" aria-hidden="true"></i> {{ i18n.ts.unassign }}</button>
+												</div>
+											</td>
+										</tr>
+									</tbody>
+								</table>
 							</div>
 						</template>
 					</MkPagination>
-				</div>
-			</MkFolder>
-			<MkInfo v-else>{{ i18n.ts._role.isConditionalRole }}</MkInfo>
+				</section>
+				<div v-else class="_adminPanelInset"><MkInfo>{{ i18n.ts._role.isConditionalRole }}</MkInfo></div>
+			</div>
 		</div>
 	</div>
 </PageWithHeader>
+<Teleport to="#misskey-popups" defer>
+	<MkModalWindow
+		v-if="infoDialogOpen"
+		:width="640"
+		:height="720"
+		autoHeight
+		headerIcon="ti ti-info-circle"
+		role="dialog"
+		tabindex="-1"
+		aria-modal="true"
+		:aria-label="i18n.ts.info"
+		@closed="onInfoDialogClosed"
+	>
+		<template #header>{{ i18n.ts.info }} · {{ role.name }}</template>
+		<div :class="$style.infoDialog"><XEditor :modelValue="role" readonly/></div>
+	</MkModalWindow>
+</Teleport>
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, reactive, ref } from 'vue';
+import { computed, markRaw, reactive, ref, inject, watch, onActivated, onDeactivated, nextTick } from 'vue';
 import * as Misskey from 'misskey-js';
 import XEditor from './roles.editor.vue';
-import MkFolder from '@/components/MkFolder.vue';
+import MkModalWindow from '@/components/MkModalWindow.vue';
+import MkPageWindow from '@/components/MkPageWindow.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
@@ -68,8 +92,10 @@ import MkInfo from '@/components/MkInfo.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import { useRouter } from '@/router.js';
 import { Paginator } from '@/utility/paginator.js';
+import { DI } from '@/di.js';
 
 const router = useRouter();
+const closeWindow = inject<(() => void) | null>('pageWindowClose', null);
 
 const props = defineProps<{
 	id: string;
@@ -82,16 +108,52 @@ const usersPaginator = markRaw(new Paginator('admin/roles/users', {
 	}) : undefined),
 }));
 
-const expandedItemIds = ref<Misskey.entities.AdminRolesUsersResponse[number]['id'][]>([]);
+const infoDialogOpen = ref(false);
+const pageActive = inject(DI.pageActive, ref(true));
+const componentActive = ref(true);
+let infoFocusTarget: HTMLElement | null = null;
+
+function openInfoDialog(event: PointerEvent) {
+	if (!pageActive.value || !componentActive.value) return;
+	infoFocusTarget = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+	infoDialogOpen.value = true;
+}
+
+function onInfoDialogClosed() {
+	infoDialogOpen.value = false;
+	const target = infoFocusTarget;
+	infoFocusTarget = null;
+	if (!target || !pageActive.value || !componentActive.value) return;
+	nextTick(() => {
+		if (pageActive.value && componentActive.value && target.isConnected) target.focus({ preventScroll: true });
+	});
+}
+
+function dismissInfoDialog() {
+	infoFocusTarget = null;
+	infoDialogOpen.value = false;
+}
+
+watch(pageActive, value => {
+	if (!value) dismissInfoDialog();
+}, { flush: 'sync' });
+onActivated(() => { componentActive.value = true; });
+onDeactivated(() => {
+	componentActive.value = false;
+	dismissInfoDialog();
+});
 
 const role = reactive(await misskeyApi('admin/roles/show', {
 	roleId: props.id,
 }));
 
 function edit() {
-	router.push('/admin/roles/:id/edit', {
-		params: {
-			id: role.id,
+	const { dispose } = os.popup(MkPageWindow, { initialPath: `/admin/roles/${role.id}/edit` }, {
+		closed: () => {
+			dispose();
+			misskeyApi('admin/roles/show', { roleId: role.id }).then(result => {
+				Object.assign(role, result);
+			}, () => {});
 		},
 	});
 }
@@ -106,8 +168,10 @@ async function del() {
 	await os.apiWithDialog('admin/roles/delete', {
 		roleId: role.id,
 	});
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 
-	router.push('/admin/roles');
+	if (closeWindow) closeWindow();
+	else router.push('/admin/roles');
 }
 
 async function assign() {
@@ -138,6 +202,7 @@ async function assign() {
 		: null;
 
 	await os.apiWithDialog('admin/roles/assign', { roleId: role.id, userId: user.id, expiresAt });
+	os.toast(i18n.ts.added, 'success');
 	//role.users.push(user);
 	usersPaginator.reload();
 }
@@ -149,18 +214,11 @@ async function unassign(userId: Misskey.entities.User['id'], ev: PointerEvent) {
 		danger: true,
 		action: async () => {
 			await os.apiWithDialog('admin/roles/unassign', { roleId: role.id, userId: userId });
+			os.toast(i18n.ts.removed, 'success');
 			//role.users = role.users.filter(u => u.id !== userId);
 			usersPaginator.reload();
 		},
 	}], ev.currentTarget ?? ev.target);
-}
-
-async function toggleItem(itemId: string) {
-	if (expandedItemIds.value.includes(itemId)) {
-		expandedItemIds.value = expandedItemIds.value.filter(x => x !== itemId);
-	} else {
-		expandedItemIds.value.push(itemId);
-	}
 }
 
 const headerActions = computed(() => []);
@@ -174,41 +232,51 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
-.userItemMain {
+.userToolbar {
 	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px;
 }
 
-.userItemSub {
-	padding: 6px 12px;
-	font-size: 85%;
-	color: var(--MI_THEME-fgTransparentWeak);
+.usersTitle {
+	margin: 0 auto 0 0;
+	font-size: 1em;
+	font-weight: 600;
 }
 
-.userItemMainBody {
-	flex: 1;
-	min-width: 0;
-	margin-right: 8px;
+.user {
+	display: block;
+	min-width: 220px;
+	max-width: 340px;
 
 	&:hover {
 		text-decoration: none;
 	}
 }
 
-.userToggle,
-.unassign {
-	width: 32px;
-	height: 32px;
-	align-self: center;
-}
+.userCard.userCard {
+	padding: 0;
+	background: transparent;
+	border-radius: 0;
 
-.chevron {
-	display: block;
-	transition: transform 0.1s ease-out;
-}
-
-.userItem.userItemOpened {
-	.chevron {
-		transform: rotateX(180deg);
+	> :first-child {
+		width: 32px;
+		height: 32px;
+		margin-right: 10px;
+		flex-shrink: 0;
 	}
+
+	> :nth-child(2) {
+		font-size: inherit;
+	}
+}
+
+.date {
+	white-space: nowrap;
+}
+
+.infoDialog {
+	padding: var(--MI-cardPadding);
 }
 </style>

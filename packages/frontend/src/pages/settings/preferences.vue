@@ -771,21 +771,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</SearchMarker>
 						</div>
 
-						<SearchMarker :keywords="['server', 'disconnect', 'reconnect', 'reload', 'streaming']">
-							<MkPreferenceContainer k="serverDisconnectedBehavior">
-								<MkSelect
-									v-model="serverDisconnectedBehavior"
-									:items="[
-										{ label: i18n.ts._serverDisconnectedBehavior.reload, value: 'reload' },
-										{ label: i18n.ts._serverDisconnectedBehavior.dialog, value: 'dialog' },
-										{ label: i18n.ts._serverDisconnectedBehavior.quiet, value: 'quiet' },
-									]"
-								>
-									<template #label><SearchLabel>{{ i18n.ts.whenServerDisconnected }}</SearchLabel></template>
-								</MkSelect>
-							</MkPreferenceContainer>
-						</SearchMarker>
-
 						<SearchMarker :keywords="['cache', 'page']">
 							<MkPreferenceContainer k="numberOfPageCache">
 								<MkRange v-model="numberOfPageCache" :min="1" :max="10" :step="1" easing>
@@ -847,7 +832,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { langs } from '@@/js/config.js';
 import * as Misskey from 'misskey-js';
 import MkSwitch from '@/components/MkSwitch.vue';
@@ -886,7 +871,6 @@ const overridedDeviceKind = prefer.model('overridedDeviceKind');
 const pollingInterval = prefer.model('pollingInterval');
 const showTitlebar = prefer.model('showTitlebar');
 const keepCw = prefer.model('keepCw');
-const serverDisconnectedBehavior = prefer.model('serverDisconnectedBehavior');
 const hemisphere = prefer.model('hemisphere');
 const showNoteActionsOnlyHover = prefer.model('showNoteActionsOnlyHover');
 const showClipButtonInNoteFooter = prefer.model('showClipButtonInNoteFooter');
@@ -1109,12 +1093,8 @@ function testNotification(): void {
 	}, 300);
 }
 
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
-
 definePage(() => ({
-	title: i18n.ts.general,
+	title: i18n.ts.preferences,
 	icon: 'ti ti-adjustments',
 }));
 </script>

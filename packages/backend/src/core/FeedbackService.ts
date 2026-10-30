@@ -17,7 +17,7 @@ import { IdService } from '@/core/IdService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
-import { DriveFileLifecycleService } from '@/core/DriveFileLifecycleService.js';
+import { DriveFileValidationService } from '@/core/DriveFileValidationService.js';
 
 export type FeedbackListOptions = {
 	limit: number;
@@ -43,7 +43,7 @@ export class FeedbackService {
 		private userEntityService: UserEntityService,
 		private roleService: RoleService,
 		private driveFileEntityService: DriveFileEntityService,
-		private driveFileLifecycleService: DriveFileLifecycleService,
+		private driveFileValidationService: DriveFileValidationService,
 	) {}
 
 	private async find(feedbackId: string): Promise<MiFeedback> {
@@ -83,7 +83,7 @@ export class FeedbackService {
 		const fileIds = input.fileIds ?? [];
 		if (!title || (!description && fileIds.length === 0)) throw new FeedbackService.InvalidContentError();
 		const feedback = await this.feedbacksRepository.manager.transaction(async manager => {
-			await this.driveFileLifecycleService.validateImages(manager, me.id, fileIds);
+			await this.driveFileValidationService.validateImages(manager, me.id, fileIds);
 			return manager.save(MiFeedback, manager.create(MiFeedback, {
 				id: this.idService.gen(), updatedAt: new Date(), userId: me.id,
 				title, description, fileIds, category: input.category, status: 'open', response: null, responseFileIds: [],
@@ -130,7 +130,7 @@ export class FeedbackService {
 			if (input.status !== undefined) updates.status = input.status;
 			if (input.response !== undefined) updates.response = input.response?.trim() || null;
 			if (input.responseFileIds !== undefined) {
-				await this.driveFileLifecycleService.validateImages(manager, me.id, input.responseFileIds, feedback.responseFileIds);
+				await this.driveFileValidationService.validateImages(manager, me.id, input.responseFileIds, feedback.responseFileIds);
 				updates.responseFileIds = input.responseFileIds;
 			}
 			await manager.update(MiFeedback, feedbackId, updates);

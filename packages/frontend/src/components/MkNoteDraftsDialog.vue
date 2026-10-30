@@ -76,7 +76,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 										</I18n>
 									</div>
 									<div v-if="draft.channel" class="_nowrap">
-										<i class="ti ti-device-tv"></i> <I18n :src="i18n.ts._drafts.postTo" tag="span">
+										<i class="ti ti-broadcast"></i> <I18n :src="i18n.ts._drafts.postTo" tag="span">
 											<template #channel><Mfm :text="draft.channel.name" :plain="true" :nowrap="true"/></template>
 										</I18n>
 									</div>
@@ -204,19 +204,23 @@ async function deleteDraft(draft: Misskey.entities.NoteDraft) {
 
 	if (canceled) return;
 
+	// 失败提示由 apiWithDialog 处理
 	os.apiWithDialog('notes/drafts/delete', { draftId: draft.id }).then(() => {
+		os.toast(i18n.ts.deleteSucceeded, 'success');
 		paginator.reload();
-	});
+	}, () => {});
 }
 
 async function cancelSchedule(draft: Misskey.entities.NoteDraft) {
+	// 失败提示由 apiWithDialog 处理
 	os.apiWithDialog('notes/drafts/update', {
 		draftId: draft.id,
 		isActuallyScheduled: false,
 		scheduledAt: null,
 	}).then(() => {
+		os.toast(i18n.ts.canceledDone, 'success');
 		paginator.reload();
-	});
+	}, () => {});
 }
 </script>
 

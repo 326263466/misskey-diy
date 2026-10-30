@@ -25,15 +25,13 @@ const emit = defineEmits<{
 }>();
 
 const model = defineModel<string | number>({ required: true });
-const modelValue = computed({
-	get: () => typeof model.value === 'number' ? model.value : parseFloat(model.value),
-	set: v => { model.value = v; },
-});
+const modelValue = computed(() => typeof model.value === 'number' ? model.value : parseFloat(model.value));
 </script>
 
 <style lang="scss" module>
 .controlsSeekbar {
 	position: relative;
+	--MI-progressHeight: 5px;
 	--sliderBg: light-dark(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.15));
 	--thumbSize: 17px;
 }
@@ -59,7 +57,7 @@ const modelValue = computed({
 		background-image: linear-gradient(to right,currentColor var(--value,0),transparent var(--value,0));
 		border: 0;
 		border-radius: 99rem;
-		height: 5px;
+		height: var(--MI-progressHeight);
 		transition: box-shadow .3s ease;
 		user-select: none;
 	}
@@ -68,7 +66,7 @@ const modelValue = computed({
 		background: transparent;
 		border: 0;
 		border-radius: 99rem;
-		height: 5px;
+		height: var(--MI-progressHeight);
 		transition: box-shadow .3s ease;
 		user-select: none;
 		background-color: var(--sliderBg);
@@ -82,7 +80,7 @@ const modelValue = computed({
 		border-radius: 100%;
 		box-shadow: 0 1px 1px rgba(35, 40, 47, .15),0 0 0 1px rgba(35, 40, 47, .2);
 		height: var(--thumbSize);
-		margin-top: calc((5px - var(--thumbSize)) / 2);
+		margin-top: calc((var(--MI-progressHeight) - var(--thumbSize)) / 2);
 		position: relative;
 		transition: all .2s ease;
 		width: var(--thumbSize);
@@ -110,40 +108,16 @@ const modelValue = computed({
 	&::-moz-range-progress {
 		background: currentColor;
 		border-radius: 99rem;
-		height: 5px;
+		height: var(--MI-progressHeight);
 	}
 }
 
 .buffer {
-	appearance: none;
-	background: transparent;
-	color: color(from var(--MI_THEME-accent) srgb r g b / 0.25);
-	border: 0;
-	border-radius: 99rem;
-	height: 5px;
+	--MI-progressTrack: transparent;
+	--MI-progressFill: color(from var(--MI_THEME-accent) srgb r g b / 0.25);
 	left: 0;
-	margin-top: -2.5px;
-	padding: 0;
 	position: absolute;
 	top: 50%;
-	width: 100%;
-
-	&::-webkit-progress-bar {
-		background: transparent;
-	}
-
-	&::-webkit-progress-value {
-		background: currentColor;
-		border-radius: 100px;
-		min-width: 5px;
-		transition: width .2s ease;
-	}
-
-	&::-moz-progress-bar {
-		background: currentColor;
-		border-radius: 100px;
-		min-width: 5px;
-		transition: width .2s ease;
-	}
+	transform: translateY(-50%);
 }
 </style>

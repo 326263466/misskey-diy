@@ -136,7 +136,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<SearchMarker :keywords="['antennas']">
 				<MkFolder>
-					<template #icon><i class="ti ti-antenna"></i></template>
+					<template #icon><i class="ti ti-rss"></i></template>
 					<template #label><SearchLabel>{{ i18n.ts.antennas }}</SearchLabel></template>
 					<div class="_gaps_s">
 						<MkFolder :defaultOpen="true">
@@ -158,12 +158,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import MkButton from '@/components/MkButton.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import { selectFile } from '@/utility/drive.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
@@ -190,10 +191,8 @@ const onImportSuccess = () => {
 };
 
 const onError = (ev: Error) => {
-	os.alert({
-		type: 'error',
-		text: ev.message,
-	});
+	if (isAccountSessionErrorHandled(ev)) return;
+	os.toast(ev.message || i18n.ts.somethingHappened, 'error');
 };
 
 const exportNotes = () => {
@@ -274,10 +273,6 @@ const importAntennas = async (ev: PointerEvent) => {
 	});
 	misskeyApi('i/import-antennas', { fileId: file.id }).then(onImportSuccess).catch(onError);
 };
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts._settings.accountData,

@@ -14,14 +14,16 @@ import StatusEndpoint, { meta as statusMeta } from '@/server/api/endpoints/i/che
 import RankingEndpoint from '@/server/api/endpoints/checkin/ranking.js';
 import ClaimEndpoint from '@/server/api/endpoints/i/claim-achievement.js';
 import MakeupEndpoint from '@/server/api/endpoints/i/checkin-makeup.js';
-import GrantCardsEndpoint, { meta as grantCardsMeta } from '@/server/api/endpoints/admin/checkin/grant-cards.js';
 import ExchangeEndpoint from '@/server/api/endpoints/i/checkin-exchange.js';
-import RedeemEndpoint, { meta as redeemMeta } from '@/server/api/endpoints/i/checkin-redeem.js';
-import CreateCodeEndpoint, { meta as createCodeMeta } from '@/server/api/endpoints/admin/checkin/codes/create.js';
-import ListCodesEndpoint, { meta as listCodesMeta } from '@/server/api/endpoints/admin/checkin/codes/list.js';
-import UpdateCodeEndpoint, { meta as updateCodeMeta } from '@/server/api/endpoints/admin/checkin/codes/update.js';
-import CodeClaimsEndpoint, { meta as codeClaimsMeta } from '@/server/api/endpoints/admin/checkin/codes/claims.js';
-import { CheckinRedemptionService } from '@/core/CheckinRedemptionService.js';
+import RedeemEndpoint, { meta as redeemMeta } from '@/server/api/endpoints/i/benefits/redeem.js';
+import CreateCodeEndpoint, { meta as createCodeMeta } from '@/server/api/endpoints/admin/benefits/codes/create.js';
+import ListCodesEndpoint, { meta as listCodesMeta } from '@/server/api/endpoints/admin/benefits/codes/list.js';
+import UpdateCodeEndpoint, { meta as updateCodeMeta } from '@/server/api/endpoints/admin/benefits/codes/update.js';
+import CodeClaimsEndpoint, { meta as codeClaimsMeta } from '@/server/api/endpoints/admin/benefits/codes/claims.js';
+import DeleteCodeEndpoint, { meta as deleteCodeMeta } from '@/server/api/endpoints/admin/benefits/codes/delete.js';
+import { BenefitRedemptionService } from '@/core/BenefitRedemptionService.js';
+import { WalletService } from '@/core/WalletService.js';
+import BenefitHistoryEndpoint, { meta as benefitHistoryMeta } from '@/server/api/endpoints/i/benefits/history.js';
 
 function setup(records: Partial<MiUserCheckin>[] = []) {
 	const user = { id: 'user', username: 'user', host: null, isSuspended: false, isDeleted: false, movedToUri: null };
@@ -66,7 +68,7 @@ function setup(records: Partial<MiUserCheckin>[] = []) {
 		getBalanceInTransaction: vi.fn(async () => points),
 		changePointsInTransaction: vi.fn(async (_manager: unknown, _userId: string, amount: number) => { points += amount; return points; }),
 	};
-	const service = new CheckinService(db as never, repository as never, { findOneByOrFail: vi.fn(async () => profile) } as never, achievements as never, pack as never, { parse: () => ({ date: new Date('2024-01-01T00:00:00Z') }) } as never, { log: vi.fn() } as never, walletService as never);
+	const service = new CheckinService(db as never, repository as never, { findOneByOrFail: vi.fn(async () => profile) } as never, achievements as never, pack as never, { parse: () => ({ date: new Date('2024-01-01T00:00:00Z') }) } as never, walletService as never);
 	return { service, records, user, state, manager, achievements, profile, repository, query, db, pack };
 }
 
@@ -185,16 +187,6 @@ describe('check-in endpoint contracts', () => {
 		const endpoint = new ExchangeEndpoint({ exchange: vi.fn().mockRejectedValue(new ErrorClass()) } as never);
 		await expect(endpoint.exec({ requestId: '75922ac6-4381-4548-bbcb-0b19da426ea3' }, { id: 'user' } as never, null)).rejects.toMatchObject({ code });
 	});
-	test('restricts card grants to administrators and validates their amount', async () => {
-		expect(grantCardsMeta).toMatchObject({ requireCredential: true, requireAdmin: true, kind: 'write:admin:account' });
-		const grantCards = vi.fn();
-		const endpoint = new GrantCardsEndpoint({ grantCards } as never);
-		for (const amount of [0, -1, 1.5, 10001]) {
-			await expect(endpoint.exec({ userId: '9i7a2pgm1b', amount }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'INVALID_PARAM' });
-		}
-		expect(grantCards).not.toHaveBeenCalled();
-	});
-
 	test.each([
 		[CheckinService.InvalidDateError, 'INVALID_CHECKIN_DATE'],
 		[CheckinService.NoMakeupCardsError, 'NO_MAKEUP_CARDS'],
@@ -204,14 +196,6 @@ describe('check-in endpoint contracts', () => {
 		await expect(endpoint.exec({ date: '2026-09-27' }, { id: 'user' } as never, null)).rejects.toMatchObject({ code });
 	});
 
-	test.each([
-		[CheckinService.NoSuchUserError, 'NO_SUCH_USER'],
-		[CheckinService.CardLimitError, 'CARD_LIMIT_EXCEEDED'],
-		[CheckinService.NotAllowedError, 'CHECKIN_NOT_ALLOWED'],
-	] as const)('maps card grant errors to the API contract', async (ErrorClass, code) => {
-		const endpoint = new GrantCardsEndpoint({ grantCards: vi.fn().mockRejectedValue(new ErrorClass()) } as never);
-		await expect(endpoint.exec({ userId: '9i7a2pgm1b', amount: 1 }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code });
-	});
 	test.each(CHECKIN_ACHIEVEMENT_TYPES)('blocks client claims for %s', async name => {
 		const create = vi.fn();
 		const endpoint = new ClaimEndpoint({ create } as never);
@@ -250,20 +234,21 @@ describe('check-in endpoint contracts', () => {
 
 describe('benefit redemption endpoint contracts', () => {
 	test('separates administrator code management from personal redemption permissions', () => {
-		for (const meta of [createCodeMeta, updateCodeMeta]) {
+		for (const meta of [createCodeMeta, updateCodeMeta, deleteCodeMeta]) {
 			expect(meta).toMatchObject({ requireCredential: true, requireAdmin: true, kind: 'write:admin:account' });
 		}
 		for (const meta of [listCodesMeta, codeClaimsMeta]) {
 			expect(meta).toMatchObject({ requireCredential: true, requireAdmin: true, kind: 'read:admin:show-user' });
 		}
 		expect(redeemMeta).toMatchObject({ requireCredential: true, prohibitMoved: true, kind: 'write:account' });
+		expect(benefitHistoryMeta).toMatchObject({ requireCredential: true, kind: 'read:account' });
 	});
 
 	test('rejects invalid card amounts, quotas and expiration dates before creating a code', async () => {
 		const create = vi.fn();
 		const endpoint = new CreateCodeEndpoint({ create } as never);
-		const valid = { name: 'Holiday', amount: 2, maxRedemptions: 10 };
-		for (const invalid of [{ name: '' }, { amount: 0 }, { amount: 10001 }, { amount: 1.5 }, { maxRedemptions: 0 }, { maxRedemptions: 1000001 }, { expiresAt: 'invalid' }]) {
+		const valid = { name: 'Holiday', rewardType: 'makeupCards', amount: 2, maxRedemptions: 10 };
+		for (const invalid of [{ name: '' }, { amount: 0 }, { amount: 1000001 }, { rewardType: undefined }, { rewardType: 'unknown' }, { amount: 1.5 }, { maxRedemptions: 0 }, { maxRedemptions: 1000001 }, { expiresAt: 'invalid' }]) {
 			await expect(endpoint.exec({ ...valid, ...invalid }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'INVALID_PARAM' });
 		}
 		expect(create).not.toHaveBeenCalled();
@@ -271,7 +256,7 @@ describe('benefit redemption endpoint contracts', () => {
 
 	test.each([undefined, null, '2027-01-01T00:00:00.000Z', '2027-01-01T08:00:00+08:00'])('accepts supported expiration settings: %s', async expiresAt => {
 		const create = vi.fn().mockResolvedValue({ id: 'code' });
-		const params = { name: 'Holiday', amount: 2, maxRedemptions: 10, expiresAt };
+		const params = { name: 'Holiday', rewardType: 'makeupCards', amount: 2, maxRedemptions: 10, expiresAt };
 		const me = { id: 'admin' };
 		await new CreateCodeEndpoint({ create } as never).exec(params, me as never, null);
 		expect(create).toHaveBeenCalledExactlyOnceWith(params, me);
@@ -289,11 +274,12 @@ describe('benefit redemption endpoint contracts', () => {
 	});
 
 	test.each([
-		[CheckinRedemptionService.NoSuchCodeError, 'NO_SUCH_REDEMPTION_CODE'],
-		[CheckinRedemptionService.DisabledCodeError, 'REDEMPTION_CODE_DISABLED'],
-		[CheckinRedemptionService.ExpiredCodeError, 'REDEMPTION_CODE_EXPIRED'],
-		[CheckinRedemptionService.ExhaustedCodeError, 'REDEMPTION_CODE_EXHAUSTED'],
-		[CheckinService.NotAllowedError, 'CHECKIN_NOT_ALLOWED'],
+		[BenefitRedemptionService.NoSuchCodeError, 'NO_SUCH_REDEMPTION_CODE'],
+		[BenefitRedemptionService.DisabledCodeError, 'REDEMPTION_CODE_DISABLED'],
+		[BenefitRedemptionService.ExpiredCodeError, 'REDEMPTION_CODE_EXPIRED'],
+		[BenefitRedemptionService.ExhaustedCodeError, 'REDEMPTION_CODE_EXHAUSTED'],
+		[BenefitRedemptionService.NotAllowedError, 'BENEFIT_NOT_ALLOWED'],
+		[WalletService.BalanceLimitError, 'BALANCE_LIMIT_EXCEEDED'],
 		[CheckinService.CardLimitError, 'CARD_LIMIT_EXCEEDED'],
 	] as const)('maps redemption failures to the user-visible API contract', async (ErrorClass, code) => {
 		const endpoint = new RedeemEndpoint({ redeem: vi.fn().mockRejectedValue(new ErrorClass()) } as never);
@@ -301,23 +287,30 @@ describe('benefit redemption endpoint contracts', () => {
 	});
 
 	test('maps invalid configuration and missing codes to administrator API errors', async () => {
-		const create = new CreateCodeEndpoint({ create: vi.fn().mockRejectedValue(new CheckinRedemptionService.InvalidConfigurationError()) } as never);
-		await expect(create.exec({ name: ' ', amount: 1, maxRedemptions: 1 }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'INVALID_REDEMPTION_CONFIGURATION' });
-		const update = new UpdateCodeEndpoint({ update: vi.fn().mockRejectedValue(new CheckinRedemptionService.NoSuchCodeError()) } as never);
-		await expect(update.exec({ id: '9i7a2pgm1b', enabled: false }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'NO_SUCH_REDEMPTION_CODE' });
+		const create = new CreateCodeEndpoint({ create: vi.fn().mockRejectedValue(new BenefitRedemptionService.InvalidConfigurationError()) } as never);
+		await expect(create.exec({ name: ' ', rewardType: 'makeupCards', amount: 1, maxRedemptions: 1 }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'INVALID_REDEMPTION_CONFIGURATION' });
+		const update = new UpdateCodeEndpoint({ update: vi.fn().mockRejectedValue(new BenefitRedemptionService.NoSuchCodeError()) } as never);
+		await expect(update.exec({ id: '9i7a2pgm1b', name: 'Holiday', rewardType: 'makeupCards', amount: 1, maxRedemptions: 1, expiresAt: null, enabled: false }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'NO_SUCH_REDEMPTION_CODE' });
+		const remove = new DeleteCodeEndpoint({ remove: vi.fn().mockRejectedValue(new BenefitRedemptionService.NoSuchCodeError()) } as never);
+		await expect(remove.exec({ id: '9i7a2pgm1b' }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'NO_SUCH_REDEMPTION_CODE' });
 	});
 
 	test('validates administrator pagination and claim identifiers before querying', async () => {
 		const list = vi.fn();
 		const claims = vi.fn();
+		const history = vi.fn().mockResolvedValue({ total: 0, items: [] });
+		const historyEndpoint = new BenefitHistoryEndpoint({ history } as never);
 		const listEndpoint = new ListCodesEndpoint({ list } as never);
 		const claimsEndpoint = new CodeClaimsEndpoint({ claims } as never);
 		for (const params of [{ offset: -1 }, { offset: 100001 }, { limit: 0 }, { limit: 101 }, { limit: 1.5 }]) {
 			await expect(listEndpoint.exec(params, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'INVALID_PARAM' });
+			await expect(historyEndpoint.exec(params, { id: 'me' } as never, null)).rejects.toMatchObject({ code: 'INVALID_PARAM' });
 			await expect(claimsEndpoint.exec({ codeId: '9i7a2pgm1b', ...params }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'INVALID_PARAM' });
 		}
 		await expect(claimsEndpoint.exec({ codeId: 'bad-id!' }, { id: 'admin' } as never, null)).rejects.toMatchObject({ code: 'INVALID_PARAM' });
 		expect(list).not.toHaveBeenCalled();
 		expect(claims).not.toHaveBeenCalled();
+		await historyEndpoint.exec({ userId: 'other', limit: 5 }, { id: 'me' } as never, null);
+		expect(history).toHaveBeenCalledExactlyOnceWith('me', 0, 5);
 	});
 });

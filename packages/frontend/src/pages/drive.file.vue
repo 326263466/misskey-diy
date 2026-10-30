@@ -10,14 +10,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 
 	<MkSwiper v-model:tab="tab" :tabs="headerTabs">
-		<div data-page-body>
-			<div v-if="tab === 'info'" class="_pageBody">
-				<XFileInfo :fileId="fileId"/>
-			</div>
+		<div v-if="tab === 'info'" class="_pageBody">
+			<XFileInfo :fileId="fileId"/>
+		</div>
 
-			<div v-else-if="tab === 'notes'" class="_pageBody">
-				<XNotes :fileId="fileId"/>
-			</div>
+		<div v-else-if="tab === 'notes'" class="_pageBody">
+			<XNotes :fileId="fileId"/>
 		</div>
 	</MkSwiper>
 </MkStickyContainer>

@@ -13,7 +13,7 @@ import type { AbuseUserReportsRepository, UsersRepository } from '@/models/_.js'
 import { AbuseReportSnapshotService } from '@/core/AbuseReportSnapshotService.js';
 import { AbuseReportEvidenceService } from '@/core/AbuseReportEvidenceService.js';
 import type { AbuseReportTarget } from '@/core/AbuseReportSnapshotService.js';
-import type { AbuseReportEvidenceArchive } from '@/models/AbuseUserReport.js';
+import type { AbuseReportEvidenceArchive, AbuseReportSnapshot } from '@/models/AbuseUserReport.js';
 import { formatAbuseReport, serializeAbuseReport } from '@/misc/abuse-report.js';
 import { AbuseReportNotificationService } from '@/core/AbuseReportNotificationService.js';
 import { QueueService } from '@/core/QueueService.js';
@@ -30,6 +30,7 @@ export type AbuseReportRequest = {
 	reason: MiAbuseUserReport['reason'];
 	target: AbuseReportTarget;
 	requestId: string | null;
+	federation?: AbuseReportSnapshot['federation'];
 };
 
 @Injectable()
@@ -82,6 +83,7 @@ export class AbuseReportService {
 				const user = await manager.findOneByOrFail(MiUser, { id: param.targetUserId });
 				const reporter = await manager.findOneByOrFail(MiUser, { id: param.reporterId });
 				const snapshot = await this.abuseReportSnapshotService.capture(user, reporter, param.target, manager);
+				if (param.federation != null) snapshot.federation = structuredClone(param.federation);
 				archives.push(...snapshot.files.map(file => file.archive));
 				const id = this.idService.gen();
 				await manager.insert(MiAbuseUserReport, {

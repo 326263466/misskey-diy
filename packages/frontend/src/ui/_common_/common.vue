@@ -57,13 +57,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 </Transition>
 
-<component
-	:is="popup.component"
-	v-for="popup in popups"
-	:key="popup.id"
-	v-bind="popup.props"
-	v-on="popup.events"
-/>
+<div id="misskey-popups" :class="$style.popupHost">
+	<component
+		:is="popup.component"
+		v-for="popup in popups"
+		:key="popup.id"
+		v-bind="popup.props"
+		v-on="popup.events"
+	/>
+</div>
 
 <component
 	:is="prefer.s.animation ? TransitionGroup : 'div'"
@@ -82,13 +84,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:enterFromClass="$style.transition_notification_enterFrom"
 	:leaveToClass="$style.transition_notification_leaveTo"
 >
-	<div v-for="notification in notifications" :key="notification.id" :class="$style.notification">
+	<div v-for="item in notifications" :key="item.id" :class="$style.notification">
 		<XNotification
-			:notification="notification"
-			@close="dismissNotification(notification.id)"
-			@pause="pausedNotifications.add(notification.id)"
-			@resume="resumeNotification(notification.id)"
-		/>
+			:notification="item.notification"
+			@close="dismissNotification(item.id)"
+			@pause="pausedNotifications.add(item.id)"
+			@resume="resumeNotification(item.id)"
+		>
+			<button v-if="item.poke" type="button" class="_button _acrylic" :class="$style.poke" @click="openPokedChat(item)">
+				<MkAvatar :class="$style.pokeAvatar" :user="item.poke.fromUser" imageOnly/>
+				<span :class="$style.pokeBody">
+					<I18n :src="i18n.ts._chat.pokedYou" :class="$style.pokeText">
+						<template #name><MkUserName :user="item.poke.fromUser"/></template>
+					</I18n>
+					<span v-if="item.poke.toRoom" :class="$style.pokeRoom">{{ item.poke.toRoom.name }}</span>
+				</span>
+				<span :class="[$style.pokeHand, { [$style.pokeHandAnimated]: prefer.s.animation }]" aria-hidden="true"><MkEmoji :emoji="'\u{1f449}\u{1f3fb}'" noTooltip ignoreMuted/></span>
+			</button>
+		</XNotification>
 	</div>
 </component>
 
@@ -124,6 +137,7 @@ import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { globalEvents } from '@/events.js';
 import { store } from '@/store.js';
+import { mainRouter } from '@/router.js';
 import XNavbar from '@/ui/_common_/navbar.vue';
 
 const XStreamIndicator = defineAsyncComponent(() => import('./stream-indicator.vue'));
@@ -134,7 +148,9 @@ const widgetsShowing = defineModel<boolean>('widgetsShowing');
 
 const dev = _DEV_;
 
-const notifications = ref<Misskey.entities.Notification[]>([]);
+type FloatingItem = { id: string; notification?: Misskey.entities.Notification; poke?: Misskey.entities.ChatMessage };
+
+const notifications = ref<FloatingItem[]>([]);
 const pausedNotifications = new Set<string>();
 
 function dismissNotification(id: string) {
@@ -165,7 +181,7 @@ function onNotification(notification: Misskey.entities.Notification, isClient = 
 		}
 
 		if (!isSigninAlert(notification)) {
-			notifications.value.unshift(notification);
+			notifications.value.unshift({ id: notification.id, notification });
 			window.setTimeout(trimNotifications, 500);
 		}
 	}
@@ -174,6 +190,21 @@ function onNotification(notification: Misskey.entities.Notification, isClient = 
 	if (isSigninAlert(notification)) showSigninAlert(notification);
 
 	sound.playMisskeySfx('notification');
+}
+
+function onChatPoked(message: Misskey.entities.ChatMessage) {
+	if (window.document.visibilityState !== 'visible') return;
+	const id = `poke:${message.id}`;
+	if (notifications.value.some(item => item.id === id)) return;
+	notifications.value.unshift({ id, poke: message });
+	window.setTimeout(trimNotifications, 500);
+}
+
+function openPokedChat(item: FloatingItem) {
+	const message = item.poke;
+	if (!message) return;
+	dismissNotification(item.id);
+	mainRouter.pushByPath(message.toRoomId ? `/chat/room/${message.toRoomId}` : `/chat/user/${message.fromUserId}`);
 }
 
 function exitSafeMode() {
@@ -189,6 +220,7 @@ if ($i) {
 		connection.on('notification', onNotification);
 	}
 	globalEvents.on('clientNotification', notification => onNotification(notification, true));
+	globalEvents.on('chatPoked', onChatPoked);
 
 	if ('serviceWorker' in navigator) {
 		swInject();
@@ -197,6 +229,11 @@ if ($i) {
 </script>
 
 <style lang="scss" module>
+.popupHost {
+	// 页面弹窗与 os.popup 共用层叠上下文，不增加布局盒子。
+	display: contents;
+}
+
 .transition_menuDrawerBg_enterActive,
 .transition_menuDrawerBg_leaveActive {
 	opacity: 1;
@@ -394,6 +431,70 @@ if ($i) {
 
 .notification {
 	container-type: inline-size;
+}
+
+.poke {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 12px 40px 12px 12px;
+	font-size: 0.9em;
+	text-align: start;
+	color: var(--MI_THEME-fg);
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -2px;
+	}
+}
+
+.pokeAvatar {
+	flex-shrink: 0;
+	width: 36px;
+	height: 36px;
+}
+
+.pokeBody {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.pokeText {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pokeRoom {
+	font-size: 0.85em;
+	color: var(--MI_THEME-fgTransparentWeak);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pokeHand {
+	flex-shrink: 0;
+	margin-inline-start: auto;
+	font-size: 1.3em;
+	line-height: 1;
+
+	&.pokeHandAnimated { animation: pokeToastHand 300ms ease-in-out 300ms 2; }
+
+	@media (prefers-reduced-motion: reduce) {
+		&.pokeHandAnimated { animation: none; }
+	}
+}
+
+@keyframes pokeToastHand {
+	0%, 100% { transform: translateX(0); }
+	25% { transform: translateX(4px); }
+	65% { transform: translateX(-1px); }
 }
 </style>
 

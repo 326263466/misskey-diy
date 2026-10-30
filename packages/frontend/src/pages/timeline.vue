@@ -4,27 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="src" :actions="headerActions" :tabs="$i ? headerTabs : headerTabsWhenNotLogin" :swipable="true" :displayMyAvatar="true" :canOmitTitle="true">
-	<div class="_pageBody">
-		<MkPostForm v-if="$i && prefer.r.showFixedPostForm.value" class="_panel" fixed :initialRows="3" :autofocus="false" style="margin-bottom: var(--MI-margin);"/>
-		<MkStreamingNotesTimeline
-			ref="tlComponent"
-			:key="effectiveSrc + withRenotes + withReplies + onlyFiles + withSensitive"
-			pageEmpty
-			:class="$style.tl"
-			:src="effectiveSrc"
-			:withRenotes="withRenotes"
-			:withReplies="withReplies"
-			:withSensitive="withSensitive"
-			:onlyFiles="onlyFiles"
-			:sound="true"
-		/>
+<PageWithHeader v-model:tab="src" :class="[$style.root, { [$style.mobile]: mobileLayout }]" :embedded="mobileLayout" :actions="headerActions" :tabs="$i ? headerTabs : headerTabsWhenNotLogin" :swipable="true" :canOmitTitle="true">
+	<div class="_pageBody" :class="$style.body">
+		<MkPostForm v-if="$i && !mobileLayout && prefer.r.showFixedPostForm.value" class="_panel" fixed :initialRows="2" :autofocus="false" style="margin-bottom: var(--MI-margin);"/>
+		<KeepAlive :max="prefer.s.numberOfPageCache">
+			<TabPage ref="tlComponent" :key="timelineKey" :component="MkStreamingNotesTimeline" :identity="timelineKey" :isSelected="isTimelineSelected" :pageProps="timelineProps"/>
+		</KeepAlive>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, useTemplateRef, ref, onMounted, onActivated } from 'vue';
+import { computed, inject, KeepAlive, watch, useCssModule, useTemplateRef, ref, onMounted, onActivated } from 'vue';
+import type { Ref } from 'vue';
 import type { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import type { MenuItem } from '@/types/menu.js';
 import type { BasicTimelineType } from '@/timelines.js';
@@ -41,14 +33,18 @@ import { deepMerge } from '@/utility/merge.js';
 import { hasWithReplies, isAvailableBasicTimeline } from '@/timelines.js';
 import { prefer } from '@/preferences.js';
 import { useRouter } from '@/router.js';
+import { TabPage } from '@/composables/use-tab-page.js';
+import type { TabPageHandle } from '@/composables/use-tab-page.js';
 
 const props = defineProps<{
 	initialTab?: string;
 }>();
 
 const router = useRouter();
+const $style = useCssModule();
+const mobileLayout = inject<Readonly<Ref<boolean>>>('mobileLayout', computed(() => deviceKind === 'smartphone' || window.innerWidth <= 500));
 
-const tlComponent = useTemplateRef('tlComponent');
+const tlComponent = useTemplateRef<TabPageHandle<{ reloadTimeline: () => void }>>('tlComponent');
 
 type TimelinePageSrc = 'recommended' | 'following';
 
@@ -69,15 +65,15 @@ function setSrc(newSrc: TimelinePageSrc, replace = false) {
 	else router.push('/timeline/:initialTab?', { params: { initialTab: newSrc } });
 }
 
-// 通过链接直接进入某个标签时也记住它，下次打开 /timeline 时保持一致
-watch(() => props.initialTab, (tab) => {
-	if ($i && (tab === 'recommended' || tab === 'following')) saveSrc(tab);
-}, { immediate: true });
-
 // 推荐流恒定走全局时间线：是否含联邦内容完全由管理员的实例设置决定
 // (未接入远程实例时，全局与本地的取数条件只差 userHost，返回内容等价)。
 // 全局被角色策略禁用时退回本地，否则整个推荐页会直接报错。
 const recommendedSrc = computed<BasicTimelineType>(() => isAvailableBasicTimeline('global') ? 'global' : 'local');
+
+// 立即同步标签前先初始化推荐源，直接刷新 /timeline/recommended 时才能保存选择。
+watch(() => props.initialTab, (tab) => {
+	if ($i && (tab === 'recommended' || tab === 'following')) saveSrc(tab);
+}, { immediate: true });
 
 const effectiveSrc = computed<BasicTimelineType>(() => {
 	if (src.value === 'following') return 'home';
@@ -127,6 +123,13 @@ const withSensitive = computed<boolean>({
 	get: () => store.r.tl.value.filter.withSensitive,
 	set: (x) => saveTlFilter('withSensitive', x),
 });
+
+const timelineKey = computed(() => effectiveSrc.value + withRenotes.value + withReplies.value + onlyFiles.value + withSensitive.value);
+const isTimelineSelected = (identity: string) => identity === timelineKey.value;
+const timelineProps = computed(() => ({
+	pageEmpty: true, class: $style.tl, src: effectiveSrc.value, withRenotes: withRenotes.value,
+	withReplies: withReplies.value, withSensitive: withSensitive.value, onlyFiles: onlyFiles.value, sound: true,
+}));
 
 const showFixedPostForm = prefer.model('showFixedPostForm');
 
@@ -186,7 +189,7 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 				ref: onlyFiles,
 				disabled: hasWithReplies(srcForAvailability.value) ? withReplies : false,
 			});
-			if ($i) {
+			if ($i && !mobileLayout.value) {
 				menuItems.push({ type: 'divider' }, {
 					type: 'switch',
 					text: i18n.ts.showFixedPostForm,
@@ -198,12 +201,12 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 		},
 	}];
 
-	if (deviceKind === 'desktop') {
+	if (!mobileLayout.value || !prefer.s.enablePullToRefresh) {
 		items.unshift({
 			icon: 'ti ti-refresh',
 			text: i18n.ts.reload,
 			handler: () => {
-				tlComponent.value?.reloadTimeline();
+				tlComponent.value?.content?.reloadTimeline();
 			},
 		});
 	}
@@ -234,6 +237,19 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.body {
+	padding-bottom: 0;
+}
+
+.mobile {
+	--MI-pageHeaderHeight: var(--MI-mobileTabHeight);
+	--MI-pageHeaderRadius: 0px;
+
+	.tl {
+		border-radius: 0;
+	}
+}
+
 .new {
 	position: sticky;
 	top: calc(var(--MI-stickyTop, 0px) + 16px);

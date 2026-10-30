@@ -325,7 +325,7 @@ export function reloadPlugin(plugin: Plugin): void {
 	launchPlugin(plugin.installId);
 }
 
-export async function configPlugin(plugin: Plugin) {
+export async function configPlugin(plugin: Plugin): Promise<boolean> {
 	if (plugin.config == null) {
 		throw new Error('This plugin does not have a config');
 	}
@@ -336,11 +336,12 @@ export async function configPlugin(plugin: Plugin) {
 	}
 
 	const { canceled, result } = await os.form(plugin.name, config);
-	if (canceled) return;
+	if (canceled) return false;
 
 	prefer.commit('plugins', prefer.s.plugins.map(x => x.installId === plugin.installId ? { ...x, configData: result } : x));
 
 	reloadPlugin(plugin);
+	return true;
 }
 
 export function changePluginActive(plugin: Plugin, active: boolean) {

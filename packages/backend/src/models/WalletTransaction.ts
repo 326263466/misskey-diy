@@ -13,7 +13,7 @@ export const WALLET_TRANSACTION_TYPES = [
 	'redPacketSend', 'redPacketClaim', 'redPacketRefund', 'redPacketReservationRelease',
 	'tipSend', 'tipReceive',
 	'transferSend', 'transferReceive', 'transferRefund', 'transferReservationRelease',
-	'checkinReward', 'checkinMakeupExchange', 'checkinAdminGrant', 'checkinAdminRevoke', 'orderPayment', 'orderIncome', 'pointsOpeningBalance', 'pointsUnification',
+	'checkinReward', 'checkinMakeupExchange', 'checkinAdminGrant', 'checkinAdminRevoke', 'redemptionReward', 'orderPayment', 'orderIncome', 'pointsOpeningBalance', 'pointsUnification',
 ] as const;
 export type WalletTransactionType = (typeof WALLET_TRANSACTION_TYPES)[number];
 export const WALLET_TRANSACTION_CURRENCIES = ['coins', 'points'] as const;
@@ -21,6 +21,7 @@ export type WalletTransactionCurrency = (typeof WALLET_TRANSACTION_CURRENCIES)[n
 
 @Entity('wallet_transaction')
 @Index('IDX_wallet_transaction_user_id', ['userId', 'id'])
+@Index('IDX_wallet_transaction_number', ['number'], { unique: true })
 @Index('IDX_wallet_transaction_user_currency_request', ['userId', 'currency', 'requestId'], { unique: true })
 @Check('CHK_wallet_transaction_currency', '"currency" IN (\'coins\', \'points\')')
 @Check('CHK_wallet_transaction_amount', '("amount" <> 0 OR "reservedAmount" <> 0) AND "amount" >= -2000000000 AND "amount" <= 2000000000 AND "reservedAmount" >= -2000000000 AND "reservedAmount" <= 2000000000')
@@ -28,6 +29,10 @@ export type WalletTransactionCurrency = (typeof WALLET_TRANSACTION_CURRENCIES)[n
 export class MiWalletTransaction {
 	@PrimaryColumn({ ...id(), primaryKeyConstraintName: 'PK_wallet_transaction' })
 	public id: string;
+
+	// 独立于内部游标 ID，以字符串保留大整数精度。
+	@Column('bigint', { select: false })
+	public number: string;
 
 	@Column(id())
 	public userId: MiUser['id'];

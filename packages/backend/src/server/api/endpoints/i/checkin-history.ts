@@ -23,7 +23,7 @@ export const meta = {
 					properties: {
 						id: { type: 'string', optional: false, nullable: false },
 						createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
-						source: { type: 'string', enum: ['admin', 'exchange', 'reward', 'redemption', 'legacy'], optional: false, nullable: true },
+						source: { type: 'string', enum: ['exchange', 'reward', 'redemption', 'legacy'], optional: false, nullable: true },
 						amount: { type: 'integer', optional: false, nullable: false },
 						used: { type: 'integer', optional: false, nullable: true },
 						remaining: { type: 'integer', optional: false, nullable: true },
@@ -50,7 +50,7 @@ export const paramDef = {
 type HistoryRow = {
 	id: string;
 	createdAt: Date;
-	source: 'admin' | 'exchange' | 'reward' | 'redemption' | 'legacy' | null;
+	source: 'exchange' | 'reward' | 'redemption' | 'legacy' | null;
 	amount: number;
 	used: number | null;
 	remaining: number | null;

@@ -84,12 +84,8 @@ function uninstall() {
 	removeTheme(selectedTheme.value as Theme);
 	installedThemes.value = installedThemes.value.filter(t => t.id !== selectedThemeId.value);
 	selectedThemeId.value = null;
-	os.success();
+	os.toast(i18n.ts.uninstalled, 'success');
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts._theme.manage,

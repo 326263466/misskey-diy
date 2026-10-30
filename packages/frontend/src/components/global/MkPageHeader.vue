@@ -5,39 +5,39 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div v-if="show || $slots.actions" :class="[$style.container, { [$style.containerEmbedded]: embedded }]">
-	<div ref="el" data-page-header :class="[$style.root, { [$style.embedded]: embedded, [$style.tabsBelow]: tabsBelow, [$style.scrolled]: scrolled && !embedded }]">
-		<div :class="[$style.upper, { [$style.slim]: narrow, [$style.thin]: thin_, [$style.hasCustomActions]: $slots.actions }]">
-			<button v-if="displayBackButton_" class="_button" :class="$style.backButton" :aria-label="i18n.ts.goBack" @click.stop="goBack"><i class="ti ti-arrow-left"></i></button>
-			<div v-else-if="!thin_ && (narrow || deviceKind === 'smartphone') && props.displayMyAvatar && $i" class="_button" @click="openAccountMenu">
+	<div ref="el" data-page-header :class="[$style.root, { [$style.mobile]: mobileLayout, [$style.embedded]: embedded, [$style.tabsBelow]: tabsBelow, [$style.scrolled]: scrolled && !embedded }]">
+		<div :class="[$style.upper, { [$style.slim]: narrow && !tabsInline, [$style.thin]: thin_, [$style.hasCustomActions]: $slots.actions }]">
+			<button v-if="displayBackButton_" type="button" class="_button" :class="$style.backButton" :aria-label="i18n.ts.goBack" @click.stop="goBack"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
+			<button v-else-if="!thin_ && (narrow || deviceKind === 'smartphone') && props.displayMyAvatar && $i" type="button" class="_button" :aria-label="i18n.ts.account" @click="openAccountMenu">
 				<MkAvatar :class="$style.avatar" :user="$i"/>
-			</div>
-			<div v-else-if="!thin_ && narrow && !hideTitle && !$slots.actions && !tabsBelow" :class="$style.buttons"></div>
+			</button>
+			<div v-else-if="!thin_ && narrow && !hideTitle && !$slots.actions && !tabsBelow && !tabsInline" :class="$style.buttons"></div>
 
 			<template v-if="pageMetadata">
-				<div v-if="!hideTitle" :class="[$style.titleContainer, { [$style.titleContainerWithBackButton]: displayBackButton_ }]" @click="top">
-					<div v-if="pageMetadata.avatar" :class="$style.titleAvatarContainer">
+				<button v-if="!hideTitle" type="button" class="_button" :class="[$style.titleContainer, { [$style.titleContainerWithBackButton]: displayBackButton_ }]" @click="top">
+					<span v-if="pageMetadata.avatar" :class="$style.titleAvatarContainer">
 						<MkAvatar :class="$style.titleAvatar" :user="pageMetadata.avatar" indicator/>
-					</div>
+					</span>
 					<i v-else-if="pageMetadata.icon" :class="[$style.titleIcon, pageMetadata.icon]"></i>
 
-					<div class="_nowrap" :class="$style.title">
+					<span class="_nowrap" :class="$style.title">
 						<MkUserName v-if="pageMetadata.userName" :user="pageMetadata.userName" :nowrap="true"/>
-						<div v-else-if="pageMetadata.title" class="_nowrap"><Mfm :text="pageMetadata.title" :plain="true" :nowrap="true" :author="pageMetadata.avatar ?? undefined" :emojiUrls="pageMetadata.avatar?.emojis"/></div>
-						<div v-if="pageMetadata.subtitle" :class="$style.subtitle">
+						<span v-else-if="pageMetadata.title" class="_nowrap"><Mfm :text="pageMetadata.title" :plain="true" :nowrap="true" :author="pageMetadata.avatar ?? undefined" :emojiUrls="pageMetadata.avatar?.emojis"/></span>
+						<span v-if="pageMetadata.subtitle" :class="$style.subtitle">
 							{{ pageMetadata.subtitle }}
-						</div>
-					</div>
-				</div>
-				<XTabs v-if="hasTabs && !tabsBelow && (!narrow || hideTitle)" :class="$style.tabs" :tab="tab" :tabs="tabs" :rootEl="el" @update:tab="key => emit('update:tab', key)" @tabClick="onTabClick"/>
+						</span>
+					</span>
+				</button>
+				<XTabs v-if="hasTabs && !tabsBelow && (tabsInline || !narrow || hideTitle)" :class="$style.tabs" :tab="tab" :tabs="tabs" :rootEl="el" @update:tab="key => emit('update:tab', key)" @tabClick="onTabClick"/>
 			</template>
-			<div v-if="$slots.actions || (!thin_ && narrow && !hideTitle) || (actions && actions.length > 0)" :class="[$style.buttons, { [$style.customActions]: $slots.actions }]">
+			<div v-if="$slots.actions || (!thin_ && narrow && !hideTitle && !tabsInline) || (actions && actions.length > 0)" :class="[$style.buttons, { [$style.customActions]: $slots.actions }]">
 				<slot name="actions"></slot>
 				<template v-for="action in actions">
 					<button v-tooltip.icon="action.text" class="_button" :class="[$style.button, { [$style.highlighted]: action.highlighted }]" :aria-label="action.text" @click.stop="action.handler" @touchstart="preventDrag"><i :class="action.icon"></i></button>
 				</template>
 			</div>
 		</div>
-		<div v-if="(tabsBelow || (narrow && !hideTitle)) && hasTabs" :class="[$style.lower, { [$style.slim]: narrow, [$style.thin]: thin_ }]">
+		<div v-if="(tabsBelow || (!tabsInline && narrow && !hideTitle)) && hasTabs" :class="[$style.lower, { [$style.slim]: narrow, [$style.thin]: thin_ }]">
 			<XTabs :class="$style.tabs" :tab="tab" :tabs="tabs" :rootEl="el" @update:tab="key => emit('update:tab', key)" @tabClick="onTabClick"/>
 		</div>
 	</div>
@@ -53,6 +53,7 @@ export type PageHeaderProps = {
 	overridePageMetadata?: PageMetadata;
 	tabs?: Tab[];
 	tabsBelow?: boolean;
+	tabsInline?: boolean;
 	tab?: string;
 	actions?: PageHeaderItem[] | null;
 	thin?: boolean;
@@ -66,7 +67,8 @@ export type PageHeaderProps = {
 </script>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, inject, useTemplateRef, computed } from 'vue';
+import { onMounted, onUnmounted, ref, inject, useTemplateRef, computed, unref } from 'vue';
+import type { Ref } from 'vue';
 import { scrollToTop, getScrollContainer } from '@@/js/scroll.js';
 import XTabs from './MkPageHeader.tabs.vue';
 import { getAccountMenu } from '@/accounts.js';
@@ -75,6 +77,7 @@ import { $i } from '@/i.js';
 import { DI } from '@/di.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
+import { useRouter } from '@/router.js';
 
 const props = withDefaults(defineProps<PageHeaderProps>(), {
 	tabs: () => ([] as Tab[]),
@@ -90,8 +93,12 @@ const pageMetadata = computed(() => props.overridePageMetadata ?? injectedPageMe
 
 const hideTitle = computed(() => inject('shouldOmitHeaderTitle', false) || props.hideTitle || (props.canOmitTitle && props.tabs.length > 0));
 const thin_ = props.thin || inject('shouldHeaderThin', false);
-const omitBackButton = inject('shouldOmitHeaderBackButton', false);
-const displayBackButton_ = computed(() => props.displayBackButton && !omitBackButton);
+const omitBackButton = inject<boolean | Readonly<Ref<boolean>>>('shouldOmitHeaderBackButton', false);
+const mobileLayout = inject<Readonly<Ref<boolean>>>('mobileLayout', computed(() => deviceKind === 'smartphone' || window.innerWidth <= 500));
+const mobileBackPath = inject<Readonly<Ref<string | null>>>('mobilePageBackPath', ref(null));
+const mobileShellHeader = inject<Readonly<Ref<boolean>>>('mobileShellHeader', ref(false));
+const navigationNarrow = inject<Readonly<Ref<boolean>>>('pageNavigationNarrow', ref(false));
+const displayBackButton_ = computed(() => !unref(omitBackButton) && (props.displayBackButton || ((mobileLayout.value || navigationNarrow.value) && mobileBackPath.value != null && !mobileShellHeader.value && !props.hideTitle)));
 
 const el = useTemplateRef('el');
 const narrow = ref(false);
@@ -105,9 +112,11 @@ const preventDrag = (ev: TouchEvent) => {
 	ev.stopPropagation();
 };
 
-// 路由本身没有提供后退操作，所以直接回退浏览器历史
+const router = useRouter();
+
 function goBack() {
-	window.history.back();
+	if (router.canGoBack.value) router.back();
+	else router.pushByPath(mobileBackPath.value ?? '/');
 }
 
 const top = () => {
@@ -173,7 +182,7 @@ onUnmounted(() => {
 @use "../../styles/page-header.scss";
 
 .container {
-	padding-bottom: var(--MI-pageGap);
+	padding-bottom: var(--MI-pageHeaderGap, var(--MI-pageGap));
 }
 
 .containerEmbedded {
@@ -222,7 +231,7 @@ onUnmounted(() => {
 	background: transparent;
 
 	&.thin {
-		--height: 40px;
+		--height: var(--MI-pageHeaderThinHeight);
 	}
 }
 
@@ -245,6 +254,7 @@ onUnmounted(() => {
 
 	&.thin {
 		--margin: 8px;
+		--MI-headerActionSize: 32px;
 
 		> .buttons {
 			> .button {
@@ -274,7 +284,10 @@ onUnmounted(() => {
 }
 
 .lower {
+	--height: var(--MI-pageHeaderHeight);
 	height: var(--height);
+
+	&.thin { --height: var(--MI-pageHeaderThinHeight); }
 }
 
 .tabsBelow {
@@ -286,13 +299,13 @@ onUnmounted(() => {
 	}
 
 	.lower {
-		--height: 44px;
+		--height: var(--MI-pageTabHeight);
 		box-sizing: border-box;
 		padding: 0 8px;
 		box-shadow: inset 0 var(--MI-dividerWidth) var(--MI-dividerColor);
 	}
 
-	.title > div {
+	.title > span {
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
@@ -361,8 +374,22 @@ onUnmounted(() => {
 	font-size: 1.1em;
 
 	&:hover {
-		background: var(--MI_THEME-buttonHoverBg);
+		color: var(--MI_THEME-accent);
 	}
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
+}
+
+.mobile {
+	.upper { --margin: 8px; }
+	.upper .tabs:first-child { padding-inline: var(--MI-margin); }
+	.upper.thin { --MI-headerActionSize: var(--MI-mobileTouchTarget); }
+	.lower, .lower.thin { --height: var(--MI-pageTabHeight); }
+	.backButton { width: var(--MI-mobileTouchTarget); height: var(--MI-mobileTouchTarget); margin-left: 4px; }
+	.title { font-weight: 600; }
+	.upper .titleContainer { flex: 1; max-width: none; margin-right: 0; }
+	.titleContainerWithBackButton .titleIcon { display: none; }
+	.customActions { flex-wrap: nowrap; gap: 4px; }
+	.customActions > * { min-height: var(--MI-mobileTouchTarget); }
 }
 
 .titleContainer {
@@ -405,8 +432,10 @@ onUnmounted(() => {
 }
 
 .title {
+	display: block;
 	min-width: 0;
 	line-height: 1.1;
+	> span { display: block; }
 }
 
 .subtitle {

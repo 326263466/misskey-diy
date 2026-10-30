@@ -7,13 +7,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <MkModal ref="modal" v-slot="{ type, maxHeight }" :anchorElement="anchorElement" :returnFocusTo="anchorElement" :transparentBg="true" :hasInteractionWithOtherFocusTrappedEls="true" align="left" zPriority="middle" @click="close" @esc="close" @opened="focus" @closed="emit('closed')">
 	<section class="_popup _shadow" :class="[$style.root, { [$style.drawer]: type === 'drawer' }]" :style="{ maxHeight: maxHeight ? `min(500px, 75dvh, ${maxHeight}px)` : undefined }" role="dialog" :aria-label="i18n.ts.selectChannel" :aria-describedby="descriptionId" @keydown="onKeydown">
 		<header :class="$style.header">
-			<span :class="$style.title"><i class="ti ti-device-tv" aria-hidden="true"></i>{{ i18n.ts.selectChannel }}</span>
+			<span :class="$style.title"><i class="ti ti-broadcast" aria-hidden="true"></i>{{ i18n.ts.selectChannel }}</span>
 			<button type="button" class="_button" :class="$style.close" :aria-label="i18n.ts.close" @click="close"><i class="ti ti-x" aria-hidden="true"></i></button>
 		</header>
 		<div :class="$style.searchArea">
 			<div :class="$style.searchBox">
 				<i class="ti ti-search" aria-hidden="true"></i>
-				<input ref="input" v-model="query" :class="$style.input" :disabled="disabled" :placeholder="i18n.ts._channelPicker.searchPlaceholder" :aria-label="i18n.ts._channelPicker.searchPlaceholder" autocomplete="off" autocapitalize="off" spellcheck="false" @compositionstart="composing = true" @compositionend="composing = false">
+				<input ref="input" v-model="query" :class="$style.input" type="search" enterkeyhint="search" :disabled="disabled" :placeholder="i18n.ts._channelPicker.searchPlaceholder" :aria-label="i18n.ts._channelPicker.searchPlaceholder" autocomplete="off" autocapitalize="off" spellcheck="false" @keydown="onSearchKeydown" @compositionstart="composing = true" @compositionend="composing = false">
 			</div>
 		</div>
 		<div :class="$style.body">
@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button v-for="channel in results" :key="channel.id" type="button" class="_button" :class="[$style.option, { [$style.selected]: channel.id === selectedId }]" :aria-pressed="channel.id === selectedId" :disabled="disabled" @click="choose(channel)">
 					<span :class="$style.thumbnail">
 						<img v-if="channel.bannerUrl && !channel.isSensitive" :src="channel.bannerUrl" alt="" loading="lazy">
-						<i v-else class="ti ti-device-tv" aria-hidden="true"></i>
+						<i v-else class="ti ti-broadcast" aria-hidden="true"></i>
 					</span>
 					<span :class="$style.optionText">
 						<span :class="$style.name" :title="channel.name"><Mfm :text="channel.name" :plain="true" :nowrap="true"/></span>
@@ -36,7 +36,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<p v-else-if="failed" :class="$style.message" role="status">{{ i18n.ts.error }} <button type="button" class="_textButton" :disabled="disabled" @click="load()">{{ i18n.ts.retry }}</button></p>
 				<template v-else>
 					<p v-if="results.length === 0 && !hasMore" :class="$style.message" role="status">{{ i18n.ts._channelPicker.empty }}</p>
-					<button v-if="hasMore" type="button" class="_button" :class="$style.loadMore" :disabled="disabled" @click="load()">{{ i18n.ts.loadMore }}</button>
+					<div v-if="hasMore && !disabled && !composing" v-appear="loadMore" :class="$style.sentinel" aria-hidden="true"></div>
 				</template>
 			</div>
 		</div>
@@ -56,6 +56,7 @@ import MkLoading from '@/components/global/MkLoading.vue';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { onSearchKeydown } from '@/utility/search-keydown.js';
 
 const props = defineProps<{
 	anchorElement?: HTMLElement;
@@ -177,6 +178,11 @@ async function load(): Promise<void> {
 	}
 }
 
+function loadMore(): Promise<void> | undefined {
+	if (loading.value || failed.value || !hasMore.value) return;
+	return load();
+}
+
 watch([query, tab, composing], () => {
 	generation++;
 	window.clearTimeout(timer);
@@ -198,6 +204,8 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timer);
 </script>
 
 <style lang="scss" module>
+@use '../styles/search.scss' as search;
+
 .root {
 	--MI-channelPicker-muted: var(--MI_THEME-fgTransparentWeak);
 	--MI-channelPicker-hover: color-mix(in srgb, var(--MI_THEME-fg) 8%, var(--MI_THEME-popup));
@@ -218,30 +226,31 @@ onBeforeUnmount(() => { closed = true; generation++; window.clearTimeout(timer);
 .title { display: flex; align-items: center; gap: 6px; font-size: .85em; font-weight: 700; }
 .close { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: var(--MI-channelPicker-muted); }
 .searchArea { flex-shrink: 0; padding: 6px 12px 10px; }
-.searchBox { display: flex; align-items: center; gap: 6px; padding: 0 8px; border: var(--MI-divider); border-radius: 6px; background: color-mix(in srgb, var(--MI_THEME-fg) 4%, var(--MI_THEME-popup)); color: var(--MI-channelPicker-muted); }
-.searchBox:focus-within { border-color: var(--MI_THEME-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--MI_THEME-accent) 12%, transparent); }
-.input { min-width: 0; flex: 1; height: 34px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--MI_THEME-fg); font: inherit; font-size: .9em; }
-.input::placeholder { color: var(--MI-channelPicker-muted); }
+.searchBox {
+	@include search.container;
+	> i { @include search.icon; }
+}
+.input { @include search.input; }
 .body { display: flex; flex: 1; min-height: 0; overflow: hidden; border-top: var(--MI-divider); }
 .categories { display: flex; flex-direction: column; flex-shrink: 0; box-sizing: border-box; width: 80px; padding: 4px; gap: 2px; background: color-mix(in srgb, var(--MI_THEME-fg) 3%, var(--MI_THEME-popup)); overflow-y: auto; }
 .category { display: grid; place-items: center; flex-shrink: 0; min-height: 40px; padding: 6px; border-radius: 6px; text-align: center; font-size: .8em; line-height: 1.4; overflow-wrap: anywhere; }
 .active { color: var(--MI_THEME-accent); background: var(--MI-channelPicker-selected); font-weight: 700; }
 .results { flex: 1; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px; }
 .option { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 52px; padding: 8px 6px; border-radius: 6px; text-align: start; }
-.close:enabled:hover, .category:enabled:hover, .option:enabled:hover, .clear:enabled:hover, .loadMore:enabled:hover { background: var(--MI-channelPicker-hover); }
-.close:focus-visible, .category:focus-visible, .option:focus-visible, .clear:focus-visible, .loadMore:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
+.close:enabled:hover, .category:enabled:hover, .option:enabled:hover, .clear:enabled:hover { background: var(--MI-channelPicker-hover); }
+.close:focus-visible, .category:focus-visible, .option:focus-visible, .clear:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 .selected { color: var(--MI_THEME-accent); background: var(--MI-channelPicker-selected); }
 .category.active:enabled:hover, .option.selected:enabled:hover { background: color-mix(in srgb, var(--MI_THEME-accent) 18%, var(--MI_THEME-popup)); }
 .thumbnail { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; overflow: hidden; border-radius: 6px; background: var(--MI-channelPicker-selected); color: var(--MI_THEME-accent); font-size: 1em; }
 .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
 .optionText { min-width: 0; flex: 1; }
 .name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9em; }
-.metadata { display: block; margin-top: 3px; color: var(--MI-channelPicker-muted); font-size: .7em; line-height: 1.4; overflow-wrap: anywhere; }
+.metadata { display: block; margin-top: 3px; color: var(--MI-channelPicker-muted); font-size: .85em; line-height: 1.4; overflow-wrap: anywhere; }
 .loading { padding: 24px; }
 .message { margin: 12px 8px; color: var(--MI-channelPicker-muted); font-size: .85em; line-height: 1.5; }
-.loadMore { display: block; width: 100%; min-height: 40px; border-radius: 8px; color: var(--MI_THEME-accent); font-size: .85em; }
+.sentinel { height: 1px; }
 .footer { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 10px 12px; border-top: var(--MI-divider); }
-.description { flex: 1; min-width: 0; margin: 0; color: var(--MI-channelPicker-muted); font-size: .7em; line-height: 1.5; overflow-wrap: anywhere; }
+.description { flex: 1; min-width: 0; margin: 0; color: var(--MI-channelPicker-muted); font-size: .85em; line-height: 1.5; overflow-wrap: anywhere; }
 .clear { flex-shrink: 0; max-width: 45%; min-height: 34px; padding: 6px 8px; border: var(--MI-divider); border-radius: 6px; color: var(--MI_THEME-accent); font-size: .8em; overflow-wrap: anywhere; }
 @media (max-width: 480px) {
 	.categories { width: 68px; }

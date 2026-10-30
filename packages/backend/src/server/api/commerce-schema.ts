@@ -73,6 +73,7 @@ export const orderSchema = {
 	type: 'object', optional: false, nullable: false,
 	properties: {
 		id: { ...orderIdSchema, optional: false, nullable: false },
+		orderNumber: { type: 'string', optional: false, nullable: false },
 		createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
 		productId: { ...productIdSchema, optional: false, nullable: false },
 		name: { type: 'string', optional: false, nullable: false },

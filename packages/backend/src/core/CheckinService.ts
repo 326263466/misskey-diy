@@ -14,7 +14,6 @@ import type { UserCheckinsRepository, UserProfilesRepository } from '@/models/_.
 import { CHECKIN_ACHIEVEMENT_TYPES, MiUserProfile } from '@/models/UserProfile.js';
 import { AchievementService } from '@/core/AchievementService.js';
 import { IdService } from '@/core/IdService.js';
-import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { bindThis } from '@/decorators.js';
 import { WalletService } from '@/core/WalletService.js';
@@ -101,12 +100,9 @@ export class CheckinService {
 	public static NotAllowedError = class extends Error {};
 	public static InvalidDateError = class extends Error {};
 	public static NoMakeupCardsError = class extends Error {};
-	public static NoSuchUserError = class extends Error {};
 	public static CardLimitError = class extends Error {};
 	public static InsufficientPointsError = class extends Error {};
 	public static MonthlyExchangeLimitError = class extends Error {};
-	public static NoSuchCardBatchError = class extends Error {};
-	public static CardBatchNotRevokableError = class extends Error {};
 
 	constructor(
 		@Inject(DI.db) private db: DataSource,
@@ -115,7 +111,6 @@ export class CheckinService {
 		private achievementService: AchievementService,
 		private userEntityService: UserEntityService,
 		private idService: IdService,
-		private moderationLogService: ModerationLogService,
 		private walletService: WalletService,
 	) {
 	}
@@ -291,83 +286,34 @@ export class CheckinService {
 		return earnedCards;
 	}
 
-	@bindThis
-	public async grantCards(userId: string, amount: number, administrator: { id: string }): Promise<{ makeupCards: number }> {
-		if (!Number.isInteger(amount) || amount < 1 || amount > 10000) throw new CheckinService.CardLimitError();
-		return this.db.transaction(async manager => {
-			const user = await manager.findOne(MiUser, { where: { id: userId }, lock: { mode: 'for_no_key_update' } });
-			if (!user) throw new CheckinService.NoSuchUserError();
-			if (user.host !== null || user.isSuspended || user.isDeleted || user.movedToUri || user.username.includes('.')) throw new CheckinService.NotAllowedError();
-			const profile = await manager.findOneByOrFail(MiUserProfile, { userId });
-			const makeupCards = profile.checkinMakeupCards + amount;
-			if (makeupCards > 2147483647) throw new CheckinService.CardLimitError();
-			await this.ensureOpeningBatch(manager, userId, profile.checkinMakeupCards);
-			const grantLogId = this.idService.gen();
-			await manager.update(MiUserProfile, { userId }, { checkinMakeupCards: makeupCards });
-			await this.moderationLogService.log(administrator, 'grantCheckinCards', {
-				userId, userUsername: user.username, userHost: user.host, amount,
-				before: profile.checkinMakeupCards, after: makeupCards,
-			}, manager, grantLogId);
-			await this.createCardBatch(manager, userId, 'admin', amount, new Date(), grantLogId, administrator.id);
-			return { makeupCards };
-		});
-	}
-
-	@bindThis
-	public async revokeCards(batchId: string, administrator: { id: string }): Promise<{ batchId: string; revokedCards: number; makeupCards: number }> {
-		return this.db.transaction(async manager => {
-			const initial = await manager.findOneBy(MiUserCheckinCardBatch, { id: batchId });
-			if (!initial) throw new CheckinService.NoSuchCardBatchError();
-			// Match all earning/spending paths' lock order. Administrators can also reclaim cards from suspended accounts.
-			const user = await manager.findOne(MiUser, { where: { id: initial.userId }, lock: { mode: 'for_no_key_update' } });
-			if (!user) throw new CheckinService.NoSuchCardBatchError();
-			const batch = await manager.findOneByOrFail(MiUserCheckinCardBatch, { id: batchId });
-			if (batch.source !== 'admin') throw new CheckinService.CardBatchNotRevokableError();
-			const profile = await manager.findOneByOrFail(MiUserProfile, { userId: user.id });
-			const revokedCards = batch.remaining;
-			if (revokedCards === 0) return { batchId, revokedCards: 0, makeupCards: profile.checkinMakeupCards };
-			if (profile.checkinMakeupCards < revokedCards) throw new Error('Check-in card batch exceeds the available balance.');
-			const makeupCards = profile.checkinMakeupCards - revokedCards;
-			await manager.update(MiUserCheckinCardBatch, { id: batchId }, { remaining: 0, revoked: batch.revoked + revokedCards });
-			await manager.update(MiUserProfile, { userId: user.id }, { checkinMakeupCards: makeupCards });
-			await this.moderationLogService.log(administrator, 'revokeCheckinCards', {
-				userId: user.id, userUsername: user.username, userHost: user.host, batchId,
-				amount: revokedCards, before: profile.checkinMakeupCards, after: makeupCards,
-			}, manager);
-			return { batchId, revokedCards, makeupCards };
-		});
-	}
-
-	public async creditRedemptionCards(manager: EntityManager, userId: string, amount: number, now: Date): Promise<{ batchId: string; makeupCards: number; points: number }> {
-		// The redemption transaction holds the same user row lock as check-in, makeup and reclaim.
+	public async creditRedemptionCards(manager: EntityManager, userId: string, amount: number, now: Date): Promise<{ batchId: string }> {
+		// The redemption transaction holds the same user row lock as check-in and makeup.
 		const profile = await manager.findOneByOrFail(MiUserProfile, { userId });
 		const makeupCards = profile.checkinMakeupCards + amount;
 		if (makeupCards > 2147483647) throw new CheckinService.CardLimitError();
 		await this.ensureOpeningBatch(manager, userId, profile.checkinMakeupCards);
 		await manager.update(MiUserProfile, { userId }, { checkinMakeupCards: makeupCards });
 		const batchId = await this.createCardBatch(manager, userId, 'redemption', amount, now);
-		const points = await this.walletService.getBalanceInTransaction(manager, userId);
-		return { batchId, makeupCards, points };
+		return { batchId };
 	}
 
-	private async createCardBatch(manager: EntityManager, userId: string, source: MiUserCheckinCardBatch['source'], amount: number, now = new Date(), grantLogId: string | null = null, adminId: string | null = null): Promise<string> {
+	private async createCardBatch(manager: EntityManager, userId: string, source: MiUserCheckinCardBatch['source'], amount: number, now = new Date()): Promise<string> {
 		const batchId = this.idService.gen();
 		await manager.insert(MiUserCheckinCardBatch, {
-			id: batchId, userId, source, createdAt: now, amount, remaining: amount, used: 0, revoked: 0, grantLogId, adminId,
+			id: batchId, userId, source, createdAt: now, amount, remaining: amount, used: 0, revoked: 0,
 		});
 		return batchId;
 	}
 
 	private async ensureOpeningBatch(manager: EntityManager, userId: string, balance: number): Promise<void> {
-		// Preserve unattributed balances from legacy imports. Never invent attribution to an old administrator grant.
+		// Preserve opening balances that do not have acquisition records.
 		if (balance > 0 && !await manager.existsBy(MiUserCheckinCardBatch, { userId })) {
 			await this.createCardBatch(manager, userId, 'legacy', balance);
 		}
 	}
 
 	private async lockEligibleUser(manager: EntityManager, userId: string): Promise<void> {
-		// Serialize this user's balance changes without blocking audit-log foreign keys
-		// when administrators concurrently grant cards to one another.
+		// Serialize this user's card and points balance changes.
 		const user = await manager.findOne(MiUser, { where: { id: userId }, lock: { mode: 'for_no_key_update' } });
 		if (!user || user.host !== null || user.isSuspended || user.isDeleted || user.movedToUri || user.username.includes('.')) throw new CheckinService.NotAllowedError();
 	}

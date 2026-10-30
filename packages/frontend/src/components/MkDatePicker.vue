@@ -19,10 +19,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</template>
 	<div v-if="type !== 'date'" :class="$style.clock">
-		<label>{{ i18n.ts._datePicker.hour }}<input v-model="hour" type="number" min="0" max="23" inputmode="numeric"></label>
+		<input v-model="hour" :aria-label="i18n.ts._datePicker.hour" type="number" min="0" max="23" inputmode="numeric">
 		<span aria-hidden="true">:</span>
-		<label>{{ i18n.ts._datePicker.minute }}<input v-model="minute" type="number" min="0" max="59" inputmode="numeric"></label>
-		<label v-if="withSeconds">{{ i18n.ts._datePicker.second }}<input v-model="second" type="number" min="0" max="59" inputmode="numeric"></label>
+		<input v-model="minute" :aria-label="i18n.ts._datePicker.minute" type="number" min="0" max="59" inputmode="numeric">
+		<template v-if="withSeconds">
+			<span aria-hidden="true">:</span>
+			<input v-model="second" :aria-label="i18n.ts._datePicker.second" type="number" min="0" max="59" inputmode="numeric">
+		</template>
 	</div>
 	<p v-if="!valid" role="status" :class="$style.error">{{ i18n.ts._datePicker.invalid }}</p>
 	<div :class="$style.actions">
@@ -160,32 +163,31 @@ function confirm() {
 </script>
 
 <style lang="scss" module>
-.root { box-sizing: border-box; width: 100%; max-width: 296px; margin: var(--MI-marginHalf) auto 0; padding: 12px; border-radius: var(--MI-radius); background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); font-size: 14px; line-height: 1.4; }
+@use '../styles/input.scss' as input;
+
+.root { box-sizing: border-box; width: 100%; max-width: 280px; margin: var(--MI-marginHalf) auto 0; padding: 10px; border-radius: var(--MI-radius); background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); font-size: 13px; line-height: 1.4; }
 .embedded { padding: 0; margin-top: 0; }
 .navigation, .actions, .clock { display: flex; align-items: center; gap: var(--MI-marginHalf); }
 .navigation { justify-content: space-between; }
 .navigation button, .confirm { min-height: 28px; padding: 4px 8px; border-radius: var(--MI-radius); }
 .month { font-weight: 600; }
 .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px 0; }
-.choices button { height: 42px; border-radius: var(--MI-radius); }
+.choices button { height: 36px; border-radius: var(--MI-radius); }
 .choices button:hover { background: var(--MI_THEME-accentedBg); }
 // 当前年/月/日用强调色区分；已选中的日子保持实色底样式
 .choices button.today { color: var(--MI_THEME-accent); font-weight: 600; }
 .calendar .today:not(.selected) { color: var(--MI_THEME-accent); font-weight: 600; }
-.direct, .clock label { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: .85em; }
-.clock { flex-wrap: nowrap; }
-.clock label { flex-direction: row; align-items: center; white-space: nowrap; }
-.clock input { width: 3.5em; }
+.clock { justify-content: center; flex-wrap: nowrap; gap: 4px; }
 .actions button { white-space: nowrap; flex-shrink: 0; }
-.direct, .clock, .actions { margin-top: 8px; }
-.root input { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px; border: 1px solid var(--MI_THEME-inputBorder); border-radius: var(--MI-radius); background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); font: inherit; }
+.clock, .actions { margin-top: 6px; }
+.clock input { @include input.field; width: 3.5em; min-width: 0; box-sizing: border-box; padding: 5px 4px; border-radius: var(--MI-radius); color: var(--MI_THEME-fg); font: inherit; text-align: center; font-variant-numeric: tabular-nums; }
 .calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: var(--MI-marginHalf); }
-.calendar button, .weekday { display: grid; place-items: center; height: 28px; padding: 0; border-radius: var(--MI-radius); font-size: 12px; }
+.calendar button, .weekday { display: grid; place-items: center; height: 26px; padding: 0; border-radius: var(--MI-radius); font-size: 12px; }
 .weekday, .outside { color: var(--MI_THEME-fgTransparentWeak); }
 .calendar button:hover:not(:disabled) { background: var(--MI_THEME-accentedBg); }
 .calendar .selected, .confirm { background: var(--MI_THEME-accent); color: var(--MI_THEME-fgOnAccent); }
 .root button:disabled { opacity: .3; cursor: not-allowed; }
-.root button:focus-visible, .root input:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
-.actions { justify-content: space-between; border-top: var(--MI-divider); padding-top: 8px; }
+.root button:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
+.actions { justify-content: space-between; border-top: var(--MI-divider); padding-top: 6px; }
 .error { color: var(--MI_THEME-error); font-size: .85em; }
 </style>

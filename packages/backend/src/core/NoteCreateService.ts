@@ -23,7 +23,7 @@ import type { IPoll } from '@/models/Poll.js';
 import { MiPoll } from '@/models/Poll.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import type { MiChannel } from '@/models/Channel.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 import { RelayService } from '@/core/RelayService.js';
 import { FederatedInstanceService } from '@/core/FederatedInstanceService.js';
 import { DI } from '@/di-symbols.js';
@@ -48,7 +48,6 @@ import { DB_MAX_NOTE_TEXT_LENGTH } from '@/const.js';
 import { CONTENT_LIMITS } from 'misskey-js';
 import { assertContentLength } from '@/misc/content-limits.js';
 import { RoleService } from '@/core/RoleService.js';
-import { SearchService } from '@/core/SearchService.js';
 import { FeaturedService } from '@/core/FeaturedService.js';
 import { FanoutTimelineService, type FanoutTimelineName } from '@/core/FanoutTimelineService.js';
 import { lockNoteReplyAncestors, notifyNoteReplied } from '@/misc/note-comments.js';
@@ -63,6 +62,7 @@ import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { RedPacketService } from '@/core/RedPacketService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import type Logger from '@/logger.js';
+import { extractUrlsForKeyWordCheck } from '@/misc/extract-urls-for-keyword-check.js';
 
 type NotificationType = 'reply' | 'renote' | 'quote' | 'mention';
 
@@ -271,7 +271,6 @@ export class NoteCreateService implements OnApplicationShutdown {
 		private apDeliverManagerService: ApDeliverManagerService,
 		private apRendererService: ApRendererService,
 		private roleService: RoleService,
-		private searchService: SearchService,
 		private notesChart: NotesChart,
 		private perUserNotesChart: PerUserNotesChart,
 		private activeUsersChart: ActiveUsersChart,
@@ -356,10 +355,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 			// Check blocking
 			if (renote.userId !== user.id) {
 				const blockExist = await this.blockingsRepository.exists({
-					where: {
-						blockerId: renote.userId,
-						blockeeId: user.id,
-					},
+					where: [
+						{ blockerId: renote.userId, blockeeId: user.id },
+						{ blockerId: user.id, blockeeId: renote.userId },
+					],
 				});
 				if (blockExist) {
 					throw new IdentifiableError('2b4fe776-4414-4a2d-ae39-f3418b8fd4d3', 'You have been blocked by the user');
@@ -409,10 +408,10 @@ export class NoteCreateService implements OnApplicationShutdown {
 			// Check blocking
 			if (reply.userId !== user.id) {
 				const blockExist = await this.blockingsRepository.exists({
-					where: {
-						blockerId: reply.userId,
-						blockeeId: user.id,
-					},
+					where: [
+						{ blockerId: reply.userId, blockeeId: user.id },
+						{ blockerId: user.id, blockeeId: reply.userId },
+					],
 				});
 				if (blockExist) {
 					throw new IdentifiableError('b0df6025-f2e8-44b4-a26a-17ad99104612', 'You have been blocked by the user');
@@ -501,7 +500,8 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		if (data.visibility === 'public' && data.channel == null) {
 			const sensitiveWords = this.meta.sensitiveWords;
-			if (this.utilityService.isKeyWordIncluded(data.cw ?? data.text ?? '', sensitiveWords)) {
+			const sensitiveWordsTarget = data.cw ?? data.text ?? '';
+			if (sensitiveWords.length > 0 && this.utilityService.isKeyWordIncluded([sensitiveWordsTarget, ...extractUrlsForKeyWordCheck(sensitiveWordsTarget)].join('\n'), sensitiveWords)) {
 				data.visibility = 'home';
 			} else if ((await this.roleService.getUserPolicies(user.id)).canPublicNote === false) {
 				data.visibility = 'home';
@@ -561,7 +561,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		if (this.isRenote(data) && !this.isQuote(data)) {
 			if (data.renote.userHost === null) {
 				if (data.renote.userId !== user.id) {
-					const blocked = await this.userBlockingService.checkBlocked(data.renote.userId, user.id);
+					const blocked = await this.userBlockingService.isBlockedEither(data.renote.userId, user.id);
 					if (blocked) {
 						throw new Error('blocked');
 					}
@@ -708,7 +708,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			hasRedPacket: data.redPacketId != null,
 			redPacketId: data.redPacketId ?? null,
 			cw: data.cw ?? null,
-			tags: tags.map(tag => normalizeForSearch(tag)),
+			tags: tags.map(tag => normalizeTag(tag)),
 			emojis,
 			userId: user.id,
 			localOnly: data.localOnly!,
@@ -835,7 +835,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 		this.pushToTl(note, user);
 
-		this.antennaService.addNoteToAntennas({
+		const matchedAntennas = this.antennaService.addNoteToAntennas({
 			...note,
 			channel: data.channel ?? null,
 		}, user);
@@ -896,6 +896,12 @@ export class NoteCreateService implements OnApplicationShutdown {
 
 			this.roleService.addNoteToRoleTimeline(noteObj);
 
+			matchedAntennas.then(antennas => {
+				for (const antenna of antennas) {
+					this.globalEventService.publishAntennaStream(antenna.id, 'note', noteObj);
+				}
+			});
+
 			this.webhookService.enqueueUserWebhook(user.id, 'note', { note: noteObj });
 
 			const nm = new NotificationManager(this.mutingsRepository, this.notificationService, this.followingsRepository, user, note);
@@ -913,7 +919,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 						},
 					});
 
-					if (!isThreadMuted) {
+					if (!isThreadMuted && !await this.userBlockingService.isBlockedEither(data.reply.userId, user.id)) {
 						nm.push(data.reply.userId, 'reply');
 						this.globalEventService.publishMainStream(data.reply.userId, 'reply', noteObj);
 						this.webhookService.enqueueUserWebhook(data.reply.userId, 'reply', { note: noteObj });
@@ -931,7 +937,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 				}
 
 				// Publish event
-				if ((user.id !== data.renote.userId) && data.renote.userHost === null) {
+				if ((user.id !== data.renote.userId) && data.renote.userHost === null && !await this.userBlockingService.isBlockedEither(data.renote.userId, user.id)) {
 					this.globalEventService.publishMainStream(data.renote.userId, 'renote', noteObj);
 					this.webhookService.enqueueUserWebhook(data.renote.userId, 'renote', { note: noteObj });
 				}
@@ -994,9 +1000,6 @@ export class NoteCreateService implements OnApplicationShutdown {
 				}
 			});
 		}
-
-		// Register to search database
-		this.index(note);
 	}
 
 	@bindThis
@@ -1047,6 +1050,9 @@ export class NoteCreateService implements OnApplicationShutdown {
 	@bindThis
 	private async createMentionedEvents(mentionedUsers: MinimumUser[], note: MiNote, nm: NotificationManager) {
 		for (const u of mentionedUsers.filter(u => this.userEntityService.isLocalUser(u))) {
+			// 提醒之外的实时事件和 webhook 也不发给拉黑关系中的对方。
+			if (await this.userBlockingService.isBlockedEither(u.id, note.userId)) continue;
+
 			const isThreadMuted = await this.noteThreadMutingsRepository.exists({
 				where: {
 					userId: u.id,
@@ -1079,13 +1085,6 @@ export class NoteCreateService implements OnApplicationShutdown {
 			: this.apRendererService.renderCreate(await this.apRendererService.renderNote(note, false), note);
 
 		return this.apRendererService.addContext(content);
-	}
-
-	@bindThis
-	private index(note: MiNote) {
-		if (note.text == null && note.cw == null) return;
-
-		this.searchService.indexNote(note);
 	}
 
 	@bindThis
@@ -1329,9 +1328,20 @@ export class NoteCreateService implements OnApplicationShutdown {
 			prohibitedWords = this.meta.prohibitedWords;
 		}
 
+		if (prohibitedWords.length === 0) {
+			return false;
+		}
+
 		if (
 			this.utilityService.isKeyWordIncluded(
-				this.utilityService.concatNoteContentsForKeyWordCheck(content),
+				this.utilityService.concatNoteContentsForKeyWordCheck({
+					...content,
+					others: [
+						...(content.others ?? []),
+						...extractUrlsForKeyWordCheck(content.cw ?? ''),
+						...extractUrlsForKeyWordCheck(content.text ?? ''),
+					],
+				}),
 				prohibitedWords,
 			)
 		) {

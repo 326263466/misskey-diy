@@ -17,6 +17,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.mode" role="group" :style="{ '--mode-count': modeOptions.length, '--mode-index': modeOptions.findIndex(option => option.value === packetType) }" :aria-label="i18n.ts._redPacket.mode">
 		<button v-for="option in modeOptions" :key="option.value" type="button" class="_button" :class="{ [$style.active]: packetType === option.value }" :aria-pressed="packetType === option.value" :disabled="disabled" @click="setPacketType(option.value)"><span>{{ option.label }}</span></button>
 	</div>
+	<button v-if="packetType === 'exclusive'" type="button" class="_button" :class="$style.recipientButton" :disabled="disabled" @click="emit('selectRecipient')">
+		<span>{{ i18n.ts._redPacket.selectRecipient }}</span>
+		<span :class="$style.selectedRecipient">
+			<template v-if="recipientUsers?.[model.recipientIds[0]]"><MkAvatar :user="recipientUsers[model.recipientIds[0]]" :class="$style.recipientAvatar" :link="false" :preview="false"/><MkUserName :user="recipientUsers[model.recipientIds[0]]"/></template>
+			<span v-else-if="model.recipientIds[0]">{{ i18n.tsx._redPacket.recipientId({ id: model.recipientIds[0] }) }}</span>
+			<span v-else>{{ i18n.ts.selectUser }}</span>
+			<i class="ti ti-chevron-right" aria-hidden="true"></i>
+		</span>
+	</button>
 	<div v-if="model.kind === 'direct' && !simple" :class="$style.recipient"><span>{{ i18n.ts._redPacket.singleRecipientOnly }}</span><span v-for="id in model.recipientIds" :key="id"><template v-if="recipientUsers?.[id]"><template v-if="recipientUsers[id].name"><MkUserName :user="recipientUsers[id]"/> </template>(<MkAcct :user="recipientUsers[id]"/>)</template><span v-else>{{ i18n.tsx._redPacket.recipientId({ id }) }}</span></span></div>
 	<fieldset :disabled="disabled" :class="$style.fields">
 		<label v-if="model.kind === 'group'">{{ i18n.ts._redPacket.count }}<input v-model.number="packetCount" type="number" inputmode="numeric" :placeholder="i18n.ts._redPacket.countPlaceholder" min="1" :max="model.audience === 'recipients' ? Math.min(100, model.recipientIds.length) : 100" step="1" required></label>
@@ -26,10 +35,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-if="!simple">{{ i18n.ts._redPacket.password }}</span>
 			<span :class="$style.passwordControl">
 				<span :class="$style.passwordInput">
-					<input :id="passwordInputId" v-model="model.password" type="text" :aria-label="i18n.ts._redPacket.password" :aria-invalid="passwordLength > CONTENT_LIMITS.redPacketPassword" :aria-describedby="messageHintId" required @input="setPassword" @compositionend="setPassword">
-					<span :id="messageHintId" class="_inputCounter" :class="{ _inputCounterOver: passwordLength > CONTENT_LIMITS.redPacketPassword }">{{ passwordLength }}/{{ CONTENT_LIMITS.redPacketPassword }}</span>
+					<input :id="passwordInputId" v-model="model.password" type="text" :aria-label="i18n.ts._redPacket.password" :aria-invalid="passwordLength > CONTENT_LIMITS.redPacketPassword" required @input="setPassword" @compositionend="setPassword">
 				</span>
-				<button type="button" class="_button" :class="$style.randomPassword" :aria-label="i18n.ts._redPacket.randomPassword" @click="randomizePassword"><i class="ti ti-dice" aria-hidden="true"></i> {{ i18n.ts.random }}</button>
+				<button type="button" class="_button" :class="$style.randomPassword" :aria-label="i18n.ts._redPacket.randomPassword" @click="randomizePassword">{{ i18n.ts.random }}</button>
 			</span>
 		</label>
 		<label v-else :class="$style.message"><span v-if="!simple">{{ i18n.ts._redPacket.message }}</span><input v-model="model.message" type="text" :placeholder="i18n.ts._redPacket.defaultMessage" :aria-label="i18n.ts._redPacket.message" :aria-describedby="messageHintId" @input="setMessage" @compositionend="setMessage"><span :id="messageHintId" class="_inputCounter" :class="{ _inputCounterOver: Array.from(model.message).length > RED_PACKET_MESSAGE_MAX_LENGTH }">{{ Array.from(model.message).length }}/{{ RED_PACKET_MESSAGE_MAX_LENGTH }}</span></label>
@@ -50,28 +58,28 @@ import MkRedPacketCover from '@/components/MkRedPacketCover.vue';
 import type { RedPacketDraft } from '@/utility/red-packet.js';
 import { RED_PACKET_MESSAGE_MAX_LENGTH } from '@/utility/red-packet.js';
 import { isCoinAmount, toCoinUnits } from '@/utility/coins.js';
-import { cleanupRedPacketCovers } from '@/utility/red-packet-cover-cleanup.js';
 import { ensureSignin } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 
-const props = withDefaults(defineProps<{ removable?: boolean; disabled?: boolean; balance?: number | null; fixedAudience?: boolean; recipientUsers?: Record<string, entities.UserLite>; simple?: boolean; allowPassword?: boolean; memberCount?: number; }>(), { removable: true });
+const props = withDefaults(defineProps<{ removable?: boolean; disabled?: boolean; balance?: number | null; fixedAudience?: boolean; recipientUsers?: Record<string, entities.UserLite>; simple?: boolean; allowPassword?: boolean; allowExclusive?: boolean; roomId?: string; memberCount?: number; }>(), { removable: true });
 let disposed = false;
 onBeforeUnmount(() => { disposed = true; });
 const model = defineModel<RedPacketDraft>({ required: true });
 const passwordLength = computed(() => Array.from(model.value.password ?? '').length);
-const emit = defineEmits<{ (event: 'remove'): void; (event: 'coverUploaded', fileId: string): void; (event: 'uploading', value: boolean): void }>();
+const emit = defineEmits<{ (event: 'remove'): void; (event: 'uploading', value: boolean): void; (event: 'selectRecipient'): void }>();
 const coverInput = useTemplateRef('coverInput');
 const messageHintId = useId();
 const passwordInputId = useId();
 const coverTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
 const uploading = ref(false);
-const fixedDirect = props.fixedAudience && model.value.kind === 'direct';
+const fixedDirect = props.fixedAudience && model.value.kind === 'direct' && !props.allowExclusive;
+let groupCount = model.value.kind === 'group' ? model.value.count : 5;
 const fixedAmount = ref((toCoinUnits(model.value.totalCoins) / model.value.count) / 100);
 watch(() => model.value, value => { fixedAmount.value = (toCoinUnits(value.totalCoins) / value.count) / 100; });
-const packetType = computed(() => model.value.password != null ? 'password' : model.value.kind === 'direct' ? 'direct' : model.value.mode);
+const packetType = computed(() => model.value.password != null ? 'password' : model.value.kind === 'direct' ? model.value.roomId ? 'exclusive' : 'direct' : model.value.mode);
 const amountLabel = computed(() => {
-	if (props.simple && fixedDirect) return i18n.ts._redPacket.amount;
+	if (props.simple && model.value.kind === 'direct') return i18n.ts._redPacket.amount;
 	const perPerson = model.value.kind === 'group' && packetType.value === 'equal';
 	return props.simple ? (perPerson ? i18n.ts._redPacket.eachAmount : i18n.ts._redPacket.totalAmount) : (perPerson ? i18n.ts._redPacket.amountPerPerson : i18n.ts._redPacket.totalCoins);
 });
@@ -79,6 +87,7 @@ const modeOptions = computed(() => [
 	...(fixedDirect ? [{ value: 'direct' as const, label: props.simple ? i18n.ts._redPacket.ordinaryPacket : i18n.ts._redPacket.direct }] : []),
 	...(!fixedDirect ? [{ value: 'random' as const, label: props.simple ? i18n.ts._redPacket.luckyPacket : i18n.ts._redPacket.random }, { value: 'equal' as const, label: props.simple ? i18n.ts._redPacket.ordinaryPacket : i18n.ts._redPacket.equal }] : []),
 	...(props.allowPassword ? [{ value: 'password' as const, label: i18n.ts._redPacket.passwordPacket }] : []),
+	...(props.allowExclusive && props.roomId ? [{ value: 'exclusive' as const, label: i18n.ts._redPacket.exclusivePacket }] : []),
 ]);
 const amount = computed({
 	get: () => packetType.value === 'equal' && model.value.kind === 'group' ? fixedAmount.value : model.value.totalCoins,
@@ -142,7 +151,7 @@ async function uploadCover() {
 		os.toast(i18n.ts._redPacket.coverImageOnly, 'error');
 		return;
 	}
-	const account = ensureSignin();
+	ensureSignin();
 	const draft = model.value;
 	uploading.value = true;
 	emit('uploading', true);
@@ -165,14 +174,11 @@ async function uploadCover() {
 		const cover = files[0];
 		const valid = coverTypes.includes(cover.type) && !cover.isSensitive;
 		if (disposed || props.disabled || model.value !== draft || !valid) {
-			const cleaned = await cleanupRedPacketCovers(account, files.map(uploaded => uploaded.id));
-			if (!disposed && !cleaned) os.toast(i18n.ts._redPacket.coverCleanupFailed, 'error');
-			else if (!disposed && !valid) os.toast(i18n.ts._redPacket.coverImageOnly, 'error');
+			if (!disposed && !valid) os.toast(i18n.ts._redPacket.coverImageOnly, 'error');
 			return;
 		}
 		draft.coverFileId = cover.id;
 		draft.coverUrl = cover.url;
-		emit('coverUploaded', cover.id);
 	} catch {
 		if (!disposed) os.toast(i18n.ts.failedToUpload, 'error');
 	} finally {
@@ -181,8 +187,27 @@ async function uploadCover() {
 	}
 }
 
-function setPacketType(type: 'direct' | 'random' | 'equal' | 'password') {
+function setPacketType(type: 'direct' | 'random' | 'equal' | 'password' | 'exclusive') {
 	if (props.disabled) return;
+	if (type === 'exclusive') {
+		if (!props.allowExclusive || !props.roomId) return;
+		if (model.value.kind === 'group') groupCount = model.value.count;
+		model.value.kind = 'direct';
+		model.value.audience = 'room';
+		model.value.roomId = props.roomId;
+		model.value.recipientIds = model.value.recipientIds.slice(0, 1);
+		model.value.count = 1;
+		model.value.mode = 'equal';
+		model.value.password = null;
+		return;
+	}
+	// 切回群红包时恢复群内领取范围，不能沿用专属红包的指定领取人。
+	if (model.value.kind === 'direct' && model.value.roomId) {
+		model.value.kind = 'group';
+		model.value.audience = 'room';
+		model.value.recipientIds = [];
+		model.value.count = groupCount;
+	}
 	if (type === 'password') {
 		if (!props.allowPassword) return;
 		model.value.password = i18n.ts._redPacket.passwordDefault;
@@ -225,7 +250,12 @@ defineExpose({ chooseCover, resetCover });
 </script>
 
 <style lang="scss" module>
+@use '../styles/input.scss' as input;
+
 .root { margin: 12px var(--MI-margin); display: flex; flex-direction: column; gap: 12px; }
+.recipientButton { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 8px 14px; border-radius: 6px; background: var(--MI_THEME-panel); text-align: start; }
+.selectedRecipient { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.recipientAvatar { width: 24px; height: 24px; flex-shrink: 0; }
 .recipient { display: flex; flex-wrap: wrap; gap: 8px; font-size: .85em; }
 .heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .cover { position: relative; }
@@ -239,19 +269,18 @@ defineExpose({ chooseCover, resetCover });
 .mode button i { font-size: 19px; }
 .mode button:hover { color: var(--MI_THEME-accent); }
 .mode .active { color: var(--MI_THEME-accent); font-weight: bold; }
-.refund { display: flex; gap: 7px; margin: 0; padding: 10px 12px; border-radius: var(--MI-radius); color: var(--MI_THEME-fgTransparentWeak); background: var(--MI_THEME-accentedBg); font-size: .75em; line-height: 1.5; }
+.refund { display: flex; gap: 7px; margin: 0; padding: 10px 12px; border-radius: var(--MI-radius); color: var(--MI_THEME-fgTransparentWeak); background: var(--MI_THEME-accentedBg); font-size: .85em; line-height: 1.5; }
 @media (prefers-reduced-motion: reduce) { .mode::before, .mode button { transition: none; } }
-.caption { margin: 0; font-size: .75em; color: var(--MI_THEME-fgTransparentWeak); line-height: 1.5; }
+.caption { margin: 0; font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); line-height: 1.5; }
 .fields { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .fields label { min-width: 0; display: flex; flex-direction: column; gap: 5px; font-size: .85em; }
-.fields input { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; color: var(--MI_THEME-fg); background: var(--MI_THEME-panel); border: 1px solid var(--MI_THEME-inputBorder); border-radius: var(--MI-radius); padding: 9px 10px; }
-.fields input:focus-visible, .root button:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
+.fields input { @include input.field; width: 100%; min-width: 0; box-sizing: border-box; font: inherit; color: var(--MI_THEME-fg); border-radius: var(--MI-radius); padding: 9px 10px; }
+.root button:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
 .root button:disabled, .fields:disabled { opacity: .6; }
 .message { position: relative; grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
-.passwordControl { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; box-sizing: border-box; padding-right: 10px; border: 1px solid var(--MI_THEME-inputBorder); border-radius: var(--MI-radius); background: var(--MI_THEME-panel); }
-.passwordControl:focus-within { border-color: var(--MI_THEME-accent); }
+.passwordControl { @include input.field-within; display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; box-sizing: border-box; padding-right: 10px; border-radius: var(--MI-radius); }
 .passwordInput { position: relative; display: flex; flex: 1; min-width: 0; }
-.fields .passwordControl input { border: 0; background: transparent; }
+.fields .passwordControl input, .fields .passwordControl input:is(:hover, :focus) { border: 0; background: transparent; }
 .randomPassword { flex-shrink: 0; color: var(--MI_THEME-accent); font-size: .85em; }
 
 .simple {
@@ -263,7 +292,7 @@ defineExpose({ chooseCover, resetCover });
 	.mode .active { color: var(--MI_THEME-love); }
 	.fields { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 	.fields label { flex-direction: row; align-items: center; gap: 12px; padding: 8px 14px; min-height: 24px; border-radius: 6px; background: var(--MI_THEME-panel); font-size: 15px; }
-	.fields input { flex: 1; width: 0; padding: 0; border: none; border-radius: 0; background: transparent; text-align: end; }
+	.fields input, .fields input:focus { flex: 1; width: 0; padding: 0; border: none; border-radius: 0; background: transparent; text-align: end; }
 	.fields input[type='number'] { appearance: textfield; }
 	.fields input::-webkit-inner-spin-button { appearance: none; }
 	.fields .message input { text-align: start; }

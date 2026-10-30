@@ -4,557 +4,15 @@
 import { type ILocale, type ParameterizedString } from "../types.js";
 export interface Locale extends ILocale {
     /**
-     * 中文(简体)
+     * 中文（简体）
      */
     "_lang_": string;
-    "_datePicker": {
-        /**
-         * 上一页
-         */
-        "previous": string;
-        /**
-         * 下一页
-         */
-        "next": string;
-        /**
-         * 选择年月
-         */
-        "chooseMonthYear": string;
-        /**
-         * 选择日期和时间
-         */
-        "title": string;
-        /**
-         * 日期
-         */
-        "date": string;
-        /**
-         * 时
-         */
-        "hour": string;
-        /**
-         * 分
-         */
-        "minute": string;
-        /**
-         * 秒
-         */
-        "second": string;
-        /**
-         * 请输入允许范围内的有效日期和时间。
-         */
-        "invalid": string;
-    };
-    "_redPacket": {
-        /**
-         * 未使用的封面删除失败。请再次关闭以重试，下次打开红包窗口时也会重试。
-         */
-        "coverCleanupFailed": string;
-        /**
-         * 一对一
-         */
-        "direct": string;
-        /**
-         * 指定用户和发送者可领取，先到先得。
-         */
-        "singleRecipientOnly": string;
-        /**
-         * 每人金额（积分）
-         */
-        "amountPerPerson": string;
-        /**
-         * 红包生效后{hours}小时内可领，剩余金额到期自动退回。
-         */
-        "shortRefund": ParameterizedString<"hours">;
-        /**
-         * 红包
-         */
-        "title": string;
-        /**
-         * 恭喜发财 大吉大利
-         */
-        "defaultMessage": string;
-        /**
-         * 红包类型
-         */
-        "mode": string;
-        /**
-         * 随机金额
-         */
-        "random": string;
-        /**
-         * 固定金额
-         */
-        "equal": string;
-        /**
-         * 总金额（积分）
-         */
-        "totalCoins": string;
-        /**
-         * 红包个数
-         */
-        "count": string;
-        /**
-         * 祝福语
-         */
-        "message": string;
-        /**
-         * 领取截止时间
-         */
-        "expiresAt": string;
-        /**
-         * {coins}积分
-         */
-        "coins": ParameterizedString<"coins">;
-        /**
-         * 每人{coins}积分
-         */
-        "eachCoins": ParameterizedString<"coins">;
-        /**
-         * 发放本站积分。附带红包的帖子不会联合到其他服务器，仅可见范围内的本站用户可领取。
-         */
-        "localOnlyDescription": string;
-        /**
-         * 每人限领一次，发送者也可领取。剩余金额到期自动退回，删除帖子或消息不改变有效期。
-         */
-        "refundDescription": string;
-        /**
-         * 创建前的草稿不扣积分。已创建的红包保留在记录中，不支持云端草稿和定时发布。
-         */
-        "draftDescription": string;
-        /**
-         * 红包个数不能超过领取对象的人数。
-         */
-        "tooManyRecipients": string;
-        /**
-         * 红包个数须为1至100的整数。
-         */
-        "invalidCount": string;
-        /**
-         * 红包总额须为1至1000积分，最多两位小数，每份至少0.01。
-         */
-        "invalidCoins": string;
-        /**
-         * 固定红包须能按0.01积分均分，请调整总额或个数。
-         */
-        "equalNotDivisible": string;
-        /**
-         * 请检查红包类型、有效期和祝福语，祝福语不能超过18字。
-         */
-        "invalidDraft": string;
-        /**
-         * 可用积分不足。
-         */
-        "insufficientCoins": string;
-        /**
-         * 待领取
-         */
-        "active": string;
-        /**
-         * 已领完
-         */
-        "exhausted": string;
-        /**
-         * 已过期
-         */
-        "expired": string;
-        /**
-         * 已销毁
-         */
-        "cancelled": string;
-        /**
-         * 领取红包
-         */
-        "claim": string;
-        /**
-         * 自己发出的红包也可以领取，每人限领一次。
-         */
-        "ownPacket": string;
-        /**
-         * 已领取此红包。
-         */
-        "alreadyClaimed": string;
-        /**
-         * 已领取 {coins} 积分。
-         */
-        "receivedCoins": ParameterizedString<"coins">;
-        /**
-         * 已领取{claimed}/{count}个 · 共{coins}积分
-         */
-        "progress": ParameterizedString<"claimed" | "count" | "coins">;
-        /**
-         * 已退回{coins}积分
-         */
-        "refunded": ParameterizedString<"coins">;
-        /**
-         * 登录本站后即可领取。
-         */
-        "signinRequired": string;
-        /**
-         * 领取记录
-         */
-        "claims": string;
-        /**
-         * 暂无领取记录。
-         */
-        "noClaims": string;
-        /**
-         * 红包不存在或无法查看。
-         */
-        "unavailable": string;
-        /**
-         * 此账户无法领取该红包。
-         */
-        "notAllowed": string;
-        /**
-         * 操作失败，请重试。
-         */
-        "operationFailed": string;
-        /**
-         * 该请求已发送或内容已变更，请查看红包记录。
-         */
-        "requestConflict": string;
-        /**
-         * 红包记录
-         */
-        "history": string;
-        /**
-         * 仮想通貨で応援
-         */
-        "tip": string;
-        /**
-         * 確定すると相手のウォレットへ直接入金します。受け取り操作は不要で、取り消しはできません。
-         */
-        "tipDescription": string;
-        /**
-         * 待领取的红包
-         */
-        "claimable": string;
-        /**
-         * {target}のウォレットへ{coins}仮想通貨を直接送りますか？送信後の取り消しはできません。
-         */
-        "confirmTip": ParameterizedString<"target" | "coins">;
-        /**
-         * 向{target}发送{coins}积分的红包？
-         */
-        "confirmDirect": ParameterizedString<"target" | "coins">;
-        /**
-         * 用户ID：{id}
-         */
-        "recipientId": ParameterizedString<"id">;
-        /**
-         * 领取对象{number}
-         */
-        "recipientNumber": ParameterizedString<"number">;
-        /**
-         * 领取对象
-         */
-        "recipients": string;
-        /**
-         * 领取范围
-         */
-        "audience": string;
-        /**
-         * 本站用户
-         */
-        "publicAudience": string;
-        /**
-         * 指定用户
-         */
-        "selectedAudience": string;
-        /**
-         * 发送时指定的用户或群成员
-         */
-        "fixedAudience": string;
-        /**
-         * 发出的红包
-         */
-        "sent": string;
-        /**
-         * 收到的红包
-         */
-        "received": string;
-        /**
-         * 暂无红包记录。
-         */
-        "empty": string;
-        /**
-         * 可以从帖子发布框发送红包。
-         */
-        "historyDescription": string;
-        /**
-         * 查看帖子
-         */
-        "openNote": string;
-        /**
-         * 恢复红包草稿
-         */
-        "restoreDraft": string;
-        /**
-         * 丢弃红包草稿
-         */
-        "discardDraft": string;
-        /**
-         * 已发布红包的金额、个数和有效期无法修改。编辑帖子不会重复扣款。
-         */
-        "existingPacket": string;
-        /**
-         * 已保存上次发送的内容，可以重试同一个红包。
-         */
-        "retryPending": string;
-        /**
-         * 从钱包扣除{coins}积分，创建{count}个红包？
-         */
-        "confirmSend": ParameterizedString<"coins" | "count">;
-        /**
-         * 创建红包
-         */
-        "create": string;
-        /**
-         * 已创建的红包
-         */
-        "created": string;
-        /**
-         * 查看收发记录和待领取的红包。删除帖子或消息后，红包仍按原有效期结算。
-         */
-        "recoverDescription": string;
-        /**
-         * 附加到帖子
-         */
-        "attachToNote": string;
-        /**
-         * 取消未发送的红包
-         */
-        "cancelUnsent": string;
-        /**
-         * 创建时已扣除积分，发布或发送时不会再次扣款。
-         */
-        "createdDescription": string;
-        /**
-         * 创建时从钱包扣除积分，之后可附到帖子或聊天中发送。
-         */
-        "createDescription": string;
-        /**
-         * 删除此红包？未领取金额将立即退回，所有位置的同一红包都将失效。已领取金额和流水保留。
-         */
-        "cancelCreated": string;
-        /**
-         * 红包封面
-         */
-        "cover": string;
-        /**
-         * 经典红
-         */
-        "coverClassic": string;
-        /**
-         * 幸运
-         */
-        "coverLucky": string;
-        /**
-         * 夕阳
-         */
-        "coverSunset": string;
-        /**
-         * 红包删除失败，请重试。可在钱包记录中查看红包状态。
-         */
-        "cancelFailed": string;
-        /**
-         * 上次的红包已发送或已结束，可在钱包中查看，也可以创建新红包。
-         */
-        "alreadySentOrEnded": string;
-        /**
-         * 已恢复创建的红包，不会重复扣款。
-         */
-        "createdPending": string;
-        /**
-         * 已注销用户
-         */
-        "deletedUser": string;
-        /**
-         * 暂时无法确认发送结果，已保留草稿。重试不会重复扣款。
-         */
-        "pendingLocked": string;
-        /**
-         * 拼手气红包
-         */
-        "luckyPacket": string;
-        /**
-         * 普通红包
-         */
-        "ordinaryPacket": string;
-        /**
-         * 口令红包
-         */
-        "passwordPacket": string;
-        /**
-         * 口令
-         */
-        "password": string;
-        /**
-         * 发送正确口令后才能领取红包。
-         */
-        "passwordRequired": string;
-        /**
-         * 口令需为1至18个字，仅限聊天红包。
-         */
-        "passwordInvalid": string;
-        /**
-         * 恭喜发财，好运常在
-         */
-        "passwordDefault": string;
-        /**
-         * 随机生成祝福口令
-         */
-        "randomPassword": string;
-        "_passwordGreetings": {
-            /**
-             * 恭喜发财，好运常在
-             */
-            "fortune": string;
-            /**
-             * 心想事成，万事如意
-             */
-            "wishes": string;
-            /**
-             * 平安喜乐，万事胜意
-             */
-            "peace": string;
-            /**
-             * 愿你日日欢喜，事事顺心
-             */
-            "happiness": string;
-            /**
-             * 前程似锦，步步高升
-             */
-            "success": string;
-            /**
-             * 身体健康，笑口常开
-             */
-            "health": string;
-            /**
-             * 所愿皆所得，所行皆坦途
-             */
-            "dreams": string;
-            /**
-             * 好运连连，惊喜不断
-             */
-            "luck": string;
-        };
-        /**
-         * 填写个数
-         */
-        "countPlaceholder": string;
-        /**
-         * 本群{count}人
-         */
-        "roomMembers": ParameterizedString<"count">;
-        /**
-         * 红包封面
-         */
-        "packetOptions": string;
-        /**
-         * 总金额
-         */
-        "totalAmount": string;
-        /**
-         * 金额
-         */
-        "amount": string;
-        /**
-         * 单个金额
-         */
-        "eachAmount": string;
-        /**
-         * 发红包
-         */
-        "placeCoins": string;
-        /**
-         * 已领取口令红包，{coins}积分已到账
-         */
-        "passwordReceived": ParameterizedString<"coins">;
-        /**
-         * 发出
-         */
-        "sentShort": string;
-        /**
-         * 收到
-         */
-        "receivedShort": string;
-        /**
-         * 待领取
-         */
-        "claimableShort": string;
-        /**
-         * 已领取
-         */
-        "claimedShort": string;
-        /**
-         * 预约红包
-         */
-        "schedule": string;
-        /**
-         * 生效时间
-         */
-        "startsAt": string;
-        /**
-         * 有效时长（小时）
-         */
-        "validDuration": string;
-        /**
-         * 待生效
-         */
-        "scheduled": string;
-        /**
-         * 祝福语最多 {count} 个字
-         */
-        "messageLimit": ParameterizedString<"count">;
-        /**
-         * 上传封面
-         */
-        "uploadCover": string;
-        /**
-         * 使用默认封面
-         */
-        "resetCover": string;
-        /**
-         * 请选择未标记为敏感内容的 JPG、PNG、WebP、AVIF 或 GIF 图片
-         */
-        "coverImageOnly": string;
-        /**
-         * 的红包
-         */
-        "senderSuffix": string;
-        /**
-         * 查看领取详情
-         */
-        "viewClaimDetails": string;
-        /**
-         * 拼
-         */
-        "luckBadge": string;
-        /**
-         * 开
-         */
-        "openSeal": string;
-        /**
-         * 手慢了，红包派完了
-         */
-        "allGone": string;
-        /**
-         * 共 {coins} 积分
-         */
-        "summaryTotal": ParameterizedString<"coins">;
-        /**
-         * {claimed} / {count} 个
-         */
-        "summaryCount": ParameterizedString<"claimed" | "count">;
-    };
     /**
      * 因兴趣相聚，为热爱停留
      */
     "headlineMisskey": string;
     /**
-     * Misskey 是开源、去中心化的社交平台，支持发帖、回应及跨服务器交流。
+     * 这是开源、去中心化的社交平台，支持发帖、回应及跨服务器交流。
      */
     "introMisskey": string;
     /**
@@ -662,7 +120,7 @@ export interface Locale extends ILocale {
      */
     "otherSettings": string;
     /**
-     * 在新窗口中打开
+     * 在应用内窗口打开
      */
     "openInWindow": string;
     /**
@@ -670,9 +128,17 @@ export interface Locale extends ILocale {
      */
     "profile": string;
     /**
+     * 个人主页
+     */
+    "profilePage": string;
+    /**
      * 时间线
      */
     "timeline": string;
+    /**
+     * 广场
+     */
+    "plaza": string;
     /**
      * 社区排行榜
      */
@@ -782,7 +248,7 @@ export interface Locale extends ILocale {
      */
     "addToList": string;
     /**
-     * 添加到关键词订阅
+     * 添加到内容订阅
      */
     "addToAntenna": string;
     /**
@@ -790,7 +256,7 @@ export interface Locale extends ILocale {
      */
     "sendMessage": string;
     /**
-     * 复制 RSS
+     * 复制 RSS/Atom 订阅链接
      */
     "copyRSS": string;
     /**
@@ -814,7 +280,7 @@ export interface Locale extends ILocale {
      */
     "copyFolderId": string;
     /**
-     * 复制个人资料 URL
+     * 复制个人主页 URL
      */
     "copyProfileUrl": string;
     /**
@@ -829,6 +295,10 @@ export interface Locale extends ILocale {
      * 回复
      */
     "reply": string;
+    /**
+     * 评论
+     */
+    "comment": string;
     /**
      * 查看更多
      */
@@ -862,7 +332,7 @@ export interface Locale extends ILocale {
      */
     "mentions": string;
     /**
-     * 指定用户帖子
+     * 指定用户可见
      */
     "directNotes": string;
     /**
@@ -886,7 +356,7 @@ export interface Locale extends ILocale {
      */
     "download": string;
     /**
-     * 确定删除文件“{name}”吗？使用此文件的内容将无法再显示该文件。
+     * 删除“{name}”？所有引用此文件的内容将无法显示它。
      */
     "driveFileDeleteConfirm": ParameterizedString<"name">;
     /**
@@ -898,7 +368,7 @@ export interface Locale extends ILocale {
      */
     "cancelFollowRequestConfirm": ParameterizedString<"name">;
     /**
-     * 要拒绝 {name} 的关注申请吗？
+     * 拒绝 {name} 的关注申请？
      */
     "rejectFollowRequestConfirm": ParameterizedString<"name">;
     /**
@@ -1010,6 +480,14 @@ export interface Locale extends ILocale {
      */
     "followRequestPending": string;
     /**
+     * 已申请
+     */
+    "followRequestSent": string;
+    /**
+     * 取消申请
+     */
+    "cancelFollowRequest": string;
+    /**
      * 输入 Emoji
      */
     "enterEmoji": string;
@@ -1090,6 +568,10 @@ export interface Locale extends ILocale {
      */
     "reactions": string;
     /**
+     * 回应记录
+     */
+    "reactionHistory": string;
+    /**
      * Emoji 选择器
      */
     "emojiPicker": string;
@@ -1142,27 +624,27 @@ export interface Locale extends ILocale {
      */
     "enterFileName": string;
     /**
-     * 静音
+     * 屏蔽
      */
     "mute": string;
     /**
-     * 取消静音
+     * 取消屏蔽
      */
     "unmute": string;
     /**
-     * 静音转发
+     * 屏蔽转发
      */
     "renoteMute": string;
     /**
-     * 取消转发静音
+     * 取消屏蔽转发
      */
     "renoteUnmute": string;
     /**
-     * 屏蔽
+     * 拉黑
      */
     "block": string;
     /**
-     * 取消屏蔽
+     * 取消拉黑
      */
     "unblock": string;
     /**
@@ -1174,19 +656,35 @@ export interface Locale extends ILocale {
      */
     "unsuspend": string;
     /**
-     * 确定要屏蔽吗？
+     * 确定要拉黑吗？双方将互相取消关注，无法查看对方的社交内容或发起互动。历史私信、公开资源和已有订单仍可查看。
      */
     "blockConfirm": string;
     /**
-     * 确定要取消屏蔽吗？
+     * 确定要取消拉黑吗？
      */
     "unblockConfirm": string;
     /**
-     * 要冻结吗？
+     * 你们之间存在拉黑关系，无法进行此操作。
+     */
+    "blockedRelation": string;
+    /**
+     * 你们之间存在拉黑关系，无法查看对方的社交内容。
+     */
+    "blockedContent": string;
+    /**
+     * 已拉黑
+     */
+    "youBlockedThisUser": string;
+    /**
+     * 已拉黑你
+     */
+    "blockedYou": string;
+    /**
+     * 确定冻结该账户？
      */
     "suspendConfirm": string;
     /**
-     * 要解除冻结吗？
+     * 确定解除账户冻结？
      */
     "unsuspendConfirm": string;
     /**
@@ -1202,15 +700,19 @@ export interface Locale extends ILocale {
      */
     "selectChannel": string;
     /**
-     * 选择关键词订阅
+     * 选择天线
      */
     "selectAntenna": string;
     /**
-     * 编辑关键词订阅
+     * 选择便签
+     */
+    "selectClip": string;
+    /**
+     * 编辑天线
      */
     "editAntenna": string;
     /**
-     * 创建关键词订阅
+     * 创建天线
      */
     "createAntenna": string;
     /**
@@ -1229,6 +731,10 @@ export interface Locale extends ILocale {
      * 自定义 Emoji
      */
     "customEmojis": string;
+    /**
+     * 自定义 Emoji（测试版）
+     */
+    "customEmojisBeta": string;
     /**
      * Emoji
      */
@@ -1374,14 +880,6 @@ export interface Locale extends ILocale {
      */
     "host": string;
     /**
-     * 用户 ID
-     */
-    "userId": string;
-    /**
-     * MIME 类型
-     */
-    "mimeType": string;
-    /**
      * 选择自己
      */
     "selectSelf": string;
@@ -1410,11 +908,11 @@ export interface Locale extends ILocale {
      */
     "registeredAt": string;
     /**
-     * 上次收到的请求
+     * 最近请求
      */
     "latestRequestReceivedAt": string;
     /**
-     * 最后状态
+     * 最近状态码
      */
     "latestStatus": string;
     /**
@@ -1470,14 +968,6 @@ export interface Locale extends ILocale {
      */
     "metadata": string;
     /**
-     * {n} 条记录
-     */
-    "nRecords": ParameterizedString<"n">;
-    /**
-     * 原始数据
-     */
-    "rawData": string;
-    /**
      * {n} 个文件
      */
     "withNFiles": ParameterizedString<"n">;
@@ -1518,7 +1008,7 @@ export interface Locale extends ILocale {
      */
     "clearQueueConfirmTitle": string;
     /**
-     * 队列中未送达的帖子将不再投递。通常无需执行此操作。
+     * 将清除当前队列中的任务。未完成的 ActivityPub 活动可能不再投递或处理。通常无需执行此操作。
      */
     "clearQueueConfirmText": string;
     /**
@@ -1562,15 +1052,15 @@ export interface Locale extends ILocale {
      */
     "federationAllowedHostsDescription": string;
     /**
-     * 静音和屏蔽
+     * 屏蔽与拉黑
      */
     "muteAndBlock": string;
     /**
-     * 已静音的用户
+     * 已屏蔽的用户
      */
     "mutedUsers": string;
     /**
-     * 已屏蔽的用户
+     * 已拉黑的用户
      */
     "blockedUsers": string;
     /**
@@ -1593,10 +1083,6 @@ export interface Locale extends ILocale {
      * 完成
      */
     "done": string;
-    /**
-     * 确认
-     */
-    "confirm": string;
     /**
      * 正在处理
      */
@@ -1746,6 +1232,146 @@ export interface Locale extends ILocale {
      */
     "saved": string;
     /**
+     * 已删除
+     */
+    "deleteSucceeded": string;
+    /**
+     * 已添加
+     */
+    "added": string;
+    /**
+     * 操作成功
+     */
+    "operationSucceeded": string;
+    /**
+     * 已更新
+     */
+    "updated": string;
+    /**
+     * 已创建
+     */
+    "created": string;
+    /**
+     * 已清除
+     */
+    "cleared": string;
+    /**
+     * 已重置
+     */
+    "resetDone": string;
+    /**
+     * 已应用
+     */
+    "applied": string;
+    /**
+     * 已取消
+     */
+    "canceledDone": string;
+    /**
+     * 已重新显示所有提示
+     */
+    "tipsRedisplayed": string;
+    /**
+     * 已卸载
+     */
+    "uninstalled": string;
+    /**
+     * 已修改密码
+     */
+    "passwordChanged": string;
+    /**
+     * 已移动
+     */
+    "moved": string;
+    /**
+     * 已标记为敏感内容
+     */
+    "markedAsSensitive": string;
+    /**
+     * 已取消敏感内容标记
+     */
+    "unmarkedAsSensitive": string;
+    /**
+     * 不能选择敏感媒体
+     */
+    "cannotSelectSensitiveMedia": string;
+    /**
+     * 文件可能被自动识别为敏感媒体。请按服务器规则检查敏感内容标记，确认无需标记后再重试。
+     */
+    "cannotSelectSensitiveMediaDescription": string;
+    /**
+     * 已屏蔽
+     */
+    "muted": string;
+    /**
+     * 已取消屏蔽
+     */
+    "unmuted": string;
+    /**
+     * 已屏蔽转发
+     */
+    "renoteMuted": string;
+    /**
+     * 已取消屏蔽转发
+     */
+    "renoteUnmuted": string;
+    /**
+     * 已取消拉黑
+     */
+    "unblocked": string;
+    /**
+     * 已开启发帖通知
+     */
+    "notifyNotesEnabled": string;
+    /**
+     * 已关闭发帖通知
+     */
+    "notifyNotesDisabled": string;
+    /**
+     * 已移除关注者
+     */
+    "followerRemoved": string;
+    /**
+     * 已关闭此对话的提醒
+     */
+    "threadMuted": string;
+    /**
+     * 已恢复此对话的提醒
+     */
+    "threadUnmuted": string;
+    /**
+     * 已取消收藏
+     */
+    "unfavorited": string;
+    /**
+     * 已置顶
+     */
+    "notePinned": string;
+    /**
+     * 已取消置顶
+     */
+    "noteUnpinned": string;
+    /**
+     * 已置顶页面
+     */
+    "pagePinned": string;
+    /**
+     * 已取消置顶页面
+     */
+    "pageUnpinned": string;
+    /**
+     * 已取消转发
+     */
+    "unrenoted": string;
+    /**
+     * 已同意关注申请
+     */
+    "followRequestAcceptedDone": string;
+    /**
+     * 已拒绝关注申请
+     */
+    "followRequestRejectedDone": string;
+    /**
      * 本地上传
      */
     "upload": string;
@@ -1789,6 +1415,10 @@ export interface Locale extends ILocale {
      * 发现
      */
     "explore": string;
+    /**
+     * 我的
+     */
+    "mine": string;
     /**
      * 已读
      */
@@ -1842,7 +1472,7 @@ export interface Locale extends ILocale {
      */
     "remoteUserCaution": string;
     /**
-     * 活动
+     * 数据统计
      */
     "activity": string;
     /**
@@ -1862,7 +1492,7 @@ export interface Locale extends ILocale {
      */
     "yearsOld": ParameterizedString<"age">;
     /**
-     * 注册
+     * 注册日期
      */
     "registeredDate": string;
     /**
@@ -1902,7 +1532,7 @@ export interface Locale extends ILocale {
      */
     "syncDeviceDarkMode": string;
     /**
-     * “{x}” 已开启。要关闭同步并手动切换模式吗？
+     * 关闭「{x}」后将改为手动切换主题，是否继续？
      */
     "switchDarkModeManuallyWhenSyncEnabledConfirm": ParameterizedString<"x">;
     /**
@@ -2026,14 +1656,6 @@ export interface Locale extends ILocale {
      */
     "displayOfSensitiveMedia": string;
     /**
-     * 与服务器连接中断时
-     */
-    "whenServerDisconnected": string;
-    /**
-     * 服务器连接已断开
-     */
-    "disconnectedFromServer": string;
-    /**
      * 刷新
      */
     "reload": string;
@@ -2041,10 +1663,6 @@ export interface Locale extends ILocale {
      * 不做任何操作
      */
     "doNothing": string;
-    /**
-     * 确定要刷新吗？
-     */
-    "reloadConfirm": string;
     /**
      * 关注
      */
@@ -2110,9 +1728,21 @@ export interface Locale extends ILocale {
      */
     "yearX": ParameterizedString<"year">;
     /**
-     * 自定义页面
+     * 独立页面
      */
     "pages": string;
+    /**
+     * 小程序
+     */
+    "play": string;
+    /**
+     * 饼干点击器
+     */
+    "cookieClicker": string;
+    /**
+     * 文章与页面
+     */
+    "articlesAndPages": string;
     /**
      * 关联
      */
@@ -2267,11 +1897,11 @@ export interface Locale extends ILocale {
      */
     "avoidMultiCaptchaConfirm": string;
     /**
-     * 关键词订阅
+     * 内容订阅
      */
     "antennas": string;
     /**
-     * 管理关键词订阅
+     * 管理内容订阅
      */
     "manageAntennas": string;
     /**
@@ -2379,7 +2009,7 @@ export interface Locale extends ILocale {
      */
     "exploreFediverse": string;
     /**
-     * 热门标签
+     * 热门话题
      */
     "popularTags": string;
     /**
@@ -2411,11 +2041,11 @@ export interface Locale extends ILocale {
      */
     "setupOf2fa": string;
     /**
-     * 验证器 APP
+     * TOTP 验证器
      */
     "totp": string;
     /**
-     * 输入验证器 APP 生成的一次性验证码
+     * 输入 TOTP 验证器生成的一次性验证码
      */
     "totpDescription": string;
     /**
@@ -2427,7 +2057,11 @@ export interface Locale extends ILocale {
      */
     "moderation": string;
     /**
-     * 管理笔记
+     * 治理设置
+     */
+    "moderationSettings": string;
+    /**
+     * 管理备注
      */
     "moderationNote": string;
     /**
@@ -2435,15 +2069,15 @@ export interface Locale extends ILocale {
      */
     "moderationNoteDescription": string;
     /**
-     * 添加管理笔记
+     * 添加管理备注
      */
     "addModerationNote": string;
     /**
-     * 管理日志
+     * 操作日志
      */
     "moderationLogs": string;
     /**
-     * {n} 人使用此标签
+     * {n} 人参与讨论
      */
     "nUsersMentioned": ParameterizedString<"n">;
     /**
@@ -2519,7 +2153,7 @@ export interface Locale extends ILocale {
      */
     "help": string;
     /**
-     * 在此输入信息
+     * 输入消息…
      */
     "inputMessageHere": string;
     /**
@@ -2623,6 +2257,10 @@ export interface Locale extends ILocale {
      */
     "tooLong": string;
     /**
+     * 不能超过 {limit} 个字。
+     */
+    "inputTooLong": ParameterizedString<"limit">;
+    /**
      * 密码强度：弱
      */
     "weakPassword": string;
@@ -2723,6 +2361,10 @@ export interface Locale extends ILocale {
      */
     "category": string;
     /**
+     * 未分类
+     */
+    "uncategorized": string;
+    /**
      * 标签
      */
     "tags": string;
@@ -2735,7 +2377,7 @@ export interface Locale extends ILocale {
      */
     "createAccount": string;
     /**
-     * 已有账户
+     * 登录已有账户
      */
     "existingAccount": string;
     /**
@@ -2767,7 +2409,7 @@ export interface Locale extends ILocale {
      */
     "openImageInNewTab": string;
     /**
-     * 管理面板
+     * 站点概览
      */
     "dashboard": string;
     /**
@@ -2891,22 +2533,6 @@ export interface Locale extends ILocale {
      */
     "objectStorageSetPublicRead": string;
     /**
-     * Access Key
-     */
-    "accessKey": string;
-    /**
-     * Secret Key
-     */
-    "secretKey": string;
-    /**
-     * 公钥
-     */
-    "publicKey": string;
-    /**
-     * 私钥
-     */
-    "privateKey": string;
-    /**
      * 启用 s3ForcePathStyle，将 Bucket 名放在 URL 路径中。自托管 MinIO 等服务可能需要启用。
      */
     "s3ForcePathStyleDesc": string;
@@ -2947,7 +2573,7 @@ export interface Locale extends ILocale {
      */
     "sound": string;
     /**
-     * 设置通知声音
+     * 提示音设置
      */
     "notificationSoundSettings": string;
     /**
@@ -2959,11 +2585,11 @@ export interface Locale extends ILocale {
      */
     "none": string;
     /**
-     * 在页面中显示
+     * 在主页面打开
      */
     "showInPage": string;
     /**
-     * 弹窗
+     * 在独立窗口打开
      */
     "popout": string;
     /**
@@ -2979,7 +2605,7 @@ export interface Locale extends ILocale {
      */
     "notUseSound": string;
     /**
-     * 仅在使用 Misskey 时发出音效
+     * 仅在页面处于前台时发出音效
      */
     "useSoundOnlyWhenActive": string;
     /**
@@ -3011,11 +2637,11 @@ export interface Locale extends ILocale {
      */
     "uninstall": string;
     /**
-     * 已授权的 APP
+     * 应用授权
      */
     "installedApps": string;
     /**
-     * 无
+     * 暂无内容
      */
     "nothing": string;
     /**
@@ -3047,7 +2673,7 @@ export interface Locale extends ILocale {
      */
     "scratchpad": string;
     /**
-     * 编写并运行 AiScript，查看输出及与 Misskey 交互的结果。
+     * 编写并运行 AiScript，查看输出及与本站交互的结果。
      */
     "scratchpadDescription": string;
     /**
@@ -3163,7 +2789,7 @@ export interface Locale extends ILocale {
      */
     "rearrange": string;
     /**
-     * 中继
+     * 中继服务器
      */
     "relays": string;
     /**
@@ -3187,25 +2813,9 @@ export interface Locale extends ILocale {
      */
     "deletedNote": string;
     /**
-     * 该评论已被删除
+     * 帖子不存在或已删除
      */
-    "deletedComment": string;
-    /**
-     * 该帖子已被作者删除
-     */
-    "deletedNoteByAuthor": string;
-    /**
-     * 该帖子已被社区管理员删除
-     */
-    "deletedNoteByCommunity": string;
-    /**
-     * 该评论已被作者删除
-     */
-    "deletedCommentByAuthor": string;
-    /**
-     * 该评论已被社区管理员删除
-     */
-    "deletedCommentByCommunity": string;
+    "noteUnavailable": string;
     /**
      * 隐藏的帖子
      */
@@ -3243,7 +2853,7 @@ export interface Locale extends ILocale {
      */
     "description": string;
     /**
-     * 添加描述
+     * 编辑文件描述
      */
     "describeFile": string;
     /**
@@ -3423,7 +3033,7 @@ export interface Locale extends ILocale {
      */
     "regexpError": string;
     /**
-     * 已静音的服务器
+     * 已屏蔽内容的服务器
      */
     "instanceMute": string;
     /**
@@ -3527,17 +3137,17 @@ export interface Locale extends ILocale {
      */
     "sample": string;
     /**
-     * 举报
+     * 举报处理
      */
     "abuseReports": string;
+    /**
+     * 举报通知设置
+     */
+    "abuseReportNotificationSettings": string;
     /**
      * 举报
      */
     "reportAbuse": string;
-    /**
-     * 举报转发
-     */
-    "reportAbuseRenote": string;
     /**
      * 举报 {name}
      */
@@ -3627,11 +3237,11 @@ export interface Locale extends ILocale {
      */
     "unclip": string;
     /**
-     * 此帖子已在收藏夹“{name}”中，确定移出？
+     * 从收藏夹“{name}”移除此帖？
      */
     "confirmToUnclipAlreadyClippedNote": ParameterizedString<"name">;
     /**
-     * 从此关键词订阅中移除
+     * 从此内容订阅中移除
      */
     "removeFromAntenna": string;
     /**
@@ -3647,7 +3257,7 @@ export interface Locale extends ILocale {
      */
     "private": string;
     /**
-     * Misskey 由志愿者提供多语言翻译，可通过 {link} 参与。
+     * 由志愿者提供多语言翻译，可通过 {link} 参与。
      */
     "i18nInfo": ParameterizedString<"link">;
     /**
@@ -3867,7 +3477,7 @@ export interface Locale extends ILocale {
      */
     "sendErrorReports": string;
     /**
-     * 向 Misskey 发送错误详情，帮助改进软件。内容包括操作系统版本、浏览器类型和操作记录等。
+     * 发送错误详情，帮助改进软件。内容包括操作系统版本、浏览器类型和操作记录等。
      */
     "sendErrorReportsDescription": string;
     /**
@@ -4007,6 +3617,10 @@ export interface Locale extends ILocale {
      */
     "markAllAsRead": string;
     /**
+     * 已全部标记为已读
+     */
+    "allMarkedAsRead": string;
+    /**
      * 返回
      */
     "goBack": string;
@@ -4050,254 +3664,12 @@ export interface Locale extends ILocale {
      * 在线状态
      */
     "onlineStatus": string;
-    "_onlineStatus": {
-        /**
-         * 离开
-         */
-        "away": string;
-        /**
-         * 忙碌
-         */
-        "busy": string;
-        /**
-         * 请勿打扰
-         */
-        "doNotDisturb": string;
-        /**
-         * 隐身
-         */
-        "invisible": string;
-        /**
-         * 切换为{status}
-         */
-        "switchTo": ParameterizedString<"status">;
-        /**
-         * 自动回复
-         */
-        "autoReply": string;
-        /**
-         * 自定义自动回复
-         */
-        "customAutoReply": string;
-        /**
-         * 回复内容
-         */
-        "autoReplyContent": string;
-        /**
-         * 输入自动回复内容
-         */
-        "autoReplyPlaceholder": string;
-        /**
-         * 最多可输入 {max} 个字。
-         */
-        "autoReplyLimit": ParameterizedString<"max">;
-        "_autoReplyPresets": {
-            /**
-             * 暂时离开，稍后回复。
-             */
-            "away": string;
-            /**
-             * 工作中，稍后回复。
-             */
-            "work": string;
-            /**
-             * 用餐中，稍后回复。
-             */
-            "meal": string;
-        };
-        "_display": {
-            /**
-             * 在线
-             */
-            "online": string;
-            /**
-             * 最近活跃
-             */
-            "active": string;
-            /**
-             * 离开
-             */
-            "away": string;
-            /**
-             * 忙碌中
-             */
-            "busy": string;
-            /**
-             * 请勿打扰
-             */
-            "doNotDisturb": string;
-            /**
-             * 离线
-             */
-            "offline": string;
-            /**
-             * 隐身
-             */
-            "invisible": string;
-            /**
-             * 未知
-             */
-            "unknown": string;
-        };
-        /**
-         * 自定义状态
-         */
-        "customStatus": string;
-        /**
-         * 使用此状态
-         */
-        "useStatus": string;
-        /**
-         * 输入状态说明
-         */
-        "customStatusPlaceholder": string;
-        /**
-         * 最多可输入 {max} 个字。
-         */
-        "customStatusLimit": ParameterizedString<"max">;
-        /**
-         * 不能使用换行符或控制字符。
-         */
-        "customStatusInvalidCharacters": string;
-        /**
-         * 应用自定义状态后，将切换为在线并显示所选图标和文字。应用后仍可编辑；隐身时不会向其他人公开。
-         */
-        "customStatusVisibility": string;
-        "_icons": {
-            /**
-             * 休息中
-             */
-            "coffee": string;
-            /**
-             * 听歌中
-             */
-            "music": string;
-            /**
-             * 游戏中
-             */
-            "gamepad": string;
-            /**
-             * 工作中
-             */
-            "briefcase": string;
-            /**
-             * 学习中
-             */
-            "book": string;
-            /**
-             * 睡眠中
-             */
-            "moon": string;
-            /**
-             * 心动
-             */
-            "heart": string;
-            /**
-             * 旅行中
-             */
-            "plane": string;
-            /**
-             * 用餐中
-             */
-            "food": string;
-            /**
-             * 居家
-             */
-            "home": string;
-            /**
-             * 陪伴宠物
-             */
-            "pet": string;
-            /**
-             * 编程中
-             */
-            "code": string;
-            /**
-             * 专注中
-             */
-            "focus": string;
-            /**
-             * 观影中
-             */
-            "film": string;
-            /**
-             * 出行中
-             */
-            "car": string;
-            /**
-             * 度假中
-             */
-            "vacation": string;
-            /**
-             * 运动中
-             */
-            "exercise": string;
-            /**
-             * 心情愉快
-             */
-            "sun": string;
-            /**
-             * 独处
-             */
-            "cloud": string;
-            /**
-             * 充电中
-             */
-            "battery": string;
-            /**
-             * 可交流
-             */
-            "chat": string;
-            /**
-             * 庆祝中
-             */
-            "celebrate": string;
-            /**
-             * 正在准备礼物
-             */
-            "gift": string;
-            /**
-             * 寻找同伴中
-             */
-            "handshake": string;
-        };
-        "_groups": {
-            /**
-             * 日常生活
-             */
-            "daily": string;
-            /**
-             * 工作学习
-             */
-            "focus": string;
-            /**
-             * 休闲
-             */
-            "relax": string;
-            /**
-             * 出行
-             */
-            "travel": string;
-            /**
-             * 心情
-             */
-            "mood": string;
-            /**
-             * 社交
-             */
-            "social": string;
-        };
-        /**
-         * 自动
-         */
-        "auto": string;
-    };
     /**
      * 隐藏在线状态
      */
     "hideOnlineStatus": string;
     /**
-     * 隐藏在线状态后，可能会降低搜索等功能的便利性。
+     * 不向他人显示在线状态和最近活跃时间。
      */
     "hideOnlineStatusDescription": string;
     /**
@@ -4473,7 +3845,7 @@ export interface Locale extends ILocale {
      */
     "searchResult": string;
     /**
-     * 话题标签
+     * 话题
      */
     "hashtags": string;
     /**
@@ -4489,13 +3861,21 @@ export interface Locale extends ILocale {
      */
     "learnMore": string;
     /**
-     * Misskey 已更新
+     * 已更新到新版本
      */
     "misskeyUpdated": string;
+    /**
+     * {name}，又升级了
+     */
+    "instanceUpgraded": ParameterizedString<"name">;
     /**
      * 查看更新内容
      */
     "whatIsNew": string;
+    /**
+     * 看看新变化
+     */
+    "viewChanges": string;
     /**
      * 翻译
      */
@@ -4529,7 +3909,7 @@ export interface Locale extends ILocale {
      */
     "pubSub": string;
     /**
-     * 最近通信
+     * 最近发送时间
      */
     "lastCommunication": string;
     /**
@@ -4581,7 +3961,7 @@ export interface Locale extends ILocale {
      */
     "controlPanel": string;
     /**
-     * 管理账户
+     * 账户管理
      */
     "manageAccounts": string;
     /**
@@ -4597,11 +3977,11 @@ export interface Locale extends ILocale {
      */
     "classic": string;
     /**
-     * 静音此对话
+     * 关闭此对话的提醒
      */
     "muteThread": string;
     /**
-     * 取消静音此对话
+     * 恢复此对话的提醒
      */
     "unmuteThread": string;
     /**
@@ -4693,7 +4073,7 @@ export interface Locale extends ILocale {
      */
     "instanceDefaultThemeDescription": string;
     /**
-     * 静音时长
+     * 屏蔽时长
      */
     "mutePeriod": string;
     /**
@@ -4745,7 +4125,7 @@ export interface Locale extends ILocale {
      */
     "failedToFetchAccountInformation": string;
     /**
-     * 请求超过 Rate Limit。
+     * 请求过于频繁，请稍后重试。
      */
     "rateLimitExceeded": string;
     /**
@@ -4833,17 +4213,13 @@ export interface Locale extends ILocale {
      */
     "logoutConfirm": string;
     /**
-     * 退出登录会清除浏览器中的客户端设置。如需在下次登录时恢复，请先启用自动备份。
+     * 退出后将清除浏览器中的客户端设置，建议先启用自动备份。
      */
     "logoutWillClearClientData": string;
     /**
-     * 最后活跃时间
+     * 最近活跃
      */
     "lastActiveDate": string;
-    /**
-     * 最后发帖时间
-     */
-    "lastPostedAt": string;
     /**
      * 状态栏
      */
@@ -5071,11 +4447,11 @@ export interface Locale extends ILocale {
      */
     "remindMeLater": string;
     /**
-     * 用得还满意吗？
+     * 请告诉我们您的使用意见
      */
     "didYouLikeMisskey": string;
     /**
-     * 感谢使用 {host}！无论是遇到的问题、不喜欢的地方，还是想新增或改进的功能，都欢迎点击下方「反馈」告诉我们。
+     * 感谢使用 {host}！遇到问题或有改进想法，欢迎反馈给我们。
      */
     "pleaseDonate": ParameterizedString<"host">;
     /**
@@ -5115,11 +4491,11 @@ export interface Locale extends ILocale {
      */
     "color": string;
     /**
-     * 管理自定义 Emoji
+     * 自定义 Emoji 管理
      */
     "manageCustomEmojis": string;
     /**
-     * 管理头像挂件
+     * 头像挂件管理
      */
     "manageAvatarDecorations": string;
     /**
@@ -5299,17 +4675,21 @@ export interface Locale extends ILocale {
      */
     "prohibitedWordsDescription2": string;
     /**
-     * 隐藏标签
+     * 隐藏话题
      */
     "hiddenTags": string;
     /**
-     * 这些话题标签不会出现在热门话题中，每行一个。
+     * 这些话题不会出现在热门话题中，每行一个。
      */
     "hiddenTagsDescription": string;
     /**
      * 帖子搜索不可用
      */
     "notesSearchNotAvailable": string;
+    /**
+     * 文章搜索不可用
+     */
+    "articlesSearchNotAvailable": string;
     /**
      * 用户搜索不可用
      */
@@ -5547,7 +4927,7 @@ export interface Locale extends ILocale {
      */
     "lookupConfirm": string;
     /**
-     * 确定打开话题标签页面？
+     * 确定打开话题页面？
      */
     "openTagPageConfirm": string;
     /**
@@ -5558,6 +4938,368 @@ export interface Locale extends ILocale {
      * 无法预览
      */
     "failedToPreviewUrl": string;
+    "_article": {
+        /**
+         * 目录
+         */
+        "tableOfContents": string;
+        /**
+         * 文章
+         */
+        "article": string;
+        /**
+         * 文章分类
+         */
+        "categories": string;
+        /**
+         * 最新
+         */
+        "latest": string;
+        /**
+         * 关注
+         */
+        "following": string;
+        /**
+         * 分类
+         */
+        "category": string;
+        /**
+         * 综合
+         */
+        "allCategories": string;
+        /**
+         * 未分类
+         */
+        "uncategorized": string;
+        /**
+         * 原分类暂不可用
+         */
+        "categoryUnavailable": string;
+        /**
+         * 分类名称
+         */
+        "categoryName": string;
+        /**
+         * 添加分类
+         */
+        "addCategory": string;
+        /**
+         * 最多添加 50 个分类，每个名称最多 10 字。分类按下方顺序显示，保存后生效。
+         */
+        "categorySettingsDescription": string;
+        /**
+         * 文章分类与话题
+         */
+        "categoryAndTagSettings": string;
+        /**
+         * 可添加、编辑或删除话题，名称最多 10 字，操作后立即保存。移除后，已发布文章和云端草稿中的原话题仍会保留。
+         */
+        "tagSettingsDescription": string;
+        /**
+         * 添加话题
+         */
+        "addTag": string;
+        /**
+         * 编辑话题
+         */
+        "editTag": string;
+        /**
+         * 删除话题“{tag}”？已发布文章和云端草稿中的原话题会保留。
+         */
+        "deleteTagConfirm": ParameterizedString<"tag">;
+        /**
+         * 这个话题已存在。
+         */
+        "tagAlreadyExists": string;
+        /**
+         * 话题已被修改或删除，列表已刷新。
+         */
+        "tagNotFound": string;
+        /**
+         * 话题不能重复，最多 500 个，每个最多 10 字。
+         */
+        "invalidTagSettings": string;
+        /**
+         * 移除此分类？保存后，该分类的文章会归为未分类。
+         */
+        "deleteCategoryConfirm": string;
+        /**
+         * 上移分类
+         */
+        "moveCategoryUp": string;
+        /**
+         * 下移分类
+         */
+        "moveCategoryDown": string;
+        /**
+         * 发布文章
+         */
+        "publish": string;
+        /**
+         * 编辑文章
+         */
+        "edit": string;
+        /**
+         * 文章标题
+         */
+        "title": string;
+        /**
+         * 摘要
+         */
+        "summary": string;
+        /**
+         * 文章封面
+         */
+        "cover": string;
+        /**
+         * 选择封面
+         */
+        "chooseCover": string;
+        /**
+         * 可上传封面，或按当天日期生成。留空则不显示封面。
+         */
+        "defaultCoverHint": string;
+        /**
+         * 生成默认封面
+         */
+        "generateDefaultCover": string;
+        /**
+         * 封面生成或上传失败，请重试。
+         */
+        "generateCoverFailed": string;
+        /**
+         * 使用 Markdown 撰写正文…
+         */
+        "bodyPlaceholder": string;
+        /**
+         * 未发布的内容自动保存在当前浏览器。
+         */
+        "draftHint": string;
+        /**
+         * 文章草稿
+         */
+        "drafts": string;
+        /**
+         * 仅保存在当前浏览器，不会发布或同步到其他设备。清理浏览器数据会丢失草稿。
+         */
+        "localDraftsInfo": string;
+        /**
+         * 暂无文章草稿
+         */
+        "noDrafts": string;
+        /**
+         * 新建草稿
+         */
+        "newDraft": string;
+        /**
+         * 未命名文章
+         */
+        "untitledDraft": string;
+        /**
+         * 保存草稿
+         */
+        "saveDraft": string;
+        /**
+         * 已保存到本地
+         */
+        "draftSaved": string;
+        /**
+         * 未保存
+         */
+        "draftPending": string;
+        /**
+         * {seconds} 秒后保存到本地
+         */
+        "draftCountdown": ParameterizedString<"seconds">;
+        /**
+         * 本地保存失败，请重试或复制正文备份。
+         */
+        "draftSaveFailed": string;
+        /**
+         * 无法读取本地草稿，请检查浏览器存储设置。
+         */
+        "draftReadFailed": string;
+        /**
+         * 删除这篇本地文章草稿？此操作无法撤销。
+         */
+        "draftDeleteConfirm": string;
+        /**
+         * 草稿已在其他窗口更改，请重新打开草稿箱。
+         */
+        "draftChanged": string;
+        /**
+         * 正在编辑
+         */
+        "draftInUse": string;
+        /**
+         * 话题
+         */
+        "tags": string;
+        /**
+         * 输入关键词搜索已有话题
+         */
+        "tagsHint": string;
+        /**
+         * 话题搜索失败，请重试。
+         */
+        "tagsSearchFailed": string;
+        /**
+         * 没有匹配的话题，请换个关键词。
+         */
+        "tagsNotFound": string;
+        /**
+         * 部分话题已不可用，请移除后重新选择。
+         */
+        "tagsUnavailable": string;
+        /**
+         * 最多 3 个话题，分类最多 1 个
+         */
+        "tagsLimit": string;
+        /**
+         * 本地草稿
+         */
+        "localDrafts": string;
+        /**
+         * 云端草稿
+         */
+        "cloudDrafts": string;
+        /**
+         * 输入自动保存在当前浏览器；点击“保存草稿”后存到云端，仅自己可见，可跨设备继续编辑。
+         */
+        "draftStrategy": string;
+        /**
+         * 保存到本地
+         */
+        "saveLocalDraft": string;
+        /**
+         * 草稿已保存到云端
+         */
+        "cloudDraftSaved": string;
+        /**
+         * 保存中…
+         */
+        "cloudDraftSaving": string;
+        /**
+         * 云端保存失败，当前内容仍在编辑器中，可重试。
+         */
+        "cloudDraftFailed": string;
+        /**
+         * 云端草稿已在其他窗口更新或删除。请另存副本，或从草稿箱重新打开。
+         */
+        "cloudDraftConflict": string;
+        /**
+         * 另存副本
+         */
+        "saveDraftCopy": string;
+        /**
+         * 无法读取云端草稿
+         */
+        "cloudDraftsFailed": string;
+        /**
+         * 文章已发布，云端草稿未删除，请在草稿箱中检查。
+         */
+        "cloudDraftCleanupFailed": string;
+        /**
+         * 删除云端草稿？所有设备均无法从云端恢复，本地副本保留。
+         */
+        "cloudDraftDeleteConfirm": string;
+        /**
+         * 阅读量
+         */
+        "views": string;
+        /**
+         * 推荐文章
+         */
+        "recommendedArticles": string;
+        /**
+         * 本次推荐已过期，请刷新后继续浏览。
+         */
+        "recommendationExpired": string;
+        /**
+         * 推荐帖子
+         */
+        "recommendedNotes": string;
+        /**
+         * 文章操作
+         */
+        "menu": string;
+        /**
+         * 新建文章
+         */
+        "newArticle": string;
+        /**
+         * 预计阅读 {minutes} 分钟
+         */
+        "readingTime": ParameterizedString<"minutes">;
+        /**
+         * 此前版本已保存到云端，刚输入的改动已保留在本地。
+         */
+        "cloudDraftPreviousSaved": string;
+        /**
+         * 已发布文章的修改
+         */
+        "editingPublishedDraft": string;
+        /**
+         * 只能编辑自己发布的文章。
+         */
+        "cannotEdit": string;
+        /**
+         * 请选择未标记为敏感内容的图片。
+         */
+        "imageOnly": string;
+        /**
+         * 标题和正文不能为空；标题最多 100 字，摘要最多 200 字，正文最多 50000 字。
+         */
+        "invalidArticle": string;
+        /**
+         * 评论
+         */
+        "comment": string;
+        /**
+         * 分享你的看法…
+         */
+        "commentPlaceholder": string;
+        /**
+         * 回复 {user}…
+         */
+        "replyPlaceholder": ParameterizedString<"user">;
+        /**
+         * 取消回复
+         */
+        "cancelReply": string;
+        /**
+         * 写评论
+         */
+        "writeComment": string;
+        /**
+         * 发表评论
+         */
+        "publishComment": string;
+        /**
+         * 登录后发表评论
+         */
+        "signInToComment": string;
+        /**
+         * 还没有评论，来发表第一条吧。
+         */
+        "noComments": string;
+        /**
+         * 删除这条评论？
+         */
+        "deleteCommentConfirm": string;
+        /**
+         * 该功能暂未开放。
+         */
+        "comingSoon": string;
+    };
+    /**
+     * 网页链接
+     */
+    "urlPreviewFallbackTitle": string;
+    /**
+     * 暂无网站介绍，可打开链接查看。
+     */
+    "urlPreviewFallbackDescription": string;
     /**
      * 更新
      */
@@ -5587,9 +5329,9 @@ export interface Locale extends ILocale {
      */
     "later": string;
     /**
-     * 前往 Misskey
+     * 前往 {name}
      */
-    "goToMisskey": string;
+    "goToMisskey": ParameterizedString<"name">;
     /**
      * 附加 Emoji 词典
      */
@@ -5599,79 +5341,9 @@ export interface Locale extends ILocale {
      */
     "installed": string;
     /**
-     * 品牌
+     * 品牌设置
      */
     "branding": string;
-    "_brandingImages": {
-        /**
-         * Logo URL
-         */
-        "icon": string;
-        /**
-         * 用于欢迎页中央及站点信息中的方形 Logo。留空使用默认 Logo。
-         */
-        "iconDescription": string;
-        /**
-         * APP Icon URL（192 × 192）
-         */
-        "appIconSmall": string;
-        /**
-         * APP Icon URL（512 × 512）
-         */
-        "appIconLarge": string;
-        /**
-         * Banner URL
-         */
-        "banner": string;
-        /**
-         * 用于站点介绍页和信息卡片的横向封面图片。
-         */
-        "bannerDescription": string;
-        /**
-         * 页面背景图片 URL
-         */
-        "background": string;
-        /**
-         * 用于欢迎页整页背景，以及未登录页面的侧栏背景。
-         */
-        "backgroundDescription": string;
-        /**
-         * 欢迎页右上角源码链接的目标 URL；留空时隐藏该链接。
-         */
-        "repositoryDescription": string;
-        /**
-         * 404 页面图片 URL
-         */
-        "notFound": string;
-        /**
-         * 访问不存在的页面或找不到内容时显示的图片。留空使用默认图标。
-         */
-        "notFoundDescription": string;
-        /**
-         * 空状态图片 URL
-         */
-        "empty": string;
-        /**
-         * 列表没有内容、搜索没有结果等空状态下显示的图片。留空使用默认图标。
-         */
-        "emptyDescription": string;
-        /**
-         * 错误提示图片 URL
-         */
-        "error": string;
-        /**
-         * 页面加载失败或发生错误时显示的图片。留空使用默认错误提示。
-         */
-        "errorDescription": string;
-        /**
-         * 保存中…
-         */
-        "saving": string;
-        /**
-         * 请输入有效的 manifest.json 内容（JSON 或 JSON5 格式）。
-         */
-        "invalidManifest": string;
-    };
     /**
      * 公开服务器硬件统计信息
      */
@@ -5717,11 +5389,11 @@ export interface Locale extends ILocale {
      */
     "inviteLimitResetCycle": ParameterizedString<"time" | "limit">;
     /**
-     * 有效日期
+     * 到期时间
      */
     "expirationDate": string;
     /**
-     * 不设置有效日期
+     * 永不过期
      */
     "noExpirationDate": string;
     /**
@@ -5901,6 +5573,10 @@ export interface Locale extends ILocale {
      */
     "externalServices": string;
     /**
+     * 系统 Webhook
+     */
+    "systemWebhook": string;
+    /**
      * 源代码
      */
     "sourceCode": string;
@@ -5913,11 +5589,11 @@ export interface Locale extends ILocale {
      */
     "repositoryUrl": string;
     /**
-     * 填写公开源代码仓库的 URL。未修改 Misskey 时填写 https://github.com/misskey-dev/misskey。
+     * 填写公开源代码仓库的 URL。
      */
     "repositoryUrlDescription": string;
     /**
-     * 仓库未公开时，需提供 tarball。详见 .config/example.yml。
+     * 请填写公开源代码仓库的 URL，或提供源代码 tarball。配置方法见 .config/example.yml。
      */
     "repositoryUrlOrTarballRequired": string;
     /**
@@ -5925,6 +5601,14 @@ export interface Locale extends ILocale {
      */
     "feedback": string;
     "_feedback": {
+        /**
+         * 提交说明
+         */
+        "howToTitle": string;
+        /**
+         * 请说明问题或需求、使用场景、设备和版本；可附截图。
+         */
+        "howToDescription": string;
         /**
          * 反馈中心
          */
@@ -6185,33 +5869,21 @@ export interface Locale extends ILocale {
          * 详细描述不能超过 1000 个字。
          */
         "descriptionTooLong": string;
-        /**
-         * 提交说明
-         */
-        "howToTitle": string;
-        /**
-         * 请说明问题或需求、使用场景、设备和版本；可附截图。
-         */
-        "howToDescription": string;
     };
-    /**
-     * 回到顶部
-     */
-    "backToTop": string;
     /**
      * 反馈 URL
      */
     "feedbackUrl": string;
     /**
-     * Impressum
+     * 运营者信息
      */
     "impressum": string;
     /**
-     * Impressum URL
+     * 运营者信息 URL
      */
     "impressumUrl": string;
     /**
-     * 德国等国家和地区有义务展示此类信息（Impressum）。
+     * 德国等部分国家和地区要求商业网站展示运营者信息（Impressum）。
      */
     "impressumDescription": string;
     /**
@@ -6303,7 +5975,7 @@ export interface Locale extends ILocale {
      */
     "seasonalScreenEffect": string;
     /**
-     * 装饰
+     * 头像挂件
      */
     "decorate": string;
     /**
@@ -6314,10 +5986,6 @@ export interface Locale extends ILocale {
      * 显示高级 MFM 选择器
      */
     "enableQuickAddMfmFunction": string;
-    /**
-     * 游戏
-     */
-    "games": string;
     /**
      * 泡泡游戏
      */
@@ -6359,7 +6027,7 @@ export interface Locale extends ILocale {
      */
     "lastNDays": ParameterizedString<"n">;
     /**
-     * 返回标题画面
+     * 返回主菜单
      */
     "backToTitle": string;
     /**
@@ -6387,7 +6055,7 @@ export interface Locale extends ILocale {
      */
     "surrender": string;
     /**
-     * 重试
+     * 重新开始
      */
     "gameRetry": string;
     /**
@@ -6403,7 +6071,7 @@ export interface Locale extends ILocale {
      */
     "useBackupCode": string;
     /**
-     * 启动 APP
+     * 打开应用
      */
     "launchApp": string;
     /**
@@ -6447,7 +6115,7 @@ export interface Locale extends ILocale {
      */
     "createdLists": string;
     /**
-     * 已创建的关键词订阅
+     * 已创建的内容订阅
      */
     "createdAntennas": string;
     /**
@@ -6531,7 +6199,7 @@ export interface Locale extends ILocale {
      */
     "thisContentsAreMarkedAsSigninRequiredByAuthor": string;
     /**
-     * 锁定
+     * 内容访问限制
      */
     "lockdown": string;
     /**
@@ -6707,7 +6375,7 @@ export interface Locale extends ILocale {
      */
     "goToDeck": string;
     /**
-     * 联邦任务
+     * 联邦任务队列
      */
     "federationJobs": string;
     /**
@@ -6719,6 +6387,14 @@ export interface Locale extends ILocale {
      * 滑动以关闭
      */
     "scrollToClose": string;
+    /**
+     * 向左滚动
+     */
+    "scrollLeft": string;
+    /**
+     * 向右滚动
+     */
+    "scrollRight": string;
     /**
      * 建议
      */
@@ -6744,11 +6420,11 @@ export interface Locale extends ILocale {
      */
     "emojiUnmute": string;
     /**
-     * 静音{x}
+     * 屏蔽{x}
      */
     "muteX": ParameterizedString<"x">;
     /**
-     * 取消静音{x}
+     * 取消屏蔽{x}
      */
     "unmuteX": ParameterizedString<"x">;
     /**
@@ -6763,10 +6439,6 @@ export interface Locale extends ILocale {
      * 重新显示所有提示
      */
     "redisplayAllTips": string;
-    /**
-     * 隐藏所有提示
-     */
-    "hideAllTips": string;
     /**
      * 默认图像压缩等级
      */
@@ -6808,7 +6480,7 @@ export interface Locale extends ILocale {
      */
     "themeIsDefaultBecauseSafeMode": string;
     /**
-     * 感谢协助测试 beta 版。
+     * 这次的小变化已经准备好，感谢你参与预览测试。
      */
     "thankYouForTestingBeta": string;
     /**
@@ -6836,7 +6508,7 @@ export interface Locale extends ILocale {
      */
     "scheduled": string;
     /**
-     * 小工具
+     * 小组件
      */
     "widgets": string;
     /**
@@ -7076,7 +6748,7 @@ export interface Locale extends ILocale {
              */
             "high": string;
             /**
-             * 中质量
+             * 中等质量
              */
             "medium": string;
             /**
@@ -7111,202 +6783,11 @@ export interface Locale extends ILocale {
     };
     "_chat": {
         /**
-         * 消息
-         */
-        "messages": string;
-        /**
-         * 暂无消息
-         */
-        "noMessagesYet": string;
-        /**
-         * 新消息
-         */
-        "newMessage": string;
-        /**
-         * 私聊
-         */
-        "individualChat": string;
-        /**
-         * 与指定用户一对一聊天。
-         */
-        "individualChat_description": string;
-        /**
-         * 群聊
-         */
-        "roomChat": string;
-        /**
-         * 多名用户共同参与的聊天。
-         * 不接受私聊的用户也可通过邀请加入。
-         */
-        "roomChat_description": string;
-        /**
-         * 创建群聊
-         */
-        "createRoom": string;
-        /**
-         * ユーザーを招待してメッセージを送信しましょう
-         */
-        "inviteUserToChat": string;
-        /**
-         * 已创建的群聊
-         */
-        "yourRooms": string;
-        /**
-         * 已加入的群聊
-         */
-        "joiningRooms": string;
-        /**
-         * 邀请
-         */
-        "invitations": string;
-        /**
-         * 暂无邀请
-         */
-        "noInvitations": string;
-        /**
-         * 历史记录
-         */
-        "history": string;
-        /**
-         * 暂无历史记录
-         */
-        "noHistory": string;
-        /**
-         * 暂无群聊
-         */
-        "noRooms": string;
-        /**
-         * 邀请用户
-         */
-        "inviteUser": string;
-        /**
-         * 已发送的邀请
-         */
-        "sentInvitations": string;
-        /**
-         * 加入
-         */
-        "join": string;
-        /**
-         * 忽略
-         */
-        "ignore": string;
-        /**
-         * 退出群聊
-         */
-        "leave": string;
-        /**
-         * 成员
-         */
-        "members": string;
-        /**
-         * 搜索聊天记录
-         */
-        "searchMessages": string;
-        /**
-         * 首页
-         */
-        "home": string;
-        /**
-         * 发送
-         */
-        "send": string;
-        /**
-         * 换行
-         */
-        "newline": string;
-        /**
-         * 消息免打扰
-         */
-        "muteThisRoom": string;
-        /**
-         * 删除群聊
-         */
-        "deleteRoom": string;
-        /**
-         * 此服务器或账户未启用聊天功能。
-         */
-        "chatNotAvailableForThisAccountOrServer": string;
-        /**
-         * 此服务器或账户的聊天功能为只读，无法发送消息或创建、加入群聊。
-         */
-        "chatIsReadOnlyForThisAccountOrServer": string;
-        /**
-         * 对方账户无法使用聊天功能。
-         */
-        "chatNotAvailableInOtherAccount": string;
-        /**
-         * 无法与该用户聊天
-         */
-        "cannotChatWithTheUser": string;
-        /**
-         * 聊天功能不可用，或对方不允许你发起聊天。
-         */
-        "cannotChatWithTheUser_description": string;
-        /**
-         * 你尚未加入该群聊，但已收到邀请。
-         */
-        "youAreNotAMemberOfThisRoomButInvited": string;
-        /**
-         * 是否接受邀请？
-         */
-        "doYouAcceptInvitation": string;
-        /**
-         * 私聊
-         */
-        "chatWithThisUser": string;
-        /**
-         * 该用户仅允许关注者发起聊天。
-         */
-        "thisUserAllowsChatOnlyFromFollowers": string;
-        /**
-         * 该用户仅允许其关注的用户发起聊天。
-         */
-        "thisUserAllowsChatOnlyFromFollowing": string;
-        /**
-         * 该用户仅允许互相关注的用户发起聊天。
-         */
-        "thisUserAllowsChatOnlyFromMutualFollowing": string;
-        /**
-         * 该用户不允许任何人发起聊天。
-         */
-        "thisUserNotAllowedChatAnyone": string;
-        /**
-         * 允许发起聊天的用户
-         */
-        "chatAllowedUsers": string;
-        /**
-         * 你主动发送过消息的用户不受此设置限制。
-         */
-        "chatAllowedUsers_note": string;
-        "_chatAllowedUsers": {
-            /**
-             * 所有人
-             */
-            "everyone": string;
-            /**
-             * 仅关注者
-             */
-            "followers": string;
-            /**
-             * 仅我关注的用户
-             */
-            "following": string;
-            /**
-             * 仅互相关注的用户
-             */
-            "mutual": string;
-            /**
-             * 不允许任何人
-             */
-            "none": string;
-        };
-        /**
          * 选择一个对话开始聊天
          */
         "selectConversation": string;
         /**
-         * 修改
+         * 群聊设置
          */
         "modify": string;
         /**
@@ -7318,7 +6799,7 @@ export interface Locale extends ILocale {
          */
         "invitationDisabled": string;
         /**
-         * {name}的群组
+         * {name} 的群聊
          */
         "defaultRoomName": ParameterizedString<"name">;
         /**
@@ -7326,23 +6807,23 @@ export interface Locale extends ILocale {
          */
         "invitationSent": string;
         /**
-         * 群组已创建
+         * 群聊已创建
          */
         "roomCreated": string;
         /**
-         * 群组已解散
+         * 群聊已解散
          */
         "roomDeleted": string;
         /**
-         * 已加入群组
+         * 已加入群聊
          */
         "roomJoined": string;
         /**
-         * 已退出群组
+         * 已退出群聊
          */
         "roomLeft": string;
         /**
-         * 已移出群组
+         * 已移出群聊
          */
         "memberRemoved": string;
         /**
@@ -7366,7 +6847,7 @@ export interface Locale extends ILocale {
          */
         "invitationMutualOnly": string;
         /**
-         * 双方存在屏蔽关系，无法邀请
+         * 双方存在拉黑关系，无法邀请
          */
         "invitationBlocked": string;
         /**
@@ -7389,6 +6870,10 @@ export interface Locale extends ILocale {
          * 群聊不存在或你已无权邀请用户
          */
         "invitationRoomUnavailable": string;
+        /**
+         * 邀请已失效
+         */
+        "invitationExpired": string;
         /**
          * 邀请过于频繁，请稍后重试
          */
@@ -7454,6 +6939,18 @@ export interface Locale extends ILocale {
          */
         "disableDoNotDisturb": string;
         /**
+         * 免打扰时长
+         */
+        "doNotDisturbPeriod": string;
+        /**
+         * 已开启免打扰
+         */
+        "doNotDisturbEnabled": string;
+        /**
+         * 已取消免打扰
+         */
+        "doNotDisturbDisabled": string;
+        /**
          * 从消息列表移除
          */
         "removeFromList": string;
@@ -7490,25 +6987,41 @@ export interface Locale extends ILocale {
          */
         "unreadMessages": ParameterizedString<"count">;
         /**
-         * 有人 @ 我
+         * 相关未读消息
          */
         "unreadMentions": string;
+        /**
+         * 提及全体成员
+         */
+        "mentionEveryone": string;
         /**
          * 全员禁言
          */
         "silenceRoom": string;
         /**
+         * 解除全员禁言
+         */
+        "unsilenceRoom": string;
+        /**
          * 禁言结束时间
          */
         "silenceUntil": string;
         /**
-         * 留空则持续禁言，群主仍可发言。
+         * 留空则永久禁言，只有群主可发言。
          */
         "silenceUntilDescription": string;
         /**
          * 全员禁言中
          */
         "roomSilenced": string;
+        /**
+         * 禁言至 {time}
+         */
+        "silencedUntil": ParameterizedString<"time">;
+        /**
+         * 永久禁言
+         */
+        "silencedIndefinitely": string;
         /**
          * 请选择未来的结束时间。
          */
@@ -7522,13 +7035,21 @@ export interface Locale extends ILocale {
          */
         "poked": string;
         /**
-         * 撤回戳一戳
+         * {name} 戳了戳你
+         */
+        "pokedYou": ParameterizedString<"name">;
+        /**
+         * 撤回
          */
         "withdrawPoke": string;
         /**
          * 提及了你
          */
         "mentionedYou": string;
+        /**
+         * 提及了全体成员
+         */
+        "mentionedEveryone": string;
         /**
          * 回复了你
          */
@@ -7537,6 +7058,14 @@ export interface Locale extends ILocale {
          * 引用了你的消息
          */
         "quotedYou": string;
+        /**
+         * 上方：{message}
+         */
+        "attentionAbove": ParameterizedString<"message">;
+        /**
+         * 下方：{message}
+         */
+        "attentionBelow": ParameterizedString<"message">;
         /**
          * {count} 条与你有关的消息
          */
@@ -7566,13 +7095,45 @@ export interface Locale extends ILocale {
          */
         "reactionLabel": ParameterizedString<"reaction" | "count">;
         /**
+         * 消息
+         */
+        "messages": string;
+        /**
+         * 暂无消息
+         */
+        "noMessagesYet": string;
+        /**
+         * 新消息
+         */
+        "newMessage": string;
+        /**
          * 最新消息
          */
         "latestMessages": string;
         /**
+         * 私聊
+         */
+        "individualChat": string;
+        /**
+         * 与指定用户一对一聊天。
+         */
+        "individualChat_description": string;
+        /**
+         * 群聊
+         */
+        "roomChat": string;
+        /**
          * 群组
          */
         "groups": string;
+        /**
+         * 多名用户共同参与的聊天，可按群设置直接加入、申请加入或接受邀请。
+         */
+        "roomChat_description": string;
+        /**
+         * 创建群聊
+         */
+        "createRoom": string;
         /**
          * 加入群聊
          */
@@ -7581,6 +7142,26 @@ export interface Locale extends ILocale {
          * 加入方式
          */
         "joinPolicy": string;
+        /**
+         * 加入验证
+         */
+        "joinValidation": string;
+        /**
+         * 验证问题
+         */
+        "joinQuestion": string;
+        /**
+         * 选填。设置后申请人须回答，由群主或管理员审核。
+         */
+        "joinQuestionDescription": string;
+        /**
+         * 请输入答案
+         */
+        "joinQuestionAnswer": string;
+        /**
+         * 请回答验证问题。
+         */
+        "joinQuestionRequired": string;
         /**
          * 公开加入
          */
@@ -7674,7 +7255,7 @@ export interface Locale extends ILocale {
          */
         "editGroupNickname": string;
         /**
-         * @ TA
+         * 提及成员
          */
         "mentionMember": string;
         /**
@@ -7682,11 +7263,11 @@ export interface Locale extends ILocale {
          */
         "viewProfile": string;
         /**
-         * 屏蔽此人发言
+         * 隐藏该成员的消息
          */
         "hideMemberMessages": string;
         /**
-         * 显示此人发言
+         * 显示该成员的消息
          */
         "showMemberMessages": string;
         /**
@@ -7718,6 +7299,14 @@ export interface Locale extends ILocale {
          */
         "manageMember": string;
         /**
+         * 危险操作
+         */
+        "dangerZone": string;
+        /**
+         * 解散群聊后无法恢复，请谨慎操作。
+         */
+        "deleteRoomDescription": string;
+        /**
          * 设为群管理员
          */
         "setAdministrator": string;
@@ -7730,13 +7319,89 @@ export interface Locale extends ILocale {
          */
         "removeMember": string;
         /**
-         * 确定将 {name} 移出群聊吗？
+         * 将 {name} 移出群聊？
          */
         "removeMemberConfirm": ParameterizedString<"name">;
         /**
          * 请选择图片作为群头像。
          */
         "avatarImageOnly": string;
+        /**
+         * 已创建的群聊
+         */
+        "yourRooms": string;
+        /**
+         * 已加入的群聊
+         */
+        "joiningRooms": string;
+        /**
+         * 群聊邀请
+         */
+        "invitations": string;
+        /**
+         * 已忽略此群聊邀请
+         */
+        "invitationIgnored": string;
+        /**
+         * 暂无群聊邀请
+         */
+        "noInvitations": string;
+        /**
+         * 进入群聊
+         */
+        "enterRoom": string;
+        /**
+         * 聊天记录
+         */
+        "history": string;
+        /**
+         * 暂无历史记录
+         */
+        "noHistory": string;
+        /**
+         * 暂无群聊
+         */
+        "noRooms": string;
+        /**
+         * 邀请用户
+         */
+        "inviteUser": string;
+        /**
+         * 已发送的邀请
+         */
+        "sentInvitations": string;
+        /**
+         * 加入
+         */
+        "join": string;
+        /**
+         * 忽略
+         */
+        "ignore": string;
+        /**
+         * 退出群聊
+         */
+        "leave": string;
+        /**
+         * 成员
+         */
+        "members": string;
+        /**
+         * 搜索聊天记录
+         */
+        "searchMessages": string;
+        /**
+         * 首页
+         */
+        "home": string;
+        /**
+         * 发送
+         */
+        "send": string;
+        /**
+         * 换行
+         */
+        "newline": string;
         /**
          * 编辑消息
          */
@@ -7766,7 +7431,7 @@ export interface Locale extends ILocale {
          */
         "sendFailed": string;
         /**
-         * 你已被对方屏蔽。
+         * 你们之间存在拉黑关系，无法发送。
          */
         "blockedByRecipient": string;
         /**
@@ -7781,6 +7446,92 @@ export interface Locale extends ILocale {
          * 提及发送者
          */
         "mentionSender": string;
+        /**
+         * 消息免打扰
+         */
+        "muteThisRoom": string;
+        /**
+         * 解散群聊
+         */
+        "deleteRoom": string;
+        /**
+         * 此服务器或账户未启用聊天功能。
+         */
+        "chatNotAvailableForThisAccountOrServer": string;
+        /**
+         * 此服务器或账户的聊天功能为只读，无法发送消息或创建、加入群聊。
+         */
+        "chatIsReadOnlyForThisAccountOrServer": string;
+        /**
+         * 对方账户无法使用聊天功能。
+         */
+        "chatNotAvailableInOtherAccount": string;
+        /**
+         * 无法与该用户聊天
+         */
+        "cannotChatWithTheUser": string;
+        /**
+         * 聊天功能不可用，或对方不允许你发起聊天。
+         */
+        "cannotChatWithTheUser_description": string;
+        /**
+         * 你尚未加入该群聊，但已收到邀请。
+         */
+        "youAreNotAMemberOfThisRoomButInvited": string;
+        /**
+         * 是否接受邀请？
+         */
+        "doYouAcceptInvitation": string;
+        /**
+         * 私聊
+         */
+        "chatWithThisUser": string;
+        /**
+         * 该用户仅允许关注者发起聊天。
+         */
+        "thisUserAllowsChatOnlyFromFollowers": string;
+        /**
+         * 该用户仅允许其关注的用户发起聊天。
+         */
+        "thisUserAllowsChatOnlyFromFollowing": string;
+        /**
+         * 该用户仅允许互相关注的用户发起聊天。
+         */
+        "thisUserAllowsChatOnlyFromMutualFollowing": string;
+        /**
+         * 该用户不允许任何人发起聊天。
+         */
+        "thisUserNotAllowedChatAnyone": string;
+        /**
+         * 允许发起聊天的用户
+         */
+        "chatAllowedUsers": string;
+        /**
+         * 你主动发送过消息的用户不受此设置限制。
+         */
+        "chatAllowedUsers_note": string;
+        "_chatAllowedUsers": {
+            /**
+             * 所有人
+             */
+            "everyone": string;
+            /**
+             * 仅关注者
+             */
+            "followers": string;
+            /**
+             * 仅我关注的用户
+             */
+            "following": string;
+            /**
+             * 仅互相关注的用户
+             */
+            "mutual": string;
+            /**
+             * 不允许任何人
+             */
+            "none": string;
+        };
     };
     "_emojiPalette": {
         /**
@@ -7802,6 +7553,38 @@ export interface Locale extends ILocale {
     };
     "_settings": {
         /**
+         * 账户标记
+         */
+        "accountFlags": string;
+        /**
+         * 跳过屏幕外帖子的渲染
+         */
+        "enableNoteRenderSkipping": string;
+        /**
+         * 切换页面时保留状态
+         */
+        "enableStackingRouterView": string;
+        /**
+         * 手机上以页面打开折叠分组
+         */
+        "enableFolderPageView": string;
+        /**
+         * 启用触觉反馈
+         */
+        "enableHapticFeedback": string;
+        /**
+         * 启用浏览器翻译 API
+         */
+        "enableBrowserTranslator": string;
+        /**
+         * 屏蔽时间
+         */
+        "mutedAt": string;
+        /**
+         * 拉黑时间
+         */
+        "blockedAt": string;
+        /**
          * 管理文件、查看用量并设置上传选项。
          */
         "driveBanner": string;
@@ -7822,11 +7605,11 @@ export interface Locale extends ILocale {
          */
         "webhook": string;
         /**
-         * 服务集成
+         * API 与 Webhook
          */
         "serviceConnection": string;
         /**
-         * 管理用于连接外部 APP 或服务的 Access Token 和 Webhook。
+         * 管理用于连接外部应用或服务的 Access Token 和 Webhook。
          */
         "serviceConnectionBanner": string;
         /**
@@ -7838,7 +7621,7 @@ export interface Locale extends ILocale {
          */
         "accountDataBanner": string;
         /**
-         * 管理静音内容，限制指定用户与你互动。
+         * 屏蔽只过滤你看到的社交内容与提醒；拉黑还会阻止双方互动。历史私信、公开资源和已有订单仍可查看。
          */
         "muteAndBlockBanner": string;
         /**
@@ -7846,11 +7629,11 @@ export interface Locale extends ILocale {
          */
         "accessibilityBanner": string;
         /**
-         * 设置内容可见范围、账户可发现性和关注审批。
+         * 设置内容可见范围、发现页展示和关注审批。
          */
         "privacyBanner": string;
         /**
-         * 管理密码、登录方式、验证器 APP 和 Passkey。
+         * 管理密码、登录方式、TOTP 验证器和 Passkey。
          */
         "securityBanner": string;
         /**
@@ -7881,6 +7664,10 @@ export interface Locale extends ILocale {
          * 用户头像跟随页面滚动
          */
         "useStickyIcons": string;
+        /**
+         * 统一控制各页面的头像跟随效果；关闭后，头像固定在各自内容顶部。
+         */
+        "useStickyIconsDescription": string;
         /**
          * 显示高质量图片占位图
          */
@@ -7950,7 +7737,7 @@ export interface Locale extends ILocale {
          */
         "enableAnimatedImages": string;
         /**
-         * 设置持久化
+         * 保留本地设置
          */
         "settingsPersistence_title": string;
         /**
@@ -7971,40 +7758,12 @@ export interface Locale extends ILocale {
              */
             "sendOnEnter": string;
         };
-        /**
-         * 跳过屏幕外帖子的渲染
-         */
-        "enableNoteRenderSkipping": string;
-        /**
-         * 切换页面时保留状态
-         */
-        "enableStackingRouterView": string;
-        /**
-         * 手机上以页面打开折叠分组
-         */
-        "enableFolderPageView": string;
-        /**
-         * 启用触觉反馈
-         */
-        "enableHapticFeedback": string;
-        /**
-         * 启用浏览器翻译 API
-         */
-        "enableBrowserTranslator": string;
-        /**
-         * 静音时间
-         */
-        "mutedAt": string;
-        /**
-         * 屏蔽时间
-         */
-        "blockedAt": string;
-        /**
-         * 统一控制各页面的头像跟随效果；关闭后，头像固定在各自内容顶部。
-         */
-        "useStickyIconsDescription": string;
     };
     "_preferencesProfile": {
+        /**
+         * 以文本形式复制设置
+         */
+        "copyAsText": string;
         /**
          * 配置名称
          */
@@ -8018,7 +7777,7 @@ export interface Locale extends ILocale {
          */
         "profileNameDescription2": string;
         /**
-         * 管理配置
+         * 云端备份管理
          */
         "manageProfiles": string;
         /**
@@ -8029,10 +7788,6 @@ export interface Locale extends ILocale {
          * 如需同步某项设置，请开启该项的“设备间同步”。
          */
         "useSyncBetweenDevicesOptionIfYouWantToSyncSetting": string;
-        /**
-         * 以文本形式复制设置
-         */
-        "copyAsText": string;
     };
     "_preferencesBackup": {
         /**
@@ -8071,54 +7826,62 @@ export interface Locale extends ILocale {
          * 强制备份设置
          */
         "forceBackup": string;
+        /**
+         * 已备份设置
+         */
+        "backupCompleted": string;
+        /**
+         * 备份设置失败
+         */
+        "backupFailed": string;
     };
     "_followApproval": {
         /**
-         * 关注审批
+         * 批准关注请求
          */
         "groupTitle": string;
         /**
-         * 已启用手动审批，暂不按账户使用时长判断。关闭手动审批后将恢复以下设置。
+         * 因为所有的关注请求都需要批准，因此按时间段设置的规则将不再生效。关闭「关注请求需要批准」后下面的设置将重新生效。
          */
         "inactiveDescription": string;
         /**
-         * 新账户的关注需审批
+         * 新账户的关注请求需要批准
          */
         "title": string;
         /**
-         * 启用手动审批或新账户审批时，也会自动通过你已关注账户的请求。
+         * 就算开启了「关注请求需要批准」或「新账户的关注请求需要批准」，您已关注的账户的关注请求将被自动批准。
          */
         "autoAcceptDescription": string;
         /**
-         * 未达到指定时长的账户发起关注时，会保留为待审批请求。现有关注者不受影响；你已关注的账户按自动审批设置处理。
+         * 注册未达指定时长的账户的关注将作为关注请求予以保留。这不影响现有的关注者。已开启「自动允许我关注的人的关注请求」的话，对方的关注请求将被自动批准。
          */
         "description": string;
         /**
-         * 本地账户的关注
+         * 从本地用户发来的关注
          */
         "local": string;
         /**
-         * 按账户在本站注册后的时长判断。
+         * 以本服务器的账户注册时间来计算时长。
          */
         "localDescription": string;
         /**
-         * 远程账户的关注
+         * 从远程用户发来的关注
          */
         "remote": string;
         /**
-         * 按本站首次发现该账户后的时长判断，不使用其原服务器的注册时间。
+         * 不是以远程服务器上的注册时间，而是以本服务器最初认知到这个账户的时间来计算时长。
          */
         "remoteDescription": string;
         /**
-         * 使用默认设置（当前不启用）
+         * 使用默认值（当前为无效）
          */
         "useDefault": string;
         /**
-         * 指定时长
+         * 指定时间段
          */
         "custom": string;
         /**
-         * 需要审批的时长
+         * 批准所需注册时长
          */
         "period": string;
         /**
@@ -8126,13 +7889,13 @@ export interface Locale extends ILocale {
          */
         "unit": string;
         /**
-         * 请输入 1 秒至 30 天之间的时长。
+         * 输入的时间不正确。请在可输入的范围内输入 1 秒以上的时间。
          */
         "invalidPeriod": string;
     };
     "_accountSettings": {
         /**
-         * 需要登录才能显示内容
+         * 内容仅登录后可见
          */
         "requireSigninToViewContents": string;
         /**
@@ -8198,6 +7961,46 @@ export interface Locale extends ILocale {
          */
         "snapshotCapturedAt": string;
         /**
+         * 原内容地址
+         */
+        "snapshotSource": string;
+        /**
+         * 联邦举报来源
+         */
+        "federationSnapshot": string;
+        /**
+         * 发送者
+         */
+        "federationActor": string;
+        /**
+         * 举报活动 ID
+         */
+        "federationActivity": string;
+        /**
+         * 举报对象
+         */
+        "federationObjects": string;
+        /**
+         * 举报时没有可保存的文字或附件。
+         */
+        "snapshotEmpty": string;
+        /**
+         * 举报时的账户资料
+         */
+        "profileSnapshot": string;
+        /**
+         * 已保存上方账户信息，举报时没有其他资料或附件。
+         */
+        "profileSnapshotEmpty": string;
+        /**
+         * 举报后，账户资料将作为证据保存。
+         */
+        "accountReportHint": string;
+        /**
+         * 提交后，内容会作为证据保存，不受原文修改或删除影响。
+         */
+        "contentReportHint": string;
+        /**
          * 举报时的附件信息
          */
         "snapshotFiles": string;
@@ -8226,13 +8029,13 @@ export interface Locale extends ILocale {
          */
         "reasonNotProvided": string;
         /**
-         * 转发
-         */
-        "forward": string;
-        /**
          * 已加入转发队列
          */
         "forwarded": string;
+        /**
+         * 转发
+         */
+        "forward": string;
         /**
          * 以匿名系统账户的身份，将举报转发至远程服务器。
          */
@@ -8254,26 +8057,6 @@ export interface Locale extends ILocale {
          * 举报不属实时，选择“驳回”将其标记为不成立并结束处理。
          */
         "resolveTutorial": string;
-        /**
-         * 举报时没有可保存的文字或附件。
-         */
-        "snapshotEmpty": string;
-        /**
-         * 举报时的账户资料
-         */
-        "profileSnapshot": string;
-        /**
-         * 已保存上方账户信息，举报时没有其他资料或附件。
-         */
-        "profileSnapshotEmpty": string;
-        /**
-         * 举报后，该账户资料将作为证据保存。
-         */
-        "accountReportHint": string;
-        /**
-         * 提交后，此内容及附件将作为证据保存，不受原文修改或删除影响。
-         */
-        "contentReportHint": string;
     };
     "_delivery": {
         /**
@@ -8306,12 +8089,54 @@ export interface Locale extends ILocale {
              */
             "autoSuspendedForNotResponding": string;
             /**
-             * 该服务器软件已停止投递
+             * 按软件规则暂停投递
              */
             "softwareSuspended": string;
         };
     };
     "_bubbleGame": {
+        /**
+         * 制作人员
+         */
+        "credits": string;
+        /**
+         * 蓝的插画：{name}
+         */
+        "illustrationCredit": ParameterizedString<"name">;
+        /**
+         * 合成顺序
+         */
+        "fusionSequence": string;
+        /**
+         * {count} 连击！
+         */
+        "chain": ParameterizedString<"count">;
+        /**
+         * 结束游戏
+         */
+        "quit": string;
+        "_modes": {
+            /**
+             * 普通
+             */
+            "normal": string;
+            /**
+             * 方形
+             */
+            "square": string;
+            /**
+             * 日元
+             */
+            "yen": string;
+            /**
+             * 甜点
+             */
+            "sweets": string;
+            /**
+             * 宇宙
+             */
+            "space": string;
+        };
         /**
          * 游戏说明
          */
@@ -8364,54 +8189,24 @@ export interface Locale extends ILocale {
              */
             "section3": string;
         };
-        /**
-         * 制作人员
-         */
-        "credits": string;
-        /**
-         * 蓝的插画：{name}
-         */
-        "illustrationCredit": ParameterizedString<"name">;
-        /**
-         * 合成顺序
-         */
-        "fusionSequence": string;
-        /**
-         * {count} 连击！
-         */
-        "chain": ParameterizedString<"count">;
-        "_modes": {
-            /**
-             * 普通
-             */
-            "normal": string;
-            /**
-             * 方形
-             */
-            "square": string;
-            /**
-             * 日元
-             */
-            "yen": string;
-            /**
-             * 甜点
-             */
-            "sweets": string;
-            /**
-             * 宇宙
-             */
-            "space": string;
-        };
-        /**
-         * 结束游戏
-         */
-        "quit": string;
     };
     "_announcement": {
         /**
          * 新公告
          */
         "newTitle": string;
+        /**
+         * 已发布
+         */
+        "published": string;
+        /**
+         * 公开中
+         */
+        "active": string;
+        /**
+         * 普通
+         */
+        "normalDisplay": string;
         /**
          * 仅限现有用户
          */
@@ -8425,9 +8220,21 @@ export interface Locale extends ILocale {
          */
         "needConfirmationToRead": string;
         /**
-         * 标记已读前需要确认，且不会被批量标为已读。
+         * 若启用，则会在标记已读时会显示确认对话框。此外，它也会不受批量已读操作的影响。
          */
         "needConfirmationToReadDescription": string;
+        /**
+         * 自动存档时间
+         */
+        "autoArchiveAt": string;
+        /**
+         * 当超过指定的时间时，此通知将自动存档。留空则不自动存档。
+         */
+        "autoArchiveAtDescription": string;
+        /**
+         * 请指定晚于当前时间的值。
+         */
+        "autoArchiveAtMustBeInFuture": string;
         /**
          * 结束公告
          */
@@ -8437,11 +8244,35 @@ export interface Locale extends ILocale {
          */
         "tooManyActiveAnnouncementDescription": string;
         /**
+         * 已有正在展示的公告
+         */
+        "existingActiveAnnouncementTitle": string;
+        /**
+         * 当前有 {count} 条全站公告正在展示。是否先归档？直接发布会保留这些公告。
+         */
+        "existingActiveAnnouncementDescription": ParameterizedString<"count">;
+        /**
+         * 归档并发布
+         */
+        "archiveAndPublish": string;
+        /**
+         * 直接发布
+         */
+        "publishWithoutArchiving": string;
+        /**
+         * 旧公告归档未完成，新公告尚未发布。请检查剩余公告后重试。
+         */
+        "archiveFailed": string;
+        /**
+         * 旧公告已归档，新公告发布失败。草稿已保留，请重试。
+         */
+        "publishFailedAfterArchive": string;
+        /**
          * 标记为已读？
          */
         "readConfirmTitle": string;
         /**
-         * 确认已阅读“{title}”，并标记为已读？
+         * 请确认已阅读“{title}”。
          */
         "readConfirmText": ParameterizedString<"title">;
         /**
@@ -8460,14 +8291,6 @@ export interface Locale extends ILocale {
          * 开启后不发送通知，也不要求用户标记已读。
          */
         "silenceDescription": string;
-        /**
-         * 公开中
-         */
-        "active": string;
-        /**
-         * 普通
-         */
-        "normalDisplay": string;
     };
     "_initialAccountSetting": {
         /**
@@ -8515,7 +8338,7 @@ export interface Locale extends ILocale {
          */
         "haveFun": ParameterizedString<"name">;
         /**
-         * 可继续阅读 {name}（Misskey）使用教程，或跳过并开始使用。
+         * 可继续阅读 {name} 使用教程，或跳过并开始使用。
          */
         "youCanContinueTutorial": ParameterizedString<"name">;
         /**
@@ -8554,7 +8377,7 @@ export interface Locale extends ILocale {
              */
             "title": string;
             /**
-             * 了解 Misskey 的基本功能与操作。
+             * 了解基本功能与操作。
              */
             "description": string;
         };
@@ -8564,7 +8387,7 @@ export interface Locale extends ILocale {
              */
             "title": string;
             /**
-             * 帖子是 Misskey 的发布内容，在时间线中按时间排列。
+             * 帖子是发布的内容，在时间线中按时间排列。
              */
             "description": string;
             /**
@@ -8594,7 +8417,7 @@ export interface Locale extends ILocale {
              */
             "description": string;
             /**
-             * 点击帖子下方的“＋”，为示例帖子添加回应。
+             * 点击帖子下方的笑脸按钮，选择 Emoji 添加回应。
              */
             "letsTryReacting": string;
             /**
@@ -8606,7 +8429,7 @@ export interface Locale extends ILocale {
              */
             "reactNotification": string;
             /**
-             * 点击“－”可取消回应。
+             * 再次点击已选中的 Emoji 可取消回应。
              */
             "reactDone": string;
         };
@@ -8685,7 +8508,7 @@ export interface Locale extends ILocale {
                  */
                 "doNotSendConfidencialOnDirect2": string;
                 /**
-                 * 帖子不会投递到其他服务器。无论上述可见范围如何，其他服务器的用户都无法直接查看。
+                 * 帖子不会投递到其他服务器，但不改变所选可见范围。公开帖子仍可通过本站查看。
                  */
                 "localOnly": string;
             };
@@ -8783,11 +8606,47 @@ export interface Locale extends ILocale {
     };
     "_serverSettings": {
         /**
+         * 验证邮箱有效性
+         */
+        "activeEmailValidation": string;
+        /**
+         * 禁用的邮箱域名
+         */
+        "bannedEmailDomains": string;
+        /**
+         * 禁用邮箱域名列表
+         */
+        "bannedEmailDomainsList": string;
+        /**
+         * 记录 IP 地址
+         */
+        "logIpAddress": string;
+        /**
+         * 使用 {x} API
+         */
+        "useXApi": ParameterizedString<"x">;
+        /**
+         * {x} API Key
+         */
+        "xApiAuthKey": ParameterizedString<"x">;
+        /**
+         * {x} API Endpoint
+         */
+        "xApiEndpoint": ParameterizedString<"x">;
+        /**
+         * 打开初始设置向导
+         */
+        "openSetupWizard": string;
+        /**
+         * 简约
+         */
+        "entrancePageStyleSimple": string;
+        /**
          * 图标 URL
          */
         "iconUrl": string;
         /**
-         * {host} 的 APP Icon。
+         * {host} 的应用图标。
          */
         "appIconDescription": ParameterizedString<"host">;
         /**
@@ -8795,7 +8654,7 @@ export interface Locale extends ILocale {
          */
         "appIconUsageExample": string;
         /**
-         * 系统可能将 Icon 裁剪为圆形或圆角矩形，请使用不透明背景并为图案留出边距。
+         * 系统可能将图标裁剪为圆形或圆角矩形，请使用不透明背景并为图案留出边距。
          */
         "appIconStyleRecommendation": string;
         /**
@@ -8827,6 +8686,10 @@ export interface Locale extends ILocale {
          */
         "fanoutTimelineDbFallbackDescription": string;
         /**
+         * 回应写入缓冲
+         */
+        "reactionsBuffering": string;
+        /**
          * 缓冲回应写入以降低数据库负载，但增加 Redis 内存占用。
          */
         "reactionsBufferingDescription": string;
@@ -8846,34 +8709,6 @@ export interface Locale extends ILocale {
          * 最短保留天数
          */
         "remoteNotesCleaningExpiryDaysForEachNotes": string;
-        /**
-         * 验证邮箱有效性
-         */
-        "activeEmailValidation": string;
-        /**
-         * 禁用的邮箱域名
-         */
-        "bannedEmailDomains": string;
-        /**
-         * 禁用邮箱域名列表
-         */
-        "bannedEmailDomainsList": string;
-        /**
-         * 记录 IP 地址
-         */
-        "logIpAddress": string;
-        /**
-         * 使用 {x} API
-         */
-        "useXApi": ParameterizedString<"x">;
-        /**
-         * {x} API Key
-         */
-        "xApiAuthKey": ParameterizedString<"x">;
-        /**
-         * {x} API Endpoint
-         */
-        "xApiEndpoint": ParameterizedString<"x">;
         /**
          * 联系 URL
          */
@@ -8895,11 +8730,11 @@ export interface Locale extends ILocale {
          */
         "thisSettingWillAutomaticallyOffWhenModeratorsInactive": string;
         /**
-         * 停止投递的软件
+         * 暂停投递的软件及版本
          */
         "deliverSuspendedSoftware": string;
         /**
-         * 按软件及 semver 范围停止投递，版本信息由对方提供，可能不可靠。>= 2024.3.1-0 包含 prerelease（如 2024.3.1-custom.0），>= 2024.3.1 不包含。
+         * 按远程服务器的软件名称及 semver 版本范围暂停投递。对方提供的版本信息可能不可靠。>= 2024.3.1-0 包含 prerelease（如 2024.3.1-custom.0），>= 2024.3.1 不包含。
          */
         "deliverSuspendedSoftwareDescription": string;
         /**
@@ -8927,7 +8762,7 @@ export interface Locale extends ILocale {
          */
         "proxyRemoteFiles_description": string;
         /**
-         * 允许通过 ActivityPub 重定向查询
+         * 允许 ActivityPub 查询重定向至外部地址
          */
         "allowExternalApRedirect": string;
         /**
@@ -8938,14 +8773,6 @@ export interface Locale extends ILocale {
          * 访客可见内容
          */
         "userGeneratedContentsVisibilityForVisitor": string;
-        /**
-         * 开放访客访问
-         */
-        "openGuestAccess": string;
-        /**
-         * 允许访客浏览和搜索本地及远程公开内容；互动仍需登录。关闭后恢复原访问设置，不影响注册及私密内容权限。
-         */
-        "openGuestAccessDescription": string;
         /**
          * 限制访客可见内容，避免未经充分审核的远程内容通过本站公开。
          */
@@ -8989,17 +8816,13 @@ export interface Locale extends ILocale {
             "none": string;
         };
         /**
-         * 打开初始设置向导
+         * 开放访客访问
          */
-        "openSetupWizard": string;
+        "openGuestAccess": string;
         /**
-         * 简约
+         * 允许访客浏览和搜索本地及远程公开内容；互动仍需登录。关闭后恢复原访问设置，不影响注册及私密内容权限。
          */
-        "entrancePageStyleSimple": string;
-        /**
-         * 回应写入缓冲
-         */
-        "reactionsBuffering": string;
+        "openGuestAccessDescription": string;
     };
     "_accountMigration": {
         /**
@@ -9032,7 +8855,7 @@ export interface Locale extends ILocale {
          */
         "moveCannotBeUndone": string;
         /**
-         * 迁移后，关注者转向新账户，本账户停止发帖并取消关注。请提前导出关系列表，在新账户导入。需 Misskey v13.12.0 及以上；其他 ActivityPub 软件可能不同。
+         * 迁移后，关注者转向新账户，本账户停止发帖并取消关注。请提前导出关系列表，在新账户导入。不同 ActivityPub 软件的支持情况可能不同。
          */
         "moveAccountDescription": string;
         /**
@@ -9044,7 +8867,7 @@ export interface Locale extends ILocale {
          */
         "startMigration": string;
         /**
-         * 确认迁移到 {account}？此操作不可撤销，本账户无法恢复原状。
+         * 迁移到 {account}？此操作不可撤销。
          */
         "migrationConfirm": ParameterizedString<"account">;
         /**
@@ -9067,66 +8890,6 @@ export interface Locale extends ILocale {
          */
         "earnedAt": string;
         "_types": {
-            "_checkin1": {
-                /**
-                 * 第一天
-                 */
-                "title": string;
-                /**
-                 * 完成第一次主动签到
-                 */
-                "description": string;
-            };
-            "_checkinStreak7": {
-                /**
-                 * 坚持一周
-                 */
-                "title": string;
-                /**
-                 * 连续签到 7 天
-                 */
-                "description": string;
-            };
-            "_checkinStreak30": {
-                /**
-                 * 每日习惯
-                 */
-                "title": string;
-                /**
-                 * 连续签到 30 天
-                 */
-                "description": string;
-            };
-            "_checkinTotal30": {
-                /**
-                 * 三十日记录
-                 */
-                "title": string;
-                /**
-                 * 累计签到 30 天
-                 */
-                "description": string;
-            };
-            "_checkinTotal100": {
-                /**
-                 * 百日足迹
-                 */
-                "title": string;
-                /**
-                 * 累计签到 100 天
-                 */
-                "description": string;
-            };
-            "_checkinTotal365": {
-                /**
-                 * 一整年的回忆
-                 */
-                "title": string;
-                /**
-                 * 累计签到 365 天
-                 */
-                "description": string;
-            };
             "_notes1": {
                 /**
                  * 初来乍到
@@ -9137,7 +8900,7 @@ export interface Locale extends ILocale {
                  */
                 "description": string;
                 /**
-                 * 已开始使用 Misskey。
+                 * 祝你在这里玩得开心！
                  */
                 "flavor": string;
             };
@@ -9319,7 +9082,7 @@ export interface Locale extends ILocale {
                  */
                 "description": string;
                 /**
-                 * 已完成首次一周登录记录。
+                 * 已累计登录一周。
                  */
                 "flavor": string;
             };
@@ -9363,7 +9126,7 @@ export interface Locale extends ILocale {
                  */
                 "description": string;
                 /**
-                 * 已达到长期使用记录。
+                 * 感谢 100 天的陪伴！
                  */
                 "flavor": string;
             };
@@ -9461,7 +9224,7 @@ export interface Locale extends ILocale {
                  */
                 "description": string;
                 /**
-                 * 感谢你使用 Misskey！
+                 * 感谢你的使用！
                  */
                 "flavor": string;
             };
@@ -9665,7 +9428,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * 发布 "I ❤ #Misskey" 帖子
+                 * 发布“I ❤ #Misskey”帖子
                  */
                 "description": string;
                 /**
@@ -9695,7 +9458,7 @@ export interface Locale extends ILocale {
             };
             "_client60min": {
                 /**
-                 * Misskey 重度依赖
+                 * 重度依赖
                  */
                 "title": string;
                 /**
@@ -9757,7 +9520,7 @@ export interface Locale extends ILocale {
                  */
                 "title": string;
                 /**
-                 * 首页时间线每分钟新增的帖子超过 20 条
+                 * 首页时间线每分钟新增的帖子超过 20 篇
                  */
                 "description": string;
             };
@@ -9891,7 +9654,7 @@ export interface Locale extends ILocale {
                  */
                 "description": string;
                 /**
-                 * 已完成元旦登录记录。
+                 * 新年快乐！
                  */
                 "flavor": string;
             };
@@ -9919,7 +9682,7 @@ export interface Locale extends ILocale {
                  */
                 "description": string;
                 /**
-                 * Misskey-Misskey La-Tu-Ma
+                 * La-Tu-Ma La-Tu-Ma
                  */
                 "flavor": string;
             };
@@ -9935,7 +9698,7 @@ export interface Locale extends ILocale {
             };
             "_tutorialCompleted": {
                 /**
-                 * Misskey 初学者课程 结业证书
+                 * 初学者课程结业证书
                  */
                 "title": string;
                 /**
@@ -9967,13 +9730,69 @@ export interface Locale extends ILocale {
                  */
                 "flavor": string;
             };
+            "_checkin1": {
+                /**
+                 * 第一天
+                 */
+                "title": string;
+                /**
+                 * 完成第一次主动签到
+                 */
+                "description": string;
+            };
+            "_checkinStreak7": {
+                /**
+                 * 坚持一周
+                 */
+                "title": string;
+                /**
+                 * 连续签到 7 天
+                 */
+                "description": string;
+            };
+            "_checkinStreak30": {
+                /**
+                 * 每日习惯
+                 */
+                "title": string;
+                /**
+                 * 连续签到 30 天
+                 */
+                "description": string;
+            };
+            "_checkinTotal30": {
+                /**
+                 * 三十日记录
+                 */
+                "title": string;
+                /**
+                 * 累计签到 30 天
+                 */
+                "description": string;
+            };
+            "_checkinTotal100": {
+                /**
+                 * 百日足迹
+                 */
+                "title": string;
+                /**
+                 * 累计签到 100 天
+                 */
+                "description": string;
+            };
+            "_checkinTotal365": {
+                /**
+                 * 一整年的回忆
+                 */
+                "title": string;
+                /**
+                 * 累计签到 365 天
+                 */
+                "description": string;
+            };
         };
     };
     "_role": {
-        /**
-         * 创建角色
-         */
-        "new": string;
         /**
          * 新角色
          */
@@ -9982,6 +9801,14 @@ export interface Locale extends ILocale {
          * 分配时间
          */
         "assignedAt": string;
+        /**
+         * 字符
+         */
+        "characters": string;
+        /**
+         * 创建角色
+         */
+        "new": string;
         /**
          * 编辑角色
          */
@@ -10041,7 +9868,7 @@ export interface Locale extends ILocale {
          */
         "isPublic": string;
         /**
-         * 在已分配用户的个人资料中显示此角色。
+         * 在成员的个人资料中显示此角色。
          */
         "descriptionOfIsPublic": string;
         /**
@@ -10077,7 +9904,7 @@ export interface Locale extends ILocale {
          */
         "descriptionOfAsBadge": string;
         /**
-         * 允许发现此角色
+         * 在“发现”中显示角色
          */
         "isExplorable": string;
         /**
@@ -10105,9 +9932,13 @@ export interface Locale extends ILocale {
          */
         "canEditMembersByModerator": string;
         /**
-         * 启用后，审核员可分配或移除此角色；关闭后仅管理员可操作。
+         * 启用后，审核员也可为用户分配此角色或取消分配；关闭后仅管理员可操作。
          */
         "descriptionOfCanEditMembersByModerator": string;
+        /**
+         * 仅管理员可为用户分配此角色或取消分配
+         */
+        "adminOnlyMembers": string;
         /**
          * 优先级
          */
@@ -10180,7 +10011,7 @@ export interface Locale extends ILocale {
              */
             "maxFileSize_caption": string;
             /**
-             * 服务器文件大小上限为 {max}。如需提高上限，请修改 Misskey 配置。
+             * 服务器文件大小上限为 {max}。如需提高上限，请修改服务器配置。
              */
             "maxFileSize_caption2": ParameterizedString<"max">;
             /**
@@ -10196,7 +10027,7 @@ export interface Locale extends ILocale {
              */
             "pinMax": string;
             /**
-             * 关键词订阅数量上限
+             * 内容订阅数量上限
              */
             "antennaMax": string;
             /**
@@ -10240,9 +10071,25 @@ export interface Locale extends ILocale {
              */
             "canSearchNotes": string;
             /**
+             * 搜索文章
+             */
+            "canSearchArticles": string;
+            /**
              * 搜索用户
              */
             "canSearchUsers": string;
+            /**
+             * 允许搜索的内容
+             */
+            "searchableContent": string;
+            /**
+             * 可多选，不选则禁止搜索。默认全部允许，仅限制搜索，不影响首页和内容浏览；开放游客访问时，游客不受角色限制。
+             */
+            "searchableContentDescription": string;
+            /**
+             * 各类搜索的优先级不同，当前显示最高值。调整优先级后统一应用，未调整的设置保持不变。
+             */
+            "searchableContentMixedPriority": string;
             /**
              * 使用翻译功能
              */
@@ -10256,11 +10103,11 @@ export interface Locale extends ILocale {
              */
             "avatarDecorationLimit": string;
             /**
-             * 允许导入关键词订阅
+             * 允许导入内容订阅
              */
             "canImportAntennas": string;
             /**
-             * 允许导入屏蔽列表
+             * 允许导入黑名单
              */
             "canImportBlocking": string;
             /**
@@ -10268,7 +10115,7 @@ export interface Locale extends ILocale {
              */
             "canImportFollowing": string;
             /**
-             * 允许导入静音列表
+             * 允许导入屏蔽列表
              */
             "canImportMuting": string;
             /**
@@ -10276,7 +10123,7 @@ export interface Locale extends ILocale {
              */
             "canImportUserLists": string;
             /**
-             * 允许私信
+             * 聊天权限
              */
             "chatAvailability": string;
             /**
@@ -10306,7 +10153,7 @@ export interface Locale extends ILocale {
         };
         "_condition": {
             /**
-             * 已分配给手动角色
+             * 拥有指定的手动角色
              */
             "roleAssignedTo": string;
             /**
@@ -10382,14 +10229,6 @@ export interface Locale extends ILocale {
              */
             "not": string;
         };
-        /**
-         * 字符
-         */
-        "characters": string;
-        /**
-         * 仅管理员可以分配或移除此角色
-         */
-        "adminOnlyMembers": string;
     };
     "_sensitiveMediaDetection": {
         /**
@@ -10405,7 +10244,7 @@ export interface Locale extends ILocale {
          */
         "sensitivityDescription": string;
         /**
-         * 自动设置 NSFW 标签
+         * 自动设置敏感标记（NSFW）
          */
         "setSensitiveFlagAutomatically": string;
         /**
@@ -10503,14 +10342,6 @@ export interface Locale extends ILocale {
          */
         "almostThere": string;
         /**
-         * 使用 1–20 位英文字母、数字或下划线（_）。用户名在本站唯一，不区分大小写。
-         */
-        "usernameRules": string;
-        /**
-         * 昵称默认显示用户名，注册后可在个人资料中自行修改。
-         */
-        "displayNameInfo": string;
-        /**
          * 请输入你使用的邮箱地址。邮箱地址不会公开。
          */
         "emailAddressInfo": string;
@@ -10518,6 +10349,14 @@ export interface Locale extends ILocale {
          * 确认邮件已发送至 {email}。请打开邮件中的链接完成账户创建，链接在 30 分钟后过期。
          */
         "emailSent": ParameterizedString<"email">;
+        /**
+         * 使用 1–20 位英文字母、数字或下划线（_）。用户名在本站唯一，不区分大小写。
+         */
+        "usernameRules": string;
+        /**
+         * 昵称默认显示用户名，注册后可在个人资料中自行修改。
+         */
+        "displayNameInfo": string;
     };
     "_accountDelete": {
         /**
@@ -10547,13 +10386,141 @@ export interface Locale extends ILocale {
     };
     "_ad": {
         /**
-         * 返回
+         * 每周投放安排
          */
-        "back": string;
+        "schedule": string;
+        /**
+         * 投放中
+         */
+        "publishing": string;
+        /**
+         * 未投放
+         */
+        "notPublishing": string;
         /**
          * 形状
          */
         "shape": string;
+        /**
+         * 投放广告
+         */
+        "advertise": string;
+        /**
+         * 将品牌、活动或作品展示给社区用户。
+         */
+        "advertiseDescription": string;
+        /**
+         * 优秀案例
+         */
+        "caseStudies": string;
+        /**
+         * 品牌、活动与作品在社区里的真实呈现。
+         */
+        "caseStudiesDescription": string;
+        /**
+         * {n} 个案例
+         */
+        "caseCount": ParameterizedString<"n">;
+        /**
+         * 精选案例
+         */
+        "featuredCase": string;
+        /**
+         * 让好内容，被更多人看见
+         */
+        "landingTitle": string;
+        /**
+         * 看看品牌、活动与作品如何自然地融入社区，也把你的故事放到这里。
+         */
+        "landingDescription": string;
+        /**
+         * 查看案例
+         */
+        "viewCases": string;
+        /**
+         * 更多案例
+         */
+        "moreCases": string;
+        /**
+         * {n} 种展示形式
+         */
+        "statsFormats": ParameterizedString<"n">;
+        /**
+         * 按天排期
+         */
+        "statsSchedule": string;
+        /**
+         * 从想法到上线
+         */
+        "processTitle": string;
+        /**
+         * 联系我们
+         */
+        "processContact": string;
+        /**
+         * 说明目标、时间与预算。
+         */
+        "processContactDescription": string;
+        /**
+         * 提交素材
+         */
+        "processAssets": string;
+        /**
+         * 提供广告图和落地页。
+         */
+        "processAssetsDescription": string;
+        /**
+         * 按排期上线
+         */
+        "processLaunch": string;
+        /**
+         * 按设置的排期和频率展示。
+         */
+        "processLaunchDescription": string;
+        /**
+         * 案例来自本站正在展示的广告。
+         */
+        "casesNote": string;
+        /**
+         * 站内推广
+         */
+        "localCampaign": string;
+        /**
+         * 展示形式
+         */
+        "placements": string;
+        /**
+         * 横幅
+         */
+        "placeHorizontal": string;
+        /**
+         * 大横幅
+         */
+        "placeHorizontalBig": string;
+        /**
+         * 方形
+         */
+        "placeSquare": string;
+        /**
+         * 竖幅
+         */
+        "placeVertical": string;
+        /**
+         * 每日展示
+         */
+        "everyDay": string;
+        /**
+         * 每周 {n} 天
+         */
+        "weeklyDays": ParameterizedString<"n">;
+        /**
+         * {host} 的广告
+         */
+        "adsBy": ParameterizedString<"host">;
+        /**
+         * 返回
+         */
+        "back": string;
         /**
          * 减少此广告的展示频率
          */
@@ -10582,24 +10549,6 @@ export interface Locale extends ILocale {
          * 广告插入间隔过短，可能明显影响用户体验。
          */
         "adsTooClose": string;
-        /**
-         * {host} 的广告
-         */
-        "adsBy": ParameterizedString<"host">;
-    };
-    "_externalServices": {
-        /**
-         * Measurement ID
-         */
-        "measurementId": string;
-        /**
-         * Auth Key
-         */
-        "authKey": string;
-        /**
-         * Pro 账户
-         */
-        "proAccount": string;
     };
     "_forgotPassword": {
         /**
@@ -10617,11 +10566,19 @@ export interface Locale extends ILocale {
     };
     "_gallery": {
         /**
+         * 图集用于发布一组图片作品，每组包含标题、说明和多张图片，与普通帖子分开展示。
+         */
+        "tip": string;
+        /**
+         * 全部图集
+         */
+        "all": string;
+        /**
          * 我的图集
          */
         "my": string;
         /**
-         * 点赞过的图集
+         * 喜欢的图集
          */
         "liked": string;
         /**
@@ -10632,10 +10589,6 @@ export interface Locale extends ILocale {
          * 取消点赞
          */
         "unlike": string;
-        /**
-         * 图集用于发布一组图片作品，每组包含标题、说明和多张图片，与普通帖子分开展示。
-         */
-        "tip": string;
     };
     "_email": {
         /**
@@ -10657,6 +10610,14 @@ export interface Locale extends ILocale {
     };
     "_plugin": {
         /**
+         * 确定卸载“{name}”？
+         */
+        "uninstallConfirm": ParameterizedString<"name">;
+        /**
+         * 已重载
+         */
+        "reloaded": string;
+        /**
          * 安装插件
          */
         "install": string;
@@ -10665,7 +10626,7 @@ export interface Locale extends ILocale {
          */
         "installWarn": string;
         /**
-         * 管理插件...
+         * 插件管理
          */
         "manage": string;
         /**
@@ -10676,10 +10637,6 @@ export interface Locale extends ILocale {
          * 显示日志
          */
         "viewLog": string;
-        /**
-         * 确定卸载“{name}”？
-         */
-        "uninstallConfirm": ParameterizedString<"name">;
     };
     "_preferencesBackups": {
         /**
@@ -10775,6 +10732,10 @@ export interface Locale extends ILocale {
     };
     "_aboutMisskey": {
         /**
+         * 特别鸣谢
+         */
+        "specialThanks": string;
+        /**
          * Misskey 是由 syuilo 于 2014 年开发的开源软件。
          */
         "about": string;
@@ -10818,10 +10779,6 @@ export interface Locale extends ILocale {
          * 项目成员
          */
         "projectMembers": string;
-        /**
-         * 特别鸣谢
-         */
-        "specialThanks": string;
     };
     "_displayOfSensitiveMedia": {
         /**
@@ -10851,51 +10808,33 @@ export interface Locale extends ILocale {
          */
         "always": string;
     };
-    "_serverDisconnectedBehavior": {
+    "_streamIndicator": {
         /**
-         * 自动重载
+         * 连接已断开，正在重连
          */
-        "reload": string;
+        "reconnecting": string;
         /**
-         * 对话框警告
+         * 连接已恢复
          */
-        "dialog": string;
-        /**
-         * 静默警告
-         */
-        "quiet": string;
+        "connected": string;
     };
-    "_channelPicker": {
+    "_channel": {
         /**
-         * 我的
-         */
-        "mine": string;
-        /**
-         * 其他
-         */
-        "other": string;
-        /**
-         * 搜索频道名称
+         * 搜索频道名称或简介
          */
         "searchPlaceholder": string;
         /**
-         * 不选择频道
+         * 屏蔽
          */
-        "noChannel": string;
+        "mute": string;
         /**
-         * 暂无可发布的频道
+         * 取消屏蔽
          */
-        "empty": string;
+        "unmute": string;
         /**
-         * 频道内的帖子公开可见，仅在本站发布。
+         * 屏蔽时长
          */
-        "description": string;
-        /**
-         * 这份草稿不属于当前频道，请从普通发布框打开。
-         */
-        "draftChannelMismatch": string;
-    };
-    "_channel": {
+        "mutePeriod": string;
         /**
          * 创建频道
          */
@@ -10904,30 +10843,6 @@ export interface Locale extends ILocale {
          * 编辑频道
          */
         "edit": string;
-        /**
-         * 静音
-         */
-        "mute": string;
-        /**
-         * 取消静音
-         */
-        "unmute": string;
-        /**
-         * 静音时长
-         */
-        "mutePeriod": string;
-        /**
-         * 自定义颜色
-         */
-        "customColor": string;
-        /**
-         * 随机选择
-         */
-        "randomColor": string;
-        /**
-         * 颜色代码格式不正确（示例：#88cc00）
-         */
-        "invalidColor": string;
         /**
          * 设置 Banner
          */
@@ -10941,13 +10856,53 @@ export interface Locale extends ILocale {
          */
         "featured": string;
         /**
-         * 我的
+         * 我创建的频道
          */
         "owned": string;
         /**
-         * 关注
+         * 未归档
+         */
+        "unarchived": string;
+        /**
+         * 我关注的频道
          */
         "following": string;
+        /**
+         * 我收藏的频道
+         */
+        "myFavorites": string;
+        /**
+         * 热门频道
+         */
+        "featuredChannels": string;
+        /**
+         * 频道公告
+         */
+        "announcement": string;
+        /**
+         * 展开
+         */
+        "expandAnnouncement": string;
+        /**
+         * 参与者
+         */
+        "members": string;
+        /**
+         * 参与者（{n}）
+         */
+        "membersWithCount": ParameterizedString<"n">;
+        /**
+         * 最近参与
+         */
+        "recentMembers": string;
+        /**
+         * 等 {n} 人参与
+         */
+        "membersJoined": ParameterizedString<"n">;
+        /**
+         * 最新
+         */
+        "latest": string;
         /**
          * {n} 人参与
          */
@@ -10969,37 +10924,17 @@ export interface Locale extends ILocale {
          */
         "allowRenoteToExternal": string;
         /**
-         * 热门频道
+         * 自定义颜色
          */
-        "featuredChannels": string;
+        "customColor": string;
         /**
-         * 频道公告
+         * 随机选择
          */
-        "announcement": string;
+        "randomColor": string;
         /**
-         * 展开
+         * 颜色代码格式不正确（示例：#88cc00）
          */
-        "expandAnnouncement": string;
-        /**
-         * 频道成员
-         */
-        "members": string;
-        /**
-         * 频道成员（{n}）
-         */
-        "membersWithCount": ParameterizedString<"n">;
-        /**
-         * 最近加入
-         */
-        "recentMembers": string;
-        /**
-         * 等 {n} 人已加入
-         */
-        "membersJoined": ParameterizedString<"n">;
-        /**
-         * 最新
-         */
-        "latest": string;
+        "invalidColor": string;
     };
     "_menuDisplay": {
         /**
@@ -11021,6 +10956,10 @@ export interface Locale extends ILocale {
     };
     "_wordMute": {
         /**
+         * 第 {line} 行的 RegExp 有误：
+         */
+        "invalidRegexp": ParameterizedString<"line">;
+        /**
          * 折叠关键词
          */
         "muteWords": string;
@@ -11032,14 +10971,10 @@ export interface Locale extends ILocale {
          * RegExp 用斜线包裹
          */
         "muteWordsDescription2": string;
-        /**
-         * 第 {line} 行的 RegExp 有误：
-         */
-        "invalidRegexp": ParameterizedString<"line">;
     };
     "_instanceMute": {
         /**
-         * 静音来自这些服务器的帖子和转发，以及对这些服务器用户的回复。
+         * 不看来自这些服务器的帖子和转发，以及对这些服务器用户的回复，不影响联邦通信。
          */
         "instanceMuteDescription": string;
         /**
@@ -11047,17 +10982,17 @@ export interface Locale extends ILocale {
          */
         "instanceMuteDescription2": string;
         /**
-         * 以下服务器中的帖子将被静音。
+         * 以下服务器中的帖子将被屏蔽。
          */
         "title": string;
         /**
-         * 已静音的服务器
+         * 已屏蔽内容的服务器
          */
         "heading": string;
     };
     "_theme": {
         /**
-         * 寻找主题
+         * 浏览主题
          */
         "explore": string;
         /**
@@ -11089,7 +11024,7 @@ export interface Locale extends ILocale {
          */
         "installedThemes": string;
         /**
-         * 标准主题
+         * 内置主题
          */
         "builtinThemes": string;
         /**
@@ -11194,7 +11129,7 @@ export interface Locale extends ILocale {
              */
             "fg": string;
             /**
-             * 聚焦
+             * 焦点
              */
             "focus": string;
             /**
@@ -11222,7 +11157,7 @@ export interface Locale extends ILocale {
              */
             "navFg": string;
             /**
-             * 侧栏文本（活动）
+             * 侧栏文本（选中）
              */
             "navActive": string;
             /**
@@ -11234,7 +11169,7 @@ export interface Locale extends ILocale {
              */
             "link": string;
             /**
-             * 话题标签
+             * 话题
              */
             "hashtag": string;
             /**
@@ -11337,7 +11272,7 @@ export interface Locale extends ILocale {
          */
         "reaction": string;
         /**
-         * 私信
+         * 聊天消息
          */
         "chatMessage": string;
     };
@@ -11467,23 +11402,23 @@ export interface Locale extends ILocale {
     };
     "_2fa": {
         /**
-         * 已完成验证器 APP 设置。
+         * 已完成 TOTP 验证器设置。
          */
         "alreadyRegistered": string;
         /**
-         * 设置验证器 APP
+         * 设置 TOTP 验证器
          */
         "registerTOTP": string;
         /**
-         * 先在设备上安装验证器 APP，例如 {a} 或 {b}。
+         * 先在设备上安装 TOTP 验证器，例如 {a} 或 {b}。
          */
         "step1": ParameterizedString<"a" | "b">;
         /**
-         * 使用验证器 APP 扫描二维码，或点击按钮打开此设备上的验证器 APP。
+         * 使用 TOTP 验证器扫描二维码，或点击按钮打开此设备上的 TOTP 验证器。
          */
         "step2": string;
         /**
-         * 使用桌面验证器 APP 时，请输入以下 URI。
+         * 使用桌面 TOTP 验证器时，请输入以下 URI。
          */
         "step2Uri": string;
         /**
@@ -11491,7 +11426,7 @@ export interface Locale extends ILocale {
          */
         "step3Title": string;
         /**
-         * 输入验证器 APP 中显示的验证码，完成设置。
+         * 输入 TOTP 验证器中显示的验证码，完成设置。
          */
         "step3": string;
         /**
@@ -11507,7 +11442,7 @@ export interface Locale extends ILocale {
          */
         "securityKeyNotSupported": string;
         /**
-         * 注册安全密钥或 Passkey 前，请先设置验证器 APP。
+         * 注册安全密钥或 Passkey 前，请先设置 TOTP 验证器。
          */
         "registerTOTPBeforeKey": string;
         /**
@@ -11535,15 +11470,15 @@ export interface Locale extends ILocale {
          */
         "removeKeyConfirm": ParameterizedString<"name">;
         /**
-         * 已注册安全密钥时，不能移除验证器 APP。
+         * 已注册安全密钥时，不能移除 TOTP 验证器。
          */
         "whyTOTPOnlyRenew": string;
         /**
-         * 重新设置验证器 APP
+         * 重新设置 TOTP 验证器
          */
         "renewTOTP": string;
         /**
-         * 重新设置后，原验证器 APP 的验证码和现有备用代码都将失效。
+         * 重新设置后，原 TOTP 验证器的验证码和现有备用代码都将失效。
          */
         "renewTOTPConfirm": string;
         /**
@@ -11563,15 +11498,15 @@ export interface Locale extends ILocale {
          */
         "backupCodes": string;
         /**
-         * 无法使用验证器 APP 时，可用备用代码登录。请妥善保管，每个代码只能使用一次。
+         * 无法使用 TOTP 验证器时，可用备用代码登录。请妥善保管，每个代码只能使用一次。
          */
         "backupCodesDescription": string;
         /**
-         * 已使用备用代码。若验证器 APP 无法使用，请尽快重新设置。
+         * 已使用备用代码。若 TOTP 验证器无法使用，请尽快重新设置。
          */
         "backupCodeUsedWarning": string;
         /**
-         * 备用代码已全部用完。若验证器 APP 也无法使用，将无法登录账户。请重新设置验证器 APP。
+         * 备用代码已全部用完。若 TOTP 验证器也无法使用，将无法登录账户。请重新设置 TOTP 验证器。
          */
         "backupCodesExhaustedWarning": string;
         /**
@@ -11579,7 +11514,66 @@ export interface Locale extends ILocale {
          */
         "moreDetailedGuideHere": string;
     };
+    "_signinHistory": {
+        /**
+         * 登录成功
+         */
+        "success": string;
+        /**
+         * IP 地址
+         */
+        "ipAddress": string;
+        /**
+         * 设备类型
+         */
+        "device": string;
+        /**
+         * User-Agent
+         */
+        "userAgent": string;
+        /**
+         * 未知设备
+         */
+        "unknownDevice": string;
+    };
+    "_signinAlert": {
+        /**
+         * 检测到新的登录
+         */
+        "title": string;
+        /**
+         * 新的设备
+         */
+        "newDevice": string;
+        /**
+         * 新的网络
+         */
+        "newNetwork": string;
+        /**
+         * 新的设备和网络
+         */
+        "newDeviceAndNetwork": string;
+        /**
+         * 你的账户已在{reason}上登录。
+         * 设备：{device}
+         * IP 地址：{ip}
+         * 如非本人操作，请立即修改密码，并重新生成登录 Token 使所有设备退出登录。
+         */
+        "text": ParameterizedString<"reason" | "device" | "ip">;
+        /**
+         * 本人操作
+         */
+        "itsMe": string;
+        /**
+         * 非本人操作
+         */
+        "notMe": string;
+    };
     "_permissions": {
+        /**
+         * 管理帖子的点赞
+         */
+        "write:note-likes": string;
         /**
          * 查看账户信息
          */
@@ -11589,11 +11583,11 @@ export interface Locale extends ILocale {
          */
         "write:account": string;
         /**
-         * 查看屏蔽列表
+         * 查看黑名单
          */
         "read:blocks": string;
         /**
-         * 编辑屏蔽列表
+         * 编辑黑名单
          */
         "write:blocks": string;
         /**
@@ -11629,15 +11623,15 @@ export interface Locale extends ILocale {
          */
         "write:messaging": string;
         /**
-         * 查看已静音用户列表
+         * 查看已屏蔽用户列表
          */
         "read:mutes": string;
         /**
-         * 编辑已静音用户列表
+         * 编辑已屏蔽用户列表
          */
         "write:mutes": string;
         /**
-         * 撰写或删除帖子
+         * 发布、编辑或删除帖子
          */
         "write:notes": string;
         /**
@@ -11657,27 +11651,23 @@ export interface Locale extends ILocale {
          */
         "write:reactions": string;
         /**
-         * 管理帖子的点赞
-         */
-        "write:note-likes": string;
-        /**
          * 投票
          */
         "write:votes": string;
         /**
-         * 查看文章和自定义页面
+         * 查看文章和独立页面
          */
         "read:pages": string;
         /**
-         * 编辑文章和自定义页面
+         * 编辑文章和独立页面
          */
         "write:pages": string;
         /**
-         * 查看文章和自定义页面的点赞
+         * 查看文章和独立页面的点赞
          */
         "read:page-likes": string;
         /**
-         * 管理文章和自定义页面的点赞
+         * 管理文章和独立页面的点赞
          */
         "write:page-likes": string;
         /**
@@ -11713,19 +11703,19 @@ export interface Locale extends ILocale {
          */
         "write:gallery-likes": string;
         /**
-         * 查看互动应用
+         * 查看小程序
          */
         "read:flash": string;
         /**
-         * 编辑互动应用
+         * 编辑小程序
          */
         "write:flash": string;
         /**
-         * 查看互动应用点赞
+         * 查看小程序点赞
          */
         "read:flash-likes": string;
         /**
-         * 管理互动应用点赞
+         * 管理小程序点赞
          */
         "write:flash-likes": string;
         /**
@@ -11805,7 +11795,7 @@ export interface Locale extends ILocale {
          */
         "write:admin:meta": string;
         /**
-         * 编辑管理笔记
+         * 编辑管理备注
          */
         "write:admin:user-note": string;
         /**
@@ -11921,21 +11911,21 @@ export interface Locale extends ILocale {
          */
         "read:federation": string;
         /**
-         * 举报用户
+         * 举报用户或内容
          */
         "write:report-abuse": string;
         /**
-         * 发送或删除聊天消息
+         * 管理聊天消息和群聊
          */
         "write:chat": string;
         /**
-         * 查看私信
+         * 查看聊天消息和群聊
          */
         "read:chat": string;
     };
     "_auth": {
         /**
-         * APP 授权
+         * 应用授权
          */
         "shareAccessTitle": string;
         /**
@@ -11943,7 +11933,7 @@ export interface Locale extends ILocale {
          */
         "shareAccess": ParameterizedString<"name">;
         /**
-         * 确定允许此 APP 访问你的账户吗？
+         * 允许此应用访问你的账户？
          */
         "shareAccessAsk": string;
         /**
@@ -11951,15 +11941,15 @@ export interface Locale extends ILocale {
          */
         "permission": ParameterizedString<"name">;
         /**
-         * 此 APP 请求以下权限
+         * 此应用请求以下权限
          */
         "permissionAsk": string;
         /**
-         * 请返回 APP
+         * 请返回应用
          */
         "pleaseGoBack": string;
         /**
-         * 正在返回 APP…
+         * 正在返回应用…
          */
         "callback": string;
         /**
@@ -11975,7 +11965,7 @@ export interface Locale extends ILocale {
          */
         "scopeUser": string;
         /**
-         * 请先登录，再向 APP 授权。
+         * 请先登录，再向应用授权。
          */
         "pleaseLogin": string;
         /**
@@ -11983,7 +11973,7 @@ export interface Locale extends ILocale {
          */
         "byClickingYouWillBeRedirectedToThisUrl": string;
         /**
-         * 此 APP 已获得访问权限。
+         * 此应用已获得访问权限。
          */
         "alreadyAuthorized": string;
     };
@@ -12039,49 +12029,163 @@ export interface Locale extends ILocale {
          */
         "saturday": string;
     };
-    "_weekdayShort": {
+    "_widgetPicker": {
         /**
-         * 日
+         * 已添加
          */
-        "sunday": string;
+        "current": string;
         /**
-         * 一
+         * 上移
          */
-        "monday": string;
+        "moveUp": string;
         /**
-         * 二
+         * 下移
          */
-        "tuesday": string;
+        "moveDown": string;
         /**
-         * 三
+         * 添加小组件
          */
-        "wednesday": string;
+        "title": string;
         /**
-         * 四
+         * 搜索小组件
          */
-        "thursday": string;
+        "search": string;
         /**
-         * 五
+         * 未找到匹配的小组件，请尝试其他关键词。
          */
-        "friday": string;
-        /**
-         * 六
-         */
-        "saturday": string;
+        "empty": string;
+        "_descriptions": {
+            /**
+             * 显示你的头像和个人资料
+             */
+            "profile": string;
+            /**
+             * 查看当前服务器的信息
+             */
+            "instanceInfo": string;
+            /**
+             * 随手记录文字和想法
+             */
+            "memo": string;
+            /**
+             * 记录待办事项并标记完成
+             */
+            "todo": string;
+            /**
+             * 安排专注和休息时间
+             */
+            "pomodoro": string;
+            /**
+             * 查看距离指定日期还有多久
+             */
+            "countdown": string;
+            /**
+             * 查看收到的通知
+             */
+            "notifications": string;
+            /**
+             * 在侧栏浏览时间线
+             */
+            "timeline": string;
+            /**
+             * 查看日期和本月日历
+             */
+            "calendar": string;
+            /**
+             * 阅读 RSS 订阅的最新内容
+             */
+            "rss": string;
+            /**
+             * 滚动显示 RSS 订阅标题
+             */
+            "rssTicker": string;
+            /**
+             * 发现正在讨论的热门话题
+             */
+            "trends": string;
+            /**
+             * 显示模拟时钟
+             */
+            "clock": string;
+            /**
+             * 查看帖子、回复和转发统计
+             */
+            "activity": string;
+            /**
+             * 展示网盘中的最新照片
+             */
+            "photos": string;
+            /**
+             * 用数字显示当前时间
+             */
+            "digitalClock": string;
+            /**
+             * 显示当前 UNIX 时间戳
+             */
+            "unixClock": string;
+            /**
+             * 在侧栏直接发布帖子
+             */
+            "postForm": string;
+            /**
+             * 轮播网盘文件夹中的图片
+             */
+            "slideshow": string;
+            /**
+             * 查看服务器的运行指标
+             */
+            "serverMetric": string;
+            /**
+             * 查看当前在线人数
+             */
+            "onlineUsers": string;
+            /**
+             * 查看后台任务队列状态
+             */
+            "jobQueue": string;
+            /**
+             * 添加运行自定义脚本的按钮
+             */
+            "button": string;
+            /**
+             * 编写并运行 AiScript 脚本
+             */
+            "aiscript": string;
+            /**
+             * 展示 AiScript 编写的小应用
+             */
+            "aiscriptApp": string;
+            /**
+             * 让小蓝陪在你的侧栏
+             */
+            "aichan": string;
+            /**
+             * 展示所选列表中的用户
+             */
+            "userList": string;
+            /**
+             * 点击按钮，累积点击次数
+             */
+            "clicker": string;
+            /**
+             * 查看所关注用户的近期生日
+             */
+            "birthdayFollowings": string;
+            /**
+             * 查看私聊和群聊消息
+             */
+            "chat": string;
+            /**
+             * 查看服务器的联邦连接
+             */
+            "federation": string;
+            /**
+             * 以球状列表展示联邦服务器
+             */
+            "instanceCloud": string;
+        };
     };
     "_widgets": {
-        /**
-         * 个人资料
-         */
-        "profile": string;
-        /**
-         * 服务器信息
-         */
-        "instanceInfo": string;
-        /**
-         * 便签
-         */
-        "memo": string;
         /**
          * 待办清单
          */
@@ -12095,6 +12199,18 @@ export interface Locale extends ILocale {
          */
         "countdown": string;
         /**
+         * 个人资料
+         */
+        "profile": string;
+        /**
+         * 服务器信息
+         */
+        "instanceInfo": string;
+        /**
+         * 便签
+         */
+        "memo": string;
+        /**
          * 通知
          */
         "notifications": string;
@@ -12107,7 +12223,7 @@ export interface Locale extends ILocale {
          */
         "calendar": string;
         /**
-         * 趋势
+         * 热门话题
          */
         "trends": string;
         /**
@@ -12123,7 +12239,7 @@ export interface Locale extends ILocale {
          */
         "rssTicker": string;
         /**
-         * 活动
+         * 发帖统计
          */
         "activity": string;
         /**
@@ -12175,7 +12291,7 @@ export interface Locale extends ILocale {
          */
         "aiscript": string;
         /**
-         * AiScript APP
+         * AiScript 应用
          */
         "aiscriptApp": string;
         /**
@@ -12197,127 +12313,13 @@ export interface Locale extends ILocale {
          */
         "clicker": string;
         /**
-         * 即将过生日的用户
+         * 近期生日
          */
         "birthdayFollowings": string;
         /**
-         * 私信
+         * 聊天
          */
         "chat": string;
-    };
-    "_widgetTodo": {
-        /**
-         * 添加待办
-         */
-        "addTask": string;
-        /**
-         * 暂无待办事项
-         */
-        "empty": string;
-        /**
-         * 剩余 {count} 项
-         */
-        "remaining": ParameterizedString<"count">;
-        /**
-         * 清空已完成
-         */
-        "clearCompleted": string;
-        /**
-         * 删除待办
-         */
-        "deleteTask": string;
-    };
-    "_widgetPomodoro": {
-        /**
-         * 专注
-         */
-        "focus": string;
-        /**
-         * 休息
-         */
-        "rest": string;
-        /**
-         * 专注时长（分钟）
-         */
-        "focusDuration": string;
-        /**
-         * 休息时长（分钟）
-         */
-        "restDuration": string;
-        /**
-         * 开始
-         */
-        "start": string;
-        /**
-         * 暂停
-         */
-        "pause": string;
-        /**
-         * 继续
-         */
-        "resume": string;
-        /**
-         * 重置
-         */
-        "reset": string;
-        /**
-         * 已完成
-         */
-        "completed": string;
-        /**
-         * 准备专注
-         */
-        "readyFocus": string;
-        /**
-         * 准备休息
-         */
-        "readyRest": string;
-        /**
-         * 专注中
-         */
-        "focusing": string;
-        /**
-         * 休息中
-         */
-        "resting": string;
-        /**
-         * 已暂停
-         */
-        "paused": string;
-    };
-    "_widgetCountdown": {
-        /**
-         * 事项名称
-         */
-        "title": string;
-        /**
-         * 目标日期和时间
-         */
-        "targetDate": string;
-        /**
-         * 设置倒计时
-         */
-        "set": string;
-        /**
-         * 编辑倒计时
-         */
-        "edit": string;
-        /**
-         * 请设置倒计时目标
-         */
-        "empty": string;
-        /**
-         * 已到时间
-         */
-        "finished": string;
-        /**
-         * 请选择有效的日期和时间
-         */
-        "invalidDate": string;
-        /**
-         * 目标时间必须晚于当前时间
-         */
-        "futureDateRequired": string;
     };
     "_widgetOptions": {
         /**
@@ -12412,7 +12414,7 @@ export interface Locale extends ILocale {
              */
             "setDefaultDesign": string;
             /**
-             * 已设为新时钟小工具的默认样式
+             * 已设为新时钟小组件的默认样式
              */
             "defaultDesignSet": string;
         };
@@ -12459,22 +12461,6 @@ export interface Locale extends ILocale {
     };
     "_cw": {
         /**
-         * 内容已折叠
-         */
-        "contentHidden": string;
-        /**
-         * 内容已展开
-         */
-        "contentShown": string;
-        /**
-         * 展开内容
-         */
-        "showContent": string;
-        /**
-         * 收起内容
-         */
-        "hideContent": string;
-        /**
          * 隐藏
          */
         "hide": string;
@@ -12490,8 +12476,60 @@ export interface Locale extends ILocale {
          * {count} 个文件
          */
         "files": ParameterizedString<"count">;
+        /**
+         * 内容已折叠
+         */
+        "contentHidden": string;
+        /**
+         * 内容已展开
+         */
+        "contentShown": string;
+        /**
+         * 展开内容
+         */
+        "showContent": string;
+        /**
+         * 收起内容
+         */
+        "hideContent": string;
     };
     "_poll": {
+        /**
+         * 单选
+         */
+        "singleChoice": string;
+        /**
+         * 多选
+         */
+        "multipleChoice": string;
+        /**
+         * {n} 人参与投票
+         */
+        "participants": ParameterizedString<"n">;
+        /**
+         * {n} 个选项
+         */
+        "choiceCount": ParameterizedString<"n">;
+        /**
+         * 每个选项最多 50 个字
+         */
+        "choiceTooLong": string;
+        /**
+         * 投票选项不能重复
+         */
+        "duplicateChoices": string;
+        /**
+         * 请选择未来的截止时间，或输入有效的持续时间
+         */
+        "invalidExpiration": string;
+        /**
+         * 时间单位
+         */
+        "durationUnit": string;
+        /**
+         * 移除投票
+         */
+        "removePoll": string;
         /**
          * 需要至少两个选项
          */
@@ -12576,42 +12614,6 @@ export interface Locale extends ILocale {
          * {s}秒后截止
          */
         "remainingSeconds": ParameterizedString<"s">;
-        /**
-         * 单选
-         */
-        "singleChoice": string;
-        /**
-         * 多选
-         */
-        "multipleChoice": string;
-        /**
-         * {n} 人参与投票
-         */
-        "participants": ParameterizedString<"n">;
-        /**
-         * {n} 个选项
-         */
-        "choiceCount": ParameterizedString<"n">;
-        /**
-         * 每个选项最多 50 个字
-         */
-        "choiceTooLong": string;
-        /**
-         * 投票选项不能重复
-         */
-        "duplicateChoices": string;
-        /**
-         * 请选择未来的截止时间，或输入有效的持续时间
-         */
-        "invalidExpiration": string;
-        /**
-         * 时间单位
-         */
-        "durationUnit": string;
-        /**
-         * 移除投票
-         */
-        "removePoll": string;
     };
     "_visibility": {
         /**
@@ -12657,65 +12659,33 @@ export interface Locale extends ILocale {
     };
     "_postForm": {
         /**
-         * ノート
+         * 创作中心
          */
-        "noteMode": string;
+        "creatorCenter": string;
         /**
-         * 記事
+         * 仅在正文下方讨论
          */
-        "articleMode": string;
+        "onlyDiscussUnderPost": string;
         /**
-         * 草稿已保存到本机，下次打开时可恢复。
+         * 开启后回复仅显示在本帖讨论区，关闭则同时作为帖子发布到时间线。
          */
-        "draftSaved": string;
+        "onlyDiscussUnderPostDescription": string;
         /**
-         * 草稿保存失败，请复制内容后再关闭。
+         * 同时转发到我的动态
          */
-        "draftSaveFailed": string;
+        "alsoPublishToTimeline": string;
         /**
-         * 是否将未发布的内容保存为草稿？
+         * 找不到所选账户的 Token，请重新登录。
          */
-        "closeDraftConfirm": string;
+        "accountTokenMissing": string;
         /**
-         * 保存草稿并关闭
+         * 发布帖子
          */
-        "saveAndClose": string;
+        "post": string;
         /**
-         * 放弃并关闭
+         * 指定可见用户
          */
-        "discardAndClose": string;
-        /**
-         * 继续编辑
-         */
-        "continueEditing": string;
-        /**
-         * 恢复草稿
-         */
-        "restoreDraft": string;
-        /**
-         * 本机有尚未发布的草稿。
-         */
-        "draftAvailable": string;
-        /**
-         * CW
-         */
-        "cwTitle": string;
-        /**
-         * CW 摘要
-         */
-        "cwSummary": string;
-        /**
-         * 摘要保持显示，正文默认折叠
-         */
-        "cwHint": string;
-        /**
-         * 折叠正文
-         */
-        "cwBody": string;
-        /**
-         * 移除 CW
-         */
-        "cwRemove": string;
+        "visibleUsers": string;
         /**
          * 存在未上传文件。放弃上传并关闭？
          */
@@ -12740,14 +12710,6 @@ export interface Locale extends ILocale {
          * 显示窗口说明
          */
         "showHowToUse": string;
-        /**
-         * 仅在正文下方讨论
-         */
-        "onlyDiscussUnderPost": string;
-        /**
-         * 开启后回复仅显示在本帖讨论区，关闭则同时作为帖子发布到时间线。
-         */
-        "onlyDiscussUnderPostDescription": string;
         "_howToUse": {
             /**
              * 正文
@@ -12762,7 +12724,7 @@ export interface Locale extends ILocale {
              */
             "toolbar_title": string;
             /**
-             * 添加附件、投票、CW、标签、Emoji 或提及。
+             * 添加附件、投票、CW、话题、Emoji 或提及。
              */
             "toolbar_description": string;
             /**
@@ -12825,31 +12787,63 @@ export interface Locale extends ILocale {
             "f": string;
         };
         /**
-         * 找不到所选账户的 Token，请重新登录。
+         * 草稿已保存到本机，下次打开时可恢复。
          */
-        "accountTokenMissing": string;
+        "draftSaved": string;
         /**
-         * 发帖
+         * 草稿保存失败，请复制内容后再关闭。
          */
-        "post": string;
+        "draftSaveFailed": string;
         /**
-         * 指定可见用户
+         * 是否将未发布的内容保存为草稿？
          */
-        "visibleUsers": string;
+        "closeDraftConfirm": string;
         /**
-         * 创作中心
+         * 保存草稿并关闭
          */
-        "creatorCenter": string;
+        "saveAndClose": string;
+        /**
+         * 放弃并关闭
+         */
+        "discardAndClose": string;
+        /**
+         * 继续编辑
+         */
+        "continueEditing": string;
+        /**
+         * 恢复草稿
+         */
+        "restoreDraft": string;
+        /**
+         * 本机有尚未发布的草稿。
+         */
+        "draftAvailable": string;
+        /**
+         * CW
+         */
+        "cwTitle": string;
+        /**
+         * CW 摘要
+         */
+        "cwSummary": string;
+        /**
+         * 摘要保持显示，正文默认折叠
+         */
+        "cwHint": string;
+        /**
+         * 折叠正文
+         */
+        "cwBody": string;
+        /**
+         * 移除 CW
+         */
+        "cwRemove": string;
     };
     "_profile": {
         /**
          * 昵称
          */
         "name": string;
-        /**
-         * 昵称最多 50 个字符，支持中文，允许重名，可随时修改。留空时显示用户名。
-         */
-        "nameDescription": string;
         /**
          * 用户名
          */
@@ -12867,6 +12861,62 @@ export interface Locale extends ILocale {
          */
         "jobTitle": string;
         /**
+         * 个人网站
+         */
+        "website": string;
+        /**
+         * 基本资料
+         */
+        "basicSection": string;
+        /**
+         * 互动与账户
+         */
+        "interactionSection": string;
+        /**
+         * 填写个人网站的网址，会显示在个人主页。
+         */
+        "websiteDescription": string;
+        /**
+         * 保存网址
+         */
+        "saveWebsite": string;
+        /**
+         * 请填写完整的 http:// 或 https:// 网址。
+         */
+        "websiteInvalid": string;
+        /**
+         * 个人网站与其他资料合计最多 {max} 项，请先移除一项其他资料并保存。
+         */
+        "websiteFieldLimit": ParameterizedString<"max">;
+        /**
+         * 验证个人网站（可选）
+         */
+        "websiteVerification": string;
+        /**
+         * 用博客或建站编辑器：在“关于我”或页脚插入超链接，链接目标填下面的个人主页地址。
+         */
+        "websiteEditorInstructions": string;
+        /**
+         * 复制地址
+         */
+        "copyProfileAddress": string;
+        /**
+         * 能修改源码：将以下代码加入网页的 <head> 中，无需在页面上显示。
+         */
+        "websiteCodeInstructions": string;
+        /**
+         * <link rel="me" href="{url}">
+         */
+        "websiteVerificationCode": ParameterizedString<"url">;
+        /**
+         * 复制代码
+         */
+        "copyVerificationCode": string;
+        /**
+         * 网页须公开可访问，链接不能仅由 JavaScript 动态生成。
+         */
+        "websiteVerificationNote": string;
+        /**
          * 填写公司或组织名称
          */
         "companyPlaceholder": string;
@@ -12875,29 +12925,53 @@ export interface Locale extends ILocale {
          */
         "jobTitlePlaceholder": string;
         /**
-         * 可以在个人简介中包含 #标签。
+         * 可以在个人简介中包含 #话题。
          */
         "youCanIncludeHashtags": string;
         /**
-         * 附加信息
+         * 其他资料
          */
         "metadata": string;
         /**
-         * 编辑附加信息
+         * 其他资料
          */
         "metadataEdit": string;
         /**
-         * 可以在个人资料中以表格形式展示附加信息。
+         * 可展示你愿意公开的其他信息。
          */
         "metadataDescription": string;
         /**
-         * 标签
+         * 名称
          */
         "metadataLabel": string;
         /**
          * 内容
          */
         "metadataContent": string;
+        /**
+         * 自定义名称
+         */
+        "metadataNamePlaceholder": string;
+        /**
+         * 填写内容
+         */
+        "metadataContentPlaceholder": string;
+        /**
+         * 添加资料
+         */
+        "addOtherField": string;
+        /**
+         * 上移资料
+         */
+        "moveFieldUp": string;
+        /**
+         * 下移资料
+         */
+        "moveFieldDown": string;
+        /**
+         * 移除资料
+         */
+        "removeField": string;
         /**
          * 更换头像
          */
@@ -12907,9 +12981,21 @@ export interface Locale extends ILocale {
          */
         "changeBanner": string;
         /**
-         * 填写个人网站 URL。网页含指向本账户主页且带 rel="me" 的链接时，显示验证标记。
+         * Banner 只能使用图片，请选择图片文件。
+         */
+        "bannerImageOnly": string;
+        /**
+         * 把下面代码加入个人网站网页源码的 <head> 中，无需在页面上显示。
          */
         "verifiedLinkDescription": string;
+        /**
+         * <a href="{url}" rel="me">你的个人主页</a>
+         */
+        "verifiedLinkExample": ParameterizedString<"url">;
+        /**
+         * 发布网页后，将该网页的 HTTPS 网址填入上方并保存；验证通过后显示标记。
+         */
+        "verifiedLinkAction": string;
         /**
          * 最多可添加 {max} 个挂件
          */
@@ -12919,17 +13005,17 @@ export interface Locale extends ILocale {
          */
         "followedMessage": string;
         /**
-         * 向新关注者显示的消息。
+         * 新关注者会看到这条消息；关注审批通过后显示。
          */
         "followedMessageDescription": string;
         /**
-         * 启用关注审批时，批准申请后显示消息。
+         * 关注审批通过后显示。
          */
         "followedMessageDescriptionForLockedAccount": string;
         /**
-         * Banner 只能使用图片，请选择图片文件。
+         * 昵称最多 50 个字符，支持中文，允许重名，可随时修改。留空时显示用户名。
          */
-        "bannerImageOnly": string;
+        "nameDescription": string;
     };
     "_exportOrImport": {
         /**
@@ -12949,11 +13035,11 @@ export interface Locale extends ILocale {
          */
         "followingList": string;
         /**
-         * 静音列表
+         * 屏蔽列表
          */
         "muteList": string;
         /**
-         * 屏蔽列表
+         * 黑名单
          */
         "blockingList": string;
         /**
@@ -12961,7 +13047,7 @@ export interface Locale extends ILocale {
          */
         "userLists": string;
         /**
-         * 排除已静音用户
+         * 排除已屏蔽用户
          */
         "excludeMutingUsers": string;
         /**
@@ -13026,6 +13112,14 @@ export interface Locale extends ILocale {
          * 存储空间总用量
          */
         "storageUsageTotal": string;
+        /**
+         * 少
+         */
+        "heatmapLess": string;
+        /**
+         * 多
+         */
+        "heatmapMore": string;
     };
     "_instanceCharts": {
         /**
@@ -13093,31 +13187,65 @@ export interface Locale extends ILocale {
     };
     "_play": {
         /**
-         * 创建互动应用
+         * 这里的小程序都能直接玩哦
+         */
+        "tipTitle": string;
+        /**
+         * 用 AiScript 制作工具、测验或游戏，还能把运行结果分享为帖子。
+         */
+        "tip": string;
+        /**
+         * 未命名小程序
+         */
+        "defaultTitle": string;
+        /**
+         * 预览前请先保存。
+         */
+        "saveBeforePreview": string;
+        "_presets": {
+            /**
+             * 每日运势
+             */
+            "omikuji": string;
+            /**
+             * 文字打乱
+             */
+            "shuffle": string;
+            /**
+             * 知识测验
+             */
+            "quiz": string;
+            /**
+             * 本站时间线
+             */
+            "timeline": string;
+        };
+        /**
+         * 创建小程序
          */
         "new": string;
         /**
-         * 编辑互动应用
+         * 编辑小程序
          */
         "edit": string;
         /**
-         * 互动应用已创建
+         * 小程序已创建
          */
         "created": string;
         /**
-         * 互动应用已更新
+         * 小程序已更新
          */
         "updated": string;
         /**
-         * 互动应用已删除
+         * 小程序已删除
          */
         "deleted": string;
         /**
-         * 互动应用设置
+         * 小程序设置
          */
         "pageSetting": string;
         /**
-         * 编辑此互动应用
+         * 编辑此小程序
          */
         "editThisPage": string;
         /**
@@ -13125,17 +13253,29 @@ export interface Locale extends ILocale {
          */
         "viewSource": string;
         /**
-         * 我创建的
+         * 重新开始
+         */
+        "restart": string;
+        /**
+         * 我的小程序
          */
         "my": string;
         /**
-         * 我点赞的
+         * 喜欢的小程序
          */
         "liked": string;
         /**
          * 热门
          */
         "featured": string;
+        /**
+         * 第 {rank} 名
+         */
+        "rankLabel": ParameterizedString<"rank">;
+        /**
+         * 搜索小程序
+         */
+        "searchPlaceholder": string;
         /**
          * 标题
          */
@@ -13149,93 +13289,49 @@ export interface Locale extends ILocale {
          */
         "summary": string;
         /**
-         * 设为不公开后，此互动应用不在个人主页显示；知道链接的人仍可访问。
+         * 介绍与玩法
+         */
+        "introduction": string;
+        /**
+         * 介绍小程序的用途、玩法和操作步骤，支持 MFM 格式。
+         */
+        "summaryDescription": string;
+        /**
+         * 小程序进入详情页后自动运行，按界面提示操作即可。点击“重新开始”可重新运行。
+         */
+        "howToPlay": string;
+        /**
+         * 作者暂未填写介绍与玩法。
+         */
+        "noSummary": string;
+        /**
+         * 作者的其他小程序
+         */
+        "moreFromAuthor": string;
+        /**
+         * 作者暂无其他公开小程序。
+         */
+        "noOtherFlashs": string;
+        /**
+         * 仅自己可见
+         */
+        "sourceOnlyForAuthor": string;
+        /**
+         * 设为不公开后，此小程序不显示在个人主页，仍可通过链接访问。
          */
         "visibilityDescription": string;
-        /**
-         * 未命名互动应用
-         */
-        "defaultTitle": string;
-        /**
-         * 预览前请先保存。
-         */
-        "saveBeforePreview": string;
-        "_presets": {
-            /**
-             * 每日运势
-             */
-            "omikuji": string;
-            /**
-             * 知识测验
-             */
-            "quiz": string;
-            /**
-             * 本站时间线
-             */
-            "timeline": string;
-            /**
-             * 文字打乱
-             */
-            "shuffle": string;
-        };
-        /**
-         * 互动应用是用 AiScript 脚本编写的小程序，例如抽签、测验和计算器。发布后其他用户可以直接打开使用，并可将结果分享为帖子。
-         */
-        "tip": string;
-    };
-    "_articleForm": {
-        /**
-         * 記事のタイトル
-         */
-        "title": string;
-        /**
-         * 概要（任意）
-         */
-        "summary": string;
-        /**
-         * 本文
-         */
-        "body": string;
-        /**
-         * 本文を書いてください。MFMが使えます。
-         */
-        "bodyPlaceholder": string;
-        /**
-         * 記事を公開
-         */
-        "publish": string;
-        /**
-         * 記事は全員に公開されます。公開後はPagesから編集できます。
-         */
-        "publicNotice": string;
-        /**
-         * この記事の下書きはこの端末に自動保存されます。
-         */
-        "draftSaved": string;
-        /**
-         * 下書きを保存できませんでした。内容をコピーしてから閉じてください。
-         */
-        "draftSaveFailed": string;
-        /**
-         * 書きかけの記事を下書きに保存しますか？
-         */
-        "closeConfirm": string;
-        /**
-         * 下書きを保存して閉じる
-         */
-        "saveAndClose": string;
-        /**
-         * 破棄して閉じる
-         */
-        "discardAndClose": string;
-        /**
-         * 編集を続ける
-         */
-        "continueEditing": string;
     };
     "_pages": {
         /**
-         * 创建自定义页面
+         * 独立页面（Pages）用文本、图片和嵌入帖子制作作品集、活动说明等固定内容。长文请用文章，交互功能请用小程序。
+         */
+        "tip": string;
+        /**
+         * {title}（副本）
+         */
+        "duplicateTitle": ParameterizedString<"title">;
+        /**
+         * 创建独立页面
          */
         "newPage": string;
         /**
@@ -13283,11 +13379,11 @@ export interface Locale extends ILocale {
          */
         "unlike": string;
         /**
-         * 我的自定义页面
+         * 我的页面
          */
         "my": string;
         /**
-         * 点赞过的自定义页面
+         * 喜欢的页面
          */
         "liked": string;
         /**
@@ -13422,14 +13518,6 @@ export interface Locale extends ILocale {
                 "detailed": string;
             };
         };
-        /**
-         * {title}（副本）
-         */
-        "duplicateTitle": ParameterizedString<"title">;
-        /**
-         * 自定义页面由文本、章节、图片和嵌入帖子等内容块组合而成，适合制作作品集、活动说明等固定内容。撰写长文请使用文章。
-         */
-        "tip": string;
     };
     "_relayStatus": {
         /**
@@ -13471,6 +13559,26 @@ export interface Locale extends ILocale {
          */
         "youWereFollowed": string;
         /**
+         * 回复了你
+         */
+        "repliedToYou": string;
+        /**
+         * 提及了你
+         */
+        "mentionedYou": string;
+        /**
+         * 引用了你的帖子
+         */
+        "quotedYou": string;
+        /**
+         * 转发了你的帖子
+         */
+        "renotedYou": string;
+        /**
+         * 回应了你的帖子
+         */
+        "reactedToYou": string;
+        /**
          * 收到关注申请
          */
         "youReceivedFollowRequest": string;
@@ -13495,7 +13603,7 @@ export interface Locale extends ILocale {
          */
         "newNote": string;
         /**
-         * 关键词订阅：{name}
+         * 内容订阅：{name}
          */
         "unreadAntennaNote": ParameterizedString<"name">;
         /**
@@ -13506,6 +13614,10 @@ export interface Locale extends ILocale {
          * 收到群聊邀请
          */
         "chatRoomInvitationReceived": string;
+        /**
+         * 你已被移出群聊
+         */
+        "chatRoomMemberRemoved": string;
         /**
          * 推送通知已更新
          */
@@ -13547,7 +13659,7 @@ export interface Locale extends ILocale {
          */
         "followedBySomeUsers": ParameterizedString<"n">;
         /**
-         * 重置通知历史
+         * 清空通知历史
          */
         "flushNotification": string;
         /**
@@ -13628,6 +13740,10 @@ export interface Locale extends ILocale {
              */
             "chatRoomInvitationReceived": string;
             /**
+             * 被移出群聊
+             */
+            "chatRoomMemberRemoved": string;
+            /**
              * 获得成就
              */
             "achievementEarned": string;
@@ -13648,7 +13764,7 @@ export interface Locale extends ILocale {
              */
             "test": string;
             /**
-             * 关联 APP 的通知
+             * 应用通知
              */
             "app": string;
             /**
@@ -13670,6 +13786,24 @@ export interface Locale extends ILocale {
              */
             "renote": string;
         };
+    };
+    "_notificationCategories": {
+        /**
+         * 回复与提及
+         */
+        "mentions": string;
+        /**
+         * 回应与转发
+         */
+        "reactions": string;
+        /**
+         * 关注动态
+         */
+        "follows": string;
+        /**
+         * 群聊动态
+         */
+        "chat": string;
     };
     "_deck": {
         /**
@@ -13725,7 +13859,7 @@ export interface Locale extends ILocale {
          */
         "stackLeft": string;
         /**
-         * 向右弹出
+         * 拆分到右侧
          */
         "popRight": string;
         /**
@@ -13749,7 +13883,7 @@ export interface Locale extends ILocale {
          */
         "introduction2": string;
         /**
-         * 在列菜单中选择“编辑小工具”以添加小工具
+         * 在列菜单中选择“编辑小组件”以添加小组件
          */
         "widgetsIntroduction": string;
         /**
@@ -13804,7 +13938,7 @@ export interface Locale extends ILocale {
              */
             "main": string;
             /**
-             * 小工具
+             * 小组件
              */
             "widgets": string;
             /**
@@ -13816,7 +13950,7 @@ export interface Locale extends ILocale {
              */
             "tl": string;
             /**
-             * 关键词订阅
+             * 内容订阅
              */
             "antenna": string;
             /**
@@ -13827,6 +13961,10 @@ export interface Locale extends ILocale {
              * 频道
              */
             "channel": string;
+            /**
+             * 便签
+             */
+            "clip": string;
             /**
              * 提及
              */
@@ -13840,7 +13978,7 @@ export interface Locale extends ILocale {
              */
             "roleTimeline": string;
             /**
-             * 私信
+             * 聊天
              */
             "chat": string;
         };
@@ -13876,6 +14014,10 @@ export interface Locale extends ILocale {
         "orderByCreatedAtAsc": string;
     };
     "_webhookSettings": {
+        /**
+         * Webhook 列表
+         */
+        "list": string;
         /**
          * 创建 Webhook
          */
@@ -13996,7 +14138,7 @@ export interface Locale extends ILocale {
              */
             "note": string;
             /**
-             * 文章或自定义页面
+             * 文章或独立页面
              */
             "page": string;
             /**
@@ -14004,7 +14146,7 @@ export interface Locale extends ILocale {
              */
             "gallery": string;
             /**
-             * 互动应用
+             * 小程序
              */
             "play": string;
             /**
@@ -14094,7 +14236,7 @@ export interface Locale extends ILocale {
                      */
                     "mail": string;
                     /**
-                     * 收到或处理举报时，通过指定的 System Webhook 发送通知。
+                     * 收到或处理举报时，通过指定的系统 Webhook 发送通知。
                      */
                     "webhook": string;
                 };
@@ -14171,7 +14313,7 @@ export interface Locale extends ILocale {
          */
         "updateServerSettings": string;
         /**
-         * 更新管理笔记
+         * 更新管理备注
          */
         "updateUserNote": string;
         /**
@@ -14219,7 +14361,7 @@ export interface Locale extends ILocale {
          */
         "unsuspendRemoteInstance": string;
         /**
-         * 更新远程服务器的管理笔记
+         * 更新远程服务器的管理备注
          */
         "updateRemoteInstanceNote": string;
         /**
@@ -14239,7 +14381,7 @@ export interface Locale extends ILocale {
          */
         "forwardAbuseReport": string;
         /**
-         * 更新举报的管理笔记
+         * 更新举报的管理备注
          */
         "updateAbuseReportNote": string;
         /**
@@ -14283,15 +14425,15 @@ export interface Locale extends ILocale {
          */
         "unsetUserBanner": string;
         /**
-         * 创建 System Webhook
+         * 创建系统 Webhook
          */
         "createSystemWebhook": string;
         /**
-         * 更新 System Webhook
+         * 更新系统 Webhook
          */
         "updateSystemWebhook": string;
         /**
-         * 删除 System Webhook
+         * 删除系统 Webhook
          */
         "deleteSystemWebhook": string;
         /**
@@ -14311,11 +14453,11 @@ export interface Locale extends ILocale {
          */
         "deleteAccount": string;
         /**
-         * 删除文章或自定义页面
+         * 删除文章或独立页面
          */
         "deletePage": string;
         /**
-         * 删除互动应用
+         * 删除小程序
          */
         "deleteFlash": string;
         /**
@@ -14323,21 +14465,13 @@ export interface Locale extends ILocale {
          */
         "deleteGalleryPost": string;
         /**
-         * 删除群聊
+         * 解散群聊
          */
         "deleteChatRoom": string;
         /**
          * 更新代理账户的简介
          */
         "updateProxyAccountDescription": string;
-        /**
-         * 发放补签卡
-         */
-        "grantCheckinCards": string;
-        /**
-         * 收回补签卡
-         */
-        "revokeCheckinCards": string;
     };
     "_fileViewer": {
         /**
@@ -14369,10 +14503,6 @@ export interface Locale extends ILocale {
          */
         "usage": string;
         /**
-         * 仅文件上传者可查看此页面。
-         */
-        "thisPageCanBeSeenFromTheAuthor": string;
-        /**
          * 已找到使用位置
          */
         "usageFound": string;
@@ -14388,6 +14518,10 @@ export interface Locale extends ILocale {
          * 另有 {count} 处使用情况不可查看
          */
         "usageHidden": ParameterizedString<"count">;
+        /**
+         * 仅文件上传者可查看此页面。
+         */
+        "thisPageCanBeSeenFromTheAuthor": string;
     };
     "_externalResourceInstaller": {
         /**
@@ -14585,6 +14719,124 @@ export interface Locale extends ILocale {
     };
     "_reversi": {
         /**
+         * 特殊
+         */
+        "specialMaps": string;
+        "_maps": {
+            /**
+             * {size} 圆角
+             */
+            "rounded": ParameterizedString<"size">;
+            /**
+             * {size} 圆角 {variant}
+             */
+            "roundedVariant": ParameterizedString<"size" | "variant">;
+            /**
+             * {size} 让 {stones} 子
+             */
+            "handicap": ParameterizedString<"size" | "stones">;
+            /**
+             * 8x8 缺角
+             */
+            "withNotch": string;
+            /**
+             * 8x8 打孔
+             */
+            "withHoles": string;
+            /**
+             * 圆形
+             */
+            "circle": string;
+            /**
+             * 笑脸
+             */
+            "smile": string;
+            /**
+             * 窗户
+             */
+            "window": string;
+            /**
+             * 预留席
+             */
+            "reserved": string;
+            /**
+             * 平行
+             */
+            "parallel": string;
+            /**
+             * 无黑子
+             */
+            "lackOfBlack": string;
+            /**
+             * 方块派对
+             */
+            "squareParty": string;
+            /**
+             * 扫雷
+             */
+            "minesweeper": string;
+            /**
+             * 大洞
+             */
+            "hole": string;
+            /**
+             * 网格
+             */
+            "grid": string;
+            /**
+             * 十字
+             */
+            "cross": string;
+            /**
+             * 字母 {letter}
+             */
+            "letter": ParameterizedString<"letter">;
+            /**
+             * 墙壁
+             */
+            "walls": string;
+            /**
+             * 棋盘格
+             */
+            "checker": string;
+            /**
+             * 日式咖喱
+             */
+            "japaneseCurry": string;
+            /**
+             * 马赛克
+             */
+            "mosaic": string;
+            /**
+             * 竞技场
+             */
+            "arena": string;
+            /**
+             * 反应堆
+             */
+            "reactor": string;
+            /**
+             * 火花
+             */
+            "spark": string;
+            /**
+             * 群岛
+             */
+            "islands": string;
+            /**
+             * 银河
+             */
+            "galaxy": string;
+            /**
+             * 三角形
+             */
+            "triangle": string;
+            /**
+             * 双棋盘
+             */
+            "twoBoard": string;
+        };
+        /**
          * 黑白棋
          */
         "reversi": string;
@@ -14733,7 +14985,7 @@ export interface Locale extends ILocale {
          */
         "shareToTlTheGameWhenStart": string;
         /**
-         * 对局开始！#MisskeyReversi
+         * 对局开始！#Reversi
          */
         "iStartedAGame": string;
         /**
@@ -14756,124 +15008,6 @@ export interface Locale extends ILocale {
          * 用头像作为棋子
          */
         "useAvatarAsStone": string;
-        "_maps": {
-            /**
-             * {size} 圆角
-             */
-            "rounded": ParameterizedString<"size">;
-            /**
-             * {size} 圆角 {variant}
-             */
-            "roundedVariant": ParameterizedString<"size" | "variant">;
-            /**
-             * {size} 让 {stones} 子
-             */
-            "handicap": ParameterizedString<"size" | "stones">;
-            /**
-             * 8x8 缺角
-             */
-            "withNotch": string;
-            /**
-             * 8x8 打孔
-             */
-            "withHoles": string;
-            /**
-             * 圆形
-             */
-            "circle": string;
-            /**
-             * 笑脸
-             */
-            "smile": string;
-            /**
-             * 窗户
-             */
-            "window": string;
-            /**
-             * 预留席
-             */
-            "reserved": string;
-            /**
-             * 平行
-             */
-            "parallel": string;
-            /**
-             * 无黑子
-             */
-            "lackOfBlack": string;
-            /**
-             * 方块派对
-             */
-            "squareParty": string;
-            /**
-             * 扫雷
-             */
-            "minesweeper": string;
-            /**
-             * 大洞
-             */
-            "hole": string;
-            /**
-             * 网格
-             */
-            "grid": string;
-            /**
-             * 十字
-             */
-            "cross": string;
-            /**
-             * 字母 {letter}
-             */
-            "letter": ParameterizedString<"letter">;
-            /**
-             * 墙壁
-             */
-            "walls": string;
-            /**
-             * 棋盘格
-             */
-            "checker": string;
-            /**
-             * 日式咖喱
-             */
-            "japaneseCurry": string;
-            /**
-             * 马赛克
-             */
-            "mosaic": string;
-            /**
-             * 竞技场
-             */
-            "arena": string;
-            /**
-             * 反应堆
-             */
-            "reactor": string;
-            /**
-             * 火花
-             */
-            "spark": string;
-            /**
-             * 群岛
-             */
-            "islands": string;
-            /**
-             * 银河
-             */
-            "galaxy": string;
-            /**
-             * 三角形
-             */
-            "triangle": string;
-            /**
-             * 双棋盘
-             */
-            "twoBoard": string;
-        };
-        /**
-         * 特殊
-         */
-        "specialMaps": string;
     };
     "_offlineScreen": {
         /**
@@ -14881,17 +15015,17 @@ export interface Locale extends ILocale {
          */
         "title": string;
         /**
-         * 暂时无法连接服务器，请检查网络后重试
+         * 暂时无法连接服务器
          */
         "header": string;
         /**
-         * ネットワーク接続を確認するか、時間をおいてページを再読み込みしてください。
+         * 请检查网络连接，恢复后会自动重试。
          */
         "description": string;
     };
     "_urlPreviewSetting": {
         /**
-         * 设置 URL 预览
+         * URL 预览设置
          */
         "title": string;
         /**
@@ -14943,7 +15077,7 @@ export interface Locale extends ILocale {
          */
         "summaryProxy": string;
         /**
-         * 不使用 Misskey 本体，而是通过 Summaly Proxy 生成预览。
+         * 不使用服务器自身，而是通过 Summaly Proxy 生成预览。
          */
         "summaryProxyDescription": string;
         /**
@@ -14953,10 +15087,6 @@ export interface Locale extends ILocale {
     };
     "_mediaControls": {
         /**
-         * 媒体加载失败，请重试。
-         */
-        "loadFailed": string;
-        /**
          * 进入全屏
          */
         "enterFullscreen": string;
@@ -14964,14 +15094,6 @@ export interface Locale extends ILocale {
          * 退出全屏
          */
         "exitFullscreen": string;
-        /**
-         * 网页全屏
-         */
-        "enterWebFullscreen": string;
-        /**
-         * 退出网页全屏
-         */
-        "exitWebFullscreen": string;
         /**
          * 播放
          */
@@ -14985,6 +15107,18 @@ export interface Locale extends ILocale {
          */
         "seek": string;
         /**
+         * 已加载 {percent}%
+         */
+        "buffered": ParameterizedString<"percent">;
+        /**
+         * 静音
+         */
+        "mute": string;
+        /**
+         * 取消静音
+         */
+        "unmute": string;
+        /**
          * 画中画
          */
         "pip": string;
@@ -14997,169 +15131,17 @@ export interface Locale extends ILocale {
          */
         "loop": string;
         /**
-         * 已加载 {percent}%
+         * 媒体加载失败，请重试。
          */
-        "buffered": ParameterizedString<"percent">;
+        "loadFailed": string;
         /**
-         * 静音
+         * 网页全屏
          */
-        "mute": string;
+        "enterWebFullscreen": string;
         /**
-         * 取消静音
+         * 退出网页全屏
          */
-        "unmute": string;
-    };
-    "_topics": {
-        /**
-         * 话题
-         */
-        "title": string;
-        /**
-         * 添加话题
-         */
-        "add": string;
-        /**
-         * 搜索或输入话题
-         */
-        "search": string;
-        /**
-         * 最近使用
-         */
-        "recent": string;
-        /**
-         * 热门话题
-         */
-        "trending": string;
-        /**
-         * 搜索结果
-         */
-        "results": string;
-        /**
-         * 暂无相关话题
-         */
-        "empty": string;
-        /**
-         * 使用“{tag}”
-         */
-        "create": ParameterizedString<"tag">;
-        /**
-         * 已添加
-         */
-        "selected": string;
-        /**
-         * 移除话题“{tag}”
-         */
-        "remove": ParameterizedString<"tag">;
-        /**
-         * 选择已有话题，或输入新话题后按回车
-         */
-        "hint": string;
-        /**
-         * 话题不能包含空格或特殊符号，最多 128 个字符
-         */
-        "invalid": string;
-        /**
-         * 最多添加 32 个话题
-         */
-        "limit": string;
-        /**
-         * 只能添加一个话题。如需更换，请先移除当前话题。
-         */
-        "singleLimit": string;
-        /**
-         * 搜索失败，可重试或直接添加
-         */
-        "searchFailed": string;
-        /**
-         * 重试
-         */
-        "retry": string;
-    };
-    "_share": {
-        /**
-         * 已复制
-         */
-        "copied": string;
-        /**
-         * 分享到其他 APP
-         */
-        "system": string;
-        /**
-         * 分享到
-         */
-        "shareTo": string;
-        /**
-         * 微信
-         */
-        "wechat": string;
-        /**
-         * QQ
-         */
-        "qq": string;
-        /**
-         * QQ空间
-         */
-        "qzone": string;
-        /**
-         * 微博
-         */
-        "weibo": string;
-        /**
-         * X
-         */
-        "x": string;
-        /**
-         * Telegram
-         */
-        "telegram": string;
-        /**
-         * Facebook
-         */
-        "facebook": string;
-        /**
-         * WhatsApp
-         */
-        "whatsapp": string;
-        /**
-         * 二维码
-         */
-        "qrCode": string;
-        /**
-         * 扫描二维码打开链接。
-         */
-        "qrCodeDescription": string;
-        /**
-         * 使用微信扫一扫，或保存图片后分享。
-         */
-        "wechatDescription": string;
-        /**
-         * 保存二维码
-         */
-        "saveQrCode": string;
-        /**
-         * 二维码生成失败，请复制链接或重试。
-         */
-        "qrCodeFailed": string;
-        /**
-         * 二维码保存失败，请重试。
-         */
-        "saveQrCodeFailed": string;
-        /**
-         * 内容复制失败，请重试。
-         */
-        "copyContentFailed": string;
-        /**
-         * 复制失败，请选中链接后手动复制。
-         */
-        "copyFailed": string;
-        /**
-         * 分享失败，请复制链接或尝试其他方式。
-         */
-        "shareFailed": string;
-        /**
-         * 分享链接不改变此帖的可见范围。
-         */
-        "restrictedNote": string;
+        "exitWebFullscreen": string;
     };
     "_contextMenu": {
         /**
@@ -15167,11 +15149,11 @@ export interface Locale extends ILocale {
          */
         "title": string;
         /**
-         * APP 菜单
+         * 应用菜单
          */
         "app": string;
         /**
-         * 按住 Shift 使用 APP 菜单
+         * 按住 Shift 使用应用菜单
          */
         "appWithShift": string;
         /**
@@ -15206,7 +15188,47 @@ export interface Locale extends ILocale {
         "notSelected": string;
     };
     "_customEmojisManager": {
+        /**
+         * 选择模式
+         */
+        "selectMode": string;
+        /**
+         * 全选
+         */
+        "selectAll": string;
+        /**
+         * 设置分类
+         */
+        "setCategory": string;
+        /**
+         * 设置别名
+         */
+        "setAliases": string;
+        /**
+         * 添加别名
+         */
+        "addAliases": string;
+        /**
+         * 删除别名
+         */
+        "removeAliases": string;
+        /**
+         * 设置许可证
+         */
+        "setLicense": string;
         "_gridCommon": {
+            /**
+             * 别名
+             */
+            "aliases": string;
+            /**
+             * 更新时间（起）
+             */
+            "updatedAtFrom": string;
+            /**
+             * 更新时间（止）
+             */
+            "updatedAtTo": string;
             /**
              * 复制所选行
              */
@@ -15231,18 +15253,6 @@ export interface Locale extends ILocale {
              * 设置详细的搜索条件。
              */
             "searchSettingCaption": string;
-            /**
-             * 别名
-             */
-            "aliases": string;
-            /**
-             * 更新时间（起）
-             */
-            "updatedAtFrom": string;
-            /**
-             * 更新时间（止）
-             */
-            "updatedAtTo": string;
             /**
              * 显示项目数
              */
@@ -15314,16 +15324,16 @@ export interface Locale extends ILocale {
         };
         "_local": {
             /**
-             * 已注册 Emoji
+             * Emoji 列表
              */
             "tabTitleList": string;
             /**
-             * 注册 Emoji
+             * 添加 Emoji
              */
             "tabTitleRegister": string;
             "_list": {
                 /**
-                 * 暂无已注册的 Emoji。
+                 * 暂无自定义 Emoji。
                  */
                 "emojisNothing": string;
                 /**
@@ -15363,7 +15373,7 @@ export interface Locale extends ILocale {
                  */
                 "confirmResetDescription": string;
                 /**
-                 * 存在未保存的更改。离开后将丢失。
+                 * 离开后，未保存的更改将丢失。
                  */
                 "confirmMovePageDesciption": string;
                 /**
@@ -15389,7 +15399,7 @@ export interface Locale extends ILocale {
                  */
                 "directoryToCategoryCaption": string;
                 /**
-                 * 将列表中的 Emoji 注册为自定义 Emoji？每次最多注册 {count} 个。
+                 * 将列表中的 Emoji 添加为自定义 Emoji？每次最多 {count} 个。
                  */
                 "confirmRegisterEmojisDescription": ParameterizedString<"count">;
                 /**
@@ -15402,34 +15412,6 @@ export interface Locale extends ILocale {
                 "confirmUploadEmojisDescription": ParameterizedString<"count">;
             };
         };
-        /**
-         * 选择模式
-         */
-        "selectMode": string;
-        /**
-         * 全选
-         */
-        "selectAll": string;
-        /**
-         * 设置分类
-         */
-        "setCategory": string;
-        /**
-         * 设置别名
-         */
-        "setAliases": string;
-        /**
-         * 添加别名
-         */
-        "addAliases": string;
-        /**
-         * 删除别名
-         */
-        "removeAliases": string;
-        /**
-         * 设置许可证
-         */
-        "setLicense": string;
     };
     "_embedCodeGen": {
         /**
@@ -15658,39 +15640,27 @@ export interface Locale extends ILocale {
          */
         "otherOption3": string;
         /**
-         * 以安全模式启动 Misskey
+         * 以安全模式启动
          */
         "otherOption4": string;
     };
     "_search": {
         /**
+         * 综合
+         */
+        "combined": string;
+        /**
+         * 搜索暂不可用，请稍后重试。
+         */
+        "unavailable": string;
+        /**
+         * 搜索用时过长，请缩小关键词或时间范围后重试。
+         */
+        "timeout": string;
+        /**
          * 按关键词搜索
          */
         "placeholder": string;
-        /**
-         * “{query}”的搜索结果
-         */
-        "resultsFor": ParameterizedString<"query">;
-        /**
-         * 发布时间
-         */
-        "sortByTime": string;
-        /**
-         * 热度
-         */
-        "sortByPopularity": string;
-        /**
-         * 排序方向
-         */
-        "sortOrder": string;
-        /**
-         * 按回应、回复和转发的总数排序。
-         */
-        "popularityDescription": string;
-        /**
-         * 开始时间不能晚于结束时间。
-         */
-        "invalidDateRange": string;
         /**
          * 全部
          */
@@ -15716,7 +15686,7 @@ export interface Locale extends ILocale {
          */
         "pleaseSelectUser": string;
         /**
-         * 如：misskey.example.com
+         * 如：example.com
          */
         "serverHostPlaceholder": string;
         /**
@@ -15727,10 +15697,42 @@ export interface Locale extends ILocale {
          * 终止日期
          */
         "postTo": string;
+        /**
+         * “{query}”的搜索结果
+         */
+        "resultsFor": ParameterizedString<"query">;
+        /**
+         * 发布时间
+         */
+        "sortByTime": string;
+        /**
+         * 热度
+         */
+        "sortByPopularity": string;
+        /**
+         * 排序方向
+         */
+        "sortOrder": string;
+        /**
+         * 按回应、回复和转发的总数排序。
+         */
+        "popularityDescription": string;
+        /**
+         * 开始时间不能晚于结束时间。
+         */
+        "invalidDateRange": string;
     };
     "_serverSetupWizard": {
         /**
-         * Misskey 安装完成
+         * 服务器设置向导
+         */
+        "title": string;
+        /**
+         * 欢迎使用！
+         */
+        "welcome": string;
+        /**
+         * 安装完成
          */
         "installCompleted": string;
         /**
@@ -15883,7 +15885,7 @@ export interface Locale extends ILocale {
         "donationRequest": string;
         "_donationRequest": {
             /**
-             * Misskey 是由志愿者开发的免费软件。
+             * 这是由志愿者开发的免费软件。
              */
             "text1": string;
             /**
@@ -15895,14 +15897,6 @@ export interface Locale extends ILocale {
              */
             "text3": string;
         };
-        /**
-         * 服务器设置向导
-         */
-        "title": string;
-        /**
-         * 欢迎使用 Misskey！
-         */
-        "welcome": string;
     };
     "_uploader": {
         /**
@@ -15977,6 +15971,12 @@ export interface Locale extends ILocale {
     "_userLists": {
         /**
          * 用户列表用于将多个用户归为一组，可作为单独的时间线查看。
+         */
+        "tip": string;
+    };
+    "_antennas": {
+        /**
+         * 按关键词、用户来源及附件条件自动收集帖子，生成独立的订阅时间线。关键词可留空，也可排除指定用户或关键词。
          */
         "tip": string;
     };
@@ -16111,6 +16111,18 @@ export interface Locale extends ILocale {
         "failedToLoadImage": string;
     };
     "_imageEffector": {
+        /**
+         * 应用前
+         */
+        "before": string;
+        /**
+         * 应用后
+         */
+        "after": string;
+        /**
+         * 示例说明
+         */
+        "exampleCaption": string;
         /**
          * 效果
          */
@@ -16339,18 +16351,6 @@ export interface Locale extends ILocale {
              */
             "circle": string;
         };
-        /**
-         * 应用前
-         */
-        "before": string;
-        /**
-         * 应用后
-         */
-        "after": string;
-        /**
-         * 示例说明
-         */
-        "exampleCaption": string;
     };
     /**
      * 草稿
@@ -16361,6 +16361,10 @@ export interface Locale extends ILocale {
          * 选择草稿
          */
         "select": string;
+        /**
+         * 已设置定时发布
+         */
+        "scheduleSet": string;
         /**
          * 草稿数量已达上限。
          */
@@ -16492,97 +16496,837 @@ export interface Locale extends ILocale {
          */
         "mfm": string;
     };
-    "_dashboard": {
+    /**
+     * 用户 ID
+     */
+    "userId": string;
+    /**
+     * MIME 类型
+     */
+    "mimeType": string;
+    /**
+     * {n} 条记录
+     */
+    "nRecords": ParameterizedString<"n">;
+    /**
+     * 原始数据
+     */
+    "rawData": string;
+    /**
+     * Access Key
+     */
+    "accessKey": string;
+    /**
+     * Secret Key
+     */
+    "secretKey": string;
+    /**
+     * 公钥
+     */
+    "publicKey": string;
+    /**
+     * 私钥
+     */
+    "privateKey": string;
+    /**
+     * 该评论已被删除
+     */
+    "deletedComment": string;
+    /**
+     * 该帖子已被作者删除
+     */
+    "deletedNoteByAuthor": string;
+    /**
+     * 该帖子已被社区管理员删除
+     */
+    "deletedNoteByCommunity": string;
+    /**
+     * 该评论已被作者删除
+     */
+    "deletedCommentByAuthor": string;
+    /**
+     * 该评论已被社区管理员删除
+     */
+    "deletedCommentByCommunity": string;
+    /**
+     * 最近发帖
+     */
+    "lastPostedAt": string;
+    /**
+     * 回到顶部
+     */
+    "backToTop": string;
+    /**
+     * 无效的 URL
+     */
+    "invalidUrl": string;
+    /**
+     * 在 GitHub 上查看源代码
+     */
+    "viewSourceOnGitHub": string;
+    /**
+     * 找不到角色
+     */
+    "roleNotFound": string;
+    "_onlineStatus": {
         /**
-         * 热力图
+         * 自动
          */
-        "heatmap": string;
+        "auto": string;
         /**
-         * 活跃用户热力图
+         * 在线
          */
-        "activeUsersHeatmap": string;
+        "online": string;
         /**
-         * 留存率
+         * 离开
          */
-        "retentionRate": string;
+        "away": string;
         /**
-         * 留存用户
+         * 忙碌
          */
-        "retained": string;
+        "busy": string;
         /**
-         * 关注与关注者
+         * 请勿打扰
          */
-        "followsAndFollowers": string;
+        "doNotDisturb": string;
         /**
-         * 审核员
+         * 隐身
          */
-        "moderators": string;
+        "invisible": string;
         /**
-         * 新用户
+         * 切换为{status}
          */
-        "newUsers": string;
+        "switchTo": ParameterizedString<"status">;
         /**
-         * ActivityPub 请求
+         * 自动回复
          */
-        "apRequests": string;
+        "autoReply": string;
         /**
-         * 投递队列
+         * 自定义自动回复
          */
-        "deliverQueue": string;
+        "customAutoReply": string;
         /**
-         * 接收队列
+         * 回复内容
          */
-        "inboxQueue": string;
+        "autoReplyContent": string;
         /**
-         * 注册后天数
+         * 输入自动回复内容
          */
-        "daysLater": string;
+        "autoReplyPlaceholder": string;
         /**
-         * 注册后第 {n} 天
+         * 最多可输入 {max} 个字。
          */
-        "nDaysLater": ParameterizedString<"n">;
+        "autoReplyLimit": ParameterizedString<"max">;
+        "_autoReplyPresets": {
+            /**
+             * 暂时离开，稍后回复。
+             */
+            "away": string;
+            /**
+             * 工作中，稍后回复。
+             */
+            "work": string;
+            /**
+             * 用餐中，稍后回复。
+             */
+            "meal": string;
+        };
+        "_display": {
+            /**
+             * 在线
+             */
+            "online": string;
+            /**
+             * 最近活跃
+             */
+            "active": string;
+            /**
+             * 离开
+             */
+            "away": string;
+            /**
+             * 忙碌中
+             */
+            "busy": string;
+            /**
+             * 请勿打扰
+             */
+            "doNotDisturb": string;
+            /**
+             * 离线
+             */
+            "offline": string;
+            /**
+             * 隐身
+             */
+            "invisible": string;
+            /**
+             * 未知
+             */
+            "unknown": string;
+        };
         /**
-         * 留存率 (%)
+         * 自定义状态
          */
-        "retentionRateAxis": string;
+        "customStatus": string;
         /**
-         * 占比前 {n} 的服务器
+         * 使用此状态
          */
-        "topN": ParameterizedString<"n">;
+        "useStatus": string;
         /**
-         * 浏览
+         * 输入状态说明
          */
-        "read": string;
+        "customStatusPlaceholder": string;
         /**
-         * 发帖
+         * 请先选择状态
          */
-        "write": string;
+        "selectStatusFirst": string;
         /**
-         * 发送：成功
+         * 最多可输入 {max} 个字。
          */
-        "apOutSucceeded": string;
+        "customStatusLimit": ParameterizedString<"max">;
         /**
-         * 发送：失败
+         * 不能使用换行符或控制字符。
          */
-        "apOutFailed": string;
+        "customStatusInvalidCharacters": string;
         /**
-         * 接收
+         * 应用自定义状态后，将切换为在线并显示所选图标和文字。应用后仍可编辑；隐身时不会向其他人公开。
          */
-        "apIn": string;
+        "customStatusVisibility": string;
+        "_icons": {
+            /**
+             * 休息中
+             */
+            "coffee": string;
+            /**
+             * 听歌中
+             */
+            "music": string;
+            /**
+             * 游戏中
+             */
+            "gamepad": string;
+            /**
+             * 工作中
+             */
+            "briefcase": string;
+            /**
+             * 学习中
+             */
+            "book": string;
+            /**
+             * 睡眠中
+             */
+            "moon": string;
+            /**
+             * 心动
+             */
+            "heart": string;
+            /**
+             * 旅行中
+             */
+            "plane": string;
+            /**
+             * 用餐中
+             */
+            "food": string;
+            /**
+             * 居家
+             */
+            "home": string;
+            /**
+             * 陪伴宠物
+             */
+            "pet": string;
+            /**
+             * 编程中
+             */
+            "code": string;
+            /**
+             * 专注中
+             */
+            "focus": string;
+            /**
+             * 观影中
+             */
+            "film": string;
+            /**
+             * 出行中
+             */
+            "car": string;
+            /**
+             * 度假中
+             */
+            "vacation": string;
+            /**
+             * 运动中
+             */
+            "exercise": string;
+            /**
+             * 心情愉快
+             */
+            "sun": string;
+            /**
+             * 独处
+             */
+            "cloud": string;
+            /**
+             * 充电中
+             */
+            "battery": string;
+            /**
+             * 可交流
+             */
+            "chat": string;
+            /**
+             * 庆祝中
+             */
+            "celebrate": string;
+            /**
+             * 正在准备礼物
+             */
+            "gift": string;
+            /**
+             * 寻找同伴中
+             */
+            "handshake": string;
+        };
+        "_groups": {
+            /**
+             * 日常生活
+             */
+            "daily": string;
+            /**
+             * 工作学习
+             */
+            "focus": string;
+            /**
+             * 休闲
+             */
+            "relax": string;
+            /**
+             * 出行
+             */
+            "travel": string;
+            /**
+             * 心情
+             */
+            "mood": string;
+            /**
+             * 社交
+             */
+            "social": string;
+        };
+    };
+    "_weekdayShort": {
         /**
-         * ActivityPub：接收
+         * 日
          */
-        "apRequestsInboxReceived": string;
+        "sunday": string;
         /**
-         * ActivityPub：投递成功
+         * 一
          */
-        "apRequestsDeliverSucceeded": string;
+        "monday": string;
         /**
-         * ActivityPub：投递失败
+         * 二
          */
-        "apRequestsDeliverFailed": string;
+        "tuesday": string;
+        /**
+         * 三
+         */
+        "wednesday": string;
+        /**
+         * 四
+         */
+        "thursday": string;
+        /**
+         * 五
+         */
+        "friday": string;
+        /**
+         * 六
+         */
+        "saturday": string;
+    };
+    "_widgetTodo": {
+        /**
+         * 添加待办
+         */
+        "addTask": string;
+        /**
+         * 暂无待办事项
+         */
+        "empty": string;
+        /**
+         * 剩余 {count} 项
+         */
+        "remaining": ParameterizedString<"count">;
+        /**
+         * 清空已完成
+         */
+        "clearCompleted": string;
+        /**
+         * 删除待办
+         */
+        "deleteTask": string;
+    };
+    "_widgetPomodoro": {
+        /**
+         * 专注
+         */
+        "focus": string;
+        /**
+         * 休息
+         */
+        "rest": string;
+        /**
+         * 专注时长（分钟）
+         */
+        "focusDuration": string;
+        /**
+         * 休息时长（分钟）
+         */
+        "restDuration": string;
+        /**
+         * 开始
+         */
+        "start": string;
+        /**
+         * 暂停
+         */
+        "pause": string;
+        /**
+         * 继续
+         */
+        "resume": string;
+        /**
+         * 重置
+         */
+        "reset": string;
+        /**
+         * 已完成
+         */
+        "completed": string;
+        /**
+         * 准备专注
+         */
+        "readyFocus": string;
+        /**
+         * 准备休息
+         */
+        "readyRest": string;
+        /**
+         * 专注中
+         */
+        "focusing": string;
+        /**
+         * 休息中
+         */
+        "resting": string;
+        /**
+         * 已暂停
+         */
+        "paused": string;
+    };
+    "_widgetCountdown": {
+        /**
+         * 事项名称
+         */
+        "title": string;
+        /**
+         * 目标日期和时间
+         */
+        "targetDate": string;
+        /**
+         * 设置倒计时
+         */
+        "set": string;
+        /**
+         * 编辑倒计时
+         */
+        "edit": string;
+        /**
+         * 请设置倒计时目标
+         */
+        "empty": string;
+        /**
+         * 已到时间
+         */
+        "finished": string;
+        /**
+         * 请选择有效的日期和时间
+         */
+        "invalidDate": string;
+        /**
+         * 目标时间必须晚于当前时间
+         */
+        "futureDateRequired": string;
+    };
+    "_share": {
+        /**
+         * 分享到其他应用
+         */
+        "system": string;
+        /**
+         * 二维码
+         */
+        "qrCode": string;
+        /**
+         * 扫描二维码打开链接。
+         */
+        "qrCodeDescription": string;
+        /**
+         * 复制失败，请选中链接后手动复制。
+         */
+        "copyFailed": string;
+        /**
+         * 分享失败，请复制链接或尝试其他方式。
+         */
+        "shareFailed": string;
+        /**
+         * 分享链接不改变此帖的可见范围。
+         */
+        "restrictedNote": string;
+        /**
+         * 已复制
+         */
+        "copied": string;
+        /**
+         * 分享到
+         */
+        "shareTo": string;
+        /**
+         * 微信
+         */
+        "wechat": string;
+        /**
+         * QQ
+         */
+        "qq": string;
+        /**
+         * QQ空间
+         */
+        "qzone": string;
+        /**
+         * 微博
+         */
+        "weibo": string;
+        /**
+         * X
+         */
+        "x": string;
+        /**
+         * Telegram
+         */
+        "telegram": string;
+        /**
+         * Facebook
+         */
+        "facebook": string;
+        /**
+         * WhatsApp
+         */
+        "whatsapp": string;
+        /**
+         * 使用微信扫一扫，或保存图片后分享。
+         */
+        "wechatDescription": string;
+        /**
+         * 保存二维码
+         */
+        "saveQrCode": string;
+        /**
+         * 二维码生成失败，请复制链接或重试。
+         */
+        "qrCodeFailed": string;
+        /**
+         * 二维码保存失败，请重试。
+         */
+        "saveQrCodeFailed": string;
+        /**
+         * 内容复制失败，请重试。
+         */
+        "copyContentFailed": string;
+    };
+    "_emojiCategories": {
+        /**
+         * 表情与情感
+         */
+        "face": string;
+        /**
+         * 人物与身体
+         */
+        "people": string;
+        /**
+         * 动物与自然
+         */
+        "animals_and_nature": string;
+        /**
+         * 食物与饮料
+         */
+        "food_and_drink": string;
+        /**
+         * 活动
+         */
+        "activity": string;
+        /**
+         * 旅行与地点
+         */
+        "travel_and_places": string;
+        /**
+         * 物品
+         */
+        "objects": string;
+        /**
+         * 符号
+         */
+        "symbols": string;
+        /**
+         * 旗帜
+         */
+        "flags": string;
+    };
+    "_instanceStatus": {
+        /**
+         * 正常
+         */
+        "alive": string;
+        /**
+         * 已限制公开传播
+         */
+        "silenced": string;
+        /**
+         * 手动停止投递
+         */
+        "manuallySuspended": string;
+        /**
+         * 自动停止投递（已下线）
+         */
+        "autoSuspendedGone": string;
+        /**
+         * 自动停止投递（无响应）
+         */
+        "autoSuspendedNotResponding": string;
+    };
+    "_userStatus": {
+        /**
+         * 已冻结
+         */
+        "suspended": string;
+        /**
+         * 已限制公开发帖
+         */
+        "silenced": string;
+    };
+    "_apiConsole": {
+        /**
+         * API 控制台
+         */
+        "title": string;
+        /**
+         * 参数（JSON / JSON5）
+         */
+        "parameters": string;
+        /**
+         * 附带认证信息
+         */
+        "withCredential": string;
+        /**
+         * 响应
+         */
+        "response": string;
+    };
+    "_aiscript": {
+        /**
+         * 语法错误
+         */
+        "syntaxError": string;
+        /**
+         * AiScript 内部错误
+         */
+        "internalError": string;
+        /**
+         * AiScript 错误
+         */
+        "runtimeError": string;
+        /**
+         * 运行
+         */
+        "run": string;
+    };
+    "_serverStats": {
+        /**
+         * 逻辑核心数：{n}
+         */
+        "logicalCores": ParameterizedString<"n">;
+        /**
+         * 可用容量
+         */
+        "free": string;
+    };
+    "_statusbar": {
+        /**
+         * 黑色背景
+         */
+        "blackBackground": string;
+        /**
+         * 新闻
+         */
+        "news": string;
+        /**
+         * 列表时间线
+         */
+        "listTimeline": string;
+    };
+    "_avatarDecoration": {
+        /**
+         * 添加挂件
+         */
+        "new": string;
+        /**
+         * 缩放
+         */
+        "scale": string;
+        /**
+         * 挂件中间和头像之间有空隙或压住头像时调整，所有用户统一生效。
+         */
+        "scaleDescription": string;
+        /**
+         * 自动适配
+         */
+        "autoFit": string;
+        /**
+         * 已经贴合，无需调整
+         */
+        "autoFitted": string;
+        /**
+         * 未识别到环形挂件，请手动调整。
+         */
+        "autoFitUnsupported": string;
+        /**
+         * 无法读取挂件图片，请检查图片地址。
+         */
+        "autoFitFailed": string;
+    };
+    "_instanceInfo": {
+        /**
+         * 刷新元数据
+         */
+        "refreshMetadata": string;
+        /**
+         * 已请求刷新
+         */
+        "refreshRequested": string;
+    };
+    "_lookup": {
+        /**
+         * 请输入用户或帖子链接。
+         */
+        "unsupportedType": string;
+    };
+    "_adminUser": {
+        /**
+         * 性别
+         */
+        "gender": string;
+        /**
+         * 来自用户填写的“性别”资料；未填写时不作推断。
+         */
+        "genderDescription": string;
+        /**
+         * 年龄
+         */
+        "age": string;
+        /**
+         * 根据用户填写的生日计算。
+         */
+        "ageDescription": string;
+        /**
+         * 所在地
+         */
+        "location": string;
+        /**
+         * 公司 / 职位
+         */
+        "work": string;
+        /**
+         * 互动数据
+         */
+        "statistics": string;
+        /**
+         * 未填写
+         */
+        "notProvided": string;
+        /**
+         * 另有 {count} 项
+         */
+        "moreFields": ParameterizedString<"count">;
+        /**
+         * 显示首次记录该 IP 地址的时间。
+         */
+        "ipFirstSeenDescription": string;
+        /**
+         * 远程用户显示本站最近接收帖子的时间。
+         */
+        "lastPostedAtDescription": string;
+        /**
+         * 输入的用户名不匹配。
+         */
+        "confirmationMismatch": string;
+        /**
+         * 已解除两步验证
+         */
+        "mfaUnset": string;
+    };
+    "_externalServices": {
+        /**
+         * Measurement ID
+         */
+        "measurementId": string;
+        /**
+         * Auth Key
+         */
+        "authKey": string;
+        /**
+         * Pro 账户
+         */
+        "proAccount": string;
+    };
+    "_preview": {
+        /**
+         * 打开菜单
+         */
+        "openMenu": string;
+        /**
+         * 打开对话框
+         */
+        "openDialog": string;
+        /**
+         * 打开表单
+         */
+        "openForm": string;
+        /**
+         * 打开网盘
+         */
+        "openDrive": string;
     };
     "_queue": {
+        /**
+         * 已提交执行请求
+         */
+        "jobsPromoted": string;
+        /**
+         * 已暂停队列
+         */
+        "queuePaused": string;
+        /**
+         * 已恢复队列
+         */
+        "queueResumed": string;
+        /**
+         * 运行中
+         */
+        "queueRunning": string;
         /**
          * 全部
          */
@@ -16596,7 +17340,7 @@ export interface Locale extends ILocale {
          */
         "timeline": string;
         /**
-         * 错误
+         * 错误堆栈
          */
         "error": string;
         /**
@@ -16660,7 +17404,7 @@ export interface Locale extends ILocale {
          */
         "counts": ParameterizedString<"active" | "delayed" | "waiting">;
         /**
-         * 重复
+         * 周期任务
          */
         "repeat": string;
         "_types": {
@@ -16742,6 +17486,22 @@ export interface Locale extends ILocale {
          */
         "removeJobs": string;
         /**
+         * 搜索只筛选列表，不限制批量删除范围。请清空搜索后再批量删除，或逐项删除。
+         */
+        "clearSearchToDelete": string;
+        /**
+         * 将清除“{name}”队列中所有可清理的任务，包括列表未显示的任务。未完成的任务可能不再执行，确定清空吗？
+         */
+        "clearQueueConfirm": ParameterizedString<"name">;
+        /**
+         * 将清除“{name}”队列中所有“{state}”任务，不仅是当前显示的任务。未完成的任务可能不再执行，确定删除吗？
+         */
+        "removeJobsConfirm": ParameterizedString<"name" | "state">;
+        /**
+         * 操作已完成，但刷新队列失败，请刷新查看最新状态。
+         */
+        "operationQueueRefreshFailed": string;
+        /**
          * 出错的服务器
          */
         "erroredInstances": string;
@@ -16778,7 +17538,7 @@ export interface Locale extends ILocale {
          */
         "processedAt": string;
         /**
-         * 完成时间
+         * 结束时间
          */
         "finishedAt": string;
         /**
@@ -16806,7 +17566,7 @@ export interface Locale extends ILocale {
          */
         "data": string;
         /**
-         * 数据（编辑）
+         * 数据编辑
          */
         "dataEdit": string;
         /**
@@ -16822,7 +17582,59 @@ export interface Locale extends ILocale {
          */
         "loadLogs": string;
         /**
-         * 完成
+         * 暂无日志
+         */
+        "noLogs": string;
+        /**
+         * 任务未保存运行日志，或日志已被清理。可查看执行记录或错误堆栈。
+         */
+        "noLogsDescription": string;
+        /**
+         * 日志加载失败，请重试。
+         */
+        "logsLoadFailed": string;
+        /**
+         * 任务详情已刷新。
+         */
+        "refreshed": string;
+        /**
+         * 刷新失败，保留上次任务详情，请重试。
+         */
+        "refreshFailed": string;
+        /**
+         * 操作失败，请重试。
+         */
+        "operationFailed": string;
+        /**
+         * 操作已提交，但刷新详情失败，请刷新查看最新状态。
+         */
+        "operationRefreshFailed": string;
+        /**
+         * 复制失败，请重试或手动复制数据。
+         */
+        "copyFailed": string;
+        /**
+         * 返回任务列表
+         */
+        "backToJobs": string;
+        /**
+         * 队列状态已刷新。
+         */
+        "queueRefreshed": string;
+        /**
+         * 任务列表已刷新。
+         */
+        "jobsRefreshed": string;
+        /**
+         * 刷新失败，保留上次任务列表，请重试。
+         */
+        "jobsRefreshFailed": string;
+        /**
+         * 刷新失败，保留上次队列状态，请重试。
+         */
+        "queueRefreshFailed": string;
+        /**
+         * 结束
          */
         "eventFinished": string;
         /**
@@ -16842,27 +17654,275 @@ export interface Locale extends ILocale {
          */
         "atTime": string;
     };
-    "_instanceStatus": {
+    "_dashboard": {
         /**
-         * 正常
+         * 本地用户
          */
-        "alive": string;
+        "localUsers": string;
         /**
-         * 已限制公开传播
+         * 本站注册账户，不含已删除账户
          */
-        "silenced": string;
+        "localUsersHint": string;
         /**
-         * 手动停止投递
+         * 本地帖子
          */
-        "manuallySuspended": string;
+        "localNotes": string;
         /**
-         * 自动停止投递（已下线）
+         * 本站帖子，包含回复与转发
          */
-        "autoSuspendedGone": string;
+        "localNotesHint": string;
         /**
-         * 自动停止投递（无响应）
+         * 公开文章
          */
-        "autoSuspendedNotResponding": string;
+        "publicArticles": string;
+        /**
+         * 本站公开发布的文章
+         */
+        "publicArticlesHint": string;
+        /**
+         * 本地文件
+         */
+        "localFiles": string;
+        /**
+         * 本站上传记录，不含远程缓存
+         */
+        "localFilesHint": string;
+        /**
+         * 今日新增
+         */
+        "todayNew": string;
+        /**
+         * 从 {time} 起，按当前时区统计
+         */
+        "todaySince": ParameterizedString<"time">;
+        /**
+         * 在线用户
+         */
+        "onlineUsers": string;
+        /**
+         * 最近 10 分钟活跃的用户
+         */
+        "onlineUsersHint": string;
+        /**
+         * 用户活跃趋势
+         */
+        "activityTrend": string;
+        /**
+         * 发帖日历
+         */
+        "publishingCalendar": string;
+        /**
+         * 每天的本地发帖量
+         */
+        "dailyNotes": string;
+        /**
+         * 待处理事项
+         */
+        "pendingWork": string;
+        /**
+         * 未处理举报
+         */
+        "pendingReports": string;
+        /**
+         * 待跟进反馈
+         */
+        "pendingFeedback": string;
+        /**
+         * 待处理与处理中
+         */
+        "pendingFeedbackHint": string;
+        /**
+         * 站点配置
+         */
+        "siteConfiguration": string;
+        /**
+         * 开放注册
+         */
+        "openRegistration": string;
+        /**
+         * 邀请注册
+         */
+        "invitationOnly": string;
+        /**
+         * 本地存储
+         */
+        "localStorage": string;
+        /**
+         * 人机验证
+         */
+        "captcha": string;
+        /**
+         * 开放联邦
+         */
+        "federationAll": string;
+        /**
+         * 白名单联邦
+         */
+        "federationSpecified": string;
+        /**
+         * 联邦已关闭
+         */
+        "federationOff": string;
+        /**
+         * 联邦服务器
+         */
+        "remoteInstances": string;
+        /**
+         * 后台任务
+         */
+        "backgroundJobs": string;
+        /**
+         * 已暂停
+         */
+        "paused": string;
+        /**
+         * 运行环境
+         */
+        "runtime": string;
+        /**
+         * 处理器
+         */
+        "processor": string;
+        /**
+         * {n} 个逻辑处理器
+         */
+        "cpuCores": ParameterizedString<"n">;
+        /**
+         * 进程可用并行度：{n}
+         */
+        "cpuAvailable": ParameterizedString<"n">;
+        /**
+         * 系统内存
+         */
+        "memoryTotal": string;
+        /**
+         * 进程内存上限：{n}
+         */
+        "memoryLimit": ParameterizedString<"n">;
+        /**
+         * 当前工作进程内存
+         */
+        "workerMemory": string;
+        /**
+         * 操作系统
+         */
+        "operatingSystem": string;
+        /**
+         * 部分数据更新失败，可重试；已有数据会保留。
+         */
+        "refreshFailed": string;
+        /**
+         * 已用 {used} / {total}
+         */
+        "storageUsed": ParameterizedString<"used" | "total">;
+        /**
+         * 上传目录所在磁盘
+         */
+        "storageFilesystem": string;
+        /**
+         * 包含同一磁盘的其他文件，不代表站点文件或对象存储用量。
+         */
+        "storageFilesystemHint": string;
+        /**
+         * 延迟任务包含定时任务，不代表故障。
+         */
+        "queueHint": string;
+        /**
+         * 热力图
+         */
+        "heatmap": string;
+        /**
+         * 活跃用户热力图
+         */
+        "activeUsersHeatmap": string;
+        /**
+         * 留存率
+         */
+        "retentionRate": string;
+        /**
+         * 留存用户
+         */
+        "retained": string;
+        /**
+         * 关注与关注者
+         */
+        "followsAndFollowers": string;
+        /**
+         * 审核员
+         */
+        "moderators": string;
+        /**
+         * 新用户
+         */
+        "newUsers": string;
+        /**
+         * 暂无远程服务器记录。与其他站点产生联邦交互后，这里会显示相关服务器。
+         */
+        "noRemoteInstances": string;
+        /**
+         * ActivityPub 请求
+         */
+        "apRequests": string;
+        /**
+         * 投递队列
+         */
+        "deliverQueue": string;
+        /**
+         * 接收队列
+         */
+        "inboxQueue": string;
+        /**
+         * 注册后天数
+         */
+        "daysLater": string;
+        /**
+         * 注册后第 {n} 天
+         */
+        "nDaysLater": ParameterizedString<"n">;
+        /**
+         * 留存率 (%)
+         */
+        "retentionRateAxis": string;
+        /**
+         * 占比前 {n} 的服务器
+         */
+        "topN": ParameterizedString<"n">;
+        /**
+         * 浏览
+         */
+        "read": string;
+        /**
+         * 发帖
+         */
+        "write": string;
+        /**
+         * {n} 人
+         */
+        "peopleCount": ParameterizedString<"n">;
+        /**
+         * 发送：成功
+         */
+        "apOutSucceeded": string;
+        /**
+         * 发送：失败
+         */
+        "apOutFailed": string;
+        /**
+         * 接收
+         */
+        "apIn": string;
+        /**
+         * ActivityPub：接收
+         */
+        "apRequestsInboxReceived": string;
+        /**
+         * ActivityPub：投递成功
+         */
+        "apRequestsDeliverSucceeded": string;
+        /**
+         * ActivityPub：投递失败
+         */
+        "apRequestsDeliverFailed": string;
     };
     "_chartSeries": {
         /**
@@ -17002,619 +18062,2215 @@ export interface Locale extends ILocale {
          */
         "profileViews": string;
     };
-    /**
-     * 无效的 URL
-     */
-    "invalidUrl": string;
-    "_apiConsole": {
+    "_chatRedPacket": {
         /**
-         * API 控制台
+         * 当前群成员
          */
-        "title": string;
+        "audience": string;
         /**
-         * 参数（JSON / JSON5）
+         * 领取时在群内的成员均可领取，包括后加入的成员。
          */
-        "parameters": string;
-        /**
-         * 附带认证信息
-         */
-        "withCredential": string;
-        /**
-         * 响应
-         */
-        "response": string;
+        "eligibility": string;
     };
-    "_aiscript": {
-        /**
-         * 语法错误
-         */
-        "syntaxError": string;
-        /**
-         * AiScript 内部错误
-         */
-        "internalError": string;
-        /**
-         * AiScript 错误
-         */
-        "runtimeError": string;
-        /**
-         * 运行
-         */
-        "run": string;
-    };
-    "_serverStats": {
-        /**
-         * 逻辑核心数：{n}
-         */
-        "logicalCores": ParameterizedString<"n">;
-        /**
-         * 可用容量
-         */
-        "free": string;
-    };
-    /**
-     * 在 GitHub 上查看源代码
-     */
-    "viewSourceOnGitHub": string;
-    "_userStatus": {
-        /**
-         * 已冻结
-         */
-        "suspended": string;
-        /**
-         * 已限制公开发帖
-         */
-        "silenced": string;
-    };
-    "_adminUser": {
-        /**
-         * 显示首次记录该 IP 地址的时间。
-         */
-        "ipFirstSeenDescription": string;
-        /**
-         * 输入的用户名不匹配。
-         */
-        "confirmationMismatch": string;
-    };
-    "_statusbar": {
-        /**
-         * 黑色背景
-         */
-        "blackBackground": string;
-        /**
-         * 新闻
-         */
-        "news": string;
-        /**
-         * 列表时间线
-         */
-        "listTimeline": string;
-    };
-    "_avatarDecoration": {
-        /**
-         * 添加挂件
-         */
-        "new": string;
-    };
-    "_instanceInfo": {
-        /**
-         * 刷新元数据
-         */
-        "refreshMetadata": string;
-        /**
-         * 已请求刷新
-         */
-        "refreshRequested": string;
-    };
-    "_lookup": {
-        /**
-         * 请输入用户或帖子链接。
-         */
-        "unsupportedType": string;
-    };
-    /**
-     * 找不到角色
-     */
-    "roleNotFound": string;
-    "_emojiCategories": {
-        /**
-         * 表情与情感
-         */
-        "face": string;
-        /**
-         * 人物与身体
-         */
-        "people": string;
-        /**
-         * 动物与自然
-         */
-        "animals_and_nature": string;
-        /**
-         * 食物与饮料
-         */
-        "food_and_drink": string;
-        /**
-         * 活动
-         */
-        "activity": string;
-        /**
-         * 旅行与地点
-         */
-        "travel_and_places": string;
-        /**
-         * 物品
-         */
-        "objects": string;
-        /**
-         * 符号
-         */
-        "symbols": string;
-        /**
-         * 旗帜
-         */
-        "flags": string;
-    };
-    "_preview": {
-        /**
-         * 打开菜单
-         */
-        "openMenu": string;
-        /**
-         * 打开对话框
-         */
-        "openDialog": string;
-        /**
-         * 打开表单
-         */
-        "openForm": string;
-        /**
-         * 打开网盘
-         */
-        "openDrive": string;
-    };
-    "_welcome": {
-        /**
-         * 欢迎加入
-         */
-        "title": string;
-        /**
-         * 请阅读社区规则与使用指南。帮助页面提供管理员联系方式。
-         */
-        "notificationBody": string;
-        /**
-         * 阅读欢迎信
-         */
-        "readGuide": string;
-        /**
-         * 欢迎加入 {name}
-         */
-        "greeting": ParameterizedString<"name">;
-        /**
-         * 请先阅读社区规则和使用指南。需要帮助时，可在帮助页面查看管理员联系方式。
-         */
-        "introduction": string;
-        /**
-         * 使用指南
-         */
-        "userGuide": string;
-        /**
-         * 本消息由系统自动发送，请勿直接回复。
-         */
-        "systemNote": string;
-    };
-    "_checkin": {
-        /**
-         * 发放补签卡
-         */
-        "grantCards": string;
-        /**
-         * 选择本站用户并填写发放数量。补签卡会立即到账，操作将记录在管理日志中。
-         */
-        "grantDescription": string;
-        /**
-         * 读取用户签到余额失败，请重试。
-         */
-        "grantLoadFailed": string;
-        /**
-         * 发放概览
-         */
-        "grantOverview": string;
-        /**
-         * 累计发放
-         */
-        "grantTotal": string;
-        /**
-         * 获赠用户
-         */
-        "grantRecipients": string;
-        /**
-         * 累计使用
-         */
-        "cardsUsed": string;
-        /**
-         * 当前持有
-         */
-        "cardsHeld": string;
-        /**
-         * 积分兑换
-         */
-        "cardsExchanged": string;
-        /**
-         * 使用量统计包含签到奖励、积分兑换和管理员发放的所有补签卡。
-         */
-        "cardsUsageDescription": string;
-        /**
-         * 发放记录
-         */
-        "grantHistory": string;
-        /**
-         * 统计数据加载失败，请重试。
-         */
-        "grantDashboardLoadFailed": string;
-        /**
-         * 记录加载失败，请重试。
-         */
-        "grantHistoryLoadFailed": string;
-        /**
-         * 全部用户
-         */
-        "grantScopeAll": string;
-        /**
-         * 当前所选用户
-         */
-        "grantScopeSelected": string;
-        /**
-         * 接收用户
-         */
-        "grantRecipient": string;
-        /**
-         * 发放管理员
-         */
-        "grantOperator": string;
-        /**
-         * 余额变化
-         */
-        "grantBalanceChange": string;
-        /**
-         * 发放时间
-         */
-        "grantTime": string;
-        /**
-         * 发放次数
-         */
-        "grantCount": string;
-        /**
-         * 使用人数
-         */
-        "cardsUsedUsers": string;
-        /**
-         * 使用记录
-         */
-        "cardUseHistory": string;
-        /**
-         * 兑换记录
-         */
-        "cardExchangeHistory": string;
-        /**
-         * 用户统计
-         */
-        "cardUsers": string;
-        /**
-         * 补签卡数量
-         */
-        "cardsAmount": string;
-        /**
-         * 补签日期
-         */
-        "cardUseDate": string;
-        /**
-         * 消耗积分
-         */
-        "cardPointsSpent": string;
-        /**
-         * 暂无记录
-         */
-        "grantRecordsEmpty": string;
-        /**
-         * 第 {current} / {total} 页
-         */
-        "grantPage": ParameterizedString<"current" | "total">;
+    "_datePicker": {
         /**
          * 上一页
          */
-        "grantPreviousPage": string;
+        "previous": string;
         /**
          * 下一页
          */
-        "grantNextPage": string;
+        "next": string;
         /**
-         * 发放数量
+         * 选择年月
          */
-        "grantAmount": string;
+        "chooseMonthYear": string;
         /**
-         * 每次可发放 1～10,000 张。
+         * 选择日期和时间
          */
-        "grantAmountDescription": string;
+        "title": string;
         /**
-         * 已发放 {amount} 张补签卡。
+         * 日期
          */
-        "grantSucceeded": ParameterizedString<"amount">;
+        "date": string;
         /**
-         * 补签卡发放失败，请重试。
+         * 时
          */
-        "grantFailed": string;
+        "hour": string;
         /**
-         * 无法向该用户发放补签卡，请选择本站的普通账户。
+         * 分
          */
-        "grantNotAllowed": string;
+        "minute": string;
         /**
-         * 已超过补签卡持有上限，无法发放。
+         * 秒
          */
-        "cardLimitExceeded": string;
+        "second": string;
         /**
-         * 发放 {amount} 张（持有数：{before} 张 → {after} 张）
+         * 请输入允许范围内的有效日期和时间。
          */
-        "grantLogSummary": ParameterizedString<"amount" | "before" | "after">;
+        "invalid": string;
+    };
+    "_topics": {
         /**
-         * 收回 {amount} 张（持有数：{before} 张 → {after} 张）
+         * 只能添加一个话题。如需更换，请先移除当前话题。
          */
-        "revokeLogSummary": ParameterizedString<"amount" | "before" | "after">;
+        "singleLimit": string;
         /**
-         * 使用状态
+         * 话题
          */
-        "grantUsageStatus": string;
+        "title": string;
         /**
-         * 未使用
+         * 添加话题
          */
-        "grantUnused": string;
+        "add": string;
         /**
-         * 部分使用
+         * 搜索或输入话题
          */
-        "grantPartiallyUsed": string;
+        "search": string;
         /**
-         * 已使用
+         * 最近使用
          */
-        "grantUsed": string;
+        "recent": string;
         /**
-         * 已收回
+         * 热门话题
          */
-        "grantRevoked": string;
+        "trending": string;
         /**
-         * 历史记录（不可追溯）
+         * 搜索结果
          */
-        "grantLegacy": string;
+        "results": string;
         /**
-         * 可收回
+         * 暂无相关话题
          */
-        "grantRemaining": string;
+        "empty": string;
         /**
-         * 已使用
+         * 使用“{tag}”
          */
-        "grantUsedAmount": string;
+        "create": ParameterizedString<"tag">;
         /**
-         * 已收回
+         * 已添加
          */
-        "grantRevokedAmount": string;
+        "selected": string;
         /**
-         * 收回补签卡
+         * 移除话题“{tag}”
          */
-        "revokeCards": string;
+        "remove": ParameterizedString<"tag">;
         /**
-         * 收回 @{username} 尚未使用的 {amount} 张补签卡？已使用的补签卡不受影响。
+         * 选择已有话题，或输入新话题后按回车
          */
-        "revokeCardsConfirm": ParameterizedString<"username" | "amount">;
+        "hint": string;
         /**
-         * 已收回 {amount} 张补签卡。
+         * 话题不能包含空格或特殊符号，最多 128 个字符
          */
-        "revokeCardsSucceeded": ParameterizedString<"amount">;
+        "invalid": string;
         /**
-         * 补签卡收回失败，请重试。
+         * 最多添加 32 个话题
          */
-        "revokeCardsFailed": string;
+        "limit": string;
         /**
-         * 这些补签卡已被使用或收回，请刷新后重试。
+         * 搜索失败，可重试或直接添加
          */
-        "revokeCardsUnavailable": string;
+        "searchFailed": string;
         /**
-         * 历史发放记录无法确认具体使用情况，不支持收回。
+         * 重试
          */
-        "grantLegacyDescription": string;
-        "_history": {
+        "retry": string;
+    };
+    "_redPacket": {
+        /**
+         * 拼手气红包
+         */
+        "luckyPacket": string;
+        /**
+         * 普通红包
+         */
+        "ordinaryPacket": string;
+        /**
+         * 专属红包
+         */
+        "exclusivePacket": string;
+        /**
+         * 选择领取人
+         */
+        "selectRecipient": string;
+        /**
+         * 口令红包
+         */
+        "passwordPacket": string;
+        /**
+         * 口令
+         */
+        "password": string;
+        /**
+         * 发送正确口令后才能领取红包。
+         */
+        "passwordRequired": string;
+        /**
+         * 口令需为1至18个字，仅限聊天红包。
+         */
+        "passwordInvalid": string;
+        /**
+         * 恭喜发财，好运常在
+         */
+        "passwordDefault": string;
+        /**
+         * 随机生成祝福口令
+         */
+        "randomPassword": string;
+        "_passwordGreetings": {
             /**
-             * 我的补签卡记录
+             * 恭喜发财，好运常在
+             */
+            "fortune": string;
+            /**
+             * 心想事成，万事如意
+             */
+            "wishes": string;
+            /**
+             * 平安喜乐，万事胜意
+             */
+            "peace": string;
+            /**
+             * 愿你日日欢喜，事事顺心
+             */
+            "happiness": string;
+            /**
+             * 前程似锦，步步高升
+             */
+            "success": string;
+            /**
+             * 身体健康，笑口常开
+             */
+            "health": string;
+            /**
+             * 所愿皆所得，所行皆坦途
+             */
+            "dreams": string;
+            /**
+             * 好运连连，惊喜不断
+             */
+            "luck": string;
+        };
+        /**
+         * 填写个数
+         */
+        "countPlaceholder": string;
+        /**
+         * 本群{count}人
+         */
+        "roomMembers": ParameterizedString<"count">;
+        /**
+         * 红包封面
+         */
+        "packetOptions": string;
+        /**
+         * 总金额
+         */
+        "totalAmount": string;
+        /**
+         * 金额
+         */
+        "amount": string;
+        /**
+         * 单个金额
+         */
+        "eachAmount": string;
+        /**
+         * 发红包
+         */
+        "placeCoins": string;
+        /**
+         * 已领取口令红包，{coins}积分已到账
+         */
+        "passwordReceived": ParameterizedString<"coins">;
+        /**
+         * 发出
+         */
+        "sentShort": string;
+        /**
+         * 收到
+         */
+        "receivedShort": string;
+        /**
+         * 待领取
+         */
+        "claimableShort": string;
+        /**
+         * 已领取
+         */
+        "claimedShort": string;
+        /**
+         * 预约红包
+         */
+        "schedule": string;
+        /**
+         * 生效时间
+         */
+        "startsAt": string;
+        /**
+         * 有效时长（小时）
+         */
+        "validDuration": string;
+        /**
+         * 待生效
+         */
+        "scheduled": string;
+        /**
+         * 未使用的封面删除失败。请再次关闭以重试，下次打开红包窗口时也会重试。
+         */
+        "coverCleanupFailed": string;
+        /**
+         * 一对一
+         */
+        "direct": string;
+        /**
+         * 仅指定用户可领取。
+         */
+        "singleRecipientOnly": string;
+        /**
+         * 每人金额（积分）
+         */
+        "amountPerPerson": string;
+        /**
+         * 红包生效后{hours}小时内可领，剩余金额到期自动退回。
+         */
+        "shortRefund": ParameterizedString<"hours">;
+        /**
+         * 红包
+         */
+        "title": string;
+        /**
+         * 恭喜发财 大吉大利
+         */
+        "defaultMessage": string;
+        /**
+         * 红包类型
+         */
+        "mode": string;
+        /**
+         * 随机金额
+         */
+        "random": string;
+        /**
+         * 固定金额
+         */
+        "equal": string;
+        /**
+         * 总金额（积分）
+         */
+        "totalCoins": string;
+        /**
+         * 红包个数
+         */
+        "count": string;
+        /**
+         * 祝福语
+         */
+        "message": string;
+        /**
+         * 祝福语最多 {count} 个字
+         */
+        "messageLimit": ParameterizedString<"count">;
+        /**
+         * 截止时间
+         */
+        "expiresAt": string;
+        /**
+         * {coins}积分
+         */
+        "coins": ParameterizedString<"coins">;
+        /**
+         * 每人{coins}积分
+         */
+        "eachCoins": ParameterizedString<"coins">;
+        /**
+         * 发放本站积分。附带红包的帖子不会发送到其他服务器，仅可见范围内的本站用户可领取。
+         */
+        "localOnlyDescription": string;
+        /**
+         * 每人限领一次，发送者不可领取。剩余金额到期自动退回，删除帖子或消息不改变有效期。
+         */
+        "refundDescription": string;
+        /**
+         * 创建前的草稿不扣积分。已创建的红包保留在记录中，不支持云端草稿和定时发布。
+         */
+        "draftDescription": string;
+        /**
+         * 红包个数不能超过领取对象的人数。
+         */
+        "tooManyRecipients": string;
+        /**
+         * 红包个数须为1至100的整数。
+         */
+        "invalidCount": string;
+        /**
+         * 红包总额须为1至1000积分，最多两位小数，每份至少0.01。
+         */
+        "invalidCoins": string;
+        /**
+         * 固定红包须能按0.01积分均分，请调整总额或个数。
+         */
+        "equalNotDivisible": string;
+        /**
+         * 请检查红包类型、有效期和祝福语，祝福语不能超过18字。
+         */
+        "invalidDraft": string;
+        /**
+         * 可用积分不足。
+         */
+        "insufficientCoins": string;
+        /**
+         * 待领取
+         */
+        "active": string;
+        /**
+         * 已领完
+         */
+        "exhausted": string;
+        /**
+         * 已过期
+         */
+        "expired": string;
+        /**
+         * 已撤销
+         */
+        "cancelled": string;
+        /**
+         * 领取红包
+         */
+        "claim": string;
+        /**
+         * 已领取此红包。
+         */
+        "alreadyClaimed": string;
+        /**
+         * 已领取 {coins} 积分。
+         */
+        "receivedCoins": ParameterizedString<"coins">;
+        /**
+         * 已领取{claimed}/{count}个 · 共{coins}积分
+         */
+        "progress": ParameterizedString<"claimed" | "count" | "coins">;
+        /**
+         * 已退回{coins}积分
+         */
+        "refunded": ParameterizedString<"coins">;
+        /**
+         * 登录后即可领取红包。
+         */
+        "signinRequired": string;
+        /**
+         * 领取记录
+         */
+        "claims": string;
+        /**
+         * 暂无领取记录。
+         */
+        "noClaims": string;
+        /**
+         * 红包不存在或无法查看。
+         */
+        "unavailable": string;
+        /**
+         * 此账户无法领取该红包。
+         */
+        "notAllowed": string;
+        /**
+         * 操作失败，请重试。
+         */
+        "operationFailed": string;
+        /**
+         * 该请求已发送或内容已变更，请查看红包记录。
+         */
+        "requestConflict": string;
+        /**
+         * 红包记录
+         */
+        "history": string;
+        /**
+         * 待领取的红包
+         */
+        "claimable": string;
+        /**
+         * 向{target}发送{coins}积分的红包？
+         */
+        "confirmDirect": ParameterizedString<"target" | "coins">;
+        /**
+         * 用户ID：{id}
+         */
+        "recipientId": ParameterizedString<"id">;
+        /**
+         * 领取对象{number}
+         */
+        "recipientNumber": ParameterizedString<"number">;
+        /**
+         * 领取对象
+         */
+        "recipients": string;
+        /**
+         * 领取范围
+         */
+        "audience": string;
+        /**
+         * 本站用户
+         */
+        "publicAudience": string;
+        /**
+         * 指定用户
+         */
+        "selectedAudience": string;
+        /**
+         * 发送时指定的用户或群成员
+         */
+        "fixedAudience": string;
+        /**
+         * 发出的红包
+         */
+        "sent": string;
+        /**
+         * 收到的红包
+         */
+        "received": string;
+        /**
+         * 暂无红包记录。
+         */
+        "empty": string;
+        /**
+         * 可以从帖子发布框发送红包。
+         */
+        "historyDescription": string;
+        /**
+         * 查看帖子
+         */
+        "openNote": string;
+        /**
+         * 恢复红包草稿
+         */
+        "restoreDraft": string;
+        /**
+         * 丢弃红包草稿
+         */
+        "discardDraft": string;
+        /**
+         * 已发布红包的金额、个数和有效期无法修改。编辑帖子不会重复扣款。
+         */
+        "existingPacket": string;
+        /**
+         * 已保存上次发送的内容，可以重试同一个红包。
+         */
+        "retryPending": string;
+        /**
+         * 从钱包扣除{coins}积分，创建{count}个红包？
+         */
+        "confirmSend": ParameterizedString<"coins" | "count">;
+        /**
+         * 创建红包
+         */
+        "create": string;
+        /**
+         * 已创建的红包
+         */
+        "created": string;
+        /**
+         * 查看收发记录和待领取的红包。删除帖子或消息后，红包仍按原有效期结算。
+         */
+        "recoverDescription": string;
+        /**
+         * 附加到帖子
+         */
+        "attachToNote": string;
+        /**
+         * 取消未发送的红包
+         */
+        "cancelUnsent": string;
+        /**
+         * 创建时已扣除积分，发布或发送时不会再次扣款。
+         */
+        "createdDescription": string;
+        /**
+         * 创建时从钱包扣除积分，之后可附到帖子或聊天中发送。
+         */
+        "createDescription": string;
+        /**
+         * 删除红包？未领取金额立即退回，所有位置同步失效；已领取金额和流水保留。
+         */
+        "cancelCreated": string;
+        /**
+         * 红包封面
+         */
+        "cover": string;
+        /**
+         * 上传封面
+         */
+        "uploadCover": string;
+        /**
+         * 使用默认封面
+         */
+        "resetCover": string;
+        /**
+         * 请选择未标记为敏感内容的 JPG、PNG、WebP、AVIF 或 GIF 图片
+         */
+        "coverImageOnly": string;
+        /**
+         * 经典红
+         */
+        "coverClassic": string;
+        /**
+         * 幸运
+         */
+        "coverLucky": string;
+        /**
+         * 夕阳
+         */
+        "coverSunset": string;
+        /**
+         * 红包删除失败，请重试。可在钱包记录中查看红包状态。
+         */
+        "cancelFailed": string;
+        /**
+         * 上次的红包已发送或已结束，可在钱包中查看，也可以创建新红包。
+         */
+        "alreadySentOrEnded": string;
+        /**
+         * 已恢复创建的红包，不会重复扣款。
+         */
+        "createdPending": string;
+        /**
+         * 已注销用户
+         */
+        "deletedUser": string;
+        /**
+         * 暂时无法确认发送结果，已保留草稿。重试不会重复扣款。
+         */
+        "pendingLocked": string;
+        /**
+         * 的红包
+         */
+        "senderSuffix": string;
+        /**
+         * 发的专属红包
+         */
+        "exclusiveSenderSuffix": string;
+        /**
+         * 仅{name}可以领
+         */
+        "recipientOnly": ParameterizedString<"name">;
+        /**
+         * 查看领取详情
+         */
+        "viewClaimDetails": string;
+        /**
+         * 拼
+         */
+        "luckBadge": string;
+        /**
+         * 开
+         */
+        "openSeal": string;
+        /**
+         * 手慢了，红包派完了
+         */
+        "allGone": string;
+        /**
+         * 共 {coins} 积分
+         */
+        "summaryTotal": ParameterizedString<"coins">;
+        /**
+         * {claimed} / {count} 个
+         */
+        "summaryCount": ParameterizedString<"claimed" | "count">;
+    };
+    "_tip": {
+        /**
+         * 打赏
+         */
+        "title": string;
+        /**
+         * 《{title}》
+         */
+        "titleWithTarget": ParameterizedString<"title">;
+        /**
+         * 已打赏 {count} 人次 · 已点赞 {likes} 次 · 共 {coins} 积分 · 我的积分 {balance}
+         */
+        "stats": ParameterizedString<"count" | "likes" | "coins" | "balance">;
+        /**
+         * 打赏给
+         */
+        "recipient": string;
+        /**
+         * 自定义金额
+         */
+        "amount": string;
+        /**
+         * 选择金额
+         */
+        "quickAmounts": string;
+        /**
+         * 觉得不错，打赏支持一下
+         */
+        "prompt": string;
+        /**
+         * {coins} 积分
+         */
+        "presetAmount": ParameterizedString<"coins">;
+        /**
+         * 可用余额：{coins} 积分
+         */
+        "balance": ParameterizedString<"coins">;
+        /**
+         * 打赏留言
+         */
+        "message": string;
+        /**
+         * 未留言
+         */
+        "noMessage": string;
+        /**
+         * 要不要说点什么
+         */
+        "messageHint": string;
+        /**
+         * 单笔金额 1 至 1000 积分，最多两位小数。
+         */
+        "amountRule": string;
+        /**
+         * 打赏将直接到账且无法撤销，记录会公开昵称、金额和留言。
+         */
+        "description": string;
+        /**
+         * 确认打赏
+         */
+        "send": string;
+        /**
+         * 向 {target} 打赏 {coins} 积分？确认后直接到账，无法撤销。
+         */
+        "confirm": ParameterizedString<"target" | "coins">;
+        /**
+         * 暂时无法确认打赏结果，已保留金额和留言。重试不会重复扣款。
+         */
+        "pending": string;
+        /**
+         * 无法保存打赏请求，请检查浏览器存储后重试。
+         */
+        "saveFailed": string;
+        /**
+         * 打赏金额须为 1 至 1000 积分，最多两位小数。
+         */
+        "invalidAmount": string;
+        /**
+         * 当前账号或对方账号受限，或双方存在拉黑关系，无法打赏。
+         */
+        "notAllowed": string;
+        /**
+         * 打赏信息有误，请检查金额是否为 1 至 1000 积分、最多两位小数，留言是否超过 18 个字。
+         */
+        "invalidInput": string;
+        /**
+         * 对方账号不存在或已注销，无法打赏。
+         */
+        "userUnavailable": string;
+        /**
+         * 对方钱包余额已达上限，无法接收这笔打赏。
+         */
+        "recipientBalanceLimit": string;
+        /**
+         * 打赏操作过于频繁，请稍后再试。
+         */
+        "tooFrequent": string;
+        /**
+         * 登录已失效，请重新登录后再打赏。
+         */
+        "signinRequired": string;
+        /**
+         * 当前账号无权打赏，请检查账号状态或使用的访问权限。
+         */
+        "accountRestricted": string;
+        /**
+         * 服务器处理打赏时出错，暂时无法确认是否到账。
+         */
+        "serverError": string;
+        /**
+         * 网络请求失败，暂时无法确认打赏结果。请检查网络后重试。
+         */
+        "networkError": string;
+        /**
+         * 未收到服务器的有效确认，暂时无法确定打赏是否到账。
+         */
+        "responseUnavailable": string;
+        /**
+         * 打赏结果未确认，错误代码：{code}。请稍后重试；若仍失败，请联系管理员。
+         */
+        "unknownError": ParameterizedString<"code">;
+        /**
+         * 打赏已到账。
+         */
+        "sent": string;
+        /**
+         * 打赏内容：{title}
+         */
+        "target": ParameterizedString<"title">;
+        /**
+         * 内容不存在或无法查看，不能打赏。
+         */
+        "targetUnavailable": string;
+        /**
+         * 打赏记录公开昵称、金额和留言；弹幕仅显示昵称和金额。
+         */
+        "publicRecord": string;
+        /**
+         * 打赏记录
+         */
+        "history": string;
+        /**
+         * 打赏记录（{n}）
+         */
+        "historyWithCount": ParameterizedString<"n">;
+        /**
+         * 还有 {n} 位打赏者，查看全部
+         */
+        "moreSupporters": ParameterizedString<"n">;
+        /**
+         * 还没有人打赏
+         */
+        "empty": string;
+        /**
+         * 打赏弹幕
+         */
+        "barrage": string;
+        /**
+         * 打赏记录加载失败。
+         */
+        "historyFailed": string;
+        /**
+         * {count} 次打赏 · 共 {coins} 积分
+         */
+        "summary": ParameterizedString<"count" | "coins">;
+        /**
+         * 打赏 {coins} 积分
+         */
+        "record": ParameterizedString<"coins">;
+        /**
+         * {name} 打赏 {coins} 积分
+         */
+        "supporter": ParameterizedString<"name" | "coins">;
+        /**
+         * 关闭弹幕
+         */
+        "hideBarrage": string;
+        /**
+         * 开启弹幕
+         */
+        "showBarrage": string;
+        /**
+         * 已注销用户
+         */
+        "deletedUser": string;
+    };
+    "_management": {
+        /**
+         * 管理
+         */
+        "title": string;
+        /**
+         * 商品管理
+         */
+        "products": string;
+        /**
+         * 订单管理
+         */
+        "orders": string;
+        /**
+         * 平台管理
+         */
+        "platform": string;
+    };
+    "_payments": {
+        /**
+         * 支付设置
+         */
+        "title": string;
+        /**
+         * 平台抽成费率
+         */
+        "feeRate": string;
+        /**
+         * 以百分比填写，最多保留两位小数。新费率仅对后续成交订单生效。
+         */
+        "feeRateHint": string;
+        /**
+         * 当前平台费率 {rate}%，费用按 0.01 积分计算；实收以成交时的费率为准。
+         */
+        "sellerFeeHint": ParameterizedString<"rate">;
+        /**
+         * 平台费率加载失败，请重试。
+         */
+        "publicLoadFailed": string;
+        /**
+         * 请输入 0 到 100 之间、最多两位小数的费率。
+         */
+        "invalidRate": string;
+        /**
+         * 平台余额
+         */
+        "platformBalance": string;
+        /**
+         * 支付设置加载失败，请重试。
+         */
+        "loadFailed": string;
+        /**
+         * 支付设置保存失败，请重试。
+         */
+        "saveFailed": string;
+        /**
+         * 订单总额
+         */
+        "orderTotal": string;
+        /**
+         * 平台费用
+         */
+        "platformFee": string;
+        /**
+         * 实收积分
+         */
+        "sellerAmount": string;
+        /**
+         * 平台暂时无法处理收款，请稍后重试。
+         */
+        "platformBalanceLimit": string;
+    };
+    "_marketplace": {
+        /**
+         * 发布商品
+         */
+        "publishProduct": string;
+        /**
+         * 我的商品
+         */
+        "myProducts": string;
+        /**
+         * 编辑商品
+         */
+        "editProduct": string;
+        /**
+         * 销售订单
+         */
+        "sales": string;
+        /**
+         * 卖家
+         */
+        "seller": string;
+        /**
+         * 买家
+         */
+        "buyer": string;
+        /**
+         * 卖家账户不可用
+         */
+        "unavailableSeller": string;
+        /**
+         * 自己的商品
+         */
+        "ownProduct": string;
+        /**
+         * 还没有发布商品。
+         */
+        "myProductsEmpty": string;
+        /**
+         * 商品加载失败，请重试。
+         */
+        "myProductsLoadFailed": string;
+        /**
+         * 还没有售出记录。
+         */
+        "noSales": string;
+        /**
+         * 商品已发布。
+         */
+        "publishSuccess": string;
+        /**
+         * 保存失败，请重试。
+         */
+        "productSaveFailed": string;
+        /**
+         * 发布的商品已达到数量上限。
+         */
+        "productLimit": string;
+        /**
+         * 商品已在其他页面更新，请刷新后重新编辑。
+         */
+        "productChanged": string;
+        /**
+         * 刷新并放弃未保存的修改？
+         */
+        "reloadProductConfirm": string;
+        /**
+         * 商品不存在，或不属于当前账户。
+         */
+        "productNotEditable": string;
+        /**
+         * 上次发布结果尚未确认。重试会恢复同一商品，不会重复发布。
+         */
+        "publishPending": string;
+        /**
+         * 重试本次发布
+         */
+        "retryPublish": string;
+        /**
+         * 无法读取或保存发布请求，请检查浏览器存储权限后重试。
+         */
+        "publishStorageFailed": string;
+        /**
+         * 限购设置
+         */
+        "purchaseLimit": string;
+        /**
+         * 不限购
+         */
+        "noPurchaseLimit": string;
+        /**
+         * 限购
+         */
+        "withPurchaseLimit": string;
+        /**
+         * 每人累计限购 {count} 件
+         */
+        "cumulativeLimit": ParameterizedString<"count">;
+        /**
+         * 还可购买
+         */
+        "remainingAllowance": string;
+        /**
+         * 每件计一次，按每人历史购买数量累计，可一次或分次购买。
+         */
+        "limitHint": string;
+        /**
+         * 兑换码（CDK）
+         */
+        "redemptionCode": string;
+        /**
+         * 复制兑换码
+         */
+        "copyCode": string;
+        /**
+         * 此兑换码对应本单全部商品，联系卖家领取时使用。
+         */
+        "redemptionCodeHint": string;
+        /**
+         * 订单详情
+         */
+        "orderDetails": string;
+        /**
+         * 卖家的积分余额已达上限，暂时无法购买。
+         */
+        "sellerBalanceLimit": string;
+        /**
+         * 当前无法购买此商品。
+         */
+        "purchaseNotAllowed": string;
+        /**
+         * 上架销售
+         */
+        "onSale": string;
+        /**
+         * 商品名称
+         */
+        "productName": string;
+        /**
+         * 商品说明
+         */
+        "productDescription": string;
+        /**
+         * 商品单价
+         */
+        "productPrice": string;
+        /**
+         * 请检查商品名称、价格、图片地址和数量；上架前需填写交付说明。
+         */
+        "invalidSettings": string;
+        /**
+         * 查看 {name}
+         */
+        "viewProduct": ParameterizedString<"name">;
+        /**
+         * 商品信息已更新，请重新查看后确认购买。
+         */
+        "priceChanged": string;
+        /**
+         * 该商品已下架，请选择其他商品。
+         */
+        "unavailable": string;
+        /**
+         * 未上架
+         */
+        "offSale": string;
+        /**
+         * 商品类型
+         */
+        "productType": string;
+        /**
+         * 实物
+         */
+        "physicalType": string;
+        /**
+         * 虚拟商品
+         */
+        "virtualType": string;
+        /**
+         * 商品分类
+         */
+        "categoryLabel": string;
+        /**
+         * 计量单位
+         */
+        "unitLabel": string;
+        /**
+         * 份
+         */
+        "defaultUnit": string;
+        /**
+         * 商品图片地址
+         */
+        "coverUrl": string;
+        /**
+         * 图片独立存储，不占网盘空间；也可导入网盘图片或 HTTP/HTTPS 图片地址。留空使用商品类型图案。
+         */
+        "coverHint": string;
+        /**
+         * 选择商品图片
+         */
+        "chooseCover": string;
+        /**
+         * 更换图片
+         */
+        "replaceCover": string;
+        /**
+         * 移除图片
+         */
+        "removeCover": string;
+        /**
+         * 请选择有效的图片文件。
+         */
+        "imageOnly": string;
+        /**
+         * 保存成功后删除旧商品图片，不影响原网盘文件。
+         */
+        "coverReplaceHint": string;
+        /**
+         * 每人累计限购数量
+         */
+        "perUserLimit": string;
+        /**
+         * 可售总量
+         */
+        "stockLimit": string;
+        /**
+         * 库存
+         */
+        "stock": string;
+        /**
+         * 不限量
+         */
+        "unlimitedStock": string;
+        /**
+         * 0 表示不限量；填写可售总量，包含已售出部分。
+         */
+        "stockHint": string;
+        /**
+         * 付款后发送的交付内容
+         */
+        "deliveryContent": string;
+        /**
+         * 领取与配送说明
+         */
+        "physicalDeliveryContent": string;
+        /**
+         * 填写购买后的领取步骤或联系方法；配送范围、费用和时间请在商品说明中写明。
+         */
+        "physicalDeliveryHint": string;
+        /**
+         * 可填写领取方法、内容或链接，付款后发送给购买者并保存到订单。每笔订单另有独立兑换码，此处内容会发给所有购买者。
+         */
+        "deliveryHint": string;
+        /**
+         * 全部商品
+         */
+        "allProducts": string;
+        /**
+         * 集市订单
+         */
+        "orders": string;
+        /**
+         * 订单号
+         */
+        "orderNumber": string;
+        /**
+         * 还没有购买记录。
+         */
+        "noOrders": string;
+        /**
+         * 交付说明
+         */
+        "physicalDelivery": string;
+        /**
+         * 交付内容
+         */
+        "deliveredContent": string;
+        /**
+         * 自动发货
+         */
+        "automaticDelivery": string;
+        /**
+         * 交付内容暂时无法显示，请联系卖家并提供订单号，不要重复购买。
+         */
+        "deliveryUnavailable": string;
+        /**
+         * 已售罄
+         */
+        "soldOut": string;
+        /**
+         * 已达限购
+         */
+        "reachedLimit": string;
+        /**
+         * 每人限购 {count} 件
+         */
+        "limited": ParameterizedString<"count">;
+        /**
+         * 剩余 {count} 件
+         */
+        "stockRemaining": ParameterizedString<"count">;
+        /**
+         * 数量超过当前库存或限购额度，请调整后重试。
+         */
+        "limitExceeded": string;
+        /**
+         * 购买成功。
+         */
+        "redeemSuccess": string;
+        /**
+         * 重试本次购买
+         */
+        "retryPurchase": string;
+        /**
+         * 尚未确认上次购买结果。请重试本次购买，不会重复扣款。
+         */
+        "pendingResult": string;
+        /**
+         * {name} × {quantity}，合计 {amount} 积分
+         */
+        "pendingSummary": ParameterizedString<"name" | "quantity" | "amount">;
+        /**
+         * 无法保存或读取购买请求，已暂停新购买。请检查浏览器存储权限后重试；不要清除未确认的请求。
+         */
+        "requestStorageFailed": string;
+        /**
+         * 当前环境无法安全提交，请使用新版浏览器并通过 HTTPS 访问。
+         */
+        "securePurchaseUnavailable": string;
+        /**
+         * 本次请求与此前的操作不一致，请查看已有商品或订单，不要重复提交。
+         */
+        "requestConflict": string;
+        /**
+         * 暂无商品
+         */
+        "emptyTitle": string;
+        /**
+         * 订单加载失败，请重试。
+         */
+        "orderLoadFailed": string;
+        /**
+         * 购买 {quantity} 件，共 {amount} 积分。
+         */
+        "confirmProduct": ParameterizedString<"quantity" | "amount">;
+        /**
+         * 实付积分
+         */
+        "pointsRedemption": string;
+        /**
+         * 可用积分
+         */
+        "balance": string;
+        /**
+         * 积分
+         */
+        "pointUnit": string;
+        /**
+         * 每{unit}
+         */
+        "pricePerUnit": ParameterizedString<"unit">;
+        /**
+         * 搜索商品
+         */
+        "search": string;
+        /**
+         * 默认排序
+         */
+        "defaultSort": string;
+        /**
+         * 最新
+         */
+        "latest": string;
+        /**
+         * 价格
+         */
+        "sortPrice": string;
+        /**
+         * 价格从低到高
+         */
+        "priceAsc": string;
+        /**
+         * 价格从高到低
+         */
+        "priceDesc": string;
+        /**
+         * 更多分类
+         */
+        "moreCategories": string;
+        /**
+         * 没有找到符合条件的商品。
+         */
+        "noResults": string;
+        /**
+         * 清除筛选
+         */
+        "clearFilters": string;
+        /**
+         * 立即购买
+         */
+        "redeemNow": string;
+        /**
+         * 集市
+         */
+        "title": string;
+        /**
+         * 购买数量
+         */
+        "quantity": string;
+        /**
+         * 减少购买数量
+         */
+        "decrease": string;
+        /**
+         * 增加购买数量
+         */
+        "increase": string;
+        /**
+         * 合计：{amount}
+         */
+        "total": ParameterizedString<"amount">;
+        /**
+         * 购买失败，请稍后重试。
+         */
+        "purchaseFailed": string;
+        /**
+         * 余额不足
+         */
+        "insufficientPoints": string;
+        /**
+         * 集市加载失败，请重试。
+         */
+        "loadFailed": string;
+    };
+    "_drive": {
+        /**
+         * {files} 个文件 · {folders} 个文件夹
+         */
+        "folderInfo": ParameterizedString<"files" | "folders">;
+        /**
+         * 收起
+         */
+        "collapse": string;
+        /**
+         * 展开
+         */
+        "expandGroup": string;
+    };
+    "_wallet": {
+        /**
+         * 积分
+         */
+        "title": string;
+        /**
+         * 积分概览
+         */
+        "overview": string;
+        /**
+         * 积分摘要
+         */
+        "summary": string;
+        /**
+         * 近期流水
+         */
+        "recentActivity": string;
+        /**
+         * 期间收入
+         */
+        "periodIncome": string;
+        /**
+         * 期间支出
+         */
+        "periodExpense": string;
+        /**
+         * 收支趋势
+         */
+        "flowTrend": string;
+        /**
+         * 余额走势
+         */
+        "balanceTrend": string;
+        /**
+         * 收支构成
+         */
+        "breakdown": string;
+        /**
+         * 收入
+         */
+        "income": string;
+        /**
+         * 支出
+         */
+        "expense": string;
+        /**
+         * 净流入
+         */
+        "netFlow": string;
+        /**
+         * 期间暂无收入
+         */
+        "noIncome": string;
+        /**
+         * 期间暂无支出
+         */
+        "noExpense": string;
+        /**
+         * 统计加载失败
+         */
+        "statsFailed": string;
+        /**
+         * 近 {days} 天收入 {income}，支出 {expense}
+         */
+        "flowSummary": ParameterizedString<"days" | "income" | "expense">;
+        /**
+         * 近 {days} 天余额从 {from} 变为 {to}
+         */
+        "balanceSummary": ParameterizedString<"days" | "from" | "to">;
+        "_ranges": {
+            /**
+             * 近 7 天
+             */
+            "7": string;
+            /**
+             * 近 30 天
+             */
+            "30": string;
+            /**
+             * 近 90 天
+             */
+            "90": string;
+        };
+        /**
+         * 收支明细
+         */
+        "transactions": string;
+        /**
+         * 业务单号
+         */
+        "columnRelatedId": string;
+        /**
+         * 创建时间
+         */
+        "columnCreatedAt": string;
+        /**
+         * 交易时间
+         */
+        "columnTransactedAt": string;
+        /**
+         * 到期时间
+         */
+        "columnExpiresAt": string;
+        /**
+         * 账户：{account}
+         */
+        "flowAccount": ParameterizedString<"account">;
+        /**
+         * ID：{id}
+         */
+        "flowId": ParameterizedString<"id">;
+        /**
+         * 交易后余额
+         */
+        "columnBalance": string;
+        /**
+         * 冻结变动
+         */
+        "columnReserved": string;
+        /**
+         * 冻结积分余额
+         */
+        "columnReservedBalance": string;
+        /**
+         * 未知用户
+         */
+        "unknownUser": string;
+        /**
+         * 积分可用于红包、打赏和转账等社区功能。
+         */
+        "description": string;
+        /**
+         * 可用积分
+         */
+        "balance": string;
+        /**
+         * 冻结积分
+         */
+        "reservedBalance": string;
+        /**
+         * 可用积分
+         */
+        "points": string;
+        /**
+         * 积分兑换（已停用）
+         */
+        "exchange": string;
+        /**
+         * 积分账户已经统一，不再提供兑换功能。
+         */
+        "exchangeDescription": string;
+        /**
+         * 积分兑换已停用
+         */
+        "exchangeRate": string;
+        /**
+         * 积分兑换已停用
+         */
+        "pointsPerCoin": string;
+        /**
+         * 积分兑换已停用。
+         */
+        "exchangePointStep": string;
+        /**
+         * 积分兑换已停用。
+         */
+        "invalidExchangeAmount": string;
+        /**
+         * 兑换积分数
+         */
+        "exchangePoints": string;
+        /**
+         * 可得积分：{coins}
+         */
+        "exchangeAmount": ParameterizedString<"coins">;
+        /**
+         * 积分兑换已停用。
+         */
+        "exchangeConfirm": string;
+        /**
+         * 积分兑换已停用。
+         */
+        "exchangeDisabled": string;
+        /**
+         * 积分兑换已停用。
+         */
+        "exchangeSuccess": string;
+        /**
+         * 积分兑换已停用。
+         */
+        "exchangeConfirmed": string;
+        /**
+         * 请输入不超过可用积分的正整数。
+         */
+        "invalidPoints": string;
+        /**
+         * 交易记录
+         */
+        "history": string;
+        /**
+         * 上一页
+         */
+        "previousPage": string;
+        /**
+         * 下一页
+         */
+        "nextPage": string;
+        /**
+         * 第 {page} 页
+         */
+        "historyPage": ParameterizedString<"page">;
+        /**
+         * 暂无交易记录。
+         */
+        "empty": string;
+        /**
+         * 积分数据加载失败，请重试。
+         */
+        "loadFailed": string;
+        /**
+         * 可用余额不足。
+         */
+        "insufficientBalance": string;
+        /**
+         * 积分不足。
+         */
+        "insufficientPoints": string;
+        /**
+         * 余额将超过上限，无法操作。
+         */
+        "balanceLimit": string;
+        /**
+         * 内容与已发送的请求不同，请查看交易记录。
+         */
+        "requestConflict": string;
+        /**
+         * 暂时无法确认处理结果，可以使用相同内容重试。
+         */
+        "operationFailed": string;
+        /**
+         * 正在确认上次处理结果，使用相同内容重试不会重复处理。
+         */
+        "pending": string;
+        /**
+         * 积分
+         */
+        "currencyCoins": string;
+        /**
+         * 积分
+         */
+        "currencyPoints": string;
+        /**
+         * 交易后积分余额：{coins}
+         */
+        "balanceAfterCoins": ParameterizedString<"coins">;
+        /**
+         * 交易后积分余额：{points}
+         */
+        "balanceAfterPoints": ParameterizedString<"points">;
+        /**
+         * 冻结变动：{amount} 积分
+         */
+        "reservedChange": ParameterizedString<"amount">;
+        /**
+         * 冻结 {amount}
+         */
+        "reservedShort": ParameterizedString<"amount">;
+        /**
+         * 冻结积分余额：{amount} 积分
+         */
+        "reservedAfter": ParameterizedString<"amount">;
+        /**
+         * 交易后余额：{coins}
+         */
+        "balanceAfter": ParameterizedString<"coins">;
+        /**
+         * 消耗积分：{points}
+         */
+        "pointsSpent": ParameterizedString<"points">;
+        /**
+         * 积分仅用于本站功能，不支持现金充值或提现。
+         */
+        "noCashValue": string;
+        /**
+         * 积分管理
+         */
+        "adminTitle": string;
+        /**
+         * 积分兑换（已停用）
+         */
+        "exchangeTitle": string;
+        /**
+         * 积分兑换已停用
+         */
+        "exchangeEnabled": string;
+        /**
+         * 兑换设置已停用
+         */
+        "rate": string;
+        /**
+         * 积分账户已经统一，不再使用兑换汇率。
+         */
+        "legacyExchangeRate": string;
+        /**
+         * 积分兑换已停用。
+         */
+        "invalidRate": string;
+        /**
+         * 调整积分
+         */
+        "adjust": string;
+        /**
+         * 增加或减少本站用户的积分，原因选填，填写后将保留在交易记录中。
+         */
+        "adjustDescription": string;
+        /**
+         * 积分数量（负数为减少）
+         */
+        "amount": string;
+        /**
+         * 原因（选填）
+         */
+        "reason": string;
+        /**
+         * 请输入非零金额（-2,000,000,000至2,000,000,000），最多两位小数，原因不超过500字。
+         */
+        "invalidAdjustment": string;
+        /**
+         * 增加积分
+         */
+        "increase": string;
+        /**
+         * 减少积分
+         */
+        "decrease": string;
+        /**
+         * 确定增加 {amount} 积分？
+         */
+        "increaseConfirm": ParameterizedString<"amount">;
+        /**
+         * 确定减少 {amount} 积分？
+         */
+        "decreaseConfirm": ParameterizedString<"amount">;
+        /**
+         * 为@{username}调整{amount}积分？原因：{reason}
+         */
+        "adjustConfirm": ParameterizedString<"username" | "amount" | "reason">;
+        /**
+         * 余额已调整，当前可用余额：{balance}积分
+         */
+        "adjusted": ParameterizedString<"balance">;
+        /**
+         * 请选择本站用户。
+         */
+        "localUserRequired": string;
+        /**
+         * 名称
+         */
+        "columnName": string;
+        /**
+         * 积分
+         */
+        "columnPoints": string;
+        /**
+         * 类型
+         */
+        "columnType": string;
+        /**
+         * 状态
+         */
+        "columnStatus": string;
+        /**
+         * 积分流向
+         */
+        "columnFlow": string;
+        /**
+         * 商品名称
+         */
+        "columnApp": string;
+        /**
+         * 流水号
+         */
+        "columnNumber": string;
+        /**
+         * 操作
+         */
+        "columnOperation": string;
+        /**
+         * 成功
+         */
+        "statusSuccess": string;
+        /**
+         * 已入账
+         */
+        "statusRecorded": string;
+        /**
+         * 查看详情
+         */
+        "viewDetail": string;
+        "_filters": {
+            /**
+             * 收入
+             */
+            "income": string;
+            /**
+             * 支出
+             */
+            "expense": string;
+            /**
+             * 奖励与调整
+             */
+            "transfer": string;
+            /**
+             * 交易与互动
+             */
+            "online": string;
+            /**
+             * 全部记录
+             */
+            "all": string;
+        };
+        "_receipt": {
+            /**
+             * 交易凭证
              */
             "title": string;
             /**
-             * 获得记录
+             * TOTAL CREDITS
              */
-            "earned": string;
+            "totalCredits": string;
             /**
-             * 兑换记录
+             * 编号
              */
-            "exchange": string;
+            "number": string;
             /**
-             * 使用记录
+             * 类型
              */
-            "use": string;
+            "type": string;
             /**
-             * 获得方式
+             * 转出方
              */
-            "source": string;
+            "consumer": string;
             /**
-             * 数量
+             * 转入方
              */
-            "amount": string;
+            "provider": string;
+            /**
+             * 备注
+             */
+            "remark": string;
             /**
              * 时间
              */
-            "createdAt": string;
+            "time": string;
             /**
-             * 补签日期
+             * —
              */
-            "makeupDate": string;
+            "noRemark": string;
             /**
-             * 消耗积分
+             * {name} Credit
              */
-            "pointsSpent": string;
+            "brand": ParameterizedString<"name">;
+        };
+        "_categories": {
             /**
-             * 已使用
+             * 红包
              */
-            "used": string;
+            "redPacket": string;
             /**
-             * 剩余
+             * 转账
              */
-            "remaining": string;
+            "transfer": string;
             /**
-             * 已收回
+             * 打赏
              */
-            "revoked": string;
+            "tip": string;
             /**
-             * 管理员发放
+             * 签到
              */
-            "sourceAdmin": string;
+            "checkin": string;
+            /**
+             * 订单
+             */
+            "order": string;
+            /**
+             * 管理
+             */
+            "admin": string;
+            /**
+             * 平台
+             */
+            "system": string;
+        };
+        "_types": {
             /**
              * 积分兑换
              */
-            "sourceExchange": string;
+            "exchange": string;
+            /**
+             * 管理员调整
+             */
+            "adminAdjustment": string;
+            /**
+             * 发出红包
+             */
+            "redPacketSend": string;
+            /**
+             * 红包积分解冻
+             */
+            "redPacketReservationRelease": string;
+            /**
+             * 发出打赏
+             */
+            "tipSend": string;
+            /**
+             * 收到打赏
+             */
+            "tipReceive": string;
+            /**
+             * 发起转账
+             */
+            "transferSend": string;
+            /**
+             * 收到转账
+             */
+            "transferReceive": string;
+            /**
+             * 转账退回
+             */
+            "transferRefund": string;
+            /**
+             * 转账积分解冻
+             */
+            "transferReservationRelease": string;
             /**
              * 签到奖励
              */
-            "sourceReward": string;
+            "checkinReward": string;
             /**
              * 兑换码福利
              */
-            "sourceRedemption": string;
+            "redemptionReward": string;
             /**
-             * 历史余额
+             * 兑换补签卡
              */
-            "sourceLegacy": string;
+            "checkinMakeupExchange": string;
             /**
-             * 历史记录
+             * 管理员发放积分
              */
-            "sourceUnknown": string;
+            "checkinAdminGrant": string;
             /**
-             * 历史余额为开始追踪时的持有数量，原获得时间和来源未记录。
+             * 管理员收回积分
              */
-            "legacyDescription": string;
+            "checkinAdminRevoke": string;
             /**
-             * 暂无记录
+             * 订单支付
              */
-            "empty": string;
+            "orderPayment": string;
             /**
-             * 记录加载失败，请重试。
+             * 订单收入
              */
-            "loadFailed": string;
+            "orderIncome": string;
             /**
-             * 第 {current} / {total} 页
+             * 历史积分期初余额
              */
-            "page": ParameterizedString<"current" | "total">;
+            "pointsOpeningBalance": string;
+            /**
+             * 积分账户合并
+             */
+            "pointsUnification": string;
+            /**
+             * 领取红包
+             */
+            "redPacketClaim": string;
+            /**
+             * 红包退回
+             */
+            "redPacketRefund": string;
         };
-        "_codes": {
-            /**
-             * 创建兑换码
-             */
-            "create": string;
-            /**
-             * 福利名称
-             */
-            "name": string;
-            /**
-             * 例如国庆福利，仅用于管理。
-             */
-            "nameDescription": string;
-            /**
-             * 每人获得数量
-             */
-            "amount": string;
-            /**
-             * 可领取人数
-             */
-            "maxRedemptions": string;
-            /**
-             * 到期时间
-             */
-            "expiresAt": string;
-            /**
-             * 不限时间
-             */
-            "noExpiry": string;
-            /**
-             * 每个用户限领一次，可设置领取人数和到期时间。
-             */
-            "description": string;
-            /**
-             * 兑换码列表
-             */
-            "list": string;
-            /**
-             * 兑换码
-             */
-            "code": string;
-            /**
-             * 领取记录
-             */
-            "claims": string;
-            /**
-             * 已领取
-             */
-            "claimsCount": string;
-            /**
-             * 可领取
-             */
-            "enabled": string;
-            /**
-             * 已停用
-             */
-            "disabled": string;
-            /**
-             * 已过期
-             */
-            "expired": string;
-            /**
-             * 已领完
-             */
-            "exhausted": string;
-            /**
-             * 启用
-             */
-            "enable": string;
-            /**
-             * 停用
-             */
-            "disable": string;
-            /**
-             * 兑换码已创建
-             */
-            "createSucceeded": string;
-            /**
-             * 兑换码创建失败，请重试。
-             */
-            "createFailed": string;
-            /**
-             * 兑换码加载失败，请重试。
-             */
-            "loadFailed": string;
-            /**
-             * 兑换码状态更新失败，请重试。
-             */
-            "updateFailed": string;
-            /**
-             * 领取记录加载失败，请重试。
-             */
-            "claimsFailed": string;
-            /**
-             * 暂无兑换码
-             */
-            "empty": string;
-            /**
-             * 暂无领取记录
-             */
-            "noClaims": string;
-            /**
-             * 请选择将来的到期时间。
-             */
-            "invalidExpiry": string;
-        };
+    };
+    "_benefits": {
+        /**
+         * 福利兑换
+         */
+        "title": string;
+        /**
+         * 兑换码
+         */
+        "adminTitle": string;
+        /**
+         * 兑换码（CDK）
+         */
+        "codeEntry": string;
+        /**
+         * 兑换
+         */
+        "redeem": string;
+        /**
+         * 兑换码无效，请输入正确的兑换码。
+         */
+        "invalidCodeFormat": string;
+        /**
+         * 已兑换 {reward}。
+         */
+        "redeemSucceeded": ParameterizedString<"reward">;
+        /**
+         * 你已兑换过此兑换码。
+         */
+        "alreadyRedeemed": string;
+        /**
+         * 该兑换码无效。
+         */
+        "invalidCode": string;
+        /**
+         * 该兑换码已暂停领取。
+         */
+        "codeUnavailable": string;
+        /**
+         * 当前账户无法领取福利。
+         */
+        "redeemNotAllowed": string;
+        /**
+         * 暂时无法确认兑换结果，可使用同一兑换码重试，不会重复领取。
+         */
+        "redeemFailed": string;
+        /**
+         * 兑换码可兑换积分或补签卡，每人限领一次。
+         */
+        "redemptionDescription": string;
+        /**
+         * 创建兑换码
+         */
+        "createCode": string;
+        /**
+         * 管理名称
+         */
+        "codeName": string;
+        /**
+         * 用于区分兑换活动，仅管理员可见。
+         */
+        "nameDescription": string;
+        /**
+         * 兑换内容
+         */
+        "rewardContent": string;
+        /**
+         * 每人兑换数量
+         */
+        "rewardAmount": string;
+        /**
+         * 每人可兑换 1～{max}。
+         */
+        "rewardAmountDescription": ParameterizedString<"max">;
+        /**
+         * {type} × {amount}
+         */
+        "rewardSummary": ParameterizedString<"type" | "amount">;
+        /**
+         * 请选择将来的到期时间。
+         */
+        "invalidExpiry": string;
+        /**
+         * 领取人数上限
+         */
+        "claimLimit": string;
+        /**
+         * 兑换总量：{reward}
+         */
+        "codeCapacity": ParameterizedString<"reward">;
+        /**
+         * 兑换码已创建
+         */
+        "codeCreated": string;
+        /**
+         * 创建兑换码失败，请检查填写内容后重试。
+         */
+        "codeCreateFailed": string;
+        /**
+         * 编辑兑换码
+         */
+        "editCode": string;
+        /**
+         * 删除兑换码
+         */
+        "deleteCode": string;
+        /**
+         * 删除“{name}”？删除后将停止兑换，已领取的福利和记录会保留。
+         */
+        "deleteCodeConfirm": ParameterizedString<"name">;
+        /**
+         * 删除兑换码失败。
+         */
+        "codeDeleteFailed": string;
+        /**
+         * 请检查名称、兑换内容、数量、人数上限和有效期。有效期须为未来的时间。
+         */
+        "invalidCodeConfiguration": string;
+        /**
+         * 已创建的兑换码
+         */
+        "codeList": string;
+        /**
+         * 兑换码
+         */
+        "code": string;
+        /**
+         * 领取情况
+         */
+        "codeClaims": string;
+        /**
+         * 暂无兑换码。
+         */
+        "codeListEmpty": string;
+        /**
+         * 兑换码加载失败。
+         */
+        "codeLoadFailed": string;
+        /**
+         * 兑换码更新失败。
+         */
+        "codeUpdateFailed": string;
+        /**
+         * 已有领取记录，不能修改兑换内容或数量。
+         */
+        "rewardLocked": string;
+        /**
+         * 领取人数上限不能低于已有领取人数。
+         */
+        "claimLimitTooLow": string;
+        /**
+         * 已过期
+         */
+        "codeExpired": string;
+        /**
+         * 已领完
+         */
+        "codeExhausted": string;
+        /**
+         * 剩余名额：{count} 人
+         */
+        "claimsRemaining": ParameterizedString<"count">;
+        /**
+         * 领取记录：{name}
+         */
+        "claimsTitle": ParameterizedString<"name">;
+        /**
+         * 暂无领取记录。
+         */
+        "claimsEmpty": string;
+        /**
+         * 领取记录加载失败。
+         */
+        "claimsLoadFailed": string;
+        /**
+         * 复制失败，请选中兑换码后手动复制。
+         */
+        "copyFailed": string;
+        /**
+         * 福利记录
+         */
+        "history": string;
+        /**
+         * 兑换记录
+         */
+        "redemptionHistory": string;
+        /**
+         * 补签卡获取
+         */
+        "cardsEarned": string;
+        /**
+         * 补签卡使用
+         */
+        "cardsUsed": string;
+        /**
+         * 积分换卡
+         */
+        "pointsExchange": string;
+    };
+    "_communityRanking": {
+        /**
+         * 查看社区积分、发帖、评论、签到和打赏排名。
+         */
+        "description": string;
+        /**
+         * 积分榜
+         */
+        "points": string;
+        /**
+         * 评论榜
+         */
+        "replies": string;
+        /**
+         * 发帖榜
+         */
+        "posts": string;
+        /**
+         * 签到榜
+         */
+        "checkin": string;
+        /**
+         * 打赏榜
+         */
+        "tips": string;
+        /**
+         * 按当前积分余额排名。
+         */
+        "pointsRule": string;
+        /**
+         * 按公开评论数量排名。
+         */
+        "repliesRule": string;
+        /**
+         * 按公开原创帖子和文章总数排名。
+         */
+        "postsRule": string;
+        /**
+         * 按累计签到天数排名。
+         */
+        "checkinRule": string;
+        /**
+         * 按对公开内容的打赏次数排名。
+         */
+        "tipsRule": string;
+        /**
+         * 积分
+         */
+        "pointsUnit": string;
+        /**
+         * 条评论
+         */
+        "repliesUnit": string;
+        /**
+         * 篇内容
+         */
+        "postsUnit": string;
+        /**
+         * 天
+         */
+        "checkinUnit": string;
+        /**
+         * 次
+         */
+        "tipsUnit": string;
+        /**
+         * 前三名
+         */
+        "podium": string;
+        /**
+         * 第 {rank} 名
+         */
+        "rankLabel": ParameterizedString<"rank">;
+        /**
+         * 我的排名
+         */
+        "myRank": string;
+        /**
+         * 暂未上榜
+         */
+        "notRanked": string;
+        /**
+         * 暂无排名
+         */
+        "noEntries": string;
+        /**
+         * 还没有符合本榜规则的记录。
+         */
+        "noEntriesDescription": string;
+        /**
+         * 登录后可查看自己的排名。
+         */
+        "signInPrompt": string;
+        /**
+         * 排行榜加载失败。
+         */
+        "loadFailed": string;
+        /**
+         * 更新于 {time}
+         */
+        "updatedAt": ParameterizedString<"time">;
+        /**
+         * 展示前 100 名，仅统计本站正常用户。
+         */
+        "rule": string;
+    };
+    "_checkin": {
         /**
          * 早上好
          */
@@ -17636,9 +20292,21 @@ export interface Locale extends ILocale {
          */
         "dailyCheckin": string;
         /**
-         * 今日の一歩を、コミュニティの記録に。
+         * 登录后即可每日签到。
          */
-        "description": string;
+        "guestDescription": string;
+        /**
+         * 今日尚未签到。
+         */
+        "startDescription": string;
+        /**
+         * 已连续签到 {days} 天，今日尚未签到。
+         */
+        "streakDescription": ParameterizedString<"days">;
+        /**
+         * 今日已签到，已连续签到 {days} 天。
+         */
+        "checkedInDescription": ParameterizedString<"days">;
         /**
          * 立即签到
          */
@@ -17651,190 +20319,6 @@ export interface Locale extends ILocale {
          * 正在签到…
          */
         "checkingIn": string;
-        /**
-         * 积分
-         */
-        "points": string;
-        /**
-         * 补签卡
-         */
-        "makeupCards": string;
-        /**
-         * 补签卡：{n} 张
-         */
-        "makeupCardsCount": ParameterizedString<"n">;
-        /**
-         * 每日签到可获得 1 积分
-         */
-        "dailyReward": string;
-        /**
-         * +{n} 积分
-         */
-        "pointsEarned": ParameterizedString<"n">;
-        /**
-         * 签到成功，获得 {n} 积分。
-         */
-        "rewardReceived": ParameterizedString<"n">;
-        /**
-         * 签到成功
-         */
-        "successTitle": string;
-        /**
-         * 今日签到获得 {n} 积分
-         */
-        "successReward": ParameterizedString<"n">;
-        /**
-         * 已连续签到 {n} 天
-         */
-        "successStreak": ParameterizedString<"n">;
-        /**
-         * 补签
-         */
-        "makeup": string;
-        /**
-         * 待补签
-         */
-        "pendingMakeup": string;
-        /**
-         * 今天
-         */
-        "todayLabel": string;
-        /**
-         * 补签卡不足
-         */
-        "noMakeupCardsTitle": string;
-        /**
-         * 连续正常签到首次满 7 天赠 1 张，此后每满 30 天赠 1 张。本轮目标 {target} 天；断签重置未完成进度，补签不计入赠卡进度。
-         */
-        "cardRewardRule": ParameterizedString<"target">;
-        /**
-         * 本轮连续签到 {current} / {target} 天
-         */
-        "cardRewardProgress": ParameterizedString<"current" | "target">;
-        /**
-         * 已获赠补签卡
-         */
-        "calendarRewardReceived": string;
-        /**
-         * 继续每日签到，预计获得 1 张补签卡（受持有上限限制）
-         */
-        "calendarRewardExpected": string;
-        /**
-         * 礼物表示预计奖励，卡券表示已获赠。点击日期查看详情；断签或补签后更新，达到持有上限时不发放。
-         */
-        "calendarRewardLegend": string;
-        /**
-         * 签到状态说明
-         */
-        "calendarStates": string;
-        /**
-         * 今日已签
-         */
-        "todayCompleted": string;
-        /**
-         * 已过期
-         */
-        "makeupExpired": string;
-        /**
-         * 已恢复连续记录，不补发积分
-         */
-        "makeupNoPoints": string;
-        /**
-         * 奖励
-         */
-        "rewardPreview": string;
-        /**
-         * 已获得 {n} 张补签卡。
-         */
-        "cardRewardReceived": ParameterizedString<"n">;
-        /**
-         * 兑换补签卡
-         */
-        "exchangeCard": string;
-        /**
-         * 可用 {cost} 积分兑换 1 张补签卡，每自然月最多兑换 1 张。
-         */
-        "exchangeCost": ParameterizedString<"cost">;
-        /**
-         * 立即兑换
-         */
-        "exchangeNow": string;
-        /**
-         * 暂不兑换
-         */
-        "exchangeLater": string;
-        /**
-         * 兑换中…
-         */
-        "exchangingCard": string;
-        /**
-         * 消耗 {cost} 积分兑换 1 张补签卡？本月限兑换一次，兑换后可在日历中补签。
-         */
-        "exchangeConfirm": ParameterizedString<"cost">;
-        /**
-         * 补签卡不足。可消耗 {cost} 积分兑换 1 张，本月限兑换一次。
-         */
-        "noCardsExchange": ParameterizedString<"cost">;
-        /**
-         * 兑换需要 {cost} 积分。本轮连续正常签到满 {target} 天赠 1 张，当前进度 {current} / {target} 天，补签日不增加进度。
-         */
-        "noPointsForCard": ParameterizedString<"cost" | "target" | "current" | "target">;
-        /**
-         * 兑换需要 {cost} 积分。本轮连续正常签到满 {target} 天赠 1 张，补签日不增加进度。
-         */
-        "noPointsForCardShort": ParameterizedString<"cost" | "target">;
-        /**
-         * 已兑换 1 张补签卡，可在日历中选择要补签的日期。
-         */
-        "cardExchangeSuccess": string;
-        /**
-         * 无法确认兑换结果，请重试。重复操作不会重复扣除积分。
-         */
-        "cardExchangeFailed": string;
-        /**
-         * 已补签
-         */
-        "madeUp": string;
-        /**
-         * 补签 {date} 的签到
-         */
-        "makeupDate": ParameterizedString<"date">;
-        /**
-         * 确定补签 {date}？将消耗 1 张补签卡，恢复连续签到进度，不补发积分。
-         */
-        "makeupConfirm": ParameterizedString<"date">;
-        /**
-         * 已补签 {date}，连续签到进度已更新。
-         */
-        "makeupSuccess": ParameterizedString<"date">;
-        /**
-         * 该日期已签到，未消耗补签卡。
-         */
-        "alreadyMadeUp": string;
-        /**
-         * 补签失败，请重试。
-         */
-        "makeupFailed": string;
-        /**
-         * 没有补签卡。可通过连续签到获得、用积分兑换，或等待管理员发放。
-         */
-        "noMakeupCards": string;
-        /**
-         * 请选择过去 7 天内且不早于注册日的漏签日期。
-         */
-        "invalidMakeupDate": string;
-        /**
-         * 注册前
-         */
-        "beforeRegistration": string;
-        /**
-         * 每张卡可补过去 7 个自然日内的一天，支持跨月。补签恢复连续记录，但补签日不增加赠卡进度，也不补发积分。
-         */
-        "makeupRule": string;
-        /**
-         * 补签卡由管理员发放。
-         */
-        "cardsFromAdmin": string;
         /**
          * 签到成功
          */
@@ -18000,6 +20484,276 @@ export interface Locale extends ILocale {
          */
         "notRankedHelp": string;
         /**
+         * 积分
+         */
+        "points": string;
+        /**
+         * 每日签到可获得 1 积分
+         */
+        "dailyReward": string;
+        /**
+         * +{n} 积分
+         */
+        "pointsEarned": ParameterizedString<"n">;
+        /**
+         * 签到成功，获得 {n} 积分。
+         */
+        "rewardReceived": ParameterizedString<"n">;
+        /**
+         * 补签卡
+         */
+        "makeupCards": string;
+        /**
+         * 注册前
+         */
+        "beforeRegistration": string;
+        /**
+         * 补签
+         */
+        "makeup": string;
+        /**
+         * 已补签
+         */
+        "madeUp": string;
+        /**
+         * 补签 {date} 的签到
+         */
+        "makeupDate": ParameterizedString<"date">;
+        /**
+         * 补签 {date}？消耗 1 张补签卡，恢复连续签到进度，不补发积分。
+         */
+        "makeupConfirm": ParameterizedString<"date">;
+        /**
+         * 已补签 {date}，连续签到进度已更新。
+         */
+        "makeupSuccess": ParameterizedString<"date">;
+        /**
+         * 该日期已签到，未消耗补签卡。
+         */
+        "alreadyMadeUp": string;
+        /**
+         * 补签失败，请重试。
+         */
+        "makeupFailed": string;
+        /**
+         * 没有补签卡。可通过连续签到、积分兑换或兑换码获得。
+         */
+        "noMakeupCards": string;
+        /**
+         * 请选择过去 7 天内且不早于注册日的漏签日期。
+         */
+        "invalidMakeupDate": string;
+        /**
+         * 每张卡可补过去 7 个自然日内的一天，支持跨月。补签恢复连续记录，但补签日不增加赠卡进度，也不补发积分。
+         */
+        "makeupRule": string;
+        "_history": {
+            /**
+             * 补签卡记录
+             */
+            "title": string;
+            /**
+             * 获得记录
+             */
+            "earned": string;
+            /**
+             * 兑换记录
+             */
+            "exchange": string;
+            /**
+             * 使用记录
+             */
+            "use": string;
+            /**
+             * 获得方式
+             */
+            "source": string;
+            /**
+             * 数量
+             */
+            "amount": string;
+            /**
+             * 时间
+             */
+            "createdAt": string;
+            /**
+             * 补签日期
+             */
+            "makeupDate": string;
+            /**
+             * 消耗积分
+             */
+            "pointsSpent": string;
+            /**
+             * 已使用
+             */
+            "used": string;
+            /**
+             * 剩余
+             */
+            "remaining": string;
+            /**
+             * 已收回
+             */
+            "revoked": string;
+            /**
+             * 积分兑换
+             */
+            "sourceExchange": string;
+            /**
+             * 签到奖励
+             */
+            "sourceReward": string;
+            /**
+             * 兑换码福利
+             */
+            "sourceRedemption": string;
+            /**
+             * 历史余额
+             */
+            "sourceLegacy": string;
+            /**
+             * 历史记录
+             */
+            "sourceUnknown": string;
+            /**
+             * 历史余额为开始追踪时的持有数量，原获得时间和来源未记录。
+             */
+            "legacyDescription": string;
+            /**
+             * 暂无记录
+             */
+            "empty": string;
+            /**
+             * 记录加载失败，请重试。
+             */
+            "loadFailed": string;
+            /**
+             * 第 {current} / {total} 页
+             */
+            "page": ParameterizedString<"current" | "total">;
+        };
+        /**
+         * 补签卡持有数量将超过上限。
+         */
+        "cardLimitExceeded": string;
+        /**
+         * 补签卡：{n} 张
+         */
+        "makeupCardsCount": ParameterizedString<"n">;
+        /**
+         * 待补签
+         */
+        "pendingMakeup": string;
+        /**
+         * 补签卡不足
+         */
+        "noMakeupCardsTitle": string;
+        /**
+         * 连续正常签到首次满 7 天赠 1 张，此后每满 30 天赠 1 张。本轮目标 {target} 天；断签重置未完成进度，补签不计入赠卡进度。
+         */
+        "cardRewardRule": ParameterizedString<"target">;
+        /**
+         * 本轮连续签到 {current} / {target} 天
+         */
+        "cardRewardProgress": ParameterizedString<"current" | "target">;
+        /**
+         * 已获赠补签卡
+         */
+        "calendarRewardReceived": string;
+        /**
+         * 继续每日签到，预计获得 1 张补签卡（受持有上限限制）
+         */
+        "calendarRewardExpected": string;
+        /**
+         * 礼物表示预计奖励，卡券表示已获赠。点击日期查看详情；断签或补签后更新，达到持有上限时不发放。
+         */
+        "calendarRewardLegend": string;
+        /**
+         * 签到状态说明
+         */
+        "calendarStates": string;
+        /**
+         * 今日已签
+         */
+        "todayCompleted": string;
+        /**
+         * 已过期
+         */
+        "makeupExpired": string;
+        /**
+         * 已恢复连续记录，不补发积分
+         */
+        "makeupNoPoints": string;
+        /**
+         * 奖励
+         */
+        "rewardPreview": string;
+        /**
+         * 已获得 {n} 张补签卡。
+         */
+        "cardRewardReceived": ParameterizedString<"n">;
+        /**
+         * 签到成功
+         */
+        "successTitle": string;
+        /**
+         * 今日签到获得 {n} 积分
+         */
+        "successReward": ParameterizedString<"n">;
+        /**
+         * 已连续签到 {n} 天
+         */
+        "successStreak": ParameterizedString<"n">;
+        /**
+         * 兑换补签卡
+         */
+        "exchangeCard": string;
+        /**
+         * 可用 {cost} 积分兑换 1 张补签卡，每自然月最多兑换 1 张。
+         */
+        "exchangeCost": ParameterizedString<"cost">;
+        /**
+         * 立即兑换
+         */
+        "exchangeNow": string;
+        /**
+         * 暂不兑换
+         */
+        "exchangeLater": string;
+        /**
+         * 兑换中…
+         */
+        "exchangingCard": string;
+        /**
+         * 用 {cost} 积分兑换 1 张补签卡？本月限兑换一次。
+         */
+        "exchangeConfirm": ParameterizedString<"cost">;
+        /**
+         * 补签卡不足。可消耗 {cost} 积分兑换 1 张，本月限兑换一次。
+         */
+        "noCardsExchange": ParameterizedString<"cost">;
+        /**
+         * 兑换需要 {cost} 积分。本轮连续正常签到满 {target} 天赠 1 张，当前进度 {current} / {target} 天，补签日不增加进度。
+         */
+        "noPointsForCard": ParameterizedString<"cost" | "target" | "current" | "target">;
+        /**
+         * 兑换需要 {cost} 积分。本轮连续正常签到满 {target} 天赠 1 张，补签日不增加进度。
+         */
+        "noPointsForCardShort": ParameterizedString<"cost" | "target">;
+        /**
+         * 已兑换 1 张补签卡，可在日历中选择要补签的日期。
+         */
+        "cardExchangeSuccess": string;
+        /**
+         * 无法确认兑换结果，请重试。重复操作不会重复扣除积分。
+         */
+        "cardExchangeFailed": string;
+        /**
+         * 今天
+         */
+        "todayLabel": string;
+        /**
          * 持卡不足 {limit} 张时可通过签到获赠或积分兑换；达到上限后不再获赠，也不会补发。卡片不过期，已有卡片保留。
          */
         "cardHoldingRule": ParameterizedString<"limit">;
@@ -18015,2097 +20769,204 @@ export interface Locale extends ILocale {
          * 连续签到 {days} 天，下一目标为 {target} 天。
          */
         "streakStageReached": ParameterizedString<"days" | "target">;
-        /**
-         * 登录后即可每日签到。
-         */
-        "guestDescription": string;
-        /**
-         * 今日尚未签到。
-         */
-        "startDescription": string;
-        /**
-         * 已连续签到 {days} 天，今日尚未签到。
-         */
-        "streakDescription": ParameterizedString<"days">;
-        /**
-         * 今日已签到，已连续签到 {days} 天。
-         */
-        "checkedInDescription": ParameterizedString<"days">;
     };
+    "_channelPicker": {
+        /**
+         * 我的
+         */
+        "mine": string;
+        /**
+         * 其他
+         */
+        "other": string;
+        /**
+         * 搜索频道名称
+         */
+        "searchPlaceholder": string;
+        /**
+         * 不选择频道
+         */
+        "noChannel": string;
+        /**
+         * 暂无可发布的频道
+         */
+        "empty": string;
+        /**
+         * 频道内的帖子公开可见，仅在本站发布。
+         */
+        "description": string;
+        /**
+         * 这份草稿不属于当前频道，请从普通发布框打开。
+         */
+        "draftChannelMismatch": string;
+    };
+    "_welcome": {
+        /**
+         * 欢迎加入
+         */
+        "title": string;
+        /**
+         * 请阅读社区规则与使用指南。帮助页面提供管理员联系方式。
+         */
+        "notificationBody": string;
+        /**
+         * 阅读欢迎信
+         */
+        "readGuide": string;
+        /**
+         * 欢迎加入 {name}
+         */
+        "greeting": ParameterizedString<"name">;
+        /**
+         * 请先阅读社区规则和使用指南。需要帮助时，可在帮助页面查看管理员联系方式。
+         */
+        "introduction": string;
+        /**
+         * 使用指南
+         */
+        "userGuide": string;
+        /**
+         * 本消息由系统自动发送，请勿直接回复。
+         */
+        "systemNote": string;
+    };
+    /**
+     * 确认
+     */
+    "confirm": string;
     "_externalLink": {
         /**
          * 即将离开本站
          */
         "title": string;
         /**
-         * 该链接指向外部网站，安全性无法保证。请确认网址后再继续，并谨慎输入个人信息和密码。
+         * 该网站不受本站管理，请注意保护账号和财产安全，谨慎输入个人信息和密码。
          */
         "description": string;
         /**
-         * 打开外部网站
+         * 留在本站
+         */
+        "stay": string;
+        /**
+         * 继续访问
          */
         "continue": string;
     };
-    "_benefits": {
+    /**
+     * 游戏
+     */
+    "games": string;
+    "_games": {
         /**
-         * 卡券
-         */
-        "title": string;
-        /**
-         * 福利管理
-         */
-        "adminTitle": string;
-        /**
-         * 直接发放
-         */
-        "directGrant": string;
-        /**
-         * 引き換えコード
-         */
-        "redemptionCodes": string;
-        /**
-         * 补签卡
-         */
-        "checkinCard": string;
-        /**
-         * 兑换码（CDK）
-         */
-        "codeEntry": string;
-        /**
-         * 兑换
-         */
-        "redeem": string;
-        /**
-         * 输入兑换码，领取对应福利。
-         */
-        "codePlaceholder": string;
-        /**
-         * 兑换码无效，请输入正确的兑换码。
-         */
-        "invalidCodeFormat": string;
-        /**
-         * 包含签到奖励、管理员赠送、福利码领取和积分兑换等全部获取记录。
-         */
-        "earnedHistoryDescription": string;
-        /**
-         * 仅展示消耗积分兑换补签卡的记录；福利码领取请查看获取记录。
-         */
-        "exchangeHistoryDescription": string;
-        /**
-         * 查看补签卡的使用时间和补签日期。
-         */
-        "useHistoryDescription": string;
-        /**
-         * 已领取 {amount} 张补签卡。
-         */
-        "redeemSucceeded": ParameterizedString<"amount">;
-        /**
-         * 此兑换码已领取，卡券余额和记录已更新。
-         */
-        "alreadyRedeemed": string;
-        /**
-         * 该兑换码无效或已失效。
-         */
-        "invalidCode": string;
-        /**
-         * 该兑换码已暂停领取。
-         */
-        "codeUnavailable": string;
-        /**
-         * 当前账户无法领取福利。
-         */
-        "redeemNotAllowed": string;
-        /**
-         * 暂时无法确认领取结果。可以使用同一兑换码重试，福利不会重复发放。
-         */
-        "redeemFailed": string;
-        /**
-         * 选择福利发放方式，管理发放情况和领取记录。
-         */
-        "adminDescription": string;
-        /**
-         * 福利类型
-         */
-        "benefitType": string;
-        /**
-         * 发放方式
-         */
-        "distributionMethod": string;
-        /**
-         * 向指定用户发放卡券，查看使用情况，并回收尚未使用的卡券。
-         */
-        "directGrantDescription": string;
-        /**
-         * 通过分享兑换码发放卡券，每个兑换码每人只能领取一次。
-         */
-        "redemptionDescription": string;
-        /**
-         * 创建兑换码
-         */
-        "createCode": string;
-        /**
-         * 管理名称
-         */
-        "codeName": string;
-        /**
-         * 每人领取数量
-         */
-        "cardsPerClaim": string;
-        /**
-         * 领取人数上限
-         */
-        "claimLimit": string;
-        /**
-         * 最多发放 {amount} 张
-         */
-        "codeCapacity": ParameterizedString<"amount">;
-        /**
-         * 兑换码已创建
-         */
-        "codeCreated": string;
-        /**
-         * 创建兑换码失败，请检查填写内容后重试。
-         */
-        "codeCreateFailed": string;
-        /**
-         * 请检查名称、卡券数量、人数上限和有效期。有效期须为未来的时间。
-         */
-        "invalidCodeConfiguration": string;
-        /**
-         * 已创建的兑换码
-         */
-        "codeList": string;
-        /**
-         * 兑换码
-         */
-        "code": string;
-        /**
-         * 领取情况
-         */
-        "codeClaims": string;
-        /**
-         * 尚未创建兑换码。
-         */
-        "codeListEmpty": string;
-        /**
-         * 兑换码加载失败。
-         */
-        "codeLoadFailed": string;
-        /**
-         * 兑换码状态更新失败。
-         */
-        "codeUpdateFailed": string;
-        /**
-         * 已过期
-         */
-        "codeExpired": string;
-        /**
-         * 已领完
-         */
-        "codeExhausted": string;
-        /**
-         * 暂停领取
-         */
-        "disableCode": string;
-        /**
-         * 恢复领取
-         */
-        "enableCode": string;
-        /**
-         * 确定暂停领取“{name}”？暂停后无法继续领取，已发放的补签卡不会收回。
-         */
-        "disableCodeConfirm": ParameterizedString<"name">;
-        /**
-         * 已暂停领取。
-         */
-        "codeDisabled": string;
-        /**
-         * 已恢复领取。
-         */
-        "codeEnabled": string;
-        /**
-         * 剩余名额：{count} 人
-         */
-        "claimsRemaining": ParameterizedString<"count">;
-        /**
-         * 领取记录：{name}
-         */
-        "claimsTitle": ParameterizedString<"name">;
-        /**
-         * 暂无领取记录。
-         */
-        "claimsEmpty": string;
-        /**
-         * 领取记录加载失败。
-         */
-        "claimsLoadFailed": string;
-        /**
-         * 复制失败，请选中兑换码后手动复制。
-         */
-        "copyFailed": string;
-        /**
-         * 兑换码
-         */
-        "redemptionCode": string;
-    };
-    "_wallet": {
-        /**
-         * 积分
-         */
-        "title": string;
-        /**
-         * 积分可用于红包、打赏和转账等社区功能。
+         * 社区小游戏，支持单人挑战和多人对战。
          */
         "description": string;
         /**
-         * 可用积分
+         * 开始游戏
          */
-        "balance": string;
+        "play": string;
         /**
-         * 冻结积分
+         * 需要登录
          */
-        "reservedBalance": string;
+        "needSignIn": string;
         /**
-         * 可用积分
+         * 投放 Emoji，合并相同 Emoji，挑战更高分。
          */
-        "points": string;
+        "bubbleGameDescription": string;
         /**
-         * 积分兑换（已停用）
+         * 经典黑白棋，可邀请好友对战，也能随机匹配对手。
          */
-        "exchange": string;
+        "reversiDescription": string;
         /**
-         * 积分账户已经统一，不再提供兑换功能。
+         * 单人
          */
-        "exchangeDescription": string;
+        "singlePlayer": string;
         /**
-         * 积分兑换已停用
+         * 对战
          */
-        "exchangeRate": string;
-        /**
-         * 兑换积分数
-         */
-        "exchangePoints": string;
-        /**
-         * 可得积分：{coins}
-         */
-        "exchangeAmount": ParameterizedString<"coins">;
-        /**
-         * 积分兑换已停用。
-         */
-        "exchangeConfirm": string;
-        /**
-         * 积分兑换已停用。
-         */
-        "exchangeDisabled": string;
-        /**
-         * 积分兑换已停用。
-         */
-        "exchangeSuccess": string;
-        /**
-         * 积分兑换已停用。
-         */
-        "exchangeConfirmed": string;
-        /**
-         * 请输入不超过可用积分的正整数。
-         */
-        "invalidPoints": string;
-        /**
-         * 交易记录
-         */
-        "history": string;
-        /**
-         * 暂无交易记录。
-         */
-        "empty": string;
-        /**
-         * 钱包加载失败，请重试。
-         */
-        "loadFailed": string;
-        /**
-         * 可用余额不足。
-         */
-        "insufficientBalance": string;
-        /**
-         * 积分不足。
-         */
-        "insufficientPoints": string;
-        /**
-         * 余额将超过上限，无法操作。
-         */
-        "balanceLimit": string;
-        /**
-         * 内容与已发送的请求不同，请查看交易记录。
-         */
-        "requestConflict": string;
-        /**
-         * 暂时无法确认处理结果，可以使用相同内容重试。
-         */
-        "operationFailed": string;
-        /**
-         * 正在确认上次处理结果，使用相同内容重试不会重复处理。
-         */
-        "pending": string;
-        /**
-         * 交易后余额：{coins}
-         */
-        "balanceAfter": ParameterizedString<"coins">;
-        /**
-         * 消耗积分：{points}
-         */
-        "pointsSpent": ParameterizedString<"points">;
-        /**
-         * 积分仅用于本站功能，不支持现金充值或提现。
-         */
-        "noCashValue": string;
-        /**
-         * 积分管理
-         */
-        "adminTitle": string;
-        /**
-         * 积分兑换已停用
-         */
-        "exchangeEnabled": string;
-        /**
-         * 兑换设置已停用
-         */
-        "rate": string;
-        /**
-         * 积分兑换已停用。
-         */
-        "invalidRate": string;
-        /**
-         * 调整积分
-         */
-        "adjust": string;
-        /**
-         * 增加或减少本站用户的积分，原因选填，填写后将保留在交易记录中。
-         */
-        "adjustDescription": string;
-        /**
-         * 积分数量（负数为减少）
-         */
-        "amount": string;
-        /**
-         * 原因（选填）
-         */
-        "reason": string;
-        /**
-         * 请输入非零金额（-2,000,000,000至2,000,000,000），最多两位小数，原因不超过500字。
-         */
-        "invalidAdjustment": string;
-        /**
-         * 增加积分
-         */
-        "increase": string;
-        /**
-         * 减少积分
-         */
-        "decrease": string;
-        /**
-         * 确定增加 {amount} 积分？
-         */
-        "increaseConfirm": ParameterizedString<"amount">;
-        /**
-         * 确定减少 {amount} 积分？
-         */
-        "decreaseConfirm": ParameterizedString<"amount">;
-        /**
-         * 为@{username}调整{amount}积分？原因：{reason}
-         */
-        "adjustConfirm": ParameterizedString<"username" | "amount" | "reason">;
-        /**
-         * 余额已调整，当前可用余额：{balance}积分
-         */
-        "adjusted": ParameterizedString<"balance">;
-        /**
-         * 请选择本站用户。
-         */
-        "localUserRequired": string;
-        "_types": {
-            /**
-             * 积分兑换
-             */
-            "exchange": string;
-            /**
-             * 管理员调整
-             */
-            "adminAdjustment": string;
-            /**
-             * 发出红包
-             */
-            "redPacketSend": string;
-            /**
-             * 领取红包
-             */
-            "redPacketClaim": string;
-            /**
-             * 红包退回
-             */
-            "redPacketRefund": string;
-            /**
-             * 释放红包冻结
-             */
-            "redPacketReservationRelease": string;
-            /**
-             * 发出打赏
-             */
-            "tipSend": string;
-            /**
-             * 收到打赏
-             */
-            "tipReceive": string;
-            /**
-             * 发起转账
-             */
-            "transferSend": string;
-            /**
-             * 收到转账
-             */
-            "transferReceive": string;
-            /**
-             * 转账退回
-             */
-            "transferRefund": string;
-            /**
-             * 释放转账冻结
-             */
-            "transferReservationRelease": string;
-            /**
-             * 签到奖励
-             */
-            "checkinReward": string;
-            /**
-             * 兑换补签卡
-             */
-            "checkinMakeupExchange": string;
-            /**
-             * 管理员发放积分
-             */
-            "checkinAdminGrant": string;
-            /**
-             * 管理员收回积分
-             */
-            "checkinAdminRevoke": string;
-            /**
-             * 订单支付
-             */
-            "orderPayment": string;
-            /**
-             * 订单收入
-             */
-            "orderIncome": string;
-            /**
-             * 历史积分期初余额
-             */
-            "pointsOpeningBalance": string;
-            /**
-             * 积分账户合并
-             */
-            "pointsUnification": string;
-        };
-        /**
-         * 积分概览
-         */
-        "overview": string;
-        /**
-         * 积分摘要
-         */
-        "summary": string;
-        /**
-         * 近期流水
-         */
-        "recentActivity": string;
-        /**
-         * 交易流水
-         */
-        "transactions": string;
-        /**
-         * 业务单号
-         */
-        "columnRelatedId": string;
-        /**
-         * 交易后余额
-         */
-        "columnBalance": string;
-        /**
-         * 冻结变化
-         */
-        "columnReserved": string;
-        /**
-         * 冻结后余额
-         */
-        "columnReservedBalance": string;
-        /**
-         * 未知用户
-         */
-        "unknownUser": string;
-        /**
-         * 积分兑换已停用
-         */
-        "pointsPerCoin": string;
-        /**
-         * 积分兑换已停用。
-         */
-        "exchangePointStep": string;
-        /**
-         * 积分兑换已停用。
-         */
-        "invalidExchangeAmount": string;
-        /**
-         * 上一页
-         */
-        "previousPage": string;
-        /**
-         * 下一页
-         */
-        "nextPage": string;
-        /**
-         * 第 {page} 页
-         */
-        "historyPage": ParameterizedString<"page">;
-        /**
-         * 积分
-         */
-        "currencyCoins": string;
-        /**
-         * 积分
-         */
-        "currencyPoints": string;
-        /**
-         * 交易后积分余额：{coins}
-         */
-        "balanceAfterCoins": ParameterizedString<"coins">;
-        /**
-         * 交易后积分余额：{points}
-         */
-        "balanceAfterPoints": ParameterizedString<"points">;
-        /**
-         * 冻结变化：{amount} 积分
-         */
-        "reservedChange": ParameterizedString<"amount">;
-        /**
-         * 冻结 {amount}
-         */
-        "reservedShort": ParameterizedString<"amount">;
-        /**
-         * 冻结后余额：{amount} 积分
-         */
-        "reservedAfter": ParameterizedString<"amount">;
-        /**
-         * 积分兑换（已停用）
-         */
-        "exchangeTitle": string;
-        /**
-         * 积分账户已经统一，不再使用兑换汇率。
-         */
-        "legacyExchangeRate": string;
-        /**
-         * 名称
-         */
-        "columnName": string;
-        /**
-         * 积分
-         */
-        "columnPoints": string;
-        /**
-         * 类型
-         */
-        "columnType": string;
-        /**
-         * 状态
-         */
-        "columnStatus": string;
-        /**
-         * 积分动向
-         */
-        "columnFlow": string;
-        /**
-         * 应用名
-         */
-        "columnApp": string;
-        /**
-         * 编号
-         */
-        "columnNumber": string;
-        /**
-         * 操作
-         */
-        "columnOperation": string;
-        /**
-         * 成功
-         */
-        "statusSuccess": string;
-        /**
-         * 已入账
-         */
-        "statusRecorded": string;
-        /**
-         * 查看详情
-         */
-        "viewDetail": string;
-        "_filters": {
-            /**
-             * 积分收益
-             */
-            "income": string;
-            /**
-             * 积分消耗
-             */
-            "expense": string;
-            /**
-             * 社区划转
-             */
-            "transfer": string;
-            /**
-             * 在线流转
-             */
-            "online": string;
-            /**
-             * 所有活动
-             */
-            "all": string;
-        };
-        "_receipt": {
-            /**
-             * 交易凭证
-             */
-            "title": string;
-            /**
-             * TOTAL CREDITS
-             */
-            "totalCredits": string;
-            /**
-             * 编号
-             */
-            "number": string;
-            /**
-             * 类型
-             */
-            "type": string;
-            /**
-             * 消费方
-             */
-            "consumer": string;
-            /**
-             * 服务方
-             */
-            "provider": string;
-            /**
-             * 备注
-             */
-            "remark": string;
-            /**
-             * 时间
-             */
-            "time": string;
-            /**
-             * —
-             */
-            "noRemark": string;
-            /**
-             * {name} Credit
-             */
-            "brand": ParameterizedString<"name">;
-        };
-        "_categories": {
-            /**
-             * 红包
-             */
-            "redPacket": string;
-            /**
-             * 转账
-             */
-            "transfer": string;
-            /**
-             * 打赏
-             */
-            "tip": string;
-            /**
-             * 签到
-             */
-            "checkin": string;
-            /**
-             * 订单
-             */
-            "order": string;
-            /**
-             * 管理
-             */
-            "admin": string;
-            /**
-             * 系统
-             */
-            "system": string;
-        };
+        "multiplayer": string;
     };
-    /**
-     * 广场
-     */
-    "plaza": string;
-    /**
-     * 已申请
-     */
-    "followRequestSent": string;
-    /**
-     * 取消申请
-     */
-    "cancelFollowRequest": string;
-    /**
-     * 已删除
-     */
-    "deleteSucceeded": string;
-    /**
-     * 已添加
-     */
-    "added": string;
-    /**
-     * 互动应用
-     */
-    "play": string;
-    /**
-     * 文章和页面
-     */
-    "articlesAndPages": string;
-    /**
-     * 不能超过 {limit} 个字。
-     */
-    "inputTooLong": ParameterizedString<"limit">;
-    "_article": {
+    "_brandingImages": {
         /**
-         * 目录
+         * 选择图片
          */
-        "tableOfContents": string;
+        "chooseImage": string;
         /**
-         * 文章
+         * 可上传图片或填写图片链接。
          */
-        "article": string;
+        "imageInputHint": string;
         /**
-         * 文章分类
-         */
-        "categories": string;
-        /**
-         * 最新
-         */
-        "latest": string;
-        /**
-         * 关注
-         */
-        "following": string;
-        /**
-         * 分类
-         */
-        "category": string;
-        /**
-         * 综合
-         */
-        "allCategories": string;
-        /**
-         * 未分类
-         */
-        "uncategorized": string;
-        /**
-         * 原分类暂不可用
-         */
-        "categoryUnavailable": string;
-        /**
-         * 分类名称
-         */
-        "categoryName": string;
-        /**
-         * 添加分类
-         */
-        "addCategory": string;
-        /**
-         * 最多添加 50 个分类，每个名称最多 10 字。分类按下方顺序显示，保存后生效。
-         */
-        "categorySettingsDescription": string;
-        /**
-         * 文章分类与标签
-         */
-        "categoryAndTagSettings": string;
-        /**
-         * 可添加、编辑或删除标签，名称最多 10 字，操作后立即保存。移除后，已发布文章和云端草稿中的原标签仍会保留。
-         */
-        "tagSettingsDescription": string;
-        /**
-         * 添加标签
-         */
-        "addTag": string;
-        /**
-         * 编辑标签
-         */
-        "editTag": string;
-        /**
-         * 删除标签“{tag}”？已发布文章和云端草稿中的原标签会保留。
-         */
-        "deleteTagConfirm": ParameterizedString<"tag">;
-        /**
-         * 这个标签已存在。
-         */
-        "tagAlreadyExists": string;
-        /**
-         * 标签已被修改或删除，列表已刷新。
-         */
-        "tagNotFound": string;
-        /**
-         * 标签不能重复，最多 500 个，每个最多 10 字。
-         */
-        "invalidTagSettings": string;
-        /**
-         * 移除此分类？保存后，该分类的文章会归为未分类。
-         */
-        "deleteCategoryConfirm": string;
-        /**
-         * 上移分类
-         */
-        "moveCategoryUp": string;
-        /**
-         * 下移分类
-         */
-        "moveCategoryDown": string;
-        /**
-         * 发布文章
-         */
-        "publish": string;
-        /**
-         * 编辑文章
-         */
-        "edit": string;
-        /**
-         * 文章标题
-         */
-        "title": string;
-        /**
-         * 摘要
-         */
-        "summary": string;
-        /**
-         * 文章封面
-         */
-        "cover": string;
-        /**
-         * 选择封面
-         */
-        "chooseCover": string;
-        /**
-         * 可上传封面，或按当天日期生成。留空则不显示封面。
-         */
-        "defaultCoverHint": string;
-        /**
-         * 生成默认封面
-         */
-        "generateDefaultCover": string;
-        /**
-         * 封面生成或上传失败，请重试。
-         */
-        "generateCoverFailed": string;
-        /**
-         * 使用 Markdown 撰写正文…
-         */
-        "bodyPlaceholder": string;
-        /**
-         * 未发布的内容自动保存在当前浏览器。
-         */
-        "draftHint": string;
-        /**
-         * 文章草稿
-         */
-        "drafts": string;
-        /**
-         * 仅保存在当前浏览器，不会发布或同步到其他设备。清理浏览器数据会丢失草稿。
-         */
-        "localDraftsInfo": string;
-        /**
-         * 暂无文章草稿
-         */
-        "noDrafts": string;
-        /**
-         * 另写一篇
-         */
-        "newDraft": string;
-        /**
-         * 未命名文章
-         */
-        "untitledDraft": string;
-        /**
-         * 保存草稿
-         */
-        "saveDraft": string;
-        /**
-         * 已保存到本地
-         */
-        "draftSaved": string;
-        /**
-         * 未保存
-         */
-        "draftPending": string;
-        /**
-         * {seconds} 秒后保存到本地
-         */
-        "draftCountdown": ParameterizedString<"seconds">;
-        /**
-         * 本地保存失败，请重试或复制正文备份。
-         */
-        "draftSaveFailed": string;
-        /**
-         * 无法读取本地草稿，请检查浏览器存储设置。
-         */
-        "draftReadFailed": string;
-        /**
-         * 删除这篇本地文章草稿？此操作无法撤销。
-         */
-        "draftDeleteConfirm": string;
-        /**
-         * 草稿已在其他窗口更改，请重新打开草稿箱。
-         */
-        "draftChanged": string;
-        /**
-         * 正在编辑
-         */
-        "draftInUse": string;
-        /**
-         * 话题标签
-         */
-        "tags": string;
-        /**
-         * 输入关键词搜索已有标签
-         */
-        "tagsHint": string;
-        /**
-         * 标签搜索失败，请重试。
-         */
-        "tagsSearchFailed": string;
-        /**
-         * 没有匹配的标签，请换个关键词。
-         */
-        "tagsNotFound": string;
-        /**
-         * 部分标签已不可用，请移除后重新选择。
-         */
-        "tagsUnavailable": string;
-        /**
-         * 最多 3 个话题标签，分类最多 1 个
-         */
-        "tagsLimit": string;
-        /**
-         * 本地草稿
-         */
-        "localDrafts": string;
-        /**
-         * 云端草稿
-         */
-        "cloudDrafts": string;
-        /**
-         * 输入自动保存在当前浏览器；点击“保存草稿”后存到云端，仅自己可见，可跨设备继续编辑。
-         */
-        "draftStrategy": string;
-        /**
-         * 保存到本地
-         */
-        "saveLocalDraft": string;
-        /**
-         * 草稿已保存到云端
-         */
-        "cloudDraftSaved": string;
-        /**
-         * 保存中…
-         */
-        "cloudDraftSaving": string;
-        /**
-         * 云端保存失败，当前内容仍在编辑器中，可重试。
-         */
-        "cloudDraftFailed": string;
-        /**
-         * 云端草稿已在其他窗口更新或删除。请另存副本，或从草稿箱重新打开。
-         */
-        "cloudDraftConflict": string;
-        /**
-         * 另存副本
-         */
-        "saveDraftCopy": string;
-        /**
-         * 无法读取云端草稿
-         */
-        "cloudDraftsFailed": string;
-        /**
-         * 文章已发布，云端草稿未删除，请在草稿箱中检查。
-         */
-        "cloudDraftCleanupFailed": string;
-        /**
-         * 删除这篇云端文章草稿？所有设备将无法再从云端恢复，本地副本不受影响。
-         */
-        "cloudDraftDeleteConfirm": string;
-        /**
-         * 阅读量
-         */
-        "views": string;
-        /**
-         * 推荐文章
-         */
-        "recommendedArticles": string;
-        /**
-         * 推荐帖子
-         */
-        "recommendedNotes": string;
-        /**
-         * 文章操作
-         */
-        "menu": string;
-        /**
-         * 新建文章
-         */
-        "newArticle": string;
-        /**
-         * 预计阅读 {minutes} 分钟
-         */
-        "readingTime": ParameterizedString<"minutes">;
-        /**
-         * 此前版本已保存到云端，刚输入的改动已保留在本地。
-         */
-        "cloudDraftPreviousSaved": string;
-        /**
-         * 已发布文章的修改
-         */
-        "editingPublishedDraft": string;
-        /**
-         * 只能编辑自己发布的文章。
-         */
-        "cannotEdit": string;
-        /**
-         * 请选择未标记为敏感内容的图片。
+         * 请选择图片文件。
          */
         "imageOnly": string;
         /**
-         * 标题和正文不能为空；标题最多 100 字，摘要最多 200 字，正文最多 50000 字。
+         * Logo URL
          */
-        "invalidArticle": string;
+        "icon": string;
         /**
-         * 评论
+         * 用于欢迎页中央及站点信息中的方形 Logo。留空使用默认 Logo。
          */
-        "comment": string;
+        "iconDescription": string;
         /**
-         * 分享你的看法…
+         * 应用图标 URL（192 × 192）
          */
-        "commentPlaceholder": string;
+        "appIconSmall": string;
         /**
-         * 回复 {user}…
+         * 应用图标 URL（512 × 512）
          */
-        "replyPlaceholder": ParameterizedString<"user">;
+        "appIconLarge": string;
         /**
-         * 取消回复
+         * Banner URL
          */
-        "cancelReply": string;
+        "banner": string;
         /**
-         * 写评论
+         * 用于站点介绍页和信息卡片的横向封面图片。
          */
-        "writeComment": string;
+        "bannerDescription": string;
         /**
-         * 发表评论
+         * 页面背景图片 URL
          */
-        "publishComment": string;
+        "background": string;
         /**
-         * 登录后发表评论
+         * 用于欢迎页整页背景，以及未登录页面的侧栏背景。
          */
-        "signInToComment": string;
+        "backgroundDescription": string;
         /**
-         * 还没有评论，来发表第一条吧。
+         * 欢迎页右上角源码链接的目标 URL；留空时隐藏该链接。
          */
-        "noComments": string;
+        "repositoryDescription": string;
         /**
-         * 删除这条评论？
+         * 404 页面图片 URL
          */
-        "deleteCommentConfirm": string;
+        "notFound": string;
         /**
-         * 该功能暂未开放。
+         * 访问不存在的页面或找不到内容时显示的图片。留空使用默认图标。
          */
-        "comingSoon": string;
-    };
-    /**
-     * 网页链接
-     */
-    "urlPreviewFallbackTitle": string;
-    /**
-     * 暂无网站介绍，可打开链接查看。
-     */
-    "urlPreviewFallbackDescription": string;
-    /**
-     * 向左滚动
-     */
-    "scrollLeft": string;
-    /**
-     * 向右滚动
-     */
-    "scrollRight": string;
-    "_signinHistory": {
+        "notFoundDescription": string;
         /**
-         * 登录成功
-         */
-        "success": string;
-        /**
-         * IP 地址
-         */
-        "ipAddress": string;
-        /**
-         * 设备类型
-         */
-        "device": string;
-        /**
-         * User-Agent
-         */
-        "userAgent": string;
-        /**
-         * 未知设备
-         */
-        "unknownDevice": string;
-    };
-    "_signinAlert": {
-        /**
-         * 检测到新的登录
-         */
-        "title": string;
-        /**
-         * 新的设备
-         */
-        "newDevice": string;
-        /**
-         * 新的网络
-         */
-        "newNetwork": string;
-        /**
-         * 新的设备和网络
-         */
-        "newDeviceAndNetwork": string;
-        /**
-         * 你的账户已在{reason}上登录。
-         * 设备：{device}
-         * IP 地址：{ip}
-         * 如非本人操作，请立即修改密码，并重新生成登录 Token 使所有设备退出登录。
-         */
-        "text": ParameterizedString<"reason" | "device" | "ip">;
-        /**
-         * 本人操作
-         */
-        "itsMe": string;
-        /**
-         * 非本人操作
-         */
-        "notMe": string;
-    };
-    "_widgetPicker": {
-        /**
-         * 已添加
-         */
-        "current": string;
-        /**
-         * 上移
-         */
-        "moveUp": string;
-        /**
-         * 下移
-         */
-        "moveDown": string;
-        /**
-         * 添加小工具
-         */
-        "title": string;
-        /**
-         * 搜索小工具
-         */
-        "search": string;
-        /**
-         * 未找到匹配的小工具，请尝试其他关键词。
+         * 空状态图片 URL
          */
         "empty": string;
-        "_descriptions": {
-            /**
-             * 显示你的头像和个人资料
-             */
-            "profile": string;
-            /**
-             * 查看当前服务器的信息
-             */
-            "instanceInfo": string;
-            /**
-             * 随手记录文字和想法
-             */
-            "memo": string;
-            /**
-             * 记录待办事项并标记完成
-             */
-            "todo": string;
-            /**
-             * 安排专注和休息时间
-             */
-            "pomodoro": string;
-            /**
-             * 查看距离指定日期还有多久
-             */
-            "countdown": string;
-            /**
-             * 查看收到的通知
-             */
-            "notifications": string;
-            /**
-             * 在侧栏浏览时间线
-             */
-            "timeline": string;
-            /**
-             * 查看日期和本月日历
-             */
-            "calendar": string;
-            /**
-             * 阅读 RSS 订阅的最新内容
-             */
-            "rss": string;
-            /**
-             * 滚动显示 RSS 订阅标题
-             */
-            "rssTicker": string;
-            /**
-             * 发现正在讨论的热门话题
-             */
-            "trends": string;
-            /**
-             * 显示模拟时钟
-             */
-            "clock": string;
-            /**
-             * 查看你的发帖活动
-             */
-            "activity": string;
-            /**
-             * 展示网盘中的最新照片
-             */
-            "photos": string;
-            /**
-             * 用数字显示当前时间
-             */
-            "digitalClock": string;
-            /**
-             * 显示当前 UNIX 时间戳
-             */
-            "unixClock": string;
-            /**
-             * 在侧栏直接发布帖子
-             */
-            "postForm": string;
-            /**
-             * 轮播网盘文件夹中的图片
-             */
-            "slideshow": string;
-            /**
-             * 查看服务器的运行指标
-             */
-            "serverMetric": string;
-            /**
-             * 查看当前在线人数
-             */
-            "onlineUsers": string;
-            /**
-             * 查看后台作业队列状态
-             */
-            "jobQueue": string;
-            /**
-             * 添加运行自定义脚本的按钮
-             */
-            "button": string;
-            /**
-             * 编写并运行 AiScript 脚本
-             */
-            "aiscript": string;
-            /**
-             * 展示 AiScript 编写的小应用
-             */
-            "aiscriptApp": string;
-            /**
-             * 让小蓝陪在你的侧栏
-             */
-            "aichan": string;
-            /**
-             * 展示所选列表中的用户
-             */
-            "userList": string;
-            /**
-             * 点击按钮，累积点击次数
-             */
-            "clicker": string;
-            /**
-             * 查看今天过生日的关注用户
-             */
-            "birthdayFollowings": string;
-            /**
-             * 查看和发送私信
-             */
-            "chat": string;
-            /**
-             * 查看服务器的联邦连接
-             */
-            "federation": string;
-            /**
-             * 以球状列表展示联邦服务器
-             */
-            "instanceCloud": string;
-        };
-    };
-    "_notificationCategories": {
         /**
-         * 回复与提及
+         * 列表没有内容、搜索没有结果等空状态下显示的图片。留空使用默认图标。
          */
-        "mentions": string;
+        "emptyDescription": string;
         /**
-         * 回应与转发
+         * 错误提示图片 URL
          */
-        "reactions": string;
+        "error": string;
         /**
-         * 新增关注者
+         * 页面加载失败或发生错误时显示的图片。留空使用默认错误提示。
          */
-        "follows": string;
-    };
-    "_antennas": {
+        "errorDescription": string;
         /**
-         * 关键词订阅会持续收集包含指定关键词的帖子，可限定来源为全部帖子、已关注用户、指定用户或用户列表，结果以单独的时间线查看。
+         * 保存中…
          */
-        "tip": string;
-    };
-    "_chatRedPacket": {
+        "saving": string;
         /**
-         * 当前群成员
+         * 请输入有效的 manifest.json 内容（JSON 或 JSON5 格式）。
          */
-        "audience": string;
-        /**
-         * 领取时在群内的成员均可领取，包括后加入的成员。
-         */
-        "eligibility": string;
-    };
-    "_tip": {
-        /**
-         * 打赏
-         */
-        "title": string;
-        /**
-         * 打赏给
-         */
-        "recipient": string;
-        /**
-         * 自定义金额
-         */
-        "amount": string;
-        /**
-         * 选择金额
-         */
-        "quickAmounts": string;
-        /**
-         * {coins} 积分
-         */
-        "presetAmount": ParameterizedString<"coins">;
-        /**
-         * 可用余额：{coins} 积分
-         */
-        "balance": ParameterizedString<"coins">;
-        /**
-         * 留言
-         */
-        "message": string;
-        /**
-         * 选填，最多 100 字
-         */
-        "messageHint": string;
-        /**
-         * 确认后直接转入对方钱包，无需领取，且无法撤销。
-         */
-        "description": string;
-        /**
-         * 确认打赏
-         */
-        "send": string;
-        /**
-         * 向 {target} 打赏 {coins} 积分？确认后直接到账，无法撤销。
-         */
-        "confirm": ParameterizedString<"target" | "coins">;
-        /**
-         * 暂时无法确认打赏结果，已保留金额和留言。重试不会重复扣款。
-         */
-        "pending": string;
-        /**
-         * 无法保存打赏请求，请检查浏览器存储后重试。
-         */
-        "saveFailed": string;
-        /**
-         * 打赏金额须为 1 至 1000 积分，最多两位小数。
-         */
-        "invalidAmount": string;
-        /**
-         * 当前账号或对方账号受限，或双方存在屏蔽关系，无法打赏。
-         */
-        "notAllowed": string;
-        /**
-         * 打赏信息有误，请检查金额是否为 1 至 1000 积分、最多两位小数，留言是否超过 100 个字。
-         */
-        "invalidInput": string;
-        /**
-         * 对方账号不存在或已注销，无法打赏。
-         */
-        "userUnavailable": string;
-        /**
-         * 对方钱包余额已达上限，无法接收这笔打赏。
-         */
-        "recipientBalanceLimit": string;
-        /**
-         * 打赏操作过于频繁，请稍后再试。
-         */
-        "tooFrequent": string;
-        /**
-         * 登录已失效，请重新登录后再打赏。
-         */
-        "signinRequired": string;
-        /**
-         * 当前账号无权打赏，请检查账号状态或使用的访问权限。
-         */
-        "accountRestricted": string;
-        /**
-         * 服务器处理打赏时出错，暂时无法确认是否到账。
-         */
-        "serverError": string;
-        /**
-         * 网络请求失败，暂时无法确认打赏结果。请检查网络后重试。
-         */
-        "networkError": string;
-        /**
-         * 未收到服务器的有效确认，暂时无法确定打赏是否到账。
-         */
-        "responseUnavailable": string;
-        /**
-         * 打赏结果未确认，错误代码：{code}。请稍后重试；若仍失败，请联系管理员。
-         */
-        "unknownError": ParameterizedString<"code">;
-        /**
-         * 打赏已到账。
-         */
-        "sent": string;
-        /**
-         * 打赏内容：{title}
-         */
-        "target": ParameterizedString<"title">;
-        /**
-         * 内容不存在或无法查看，不能打赏。
-         */
-        "targetUnavailable": string;
-        /**
-         * 打赏记录公开昵称、金额和留言；弹幕仅显示昵称和金额。
-         */
-        "publicRecord": string;
-        /**
-         * 打赏记录
-         */
-        "history": string;
-        /**
-         * 打赏弹幕
-         */
-        "barrage": string;
-        /**
-         * 打赏记录加载失败。
-         */
-        "historyFailed": string;
-        /**
-         * {count} 次打赏 · 共 {coins} 积分
-         */
-        "summary": ParameterizedString<"count" | "coins">;
-        /**
-         * 打赏 {coins} 积分
-         */
-        "record": ParameterizedString<"coins">;
-        /**
-         * 关闭弹幕
-         */
-        "hideBarrage": string;
-        /**
-         * 开启弹幕
-         */
-        "showBarrage": string;
-        /**
-         * 已注销用户
-         */
-        "deletedUser": string;
-    };
-    "_management": {
-        /**
-         * 管理
-         */
-        "title": string;
-        /**
-         * 商品管理
-         */
-        "products": string;
-        /**
-         * 订单管理
-         */
-        "orders": string;
-        /**
-         * 平台管理
-         */
-        "platform": string;
-    };
-    "_payments": {
-        /**
-         * 支付设置
-         */
-        "title": string;
-        /**
-         * 平台抽成费率
-         */
-        "feeRate": string;
-        /**
-         * 以百分比填写，最多保留两位小数。新费率仅对后续成交订单生效。
-         */
-        "feeRateHint": string;
-        /**
-         * 当前平台费率 {rate}%，费用按 0.01 积分计算；实收以成交时的费率为准。
-         */
-        "sellerFeeHint": ParameterizedString<"rate">;
-        /**
-         * 平台费率加载失败，请重试。
-         */
-        "publicLoadFailed": string;
-        /**
-         * 请输入 0 到 100 之间、最多两位小数的费率。
-         */
-        "invalidRate": string;
-        /**
-         * 平台余额
-         */
-        "platformBalance": string;
-        /**
-         * 支付设置加载失败，请重试。
-         */
-        "loadFailed": string;
-        /**
-         * 支付设置保存失败，请重试。
-         */
-        "saveFailed": string;
-        /**
-         * 订单总额
-         */
-        "orderTotal": string;
-        /**
-         * 平台费用
-         */
-        "platformFee": string;
-        /**
-         * 实收积分
-         */
-        "sellerAmount": string;
-        /**
-         * 平台暂时无法处理收款，请稍后重试。
-         */
-        "platformBalanceLimit": string;
-    };
-    "_marketplace": {
-        /**
-         * 发布商品
-         */
-        "publishProduct": string;
-        /**
-         * 我的商品
-         */
-        "myProducts": string;
-        /**
-         * 编辑商品
-         */
-        "editProduct": string;
-        /**
-         * 售出订单
-         */
-        "sales": string;
-        /**
-         * 发布人
-         */
-        "seller": string;
-        /**
-         * 购买人
-         */
-        "buyer": string;
-        /**
-         * 发布人已不可用
-         */
-        "unavailableSeller": string;
-        /**
-         * 自己的商品
-         */
-        "ownProduct": string;
-        /**
-         * 还没有发布商品。
-         */
-        "myProductsEmpty": string;
-        /**
-         * 商品加载失败，请重试。
-         */
-        "myProductsLoadFailed": string;
-        /**
-         * 还没有售出记录。
-         */
-        "noSales": string;
-        /**
-         * 商品已发布。
-         */
-        "publishSuccess": string;
-        /**
-         * 保存失败，请重试。
-         */
-        "productSaveFailed": string;
-        /**
-         * 发布的商品已达到数量上限。
-         */
-        "productLimit": string;
-        /**
-         * 商品已在其他页面更新，请刷新后重新编辑。
-         */
-        "productChanged": string;
-        /**
-         * 刷新会放弃当前未保存的修改，是否继续？
-         */
-        "reloadProductConfirm": string;
-        /**
-         * 商品不存在，或不属于当前账户。
-         */
-        "productNotEditable": string;
-        /**
-         * 上次发布结果尚未确认。重试会恢复同一商品，不会重复发布。
-         */
-        "publishPending": string;
-        /**
-         * 重试本次发布
-         */
-        "retryPublish": string;
-        /**
-         * 无法读取或保存发布请求，请检查浏览器存储权限后重试。
-         */
-        "publishStorageFailed": string;
-        /**
-         * 限购设置
-         */
-        "purchaseLimit": string;
-        /**
-         * 不限购
-         */
-        "noPurchaseLimit": string;
-        /**
-         * 限购
-         */
-        "withPurchaseLimit": string;
-        /**
-         * 每人累计 {count} {unit}
-         */
-        "cumulativeLimit": ParameterizedString<"count" | "unit">;
-        /**
-         * 还可购买
-         */
-        "remainingAllowance": string;
-        /**
-         * 每件计一次，按每人历史购买数量累计，可一次或分次购买。
-         */
-        "limitHint": string;
-        /**
-         * 兑换码（CDK）
-         */
-        "redemptionCode": string;
-        /**
-         * 复制兑换码
-         */
-        "copyCode": string;
-        /**
-         * 此兑换码对应本单全部商品，联系发布人领取时使用。
-         */
-        "redemptionCodeHint": string;
-        /**
-         * 订单详情
-         */
-        "orderDetails": string;
-        /**
-         * 发布人的积分余额已达上限，暂时无法购买。
-         */
-        "sellerBalanceLimit": string;
-        /**
-         * 当前无法购买此商品。
-         */
-        "purchaseNotAllowed": string;
-        /**
-         * 上架销售
-         */
-        "onSale": string;
-        /**
-         * 商品名称
-         */
-        "productName": string;
-        /**
-         * 商品说明
-         */
-        "productDescription": string;
-        /**
-         * 商品单价
-         */
-        "productPrice": string;
-        /**
-         * 请检查商品名称、价格、图片地址和数量；上架前需填写交付说明。
-         */
-        "invalidSettings": string;
-        /**
-         * 查看 {name}
-         */
-        "viewProduct": ParameterizedString<"name">;
-        /**
-         * 商品信息已更新，请重新查看后确认购买。
-         */
-        "priceChanged": string;
-        /**
-         * 该商品已下架，请选择其他商品。
-         */
-        "unavailable": string;
-        /**
-         * 未上架
-         */
-        "offSale": string;
-        /**
-         * 商品类型
-         */
-        "productType": string;
-        /**
-         * 实物
-         */
-        "physicalType": string;
-        /**
-         * 虚拟商品
-         */
-        "virtualType": string;
-        /**
-         * 商品分类
-         */
-        "categoryLabel": string;
-        /**
-         * 计量单位
-         */
-        "unitLabel": string;
-        /**
-         * 份
-         */
-        "defaultUnit": string;
-        /**
-         * 商品图片地址
-         */
-        "coverUrl": string;
-        /**
-         * 可填写 HTTP 或 HTTPS 图片地址；留空使用商品类型图案。
-         */
-        "coverHint": string;
-        /**
-         * 每人累计限购数量
-         */
-        "perUserLimit": string;
-        /**
-         * 可售总量
-         */
-        "stockLimit": string;
-        /**
-         * 库存
-         */
-        "stock": string;
-        /**
-         * 不限量
-         */
-        "unlimitedStock": string;
-        /**
-         * 0 表示不限量；填写可售总量，包含已售出部分。
-         */
-        "stockHint": string;
-        /**
-         * 付款后发送的交付内容
-         */
-        "deliveryContent": string;
-        /**
-         * 领取与配送说明
-         */
-        "physicalDeliveryContent": string;
-        /**
-         * 填写购买后的领取步骤或联系方法；配送范围、费用和时间请在商品说明中写明。
-         */
-        "physicalDeliveryHint": string;
-        /**
-         * 可填写领取方法、内容或链接，付款后发送给购买者并保存到订单。每笔订单另有独立兑换码，此处内容会发给所有购买者。
-         */
-        "deliveryHint": string;
-        /**
-         * 全部商品
-         */
-        "allProducts": string;
-        /**
-         * 集市订单
-         */
-        "orders": string;
-        /**
-         * 订单号
-         */
-        "orderNumber": string;
-        /**
-         * 还没有购买记录。
-         */
-        "noOrders": string;
-        /**
-         * 交付说明
-         */
-        "physicalDelivery": string;
-        /**
-         * 交付内容
-         */
-        "deliveredContent": string;
-        /**
-         * 自动发货
-         */
-        "automaticDelivery": string;
-        /**
-         * 交付内容暂时无法显示，请联系发布人并提供订单号，不要重复购买。
-         */
-        "deliveryUnavailable": string;
-        /**
-         * 已售罄
-         */
-        "soldOut": string;
-        /**
-         * 已达限购
-         */
-        "reachedLimit": string;
-        /**
-         * 每人限购 {count} 件
-         */
-        "limited": ParameterizedString<"count">;
-        /**
-         * 剩余 {count} 件
-         */
-        "stockRemaining": ParameterizedString<"count">;
-        /**
-         * 数量超过当前库存或限购额度，请调整后重试。
-         */
-        "limitExceeded": string;
-        /**
-         * 购买成功。
-         */
-        "redeemSuccess": string;
-        /**
-         * 重试本次购买
-         */
-        "retryPurchase": string;
-        /**
-         * 尚未确认上次购买结果。请重试本次购买，不会重复扣款。
-         */
-        "pendingResult": string;
-        /**
-         * {name}，{quantity} {unit}，合计 {amount} 积分
-         */
-        "pendingSummary": ParameterizedString<"name" | "quantity" | "unit" | "amount">;
-        /**
-         * 无法保存或读取购买请求，已暂停新购买。请检查浏览器存储权限后重试；不要清除未确认的请求。
-         */
-        "requestStorageFailed": string;
-        /**
-         * 当前环境无法安全提交，请使用新版浏览器并通过 HTTPS 访问。
-         */
-        "securePurchaseUnavailable": string;
-        /**
-         * 本次请求与此前的操作不一致，请查看已有商品或订单，不要重复提交。
-         */
-        "requestConflict": string;
-        /**
-         * 好物即将上架
-         */
-        "emptyTitle": string;
-        /**
-         * 订单加载失败，请重试。
-         */
-        "orderLoadFailed": string;
-        /**
-         * 购买 {quantity} {unit}「{name}」，合计 {amount} 积分。确认购买？
-         */
-        "confirmProduct": ParameterizedString<"quantity" | "unit" | "name" | "amount">;
-        /**
-         * 实付积分
-         */
-        "pointsRedemption": string;
-        /**
-         * 可用积分
-         */
-        "balance": string;
-        /**
-         * 积分
-         */
-        "pointUnit": string;
-        /**
-         * 每{unit}
-         */
-        "pricePerUnit": ParameterizedString<"unit">;
-        /**
-         * 搜索商品
-         */
-        "search": string;
-        /**
-         * 默认排序
-         */
-        "defaultSort": string;
-        /**
-         * 价格从低到高
-         */
-        "priceAsc": string;
-        /**
-         * 价格从高到低
-         */
-        "priceDesc": string;
-        /**
-         * 没有找到符合条件的商品。
-         */
-        "noResults": string;
-        /**
-         * 清除筛选
-         */
-        "clearFilters": string;
-        /**
-         * 立即购买
-         */
-        "redeemNow": string;
-        /**
-         * 集市
-         */
-        "title": string;
-        /**
-         * 购买数量
-         */
-        "quantity": string;
-        /**
-         * 减少购买数量
-         */
-        "decrease": string;
-        /**
-         * 增加购买数量
-         */
-        "increase": string;
-        /**
-         * 合计：{amount}
-         */
-        "total": ParameterizedString<"amount">;
-        /**
-         * 购买失败，请稍后重试。
-         */
-        "purchaseFailed": string;
-        /**
-         * 余额不足。
-         */
-        "insufficientPoints": string;
-        /**
-         * 集市加载失败，请重试。
-         */
-        "loadFailed": string;
-    };
-    "_communityRanking": {
-        /**
-         * 每一份分享与支持，都值得被看见。
-         */
-        "description": string;
-        /**
-         * 富豪榜
-         */
-        "points": string;
-        /**
-         * 评论榜
-         */
-        "replies": string;
-        /**
-         * 发帖榜
-         */
-        "posts": string;
-        /**
-         * 签到榜
-         */
-        "checkin": string;
-        /**
-         * 打赏榜
-         */
-        "tips": string;
-        /**
-         * 按当前积分余额排名。
-         */
-        "pointsRule": string;
-        /**
-         * 按公开评论数量排名。
-         */
-        "repliesRule": string;
-        /**
-         * 按公开原创帖子和文章总数排名。
-         */
-        "postsRule": string;
-        /**
-         * 按累计签到天数排名。
-         */
-        "checkinRule": string;
-        /**
-         * 按对公开内容的打赏次数排名。
-         */
-        "tipsRule": string;
-        /**
-         * 积分
-         */
-        "pointsUnit": string;
-        /**
-         * 条评论
-         */
-        "repliesUnit": string;
-        /**
-         * 篇内容
-         */
-        "postsUnit": string;
-        /**
-         * 天
-         */
-        "checkinUnit": string;
-        /**
-         * 次
-         */
-        "tipsUnit": string;
-        /**
-         * 前三名
-         */
-        "podium": string;
-        /**
-         * 第 {rank} 名
-         */
-        "rankLabel": ParameterizedString<"rank">;
-        /**
-         * 我的排名
-         */
-        "myRank": string;
-        /**
-         * 暂未上榜
-         */
-        "notRanked": string;
-        /**
-         * 暂无排名
-         */
-        "noEntries": string;
-        /**
-         * 还没有符合本榜规则的记录。
-         */
-        "noEntriesDescription": string;
-        /**
-         * 登录后可查看自己的排名。
-         */
-        "signInPrompt": string;
-        /**
-         * 排行榜加载失败。
-         */
-        "loadFailed": string;
-        /**
-         * 更新于 {time}
-         */
-        "updatedAt": ParameterizedString<"time">;
-        /**
-         * 展示前 100 名，仅统计本站正常用户。
-         */
-        "rule": string;
+        "invalidManifest": string;
     };
     "_transfer": {
         /**
@@ -20405,45 +21266,51 @@ export interface Locale extends ILocale {
             "deg": string;
         };
     };
-    "_attachmentLifecycle": {
-        /**
-         * 此附件会在所有用途解除后保留 7 天，再自动清理。
-         */
-        "managedHint": string;
-        /**
-         * 历史文件和直接上传到网盘的文件会一直保留。
-         */
-        "retainedHint": string;
-        /**
-         * 永久保留在网盘
-         */
-        "keep": string;
-        /**
-         * 用于站外链接的文件建议开启；开启后不再自动清理。
-         */
-        "keepHint": string;
-        /**
-         * 预计清理时间：{date}。再次使用或开启永久保留可取消清理。
-         */
-        "cleanupAt": ParameterizedString<"date">;
-        /**
-         * 文件正在清理。
-         */
-        "deleting": string;
-        /**
-         * 正在保护草稿附件…
-         */
-        "draftPending": string;
-        /**
-         * 草稿附件保护尚未完成，将自动重试。请联网后继续编辑，或在网盘中永久保留附件。
-         */
-        "draftFailed": string;
-    };
     "_myCenter": {
         /**
-         * 个人中心
+         * 创作中心
          */
         "title": string;
+        /**
+         * 查看创作数据、近期文章和积分余额。
+         */
+        "homeDescription": string;
+        /**
+         * 数据概览
+         */
+        "dataOverview": string;
+        /**
+         * 公开文章
+         */
+        "publicArticles": string;
+        /**
+         * 文章阅读
+         */
+        "articleViews": string;
+        /**
+         * 文章数据仅统计已公开内容。
+         */
+        "articleStatsScope": string;
+        /**
+         * 部分概览数据加载失败，请重试。
+         */
+        "overviewLoadFailed": string;
+        /**
+         * 近期发布
+         */
+        "recentArticles": string;
+        /**
+         * 暂无公开文章，发布后会显示在这里。
+         */
+        "noRecentArticles": string;
+        /**
+         * 近期文章加载失败，请重试。
+         */
+        "recentArticlesLoadFailed": string;
+        /**
+         * 常用功能
+         */
+        "quickLinks": string;
         /**
          * 积分资产
          */
@@ -20453,13 +21320,79 @@ export interface Locale extends ILocale {
          */
         "trade": string;
         /**
-         * 成长权益
+         * 成长与权益
          */
         "growth": string;
         /**
-         * 我买到的
+         * 购买订单
          */
         "purchases": string;
+    };
+    "_adminMenu": {
+        /**
+         * 用户权限
+         */
+        "userPermissions": string;
+        /**
+         * 用户列表
+         */
+        "users": string;
+        /**
+         * 角色管理
+         */
+        "roles": string;
+        /**
+         * 表情管理
+         */
+        "emojis": string;
+        /**
+         * 表情测试版
+         */
+        "emojisBeta": string;
+        /**
+         * 文件管理
+         */
+        "files": string;
+        /**
+         * 公告管理
+         */
+        "announcements": string;
+        /**
+         * 话题管理
+         */
+        "topics": string;
+        /**
+         * 广告管理
+         */
+        "ads": string;
+        /**
+         * 实例管理
+         */
+        "instances": string;
+        /**
+         * 中继管理
+         */
+        "relays": string;
+        /**
+         * 联邦队列
+         */
+        "federationJobs": string;
+        /**
+         * 安全设置
+         */
+        "security": string;
+        /**
+         * 邮件设置
+         */
+        "email": string;
+        /**
+         * Webhook
+         */
+        "systemWebhook": string;
+        /**
+         * 性能设置
+         */
+        "performance": string;
     };
     "_menuGroup": {
         /**
@@ -20467,11 +21400,15 @@ export interface Locale extends ILocale {
          */
         "privacyAndNotifications": string;
         /**
-         * 连接与数据
+         * 外观与交互
+         */
+        "appearanceAndInteraction": string;
+        /**
+         * 应用与数据
          */
         "integrationsAndData": string;
         /**
-         * 用户管理
+         * 用户与权限
          */
         "userManagement": string;
         /**
@@ -20483,7 +21420,7 @@ export interface Locale extends ILocale {
          */
         "operations": string;
         /**
-         * 审核
+         * 社区治理
          */
         "review": string;
         /**
@@ -20495,7 +21432,7 @@ export interface Locale extends ILocale {
          */
         "systemSettings": string;
         /**
-         * 运维
+         * 系统维护
          */
         "maintenance": string;
         /**
@@ -20506,5 +21443,73 @@ export interface Locale extends ILocale {
          * 动态
          */
         "profileActivity": string;
+    };
+    "_comment": {
+        /**
+         * 上一页
+         */
+        "previousPage": string;
+        /**
+         * 下一页
+         */
+        "nextPage": string;
+        /**
+         * 第 {page} 页
+         */
+        "page": ParameterizedString<"page">;
+        /**
+         * 共 {n} 条回复，点击查看
+         */
+        "viewReplies": ParameterizedString<"n">;
+        /**
+         * 收起
+         */
+        "collapseReplies": string;
+    };
+    "_pagination": {
+        /**
+         * 共 {n} 条
+         */
+        "totalItems": ParameterizedString<"n">;
+        /**
+         * 已加载 {n} 条
+         */
+        "loadedItems": ParameterizedString<"n">;
+        /**
+         * {n} 条/页
+         */
+        "itemsPerPage": ParameterizedString<"n">;
+        /**
+         * 每页条数
+         */
+        "pageSize": string;
+    };
+    "_noteDetail": {
+        /**
+         * 相关推荐
+         */
+        "related": string;
+        /**
+         * {likes} 赞 · {comments} 评论
+         */
+        "stats": ParameterizedString<"likes" | "comments">;
+    };
+    "_hashtag": {
+        /**
+         * 话题统计
+         */
+        "stats": string;
+        /**
+         * 帖子
+         */
+        "notes": string;
+        /**
+         * 近 7 天
+         */
+        "week": string;
+        /**
+         * 近 24 小时
+         */
+        "today": string;
     };
 }

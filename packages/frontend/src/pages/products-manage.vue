@@ -4,22 +4,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader contentCard hideHeader>
+<PageWithHeader contentCard>
+	<template #header-actions>
+		<MkButton type="routerLink" to="/my/products/new" primary small :class="$style.publish" :aria-label="i18n.ts._marketplace.publishProduct"><i class="ti ti-plus" aria-hidden="true"></i> <span :class="$style.publishLabel">{{ i18n.ts._marketplace.publishProduct }}</span></MkButton>
+		<MkButton small transparent iconOnly :disabled="loading" :wait="loading" :aria-label="i18n.ts.reload" @click="load"><i class="ti ti-refresh" aria-hidden="true"></i></MkButton>
+	</template>
 	<div class="_pageBody _gaps_m" :class="$style.root" :aria-busy="loading">
-		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title">
-			<MkA to="/my/products/new" :class="$style.publish"><i class="ti ti-plus" aria-hidden="true"></i> {{ i18n.ts._marketplace.publishProduct }}</MkA>
-		</nav>
-		<div :class="$style.heading"><h1>{{ i18n.ts._marketplace.myProducts }}</h1><MkButton small :disabled="loading" :wait="loading" @click="load">{{ i18n.ts.reload }}</MkButton></div>
 		<p v-if="loading && !products.length" role="status">{{ i18n.ts.loading }}</p>
 		<div v-if="loadError" role="alert" class="_gaps_s"><p>{{ i18n.ts._marketplace.myProductsLoadFailed }}</p><MkButton small @click="load">{{ i18n.ts.retry }}</MkButton></div>
-		<p v-else-if="!loading && !products.length">{{ i18n.ts._marketplace.myProductsEmpty }}</p>
-		<ul v-else :class="$style.products">
+		<MkResult v-else-if="!loading && !products.length" type="empty" :text="i18n.ts._marketplace.myProductsEmpty"/>
+		<ul v-if="products.length" :class="$style.products">
 			<li v-for="product in products" :key="product.id" :class="$style.product">
 				<div :class="$style.image"><img v-if="product.imageUrl && !failedImages[product.id]" :src="product.imageUrl" alt="" loading="lazy" referrerpolicy="no-referrer" @error="failedImages[product.id] = true"><i v-else :class="product.type === 'physical' ? 'ti ti-package' : 'ti ti-gift'" aria-hidden="true"></i></div>
 				<div :class="$style.summary">
 					<MkA :to="`/my/products/${encodeURIComponent(product.id)}/edit`" :class="$style.name">{{ product.name }}</MkA>
-					<div :class="$style.meta"><span :class="{ [$style.onSale]: product.enabled }">{{ product.enabled ? i18n.ts._marketplace.onSale : i18n.ts._marketplace.offSale }}</span><span>{{ product.price.toLocaleString() }} {{ i18n.ts._marketplace.pointUnit }} / {{ product.unit }}</span></div>
-					<span :class="$style.limit">{{ product.perUserLimit > 0 ? i18n.tsx._marketplace.cumulativeLimit({ count: product.perUserLimit.toLocaleString(), unit: product.unit }) : i18n.ts._marketplace.noPurchaseLimit }}</span>
+					<div :class="$style.meta"><span :class="{ [$style.onSale]: product.enabled }">{{ product.enabled ? i18n.ts._marketplace.onSale : i18n.ts._marketplace.offSale }}</span><span>{{ product.price.toLocaleString() }} {{ i18n.ts._marketplace.pointUnit }}</span></div>
+					<span :class="$style.limit">{{ product.perUserLimit > 0 ? i18n.tsx._marketplace.cumulativeLimit({ count: product.perUserLimit.toLocaleString() }) : i18n.ts._marketplace.noPurchaseLimit }}</span>
 				</div>
 				<MkA :to="`/my/products/${encodeURIComponent(product.id)}/edit`">{{ i18n.ts.edit }}</MkA>
 				<MkA :to="`/products/${encodeURIComponent(product.id)}`">{{ i18n.ts.details }}</MkA>
@@ -39,9 +39,11 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { DI } from '@/di.js';
+import { usePageHistoryRestore } from '@/composables/use-page-history-restore.js';
 
 ensureSignin();
 const pageActive = inject(DI.pageActive, ref(true));
+const historyRestoring = usePageHistoryRestore();
 const products = ref<entities.ProductsMineResponse>([]);
 const failedImages = ref<Record<string, boolean>>(Object.create(null));
 const loading = ref(false);
@@ -49,14 +51,24 @@ const loadError = ref(false);
 let active = true;
 let generation = 0;
 
-async function load() {
+function load() { return loadProducts(false); }
+
+async function loadProducts(preserveOrder: boolean) {
 	if (!active || !pageActive.value) return;
 	const request = ++generation;
 	loading.value = true;
 	loadError.value = false;
 	try {
 		const result = await misskeyApi('products/mine', { limit: 100 });
-		if (active && request === generation) products.value = result;
+		if (active && request === generation) {
+			if (preserveOrder) {
+				const updates = new Map(result.map(product => [product.id, product]));
+				const previousIds = new Set(products.value.map(product => product.id));
+				products.value = [...products.value.flatMap(product => updates.get(product.id) ?? []), ...result.filter(product => !previousIds.has(product.id))];
+			} else {
+				products.value = result;
+			}
+		}
 	} catch {
 		if (active && request === generation) loadError.value = true;
 	} finally {
@@ -68,8 +80,13 @@ function invalidate() { generation++; loading.value = false; }
 
 function deactivate() { active = false; invalidate(); }
 
-watch(pageActive, value => { if (value) void load(); else invalidate(); });
-onActivated(() => { const inactive = !active; active = true; if (inactive) void load(); });
+function refreshOnActivation() {
+	if (loading.value) return;
+	void loadProducts(historyRestoring.value && products.value.length > 0);
+}
+
+watch(pageActive, value => { if (value) refreshOnActivation(); else invalidate(); });
+onActivated(() => { const inactive = !active; active = true; if (inactive) refreshOnActivation(); });
 onDeactivated(deactivate);
 onBeforeUnmount(deactivate);
 void load();
@@ -78,12 +95,8 @@ definePage(() => ({ title: i18n.ts._marketplace.myProducts, icon: 'ti ti-package
 
 <style lang="scss" module>
 .root { container-type: inline-size; }
-.navigation, .heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
-.navigation { padding-bottom: 16px; border-bottom: var(--MI-divider); }
-.navigation a { padding-block: 6px; }
-.publish { margin-left: auto; color: var(--MI_THEME-accent); font-weight: 600; }
-.heading { justify-content: space-between; }
-.heading h1 { margin: 0; font-size: 1.35em; }
+.publishLabel { @media (max-width: 500px) { display: none; } }
+.publish { @media (max-width: 500px) { min-width: var(--MI-mobileTouchTarget); padding-inline: 0; } }
 .products { margin: 0; padding: 0; list-style: none; }
 .product { display: flex; align-items: center; gap: 12px; padding-block: 20px; border-top: var(--MI-divider); }
 .product:first-child { padding-top: 0; border-top: 0; }
@@ -93,7 +106,7 @@ definePage(() => ({ title: i18n.ts._marketplace.myProducts, icon: 'ti ti-package
 .image i { color: var(--MI_THEME-accent); font-size: 28px; }
 .summary { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
 .name { font-weight: 600; color: inherit; }
-.meta { display: flex; flex-wrap: wrap; gap: 6px 12px; font-variant-numeric: tabular-nums; }
+.meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; font-variant-numeric: tabular-nums; }
 .meta, .limit { font-size: .85em; color: var(--MI_THEME-fgTransparent); }
 .onSale { color: var(--MI_THEME-success); }
 @container (max-width: 480px) { .product { flex-wrap: wrap; } .summary { flex-basis: calc(100% - 100px); } .product > a:first-of-type { margin-left: auto; } }

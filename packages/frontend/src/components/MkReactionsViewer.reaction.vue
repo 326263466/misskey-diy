@@ -32,6 +32,7 @@ import * as os from '@/os.js';
 import { misskeyApi, misskeyApiGet } from '@/utility/misskey-api.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
+import { isBlockedRelationError } from '@/utility/user-blocking.js';
 import * as sound from '@/utility/sound.js';
 // import { checkReactionPermissions } from '@/utility/check-reaction-permissions.js';
 import { customEmojisMap } from '@/custom-emojis.js';
@@ -120,8 +121,8 @@ async function toggleReaction() {
 			haptic();
 			playReactionEffect(acceptedReaction, buttonEl.value);
 		}
-	} catch {
-		os.toast(i18n.ts.somethingHappened, 'error');
+	} catch (err) {
+		os.toast(isBlockedRelationError(err) ? i18n.ts.blockedRelation : i18n.ts.somethingHappened, 'error');
 	} finally {
 		withdrawalAnimation?.cancel();
 		withdrawalAnimation = undefined;

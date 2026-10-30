@@ -21,15 +21,12 @@ export const systemNotificationTypes = [
 	'test',
 ] as const satisfies readonly NotificationType[];
 
-export function isSystemNotificationType(type: NotificationType): boolean {
-	return (systemNotificationTypes as readonly NotificationType[]).includes(type);
-}
-
 // 按互动类型分组，与左侧菜单一一对应；未归类的类型只在“全部”中显示。
 export const notificationCategories = {
 	mentions: ['reply', 'mention', 'quote'],
 	reactions: ['reaction', 'renote'],
 	follows: ['follow', 'receiveFollowRequest', 'followRequestAccepted'],
+	chat: ['chatRoomInvitationReceived', 'chatRoomMemberRemoved'],
 	system: systemNotificationTypes,
 } as const satisfies Record<string, readonly NotificationType[]>;
 
@@ -40,11 +37,21 @@ export function isNotificationCategory(value: unknown): value is NotificationCat
 }
 
 export function getNotificationCategoryLabel(category: NotificationCategory): string {
-	return category === 'system' ? i18n.ts.system : i18n.ts._notificationCategories[category];
+	switch (category) {
+		case 'system': return i18n.ts.system;
+		case 'chat': return i18n.ts._notificationCategories.chat;
+		default: return i18n.ts._notificationCategories[category];
+	}
 }
 
 export function getNotificationCategoryIcon(category: NotificationCategory): string {
-	return { mentions: 'ti ti-at', reactions: 'ti ti-heart', follows: 'ti ti-users', system: 'ti ti-shield-check' }[category];
+	switch (category) {
+		case 'mentions': return 'ti ti-at';
+		case 'reactions': return 'ti ti-heart';
+		case 'follows': return 'ti ti-users';
+		case 'chat': return 'ti ti-users-group';
+		case 'system': return 'ti ti-shield-check';
+	}
 }
 
 export function getUncategorizedNotificationTypes(types: readonly NotificationType[]): NotificationType[] {
@@ -76,6 +83,7 @@ export function getNotificationTypeIcon(type: NotificationType): string {
 		case 'app': return 'ti ti-plug';
 		case 'roleAssigned': return 'ti ti-badges';
 		case 'chatRoomInvitationReceived': return 'ti ti-message-circle';
+		case 'chatRoomMemberRemoved': return 'ti ti-user-minus';
 		case 'achievementEarned': return 'ti ti-medal';
 		case 'exportCompleted': return 'ti ti-archive';
 		case 'test': return 'ti ti-flask';

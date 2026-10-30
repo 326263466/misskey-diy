@@ -5,16 +5,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="[$style.root, { [$style.inModal]: inModal, [$style.inline]: inline, [$style.colored]: colored, [$style.mini]: mini, [$style.em]: em, [$style.page]: page, [$style.imagePlaceholder]: page && !!instance.infoImageUrl }]" role="status" aria-busy="true">
-	<span v-if="inModal">{{ i18n.ts.loading }}</span>
+	<span v-if="inModal" :class="$style.loadingText">
+		<span v-for="(char, index) in loadingChars" :key="index" :class="[$style.loadingChar, { [$style.loadingSpace]: char === ' ' }]" :style="{ animationDelay: `${index * 0.14}s` }">{{ char }}</span>
+	</span>
 	<div v-else :class="$style.container">
 		<svg :class="[$style.spinner, $style.bg]" viewBox="0 0 168 168" xmlns="http://www.w3.org/2000/svg">
 			<g transform="matrix(1.125,0,0,1.125,12,12)">
-				<circle cx="64" cy="64" r="64" style="fill:none;stroke:currentColor;stroke-width:21.33px;"/>
+				<circle cx="64" cy="64" r="64" style="fill:none;stroke:currentColor;stroke-width:12px;"/>
 			</g>
 		</svg>
 		<svg :class="[$style.spinner, $style.fg, { [$style.static]: static }]" viewBox="0 0 168 168" xmlns="http://www.w3.org/2000/svg">
 			<g transform="matrix(1.125,0,0,1.125,12,12)">
-				<path d="M128,64C128,28.654 99.346,0 64,0C99.346,0 128,28.654 128,64Z" style="fill:none;stroke:currentColor;stroke-width:21.33px;"/>
+				<path d="M128,64C128,28.654 99.346,0 64,0C99.346,0 128,28.654 128,64Z" style="fill:none;stroke:currentColor;stroke-width:12px;"/>
 			</g>
 		</svg>
 	</div>
@@ -23,12 +25,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { inject } from 'vue';
+import { computed, inject } from 'vue';
 import { instance } from '@/instance.js';
 import { DI } from '@/di.js';
 import { i18n } from '@/i18n.js';
 
 const inModal = inject(DI.inModal, false) || inject('inWindow', false);
+const loadingChars = computed(() => Array.from(i18n.ts.loading));
 
 const props = withDefaults(defineProps<{
 	static?: boolean;
@@ -59,12 +62,22 @@ const props = withDefaults(defineProps<{
 	}
 }
 
+@keyframes loadingBounce {
+	0%, 20%, 100% {
+		transform: translateY(0);
+	}
+
+	7% {
+		transform: translateY(-0.35em);
+	}
+}
+
 .root {
 	padding: 32px;
 	text-align: center;
 	cursor: wait;
 
-	--size: 38px;
+	--size: 28px;
 
 	&.colored {
 		color: var(--MI_THEME-accent);
@@ -73,12 +86,12 @@ const props = withDefaults(defineProps<{
 	&.inline {
 		display: inline;
 		padding: 0;
-		--size: 32px;
+		--size: 24px;
 	}
 
 	&.mini {
 		padding: 16px;
-		--size: 32px;
+		--size: 24px;
 	}
 
 	&.em {
@@ -111,6 +124,26 @@ const props = withDefaults(defineProps<{
 	&.em, &.inline {
 		padding: 0;
 		font-size: inherit;
+	}
+}
+
+.loadingText {
+	display: inline-flex;
+	white-space: pre;
+}
+
+.loadingChar {
+	display: inline-block;
+	animation: loadingBounce 1.2s ease-in-out infinite;
+}
+
+.loadingSpace {
+	animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.loadingChar {
+		animation: none;
 	}
 }
 

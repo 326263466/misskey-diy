@@ -11,7 +11,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@focusin="onFocusIn"
 	@focusout="onFocusOut"
 >
-	<XNotification :notification="notification" class="notification _acrylic" :class="$style.content" :contentVisibilityAuto="false" :full="false"/>
+	<slot>
+		<XNotification v-if="notification" :notification="notification" class="notification _acrylic" :class="$style.content" :contentVisibilityAuto="false" :full="false"/>
+	</slot>
 	<button type="button" class="_button" :class="$style.close" :aria-label="i18n.ts.close" @click.stop="dismiss">
 		<i class="ti ti-x" aria-hidden="true"></i>
 	</button>
@@ -25,7 +27,7 @@ import XNotification from '@/components/MkNotification.vue';
 import { i18n } from '@/i18n.js';
 
 defineProps<{
-	notification: Misskey.entities.Notification;
+	notification?: Misskey.entities.Notification;
 }>();
 
 const emit = defineEmits<{

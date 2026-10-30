@@ -24,6 +24,8 @@ import { QueryService } from '@/core/QueryService.js';
 import { DriveFileEntityService } from './DriveFileEntityService.js';
 import { NoteEntityService } from './NoteEntityService.js';
 
+type ChannelStats = { usersCount: number; notesCount: number };
+
 @Injectable()
 export class ChannelEntityService {
 	constructor(
@@ -57,9 +59,11 @@ export class ChannelEntityService {
 			favorites?: Set<MiChannel['id']>;
 			muting?: Set<MiChannel['id']>;
 			pinnedNotes?: Map<MiNote['id'], MiNote>;
+			stats?: Map<MiChannel['id'], ChannelStats>;
 		},
 	): Promise<Packed<'Channel'>> {
 		const channel = typeof src === 'object' ? src : await this.channelsRepository.findOneByOrFail({ id: src });
+		const stats = opts?.stats?.get(channel.id) ?? (await this.countStats([channel.id])).get(channel.id)!;
 
 		let bannerFile: MiDriveFile | null = null;
 		if (channel.bannerId) {
@@ -117,8 +121,8 @@ export class ChannelEntityService {
 			pinnedNoteIds: channel.pinnedNoteIds,
 			color: channel.color,
 			isArchived: channel.isArchived,
-			usersCount: channel.usersCount,
-			notesCount: channel.notesCount,
+			usersCount: stats.usersCount,
+			notesCount: stats.notesCount,
 			isSensitive: channel.isSensitive,
 			allowRenoteToExternal: channel.allowRenoteToExternal,
 
@@ -131,17 +135,16 @@ export class ChannelEntityService {
 
 			...(detailed ? {
 				pinnedNotes: (await this.noteEntityService.packMany(pinnedNotes, me)).sort((a, b) => channel.pinnedNoteIds.indexOf(a.id) - channel.pinnedNoteIds.indexOf(b.id)),
-				participantsCount: await this.countParticipants(channel.id),
+				participantsCount: stats.usersCount,
 			} : {}),
 		};
 	}
 
 	// 计数与列表共用筛选，避免删除占位或用户状态造成口径差异。
-	@bindThis
-	public makeParticipantsQuery(channelId: MiChannel['id']): SelectQueryBuilder<MiNote> {
+	private makeVisibleNotesQuery(channelIds: MiChannel['id'][]): SelectQueryBuilder<MiNote> {
 		const query = this.notesRepository.createQueryBuilder('note')
 			.innerJoin('note.user', 'user')
-			.where('note.channelId = :channelId', { channelId })
+			.where('note.channelId IN (:...channelIds)', { channelIds })
 			.andWhere('user.isSuspended = FALSE')
 			.andWhere('user.isDeleted = FALSE');
 		this.queryService.generateDeletedReplyQuery(query);
@@ -149,11 +152,24 @@ export class ChannelEntityService {
 	}
 
 	@bindThis
-	public async countParticipants(channelId: MiChannel['id']): Promise<number> {
-		const row = await this.makeParticipantsQuery(channelId)
-			.select('COUNT(DISTINCT note.userId)', 'count')
-			.getRawOne<{ count: string }>();
-		return Number(row?.count ?? 0);
+	public makeParticipantsQuery(channelId: MiChannel['id']): SelectQueryBuilder<MiNote> {
+		return this.makeVisibleNotesQuery([channelId]);
+	}
+
+	// 频道表的 usersCount / notesCount 只在发帖时累加，删帖、封禁后不会减少。
+	// 列表和详情都按同一筛选实时统计，确保与参与者列表、频道时间线一致。
+	@bindThis
+	public async countStats(channelIds: MiChannel['id'][]): Promise<Map<MiChannel['id'], ChannelStats>> {
+		const stats = new Map<MiChannel['id'], ChannelStats>(channelIds.map(id => [id, { usersCount: 0, notesCount: 0 }]));
+		if (channelIds.length === 0) return stats;
+		const rows = await this.makeVisibleNotesQuery(channelIds)
+			.select('note.channelId', 'channelId')
+			.addSelect('COUNT(*)', 'notesCount')
+			.addSelect('COUNT(DISTINCT note.userId)', 'usersCount')
+			.groupBy('note.channelId')
+			.getRawMany<{ channelId: string; notesCount: string; usersCount: string }>();
+		for (const row of rows) stats.set(row.channelId, { usersCount: Number(row.usersCount), notesCount: Number(row.notesCount) });
+		return stats;
 	}
 
 	@bindThis
@@ -214,12 +230,15 @@ export class ChannelEntityService {
 			})
 			.then(it => new Map(it.map(it => [it.id, it])));
 
+		const stats = await this.countStats(channels.map(it => it.id));
+
 		return Promise.all(channels.map(it => this.pack(it, me, detailed, {
 			bannerFiles,
 			followings,
 			favorites,
 			muting,
 			pinnedNotes,
+			stats,
 		})));
 	}
 }

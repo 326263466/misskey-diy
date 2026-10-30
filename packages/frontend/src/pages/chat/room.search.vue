@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:autofocus="true"
 		:maxLength="256"
 		type="search"
-		@enter="search()"
+		@enter="submitSearch"
 	>
 		<template #prefix><i class="ti ti-search"></i></template>
 	</MkInput>
@@ -74,6 +74,10 @@ function resetSearch() {
 	searched.value = false;
 	fetching.value = false;
 	failed.value = false;
+}
+
+function submitSearch() {
+	if (searchTimer != null || failed.value) void search();
 }
 
 async function search() {
@@ -176,7 +180,7 @@ onBeforeUnmount(() => {
 
 .time {
 	flex-shrink: 0;
-	font-size: 11px;
+	font-size: 12px;
 	color: var(--MI_THEME-fgTransparentWeak);
 }
 

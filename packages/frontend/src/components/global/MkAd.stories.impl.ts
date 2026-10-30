@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { expect, userEvent, waitFor, within } from '@storybook/test';
+import { expect, within } from '@storybook/test';
 import MkAd from './MkAd.vue';
 import type { StoryObj } from '@storybook/vue3';
 import { i18n } from '@/i18n.js';
@@ -29,42 +29,15 @@ const common = {
 			template: '<MkAd v-bind="props" />',
 		};
 	},
-	async play({ canvasElement, args }) {
+	async play({ canvasElement }) {
 		const canvas = within(canvasElement);
 		const a = canvas.getByRole<HTMLAnchorElement>('link');
-		// FIXME: 通るけどその後落ちるのでコメントアウト
-		// await expect(a.href).toMatch(/^https?:\/\/.*#test$/);
 		const img = within(a).getByRole('img');
 		await expect(img).toBeInTheDocument();
-		let buttons = canvas.getAllByRole<HTMLButtonElement>('button');
+		await expect(canvasElement).toHaveTextContent(i18n.ts.ads);
+		const buttons = canvas.getAllByRole<HTMLButtonElement>('button');
 		await expect(buttons).toHaveLength(1);
-		const i = buttons[0];
-		await expect(i).toBeInTheDocument();
-		await userEvent.click(i);
-		await expect(canvasElement).toHaveTextContent(i18n.ts._ad.back);
-		await expect(a).not.toBeInTheDocument();
-		await expect(i).not.toBeInTheDocument();
-		buttons = canvas.getAllByRole<HTMLButtonElement>('button');
-		const hasReduceFrequency = args.specify?.ratio !== 0;
-		await expect(buttons).toHaveLength(hasReduceFrequency ? 2 : 1);
-		const reduce = hasReduceFrequency ? buttons[0] : null;
-		const back = buttons[hasReduceFrequency ? 1 : 0];
-		if (reduce) {
-			await expect(reduce).toBeInTheDocument();
-			await expect(reduce).toHaveTextContent(i18n.ts._ad.reduceFrequencyOfThisAd);
-		}
-		await expect(back).toBeInTheDocument();
-		await expect(back).toHaveTextContent(i18n.ts._ad.back);
-		await userEvent.click(back);
-		await waitFor(() => expect(canvas.queryByRole('img')).toBeTruthy());
-		if (reduce) {
-			await expect(reduce).not.toBeInTheDocument();
-		}
-		await expect(back).not.toBeInTheDocument();
-		const aAgain = canvas.getByRole<HTMLAnchorElement>('link');
-		await expect(aAgain).toBeInTheDocument();
-		const imgAgain = within(aAgain).getByRole('img');
-		await expect(imgAgain).toBeInTheDocument();
+		await expect(buttons[0]).toHaveAttribute('aria-label', i18n.ts.more);
 	},
 	args: {
 		preferForms: [],

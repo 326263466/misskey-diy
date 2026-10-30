@@ -6,20 +6,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div v-if="instance" :class="$style.root">
 	<div :class="[$style.main, $style.panel]">
-		<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.mainIcon"/>
 		<div :class="$style.mainFg">
-			<h1 :class="$style.mainTitle">
-				<MkA to="/">{{ instanceName }}</MkA>
-			</h1>
+			<div :class="$style.mainHeader">
+				<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.mainIcon"/>
+				<h1 :class="$style.mainTitle">
+					<MkA to="/">{{ instanceName }}</MkA>
+				</h1>
+			</div>
 			<div :class="$style.mainAbout">
-				<div style="color: var(--MI_THEME-fgTransparentWeak);" v-html="instance.description || i18n.ts.headlineMisskey"></div>
+				<div v-html="instance.description || i18n.ts.headlineMisskey"></div>
 			</div>
 			<div v-if="instance.disableRegistration" :class="$style.mainWarn" class="_gaps_s">
 				<MkInfo v-if="instance.disableRegistration" warn>{{ i18n.ts.invitationRequiredToRegister }}</MkInfo>
 			</div>
-			<div class="_gaps_s" :class="$style.mainActions">
-				<MkButton :class="$style.mainAction" full rounded gradate data-testid="signup" style="margin-right: 12px;" @click="signup()">{{ i18n.ts.joinThisServer }}</MkButton>
-				<MkButton :class="$style.mainAction" full rounded data-testid="signin" @click="signin()">{{ i18n.ts.login }}</MkButton>
+			<div :class="$style.mainActions">
+				<MkButton :class="$style.mainAction" full rounded gradate large data-testid="signup" @click="signup()">{{ i18n.ts.joinThisServer }}</MkButton>
+				<MkButton :class="[$style.mainAction, $style.mainActionSub]" full rounded large data-testid="signin" @click="signin()">{{ i18n.ts.login }}</MkButton>
 			</div>
 		</div>
 	</div>
@@ -106,13 +108,47 @@ function signup() {
 }
 
 .main {
-	text-align: center;
+	overflow: clip;
+	padding: 36px 32px 32px;
+	background: color-mix(in srgb, var(--MI_THEME-panel) 86%, transparent);
+	-webkit-backdrop-filter: var(--MI-blur, blur(20px));
+	backdrop-filter: var(--MI-blur, blur(20px));
+	border: solid 1px color-mix(in srgb, var(--MI_THEME-fg) 8%, transparent);
+	border-radius: calc(var(--MI-radius) * 2);
+	box-shadow: 0 24px 64px -16px var(--MI_THEME-shadow);
+
+	&::before {
+		content: '';
+		position: absolute;
+		top: -120px;
+		left: -60px;
+		width: 320px;
+		height: 240px;
+		background: radial-gradient(closest-side, color-mix(in srgb, var(--MI_THEME-accent) 28%, transparent), transparent);
+		pointer-events: none;
+	}
+
+	@media (max-width: 450px) {
+		padding: 28px 22px 22px;
+	}
+}
+
+.mainHeader {
+	display: flex;
+	align-items: center;
+	gap: 16px;
 }
 
 .mainIcon {
-	width: 85px;
-	margin-top: -47px;
-	vertical-align: bottom;
+	flex-shrink: 0;
+	width: 56px;
+	height: 56px;
+	object-fit: contain;
+	padding: 6px;
+	box-sizing: border-box;
+	background: var(--MI_THEME-bg);
+	border-radius: 16px;
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--MI_THEME-fg) 8%, transparent);
 }
 
 .mainFg {
@@ -121,32 +157,43 @@ function signup() {
 }
 
 .mainTitle {
-	display: block;
+	min-width: 0;
 	margin: 0;
-	padding: 16px 32px 24px 32px;
-	font-size: 1.4em;
-}
-
-.mainLogo {
-	vertical-align: bottom;
-	max-height: 120px;
-	max-width: min(100%, 300px);
+	font-size: 1.7em;
+	line-height: 1.25;
+	letter-spacing: 0.02em;
+	overflow-wrap: anywhere;
 }
 
 .mainAbout {
-	padding: 0 32px;
+	margin-top: 20px;
+	color: var(--MI_THEME-fgTransparentWeak);
+	line-height: 1.7;
 }
 
 .mainWarn {
-	padding: 32px 32px 0 32px;
+	margin-top: 24px;
 }
 
 .mainActions {
-	padding: 32px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: 32px;
 }
 
-.mainAction {
-	line-height: 28px;
+.mainActions .mainAction {
+	padding-block: 12px;
+	font-weight: bold;
+	letter-spacing: 0.05em;
+}
+
+.mainActions .mainActionSub {
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--MI_THEME-fg) 16%, transparent);
+
+	&:not(:hover) {
+		background: transparent;
+	}
 }
 
 .stats {

@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="$style.root">
 	<div :class="$style.inner">
 		<button class="_button" :class="$style.logo" :aria-label="instance.name ?? i18n.ts.instance" @click="goHome" @contextmenu.prevent.stop>
-			<img :src="instance.iconUrl || '/favicon.ico'" width="24" height="24" alt="" :class="$style.logoIcon"/>
+			<img :src="instance.iconUrl || '/favicon.ico'" width="40" height="40" alt="" :class="$style.logoIcon"/>
 			<span :class="$style.logoText">{{ instance.name ?? i18n.ts.instance }}</span>
 		</button>
 
@@ -38,13 +38,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</nav>
 
 		<div :class="$style.right">
-			<div ref="searchRoot" :class="$style.searchRoot" @focusout="onSearchFocusOut" @keydown="onSearchKeydown">
+			<div ref="searchRoot" :class="[$style.searchRoot, { [$style.searchAnimated]: prefer.s.animation }]" @focusout="onSearchFocusOut" @keydown="onSearchKeydown">
 				<button ref="compactSearchButton" v-tooltip="i18n.ts.search" type="button" class="_button _iconButton" :class="$style.compactSearch" :aria-label="i18n.ts.search" :aria-controls="searchId" :aria-expanded="searchExpanded" @click="toggleSearch">
-					<i class="ti ti-search" aria-hidden="true"></i>
+					<i :class="navigationIcons.search" aria-hidden="true"></i>
 				</button>
 				<form :id="searchId" :class="[$style.search, { [$style.searchExpanded]: searchExpanded }]" role="search" @submit.prevent="search">
 					<button v-tooltip="i18n.ts.search" type="submit" class="_button _iconButton" :class="$style.searchIcon" :aria-label="i18n.ts.search" :disabled="searchQuery.trim() === ''" @mousedown.prevent>
-						<i class="ti ti-search" aria-hidden="true"></i>
+						<i :class="navigationIcons.search" aria-hidden="true"></i>
 					</button>
 					<input
 						ref="searchInput"
@@ -61,9 +61,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</form>
 			</div>
 
+			<div v-if="$i" :class="$style.post">
+				<MkA to="/my" class="_button" :class="$style.postMain">{{ i18n.ts._postForm.creatorCenter }}</MkA>
+				<button
+					v-tooltip="i18n.ts.publish"
+					type="button"
+					class="_button"
+					:class="$style.postCaret"
+					data-testid="open-publish-menu"
+					:aria-label="i18n.ts.publish"
+					aria-haspopup="menu"
+					:aria-expanded="publishMenuShowing"
+					@click="openPublishMenu"
+				>
+					<i class="ti ti-chevron-down" :class="[$style.postCaretIcon, { [$style.postCaretOpen]: publishMenuShowing }]" aria-hidden="true"></i>
+				</button>
+			</div>
+
 			<MkA v-if="$i != null" v-tooltip="i18n.ts.notifications" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.notifications" to="/my/notifications">
 				<span :class="$style.notificationIcon">
-					<i class="ti ti-bell"></i>
+					<i :class="navigationIcons.notifications" aria-hidden="true"></i>
 				<span v-if="$i.hasUnreadNotification" :class="$style.notificationIndicator">
 					<span class="_indicateCounter" :class="$style.iconButtonCounter">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
 				</span>
@@ -71,28 +88,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</span>
 			</MkA>
 
-			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip="i18n.ts.controlPanel" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.controlPanel" to="/admin">
-				<i class="ti ti-adjustments"></i>
-			</MkA>
-
-			<button
-				v-if="$i"
-				type="button"
-				:class="$style.post"
-				class="_button _buttonGradate"
-				data-testid="open-publish-menu"
-				:aria-label="i18n.ts._postForm.creatorCenter"
-				aria-haspopup="menu"
-				:aria-expanded="publishMenuShowing"
-				@click="openPublishMenu"
-			>
-				<i v-tooltip="i18n.ts._postForm.creatorCenter" class="ti ti-plus" :class="$style.postIcon"></i>
-				<span :class="$style.postText">{{ i18n.ts._postForm.creatorCenter }}</span>
-				<i class="ti ti-chevron-down" :class="[$style.postCaret, { [$style.postCaretOpen]: publishMenuShowing }]" aria-hidden="true"></i>
+			<button v-if="$i != null && $i.policies.chatAvailability !== 'unavailable'" v-tooltip="i18n.ts.chat" type="button" class="_button" :class="[$style.iconButton, { [$style.iconButtonActive]: chatOpen }]" :aria-label="i18n.ts.chat" :aria-expanded="chatOpen" @click="emit('openChat')">
+				<span ref="chatIcon" :class="$style.notificationIcon">
+					<i :class="navigationIcons.chat" aria-hidden="true"></i>
+					<span v-if="$i.hasUnreadChatMessages" class="_indicatorCircle" :class="$style.notificationDot" aria-hidden="true"></span>
+				</span>
 			</button>
 
-			<button v-if="$i != null" v-tooltip="accountTooltip" class="_button" :class="$style.account" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu" @contextmenu.stop="openAccountLinkMenu">
-				<MkAvatar :user="$i" :class="$style.avatar" title=""/>
+			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip="i18n.ts.controlPanel" class="_button" :class="$style.iconButton" :activeClass="$style.iconButtonActive" :aria-label="i18n.ts.controlPanel" to="/admin">
+				<i :class="navigationIcons.controlPanel" aria-hidden="true"></i>
+			</MkA>
+
+			<button v-if="$i != null" v-tooltip="accountTooltip" type="button" class="_button" :class="$style.account" :aria-label="`${i18n.ts.account}: @${$i.username}`" aria-haspopup="menu" :aria-expanded="accountMenuShowing" @click="openAccountMenu" @contextmenu.stop="openAccountLinkMenu">
+				<MkAvatar :user="$i" :class="$style.avatar" title="" imageOnly/>
 			</button>
 			<div v-else :class="$style.guestActions">
 				<button type="button" class="_button" :class="$style.guestButton" @click="signin">{{ i18n.ts.login }}</button>
@@ -104,8 +112,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, unref, useId, useTemplateRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, unref, useId, useTemplateRef, watch } from 'vue';
+import type { Ref } from 'vue';
 import { launchPadExcludedItems, navbarItemDef, primaryNavItems } from '@/navbar.js';
+import { navigationIcons } from '@/navigation-icons.js';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
@@ -114,22 +124,40 @@ import { getAccountMenu } from '@/accounts.js';
 import { getLinkMenu } from '@/components/global/MkA.vue';
 import { userName, userPage } from '@@/js/user.js';
 import { prefer } from '@/preferences.js';
+import MkLaunchPad from '@/components/MkLaunchPad.vue';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import { useRouter } from '@/router.js';
 import { pleaseLogin } from '@/utility/please-login.js';
+import { useGlobalEvent } from '@/events.js';
+import { nudgeChatEntry } from '@/utility/chat-conversations.js';
 
 const props = defineProps<{
 	dockHidden?: boolean;
+	chatOpen?: boolean;
+}>();
+
+const emit = defineEmits<{
+	(ev: 'openChat'): void;
 }>();
 
 const router = useRouter();
+const chatIcon = useTemplateRef('chatIcon');
+useGlobalEvent('chatPoked', () => nudgeChatEntry(chatIcon.value));
 const accountTooltip = computed(() => $i != null ? userName($i) : '');
+const accountMenuShowing = ref(false);
+let accountMenuBusy = false;
+let accountMenuCloseRequested: Ref<boolean> | null = null;
+let publishMenuCloseRequested: Ref<boolean> | null = null;
 const searchRoot = useTemplateRef('searchRoot');
 const compactSearchButton = useTemplateRef('compactSearchButton');
 const searchInput = useTemplateRef<HTMLInputElement>('searchInput');
 const searchQuery = ref('');
 const searchExpanded = ref(false);
 const searchId = useId();
+
+watch(() => router.currentRef.value, route => {
+	searchQuery.value = route.route.path === '/search' ? String(route.props.get('query') ?? '') : '';
+}, { immediate: true });
 
 function signin() {
 	void pleaseLogin({ message: '' });
@@ -162,7 +190,10 @@ function searchHotkey(event: KeyboardEvent) {
 }
 
 function onSearchEnter(event: KeyboardEvent) {
-	if (event.isComposing || event.keyCode === 229) event.preventDefault();
+	if (event.isComposing || event.keyCode === 229) {
+		event.preventDefault();
+		event.stopPropagation();
+	}
 }
 
 function onSearchKeydown(event: KeyboardEvent) {
@@ -187,6 +218,10 @@ onMounted(() => {
 	compactNavigationMedia.addEventListener('change', onNavigationMediaChange);
 });
 onBeforeUnmount(() => {
+	if (accountMenuCloseRequested) accountMenuCloseRequested.value = true;
+	if (publishMenuCloseRequested) publishMenuCloseRequested.value = true;
+	accountMenuShowing.value = false;
+	publishMenuShowing.value = false;
 	window.document.removeEventListener('keydown', searchHotkey);
 	window.document.removeEventListener('pointerdown', onSearchOutsidePointer);
 	compactNavigationMedia.removeEventListener('change', onNavigationMediaChange);
@@ -199,8 +234,9 @@ function goHome() {
 function search() {
 	const query = searchQuery.value.trim();
 	if (query === '') return;
-	router.pushByPath(`/search?q=${encodeURIComponent(query)}`);
-	searchQuery.value = '';
+	const params = new URLSearchParams(router.currentRoute.value.path === '/search' ? router.currentRef.value._parsedRoute.queryString ?? '' : '');
+	params.set('q', query);
+	router.pushByPath(`/search?${params.toString()}`);
 	searchExpanded.value = false;
 }
 
@@ -238,12 +274,12 @@ const otherNavItemIndicated = computed<boolean>(() => {
 	return false;
 });
 
-async function more(ev: MouseEvent) {
+function more(ev: MouseEvent) {
 	const target = getHTMLElementOrNull(ev.currentTarget ?? ev.target);
 	if (target == null) return;
 	moreMenuShowing.value = true;
 
-	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkLaunchPad.vue').then(x => x.default), {
+	const { dispose } = os.popup(MkLaunchPad, {
 		anchorElement: target,
 		anchor: { x: 'center', y: 'bottom' },
 		excludedItems: [...excludedMoreItems.value],
@@ -261,6 +297,9 @@ const moreMenuShowing = ref(false);
 const publishMenuShowing = ref(false);
 
 function openPublishMenu(ev: PointerEvent) {
+	if (publishMenuShowing.value) return;
+	const closeRequested = ref(false);
+	publishMenuCloseRequested = closeRequested;
 	publishMenuShowing.value = true;
 	os.popupMenu([{
 		text: i18n.ts._postForm.post,
@@ -272,20 +311,43 @@ function openPublishMenu(ev: PointerEvent) {
 		icon: 'ti ti-article',
 		to: '/articles/new',
 	}], ev.currentTarget ?? ev.target, {
+		align: 'center',
+		anchorAlign: 'center',
+		closeRequested,
 		onClosing: () => {
 			publishMenuShowing.value = false;
+		},
+		onClosed: () => {
+			if (Object.is(publishMenuCloseRequested, closeRequested)) publishMenuCloseRequested = null;
 		},
 	});
 }
 
 async function openAccountMenu(ev: PointerEvent) {
+	if (accountMenuBusy || $i == null) return;
 	const anchor = getHTMLElementOrNull(ev.currentTarget ?? ev.target);
 	if (anchor == null) return;
-	const menuItems = await getAccountMenu({
-		withExtraOperation: true,
-	});
+	accountMenuBusy = true;
+	const closeRequested = ref(false);
+	accountMenuCloseRequested = closeRequested;
+	try {
+		const menuItems = await getAccountMenu({
+			withExtraOperation: true,
+		});
+		if (closeRequested.value || !anchor.isConnected || $i == null) return;
 
-	if (anchor.isConnected) os.popupMenu(menuItems, anchor);
+		accountMenuShowing.value = true;
+		await os.popupMenu(menuItems, anchor, {
+			closeRequested,
+			onClosing: () => {
+				accountMenuShowing.value = false;
+			},
+		});
+	} finally {
+		accountMenuShowing.value = false;
+		accountMenuBusy = false;
+		accountMenuCloseRequested = null;
+	}
 }
 
 function openAccountLinkMenu(ev: PointerEvent) {
@@ -295,10 +357,12 @@ function openAccountLinkMenu(ev: PointerEvent) {
 </script>
 
 <style lang="scss" module>
+@use '../../styles/search.scss' as search;
+
 // 逐级收缩断点
 // header 内侧宽 1440px，低于断点后从左到右依次折叠元素。
 // 各段は「実際に入らなくなる幅」で切る。まだ余白がある段階で畳むと間延びして見える
-$search-shrink-threshold: 1400px; // 300px -> 200px
+$search-shrink-threshold: 1400px; // 默认 200px -> 160px，聚焦 300px -> 200px
 // 検索ボックスを 200px 保ったまま nav 全項目が入る下限 (現在の項目数での実測値)。
 // header の収縮は主体側の三カラム折り畳みとは別問題なので、そちらの閾値には合わせず単独で決める
 $search-collapse-threshold: 1000px; // 只显示图标
@@ -307,8 +371,8 @@ $post-text-hide-threshold: 760px;
 $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询保持一致
 
 .root {
-	--headerHeight: 60px;
-	--headerControlHeight: 36px;
+	--headerHeight: var(--MI-globalHeaderHeight);
+	--headerControlHeight: var(--MI-globalHeaderControlHeight);
 	// 头像和图标按钮的悬停圆统一用这个尺寸；图标字号不随之缩小
 	--headerRoundControlSize: 32px;
 
@@ -325,8 +389,8 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 }
 
 .inner {
-	// header 内侧以 1440px 居中，比下方主体 (1200px) 更宽
-	max-width: 1440px;
+	// header 内侧比下方三栏主体更宽
+	max-width: var(--MI-headerWidth);
 	height: 100%;
 	margin: 0 auto;
 	padding: 0 24px;
@@ -347,7 +411,7 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	height: 40px;
+	height: 48px;
 	line-height: 1;
 	margin-right: 12px;
 	padding: 0 8px;
@@ -360,8 +424,8 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 }
 
 .logoIcon {
-	height: 24px;
-	width: 24px;
+	height: 40px;
+	width: 40px;
 	object-fit: contain;
 	flex-shrink: 0;
 }
@@ -464,17 +528,35 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 
 .searchRoot {
 	flex-shrink: 0;
-	width: 300px;
+	width: 200px;
 	height: var(--headerControlHeight);
 	margin-right: 8px;
 
+	&:focus-within {
+		width: 300px;
+	}
+
+	&.searchAnimated {
+		@media (prefers-reduced-motion: no-preference) {
+			transition: width 0.2s ease;
+		}
+	}
+
 	@media (max-width: $search-shrink-threshold) {
-		width: 200px;
+		width: 160px;
+
+		&:focus-within {
+			width: 200px;
+		}
 	}
 
 	@media (max-width: $search-collapse-threshold) {
 		width: var(--headerRoundControlSize);
 		margin-right: 4px;
+
+		&:focus-within {
+			width: var(--headerRoundControlSize);
+		}
 	}
 }
 
@@ -493,30 +575,10 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 }
 
 .search {
-	display: flex;
-	align-items: center;
-	gap: 6px;
+	@include search.container;
+	--MI-searchHeight: var(--headerControlHeight);
 	width: 100%;
-	height: var(--headerControlHeight);
-	padding: 0 12px;
-	box-sizing: border-box;
-	border: 1px solid var(--MI_THEME-inputBorder);
-	border-radius: 6px;
-	background: var(--MI_THEME-panel);
-	color: var(--MI_THEME-fg);
 	font-size: 13.2px;
-	// 图标与文字用 flex 垂直居中
-	line-height: 1;
-	transition: border-color 0.1s ease-out;
-
-	&:hover {
-		border-color: var(--MI_THEME-inputBorderHover);
-	}
-
-	&:focus-within {
-		border-color: var(--MI_THEME-accent);
-	}
-
 	// 相对整个 header 定位，避免展开时挤压导航或从左侧越出视口。
 	@media (max-width: $search-collapse-threshold) {
 		display: none;
@@ -533,38 +595,13 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 }
 
 .search > .searchIcon {
-	flex-shrink: 0;
+	@include search.icon;
 	display: flex;
 	align-items: center;
-	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .searchText {
-	flex: 1;
-	min-width: 0;
-	appearance: none;
-	border: none;
-	background: transparent;
-	color: inherit;
-	font-family: inherit;
-	font-size: inherit;
-	line-height: inherit;
-
-	&::placeholder {
-		color: var(--MI_THEME-fgTransparentWeak);
-		opacity: 1;
-	}
-
-	&:focus {
-		outline: none;
-	}
-
-	// 去掉 type=search 在 WebKit 下自带的清除按钮和放大镜
-	&::-webkit-search-cancel-button,
-	&::-webkit-search-decoration {
-		appearance: none;
-	}
-
+	@include search.input;
 }
 
 .searchShortcut {
@@ -582,12 +619,13 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: var(--headerRoundControlSize);
-	height: var(--headerRoundControlSize);
-	border-radius: 50%;
+	width: var(--headerControlHeight);
+	height: var(--headerControlHeight);
+	border-radius: 10px;
 	color: var(--MI_THEME-fgTransparentWeak);
-	font-size: 1em;
+	font-size: 16px;
 	line-height: 1;
+	transition: color .15s ease;
 
 	> i,
 	.notificationIcon > i {
@@ -596,21 +634,16 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 
 	&:hover {
 		text-decoration: none;
-		// buttonBg 太接近头部背景，悬停圆边缘看不清会显得比发布/头像小
-		background: var(--MI_THEME-buttonHoverBg);
+		color: var(--MI_THEME-fg);
 	}
 
 	&.iconButtonActive {
 		color: var(--MI_THEME-navActive);
 	}
-}
 
-.iconButtonIndicator {
-	position: absolute;
-	top: 0;
-	right: 0;
-	color: var(--MI_THEME-navIndicator);
-	font-size: 8px;
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
+
+	@media (prefers-reduced-motion: reduce) { transition: none; }
 }
 
 .notificationIcon {
@@ -656,40 +689,51 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 
 .post {
 	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
+	flex: 0 0 auto;
+	align-items: stretch;
 	height: var(--headerControlHeight);
-	padding: 0 14px;
-	margin-left: 8px;
-	border-radius: calc(var(--headerControlHeight) / 2);
-	// 图标与文字用 flex 垂直居中
-	font-weight: 700;
+	margin-right: 8px;
+	overflow: clip;
+	border-radius: 6px;
 	color: var(--MI_THEME-fgOnAccent);
+	background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
+	font-size: 1em;
+	font-weight: 600;
 	line-height: 1;
 
 	@media (max-width: $post-text-hide-threshold) {
-		padding: 0;
-		width: var(--headerRoundControlSize);
 		height: var(--headerRoundControlSize);
+		margin-right: 4px;
 	}
 }
 
-.postIcon {
-	flex-shrink: 0;
-	pointer-events: none;
+.postMain,
+.postCaret {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: inherit;
+	transition: background-color .15s ease;
 
-	@media (max-width: $post-text-hide-threshold) {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-		height: 100%;
-		pointer-events: auto;
+	&:hover {
+		text-decoration: none;
+		background-color: color-mix(in srgb, var(--MI_THEME-fgOnAccent) 14%, transparent);
 	}
+
+	&:active { background-color: color-mix(in srgb, var(--MI_THEME-fgOnAccent) 22%, transparent); }
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -4px;
+		border-radius: 6px;
+	}
+
+	@media (prefers-reduced-motion: reduce) { transition: none; }
 }
 
-.postText {
+.postMain {
+	padding: 0 12px 0 18px;
+	letter-spacing: 0.04em;
 	white-space: nowrap;
 
 	@media (max-width: $post-text-hide-threshold) {
@@ -698,19 +742,33 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 }
 
 .postCaret {
-	flex-shrink: 0;
-	margin-left: -2px;
-	font-size: 0.85em;
-	pointer-events: none;
-	transition: rotate 0.15s ease-out;
+	position: relative;
+	width: 34px;
+	padding-inline-end: 2px;
 
-	&.postCaretOpen {
-		rotate: 180deg;
+	&::before {
+		content: '';
+		position: absolute;
+		inset-block: 10px;
+		inset-inline-start: 0;
+		width: 1px;
+		background: color-mix(in srgb, var(--MI_THEME-fgOnAccent) 40%, transparent);
 	}
 
 	@media (max-width: $post-text-hide-threshold) {
-		display: none;
+		width: var(--headerRoundControlSize);
+		padding: 0;
+		&::before { display: none; }
 	}
+}
+
+.postCaretIcon {
+	font-size: .9em;
+	transition: rotate .2s ease;
+
+	&.postCaretOpen { rotate: 180deg; }
+
+	@media (prefers-reduced-motion: reduce) { transition: none; }
 }
 
 .guestActions {
@@ -738,14 +796,23 @@ $compact-navigation-threshold: 760px; // 与 compactNavigation 的媒体查询�
 
 .account {
 	display: flex;
+	flex-shrink: 0;
 	align-items: center;
 	justify-content: center;
 	height: var(--headerControlHeight);
+	width: var(--headerControlHeight);
 	margin-left: 4px;
+	padding: 0;
+	border-radius: 999px;
+	font-size: 1em;
+
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }
 
 .avatar {
+	flex: 0 0 auto;
 	width: var(--headerRoundControlSize);
 	height: var(--headerRoundControlSize);
 }
+
 </style>

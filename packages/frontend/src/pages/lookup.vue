@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_pageBody">
 		<div v-if="state === 'done'" class="_buttonsCenter">
 			<MkButton @click="close">{{ i18n.ts.close }}</MkButton>
-			<MkButton @click="goToMisskey">{{ i18n.ts.goToMisskey }}</MkButton>
+			<MkButton @click="goToMisskey">{{ i18n.tsx.goToMisskey({ name: instanceName }) }}</MkButton>
 		</div>
 		<div v-else class="_fullInfo">
 			<MkLoading/>
@@ -22,6 +22,7 @@ import { computed, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { instanceName } from '@@/js/config.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { mainRouter } from '@/router.js';

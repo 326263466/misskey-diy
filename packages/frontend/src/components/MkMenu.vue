@@ -31,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		@mousemove.passive="onMouseMove"
 		@mouseleave.passive="onMouseLeave"
 	>
-		<template v-for="item in (items2 ?? [])">
+		<template v-for="item in visibleItems">
 			<div v-if="item.type === 'divider'" role="separator" tabindex="-1" :class="$style.divider"></div>
 
 			<div v-else-if="item.type === 'label'" role="menuitem" tabindex="-1" :class="[$style.label]">
@@ -68,7 +68,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				v-else-if="item.type === 'link'"
 				role="menuitem"
 				tabindex="0"
-				:class="['_button', $style.item]"
+				:class="['_button', $style.item, { [$style.active]: unref(item.active), [$style.danger]: item.danger }]"
+				:aria-current="unref(item.active) ? 'page' : undefined"
 				:to="item.to"
 				@click.passive="close(true)"
 				@mouseenter.passive="onItemMouseEnter"
@@ -88,7 +89,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				v-else-if="item.type === 'a'"
 				role="menuitem"
 				tabindex="0"
-				:class="['_button', $style.item]"
+				:class="['_button', $style.item, { [$style.active]: unref(item.active), [$style.danger]: item.danger }]"
+				:aria-current="unref(item.active) ? 'page' : undefined"
 				:href="item.href"
 				:target="item.target"
 				:rel="item.target === '_blank' ? 'noopener noreferrer' : undefined"
@@ -166,6 +168,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button
 				v-else-if="item.type === 'radioOption'"
 				role="menuitemradio"
+				:aria-checked="!!unref(item.active)"
 				tabindex="0"
 				:class="['_button', $style.item, $style.radio, { [$style.active]: unref(item.active) }]"
 				@click.prevent="unref(item.active) ? null : clicked(item.action, $event, false)"
@@ -324,6 +327,7 @@ function onOpeningGuardWheel(ev: WheelEvent) {
 }
 
 const items2 = ref<InnerMenuItem[]>();
+const visibleItems = computed(() => items2.value?.filter(item => item.type !== 'radioOption' || !unref(item.hidden)) ?? []);
 
 const child = useTemplateRef('child');
 
@@ -708,7 +712,13 @@ defineExpose({
 	&.center {
 		> .menu {
 			> .item {
+				justify-content: center;
 				text-align: center;
+
+				> .item_content {
+					flex: 0 1 auto;
+					width: auto;
+				}
 			}
 		}
 	}
@@ -893,9 +903,9 @@ defineExpose({
 		left: 0;
 		right: 0;
 		margin: auto;
-		width: calc(100% - 16px);
+		width: calc(100% - var(--menuItemInset, 16px));
 		height: calc(100% - 1px);
-		border-radius: 6px;
+		border-radius: var(--menuItemRadius, 6px);
 	}
 
 	&:focus-visible {

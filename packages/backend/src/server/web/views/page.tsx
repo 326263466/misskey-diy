@@ -11,6 +11,8 @@ import { Layout } from '@/server/web/views/base.js';
 export function PagePage(props: CommonProps<{
 	page: Packed<'Page'>;
 	profile: MiUserProfile;
+	/** 文章与页面共用同一数据，分享地址不同。 */
+	url?: string;
 }>) {
 	function ogBlock() {
 		return (
@@ -18,7 +20,7 @@ export function PagePage(props: CommonProps<{
 				<meta property="og:type" content="article" />
 				<meta property="og:title" content={props.page.title} />
 				{props.page.summary != null ? <meta property="og:description" content={props.page.summary} /> : null}
-				<meta property="og:url" content={`${props.config.url}/pages/${props.page.id}`} />
+				<meta property="og:url" content={props.url ?? `${props.config.url}/pages/${props.page.id}`} />
 				{props.page.eyeCatchingImage != null ? (
 					<>
 						<meta property="og:image" content={props.page.eyeCatchingImage.thumbnailUrl ?? props.page.eyeCatchingImage.url} />

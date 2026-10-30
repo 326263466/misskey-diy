@@ -27,9 +27,6 @@ import {
 	MiClipFavorite,
 	MiClipNote,
 	MiDriveFile,
-	MiDriveFileReference,
-	MiDriveFileTarget,
-	MiDriveFileDraft,
 	MiDriveFolder,
 	MiEmoji,
 	MiFeedback,
@@ -265,24 +262,6 @@ const $emojisRepository: Provider = {
 const $driveFilesRepository: Provider = {
 	provide: DI.driveFilesRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiDriveFile).extend(miRepository as MiRepository<MiDriveFile>),
-	inject: [DI.db],
-};
-
-const $driveFileReferencesRepository: Provider = {
-	provide: DI.driveFileReferencesRepository,
-	useFactory: (db: DataSource) => db.getRepository(MiDriveFileReference).extend(miRepository as MiRepository<MiDriveFileReference>),
-	inject: [DI.db],
-};
-
-const $driveFileTargetsRepository: Provider = {
-	provide: DI.driveFileTargetsRepository,
-	useFactory: (db: DataSource) => db.getRepository(MiDriveFileTarget).extend(miRepository as MiRepository<MiDriveFileTarget>),
-	inject: [DI.db],
-};
-
-const $driveFileDraftsRepository: Provider = {
-	provide: DI.driveFileDraftsRepository,
-	useFactory: (db: DataSource) => db.getRepository(MiDriveFileDraft).extend(miRepository as MiRepository<MiDriveFileDraft>),
 	inject: [DI.db],
 };
 
@@ -618,9 +597,6 @@ const $reversiGamesRepository: Provider = {
 		$instancesRepository,
 		$emojisRepository,
 		$driveFilesRepository,
-		$driveFileReferencesRepository,
-		$driveFileTargetsRepository,
-		$driveFileDraftsRepository,
 		$driveFoldersRepository,
 		$metasRepository,
 		$mutingsRepository,
@@ -702,9 +678,6 @@ const $reversiGamesRepository: Provider = {
 		$instancesRepository,
 		$emojisRepository,
 		$driveFilesRepository,
-		$driveFileReferencesRepository,
-		$driveFileTargetsRepository,
-		$driveFileDraftsRepository,
 		$driveFoldersRepository,
 		$metasRepository,
 		$mutingsRepository,

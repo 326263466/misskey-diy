@@ -13,6 +13,8 @@ export type AuthorCardSnapshot = {
 	description?: string | null;
 	stats: Endpoints['articles/stats']['res'] | null;
 	followersCount: number | null;
+	// 关注、私信按钮需要的关系，刷新后先按上次结果显示，资料返回后再更正。
+	relation?: Pick<entities.UserDetailed, 'isFollowing' | 'hasPendingFollowRequestFromYou' | 'isLocked' | 'canChat'>;
 	savedAt: number;
 };
 

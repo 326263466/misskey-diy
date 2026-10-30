@@ -6,18 +6,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModal ref="modal" preferType="dialog" zPriority="high" :returnFocusTo="returnFocusTo" @click="cancel" @esc="cancel" @closed="emit('closed')">
 	<div :class="$style.root" role="dialog" aria-modal="true" :aria-labelledby="titleId" :aria-describedby="descriptionId">
-		<i class="ti ti-alert-triangle" :class="$style.icon" aria-hidden="true"></i>
-		<h2 :id="titleId" :class="$style.title">{{ i18n.ts._externalLink.title }}</h2>
-		<p :id="descriptionId" :class="$style.description">{{ i18n.ts._externalLink.description }}</p>
-		<div :class="$style.destination" class="_selectable" dir="ltr">
-			<strong :class="$style.host">{{ host }}</strong>
-			<p :class="$style.url">{{ url }}</p>
+		<div :class="$style.heading">
+			<span :class="$style.iconBadge">
+				<i class="ti ti-alert-triangle" :class="$style.icon" aria-hidden="true"></i>
+			</span>
+			<h2 :id="titleId" :class="$style.title">{{ i18n.ts._externalLink.title }}</h2>
 		</div>
+		<section :class="$style.destination" class="_selectable" dir="ltr">
+			<strong :class="$style.linkTitle" :title="displayTitle">{{ displayTitle }}</strong>
+			<p :class="$style.url" :title="url">{{ url }}</p>
+		</section>
+		<p :id="descriptionId" :class="$style.description">{{ i18n.ts._externalLink.description }}</p>
 		<div :class="$style.actions">
-			<MkButton rounded autofocus @click="cancel">{{ i18n.ts.cancel }}</MkButton>
-			<a :href="url" target="_blank" rel="nofollow noopener noreferrer" class="_button _buttonPrimary" :class="$style.continue" @click="cancel">
-				{{ i18n.ts._externalLink.continue }} <i class="ti ti-external-link" aria-hidden="true"></i>
-			</a>
+			<MkButton type="a" :href="url" target="_blank" rel="nofollow noopener noreferrer" rounded @click="cancel">{{ i18n.ts._externalLink.continue }}<i class="ti ti-external-link" :class="$style.newTab" aria-hidden="true"></i></MkButton>
+			<MkButton primary rounded autofocus @click="cancel">{{ i18n.ts._externalLink.stay }}</MkButton>
 		</div>
 	</div>
 </MkModal>
@@ -25,12 +27,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, useId, useTemplateRef } from 'vue';
+import { i18n } from '@/i18n.js';
 import MkModal from '@/components/MkModal.vue';
 import MkButton from '@/components/MkButton.vue';
-import { i18n } from '@/i18n.js';
 
 const props = defineProps<{
 	url: string;
+	linkTitle?: string;
 	returnFocusTo?: HTMLElement;
 }>();
 
@@ -42,6 +45,7 @@ const modal = useTemplateRef('modal');
 const titleId = useId();
 const descriptionId = useId();
 const host = computed(() => new URL(props.url).host);
+const displayTitle = computed(() => props.linkTitle?.trim() || host.value);
 
 function cancel(): void {
 	modal.value?.close();
@@ -50,77 +54,129 @@ function cancel(): void {
 
 <style lang="scss" module>
 .root {
+	position: relative;
 	margin: auto;
-	padding: var(--MI-cardPadding);
-	width: 480px;
-	max-width: 100%;
+	width: 500px;
+	max-width: calc(100vw - 32px);
 	box-sizing: border-box;
-	text-align: center;
+	padding: 24px;
 	background: var(--MI_THEME-panel);
 	color: var(--MI_THEME-fg);
-	border-radius: var(--MI-radius);
+	border: var(--MI-divider);
+	border-radius: calc(var(--MI-radius) * 1.15);
+	overflow: hidden;
+
+	&::before {
+		content: '';
+		position: absolute;
+		inset: 0 0 auto;
+		height: 4px;
+		background: var(--MI_THEME-warn);
+	}
 }
 
-.icon {
-	font-size: 32px;
+.heading {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.iconBadge {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 38px;
+	height: 38px;
+	border-radius: 12px;
+	background: color-mix(in srgb, var(--MI_THEME-warn) 14%, var(--MI_THEME-panel));
 	color: var(--MI_THEME-warn);
 }
 
+.icon {
+	font-size: 20px;
+	line-height: 1;
+}
+
 .title {
-	margin: 12px 0 8px;
-	font-size: 1.15em;
-}
-
-.description {
-	color: var(--MI_THEME-fgTransparentWeak);
+	flex: 1;
+	min-width: 0;
 	margin: 0;
-	line-height: 1.6;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 1.15em;
+	font-weight: bold;
+	line-height: 1.4;
 }
 
+// 标题最多显示一行，地址最多显示两行；悬停仍可核对完整内容。
 .destination {
-	margin-top: 20px;
-	padding: 14px;
-	text-align: left;
-	background: var(--MI_THEME-bg);
-	border-radius: var(--MI-radius);
+	margin-top: 18px;
+	padding: 14px 16px;
 	overflow-wrap: anywhere;
 	unicode-bidi: isolate;
+	background: var(--MI_THEME-bg);
+	border: var(--MI-divider);
+	border-radius: calc(var(--MI-radius) * 0.85);
 }
 
-.host {
+.linkTitle {
 	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	color: var(--MI_THEME-fgHighlighted);
-}
-
-.url {
-	margin: 8px 0 0;
-	max-height: 160px;
-	overflow: auto;
-	font-size: 0.85em;
+	font-size: 1em;
 	line-height: 1.5;
 }
 
-.actions {
-	display: flex;
-	justify-content: center;
-	flex-wrap: wrap;
-	gap: 12px;
-	margin-top: 24px;
+.url {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	margin: 4px 0 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 0.82em;
+	line-height: 1.55;
 }
 
-.continue {
-	padding: 7px 14px;
-	border-radius: 999px;
-	font-size: 95%;
-	font-weight: bold;
-	text-decoration: none;
+.description {
+	margin: 14px 2px 0;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 0.9em;
+	line-height: 1.6;
+}
 
-	&:hover {
-		text-decoration: none;
+// 主按钮放在最右侧，默认焦点仍在“留在本站”。
+.actions {
+	display: flex;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 22px;
+}
+
+.newTab {
+	margin-left: 4px;
+}
+
+@media (max-width: 480px) {
+	.root {
+		padding: 20px;
 	}
 
-	&:focus-visible {
-		outline-offset: 2px;
+	.iconBadge {
+		width: 34px;
+		height: 34px;
+		border-radius: 10px;
+	}
+
+	.actions {
+		> * {
+			flex: 1;
+		}
 	}
 }
 </style>

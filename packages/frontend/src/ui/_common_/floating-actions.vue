@@ -5,18 +5,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
-	<button v-if="$i && $i.policies.chatAvailability !== 'unavailable'" v-tooltip.left="i18n.ts.chat" type="button" class="_button" :class="[$style.action, $style.chat]" :aria-label="i18n.ts.chat" :aria-expanded="chatOpen" @click="emit('openChat')">
-		<i class="ti ti-message-circle" aria-hidden="true"></i>
-		<span v-if="$i.hasUnreadChatMessages" :class="$style.indicator" aria-hidden="true"></span>
-	</button>
-	<button v-if="showBackToTop" v-tooltip.left="i18n.ts.backToTop" type="button" class="_button" :class="$style.action" :aria-label="i18n.ts.backToTop" @click="backToTop">
-		<i class="ti ti-arrow-bar-to-up" aria-hidden="true"></i>
-	</button>
 	<MkA v-tooltip.left="i18n.ts.feedback" to="/feedback" class="_button" :class="$style.action" :aria-label="i18n.ts.feedback">
 		<i class="ti ti-bug" aria-hidden="true"></i>
 	</MkA>
-	<button v-tooltip.left="i18n.ts.about" type="button" class="_button" :class="$style.action" :aria-label="i18n.ts.about" aria-haspopup="menu" @click="openInstanceMenu">
-		<i class="ti ti-info-circle" aria-hidden="true"></i>
+	<button v-tooltip.left="i18n.ts.more" type="button" class="_button" :class="$style.action" :aria-label="i18n.ts.more" aria-haspopup="menu" @click="openInstanceMenu">
+		<i class="ti ti-dots" aria-hidden="true"></i>
+	</button>
+	<!-- 返回顶部在最下面出现，把上面的按钮往上推；不出现时不占位。 -->
+	<button v-if="showBackToTop" v-tooltip.left="i18n.ts.backToTop" type="button" class="_button" :class="$style.action" :aria-label="i18n.ts.backToTop" @click="backToTop">
+		<i class="ti ti-arrow-bar-to-up" aria-hidden="true"></i>
 	</button>
 </div>
 </template>
@@ -28,15 +25,9 @@ import { openInstanceMenu } from './common.js';
 import { i18n } from '@/i18n.js';
 import { mainRouter } from '@/router.js';
 import { prefer } from '@/preferences.js';
-import { $i } from '@/i.js';
 
 const props = defineProps<{
 	content: HTMLElement | null;
-	chatOpen?: boolean;
-}>();
-
-const emit = defineEmits<{
-	(ev: 'openChat'): void;
 }>();
 
 const showBackToTop = ref(false);
@@ -185,6 +176,7 @@ watch(() => props.content, (content, _, onCleanup) => {
 	text-decoration: none;
 
 	&:hover {
+		color: var(--MI_THEME-fg);
 		text-decoration: none;
 	}
 
@@ -194,17 +186,4 @@ watch(() => props.content, (content, _, onCleanup) => {
 	}
 }
 
-.chat {
-	position: relative;
-}
-
-.indicator {
-	position: absolute;
-	top: 6px;
-	right: 6px;
-	width: 7px;
-	height: 7px;
-	border-radius: 50%;
-	background: var(--MI_THEME-indicator);
-}
 </style>

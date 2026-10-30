@@ -93,15 +93,11 @@ function resetWidgets() {
 </script>
 
 <style lang="scss" module>
-button.edit {
-	display: block;
+button.edit.edit {
+	display: flex;
+	align-items: center;
 	width: fit-content;
 	margin: 16px auto 0;
 	color: var(--MI_THEME-fgTransparentWeak);
-
-	// 去掉 _textButton 悬停时的下划线，保持与周边弱化文案一致
-	&:not(:disabled):hover {
-		text-decoration: none;
-	}
 }
 </style>

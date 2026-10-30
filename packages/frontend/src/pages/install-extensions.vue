@@ -40,7 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref } from 'vue';
 import type { Extension } from '@/components/MkExtensionInstaller.vue';
 import type { AiScriptPluginMeta } from '@/plugin.js';
 import MkLoading from '@/components/global/MkLoading.vue';
@@ -54,7 +54,6 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { parsePluginMeta, installPlugin } from '@/plugin.js';
 import { installTheme } from '@/theme.js';
 import { parseThemeCode } from '@@/js/theme.js';
-import { unisonReload } from '@/utility/unison-reload.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 
@@ -207,7 +206,7 @@ async function install() {
 			if (!data.value.meta) return;
 			try {
 				await installPlugin(data.value.raw, data.value.meta as AiScriptPluginMeta);
-				os.success();
+				os.toast(i18n.ts.installed, 'success');
 				window.setTimeout(() => {
 					close_();
 				}, 3000);
@@ -223,7 +222,7 @@ async function install() {
 		case 'theme':
 			if (!data.value.meta) return;
 			await installTheme(data.value.raw);
-			os.success();
+			os.toast(i18n.ts.installed, 'success');
 			window.setTimeout(() => {
 				close_();
 			}, 3000);

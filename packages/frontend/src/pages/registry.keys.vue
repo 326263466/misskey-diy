@@ -4,31 +4,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
-	<div class="_pageBody">
-		<div class="_gaps_m">
-			<FormSplit>
-				<MkKeyValue>
-					<template #key>{{ i18n.ts._registry.domain }}</template>
-					<template #value>{{ props.domain === '@' ? i18n.ts.system : props.domain.toUpperCase() }}</template>
-				</MkKeyValue>
-				<MkKeyValue>
-					<template #key>{{ i18n.ts._registry.scope }}</template>
-					<template #value>{{ scope.join('/') }}</template>
-				</MkKeyValue>
-			</FormSplit>
+<div class="_gaps_m">
+	<FormSplit>
+		<MkKeyValue>
+			<template #key>{{ i18n.ts._registry.domain }}</template>
+			<template #value>{{ props.domain === '@' ? i18n.ts.system : props.domain.toUpperCase() }}</template>
+		</MkKeyValue>
+		<MkKeyValue>
+			<template #key>{{ i18n.ts._registry.scope }}</template>
+			<template #value>{{ scope.join('/') }}</template>
+		</MkKeyValue>
+	</FormSplit>
 
-			<MkButton primary @click="createKey">{{ i18n.ts._registry.createKey }}</MkButton>
+	<MkButton primary @click="createKey">{{ i18n.ts._registry.createKey }}</MkButton>
 
-			<FormSection v-if="keys">
-				<template #label>{{ i18n.ts._registry.keys }}</template>
-				<div class="_gaps_s">
-					<FormLink v-for="key in keys" :to="`/registry/value/${props.domain}/${scope.join('/')}/${key[0]}`" class="_monospace">{{ key[0] }}<template #suffix>{{ key[1].toUpperCase() }}</template></FormLink>
-				</div>
-			</FormSection>
+	<FormSection v-if="keys">
+		<template #label>{{ i18n.ts._registry.keys }}</template>
+		<div class="_gaps_s">
+			<FormLink v-for="key in keys" :key="key[0]" :to="`/settings/registry/value/${props.domain}/${scope.join('/')}/${key[0]}`" class="_monospace">{{ key[0] }}<template #suffix>{{ key[1].toUpperCase() }}</template></FormLink>
 		</div>
-	</div>
-</PageWithHeader>
+	</FormSection>
+</div>
 </template>
 
 <script lang="ts" setup>
@@ -92,10 +88,6 @@ async function createKey() {
 }
 
 watch(() => props.path, fetchKeys, { immediate: true });
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.registry,

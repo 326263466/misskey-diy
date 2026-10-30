@@ -8,7 +8,7 @@ import { CONTENT_LIMITS } from 'misskey-js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { MetasRepository } from '@/models/_.js';
 import { DI } from '@/di-symbols.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 
 export const meta = {
 	tags: ['articles'],
@@ -36,7 +36,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private metasRepository: MetasRepository,
 	) {
 		super(meta, paramDef, async (ps) => {
-			const query = normalizeForSearch(ps.query).trim();
+			const query = normalizeTag(ps.query).trim();
 			const config = await this.metasRepository.findOne({ where: {}, order: { id: 'DESC' }, select: { articleTags: true } });
 			return (config?.articleTags ?? []).filter(tag => Array.from(tag).length <= CONTENT_LIMITS.articleTag && tag.includes(query)).slice(0, ps.limit);
 		});

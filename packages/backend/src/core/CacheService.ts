@@ -54,8 +54,6 @@ export class CacheService implements OnApplicationShutdown {
 
 		private userEntityService: UserEntityService,
 	) {
-		//this.onMessage = this.onMessage.bind(this);
-
 		this.userByIdCache = new MemoryKVCache<MiUser>(1000 * 60 * 5); // 5m
 		this.localUserByNativeTokenCache = new MemoryKVCache<MiLocalUser | null>(1000 * 60 * 5); // 5m
 		this.localUserByIdCache = new MemoryKVCache<MiLocalUser>(1000 * 60 * 5); // 5m
@@ -183,10 +181,33 @@ export class CacheService implements OnApplicationShutdown {
 					this.userFollowingsCache.delete(body.followerId);
 					break;
 				}
+				case 'mute':
+				case 'unmute': {
+					await this.userMutingsCache.refresh(body.muterId);
+					break;
+				}
+				case 'blockingCreated':
+				case 'blockingDeleted': {
+					await Promise.all([
+						this.userBlockingCache.refresh(body.blockerId),
+						this.userBlockedCache.refresh(body.blockeeId),
+					]);
+					break;
+				}
 				default:
 					break;
 			}
 		}
+	}
+
+	@bindThis
+	public async getBlockedUserIds(userId: MiUser['id']): Promise<Set<MiUser['id']>> {
+		// 内容可见性按双向拉黑过滤，保留原始缓存的方向供关系管理使用。
+		const [blocking, blocked] = await Promise.all([
+			this.userBlockingCache.fetch(userId),
+			this.userBlockedCache.fetch(userId),
+		]);
+		return new Set([...blocking, ...blocked]);
 	}
 
 	@bindThis

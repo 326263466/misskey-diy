@@ -5,12 +5,13 @@
 
 // TODO: なんでもかんでもos.tsに突っ込むのやめたいのでよしなに分割する
 
-import { markRaw, ref, defineAsyncComponent, nextTick } from 'vue';
+import { markRaw, ref, defineAsyncComponent, nextTick, computed } from 'vue';
 import * as Misskey from 'misskey-js';
-import type { Component, MaybeRef } from 'vue';
+import type { Component, CSSProperties, MaybeRef, Ref } from 'vue';
 import type { ComponentEmit, ComponentProps as CP } from 'vue-component-type-helpers';
 import type { Form, GetFormResultType } from '@/utility/form.js';
 import type { MenuItem } from '@/types/menu.js';
+import type { MenuAlign, MenuSide } from '@/utility/menu-position.js';
 import type { PostFormProps } from '@/types/post-form.js';
 import type { UploaderFeatures } from '@/composables/use-uploader.js';
 import type { MkSelectItem } from '@/components/MkSelect.vue';
@@ -22,6 +23,7 @@ import type MkEmojiPickerDialog_TypeReferenceOnly from '@/components/MkEmojiPick
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n.js';
+import { isBlockedRelationError } from '@/utility/user-blocking.js';
 import MkPostFormDialog from '@/components/MkPostFormDialog.vue';
 import MkWaitingDialog from '@/components/MkWaitingDialog.vue';
 import MkPageWindow from '@/components/MkPageWindow.vue';
@@ -35,6 +37,8 @@ import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import { focusParent } from '@/utility/focus.js';
 import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
+import { deviceKind } from '@/utility/device-kind.js';
+import { mainRouter } from '@/router.js';
 
 export const openingWindowsCount = ref(0);
 
@@ -44,6 +48,7 @@ export const apiWithDialog = (<E extends keyof Misskey.Endpoints>(
 	data: Misskey.Endpoints[E]['req'] & { i?: string | null },
 	token?: string | null | undefined,
 	customErrors?: ApiWithDialogCustomErrors,
+	options?: { toastOnInternalError?: boolean },
 ) => {
 	const promise = misskeyApi<void, E>(endpoint, data, token);
 	promiseDialog(promise, null, async (err) => {
@@ -53,6 +58,10 @@ export const apiWithDialog = (<E extends keyof Misskey.Endpoints>(
 		if (err.code === 'INTERNAL_ERROR') {
 			title = i18n.ts.internalServerError;
 			text = i18n.ts.internalServerErrorDescription;
+			if (options?.toastOnInternalError) {
+				toast([title, text].join('\n'), 'error');
+				return;
+			}
 			const date = new Date().toISOString();
 			const { result } = await actions({
 				type: 'error',
@@ -73,6 +82,8 @@ export const apiWithDialog = (<E extends keyof Misskey.Endpoints>(
 			return;
 		} else if (err.code === 'CHAT_ROOM_FULL') {
 			text = i18n.ts._chat.roomFull;
+		} else if (isBlockedRelationError(err) && !customErrors?.[err.id]) {
+			text = i18n.ts.blockedRelation;
 		} else if (err.code === 'RATE_LIMIT_EXCEEDED') {
 			title = i18n.ts.cannotPerformTemporary;
 			text = i18n.ts.cannotPerformTemporaryDescription;
@@ -82,7 +93,7 @@ export const apiWithDialog = (<E extends keyof Misskey.Endpoints>(
 		} else if (err.code === 'ROLE_PERMISSION_DENIED') {
 			title = i18n.ts.permissionDeniedError;
 			text = i18n.ts.permissionDeniedErrorDescription;
-		} else if (err.code?.startsWith('TOO_MANY')) { // TODO: バックエンドに kind: client/contentsLimitExceeded みたいな感じで送るように統一してもらってそれで判定する
+		} else if (err.code?.startsWith('TOO_MANY')) {
 			title = i18n.ts.youCannotCreateAnymore;
 			text = `${i18n.ts.error}: ${err.id}`;
 		} else if (err.message?.startsWith('Unexpected token')) {
@@ -209,36 +220,44 @@ export async function popupAsyncWithDialog<T extends Component>(
 	componentFetching: Promise<T>,
 	props: ComponentProps<T>,
 	events: Partial<ComponentEmitsObject<T>> = {},
+	signal?: AbortSignal,
 ): Promise<{ dispose: () => void }> {
+	signal?.throwIfAborted();
 	let component: T;
 	let closeWaiting = () => { };
 
 	const timer = window.setTimeout(() => {
 		closeWaiting = waiting();
 	}, 100); // コンポーネントがキャッシュされている場合にもwaitingが表示されて画面がちらつくのを防止するためにラグを追加
+	const stopWaiting = () => { window.clearTimeout(timer); closeWaiting(); };
+	signal?.addEventListener('abort', stopWaiting, { once: true });
 
 	try {
 		component = await componentFetching;
+		signal?.throwIfAborted();
 	} catch (err) {
-		window.clearTimeout(timer);
-		closeWaiting();
-		alert({
+		if (!signal?.aborted) alert({
 			type: 'error',
 			title: i18n.ts.somethingHappened,
 			text: 'CODE: ASYNC_COMP_LOAD_FAIL',
 		});
 		throw err;
+	} finally {
+		signal?.removeEventListener('abort', stopWaiting);
+		stopWaiting();
 	}
-
-	window.clearTimeout(timer);
-	closeWaiting();
 
 	return popup(component, props, events);
 }
 
-export function pageWindow(path: string) {
+export function pageWindow(path: string, options?: { plainCanvas?: boolean }) {
+	if (deviceKind === 'smartphone' || window.innerWidth <= 500) {
+		mainRouter.pushByPath(path, 'forcePage');
+		return;
+	}
 	const { dispose } = popup(MkPageWindow, {
 		initialPath: path,
+		plainCanvas: options?.plainCanvas,
 	}, {
 		closed: () => dispose(),
 	});
@@ -272,6 +291,7 @@ export function alert(props: {
 
 export function confirm(props: {
 	closeOnBackdrop?: boolean;
+	useHistory?: boolean;
 	type: 'error' | 'info' | 'success' | 'warning' | 'waiting' | 'question';
 	title?: string;
 	text?: string;
@@ -328,7 +348,7 @@ export function actions<const T extends ActionsAction[]>(props: {
 // default が指定されていたら result は null になり得ないことを保証する overload function
 export function inputText(props: {
 	closeOnBackdrop?: boolean;
-	type?: 'text' | 'email' | 'password' | 'url';
+	type?: 'text' | 'email' | 'password' | 'url' | 'search';
 	title?: string;
 	text?: string;
 	placeholder?: string | null;
@@ -340,7 +360,7 @@ export function inputText(props: {
 // min lengthが指定されてたら result は null になり得ないことを保証する overload function
 export function inputText(props: {
 	closeOnBackdrop?: boolean;
-	type?: 'text' | 'email' | 'password' | 'url';
+	type?: 'text' | 'email' | 'password' | 'url' | 'search';
 	title?: string;
 	text?: string;
 	placeholder?: string | null;
@@ -351,7 +371,7 @@ export function inputText(props: {
 }): Promise<MkDialogReturnType<string>>;
 export function inputText(props: {
 	closeOnBackdrop?: boolean;
-	type?: 'text' | 'email' | 'password' | 'url';
+	type?: 'text' | 'email' | 'password' | 'url' | 'search';
 	title?: string;
 	text?: string;
 	placeholder?: string | null;
@@ -362,7 +382,7 @@ export function inputText(props: {
 }): Promise<MkDialogReturnType<string | null>>;
 export function inputText(props: {
 	closeOnBackdrop?: boolean;
-	type?: 'text' | 'email' | 'password' | 'url';
+	type?: 'text' | 'email' | 'password' | 'url' | 'search';
 	title?: string;
 	text?: string;
 	placeholder?: string | null;
@@ -504,28 +524,14 @@ export function select<C extends OptionValue, D extends C | null = null>(props: 
 	});
 }
 
-export function success(message?: string): Promise<void> {
-	if (message) {
-		return new Promise(resolve => {
-			const { dispose } = popup(MkToast, { message, status: 'success' }, {
-				closed: () => {
-					dispose();
-					resolve();
-				},
-			});
-		});
-	}
+// 成功反馈统一用 toast，不再弹出需等待关闭的对勾弹窗；调用方应尽量传入说明结果的文案。
+export function success(message: string = i18n.ts.operationSucceeded): Promise<void> {
 	return new Promise(resolve => {
-		const showing = ref(true);
-		window.setTimeout(() => {
-			showing.value = false;
-		}, 1000);
-		const { dispose } = popup(MkWaitingDialog, {
-			success: true,
-			showing: showing,
-		}, {
-			done: () => resolve(),
-			closed: () => dispose(),
+		const { dispose } = popup(MkToast, { message, status: 'success' }, {
+			closed: () => {
+				dispose();
+				resolve();
+			},
 		});
 	});
 }
@@ -573,7 +579,7 @@ export function form<F extends Form>(title: string, f: F, options: { closeOnBack
 	});
 }
 
-type SelectUserOptions = { title?: string; includeSelf?: boolean; localOnly?: boolean; excludeUserIds?: string[] };
+type SelectUserOptions = { title?: string; includeSelf?: boolean; localOnly?: boolean; excludeUserIds?: string[]; candidates?: Misskey.entities.UserLite[] };
 
 export function selectUser(opts: SelectUserOptions & { signal: AbortSignal }): Promise<Misskey.entities.UserDetailed | null>;
 export function selectUser(opts?: SelectUserOptions): Promise<Misskey.entities.UserDetailed>;
@@ -592,8 +598,9 @@ export async function selectUser(opts: SelectUserOptions & { signal?: AbortSigna
 			if (settled) return;
 			settled = true;
 			signal?.removeEventListener('abort', abort);
+			const result = user != null && dialogProps.candidates != null && !dialogProps.candidates.some(candidate => candidate.id === user.id) ? null : user;
 			// 旧调用只处理选中用户；聊天通过 signal 接收取消结果并释放操作锁。
-			if (user != null || signal) resolve(user);
+			if (result != null || signal) resolve(result);
 		}
 
 		function abort() { finish(null); dispose(); }
@@ -651,11 +658,16 @@ export async function cropImageFile<F extends File | Blob>(imageFile: F, options
 
 export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElement | EventTarget | null, options?: {
 	align?: string;
+	anchorAlign?: MenuAlign;
+	placement?: MenuSide;
 	matchAnchorWidth?: boolean;
 	width?: number;
+	style?: CSSProperties;
+	closeRequested?: Readonly<Ref<boolean>>;
 	onClosing?: () => void;
 	onClosed?: () => void;
 	onAction?: () => void;
+	onBackdropClick?: (event: MouseEvent) => void;
 	/** 默认关闭其他菜单面板；抽屉中的子菜单接替父菜单显示，需设为 false。 */
 	exclusive?: boolean;
 	debugDisablePredictionCone?: boolean;
@@ -667,15 +679,24 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 
 	let returnFocusTo = getHTMLElementOrNull(anchorElement) ?? getHTMLElementOrNull(window.document.activeElement);
 	return new Promise(resolve => nextTick(() => {
+		if (options?.closeRequested?.value) {
+			resolve();
+			options.onClosed?.();
+			return;
+		}
 		if (options?.exclusive !== false) closeOtherMenus();
-		const closeRequested = ref(false);
-		const requestClose = () => { closeRequested.value = true; };
+		const internalCloseRequested = ref(false);
+		const closeRequested = computed(() => internalCloseRequested.value || options?.closeRequested?.value === true);
+		const requestClose = () => { internalCloseRequested.value = true; };
 		openMenuClosers.add(requestClose);
 		const { dispose } = popup(MkPopupMenu, {
 			items: items.filter(x => x != null),
 			anchorElement,
 			width: options?.width,
+			menuStyle: options?.style,
 			align: options?.align,
+			anchorAlign: options?.anchorAlign,
+			placement: options?.placement,
 			matchAnchorWidth: options?.matchAnchorWidth,
 			returnFocusTo,
 			closeRequested,
@@ -694,6 +715,9 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 			},
 			actioned: () => {
 				options?.onAction?.();
+			},
+			click: (event?: MouseEvent) => {
+				if (event) options?.onBackdropClick?.(event);
 			},
 		});
 	}));
@@ -823,8 +847,6 @@ export async function launchUploader(
 	files: File[],
 	options?: {
 		folderId?: string | null;
-		isManaged?: boolean;
-		draftId?: string;
 		multiple?: boolean;
 		features?: UploaderFeatures;
 	},
@@ -835,8 +857,6 @@ export async function launchUploader(
 		popupAsyncWithDialog(import('@/components/MkUploaderDialog.vue').then(x => x.default), {
 			files: markRaw(files),
 			folderId: options?.folderId,
-			isManaged: options?.isManaged,
-			draftId: options?.draftId,
 			multiple: options?.multiple,
 			features: options?.features,
 		}, {

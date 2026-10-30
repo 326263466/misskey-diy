@@ -27,8 +27,6 @@ export type Tab<T = string> = {
 </script>
 
 <script setup lang="ts" generic="const T extends Tab">
-import { defineProps, defineEmits } from 'vue';
-
 defineProps<{
 	tabs: T[];
 }>();
@@ -43,10 +41,14 @@ function update(key: T['key']) {
 <style module lang="scss">
 .tabsRoot {
 	display: flex;
-	font-size: 90%;
+	// 放在工具栏里时与同一行的按钮同字号。
+	font-size: var(--MI-toolbarFontSize, 90%);
 }
 
 .tabButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	flex: 1;
 	padding: 10px 8px;
 	border-radius: 999px;
@@ -77,7 +79,7 @@ function update(key: T['key']) {
 
 @container (max-width: 500px) {
 	.tabsRoot {
-		font-size: 80%;
+		font-size: var(--MI-toolbarFontSize, 80%);
 	}
 
 	.tabButton {

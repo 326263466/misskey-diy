@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<i class="ti ti-info-circle"></i>
 	</span>
 	<span :class="$style.title">{{ i18n.ts._preferencesBackup.backupFound }}</span>
-	<span :class="$style.body"><button class="_textButton" @click="restore">{{ i18n.ts.restore }}</button> | <button class="_textButton" @click="skip">{{ i18n.ts.skip }}</button></span>
+	<span :class="$style.body" class="_textButtons"><button class="_textButton" @click="restore">{{ i18n.ts.restore }}</button><button class="_textButton" @click="skip">{{ i18n.ts.skip }}</button></span>
 </div>
 </template>
 

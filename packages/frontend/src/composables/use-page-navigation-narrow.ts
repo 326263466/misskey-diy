@@ -16,12 +16,14 @@ export function usePageNavigationNarrow(el: Readonly<Ref<HTMLElement | null>>): 
 
 	const ro = new ResizeObserver((entries) => {
 		if (entries.length === 0) return;
-		narrow.value = entries[0].borderBoxSize[0].inlineSize < NARROW_THRESHOLD;
+		const width = entries[0].borderBoxSize[0].inlineSize;
+		// 缓存页隐藏时宽度为零，不能因此卸载左侧菜单。
+		if (width > 0) narrow.value = width < NARROW_THRESHOLD;
 	});
 
 	function measure() {
-		if (el.value == null) return;
-		narrow.value = el.value.offsetWidth < NARROW_THRESHOLD;
+		const width = el.value?.offsetWidth ?? 0;
+		if (width > 0) narrow.value = width < NARROW_THRESHOLD;
 	}
 
 	onMounted(() => {

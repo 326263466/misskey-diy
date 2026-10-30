@@ -6,6 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkWindow
 	ref="windowEl"
+	:initialWidth="plainCanvas ? 640 : undefined"
+	:initialHeight="plainCanvas ? 600 : undefined"
 	:headerIcon="pageMetadata?.icon ?? undefined"
 	:canResize="true"
 	:closeButton="true"
@@ -20,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 	</template>
 
-	<div :class="$style.root" class="_forceShrinkSpacer _pageContent">
+	<div :class="[$style.root, { [$style.plainCanvas]: plainCanvas }]" class="_forceShrinkSpacer _pageContent">
 		<StackingRouterView v-if="prefer.s['experimental.stackingRouterView']" :key="reloadCount.toString() + ':stacking'" :router="windowRouter"/>
 		<RouterView v-else :key="reloadCount.toString() + ':non-stacking'" :router="windowRouter"/>
 	</div>
@@ -46,7 +48,11 @@ import { prefer } from '@/preferences.js';
 
 const props = defineProps<{
 	initialPath: string;
+	plainCanvas?: boolean;
 }>();
+
+const adminPage = /^\/admin(?:\/|$)/.test(props.initialPath);
+const plainCanvas = props.plainCanvas ?? adminPage;
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
@@ -56,11 +62,8 @@ const windowRouter = createRouter(props.initialPath);
 
 const pageMetadata = ref<null | PageMetadata>(null);
 const windowEl = useTemplateRef('windowEl');
-const _history_ = ref<{ path: string; }[]>([{
-	path: windowRouter.getCurrentFullPath(),
-}]);
 const buttonsLeft = computed(() => {
-	return _history_.value.length > 1 ? [{
+	return windowRouter.canGoBack.value ? [{
 		icon: 'ti ti-arrow-left',
 		title: i18n.ts.goBack,
 		onClick: back,
@@ -68,7 +71,7 @@ const buttonsLeft = computed(() => {
 });
 const buttonsRight = computed(() => {
 	const buttons = [{
-		icon: 'ti ti-reload',
+		icon: 'ti ti-refresh',
 		title: i18n.ts.reload,
 		onClick: reload,
 	}, {
@@ -88,15 +91,6 @@ function getSearchMarker(path: string) {
 }
 
 const searchMarkerId = ref<string | null>(getSearchMarker(props.initialPath));
-
-windowRouter.addListener('push', ctx => {
-	_history_.value.push({ path: ctx.fullPath });
-});
-
-windowRouter.addListener('replace', ctx => {
-	_history_.value.pop();
-	_history_.value.push({ path: ctx.fullPath });
-});
 
 windowRouter.addListener('forcePush', ctx => {
 	window.open(url + ctx.fullPath, '_blank', 'noopener');
@@ -137,6 +131,9 @@ provideReactiveMetadata(pageMetadata);
 provide('shouldOmitHeaderTitle', true);
 provide('shouldHeaderThin', true);
 provide('shouldOmitHeaderBackButton', true);
+provide('pagePlainCanvas', plainCanvas);
+provide('adminTableMode', plainCanvas);
+provide('pageWindowClose', close);
 
 const contextmenu = computed(() => ([{
 	icon: 'ti ti-player-eject',
@@ -162,8 +159,7 @@ const contextmenu = computed(() => ([{
 }]));
 
 function back() {
-	_history_.value.pop();
-	windowRouter.replaceByPath(_history_.value.at(-1)!.path);
+	windowRouter.back();
 }
 
 function reload() {
@@ -224,16 +220,22 @@ defineExpose({
 		}
 	}
 
-	:global(._pageContainer > ._pageLayout) {
+	:global(._pageContainer > [data-route-active] > ._pageLayout) {
 		padding: 0;
 	}
 
-	:global(._pageContainer > ._standalonePage) {
+	:global(._pageContainer > [data-route-active] > ._standalonePage) {
 		padding-top: 0;
 	}
 
 	:global(._pageBody) {
 		padding-bottom: 0;
 	}
+}
+
+.plainCanvas {
+	--MI-formLabelFontSize: 1em;
+	--MI-formCaptionFontSize: 0.9em;
+	font-size: 1em;
 }
 </style>

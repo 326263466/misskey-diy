@@ -4,10 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" data-popup-boundary :class="[$style.root, { [$style.contentCard]: contentCard, [$style.fillHeight]: contentCard && fillHeight }, reversed ? '_pageScrollableReversed' : '_pageScrollable']">
+<div ref="rootEl" data-popup-boundary :class="[$style.root, { [$style.contentCard]: contentCard, [$style.fillHeight]: contentCard && fillHeight, [$style.reachTop]: reach > 0 }, reversed ? '_pageScrollableReversed' : '_pageScrollable']" :style="reach > 0 ? { '--MI-pageReachTop': `${reach}px` } : undefined" :data-sticky-container-header-height="reach > 0 ? reach : undefined">
 	<MkStickyContainer :class="contentCard && !fillHeight ? $style.cardShell : undefined">
 		<template v-if="!hideHeader" #header>
-			<MkPageHeader v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" v-bind="pageHeaderPropsWithoutTabs">
+			<MkPageHeader v-if="prefer.s.showPageTabBarBottom && !tabsInline && (props.tabs?.length ?? 0) > 0" v-bind="pageHeaderPropsWithoutTabs">
 				<template v-if="$slots['header-actions']" #actions><slot name="header-actions"></slot></template>
 			</MkPageHeader>
 			<MkPageHeader v-else v-model:tab="tab" v-bind="pageHeaderProps">
@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<template #footer>
 			<div v-if="contentCard && $slots.footer" :class="$style.cardFooter"><slot name="footer"></slot></div>
 			<slot v-else name="footer"></slot>
-			<div v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" :class="$style.footerTabs">
+			<div v-if="prefer.s.showPageTabBarBottom && !tabsInline && (props.tabs?.length ?? 0) > 0" :class="$style.footerTabs">
 				<MkTabs v-model:tab="tab" :class="$style.footerTabItems" :tabs="props.tabs" :centered="true" :tabHighlightUpper="true"/>
 			</div>
 		</template>
@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
+import { computed, inject, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { scrollInContainer } from '@@/js/scroll.js';
 import type { PageHeaderProps } from './MkPageHeader.vue';
 import { useScrollToTop } from '@/composables/use-scroll-to-top.js';
@@ -40,6 +40,7 @@ import MkSwiper from '@/components/MkSwiper.vue';
 import { useRouter } from '@/router.js';
 import { prefer } from '@/preferences.js';
 import MkTabs from '@/components/MkTabs.vue';
+import { DI } from '@/di.js';
 
 const props = withDefaults(defineProps<PageHeaderProps & {
 	reversed?: boolean;
@@ -71,8 +72,18 @@ const tab = defineModel<string>('tab');
 const rootEl = useTemplateRef('rootEl');
 const bodyEl = useTemplateRef('bodyEl');
 const resetScroll = useScrollToTop(rootEl);
+const pageActive = inject(DI.pageActive, ref(true));
+const cancelScrollRestore = inject(DI.routeScrollCancel, null);
 const pendingHeight = ref<number | null>(null);
 let tabChangeId = 0;
+
+// 没有页头的顶层页面伸到外壳 header 下，滚动内容才能一直到达 header；
+// 有页头时页头和 header 之间的间距保持空白，不伸出。
+const reach = ref(0);
+onMounted(() => {
+	if (!props.hideHeader || props.reversed || (props.contentCard && props.fillHeight) || !rootEl.value) return;
+	reach.value = parseFloat(window.getComputedStyle(rootEl.value).getPropertyValue('--MI-pageScrollReach')) || 0;
+});
 
 watch(tab, async () => {
 	const changeId = ++tabChangeId;
@@ -89,9 +100,9 @@ watch(() => props.loading, loading => {
 
 const router = useRouter();
 
-router.useListener('change', resetScroll);
-
 router.useListener('same', () => {
+	if (!pageActive.value) return;
+	cancelScrollRestore?.();
 	scrollToTop();
 });
 
@@ -119,7 +130,19 @@ defineExpose({
 	isolation: isolate;
 }
 
-.body, .swiper {
+// 静止时内容位置不变；顶部改为直角，内容滚到 header 下时不留圆角缺口。
+.root.reachTop {
+	margin-top: calc(-1 * var(--MI-pageReachTop));
+	height: calc(100% + var(--MI-pageReachTop));
+	box-sizing: border-box;
+	padding-top: var(--MI-pageReachTop);
+	scroll-padding-top: var(--MI-pageReachTop);
+	border-start-start-radius: 0;
+	border-start-end-radius: 0;
+}
+
+.body,
+.swiper {
 	min-height: calc(100cqh - (var(--MI-stickyTop, 0px) + var(--MI-stickyBottom, 0px)));
 }
 
@@ -133,7 +156,7 @@ defineExpose({
 // overflow 用 clip 而不是 hidden，不会产生滚动容器，页头页脚的 sticky 仍相对外层滚动容器定位。
 .cardShell {
 	background: var(--MI-pageCardBg, var(--MI_THEME-panel));
-	border-radius: var(--MI-cardRadius);
+	border-radius: var(--MI-pageHeaderRadius, var(--MI-cardRadius));
 	overflow: clip;
 }
 
@@ -188,7 +211,7 @@ defineExpose({
 	@include page-header.surface;
 
 	> .footerTabItems {
-		--height: inherit;
+		--height: var(--MI-pageTabHeight);
 		font-size: inherit;
 	}
 }

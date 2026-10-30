@@ -29,14 +29,18 @@ export type OrderReceipt = {
 @Index('IDX_order_transaction', ['transactionId'], { unique: true })
 @Index('IDX_order_seller_transaction', ['sellerTransactionId'], { unique: true })
 @Index('IDX_order_redemption_code', ['redemptionCode'], { unique: true })
+@Index('IDX_order_number', ['number'], { unique: true })
 @Check('CHK_order_number', '"id" ~ \'^[0-9]{19}$\'')
 @Check('CHK_order_amount', '"quantity" >= 1 AND "quantity" <= 1000000 AND "total" >= 1 AND "total" <= 2000000000')
 @Check('CHK_order_redemption_code', '"redemptionCode" IS NULL OR "redemptionCode" ~ \'^[0-9A-Z]{20}$\'')
 @Check('CHK_order_settlement', '("redemptionCode" IS NULL OR "feeRateBps" IS NOT NULL) AND (("feeRateBps" IS NULL AND "platformFee" IS NULL AND "sellerAmount" IS NULL) OR ("feeRateBps" IS NOT NULL AND "platformFee" IS NOT NULL AND "sellerAmount" IS NOT NULL AND "feeRateBps" >= 0 AND "feeRateBps" <= 10000 AND "platformFee" >= 0 AND "sellerAmount" >= 0 AND "platformFee" + "sellerAmount" = "total" AND "platformFee" = CEIL("total"::numeric * 100 * "feeRateBps" / 10000) / 100))')
 export class MiOrder {
-	// 编号由数据库序列分配，并以字符串传输，避免 JavaScript 大整数精度丢失。
+	// 内部游标 ID 由数据库序列分配；对外订单号单独生成并保存。
 	@PrimaryColumn('varchar', { length: 19, primaryKeyConstraintName: 'PK_order' })
 	public id: string;
+
+	@Column('varchar', { length: 33 })
+	public number: string;
 
 	// 保留交易快照，不因参与者注销而丢失已售库存、限购记录和卖家凭证。
 	@Column(id())

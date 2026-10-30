@@ -41,6 +41,11 @@ export function formatAbuseReport(report: Pick<MiAbuseUserReport, 'reason' | 'co
 			`@${snapshot.user.username}${snapshot.user.host == null ? '' : `@${snapshot.user.host}`}`,
 			snapshot.content,
 			snapshot.sourceUrl,
+			...(snapshot.federation == null ? [] : [
+				`ActivityPub actor: ${snapshot.federation.actorUri}`,
+				...(snapshot.federation.activityId == null ? [] : [`ActivityPub Flag: ${snapshot.federation.activityId}`]),
+				...snapshot.federation.objectUris,
+			]),
 			...snapshot.files.map(file => `${file.name} (${file.type}, ${file.size} bytes, SHA-256: ${file.archive.sha256})`),
 		].filter(Boolean).join('\n'),
 	].filter(Boolean).join('\n\n');

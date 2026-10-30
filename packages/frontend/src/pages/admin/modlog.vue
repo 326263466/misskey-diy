@@ -7,32 +7,37 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
 	<div class="_pageBody">
 		<div class="_gaps">
-			<MkPaginationControl :paginator="paginator" canFilter card>
-				<div :class="$style.filters">
-					<MkSelect v-model="type" :items="typeDef">
-						<template #label>{{ i18n.ts.type }}</template>
-					</MkSelect>
+			<div class="_adminPanel">
+				<MkPaginationControl :paginator="paginator" class="_adminPanelHeader">
+					<template #header>
+						<div class="_adminToolbar">
+							<MkSelect v-model="type" :items="typeDef" class="_adminToolbarField" style="--admin-fieldWidth: 200px;">
+								<template #label>{{ i18n.ts.type }}</template>
+							</MkSelect>
 
-					<MkInput v-model="moderatorId">
-						<template #label>{{ i18n.ts.moderator }}(ID)</template>
-					</MkInput>
-				</div>
-			</MkPaginationControl>
-
-			<MkPagination :paginator="paginator" pageEmpty>
-				<MkTl :events="timeline" groupBy="d">
-					<template #left="{ event }">
-						<div>
-							<MkAvatar :user="event.user" style="width: 26px; height: 26px;"/>
+							<MkInput v-model="moderatorId" type="search" class="_adminToolbarField" style="--admin-fieldWidth: 200px;">
+								<template #label>{{ i18n.ts.moderator }}(ID)</template>
+							</MkInput>
 						</div>
 					</template>
-					<template #right="{ event, timestamp, delta }">
-						<div style="margin: 4px 0;">
-							<XModLog :key="event.id" :log="event"/>
-						</div>
-					</template>
-				</MkTl>
-			</MkPagination>
+				</MkPaginationControl>
+
+				<MkPagination v-slot="{ items }" :paginator="paginator" pageEmpty>
+					<div class="_adminTableContainer">
+						<table class="_adminTable">
+							<thead>
+								<tr>
+									<th scope="col">{{ i18n.ts.type }}</th>
+									<th scope="col">{{ i18n.ts.moderator }}</th>
+									<th scope="col">{{ i18n.ts.dateAndTime }}</th>
+									<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+								</tr>
+							</thead>
+							<XModLog v-for="log in getLogs(items)" :key="log.id" :log="log"/>
+						</table>
+					</div>
+				</MkPagination>
+			</div>
 		</div>
 	</div>
 </PageWithHeader>
@@ -44,7 +49,6 @@ import * as Misskey from 'misskey-js';
 import XModLog from './modlog.ModLog.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkInput from '@/components/MkInput.vue';
-import MkTl from '@/components/MkTl.vue';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
@@ -74,13 +78,9 @@ const paginator = markRaw(new Paginator('admin/show-moderation-logs', {
 	})),
 }));
 
-const timeline = computed(() => {
-	return paginator.items.value.map(x => ({
-		id: x.id,
-		timestamp: new Date(x.createdAt).getTime(),
-		data: x as Misskey.entities.ModerationLog,
-	}));
-});
+function getLogs(items: typeof paginator.items.value): Misskey.entities.ModerationLog[] {
+	return items.map(log => log as Misskey.entities.ModerationLog);
+}
 
 const headerActions = computed(() => []);
 
@@ -91,11 +91,3 @@ definePage(() => ({
 	icon: 'ti ti-list-search',
 }));
 </script>
-
-<style lang="scss" module>
-.filters {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-	gap: 12px;
-}
-</style>

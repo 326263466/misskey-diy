@@ -4,21 +4,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
+<Teleport :to="fullscreenTarget ?? 'body'">
 <Transition
 	:enterActiveClass="prefer.s.animation ? $style.tooltipEnterActive : ''"
+	:enterFromClass="prefer.s.animation ? $style.tooltipEnterFrom : ''"
+	:leaveActiveClass="prefer.s.animation ? $style.tooltipLeaveActive : ''"
+	:leaveToClass="prefer.s.animation ? $style.tooltipLeaveTo : ''"
 	appear :css="prefer.s.animation"
 	@afterLeave="emit('closed')"
 >
-	<div v-show="showing" ref="el" role="tooltip" :class="$style.root" :style="{ zIndex, maxWidth: maxWidth + 'px' }">
-		<slot>
-			<template v-if="text">
-				<Mfm v-if="asMfm" :text="text"/>
-				<span v-else>{{ text }}</span>
-			</template>
-		</slot>
+	<div v-show="showing" ref="el" v-bind="$attrs" role="tooltip" :class="$style.root" :style="{ zIndex, position: fullscreenTarget != null ? 'fixed' : undefined, maxWidth: maxWidth + 'px', visibility: positioned ? undefined : 'hidden', '--MI-tooltip-transition': positioned ? undefined : 'none' }">
+		<div :class="$style.surface">
+			<slot>
+				<template v-if="text">
+					<Mfm v-if="asMfm" :text="text"/>
+					<span v-else>{{ text }}</span>
+				</template>
+			</slot>
+		</div>
 		<div ref="arrow" :class="[$style.arrow, $style[arrowClass]]"></div>
 	</div>
 </Transition>
+</Teleport>
 </template>
 
 <script lang="ts" setup>
@@ -27,7 +34,12 @@ import * as os from '@/os.js';
 import { calcPopupPosition } from '@/utility/popup-position.js';
 import { prefer } from '@/preferences.js';
 
+defineOptions({ inheritAttrs: false });
+
 type ArrowClass = 'arrowTop' | 'arrowBottom' | 'arrowLeft' | 'arrowRight';
+
+// 脱离页面与弹窗的裁剪层，全屏时仍留在全屏子树。
+const fullscreenTarget = window.document.fullscreenElement;
 
 const props = withDefaults(defineProps<{
 	showing: boolean;
@@ -66,9 +78,11 @@ const ARROW_CLASS_BY_ORIGIN: Record<string, ArrowClass> = {
 };
 
 const arrowClass = ref<ArrowClass>('arrowTop');
+const positioned = ref(false);
 
 function setPosition() {
 	if (el.value == null) return;
+	if (!props.showing) return;
 	const data = calcPopupPosition(el.value, {
 		anchorElement: props.anchorElement,
 		direction: props.direction,
@@ -78,8 +92,8 @@ function setPosition() {
 		y: props.y,
 	});
 
-	el.value.style.left = data.left + 'px';
-	el.value.style.top = data.top + 'px';
+	el.value.style.left = (data.left - (fullscreenTarget != null ? window.scrollX : 0)) + 'px';
+	el.value.style.top = (data.top - (fullscreenTarget != null ? window.scrollY : 0)) + 'px';
 
 	arrowClass.value = ARROW_CLASS_BY_ORIGIN[data.transformOrigin] ?? 'arrowTop';
 
@@ -100,12 +114,21 @@ function setPosition() {
 			el.value.style.setProperty('--MI-tooltip-arrow-position', arrowPosition);
 		}
 	}
+	// 先完成面板和箭头定位，再显示并启用淡入，避免初始测量位置闪现。
+	positioned.value = true;
 }
 
 let loopHandler: number | null = null;
+let disposed = false;
+
+function onFullscreenChange() {
+	if (window.document.fullscreenElement !== fullscreenTarget) emit('closed');
+}
 
 onMounted(() => {
+	window.document.addEventListener('fullscreenchange', onFullscreenChange);
 	nextTick(() => {
+		if (disposed) return;
 		setPosition();
 
 		const loop = () => {
@@ -118,6 +141,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+	disposed = true;
+	window.document.removeEventListener('fullscreenchange', onFullscreenChange);
 	if (loopHandler != null) window.cancelAnimationFrame(loopHandler);
 });
 </script>
@@ -129,16 +154,20 @@ $arrowHalfSize: $arrowSize * .5;
 $arrowOffset: $arrowHalfSize - 1px;
 $arrowRadius: 2px;
 
-.tooltipEnterActive {
-	animation: tooltipEnter 150ms ease-out both;
+.tooltipEnterActive,
+.tooltipLeaveActive {
+	transition: var(--MI-tooltip-transition, opacity 150ms ease);
 }
 
-@keyframes tooltipEnter {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
+.tooltipEnterFrom,
+.tooltipLeaveTo {
+	opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tooltipEnterActive,
+	.tooltipLeaveActive {
+		transition: none;
 	}
 }
 
@@ -148,21 +177,47 @@ $arrowRadius: 2px;
 	min-width: $arrowSize;
 	min-height: 20px;
 	width: max-content;
-	padding: 4px 8px;
 	font-size: 11px;
 	line-height: 12px;
 	font-weight: 400;
+	border-radius: 4px;
+	// 深色主题沿用前景色与背景色互换；浅色主题使用纯黑，对比更清楚。
+	--MI-tooltipFg: var(--MI_THEME-bg);
+	--MI-tooltipBg: var(--MI_THEME-fg);
+	color: var(--MI-tooltipFg);
+	overflow-wrap: break-word;
+	word-break: break-all;
+	pointer-events: none;
+
+	:global(html[data-color-scheme=light]) & {
+		--MI-tooltipFg: #fff;
+		--MI-tooltipBg: #000;
+	}
+}
+
+.surface {
+	position: relative;
+	isolation: isolate;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	min-height: inherit;
+	padding: var(--MI-tooltip-padding, 4px 8px);
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	border-radius: 4px;
-	// 前景色と背景色を入れ替えた表示。テーマを問わず本文との対比が最大になる
-	color: var(--MI_THEME-bg);
-	background: var(--MI_THEME-fg);
-	overflow-wrap: break-word;
-	word-break: break-all;
-	pointer-events: none;
+	border-radius: inherit;
+}
+
+.surface::before {
+	content: '';
+	position: absolute;
+	z-index: -1;
+	inset: 0;
+	border-radius: inherit;
+	background: var(--MI-tooltipBg);
 }
 
 .arrow {
@@ -171,7 +226,7 @@ $arrowRadius: 2px;
 	box-sizing: border-box;
 	width: $arrowSize;
 	height: $arrowSize;
-	background: var(--MI_THEME-fg);
+	background: var(--MI-tooltipBg);
 	transform: rotate(45deg);
 }
 

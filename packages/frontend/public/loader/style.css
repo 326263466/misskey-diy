@@ -18,61 +18,109 @@ html {
 	height: 100vh;
 	cursor: wait;
 	background-color: var(--MI_THEME-bg);
-	opacity: 1;
-	transition: opacity 0.5s ease;
+}
+
+#splashLoader {
+	--splash-dot-size: max(0.7vw, 14px);
+	--splash-dot-spacing: calc(var(--splash-dot-size) * 1.5);
+
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	margin: auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+}
+
+#splashLoader.with-icon {
+	width: 700px;
+	gap: 24px;
+	transform: translateY(-10vh);
+}
+
+@media (width < 700px) {
+	#splashLoader.with-icon {
+		width: 320px;
+	}
+}
+
+@media (width < 325px) {
+	#splashLoader.with-icon {
+		width: 300px;
+	}
+}
+
+@media (display-mode: standalone) {
+	#splashLoader.with-icon {
+		transform: translateY(-15vh);
+	}
 }
 
 #splashIcon {
-	position: absolute;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	margin: auto;
-	width: 64px;
-	height: 64px;
-	border-radius: 10px;
+	display: block;
+	width: min(250px, 60vw);
+	height: min(150px, 25vh);
+	object-fit: contain;
 	pointer-events: none;
+	opacity: 0.4;
+	animation: splashLogoPulse 3s ease-in-out infinite;
 }
 
 #splashSpinner {
-	position: absolute;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	margin: auto;
-	display: inline-block;
-	width: 28px;
-	height: 28px;
-	transform: translateY(70px);
+	position: relative;
+	width: calc((var(--splash-dot-size) + var(--splash-dot-spacing)) * 5);
+	height: var(--splash-dot-size);
 	color: var(--MI_THEME-accent);
 }
 
-#splashSpinner > .spinner {
+#splashSpinner > .dot {
 	position: absolute;
-	top: 0;
-	left: 0;
-	width: 28px;
-	height: 28px;
-	fill-rule: evenodd;
-	clip-rule: evenodd;
-	stroke-linecap: round;
-	stroke-linejoin: round;
-	stroke-miterlimit: 1.5;
-}
-#splashSpinner > .spinner.bg {
-	opacity: 0.275;
-}
-#splashSpinner > .spinner.fg {
-	animation: splashSpinner 0.5s linear infinite;
+	top: calc(50% - var(--splash-dot-size) / 2);
+	left: calc((50% - var(--splash-dot-size) / 2) + (var(--n) * var(--splash-dot-spacing)));
+	transform-origin: calc((var(--splash-dot-spacing) * var(--n) * -1) + var(--splash-dot-size) / 2) center;
+	width: var(--splash-dot-size);
+	height: var(--splash-dot-size);
+	border-radius: 50%;
+	background-color: currentColor;
+	filter: saturate(2) opacity(0.85);
+	opacity: 0;
+	animation: splashWave 3s ease-in-out infinite;
+	animation-delay: calc(var(--n) * 0.15s);
 }
 
-@keyframes splashSpinner {
+@keyframes splashWave {
 	0% {
-		transform: rotate(0deg);
+		opacity: 0;
+		transform: scale(1);
+	}
+	45%, 65% {
+		opacity: 1;
+		transform: scale(0.7);
 	}
 	100% {
-		transform: rotate(360deg);
+		opacity: 0;
+		transform: scale(1);
+	}
+}
+
+@keyframes splashLogoPulse {
+	0%, 100% {
+		opacity: 0.4;
+	}
+	25%, 65% {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#splashIcon,
+	#splashSpinner > .dot {
+		animation: none;
+		opacity: 1;
 	}
 }

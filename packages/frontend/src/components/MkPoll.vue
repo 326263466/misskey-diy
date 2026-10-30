@@ -4,38 +4,57 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root" :aria-busy="submitting" @click.stop>
-	<div :class="$style.header">
-		<span :class="$style.badge">{{ multiple ? i18n.ts._poll.multipleChoice : i18n.ts._poll.singleChoice }}</span>
-		<span>{{ multiple ? i18n.tsx._poll.totalVotes({ n: total }) : i18n.tsx._poll.participants({ n: total }) }}</span>
-	</div>
+<div :class="[$style.root, { [$style.done]: closed || (hasVoted && !canVote) }]" :aria-busy="submitting" @click.stop>
 	<fieldset :class="$style.choices" :aria-label="i18n.ts.poll">
-		<label v-for="(choice, i) in displayedChoices" :key="i" :class="[$style.choice, { [$style.selected]: choice.isVoted || selected.includes(i), [$style.leading]: total > 0 && choice.votes === maxVotes }]">
+		<label v-for="(choice, i) in displayedChoices" :key="i" :class="[$style.choice, { [$style.selected]: choice.isVoted || selected.includes(i) }]">
 			<input
 				:class="$style.input"
 				:type="multiple ? 'checkbox' : 'radio'"
 				:name="inputName"
+				:aria-label="choice.text"
 				:checked="choice.isVoted || selected.includes(i)"
-				:disabled="showResult || !canVote || submitting || choice.isVoted"
-				@change="select(i)"
+				:disabled="!canVote || submitting || choice.isVoted"
+				@click.prevent="select(i)"
 			>
-			<span :class="$style.indicator" aria-hidden="true">
-				<i v-if="choice.isVoted || selected.includes(i)" class="ti ti-check"></i>
-			</span>
+			<span :class="$style.choiceIndex" aria-hidden="true">{{ i + 1 }}</span>
 			<span :class="$style.choiceText"><Mfm :text="choice.text" :plain="true" :author="author" :emojiUrls="emojiUrls"/></span>
-			<span :class="$style.count" :title="i18n.tsx._poll.votesCount({ n: choice.votes })">{{ countLabel(choice.votes) }}</span>
-			<span :class="$style.barTrack" aria-hidden="true">
-				<span :class="$style.barFill" :style="{ width: `${total > 0 ? choice.votes / total * 100 : 0}%` }"></span>
+			<span :class="$style.choiceMeta">
+				<span v-if="showResult" :class="$style.percent">{{ percentOf(choice.votes) }}</span>
+				<span v-if="showResult" :class="$style.count">{{ i18n.tsx._poll.votesCount({ n: choice.votes }) }}</span>
+			</span>
+			<span v-if="showResult" :class="$style.barTrack" aria-hidden="true">
+				<span :class="$style.barFill" :style="{ transform: `scaleX(${total > 0 ? choice.votes / total : 0})` }"></span>
 			</span>
 		</label>
 	</fieldset>
-	<div v-if="!readOnly" :class="$style.footer">
-		<button v-if="!showResult && canVote" type="button" class="_button" :class="$style.pillButton" :disabled="selected.length === 0 || submitting" @click="vote">
-			{{ i18n.ts._poll.vote }}
-		</button>
-		<span v-else-if="closed" :class="$style.pillButton">{{ i18n.ts._poll.closed }}</span>
-		<span v-else-if="hasVoted" :class="$style.pillButton">{{ i18n.ts._poll.voted }}</span>
-		<span v-if="remaining > 0" :class="$style.timer">{{ timer }}</span>
+	<div v-if="!readOnly" :class="$style.info">
+		<span>{{ multiple ? i18n.tsx._poll.totalVotes({ n: total }) : i18n.tsx._poll.participants({ n: total }) }}</span>
+		<template v-if="closed">
+			<span aria-hidden="true">·</span>
+			<span>{{ i18n.ts._poll.closed }}</span>
+		</template>
+		<template v-else-if="selected.length > 0">
+			<span aria-hidden="true">·</span>
+			<span :class="$style.selection" :title="selectedChoiceText">{{ selectedChoiceText }}</span>
+		</template>
+		<template v-else-if="hasVoted">
+			<span aria-hidden="true">·</span>
+			<span>{{ i18n.ts._poll.voted }}</span>
+		</template>
+		<template v-if="remaining > 0">
+			<span aria-hidden="true">·</span>
+			<span :class="$style.timer">{{ timer }}</span>
+		</template>
+		<button
+			v-if="canVote"
+			type="button"
+			class="_button"
+			:class="[$style.confirmButton, { [$style.confirmReady]: selected.length > 0 }]"
+			:title="voteActionLabel"
+			:aria-label="voteActionLabel"
+			:disabled="selected.length === 0 || submitting"
+			@click="vote"
+		>{{ i18n.ts._poll.vote }}</button>
 	</div>
 </div>
 </template>
@@ -75,7 +94,7 @@ const inputName = useId();
 const selected = ref<number[]>([]);
 const submitting = ref(false);
 let voteGeneration = 0;
-// 保留已确认的投票，等待实时流更新；多选中途失败时只重试剩余项。
+// 立即保留刚确认的投票，避免等待实时流更新。
 const confirmedVotes = ref(new Map<number, number>());
 const displayedChoices = computed(() => props.choices.map((choice, index) => ({
 	...choice,
@@ -83,11 +102,14 @@ const displayedChoices = computed(() => props.choices.map((choice, index) => ({
 	isVoted: choice.isVoted || confirmedVotes.value.has(index),
 })));
 const total = computed(() => sum(displayedChoices.value.map(x => x.votes)));
-const maxVotes = computed(() => Math.max(0, ...displayedChoices.value.map(x => x.votes)));
 const closed = computed(() => props.expiresAt != null && remaining.value <= 0);
 const hasVoted = computed(() => displayedChoices.value.some(c => c.isVoted));
 const canVote = computed(() => !props.readOnly && !closed.value && (props.multiple ? displayedChoices.value.some(c => !c.isVoted) : !hasVoted.value));
-// 投过票或已截止就直接显示结果，不再提供查看结果切换
+const selectedChoiceText = computed(() => selected.value.map(index => displayedChoices.value[index].text).join(' / '));
+const voteActionLabel = computed(() => selectedChoiceText.value
+	? i18n.tsx.voteConfirm({ choice: selectedChoiceText.value })
+	: i18n.ts._poll.vote);
+// 投过票或已截止才显示结果，不提供未投票查看结果的入口。
 const showResult = computed(() => props.readOnly || hasVoted.value || closed.value);
 const timer = computed(() => i18n.tsx._poll[
 	remaining.value >= 86400 ? 'remainingDays' :
@@ -116,19 +138,19 @@ const pleaseLoginContext = computed<OpenOnRemoteOptions>(() => ({
 	url: `https://${host}/notes/${props.noteId}`,
 }));
 
-function percentOf(votes: number): string {
-	return total.value > 0 ? `${Math.round(votes / total.value * 100)}%` : '';
-}
-
-// 无票时不显示空括号的百分比
-function countLabel(votes: number): string {
-	const percent = percentOf(votes);
-	return percent ? `${i18n.tsx._poll.votesCount({ n: votes })} (${percent})` : i18n.tsx._poll.votesCount({ n: votes });
-}
-
 function select(id: number): void {
-	if (!canVote.value || showResult.value || submitting.value || displayedChoices.value[id].isVoted) return;
-	selected.value = props.multiple ? (selected.value.includes(id) ? selected.value.filter(choice => choice !== id) : [...selected.value, id]) : [id];
+	if (!canVote.value || submitting.value || displayedChoices.value[id].isVoted) return;
+	if (selected.value.includes(id)) {
+		selected.value = selected.value.filter(choice => choice !== id);
+		return;
+	}
+	selected.value = props.multiple
+		? [...selected.value, id]
+		: [id];
+}
+
+function percentOf(votes: number): string {
+	return `${total.value > 0 ? Math.round(votes / total.value * 100) : 0}%`;
 }
 
 async function vote(): Promise<void> {
@@ -176,50 +198,37 @@ async function vote(): Promise<void> {
 	padding: 2px 0;
 }
 
-.header {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-bottom: 8px;
-	padding-bottom: 8px;
-	border-bottom: solid 1px var(--MI-divider);
-	font-size: 0.85em;
-	color: var(--MI_THEME-fgTransparentWeak);
-}
-
-.badge {
-	padding: 2px 8px;
-	border-radius: 999px;
-	background: var(--MI_THEME-accentedBg);
-	color: var(--MI_THEME-accent);
-	font-weight: 600;
-	line-height: 1.4;
-}
-
 .choices {
 	display: flex;
 	flex-direction: column;
+	gap: 3px;
 	min-width: 0;
 	margin: 0;
 	padding: 0;
 	border: 0;
+	font-size: .95em;
 }
 
 .choice {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 3px 7px;
 	position: relative;
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 8px;
-	padding: 7px 0;
-	border-radius: 4px;
-	line-height: 1.5;
+	min-width: 0;
+	padding: 6px 9px;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--MI_THEME-fg) 3%, transparent);
 	cursor: pointer;
+	transition: background-color 140ms ease, color 140ms ease;
+
+	&:hover:not(:has(input:disabled)) {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
 
 	&:has(input:focus-visible) {
 		outline: 2px solid var(--MI_THEME-accent);
-		outline-offset: 2px;
+		outline-offset: -1px;
 	}
 
 	&:has(input:disabled) {
@@ -227,34 +236,15 @@ async function vote(): Promise<void> {
 	}
 }
 
-.choiceText {
-	flex: 1;
-	min-width: 0;
-	overflow-wrap: anywhere;
-}
+.selected {
+	border-color: color-mix(in srgb, var(--MI_THEME-accent) 22%, transparent);
+	background: color-mix(in srgb, var(--MI_THEME-accent) 9%, transparent);
 
-.indicator {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-	width: 18px;
-	height: 18px;
-	border: solid 2px color-mix(in srgb, var(--MI_THEME-fg) 32%, transparent);
-	border-radius: 50%;
-	color: var(--MI_THEME-fgOnAccent);
-	font-size: 12px;
-	font-weight: bold;
-	transition: border-color 0.15s, background-color 0.15s, color 0.15s;
-}
-
-.selected .indicator {
-	border-color: var(--MI_THEME-accent);
-	background: var(--MI_THEME-accent);
-}
-
-.choice:hover:not(:has(input:disabled)) .indicator {
-	border-color: color-mix(in srgb, var(--MI_THEME-accent) 60%, transparent);
+	.choiceIndex {
+		border-color: var(--MI_THEME-accent);
+		background: var(--MI_THEME-accent);
+		color: var(--MI_THEME-fgOnAccent);
+	}
 }
 
 .input {
@@ -267,81 +257,125 @@ async function vote(): Promise<void> {
 	white-space: nowrap;
 }
 
-.count {
-	flex-shrink: 0;
-	font-size: 0.9em;
-	font-variant-numeric: tabular-nums;
+.choiceIndex {
+	grid-column: 1;
+	display: inline-grid;
+	place-items: center;
+	align-self: center;
+	box-sizing: border-box;
+	width: 20px;
+	height: 20px;
+	border: 1px solid color-mix(in srgb, var(--MI_THEME-fg) 10%, transparent);
+	border-radius: 6px;
 	color: var(--MI_THEME-fgTransparentWeak);
+	background: color-mix(in srgb, var(--MI_THEME-panel) 72%, transparent);
+	font-size: 11px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
 }
 
-.leading .choiceText,
-.leading .count {
+.choiceText {
+	grid-column: 2;
+	align-self: center;
+	min-width: 0;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.choiceMeta {
+	grid-column: 3;
+	display: flex;
+	align-items: center;
+	justify-self: end;
+	gap: 5px;
+}
+
+.percent {
 	color: var(--MI_THEME-accent);
+	font-size: .85em;
+	font-variant-numeric: tabular-nums;
+}
+
+.count {
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: .85em;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 }
 
 .barTrack {
-	flex-basis: 100%;
-	height: 8px;
-	margin-top: 2px;
+	grid-column: 1 / -1;
+	height: 3px;
 	border-radius: 999px;
-	background: color-mix(in srgb, var(--MI_THEME-fg) 8%, transparent);
+	background: color-mix(in srgb, var(--MI_THEME-accent) 12%, transparent);
 	overflow: clip;
 }
 
 .barFill {
 	display: block;
+	width: 100%;
 	height: 100%;
-	border-radius: 999px;
-	background: color-mix(in srgb, var(--MI_THEME-fg) 30%, transparent);
-	transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.leading .barFill {
+	border-radius: inherit;
 	background: var(--MI_THEME-accent);
+	opacity: .55;
+	transform-origin: left center;
+	transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.footer {
+.info {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: 12px;
-	margin-top: 8px;
-	font-size: 0.85em;
+	gap: 3px;
+	margin: 6px 0 0;
+	line-height: 1.5;
+	font-size: .9em;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
-.pillButton {
-	padding: 1px 7px;
-	border: solid 1px color-mix(in srgb, var(--MI_THEME-accent) 45%, transparent);
+.selection {
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--MI_THEME-accent);
+}
+
+.timer {
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.confirmButton {
+	min-height: 26px;
+	margin-left: auto;
+	padding: 2px 11px;
+	border: 1px solid color-mix(in srgb, var(--MI_THEME-accent) 55%, transparent);
 	border-radius: 999px;
 	color: var(--MI_THEME-accent);
-	line-height: 1.4;
-}
-
-button.pillButton {
-	transition: background-color 0.15s, transform 0.1s;
-
-	&:hover:not(:disabled) {
-		background: var(--MI_THEME-accentedBg);
-	}
-
-	&:active:not(:disabled) {
-		transform: scale(0.97);
-	}
+	transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
 
 	&:disabled {
-		opacity: 0.5;
+		opacity: 0.42;
 		cursor: default;
 	}
 }
 
-.timer {
-	margin-left: auto;
-	color: var(--MI_THEME-fgTransparentWeak);
+.confirmReady {
+	border-color: var(--MI_THEME-accent);
+	background: var(--MI_THEME-accent);
+	color: var(--MI_THEME-fgOnAccent);
+}
+
+.done {
+	.choice {
+		cursor: initial;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.barFill {
-		transition: none;
-	}
+	.choice, .barFill, .confirmButton { transition: none; }
 }
 </style>

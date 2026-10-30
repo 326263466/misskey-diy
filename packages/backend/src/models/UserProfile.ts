@@ -4,7 +4,7 @@
  */
 
 import { Entity, Column, Index, OneToOne, JoinColumn, PrimaryColumn } from 'typeorm';
-import { obsoleteNotificationTypes, followingVisibilities, followersVisibilities, notificationTypes } from '@/types.js';
+import { followingVisibilities, followersVisibilities, notificationTypes } from '@/types.js';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 import { MiPage } from './Page.js';
@@ -165,7 +165,7 @@ export class MiUserProfile {
 
 	@Column('varchar', {
 		length: 128, nullable: true,
-		comment: 'The password hash of the User. It will be null if the origin of the user is local.',
+		comment: 'The password hash of the User. It will be null if the origin of the user is remote.',
 	})
 	public password: string | null;
 

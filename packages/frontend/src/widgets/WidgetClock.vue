@@ -144,15 +144,15 @@ defineExpose<WidgetComponentExpose>({
 	padding: var(--MI-cardPadding, 18px);
 
 	&.small {
-		--MI-clock-size: 120px;
+		--MI-clock-size: 100px;
 	}
 
 	&.medium {
-		--MI-clock-size: 190px;
+		--MI-clock-size: 150px;
 	}
 
 	&.large {
-		--MI-clock-size: 250px;
+		--MI-clock-size: 200px;
 	}
 
 	&.rectangular > .clock {

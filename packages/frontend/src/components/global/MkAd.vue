@@ -4,36 +4,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="chosen && !shouldHide">
-	<div
-		v-if="!showMenu"
-		:class="[$style.main, {
-			[$style.form_square]: chosen.place === 'square',
-			[$style.form_horizontal]: chosen.place === 'horizontal',
-			[$style.form_horizontalBig]: chosen.place === 'horizontal-big',
-			[$style.form_vertical]: chosen.place === 'vertical',
-		}]"
+<div
+	v-if="chosen && !shouldHide"
+	:class="[$style.main, {
+		[$style.fill]: fill,
+		[$style.edgeToEdge]: edgeToEdge,
+		[$style.plain]: plain,
+		[$style.square]: chosen.place === 'square',
+		[$style.horizontal]: chosen.place === 'horizontal',
+		[$style.horizontalBig]: chosen.place === 'horizontal-big',
+		[$style.vertical]: chosen.place === 'vertical',
+	}]"
+	@contextmenu.capture="onContextmenu"
+>
+	<component
+		:is="self ? 'MkA' : 'a'"
+		:class="$style.link"
+		v-bind="self ? {
+			to: chosen.url.substring(local.length),
+		} : {
+			href: chosen.url,
+			rel: 'nofollow noopener',
+			target: '_blank',
+		}"
 	>
-		<component
-			:is="self ? 'MkA' : 'a'"
-			:class="$style.link"
-			v-bind="self ? {
-				to: chosen.url.substring(local.length),
-			} : {
-				href: chosen.url,
-				rel: 'nofollow noopener',
-				target: '_blank',
-			}"
-		>
-			<img :src="chosen.imageUrl" :class="$style.img">
-			<button class="_button _iconButton" :class="$style.i" @click.prevent.stop="toggleMenu"><i :class="$style.iIcon" class="ti ti-info-circle"></i></button>
-		</component>
-	</div>
-	<div v-else :class="$style.menu">
-		<div>{{ i18n.tsx._ad.adsBy({ host }) }}</div>
-		<MkButton v-if="chosen.ratio !== 0" :class="$style.menuButton" @click="reduceFrequency">{{ i18n.ts._ad.reduceFrequencyOfThisAd }}</MkButton>
-		<button class="_textButton" @click="toggleMenu">{{ i18n.ts._ad.back }}</button>
-	</div>
+		<img :src="chosen.imageUrl" :class="$style.img">
+		<span v-if="!plain" :class="$style.label">{{ i18n.ts.ads }}</span>
+	</component>
 </div>
 </template>
 
@@ -42,23 +39,40 @@ import { ref, computed } from 'vue';
 import { url as local, host } from '@@/js/config.js';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
-import MkButton from '@/components/MkButton.vue';
 import { store } from '@/store.js';
 import * as os from '@/os.js';
 import { $i } from '@/i.js';
 import { prefer } from '@/preferences.js';
+import type { MenuItem } from '@/types/menu.js';
 
 type Ad = (typeof instance)['ads'][number];
 
 const props = defineProps<{
+	fill?: boolean;
+	edgeToEdge?: boolean;
+	plain?: boolean;
 	preferForms?: string[];
 	specify?: Ad;
 }>();
 
-const showMenu = ref(false);
-const toggleMenu = (): void => {
-	showMenu.value = !showMenu.value;
-};
+// 广告操作放在右键菜单里，图上只保留“广告”标识。
+function onContextmenu(ev: PointerEvent): void {
+	if (props.plain || chosen.value == null) return;
+	// 捕获阶段阻止内部链接抢先打开通用菜单。
+	ev.stopPropagation();
+	const items: MenuItem[] = [{
+		type: 'label',
+		text: i18n.tsx._ad.adsBy({ host }),
+	}];
+	if (chosen.value.ratio !== 0) {
+		items.push({
+			icon: 'ti ti-eye-minus',
+			text: i18n.ts._ad.reduceFrequencyOfThisAd,
+			action: reduceFrequency,
+		});
+	}
+	os.contextMenu(items, ev);
+}
 
 const choseAd = (): Ad | null => {
 	if (props.specify) {
@@ -112,93 +126,177 @@ function reduceFrequency(): void {
 	if (chosen.value == null) return;
 	if (store.s.mutedAds.includes(chosen.value.id)) return;
 	store.push('mutedAds', chosen.value.id);
-	os.success();
+	os.toast(i18n.ts.applied, 'success');
 	chosen.value = choseAd();
-	showMenu.value = false;
 }
 </script>
 
 <style lang="scss" module>
 .main {
-	text-align: center;
+	--ad-max-width: 100%;
+	--ad-max-height: none;
+	--ad-inset: 8px;
+	// 角标压在广告图上，固定用深色半透明底，避免浅色主题或浅色图片上看不清。
+	--ad-overlay-fg: white;
+	--ad-overlay-bg: color-mix(in srgb, black 58%, transparent);
+	--ad-overlay-border: color-mix(in srgb, white 42%, transparent);
 
-	&.form_square {
-		> .link,
+	box-sizing: border-box;
+	display: flex;
+	justify-content: center;
+	width: 100%;
+	min-width: 0;
+
+	&:not(.plain) {
+		background-color: var(--MI_THEME-panel);
+		background-image: repeating-linear-gradient(45deg, transparent, transparent 8px, var(--MI_THEME-bg) 8px, var(--MI_THEME-bg) 14px);
+	}
+
+	&:not(.plain):not(.fill) {
+		padding: var(--MI-cardPadding);
+	}
+
+	&.fill {
+		height: 100%;
+
+		> .link {
+			width: 100%;
+			height: 100%;
+			max-width: none;
+			max-height: none;
+		}
+
 		> .link > .img {
-			max-width: min(300px, 100%);
-			max-height: 300px;
+			width: 100%;
+			height: 100%;
+			max-width: none;
+			max-height: none;
+			object-fit: cover;
+		}
+
+		&.square > .link > .img,
+		&.vertical > .link > .img {
+			object-fit: contain;
 		}
 	}
 
-	&.form_horizontal {
-		> .link,
-		> .link > .img {
-			max-width: min(600px, 100%);
-			max-height: 80px;
+	&.plain {
+		> .link {
+			--ad-preview-checker: color-mix(in srgb, var(--MI_THEME-fg) 2%, transparent);
+
+			background-color: var(--MI_THEME-bg);
+			background-image: linear-gradient(45deg, var(--ad-preview-checker) 16.67%, var(--MI_THEME-bg) 16.67%, var(--MI_THEME-bg) 50%, var(--ad-preview-checker) 50%, var(--ad-preview-checker) 66.67%, var(--MI_THEME-bg) 66.67%, var(--MI_THEME-bg) 100%);
+			background-size: 16px 16px;
+
+			&:hover > .img {
+				filter: none;
+			}
 		}
 	}
 
-	&.form_horizontalBig {
-		> .link,
+	&.edgeToEdge {
+		> .link {
+			width: 100%;
+			max-width: none;
+			max-height: none;
+		}
+
 		> .link > .img {
-			max-width: min(600px, 100%);
-			max-height: 250px;
+			width: 100%;
+			height: auto;
+			max-width: none;
+			max-height: none;
+			object-fit: cover;
+		}
+
+		> .link > .label {
+			top: var(--ad-inset);
+			bottom: auto;
 		}
 	}
 
-	&.form_vertical {
-		> .link,
-		> .link > .img {
-			max-width: min(100px, 100%);
-		}
+	&.square {
+		--ad-max-width: min(300px, 100%);
+		--ad-max-height: 300px;
+	}
+
+	&.horizontal {
+		--ad-max-width: min(600px, 100%);
+		--ad-max-height: 112px;
+	}
+
+	&.horizontalBig {
+		--ad-max-width: min(600px, 100%);
+		--ad-max-height: 250px;
+	}
+
+	&.vertical {
+		--ad-max-width: min(100px, 100%);
+		--ad-inset: 4px;
 	}
 }
 
 .link {
-	display: inline-block;
 	position: relative;
-	vertical-align: bottom;
+	display: block;
+	width: fit-content;
+	min-width: 0;
+	max-width: var(--ad-max-width);
+	max-height: var(--ad-max-height);
+	background: transparent;
+	overflow: clip;
+	text-decoration: none;
 
 	&:hover {
+		text-decoration: none;
+
 		> .img {
-			filter: contrast(120%);
+			filter: brightness(1.03);
 		}
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 3px;
 	}
 }
 
 .img {
 	display: block;
+	width: auto;
+	height: auto;
+	max-width: 100%;
+	max-height: var(--ad-max-height);
 	object-fit: contain;
-	margin: auto;
-	border-radius: 5px;
+	transition: filter .18s ease;
 }
 
-.i {
+.label {
 	position: absolute;
-	top: 1px;
-	right: 1px;
-	display: grid;
-	place-content: center;
-	background: var(--MI_THEME-panel);
-	border-radius: 100%;
-	padding: 2px;
+	right: var(--ad-inset);
+	bottom: var(--ad-inset);
+	z-index: 1;
+	padding: 0 4px;
+	border: 1px solid var(--ad-overlay-border);
+	border-radius: 3px;
+	background: var(--ad-overlay-bg);
+	color: var(--ad-overlay-fg);
+	font-size: 10px;
+	line-height: 14px;
+	white-space: nowrap;
+	// 只作标识，点击仍落到广告链接上。
+	pointer-events: none;
 }
 
-.iIcon {
-	font-size: 14px;
-	line-height: 17px;
+.vertical .label {
+	padding: 0 3px;
+	font-size: 9px;
+	line-height: 12px;
 }
 
-.menu {
-	text-align: center;
-	padding: 8px;
-	margin: 0 auto;
-	max-width: 400px;
-	background: var(--MI_THEME-panel);
-	border: var(--MI-divider);
-}
-
-.menuButton {
-	margin: 8px auto;
+@media (prefers-reduced-motion: reduce) {
+	.img {
+		transition: none;
+	}
 }
 </style>

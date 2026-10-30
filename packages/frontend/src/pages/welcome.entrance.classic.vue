@@ -9,10 +9,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<XTimeline :class="$style.tl"/>
 	<div :class="$style.shape1"></div>
 	<div :class="$style.shape2"></div>
-	<div :class="$style.logoWrapper">
-		<div :class="$style.poweredBy">Powered by</div>
-		<span role="img" aria-label="Misskey" :class="$style.misskey" :style="{ maskImage: `url(${misskeysvg})` }"></span>
-	</div>
 	<div :class="$style.contents">
 		<MkVisitorDashboard/>
 	</div>
@@ -33,7 +29,6 @@ import * as Misskey from 'misskey-js';
 import XTimeline from './welcome.timeline.vue';
 import MkMarqueeText from '@/components/MkMarqueeText.vue';
 import MkFeaturedPhotos from '@/components/MkFeaturedPhotos.vue';
-import misskeysvg from '/client-assets/misskey.svg';
 import { misskeyApiGet } from '@/utility/misskey-api.js';
 import MkVisitorDashboard from '@/components/MkVisitorDashboard.vue';
 import { getProxiedImageUrl } from '@/utility/media-proxy.js';
@@ -113,32 +108,6 @@ misskeyApiGet('federation/instances', {
 	clip-path: polygon(0% 0%, 25% 0%, 35% 100%, 0% 100%);
 	opacity: 0.5;
 	pointer-events: none; // 装飾レイヤ。ホイール操作を透過させる (→ .bg 参照)
-}
-
-.logoWrapper {
-	position: fixed;
-	top: 36px;
-	left: 36px;
-	color: var(--MI_THEME-fgOnAccent);
-	user-select: none;
-	pointer-events: none;
-}
-
-.poweredBy {
-	margin-bottom: 2px;
-}
-
-.misskey {
-	display: block;
-	width: 120px;
-	aspect-ratio: 515 / 136;
-	background: currentColor;
-	mask-size: contain;
-	mask-repeat: no-repeat;
-
-	@media (max-width: 450px) {
-		width: 100px;
-	}
 }
 
 .contents {

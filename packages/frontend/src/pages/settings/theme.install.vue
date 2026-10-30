@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import MkCodeEditor from '@/components/MkCodeEditor.vue';
 import MkButton from '@/components/MkButton.vue';
 import { themeManager, installTheme, handleThemeInstallError } from '@/theme.js';
@@ -47,20 +47,13 @@ async function install(code: string): Promise<void> {
 	try {
 		const theme = parseThemeCode(code);
 		await installTheme(code);
-		os.alert({
-			type: 'success',
-			text: i18n.tsx._theme.installed({ name: theme.name }),
-		});
+		os.toast(i18n.tsx._theme.installed({ name: theme.name }), 'success');
 		installThemeCode.value = null;
 		router.push('/settings/theme');
 	} catch (err: any) {
 		handleThemeInstallError(err);
 	}
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts._theme.install,

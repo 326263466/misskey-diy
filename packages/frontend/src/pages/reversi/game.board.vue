@@ -423,9 +423,10 @@ async function surrender() {
 	});
 	if (canceled) return;
 
-	misskeyApi('reversi/surrender', {
+	// 对局结果会通过推送显示；失败提示由 apiWithDialog 处理
+	os.apiWithDialog('reversi/surrender', {
 		gameId: game.value.id,
-	});
+	}).catch(() => {});
 }
 
 function autoplay() {
@@ -459,12 +460,12 @@ function autoplay() {
 }
 
 function share() {
-	openShareDialog({ title: 'Misskey Reversi', text: '#MisskeyReversi', url: `${url}/reversi/g/${game.value.id}` }, { shareWithNote });
+	openShareDialog({ title: i18n.ts._reversi.reversi, text: '#Reversi', url: `${url}/reversi/g/${game.value.id}` }, { shareWithNote });
 }
 
 function shareWithNote() {
 	os.post({
-		initialText: `#MisskeyReversi\n${url}/reversi/g/${game.value.id}`,
+		initialText: `#Reversi\n${url}/reversi/g/${game.value.id}`,
 		instant: true,
 	});
 }

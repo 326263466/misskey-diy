@@ -1,0 +1,40 @@
+<!--
+SPDX-FileCopyrightText: syuilo and misskey-project
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="250" viewBox="0 0 1200 250">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#fff0b8"/>
+			<stop offset="1" stop-color="#f7d379"/>
+		</linearGradient>
+		<pattern id="confetti" width="46" height="46" patternUnits="userSpaceOnUse">
+			<path d="M8 9l8 3M28 26l3 10M9 35l9-4" stroke="#e45232" stroke-width="3" stroke-linecap="round" opacity=".22"/>
+		</pattern>
+		<clipPath id="clip">
+			<rect width="1200" height="250" rx="18"/>
+		</clipPath>
+	</defs>
+	<g clip-path="url(#clip)">
+		<rect width="1200" height="250" fill="url(#bg)"/>
+		<rect width="1200" height="250" fill="url(#confetti)"/>
+		<path d="M703 0h497v250H703z" fill="#ee5b39"/>
+		<path d="M745 0h455v250H745z" fill="#fff0b8"/>
+		<path d="M745 0h455v63H745zM745 187h455v63H745z" fill="#ee5b39"/>
+		<path d="M1118 0c-23 30-22 63 3 99 25 36 28 86 8 151h71V0z" fill="#183b45"/>
+		<circle cx="936" cy="124" r="93" fill="#fffaf0" stroke="#183b45" stroke-width="8"/>
+		<circle cx="936" cy="124" r="66" fill="#efb13e"/>
+		<circle cx="936" cy="124" r="38" fill="#f8e166"/>
+		<path d="M817 143h64c14 0 25 11 25 25v26h-89z" fill="#fffaf0" stroke="#183b45" stroke-width="8"/>
+		<path d="M903 169h26c21 0 21 30 0 30h-26" fill="none" stroke="#183b45" stroke-width="8"/>
+		<path d="M1063 100h47l-16 76h-15z" fill="#7fc6bd" stroke="#183b45" stroke-width="7"/>
+		<path d="M1063 100c0-21 10-35 24-35s23 14 23 35" fill="none" stroke="#183b45" stroke-width="7"/>
+		<rect x="80" y="38" width="214" height="38" rx="19" fill="#183b45"/>
+		<text x="187" y="63" text-anchor="middle" fill="#fff6d8" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="18" font-weight="800" letter-spacing="2">早餐研究所 · 本周主题</text>
+		<text x="80" y="137" fill="#183b45" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="58" font-weight="900" letter-spacing="-4">十分钟早餐</text>
+		<text x="84" y="178" fill="#a8402b" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="29" font-weight="800" letter-spacing="3">坐下来吃完，再出门</text>
+		<rect x="80" y="203" width="245" height="31" rx="15.5" fill="#ee5b39"/>
+		<text x="202.5" y="224" text-anchor="middle" fill="#fff8e8" font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif" font-size="17" font-weight="800" letter-spacing="1">分享你的省时做法</text>
+		<path d="M585 64l7 16 16 7-16 7-7 16-7-16-16-7 16-7zM660 177l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#fffaf0" opacity=".9"/>
+	</g>
+</svg>

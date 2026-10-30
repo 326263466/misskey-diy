@@ -4,10 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader contentCard hideHeader>
+<PageWithHeader contentCard :displayBackButton="true">
 	<div class="_pageBody _gaps_m" :class="$style.root" :aria-busy="loading || saving">
-		<nav :class="$style.navigation" :aria-label="i18n.ts._marketplace.title"><MkA to="/my/products"><i class="ti ti-arrow-left" aria-hidden="true"></i> {{ i18n.ts._marketplace.myProducts }}</MkA><MkA to="/shop">{{ i18n.ts._marketplace.allProducts }}</MkA></nav>
-		<h1 :class="$style.heading">{{ props.productId ? i18n.ts._marketplace.editProduct : i18n.ts._marketplace.publishProduct }}</h1>
 		<p v-if="loading" role="status">{{ i18n.ts.loading }}</p>
 		<div v-else-if="loadError" role="alert" class="_gaps_s"><p>{{ loadError }}</p><MkButton @click="load">{{ i18n.ts.retry }}</MkButton></div>
 		<template v-else>
@@ -15,27 +13,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-if="storageError" role="alert" class="_gaps_s"><p>{{ i18n.ts._marketplace.publishStorageFailed }}</p><MkButton :disabled="saving" @click="restorePending">{{ i18n.ts.retry }}</MkButton></div>
 			<div v-if="saveError" role="alert" class="_gaps_s"><p :class="$style.error">{{ saveError }}</p><MkButton v-if="conflict" :disabled="saving" @click="reloadProduct">{{ i18n.ts.reload }}</MkButton></div>
 			<form class="_gaps_m" @submit.prevent="save">
-				<MkInput v-model="draft.name" :maxLength="40" :disabled="locked"><template #label>{{ i18n.ts._marketplace.productName }}</template></MkInput>
+				<MkInput v-model="draft.name" :maxLength="40" :counterMaxLength="40" :disabled="locked"><template #label>{{ i18n.ts._marketplace.productName }}</template></MkInput>
 				<div :class="$style.columns">
 					<MkSelect v-model="draft.type" :items="productTypes" :disabled="locked"><template #label>{{ i18n.ts._marketplace.productType }}</template></MkSelect>
-					<MkInput v-model="draft.category" :maxLength="20" :disabled="locked"><template #label>{{ i18n.ts._marketplace.categoryLabel }}</template></MkInput>
+					<MkInput v-model="draft.category" :maxLength="20" :counterMaxLength="20" :disabled="locked"><template #label>{{ i18n.ts._marketplace.categoryLabel }}</template></MkInput>
 				</div>
-				<MkTextarea v-model="draft.description" :maxLength="200" :rows="4" :disabled="locked"><template #label>{{ i18n.ts._marketplace.productDescription }}</template></MkTextarea>
-				<MkInput v-model="draft.imageUrl" :maxLength="2048" :disabled="locked"><template #label>{{ i18n.ts._marketplace.coverUrl }}</template><template #caption>{{ i18n.ts._marketplace.coverHint }}</template></MkInput>
+				<MkTextarea v-model="draft.description" :counterMaxLength="200" :rows="4" :disabled="locked"><template #label>{{ i18n.ts._marketplace.productDescription }}</template></MkTextarea>
+				<div class="_buttons">
+					<MkButton type="button" :disabled="locked" @click="chooseCover"><i class="ti ti-photo" aria-hidden="true"></i> {{ draft.imageUrl ? i18n.ts._marketplace.replaceCover : i18n.ts._marketplace.chooseCover }}</MkButton>
+					<MkButton v-if="draft.imageUrl" type="button" :disabled="locked" @click="removeCover"><i class="ti ti-x" aria-hidden="true"></i> {{ i18n.ts._marketplace.removeCover }}</MkButton>
+				</div>
+				<MkInput v-model="draft.imageUrl" :maxLength="2048" :disabled="locked"><template #label>{{ i18n.ts._marketplace.coverUrl }}</template><template #caption>{{ i18n.ts._marketplace.coverHint }}<template v-if="props.productId"> {{ i18n.ts._marketplace.coverReplaceHint }}</template></template></MkInput>
 				<img v-if="draft.imageUrl && validImage(draft.imageUrl)" :src="draft.imageUrl" :alt="draft.name" :class="$style.cover" referrerpolicy="no-referrer">
-				<div :class="$style.columns">
-					<MkInput v-model="draft.price" type="number" :min="1" :max="1000000" :step="1" :disabled="locked"><template #label>{{ i18n.ts._marketplace.productPrice }} ({{ i18n.ts._marketplace.pointUnit }})</template></MkInput>
-					<MkInput v-model="draft.unit" :maxLength="8" :disabled="locked"><template #label>{{ i18n.ts._marketplace.unitLabel }}</template></MkInput>
-				</div>
+				<MkInput v-model="draft.price" type="number" :min="1" :max="1000000" :step="1" :disabled="locked"><template #label>{{ i18n.ts._marketplace.productPrice }} ({{ i18n.ts._marketplace.pointUnit }})</template></MkInput>
 				<MkInfo v-if="feeRateBps != null">{{ i18n.tsx._payments.sellerFeeHint({ rate: (feeRateBps / 100).toLocaleString() }) }}</MkInfo>
 				<div v-else-if="feeLoadError" role="alert" class="_gaps_s"><p>{{ i18n.ts._payments.publicLoadFailed }}</p><MkButton :disabled="feeLoading" @click="loadFees">{{ i18n.ts.retry }}</MkButton></div>
 				<p v-else role="status">{{ i18n.ts.loading }}</p>
 				<div :class="$style.columns">
 					<MkSelect v-model="limitMode" :items="limitOptions" :disabled="locked"><template #label>{{ i18n.ts._marketplace.purchaseLimit }}</template><template #caption>{{ i18n.ts._marketplace.limitHint }}</template></MkSelect>
-					<MkInput v-if="limited" v-model="draft.perUserLimit" type="number" :min="1" :max="1000000" :step="1" :disabled="locked"><template #label>{{ i18n.ts._marketplace.perUserLimit }} ({{ draft.unit }})</template></MkInput>
+					<MkInput v-if="limited" v-model="draft.perUserLimit" type="number" :min="1" :max="1000000" :step="1" :disabled="locked"><template #label>{{ i18n.ts._marketplace.perUserLimit }}</template></MkInput>
 				</div>
-				<MkInput v-model="draft.stockLimit" type="number" :min="0" :max="1000000" :step="1" :disabled="locked"><template #label>{{ i18n.ts._marketplace.stockLimit }} ({{ draft.unit }})</template><template #caption>{{ i18n.ts._marketplace.stockHint }}</template></MkInput>
-				<MkTextarea v-model="draft.deliveryText" :maxLength="2000" :rows="5" :disabled="locked"><template #label>{{ draft.type === 'physical' ? i18n.ts._marketplace.physicalDeliveryContent : i18n.ts._marketplace.deliveryContent }}</template><template #caption>{{ draft.type === 'physical' ? i18n.ts._marketplace.physicalDeliveryHint : i18n.ts._marketplace.deliveryHint }}</template></MkTextarea>
+				<MkInput v-model="draft.stockLimit" type="number" :min="0" :max="1000000" :step="1" :disabled="locked"><template #label>{{ i18n.ts._marketplace.stockLimit }}</template><template #caption>{{ i18n.ts._marketplace.stockHint }}</template></MkInput>
+				<MkTextarea v-model="draft.deliveryText" :counterMaxLength="2000" :rows="5" :disabled="locked"><template #label>{{ draft.type === 'physical' ? i18n.ts._marketplace.physicalDeliveryContent : i18n.ts._marketplace.deliveryContent }}</template><template #caption>{{ draft.type === 'physical' ? i18n.ts._marketplace.physicalDeliveryHint : i18n.ts._marketplace.deliveryHint }}</template></MkTextarea>
 				<MkSelect v-model="saleStatus" :items="saleOptions" :disabled="locked"><template #label>{{ i18n.ts.state }}</template></MkSelect>
 				<div class="_buttons" :class="$style.actions"><MkButton primary type="submit" :disabled="locked || !valid || conflict || feeRateBps == null" :wait="saving"><i class="ti ti-check" aria-hidden="true"></i> {{ props.productId ? i18n.ts.save : i18n.ts._marketplace.publishProduct }}</MkButton><MkA to="/my/products">{{ i18n.ts.cancel }}</MkA></div>
 			</form>
@@ -46,6 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script setup lang="ts">
 import { computed, inject, onActivated, onBeforeUnmount, onDeactivated, ref, watch } from 'vue';
+import { apiUrl } from '@@/js/config.js';
 import type { entities } from 'misskey-js';
 import MkA from '@/components/global/MkA.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -60,12 +60,14 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { useRouter } from '@/router.js';
 import { DI } from '@/di.js';
+import { chooseDriveFile } from '@/utility/drive.js';
 import * as os from '@/os.js';
 
 type Draft = {
 	name: string; description: string; type: 'physical' | 'virtual'; category: string; imageUrl: string; unit: string;
 	price: number; perUserLimit: number; stockLimit: number; deliveryText: string; enabled: boolean;
 };
+type ProductImage = entities.ProductsImagesCreateResponse;
 const props = defineProps<{ productId?: string }>();
 const account = ensureSignin();
 const router = useRouter();
@@ -83,6 +85,7 @@ const feeLoading = ref(false);
 const feeLoadError = ref(false);
 const version = ref('');
 const pendingRequest = ref<entities.ProductsCreateRequest | null>(null);
+// 旧商品和未确认的发布请求仍保留单位字段，界面不再提供编辑。
 const draft = ref<Draft>({ name: '', description: '', type: 'virtual', category: '', imageUrl: '', unit: i18n.ts._marketplace.defaultUnit, price: 1, perUserLimit: 1, stockLimit: 0, deliveryText: '', enabled: true });
 const locked = computed(() => saving.value || loading.value || storageError.value || pendingRequest.value != null);
 const limitMode = computed({ get: () => limited.value ? 'limited' : 'unlimited', set: value => { limited.value = value === 'limited'; } });
@@ -92,6 +95,10 @@ const limitOptions = [{ value: 'unlimited', label: i18n.ts._marketplace.noPurcha
 const saleOptions = [{ value: 'onSale', label: i18n.ts._marketplace.onSale }, { value: 'offSale', label: i18n.ts._marketplace.offSale }];
 let disposed = false;
 let active = true;
+let coverRequest = 0;
+let savedImageUrl = '';
+const draftImages = new Map<string, ProductImage>();
+const submittedImages = new Set<string>();
 
 async function loadFees() {
 	if (feeLoading.value) return;
@@ -106,6 +113,77 @@ async function loadFees() {
 function validImage(url: string) {
 	if (!url) return true;
 	try { return ['https:', 'http:'].includes(new URL(url).protocol) && !/\s/.test(url); } catch { return false; }
+}
+
+function cleanupDraftImages() {
+	for (const [url, image] of draftImages) {
+		if ((!disposed && url === draft.value.imageUrl) || submittedImages.has(url) || url === pendingRequest.value?.imageUrl || storageError.value) continue;
+		draftImages.delete(url);
+		void misskeyApi('products/images/delete', { imageId: image.id }).catch(() => {});
+	}
+}
+
+async function uploadCover(file: File): Promise<ProductImage> {
+	const body = new FormData();
+	body.append('i', account.token);
+	body.append('file', file);
+	const response = await window.fetch(`${apiUrl}/products/images/create`, { method: 'POST', body, credentials: 'omit', cache: 'no-cache' });
+	const result = await response.json();
+	if (!response.ok) throw result.error ?? new Error('Product image upload failed');
+	return result;
+}
+
+function chooseCover(event: PointerEvent) {
+	if (disposed || !active || !pageActive.value || locked.value) return;
+	const currentDraft = draft.value;
+	const imageUrl = currentDraft.imageUrl;
+	const request = ++coverRequest;
+	const isCurrent = () => !disposed && active && pageActive.value && !locked.value && coverRequest === request && draft.value === currentDraft && draft.value.imageUrl === imageUrl;
+	const receive = async (select: () => Promise<ProductImage | undefined>) => {
+		if (!isCurrent()) return;
+		try {
+			const image = await select();
+			if (!image) return;
+			draftImages.set(image.url, image);
+			if (isCurrent()) currentDraft.imageUrl = image.url;
+			cleanupDraftImages();
+		} catch (error) { if (error && isCurrent()) os.toast(i18n.ts.failedToUpload, 'error'); }
+	};
+	os.popupMenu([{
+		text: i18n.ts.upload,
+		icon: 'ti ti-upload',
+		action: () => receive(async () => {
+			const [file] = await os.chooseFileFromPc({ multiple: false, accept: 'image/*' });
+			if (!file || !isCurrent()) return;
+			if (file.type && !file.type.startsWith('image/')) { os.toast(i18n.ts._marketplace.imageOnly, 'error'); return; }
+			return uploadCover(file);
+		}),
+	}, {
+		text: i18n.ts.fromDrive,
+		icon: 'ti ti-cloud',
+		action: () => receive(async () => {
+			const [file] = await chooseDriveFile({ multiple: false });
+			if (!file || !isCurrent()) return;
+			if (!file.type.startsWith('image/')) { os.toast(i18n.ts._marketplace.imageOnly, 'error'); return; }
+			return misskeyApi('products/images/import', { fileId: file.id });
+		}),
+	}, {
+		text: i18n.ts.fromUrl,
+		icon: 'ti ti-link',
+		action: () => receive(async () => {
+			const { canceled, result } = await os.inputText({ title: i18n.ts.uploadFromUrl, type: 'url', placeholder: i18n.ts.uploadFromUrlDescription });
+			if (canceled || !result || !isCurrent()) return;
+			const url = result.trim().replace(/^https?:/i, scheme => scheme.toLowerCase());
+			if (url.length > 2048 || !validImage(url)) { os.toast(i18n.ts._marketplace.imageOnly, 'error'); return; }
+			return misskeyApi('products/images/import', { url });
+		}),
+	}], event.currentTarget);
+}
+
+function removeCover() {
+	if (disposed || !active || !pageActive.value || locked.value) return;
+	coverRequest++;
+	draft.value.imageUrl = '';
 }
 
 function validDraft(value: Draft) {
@@ -141,7 +219,10 @@ function restorePending() {
 	if (props.productId) return;
 	try {
 		pendingRequest.value = readPending();
-		if (pendingRequest.value) applyDraft(pendingRequest.value as Draft);
+		if (pendingRequest.value) {
+			submittedImages.add(pendingRequest.value.imageUrl);
+			applyDraft(pendingRequest.value as Draft);
+		}
 		storageError.value = false;
 	} catch { storageError.value = true; }
 }
@@ -161,6 +242,7 @@ async function load() {
 		const product = await misskeyApi('products/show', { productId: props.productId });
 		if (disposed || !active || !pageActive.value) return;
 		if (!product.isOwner || product.deliveryText == null) { loadError.value = i18n.ts._marketplace.productNotEditable; return; }
+		savedImageUrl = product.imageUrl;
 		applyDraft({ ...product, deliveryText: product.deliveryText });
 		version.value = product.version;
 		conflict.value = false;
@@ -186,8 +268,11 @@ function errorMessage(error: unknown) {
 }
 
 async function publish(request: entities.ProductsCreateRequest, retrying = false) {
+	const previouslySubmitted = submittedImages.has(request.imageUrl);
+	submittedImages.add(request.imageUrl);
 	try {
 		const product = await misskeyApi('products/create', { ...request });
+		draftImages.delete(request.imageUrl);
 		if (disposed || !active || !pageActive.value) return;
 		clearPending(request.requestId);
 		os.toast(i18n.ts._marketplace.publishSuccess, 'success');
@@ -195,8 +280,13 @@ async function publish(request: entities.ProductsCreateRequest, retrying = false
 	} catch (error) {
 		if (disposed || !active || !pageActive.value) return;
 		const code = (error as { code?: string }).code ?? '';
-		if (['INVALID_MARKETPLACE_PRODUCT', 'MARKETPLACE_PRODUCT_LIMIT'].includes(code) || (!retrying && ['INVALID_PARAM', 'MARKETPLACE_NOT_ALLOWED', 'RATE_LIMIT_EXCEEDED'].includes(code))) clearPending(request.requestId);
+		if (['INVALID_MARKETPLACE_PRODUCT', 'MARKETPLACE_PRODUCT_LIMIT'].includes(code) || (!retrying && ['INVALID_PARAM', 'MARKETPLACE_NOT_ALLOWED', 'RATE_LIMIT_EXCEEDED'].includes(code))) {
+			clearPending(request.requestId);
+			if (!previouslySubmitted) submittedImages.delete(request.imageUrl);
+		}
 		if (!disposed) saveError.value = errorMessage(error);
+	} finally {
+		cleanupDraftImages();
 	}
 }
 
@@ -214,6 +304,16 @@ async function retryPublish() {
 	} catch (error) { saveError.value = errorMessage(error); } finally { saving.value = false; }
 }
 
+async function prepareCover(value: Draft) {
+	if (!value.imageUrl || value.imageUrl === savedImageUrl || draftImages.has(value.imageUrl) || submittedImages.has(value.imageUrl)) return true;
+	const image = await misskeyApi('products/images/import', { url: value.imageUrl });
+	draftImages.set(image.url, image);
+	if (disposed || !active || !pageActive.value) { cleanupDraftImages(); return false; }
+	value.imageUrl = image.url;
+	draft.value.imageUrl = image.url;
+	return true;
+}
+
 async function save() {
 	if (!active || !pageActive.value || locked.value || !valid.value || conflict.value || feeRateBps.value == null) return;
 	const value = fields({ ...draft.value, perUserLimit: limited.value ? draft.value.perUserLimit : 0 });
@@ -221,8 +321,21 @@ async function save() {
 	saveError.value = '';
 	try {
 		if (props.productId) {
-			const product = await misskeyApi('products/update', { ...value, productId: props.productId, expectedVersion: version.value });
+			if (!await prepareCover(value) || disposed || !active || !pageActive.value) return;
+			const previouslySubmitted = submittedImages.has(value.imageUrl);
+			// 保存中或结果未知的图片可能已绑定商品，不能作为废弃草稿删除。
+			submittedImages.add(value.imageUrl);
+			let product: entities.ProductsUpdateResponse;
+			try {
+				product = await misskeyApi('products/update', { ...value, productId: props.productId, expectedVersion: version.value });
+			} catch (error) {
+				const code = (error as { code?: string } | null)?.code ?? '';
+				if (!previouslySubmitted && ['INVALID_MARKETPLACE_PRODUCT', 'INVALID_PARAM', 'MARKETPLACE_PRODUCT_CHANGED', 'NO_SUCH_MARKETPLACE_PRODUCT', 'MARKETPLACE_NOT_ALLOWED', 'RATE_LIMIT_EXCEEDED'].includes(code)) submittedImages.delete(value.imageUrl);
+				throw error;
+			}
+			draftImages.delete(value.imageUrl);
 			if (disposed) return;
+			savedImageUrl = product.imageUrl;
 			version.value = product.version;
 			applyDraft({ ...product, deliveryText: product.deliveryText ?? '' });
 			if (active && pageActive.value) os.toast(i18n.ts.saved, 'success');
@@ -232,6 +345,7 @@ async function save() {
 				if (disposed || !active || !pageActive.value) return;
 				restorePending();
 				if (storageError.value || pendingRequest.value) return;
+				if (!await prepareCover(value) || disposed || !active || !pageActive.value) return;
 				const request = { ...value, requestId: crypto.randomUUID() };
 				// 保留原始请求，断网或刷新后重试同一个发布操作。
 				try { miLocalStorage.setItem(storageKey, JSON.stringify(request)); } catch { storageError.value = true; return; }
@@ -239,7 +353,7 @@ async function save() {
 				await publish(request);
 			});
 		}
-	} catch (error) { saveError.value = errorMessage(error); } finally { saving.value = false; }
+	} catch (error) { saveError.value = errorMessage(error); } finally { saving.value = false; cleanupDraftImages(); }
 }
 
 restorePending();
@@ -248,18 +362,17 @@ void loadFees();
 
 function resume() { if (!props.productId) restorePending(); else if (!version.value) void load(); }
 
-watch(pageActive, value => { if (value && active) resume(); });
+// 选择窗口取消后可能不返回，保留表单可用并丢弃已过期的结果。
+watch([draft, () => draft.value.imageUrl, locked], () => { coverRequest++; cleanupDraftImages(); }, { flush: 'sync' });
+watch(pageActive, value => { coverRequest++; if (value && active) resume(); }, { flush: 'sync' });
 onActivated(() => { const inactive = !active; active = true; if (inactive) resume(); });
-onDeactivated(() => { active = false; });
-onBeforeUnmount(() => { disposed = true; active = false; });
+onDeactivated(() => { active = false; coverRequest++; });
+onBeforeUnmount(() => { disposed = true; active = false; coverRequest++; cleanupDraftImages(); });
 definePage(() => ({ title: props.productId ? i18n.ts._marketplace.editProduct : i18n.ts._marketplace.publishProduct, icon: 'ti ti-package' }));
 </script>
 
 <style lang="scss" module>
 .root { container-type: inline-size; }
-.navigation { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: var(--MI-divider); }
-.navigation a { padding-block: 6px; }
-.heading { margin: 0; font-size: 1.35em; }
 .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
 .cover { width: 200px; max-width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: var(--MI-radius); }
 .actions { align-items: center; padding-top: 20px; border-top: var(--MI-divider); }

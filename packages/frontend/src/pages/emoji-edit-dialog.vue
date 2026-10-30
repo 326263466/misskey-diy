@@ -178,6 +178,7 @@ async function done() {
 			id: props.emoji.id,
 			...params,
 		});
+		os.toast(i18n.ts.saved, 'success');
 
 		emit('done', {
 			updated: emojiDetailed,
@@ -191,6 +192,7 @@ async function done() {
 			...params,
 			fileId: params.fileId, // TSを黙らすため
 		});
+		os.toast(i18n.ts.added, 'success');
 
 		emit('done', {
 			created: created,
@@ -208,14 +210,16 @@ async function del() {
 	});
 	if (canceled) return;
 
-	misskeyApi('admin/emoji/delete', {
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('admin/emoji/delete', {
 		id: props.emoji.id,
 	}).then(() => {
+		os.toast(i18n.ts.deleteSucceeded, 'success');
 		emit('done', {
 			deleted: true,
 		});
 		windowEl.value?.close();
-	});
+	}, () => {});
 }
 </script>
 

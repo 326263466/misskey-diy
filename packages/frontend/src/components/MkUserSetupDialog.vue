@@ -22,9 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-else #header>{{ i18n.ts.initialAccountSetting }}</template>
 
 	<div style="overflow-x: clip;">
-		<div :class="$style.progressBar">
-			<div :class="$style.progressBarValue" :style="{ width: `${(page / 5) * 100}%` }"></div>
-		</div>
+		<progress :class="$style.progressBar" :value="page" max="5" :aria-label="i18n.ts.initialAccountSetting"></progress>
 		<Transition
 			mode="out-in"
 			:enterActiveClass="$style.transition_x_enterActive"
@@ -41,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div style="font-size: 120%;">{{ i18n.ts._initialAccountSetting.accountCreated }}</div>
 							<div>{{ i18n.ts._initialAccountSetting.letsStartAccountSetup }}</div>
 							<MkButton primary rounded gradate style="margin: 16px auto 0 auto;" data-testid="user-setup-continue" @click="page++">{{ i18n.ts._initialAccountSetting.profileSetting }} <i class="ti ti-arrow-right"></i></MkButton>
-							<MkButton style="margin: 0 auto;" transparent rounded @click="later(true)">{{ i18n.ts.later }}</MkButton>
+							<MkButton style="margin: 0 auto;" rounded @click="later(true)">{{ i18n.ts.later }}</MkButton>
 						</div>
 					</div>
 				</div>
@@ -78,13 +76,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<template v-else-if="page === 3">
 				<div style="height: 100cqh; overflow: auto;">
-					<div class="_spacer _spacerCard">
-						<XFollow/>
-					</div>
-					<div :class="$style.pageFooter">
-						<div class="_buttonsCenter">
-							<MkButton rounded data-testid="user-setup-back" @click="page--"><i class="ti ti-arrow-left"></i> {{ i18n.ts.goBack }}</MkButton>
-							<MkButton primary rounded gradate style="" data-testid="user-setup-continue" @click="page++">{{ i18n.ts.continue }} <i class="ti ti-arrow-right"></i></MkButton>
+					<div :class="$style.pageRoot">
+						<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;" :class="$style.pageMain">
+							<XFollow/>
+						</div>
+						<div :class="$style.pageFooter">
+							<div class="_buttonsCenter">
+								<MkButton rounded data-testid="user-setup-back" @click="page--"><i class="ti ti-arrow-left"></i> {{ i18n.ts.goBack }}</MkButton>
+								<MkButton primary rounded gradate style="" data-testid="user-setup-continue" @click="page++">{{ i18n.ts.continue }} <i class="ti ti-arrow-right"></i></MkButton>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -130,7 +130,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, useTemplateRef, watch, nextTick, defineAsyncComponent } from 'vue';
+import { computed, ref, useTemplateRef, watch, nextTick } from 'vue';
 import { host } from '@@/js/config.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -221,18 +221,11 @@ async function later(later: boolean) {
 }
 
 .progressBar {
+	--MI-progressFill: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
 	position: absolute;
 	top: 0;
 	left: 0;
 	z-index: 10;
-	width: 100%;
-	height: 4px;
-}
-
-.progressBarValue {
-	height: 100%;
-	background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
-	transition: all 0.5s cubic-bezier(0,.5,.5,1);
 }
 
 .centerPage {
@@ -252,10 +245,12 @@ async function later(later: boolean) {
 
 .pageMain {
 	flex-grow: 1;
+	padding-bottom: 72px;
 }
 
 .pageFooter {
 	position: sticky;
+	z-index: 10;
 	bottom: 0;
 	left: 0;
 	flex-shrink: 0;

@@ -11,16 +11,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { reactive, watch } from 'vue';
 import number from '@/filters/number.js';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	value: number;
-}>();
+	duration?: number;
+}>(), {
+	duration: 500,
+});
 
 const tweened = reactive({
 	number: 0,
 });
 
 watch(() => props.value, (to, from) => {
-	// requestAnimationFrameを利用して、500msでfromからtoまでを1次関数的に変化させる
+	// requestAnimationFrame で from から to へ直線的に変化させる。
 	let start: number | null = null;
 
 	function step(timestamp: number) {
@@ -28,8 +31,9 @@ watch(() => props.value, (to, from) => {
 			start = timestamp;
 		}
 		const elapsed = timestamp - start;
-		tweened.number = (from ?? 0) + (to - (from ?? 0)) * elapsed / 500;
-		if (elapsed < 500) {
+		const progress = Math.min(elapsed / props.duration, 1);
+		tweened.number = (from ?? 0) + (to - (from ?? 0)) * progress;
+		if (progress < 1) {
 			window.requestAnimationFrame(step);
 		} else {
 			tweened.number = to;

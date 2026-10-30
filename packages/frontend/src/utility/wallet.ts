@@ -3,8 +3,46 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import type { entities } from 'misskey-js';
+import { BroadcastChannel } from 'broadcast-channel';
+import { acct } from '@@/js/user.js';
 import { i18n } from '@/i18n.js';
-import { toCoinUnits } from '@/utility/coins.js';
+
+export type WalletTransaction = entities.IWalletTransactionsResponse[number];
+export type WalletFlow = WalletTransaction['flow'];
+
+/** 只通知其他标签页重读待确认请求，不传请求内容或凭据。 */
+export function createPendingRequestChannel(name: string, onChanged: () => void) {
+	const channel = new BroadcastChannel<'changed'>(name);
+	channel.onmessage = onChanged;
+	return {
+		notify() {
+			if (!channel.isClosed) void channel.postMessage('changed').catch(() => {});
+		},
+		close() {
+			if (!channel.isClosed) void channel.close().catch(() => {});
+		},
+	};
+}
+
+/** 没有可显示的资金动向（如冻结释放）时返回空串，调用方据此隐藏对应行。 */
+export function walletFlowName(kind: WalletFlow['from'] | undefined, user: entities.UserLite | null | undefined): string {
+	if (kind === 'user' && user) return acct(user);
+	if (kind === 'system') return i18n.ts._wallet._categories.system;
+	if (kind === 'redPacket') return i18n.ts._wallet._categories.redPacket;
+	if (kind === 'reserved') return i18n.ts._wallet.reservedBalance;
+	if (kind === 'unknown' || kind == null) return '';
+	return i18n.ts._wallet.unknownUser;
+}
+
+export function walletFlowDescription(flow: WalletFlow): string {
+	const party = (label: string, kind: WalletFlow['from'], userId: string | null, user: entities.UserLite | null) => [
+		label,
+		...(userId ? [i18n.tsx._wallet.flowId({ id: userId })] : []),
+		i18n.tsx._wallet.flowAccount({ account: walletFlowName(kind, user) || i18n.ts._wallet.unknownUser }),
+	].join('\n');
+	return `${party(i18n.ts._wallet._receipt.consumer, flow.from, flow.fromUserId, flow.fromUser)}\n\n${party(i18n.ts._wallet._receipt.provider, flow.to, flow.toUserId, flow.toUser)}`;
+}
 
 export function walletError(error: unknown): string {
 	switch ((error as { code?: string } | null)?.code) {
@@ -26,23 +64,4 @@ export function walletError(error: unknown): string {
 /** An explicit validation rejection has no side effects; transport errors remain retryable. */
 export function walletRequestRejected(error: unknown): boolean {
 	return ['EXCHANGE_DISABLED', 'INVALID_EXCHANGE_AMOUNT', 'INSUFFICIENT_POINTS', 'INSUFFICIENT_CHECKIN_POINTS', 'WALLET_NOT_ALLOWED', 'INVALID_AMOUNT', 'INSUFFICIENT_BALANCE', 'BALANCE_LIMIT_EXCEEDED', 'NO_SUCH_USER', 'REMOTE_USER', 'INVALID_PARAM'].includes((error as { code?: string } | null)?.code ?? '');
-}
-
-export function exchangeAmount(points: number, rate: number, pointsPerCoin?: number | null): number | null {
-	if (!Number.isSafeInteger(points) || points <= 0 || points > 2000000000) return null;
-	const units = pointsPerCoin == null ? points * rate * 100 : points * 100 / pointsPerCoin;
-	return Number.isSafeInteger(units) && units > 0 && units <= 200000000000 ? units / 100 : null;
-}
-
-export function exchangePointStep(pointsPerCoin?: number | null): number {
-	if (pointsPerCoin == null) return 1;
-	let a = pointsPerCoin;
-	let b = 100;
-	while (b !== 0) [a, b] = [b, a % b];
-	return pointsPerCoin / a;
-}
-
-export function validExchange(points: number, availablePoints: number, rate: number, balance: number, reservedBalance: number, pointsPerCoin?: number | null): boolean {
-	const amount = exchangeAmount(points, rate, pointsPerCoin);
-	return amount != null && points <= availablePoints && toCoinUnits(balance) + toCoinUnits(reservedBalance) + toCoinUnits(amount) <= 200000000000;
 }

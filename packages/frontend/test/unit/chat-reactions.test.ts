@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/vue';
 import { nextTick, reactive } from 'vue';
 import type * as Misskey from 'misskey-js';
+import { preferState } from '../setup.unit.js';
 import XMessage from '@/pages/chat/XMessage.vue';
 import { i18n } from '@/i18n.js';
 
@@ -16,13 +17,14 @@ const mocks = vi.hoisted(() => ({
 	toast: vi.fn(),
 	picker: vi.fn(),
 	contextMenu: vi.fn(),
+	sound: vi.fn(),
 	me: { id: 'me', username: 'me', name: 'Me', host: null, policies: { chatAvailability: 'available' } },
 }));
 
 vi.mock('@/i.js', () => ({ $i: mocks.me, ensureSignin: () => mocks.me }));
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: mocks.api }));
 vi.mock('@/utility/reaction-picker.js', () => ({ reactionPicker: { show: mocks.picker } }));
-vi.mock('@/utility/sound.js', () => ({ playMisskeySfx: vi.fn(), playChatMessageDeleteSfx: vi.fn() }));
+vi.mock('@/utility/sound.js', () => ({ playMisskeySfx: mocks.sound }));
 vi.mock('@/os.js', () => ({ alert: mocks.alert, toast: mocks.toast, contextMenu: mocks.contextMenu, popup: vi.fn(() => ({ dispose: vi.fn() })) }));
 vi.mock('@/composables/use-tooltip.js', () => ({ useTooltip: vi.fn() }));
 vi.mock('@/components/MkUrlPreview.vue', () => ({ default: { template: '<div/>' } }));
@@ -55,7 +57,6 @@ function renderMessage(reactions: Misskey.entities.ChatMessage['reactions']) {
 			directives: { tooltip: {} },
 			stubs: {
 				MkAvatar: true, MkUserName: true, MkTime: true, MkA: true, Mfm: true,
-				MkFukidashi: { template: '<div><slot/></div>' },
 			},
 		},
 	});
@@ -71,6 +72,26 @@ describe('chat message reactions', () => {
 	});
 
 	afterEach(cleanup);
+
+	test('deletes a normal message without replaying an effect or sound', async () => {
+		const animation = preferState.animation;
+		preferState.animation = true;
+		try {
+			const view = renderMessage([]);
+			view.message.fromUserId = me.id;
+			view.message.fromUser = me;
+			await nextTick();
+			await fireEvent.contextMenu(view.container.querySelector('[data-chat-bubble]')!);
+			const remove = mocks.contextMenu.mock.lastCall![0].find((item: { text?: string }) => item.text === i18n.ts.delete);
+			remove.action();
+			await waitFor(() => expect(view.container.querySelector('[data-chat-message-id]')).toBeNull());
+			expect(mocks.api).toHaveBeenCalledWith('chat/messages/delete', { messageId: 'message' });
+			expect(view.emitted('deleted')).toEqual([['message']]);
+			expect(mocks.sound).not.toHaveBeenCalled();
+		} finally {
+			preferState.animation = animation;
+		}
+	});
 
 	test('自己的菜单不显示提及，头像戳一戳传递对应用户并可撤回', async () => {
 		const view = renderMessage([]);
@@ -91,6 +112,7 @@ describe('chat message reactions', () => {
 		expect(view.container.querySelector('[data-chat-bubble]')).toBeNull();
 		await fireEvent.click(view.getByRole('button', { name: i18n.ts._chat.withdrawPoke }));
 		await waitFor(() => expect(mocks.api).toHaveBeenCalledWith('chat/messages/delete', { messageId: 'message' }));
+		await waitFor(() => expect(view.container.querySelector('[data-chat-message-id]')).toBeNull());
 	});
 
 	test('groups equivalent Unicode and local emoji while counting each participant once', () => {
@@ -119,6 +141,7 @@ describe('chat message reactions', () => {
 		await fireEvent.click(view.getByRole('button', { name: reactionLabel('grinning', 1) }));
 		const joined = await view.findByRole('button', { name: reactionLabel('grinning', 2) });
 		expect(mocks.api).toHaveBeenLastCalledWith('chat/messages/react', { messageId: 'message', reaction: '😀' });
+		expect(mocks.sound).toHaveBeenCalledWith('reaction');
 		expect(joined.getAttribute('aria-pressed')).toBe('true');
 		expect(within(joined).getByText('2')).toBeTruthy();
 

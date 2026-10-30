@@ -4,7 +4,7 @@
  */
 
 import * as fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { load as loadYaml } from 'js-yaml';
 import ts from 'typescript';
@@ -62,20 +62,7 @@ function createMembers(record: LocaleRecord): ts.TypeElement[] {
 }
 
 export async function generateLocaleInterface(localesDir: string): Promise<void> {
-	// Chinese is the fork's source locale; retain untranslated upstream keys during migration.
-	const upstream = loadYaml(fs.readFileSync(`${localesDir}/ja-JP.yml`, 'utf-8')) as LocaleRecord;
-	const source = loadYaml(fs.readFileSync(`${localesDir}/zh-CN.yml`, 'utf-8')) as LocaleRecord;
-
-	function mergeSource(fallback: LocaleRecord, primary: LocaleRecord): LocaleRecord {
-		const merged = { ...fallback };
-		for (const [key, value] of Object.entries(primary)) {
-			const previous = merged[key];
-			merged[key] = typeof previous === 'object' && typeof value === 'object' ? mergeSource(previous, value) : value;
-		}
-		return merged;
-	}
-
-	const locale = mergeSource(upstream, source);
+	const locale = loadYaml(fs.readFileSync(`${localesDir}/zh-CN.yml`, 'utf-8')) as LocaleRecord;
 	const members = createMembers(locale);
 
 	const elements: ts.Statement[] = [
@@ -159,8 +146,7 @@ export async function generateLocaleInterface(localesDir: string): Promise<void>
 	fs.renameSync(`${autogenDir}/_locale.ts`, `${autogenDir}/locale.ts`);
 }
 
-// スクリプトとして直接実行された場合
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+const isMain = process.argv[1] != null && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 if (isMain) {
 	await generateLocaleInterface(resolve(__dirname, '../../../locales'));
 }

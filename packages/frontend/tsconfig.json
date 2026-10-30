@@ -54,6 +54,7 @@
 		"./@types/**/*.ts"
 	],
 	"exclude": [
-		"./src/**/*.stories.ts"
+		"./src/**/*.stories.ts",
+		"./test/e2e/artifacts/**/*.ts"
 	]
 }

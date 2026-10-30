@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader contentCard>
 	<div class="_pageBody">
 		<div class="_gaps">
 			<MkInput v-model="title">
@@ -15,7 +15,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #caption>{{ i18n.ts._play.visibilityDescription }}</template>
 			</MkSelect>
 			<MkTextarea v-model="summary" :mfmAutocomplete="true" :mfmPreview="true">
-				<template #label>{{ i18n.ts._play.summary }}</template>
+				<template #label>{{ i18n.ts._play.introduction }}</template>
+				<template #caption>{{ i18n.ts._play.summaryDescription }}</template>
 			</MkTextarea>
 			<MkButton primary @click="selectPreset">{{ i18n.ts.selectFromPresets }}<i class="ti ti-chevron-down"></i></MkButton>
 			<MkCodeEditor v-model="script" lang="is">
@@ -38,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { AISCRIPT_VERSION } from '@syuilo/aiscript';
 import MkButton from '@/components/MkButton.vue';
@@ -52,6 +53,7 @@ import MkInput from '@/components/MkInput.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 import { useRouter } from '@/router.js';
+import { globalEvents } from '@/events.js';
 
 const PRESET_DEFAULT = `/// @ ${AISCRIPT_VERSION}
 
@@ -86,7 +88,7 @@ let choices = [
 	"大凶"
 ]
 
-// 以“互动应用 ID + 用户 ID + 当天日期”作为随机数种子
+// 以“小程序 ID + 用户 ID + 当天日期”作为随机数种子
 let random = Math:gen_rng(\`{THIS_ID}{USER_ID}{Date:year()}{Date:month()}{Date:day()}\`)
 
 // 随机选取一个结果
@@ -470,12 +472,9 @@ async function del() {
 		flashId: flash.value.id,
 	});
 	os.toast(i18n.ts._play.deleted, 'success');
+	globalEvents.emit('flashDeleted', flash.value.id);
 	router.push('/play');
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: flash.value ? `${i18n.ts._play.edit}: ${flash.value.title}` : i18n.ts._play.new,

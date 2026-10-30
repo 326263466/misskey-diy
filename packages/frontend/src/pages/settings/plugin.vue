@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<FormLink v-else to="/settings/plugin/install"><template #icon><i class="ti ti-download"></i></template>{{ i18n.ts._plugin.install }}</FormLink>
 
 		<FormSection>
-			<template #label>{{ i18n.ts.manage }}</template>
+			<template #label>{{ i18n.ts._plugin.manage }}</template>
 			<div class="_gaps_s">
 				<MkFolder v-for="plugin in plugins" :key="plugin.installId">
 					<template #icon><i class="ti ti-plug"></i></template>
@@ -95,7 +95,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { nextTick, ref, computed } from 'vue';
 import { isSafeMode } from '@@/js/config.js';
 import type { Plugin } from '@/plugin.js';
 import FormLink from '@/components/form/link.vue';
@@ -124,15 +123,16 @@ async function uninstall(plugin: Plugin) {
 
 	await uninstallPlugin(plugin);
 
-	os.success();
+	os.toast(i18n.ts.uninstalled, 'success');
 }
 
 function reload(plugin: Plugin) {
 	reloadPlugin(plugin);
+	os.toast(i18n.ts._plugin.reloaded, 'success');
 }
 
 async function config(plugin: Plugin) {
-	await configPlugin(plugin);
+	if (await configPlugin(plugin)) os.toast(i18n.ts.saved, 'success');
 }
 
 function changeActive(plugin: Plugin, active: boolean) {
@@ -142,10 +142,6 @@ function changeActive(plugin: Plugin, active: boolean) {
 function timeToHhMmSs(unixtime: number) {
 	return new Date(unixtime).toTimeString().split(' ')[0];
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.plugins,

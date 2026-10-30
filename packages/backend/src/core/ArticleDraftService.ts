@@ -31,7 +31,6 @@ export class ArticleDraftService implements OnModuleInit {
 	public static InvalidContentError = class extends Error {};
 	public static InvalidArticleError = class extends Error {};
 	public static InvalidCoverError = class extends Error {};
-	public static FileUnavailableError = class extends Error {};
 	private driveFileEntityService: DriveFileEntityService;
 
 	constructor(
@@ -53,49 +52,42 @@ export class ArticleDraftService implements OnModuleInit {
 		if (!data.coverId && ![data.title, data.summary, data.text].some(value => value.replace(/[\s\u200B-\u200D\u2060\uFEFF]/gu, '').length > 0)) {
 			throw new ArticleDraftService.InvalidContentError();
 		}
-		try {
-			return await this.db.transaction(async manager => {
-				// 同账号串行检查数量和版本，首次写入也不会产生重复稿或突破上限。
-				await manager.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`article-drafts:${userId}`]);
-				let article: MiPage | null = null;
-				if (data.articleId) {
-					article = await manager.findOneBy(MiPage, { id: data.articleId, userId });
-					if (!article || !isArticle(article)) throw new ArticleDraftService.InvalidArticleError();
-					data.name = article.name;
-				}
-				const existing = await manager.findOneBy(MiArticleDraft, { userId, draftId });
-				if (existing) {
-					if (existing.data == null) throw new ArticleDraftService.ConflictError();
-					if (existing.revision !== expectedRevision) {
-						// 仅接受紧邻版本的相同请求重试，不能覆盖另一设备的新内容。
-						if (existing.revision === expectedRevision + 1 && isDeepStrictEqual(existing.data, data)) return existing;
-						throw new ArticleDraftService.ConflictError();
-					}
-					if (isDeepStrictEqual(existing.data, data)) return existing;
-				} else {
-					if (expectedRevision !== 0) throw new ArticleDraftService.ConflictError();
-					if (await manager.countBy(MiArticleDraft, { userId, data: Not(IsNull()) }) >= 100) throw new ArticleDraftService.LimitError();
-				}
-				assertContentLength(data.title, CONTENT_LIMITS.articleTitle, existing?.data?.title ?? article?.title);
-				assertContentLength(data.summary, CONTENT_LIMITS.articleSummary, existing?.data?.summary ?? article?.summary);
-				assertContentLength(data.text, CONTENT_LIMITS.articleText, existing?.data?.text ?? article?.content[0].text);
-				await assertArticleTagsAvailable(data.articleTags, manager.getRepository(MiMeta), [
-					...(existing?.data?.articleTags ?? []), ...(article ? getArticleTags(article.content) : []),
-				]);
-				if (data.coverId) {
-					const cover = await manager.findOneBy(MiDriveFile, { id: data.coverId, userId });
-					if (!cover || cover.deletingAt || !cover.type.startsWith('image/') || cover.isSensitive) throw new ArticleDraftService.InvalidCoverError();
-				}
-				const draft = manager.create(MiArticleDraft, { userId, draftId, data, revision: expectedRevision + 1, updatedAt: new Date() });
-				await manager.save(draft);
-				return draft;
-			});
-		} catch (error) {
-			if (error != null && typeof error === 'object' && 'constraint' in error && error.constraint === 'CHK_drive_file_reference_available') {
-				throw new ArticleDraftService.FileUnavailableError();
+		return this.db.transaction(async manager => {
+			// 同账号串行检查数量和版本，首次写入也不会产生重复稿或突破上限。
+			await manager.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`article-drafts:${userId}`]);
+			let article: MiPage | null = null;
+			if (data.articleId) {
+				article = await manager.findOneBy(MiPage, { id: data.articleId, userId });
+				if (!article || !isArticle(article)) throw new ArticleDraftService.InvalidArticleError();
+				data.name = article.name;
 			}
-			throw error;
-		}
+			const existing = await manager.findOneBy(MiArticleDraft, { userId, draftId });
+			if (existing) {
+				if (existing.data == null) throw new ArticleDraftService.ConflictError();
+				if (existing.revision !== expectedRevision) {
+					// 仅接受紧邻版本的相同请求重试，不能覆盖另一设备的新内容。
+					if (existing.revision === expectedRevision + 1 && isDeepStrictEqual(existing.data, data)) return existing;
+					throw new ArticleDraftService.ConflictError();
+				}
+				if (isDeepStrictEqual(existing.data, data)) return existing;
+			} else {
+				if (expectedRevision !== 0) throw new ArticleDraftService.ConflictError();
+				if (await manager.countBy(MiArticleDraft, { userId, data: Not(IsNull()) }) >= 100) throw new ArticleDraftService.LimitError();
+			}
+			assertContentLength(data.title, CONTENT_LIMITS.articleTitle, existing?.data?.title ?? article?.title);
+			assertContentLength(data.summary, CONTENT_LIMITS.articleSummary, existing?.data?.summary ?? article?.summary);
+			assertContentLength(data.text, CONTENT_LIMITS.articleText, existing?.data?.text ?? article?.content[0].text);
+			await assertArticleTagsAvailable(data.articleTags, manager.getRepository(MiMeta), [
+				...(existing?.data?.articleTags ?? []), ...(article ? getArticleTags(article.content) : []),
+			]);
+			if (data.coverId) {
+				const cover = await manager.findOneBy(MiDriveFile, { id: data.coverId, userId });
+				if (!cover || !cover.type.startsWith('image/') || cover.isSensitive) throw new ArticleDraftService.InvalidCoverError();
+			}
+			const draft = manager.create(MiArticleDraft, { userId, draftId, data, revision: expectedRevision + 1, updatedAt: new Date() });
+			await manager.save(draft);
+			return draft;
+		});
 	}
 
 	public async list(userId: string, limit: number, untilId?: string) {

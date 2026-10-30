@@ -58,6 +58,9 @@ export class MiChatRoom {
 	})
 	public joinPolicy: 'public' | 'approval' | 'invitation' | 'closed';
 
+	@Column('varchar', { length: 200, default: '' })
+	public joinQuestion: string;
+
 	@Column('boolean', { default: false })
 	public isSilenced: boolean;
 

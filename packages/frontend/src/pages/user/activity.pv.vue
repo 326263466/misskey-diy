@@ -4,197 +4,38 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
-	<MkLoading v-if="fetching"/>
-	<div v-show="!fetching" class="_panel">
-		<canvas ref="chartEl"></canvas>
-		<MkChartLegend ref="legendEl" style="margin-top: 8px;"/>
-	</div>
-</div>
+<XBars :series="series" :days="chartLimit"/>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, useTemplateRef, ref } from 'vue';
-import { Chart } from 'chart.js';
+import { onMounted, onUnmounted, shallowRef } from 'vue';
 import * as Misskey from 'misskey-js';
-import gradient from 'chartjs-plugin-gradient';
-import type { ChartDataset } from 'chart.js';
+import XBars from './activity.bars.vue';
+import type { ActivityBarSeries } from './activity.bars.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { store } from '@/store.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
-import { chartVLine } from '@/utility/chart-vline.js';
-import { initChart } from '@/utility/init-chart.js';
-import { chartLegend } from '@/utility/chart-legend.js';
-import { dateOnly } from '@/filters/date.js';
 import { i18n } from '@/i18n.js';
-import MkChartLegend from '@/components/MkChartLegend.vue';
-
-initChart();
 
 const props = defineProps<{
 	user: Misskey.entities.User;
 }>();
 
-const chartEl = useTemplateRef('chartEl');
-const legendEl = useTemplateRef('legendEl');
-const now = new Date();
-let chartInstance: Chart | null = null;
-let disposed = false;
 const chartLimit = 30;
-const fetching = ref(true);
+const series = shallowRef<ActivityBarSeries[] | null>(null);
+let disposed = false;
 
-const { handler: externalTooltipHandler } = useChartTooltip();
-
-async function renderChart() {
-	if (chartEl.value == null) return;
-
-	if (chartInstance) {
-		chartInstance.destroy();
-	}
-
-	const getDate = (ago: number) => {
-		const y = now.getFullYear();
-		const m = now.getMonth();
-		const d = now.getDate();
-
-		return new Date(y, m, d - ago);
-	};
-
-	const format = (arr: number[]) => {
-		return arr.map((v, i) => ({
-			x: getDate(i).getTime(),
-			y: v,
-		}));
-	};
-
+onMounted(async () => {
 	const raw = await misskeyApi('charts/user/pv', { userId: props.user.id, limit: chartLimit, span: 'day' });
-
-	if (disposed || chartEl.value == null) return;
-
-	const colorUser = '#3498db';
-	const colorVisitor = '#2ecc71';
-	const colorUser2 = '#3498db88';
-	const colorVisitor2 = '#2ecc7188';
-
-	function makeDataset(label: string, data: ChartDataset['data'], extra: Partial<ChartDataset> = {}): ChartDataset {
-		return Object.assign({
-			label: label,
-			data: data,
-			parsing: false,
-			pointRadius: 0,
-			borderWidth: 0,
-			borderJoinStyle: 'round',
-			borderRadius: 4,
-			barPercentage: 0.7,
-			categoryPercentage: 0.7,
-			fill: true,
-		/* @see <https://github.com/misskey-dev/misskey/pull/10365#discussion_r1155511107>
-		} satisfies ChartData, extra);
-		 */
-		}, extra);
-	}
-
-	chartInstance = new Chart(chartEl.value, {
-		type: 'bar',
-		data: {
-			datasets: [
-				makeDataset(i18n.ts._chartSeries.uniquePvUser, format(raw.upv.user).slice().reverse(), { backgroundColor: colorUser, stack: 'u' }),
-				makeDataset(i18n.ts._chartSeries.uniquePvVisitor, format(raw.upv.visitor).slice().reverse(), { backgroundColor: colorVisitor, stack: 'u' }),
-				makeDataset(i18n.ts._chartSeries.pvUser, format(raw.pv.user).slice().reverse(), { backgroundColor: colorUser2, stack: 'n' }),
-				makeDataset(i18n.ts._chartSeries.pvVisitor, format(raw.pv.visitor).slice().reverse(), { backgroundColor: colorVisitor2, stack: 'n' }),
-			],
-		},
-		options: {
-			aspectRatio: 3,
-			layout: {
-				padding: {
-					left: 0,
-					right: 8,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					type: 'time',
-					offset: true,
-					stacked: true,
-					time: {
-						unit: 'day',
-						displayFormats: {
-							day: 'M/d',
-							month: 'Y/M',
-						},
-					},
-					grid: {
-						display: false,
-					},
-					ticks: {
-						display: true,
-						maxRotation: 0,
-						autoSkipPadding: 8,
-					},
-				},
-				y: {
-					position: 'left',
-					stacked: true,
-					suggestedMax: 10,
-					grid: {
-						display: true,
-					},
-					ticks: {
-						display: true,
-						//mirror: true,
-					},
-				},
-			},
-			interaction: {
-				intersect: false,
-				mode: 'index',
-			},
-			plugins: {
-				title: {
-					display: true,
-					text: i18n.ts._chartSeries.profileViews,
-					padding: {
-						top: 0,
-						bottom: 12,
-					},
-				},
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					callbacks: {
-						// 日期跟随客户端语言 (Chart.js 的 date-fns 适配器默认固定 en-US 格式)
-						title(context) {
-							return dateOnly(context[0].parsed.x as number);
-						},
-					},
-					external: externalTooltipHandler,
-				},
-				...({ // TSを黙らすため
-					gradient,
-				}),
-			},
-		},
-		plugins: [chartVLine(), chartLegend(legendEl.value)],
-	});
-
-	fetching.value = false;
-}
-
-onMounted(() => {
-	renderChart();
+	if (disposed) return;
+	series.value = [
+		// 独立访客和总浏览各一组，登录用户用实色、访客用浅色。
+		{ name: i18n.ts._chartSeries.uniquePvUser, data: raw.upv.user, color: 0, stack: 'unique' },
+		{ name: i18n.ts._chartSeries.uniquePvVisitor, data: raw.upv.visitor, color: 0, stack: 'unique', light: true },
+		{ name: i18n.ts._chartSeries.pvUser, data: raw.pv.user, color: 1, stack: 'total' },
+		{ name: i18n.ts._chartSeries.pvVisitor, data: raw.pv.visitor, color: 1, stack: 'total', light: true },
+	];
 });
 
 onUnmounted(() => {
 	disposed = true;
-	chartInstance?.destroy();
 });
 </script>

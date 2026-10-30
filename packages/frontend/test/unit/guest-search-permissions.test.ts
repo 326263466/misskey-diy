@@ -22,22 +22,22 @@ beforeEach(() => {
 test.each(['local', 'all', 'none'])('open-mode search ignores saved %s legacy scope', async visibility => {
 	mocks.instance.ugcVisibilityForVisitor = visibility;
 	const permissions = await import('@/utility/check-permissions.js');
-	expect(permissions.notesSearchAvailable).toBe(true);
-	expect(permissions.usersSearchAvailable).toBe(true);
+	expect(permissions.notesSearchAvailable.value).toBe(true);
+	expect(permissions.usersSearchAvailable.value).toBe(true);
 });
 
 test.each([true, false])('signed-in search retains role permissions (%s)', async allowed => {
 	mocks.instance.ugcVisibilityForVisitor = 'none';
 	mocks.user = { policies: { canSearchNotes: allowed, canSearchUsers: allowed } };
 	const permissions = await import('@/utility/check-permissions.js');
-	expect(permissions.notesSearchAvailable).toBe(allowed);
-	expect(permissions.usersSearchAvailable).toBe(allowed);
+	expect(permissions.notesSearchAvailable.value).toBe(allowed);
+	expect(permissions.usersSearchAvailable.value).toBe(allowed);
 });
 
 test.each([undefined, false])('legacy mode (%s) retains each original visitor search policy', async enabled => {
 	mocks.instance.clientOptions.openGuestAccess = enabled;
 	mocks.instance.policies = { canSearchNotes: true, canSearchUsers: false };
 	const permissions = await import('@/utility/check-permissions.js');
-	expect(permissions.notesSearchAvailable).toBe(true);
-	expect(permissions.usersSearchAvailable).toBe(false);
+	expect(permissions.notesSearchAvailable.value).toBe(true);
+	expect(permissions.usersSearchAvailable.value).toBe(false);
 });

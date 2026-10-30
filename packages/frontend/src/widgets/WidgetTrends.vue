@@ -5,18 +5,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <MkContainer :showHeader="widgetProps.showHeader" data-testid="mkw-trends" class="mkw-trends">
-	<template #icon><i class="ti ti-hash"></i></template>
 	<template #header>{{ i18n.ts._widgets.trends }}</template>
 
-	<div class="wbrkwala">
-		<div v-if="fetching" class="placeholder" aria-busy="true">
+	<div class="wbrkwala _panelPadding">
+		<div v-if="fetching" aria-busy="true">
 			<div v-for="index in 5" :key="index" class="placeholderRow" aria-hidden="true"><span></span><span></span></div>
 		</div>
 		<TransitionGroup v-else tag="div" :name="prefer.s.animation ? 'chart' : ''" class="tags">
-			<MkA v-for="stat in stats" :key="stat.tag" class="row" :to="`/tags/${ encodeURIComponent(stat.tag) }`" :title="stat.tag">
+			<MkA v-for="(stat, index) in stats" :key="stat.tag" class="row" :class="{ top: index < 3 }" :to="`/tags/${ encodeURIComponent(stat.tag) }`" :title="stat.tag">
+				<span class="rank" aria-hidden="true">{{ index + 1 }}</span>
 				<div class="tag">
 					<span class="tagName">#{{ stat.tag }}</span>
-					<p>{{ i18n.tsx.nUsersMentioned({ n: stat.usersCount }) }}</p>
+					<p>{{ i18n.tsx.nUsersMentioned({ n: compactFormat.format(stat.totalUsersCount) }) }}</p>
 				</div>
 				<MkMiniChart class="chart" :src="stat.chart"/>
 			</MkA>
@@ -37,8 +37,10 @@ import { misskeyApiGet } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import { getVisibleTrends, mergeTrendsWithCache, readTrendsCache, saveTrendsCache } from '@/utility/trends-cache.js';
+import { numberFormat } from '@@/js/intl-const.js';
 
 const name = 'trends';
+const compactFormat = new Intl.NumberFormat(numberFormat.resolvedOptions().locale, { notation: 'compact', maximumFractionDigits: 1 });
 
 const widgetPropsDef = {
 	showHeader: {
@@ -87,13 +89,11 @@ defineExpose<WidgetComponentExpose>({
 </script>
 
 <style lang="scss" scoped>
-// 标题栏与卡片主体同为 panel 白，保持视觉一致
-.mkw-trends {
-	--MI-containerHeaderBg: var(--MI_THEME-panel);
-}
+// 固定为 5 行高度，加载和排名变化时卡片不跳动
+$rowHeight: 46px;
 
 .wbrkwala {
-	height: (54px + 1px) + (54px + 1px) + (54px + 1px) + (54px + 1px) + 54px;
+	height: calc(#{$rowHeight * 5} + var(--MI-cardPadding) * 2);
 	overflow: hidden;
 
 	> .tags {
@@ -104,8 +104,12 @@ defineExpose<WidgetComponentExpose>({
 		> .row {
 			display: flex;
 			align-items: center;
-			padding: 10px var(--MI-cardPadding, 18px);
-			border-bottom: var(--MI-divider);
+			gap: 10px;
+			height: $rowHeight;
+			box-sizing: border-box;
+			border-radius: var(--MI-cardRadius);
+			color: var(--MI_THEME-fg);
+			transition: background 0.15s ease;
 
 			&:hover {
 				text-decoration: none;
@@ -117,45 +121,57 @@ defineExpose<WidgetComponentExpose>({
 				outline-offset: -2px;
 			}
 
+			&.top > .rank {
+				color: var(--MI_THEME-accent);
+			}
+
+			> .rank {
+				flex-shrink: 0;
+				width: 16px;
+				font-size: 15px;
+				font-variant-numeric: tabular-nums;
+				text-align: center;
+				color: var(--MI_THEME-fgTransparentWeak);
+			}
+
 			> .tag {
 				flex: 1;
-				overflow: hidden;
-				font-size: 0.9em;
-				color: var(--MI_THEME-fg);
+				min-width: 0;
 
 				> .tagName {
 					display: block;
-					width: 100%;
-					white-space: nowrap;
 					overflow: hidden;
+					white-space: nowrap;
 					text-overflow: ellipsis;
-					line-height: 18px;
+					font-size: 1em;
+					line-height: 1.4;
 				}
 
 				> p {
 					margin: 0;
-					font-size: 75%;
-					color: var(--MI_THEME-fgTransparentWeak);
+					font-size: 12px;
 					line-height: 16px;
+					color: var(--MI_THEME-fgTransparentWeak);
 				}
 			}
 
 			> .chart {
-				height: 30px;
+				flex-shrink: 0;
+				height: 28px;
 			}
 		}
 	}
 }
 
 .placeholderRow {
-	height: 55px;
+	height: $rowHeight;
 	box-sizing: border-box;
-	padding: 12px var(--MI-cardPadding, 18px);
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
+	display: grid;
+	grid-template-columns: 16px minmax(0, 1fr);
+	align-content: center;
+	gap: 6px 10px;
 
-	> span { width: 55%; height: 10px; border-radius: var(--MI-cardRadius); background: var(--MI_THEME-panelHighlight); }
+	> span { grid-column: 2; width: 55%; height: 10px; border-radius: 5px; background: var(--MI_THEME-panelHighlight); }
 	> span + span { width: 35%; height: 8px; }
 }
 </style>

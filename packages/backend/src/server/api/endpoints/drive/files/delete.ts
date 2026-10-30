@@ -7,7 +7,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { DriveFilesRepository } from '@/models/_.js';
 import { DriveService } from '@/core/DriveService.js';
-import { DriveFileLifecycleService } from '@/core/DriveFileLifecycleService.js';
 import { DI } from '@/di-symbols.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '../../../error.js';
@@ -40,8 +39,9 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		fileId: { type: 'string', format: 'misskey:id' },
-		ifUnusedForRedPacket: { type: 'boolean', default: false, description: 'Skip deletion if any registered content or draft still references this file.' },
 	},
+	// 旧客户端的自动清理请求不能被当作手动删除。
+	not: { required: ['ifUnusedForRedPacket'] },
 	required: ['fileId'],
 } as const;
 
@@ -65,18 +65,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.accessDenied);
 			}
 
-			if (!ps.ifUnusedForRedPacket) {
-				await this.driveService.deleteFile(file, false, me);
-				return;
-			}
-
-			// 旧客户端会重试红包封面清理，不能将这种请求升级为手动删除。
-			try {
-				await this.driveService.deleteUnusedFile(file, me);
-			} catch (error) {
-				if (error instanceof DriveFileLifecycleService.FileInUseError || error instanceof DriveFileLifecycleService.FileDeletingError) return;
-				throw error;
-			}
+			await this.driveService.deleteFile(file, false, me);
 		});
 	}
 }

@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkA :to="item.to" :class="$style.item">
 				<span :class="$style.text">{{ item.text }}</span>
 				<span :class="$style.meta">
-					<MkAvatar :user="item.user" :class="$style.avatar" :link="false" :preview="false"/>
+					<MkAvatar :user="item.user" :class="$style.avatar" :link="false" :preview="false" imageOnly/>
 					<MkUserName :user="item.user" :class="$style.name"/>
 					<MkTime :time="item.createdAt" :class="$style.time"/>
 				</span>
@@ -88,15 +88,16 @@ watch(() => props.excludeId, async (excludeId, _previous, onCleanup) => {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	padding: 10px 12px;
+	padding: 10px calc(var(--MI-cardPadding) - var(--MI-marginHalf));
 	border-radius: var(--MI-radius);
 	color: var(--MI_THEME-fg);
 	text-decoration: none;
 	transition: background-color .15s ease;
 
+	// 与左侧菜单（MkSuperMenu）同一悬停底色。
 	&:hover {
 		text-decoration: none;
-		background: var(--MI_THEME-buttonHoverBg);
+		background: var(--MI_THEME-panelHighlight);
 
 		> .text { color: var(--MI_THEME-accent); }
 	}
@@ -104,15 +105,14 @@ watch(() => props.excludeId, async (excludeId, _previous, onCleanup) => {
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }
 
+// 标题只占一行，超出部分用省略号。
 .text {
-	display: -webkit-box;
 	overflow: hidden;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	font-size: .9em;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 1em;
 	line-height: 1.5;
-	font-weight: 600;
-	overflow-wrap: anywhere;
+	font-weight: normal;
 	transition: color .15s ease;
 }
 
@@ -122,7 +122,7 @@ watch(() => props.excludeId, async (excludeId, _previous, onCleanup) => {
 	gap: 6px;
 	min-width: 0;
 	color: var(--MI_THEME-fgTransparentWeak);
-	font-size: .8em;
+	font-size: .95em;
 }
 
 .avatar {

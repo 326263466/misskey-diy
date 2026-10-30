@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div>
 	<div>
 		<div class="_gaps_m">
-			<MkInput v-model="name" :counterMaxLength="100">
+			<MkInput v-model="name" :maxLength="Misskey.CONTENT_LIMITS.collectionName">
 				<template #label>{{ i18n.ts.name }}</template>
 			</MkInput>
 			<MkSelect v-model="src" :items="antennaSourcesSelectDef">
@@ -123,7 +123,7 @@ const {
 });
 
 const name = ref<string>(initialAntenna.name);
-const validName = computed(() => name.value.trim() !== '' && Array.from(name.value).length <= 100);
+const validName = computed(() => name.value.trim() !== '' && (initialAntenna.id != null && name.value === initialAntenna.name || Array.from(name.value).length <= Misskey.CONTENT_LIMITS.collectionName));
 const users = ref<string>(initialAntenna.users.join('\n'));
 const keywords = ref<string>(initialAntenna.keywords.map(x => x.join(' ')).join('\n'));
 const excludeKeywords = ref<string>(initialAntenna.excludeKeywords.map(x => x.join(' ')).join('\n'));
@@ -160,9 +160,11 @@ async function saveAntenna() {
 
 	if (initialAntenna.id == null) {
 		const res = await os.apiWithDialog('antennas/create', antennaData);
+		os.toast(i18n.ts.created, 'success');
 		emit('created', res);
 	} else {
 		const res = await os.apiWithDialog('antennas/update', { ...antennaData, antennaId: initialAntenna.id });
+		os.toast(i18n.ts.saved, 'success');
 		emit('updated', res);
 	}
 }
@@ -176,11 +178,12 @@ async function deleteAntenna() {
 	});
 	if (canceled) return;
 
-	await misskeyApi('antennas/delete', {
+	// 失败提示由 apiWithDialog 处理
+	await os.apiWithDialog('antennas/delete', {
 		antennaId: initialAntenna.id,
 	});
 
-	os.success();
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 	emit('deleted');
 }
 

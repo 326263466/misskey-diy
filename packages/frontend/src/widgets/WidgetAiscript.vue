@@ -11,7 +11,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="uylguesu _monospace">
 		<div class="input">
 			<textarea v-model="widgetProps.script" placeholder="(1 + 1)"></textarea>
-			<span class="_inputCounter">{{ widgetProps.script.length }}</span>
 		</div>
 		<button class="_buttonPrimary" @click="run">{{ i18n.ts._aiscript.run }}</button>
 		<div class="logs">

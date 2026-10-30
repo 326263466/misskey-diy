@@ -4,6 +4,8 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_LIMITS } from 'misskey-js';
+import { contentTooLongError, isContentTooLong } from '@/misc/content-limits.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import type { AntennasRepository, UserListsRepository } from '@/models/_.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
@@ -21,6 +23,7 @@ export const meta = {
 	kind: 'write:account',
 
 	errors: {
+		contentTooLong: { ...contentTooLongError, id: '5481da7c-4e4b-45cd-b0c8-4661452b9841' },
 		noSuchAntenna: {
 			message: 'No such antenna.',
 			code: 'NO_SUCH_ANTENNA',
@@ -51,7 +54,7 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		antennaId: { type: 'string', format: 'misskey:id' },
-		name: { type: 'string', minLength: 1, maxLength: 100 },
+		name: { type: 'string', minLength: 1 },
 		src: { type: 'string', enum: ['home', 'all', 'users', 'list', 'users_blacklist'] },
 		userListId: { type: 'string', format: 'misskey:id', nullable: true },
 		keywords: { type: 'array', items: {
@@ -103,6 +106,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (antenna == null) {
 				throw new ApiError(meta.errors.noSuchAntenna);
+			}
+			if (isContentTooLong(ps.name, CONTENT_LIMITS.collectionName, antenna.name)) {
+				throw new ApiError(meta.errors.contentTooLong);
 			}
 
 			let userList;

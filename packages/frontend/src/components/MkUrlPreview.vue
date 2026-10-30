@@ -27,9 +27,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 </template>
 <template v-else-if="tweetId && tweetExpanded">
-	<div ref="twitter">
+	<div>
 		<iframe
-			ref="tweet"
 			allow="fullscreen;web-share"
 			sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin"
 			scrolling="no"
@@ -46,19 +45,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div v-else>
 	<component :is="self ? 'MkA' : 'a'" :class="[$style.link, { [$style.compact]: compact }]" :[attr]="maybeRelativeUrl" rel="nofollow noopener" :target="target" :title="url" @click="confirmExternalLink" @auxclick="confirmExternalLink">
 		<div v-if="thumbnail && !sensitive" class="_imageContainer" :class="$style.thumbnail">
-			<img v-if="!prefer.s.dataSaver.urlPreviewThumbnail" class="_imageBackground" :src="thumbnail" alt="" style="object-fit: contain;"/>
+			<img v-if="!prefer.s.dataSaver.urlPreviewThumbnail" class="_imageBackground" :src="thumbnail" alt=""/>
 		</div>
 		<article :class="$style.body">
-			<header :class="$style.header">
-				<h1 v-if="fetching" :class="$style.title"><MkEllipsis/></h1>
-				<h1 v-else :class="$style.title" :title="title">{{ title }}</h1>
-			</header>
-			<p v-if="fetching" :class="$style.text"><MkEllipsis/></p>
-			<p v-else :class="$style.text" :title="description">{{ description }}</p>
 			<footer :class="$style.footer">
-				<img v-if="icon" :class="$style.siteIcon" :src="icon" alt=""/>
+				<span :class="$style.siteBadge" aria-hidden="true">
+					<img v-if="icon" :class="$style.siteIcon" :src="icon" alt=""/>
+					<i v-else class="ti ti-world"></i>
+				</span>
 				<p :class="$style.siteName" :title="siteAddress">{{ siteAddress }}</p>
+				<i class="ti ti-arrow-up-right" :class="$style.externalIcon" aria-hidden="true"></i>
 			</footer>
+			<div :class="$style.copy">
+				<header :class="$style.header">
+					<h1 v-if="fetching" :class="$style.title"><MkEllipsis/></h1>
+					<h1 v-else :class="$style.title" :title="title">{{ title }}</h1>
+				</header>
+				<p v-if="fetching" :class="$style.text"><MkEllipsis/></p>
+				<p v-else :class="$style.text" :title="description">{{ description }}</p>
+			</div>
 		</article>
 	</component>
 	<template v-if="showActions">
@@ -89,6 +94,7 @@ import * as os from '@/os.js';
 import { deviceKind } from '@/utility/device-kind.js';
 import MkButton from '@/components/MkButton.vue';
 import { transformPlayerUrl } from '@/utility/url-preview.js';
+import { getUrlPreviewRequestUrl, getUrlPreviewTitle, urlPreviewCache } from '@/utility/url-preview-cache.js';
 import { store } from '@/store.js';
 import { prefer } from '@/preferences.js';
 import { maybeMakeRelative } from '@@/js/url.js';
@@ -114,14 +120,10 @@ const attr = self ? 'to' : 'href';
 const target = self ? null : '_blank';
 const requestUrl = new URL(props.url, window.location.href);
 const siteAddress = requestUrl.host;
+const previewRequestUrl = getUrlPreviewRequestUrl(requestUrl);
 const fetching = ref(true);
 const summalyResult = ref<SummalyResult | null>(null);
-const title = computed(() => {
-	const value = summalyResult.value?.title?.trim();
-	// 部分预览服务把地址当作标题，避免在地址行和标题行重复显示。
-	return value && ![props.url, requestUrl.href, siteAddress, summalyResult.value?.url].includes(value)
-		? value : i18n.ts.urlPreviewFallbackTitle;
-});
+const title = computed(() => getUrlPreviewTitle(summalyResult.value, props.url) ?? i18n.ts.urlPreviewFallbackTitle);
 const description = computed(() => summalyResult.value?.description?.trim() || i18n.ts.urlPreviewFallbackDescription);
 const thumbnail = computed(() => summalyResult.value?.thumbnail ?? null);
 const icon = computed(() => summalyResult.value?.icon ?? null);
@@ -144,38 +146,23 @@ if (requestUrl.hostname === 'twitter.com' || requestUrl.hostname === 'mobile.twi
 	if (m) tweetId.value = m[1];
 }
 
-if (requestUrl.hostname === 'music.youtube.com' && requestUrl.pathname.match('^/(?:watch|channel)')) {
-	requestUrl.hostname = 'www.youtube.com';
-}
-
-requestUrl.hash = '';
-
 let disposed = false;
-const requestController = new AbortController();
-const requestTimeout = window.setTimeout(() => requestController.abort(), 30000);
+const cachedPreview = urlPreviewCache.get(previewRequestUrl, versatileLang);
+if (cachedPreview) {
+	summalyResult.value = cachedPreview;
+	fetching.value = false;
+}
+const previewRequest = cachedPreview ? null : urlPreviewCache.request(previewRequestUrl, versatileLang);
 
-window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLang}`, { signal: requestController.signal, cache: 'no-cache' })
-	.then(res => {
-		if (!res.ok) {
-			if (_DEV_) {
-				console.warn(`[HTTP${res.status}] Failed to fetch url preview`);
-			}
-			return null;
-		}
-
-		return res.json();
-	})
+previewRequest?.promise
 	.then((info: SummalyResult | null) => {
 		if (disposed) return;
 		fetching.value = false;
-		summalyResult.value = info ? { ...info, url: info.url ?? requestUrl.href } : null;
+		summalyResult.value = info;
 	})
 	.catch(() => {
 		if (disposed) return;
 		fetching.value = false;
-	})
-	.finally(() => {
-		window.clearTimeout(requestTimeout);
 	});
 
 function adjustTweetHeight(message: MessageEvent) {
@@ -203,8 +190,7 @@ window.addEventListener('message', adjustTweetHeight);
 
 onUnmounted(() => {
 	disposed = true;
-	window.clearTimeout(requestTimeout);
-	requestController.abort();
+	previewRequest?.release();
 	window.removeEventListener('message', adjustTweetHeight);
 });
 </script>
@@ -213,24 +199,6 @@ onUnmounted(() => {
 .player {
 	position: relative;
 	width: 100%;
-}
-
-.disablePlayer {
-	position: absolute;
-	top: -1.5em;
-	right: 0;
-	font-size: 1em;
-	width: 1.5em;
-	height: 1.5em;
-	padding: 0;
-	margin: 0;
-	color: var(--MI_THEME-fgTransparentWeak);
-	background: var(--MI_THEME-buttonBg);
-
-	&:hover {
-		color: var(--MI_THEME-fgHighlighted);
-		background: var(--MI_THEME-buttonHoverBg);
-	}
 }
 
 .playerIframe {
@@ -243,57 +211,110 @@ onUnmounted(() => {
 
 .link {
 	position: relative;
-	display: flex;
-	flex-direction: row-reverse;
-	align-items: stretch;
-	gap: 12px;
-	padding: 6px 8px;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	margin-block: var(--MI-urlPreviewMarginBlock, 4px);
+	padding: 0;
 	font-size: 14px;
 	line-height: 1.4;
-	border-left: 4px solid var(--MI_THEME-accent);
-	background: var(--MI_THEME-accentedBg);
-	border-radius: calc(var(--MI-radius) / 3);
+	border: var(--MI-dividerWidth) solid color-mix(in srgb, var(--MI_THEME-accent) 20%, var(--MI_THEME-divider)); // divider-exempt: accent-mixed card border
+	border-radius: calc(var(--MI-radius) * .82);
+	background:
+		linear-gradient(135deg, color-mix(in srgb, var(--MI_THEME-accent) 6%, var(--MI_THEME-panelHighlight)), var(--MI_THEME-panelHighlight) 58%),
+		var(--MI_THEME-panelHighlight);
 	overflow: clip;
 	text-align: left;
+	isolation: isolate;
 
-	// 卡片整体可点击，悬停只改变标题颜色，不显示下划线。
-	&:hover {
-		text-decoration: none;
-
-		> .body > .header > .title {
-			color: var(--MI_THEME-accent);
-		}
+	&::before {
+		content: '';
+		position: absolute;
+		inset: 13px auto 13px 0;
+		width: 3px;
+		border-radius: 0 999px 999px 0;
+		background: color-mix(in srgb, var(--MI_THEME-accent) 74%, var(--MI_THEME-divider)); // divider-exempt: accent bar
 	}
 
 	&.compact {
+		> .thumbnail {
+			width: 104px;
+			min-height: 72px;
+		}
+
 		> .body {
-			> .header .title, .footer {
+			> .copy > .header > .title {
+				display: block;
 				overflow: hidden;
 				white-space: nowrap;
 				text-overflow: ellipsis;
+			}
+
+			> .copy > .text {
+				-webkit-line-clamp: 1;
 			}
 		}
 	}
 }
 
 .thumbnail {
+	grid-column: 2;
+	grid-row: 1;
 	flex: none;
-	width: 100px;
-	height: auto;
-	border-radius: calc(var(--MI-radius) / 3);
+	align-self: stretch;
+	position: relative;
+	width: 136px;
+	min-height: 84px;
+	border-left: var(--MI-dividerWidth) solid color-mix(in srgb, var(--MI_THEME-accent) 14%, var(--MI_THEME-divider)); // divider-exempt: accent-mixed media divider
+	// 与帖子图片同样的斜纹底，透明或不铺满的图片也能看出图片区域。
 	background-color: var(--MI_THEME-bg);
+	background-size: 16px 16px;
 	display: flex;
 	justify-content: center;
 	align-items: center;
+
+	&::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		pointer-events: none;
+		background: linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--MI_THEME-panelHighlight) 38%, transparent),
+			transparent 32%
+		);
+	}
+}
+
+html[data-color-scheme=dark] .thumbnail {
+	--c: rgb(255 255 255 / 2%);
+	background-image: linear-gradient(45deg, var(--c) 16.67%, var(--MI_THEME-bg) 16.67%, var(--MI_THEME-bg) 50%, var(--c) 50%, var(--c) 66.67%, var(--MI_THEME-bg) 66.67%, var(--MI_THEME-bg) 100%);
+}
+
+html[data-color-scheme=light] .thumbnail {
+	--c: rgb(0 0 0 / 2%);
+	background-image: linear-gradient(45deg, var(--c) 16.67%, var(--MI_THEME-bg) 16.67%, var(--MI_THEME-bg) 50%, var(--c) 50%, var(--c) 66.67%, var(--MI_THEME-bg) 66.67%, var(--MI_THEME-bg) 100%);
 }
 
 .body {
+	grid-column: 1;
+	grid-row: 1;
 	display: flex;
 	flex-direction: column;
+	gap: 5px;
 	flex: 1;
 	min-width: 0;
+	justify-content: center;
+	padding: 11px 14px 11px 18px;
 	box-sizing: border-box;
 	overflow-wrap: anywhere;
+}
+
+.copy {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
 }
 
 .header {
@@ -302,7 +323,14 @@ onUnmounted(() => {
 
 .title {
 	margin: 0;
-	font-size: 1em;
+	font-size: 1.02em;
+	font-weight: 700;
+	line-height: 1.45;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+	color: var(--MI_THEME-fgHighlighted);
 }
 
 .text {
@@ -312,36 +340,63 @@ onUnmounted(() => {
 	overflow: hidden;
 	margin: 0;
 	color: var(--MI_THEME-fgTransparent);
-	font-size: 1em;
-	line-height: 1.4;
+	font-size: .9em;
+	line-height: 1.5;
 }
 
 .footer {
-	order: -1;
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 7px;
+	min-width: 0;
 	margin: 0;
+	color: var(--MI_THEME-fgTransparentWeak);
+}
+
+.siteBadge {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 20px;
+	height: 20px;
+	box-sizing: border-box;
+	border: 1px solid color-mix(in srgb, var(--MI_THEME-accent) 22%, transparent);
+	border-radius: 7px;
 	color: var(--MI_THEME-accent);
+	background: linear-gradient(
+		145deg,
+		color-mix(in srgb, var(--MI_THEME-accent) 17%, var(--MI_THEME-panel)),
+		color-mix(in srgb, var(--MI_THEME-accent) 7%, var(--MI_THEME-panel))
+	);
+
+	> i {
+		font-size: 14px;
+	}
 }
 
 .siteIcon {
-	display: inline-block;
+	display: block;
 	width: 16px;
 	height: 16px;
 	flex: none;
-	vertical-align: top;
+	object-fit: contain;
 }
 
 .siteName {
+	flex: 1;
 	min-width: 0;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
 	margin: 0;
-	font-size: 1em;
+	font-size: .82em;
 	line-height: 1.4;
-	vertical-align: top;
+}
+
+.externalIcon {
+	flex: none;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: 14px;
 }
 
 .action {
@@ -357,7 +412,12 @@ onUnmounted(() => {
 	}
 
 	.thumbnail {
-		width: 80px;
+		width: 122px;
+		min-height: 78px;
+	}
+
+	.body {
+		padding: 9px 10px 9px 15px;
 	}
 }
 
@@ -367,18 +427,29 @@ onUnmounted(() => {
 
 		&.compact {
 			> .thumbnail {
-				width: 56px;
+				width: 68px;
 			}
 		}
 	}
 
 	.thumbnail {
-		width: 70px;
+		width: 88px;
+		min-height: 66px;
 	}
 
 	.siteIcon {
 		width: 12px;
 		height: 12px;
 	}
+
+	.siteBadge {
+		width: 18px;
+		height: 18px;
+	}
+
+	.externalIcon {
+		display: none;
+	}
 }
+
 </style>

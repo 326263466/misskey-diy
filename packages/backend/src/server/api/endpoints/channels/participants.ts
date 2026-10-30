@@ -23,7 +23,7 @@ export const meta = {
 		max: 30,
 	},
 
-	description: 'List users who have posted in the channel, most recently joined (first post) first.',
+	description: 'List users who have posted in the channel, most recently active (latest post) first.',
 
 	res: {
 		type: 'array',
@@ -73,15 +73,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			// 频道帖子总是公开的，这里只列出发帖人，不涉及关注关系。
-			// 以首次发帖时间作为加入时间，最近加入的排在前面。
+			// 按最近一次发帖排序，与“最近参与”一致；删帖后按剩余帖子重新计算。
 			const rows = await this.channelEntityService.makeParticipantsQuery(channel.id)
 				.select('note.userId', 'userId')
-				.addSelect('MIN(note.id)', 'firstNoteId')
+				.addSelect('MAX(note.id)', 'lastNoteId')
 				.groupBy('note.userId')
-				.orderBy('"firstNoteId"', 'DESC')
+				.orderBy('"lastNoteId"', 'DESC')
 				.limit(ps.limit)
 				.offset(ps.offset)
-				.getRawMany<{ userId: string; firstNoteId: string }>();
+				.getRawMany<{ userId: string; lastNoteId: string }>();
 
 			if (rows.length === 0) return [];
 

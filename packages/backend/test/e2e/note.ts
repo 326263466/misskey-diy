@@ -897,6 +897,77 @@ describe('Note', () => {
 			assert.strictEqual(note1.status, 400);
 		});
 
+		test('禁止ワードに指定したドメインはURL中でパーセントエンコードされていてもエラーになる', async () => {
+			const prohibited = await api('admin/update-meta', {
+				prohibitedWords: [
+					'banned.example',
+				],
+			}, root);
+
+			assert.strictEqual(prohibited.status, 204);
+
+			await new Promise(x => setTimeout(x, 2));
+
+			const note1 = await api('notes/create', {
+				text: 'hoge https://%62anned.example/ huge',
+			}, alice);
+
+			assert.strictEqual(note1.status, 400);
+			assert.strictEqual(castAsError(note1.body).error.code, 'CONTAINS_PROHIBITED_WORDS');
+
+			const note2 = await api('notes/create', {
+				text: 'hoge <https://ｂａｎｎｅｄ．example/> huge',
+			}, alice);
+
+			assert.strictEqual(note2.status, 400);
+			assert.strictEqual(castAsError(note2.body).error.code, 'CONTAINS_PROHIBITED_WORDS');
+		});
+
+		test('禁止ワードはURLのパス以降でパーセントエンコードされていてもエラーになる', async () => {
+			const prohibited = await api('admin/update-meta', {
+				prohibitedWords: [
+					'禁止パス',
+				],
+			}, root);
+
+			assert.strictEqual(prohibited.status, 204);
+
+			await new Promise(x => setTimeout(x, 2));
+
+			const note1 = await api('notes/create', {
+				text: 'hoge https://example.com/%E7%A6%81%E6%AD%A2%E3%83%91%E3%82%B9 huge',
+			}, alice);
+
+			assert.strictEqual(note1.status, 400);
+			assert.strictEqual(castAsError(note1.body).error.code, 'CONTAINS_PROHIBITED_WORDS');
+
+			const note2 = await api('notes/create', {
+				text: 'hoge https://example.com/?q=%E7%A6%81%E6%AD%A2%E3%83%91%E3%82%B9 huge',
+			}, alice);
+
+			assert.strictEqual(note2.status, 400);
+			assert.strictEqual(castAsError(note2.body).error.code, 'CONTAINS_PROHIBITED_WORDS');
+		});
+
+		test('センシティブワードに指定したドメインはURL中でパーセントエンコードされていてもhomeになる', async () => {
+			const sensitive = await api('admin/update-meta', {
+				sensitiveWords: [
+					'sensitive.example',
+				],
+			}, root);
+
+			assert.strictEqual(sensitive.status, 204);
+
+			await new Promise(x => setTimeout(x, 2));
+
+			const note1 = await api('notes/create', {
+				text: 'hoge https://%73ensitive.example/ huge',
+			}, alice);
+
+			assert.strictEqual(note1.status, 200);
+			assert.strictEqual(note1.body.createdNote.visibility, 'home');
+		});
+
 		test('メンションの数が上限を超えるとエラーになる', async () => {
 			const res = await api('admin/roles/create', {
 				name: 'test',
@@ -1122,7 +1193,49 @@ describe('Note', () => {
 		});
 	});
 
+	describe('notes/search-by-tag input limits', () => {
+		test.each([
+			{ tag: 'x'.repeat(129) },
+			{ query: [['x'.repeat(129)]] },
+			{ tag: 'x'.repeat(129), query: [['valid']] },
+			{ tag: 'valid', query: [['x'.repeat(129)]] },
+		])('rejects oversized tag input: %j', async params => {
+			const result = await api('notes/search-by-tag', params, alice);
+			assert.strictEqual(result.status, 400);
+			assert.strictEqual(castAsError(result.body).error.code, 'INVALID_PARAM');
+		});
+
+		test.each([
+			{ tag: 'x'.repeat(128) },
+			{ tag: '\u{1F680}'.repeat(128) },
+			{ query: [['x'.repeat(128)]] },
+			{ tag: 'valid', query: [['valid']] },
+		])('accepts valid tag input: %j', async params => {
+			assert.strictEqual((await api('notes/search-by-tag', params, alice)).status, 200);
+		});
+	});
+
 	describe('notes/update', () => {
+		test('rejects encoded prohibited and sensitive URLs when editing a public post', async () => {
+			const note = await post(alice, { text: 'editable public post' });
+			try {
+				assert.strictEqual((await api('admin/update-meta', { prohibitedWords: ['banned.example'], sensitiveWords: ['sensitive.example'] }, root)).status, 204);
+				await new Promise(resolve => setTimeout(resolve, 2));
+
+				for (const [text, code] of [
+					['https://%62anned.example/', 'CONTAINS_PROHIBITED_WORDS'],
+					['https://%73ensitive.example/', 'CONTAINS_SENSITIVE_WORDS'],
+				]) {
+					const updated = await api('notes/update', { noteId: note.id, text }, alice);
+					assert.strictEqual(updated.status, 400);
+					assert.strictEqual(castAsError(updated.body).error.code, code);
+				}
+				assert.strictEqual((await Notes.findOneByOrFail({ id: note.id })).text, note.text);
+			} finally {
+				await api('admin/update-meta', { prohibitedWords: [], sensitiveWords: [] }, root);
+			}
+		});
+
 		test('edits a post in place while keeping reactions, votes and replies', async () => {
 			const note = await post(alice, { text: 'original post', poll: { choices: ['one', 'two'] } });
 			const child = await post(bob, { text: 'existing comment', replyId: note.id });

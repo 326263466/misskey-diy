@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" :class="$style.adminScope" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true">
 	<div v-if="instance" class="_pageBody">
 		<div v-if="tab === 'overview'" class="_gaps_m">
 			<div :class="$style.faviconAndName">
@@ -101,11 +101,67 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 		<div v-else-if="tab === 'users'" class="_gaps_m">
-			<MkPagination v-slot="{ items }" :paginator="usersPaginator">
-				<div :class="$style.users">
-					<MkA v-for="user in items" :key="user.id" :to="`/admin/user/${user.id}`">
-						<MkUserCardMini :user="user" :subTooltip="`${i18n.ts.lastPostedAt}: ${user.updatedAt ? dateString(user.updatedAt) : i18n.ts.unknown}`"/>
-					</MkA>
+			<MkPagination v-slot="{ items }" :paginator="usersPaginator" paged>
+				<div class="_adminTableContainer" tabindex="0" :aria-label="i18n.ts.users">
+					<table class="_adminTable" :class="$style.usersTable">
+						<colgroup>
+							<col :class="$style.userColumn"/>
+							<col :class="$style.descriptionColumn"/>
+							<col :class="$style.statisticsColumn"/>
+							<col :class="$style.dateColumn"/>
+							<col :class="$style.dateColumn"/>
+							<col :class="$style.stateColumn"/>
+							<col :class="$style.actionsColumn"/>
+						</colgroup>
+						<thead>
+							<tr>
+								<th scope="col">{{ i18n.ts.user }}</th>
+								<th scope="col">{{ i18n.ts.description }}</th>
+								<th scope="col">{{ i18n.ts._adminUser.statistics }}</th>
+								<th scope="col">{{ i18n.ts.registeredDate }}</th>
+								<th scope="col" :title="i18n.ts._adminUser.lastPostedAtDescription">{{ i18n.ts.lastPostedAt }}</th>
+								<th scope="col">{{ i18n.ts.state }}</th>
+								<th scope="col" class="_adminTableActions">{{ i18n.ts.operations }}</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr v-for="user in items" :key="user.id">
+								<td>
+									<MkA :to="`/admin/user/${user.id}`" behavior="window" class="_adminTableIdentity" :class="$style.userIdentity">
+										<MkAvatar :user="user" class="_adminTableAvatar" :class="$style.userAvatar" indicator/>
+										<div>
+											<div :class="$style.ellipsis"><MkUserName :user="user" :nowrap="true"/></div>
+											<div class="_adminTableSecondary _monospace" :class="$style.ellipsis" :title="`@${acct(user)}`">@{{ acct(user) }}</div>
+										</div>
+									</MkA>
+									<div class="_adminTableSecondary _monospace _selectable" :class="$style.ellipsis" :title="`${i18n.ts.userId}: ${user.id}`">{{ user.id }}</div>
+								</td>
+								<td>
+									<div v-if="user.description" :class="$style.description" :title="user.description"><Mfm :text="user.description" :author="user" :plain="true"/></div>
+									<span v-else class="_adminTableSecondary">{{ i18n.ts.noAccountDescription }}</span>
+								</td>
+								<td>
+									<div :class="$style.statistics">
+										<div><span>{{ i18n.ts.notes }}</span><b>{{ number(user.notesCount) }}</b></div>
+										<div><span>{{ i18n.ts.following }}</span><b>{{ number(user.followingCount) }}</b></div>
+										<div><span>{{ i18n.ts.followers }}</span><b>{{ number(user.followersCount) }}</b></div>
+									</div>
+								</td>
+								<td><MkTime :time="user.createdAt" mode="date"/><div class="_adminTableSecondary"><MkTime :time="user.createdAt"/></div></td>
+								<td>
+									<template v-if="user.updatedAt"><MkTime :key="user.updatedAt" :time="user.updatedAt" mode="date"/><div class="_adminTableSecondary"><MkTime :key="user.updatedAt" :time="user.updatedAt"/></div></template>
+									<span v-else class="_adminTableSecondary">{{ i18n.ts.unknown }}</span>
+								</td>
+								<td>
+									<span v-if="user.isSuspended" class="_adminTableStatus" style="--admin-statusColor: var(--MI_THEME-error)">{{ i18n.ts._userStatus.suspended }}</span>
+									<span v-else-if="user.isSilenced" class="_adminTableStatus" style="--admin-statusColor: var(--MI_THEME-warn)">{{ i18n.ts._userStatus.silenced }}</span>
+									<span v-else class="_adminTableStatus" style="--admin-statusColor: var(--MI_THEME-success)">{{ i18n.ts.normal }}</span>
+									<div v-if="user.isBot || user.isLocked" :class="$style.accountFlags"><i v-if="user.isBot" class="ti ti-robot" role="img" :aria-label="i18n.ts._role._condition.isBot" :title="i18n.ts._role._condition.isBot"></i><i v-if="user.isLocked" class="ti ti-lock" role="img" :aria-label="i18n.ts._role._condition.isLocked" :title="i18n.ts._role._condition.isLocked"></i></div>
+								</td>
+								<td class="_adminTableActions"><MkA :to="`/admin/user/${user.id}`" behavior="window" class="_textButton">{{ i18n.ts.details }}</MkA></td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 			</MkPagination>
 		</div>
@@ -120,7 +176,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { ref, computed, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
-import type { ChartSrc } from '@/components/MkChart.vue';
+import { acct } from '@@/js/user.js';
 import MkChart from '@/components/MkChart.vue';
 import MkObjectView from '@/components/MkObjectView.vue';
 import FormLink from '@/components/form/link.vue';
@@ -132,14 +188,13 @@ import MkSelect from '@/components/MkSelect.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import number from '@/filters/number.js';
 import { iAmModerator, iAmAdmin } from '@/i.js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
-import MkUserCardMini from '@/components/MkUserCardMini.vue';
 import MkPagination from '@/components/MkPagination.vue';
 import { getProxiedImageUrlNullable } from '@/utility/media-proxy.js';
-import { dateString } from '@/filters/date.js';
 import { useMkSelect } from '@/composables/use-mkselect.js';
 import MkModerationNote from '@/components/MkModerationNote.vue';
 import { Paginator } from '@/utility/paginator.js';
@@ -218,6 +273,13 @@ async function _fetch_(): Promise<void> {
 	moderationNote.value = instance.value?.moderationNote ?? '';
 }
 
+// 开关不提示；失败时还原开关
+function onToggleError(target: { value: boolean }) {
+	return () => {
+		target.value = !target.value;
+	};
+}
+
 async function toggleBlock(): Promise<void> {
 	if (!iAmAdmin) return;
 	if (!meta.value) throw new Error('No meta?');
@@ -225,7 +287,7 @@ async function toggleBlock(): Promise<void> {
 	const { host } = instance.value;
 	await misskeyApi('admin/update-meta', {
 		blockedHosts: isBlocked.value ? meta.value.blockedHosts.concat([host]) : meta.value.blockedHosts.filter(x => x !== host),
-	});
+	}).catch(onToggleError(isBlocked));
 }
 
 async function toggleSilenced(): Promise<void> {
@@ -236,7 +298,7 @@ async function toggleSilenced(): Promise<void> {
 	const silencedHosts = meta.value.silencedHosts ?? [];
 	await misskeyApi('admin/update-meta', {
 		silencedHosts: isSilenced.value ? silencedHosts.concat([host]) : silencedHosts.filter(x => x !== host),
-	});
+	}).catch(onToggleError(isSilenced));
 }
 
 async function toggleMediaSilenced(): Promise<void> {
@@ -247,38 +309,48 @@ async function toggleMediaSilenced(): Promise<void> {
 	const mediaSilencedHosts = meta.value.mediaSilencedHosts ?? [];
 	await misskeyApi('admin/update-meta', {
 		mediaSilencedHosts: isMediaSilenced.value ? mediaSilencedHosts.concat([host]) : mediaSilencedHosts.filter(x => x !== host),
-	});
+	}).catch(onToggleError(isMediaSilenced));
 }
 
 async function stopDelivery(): Promise<void> {
 	if (!iAmModerator) return;
 	if (!instance.value) throw new Error('No instance?');
+	const previous = suspensionState.value;
 	suspensionState.value = 'manuallySuspended';
 	await misskeyApi('admin/federation/update-instance', {
 		host: instance.value.host,
 		isSuspended: true,
+	}).catch(error => {
+		// 按钮状态即为成功反馈；失败时还原并提示
+		suspensionState.value = previous;
+		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
 	});
 }
 
 async function resumeDelivery(): Promise<void> {
 	if (!iAmModerator) return;
 	if (!instance.value) throw new Error('No instance?');
+	const previous = suspensionState.value;
 	suspensionState.value = 'none';
 	await misskeyApi('admin/federation/update-instance', {
 		host: instance.value.host,
 		isSuspended: false,
+	}).catch(error => {
+		// 按钮状态即为成功反馈；失败时还原并提示
+		suspensionState.value = previous;
+		if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
 	});
 }
 
 function refreshMetadata(): void {
 	if (!iAmModerator) return;
 	if (!instance.value) throw new Error('No instance?');
-	misskeyApi('admin/federation/refresh-remote-instance-metadata', {
+	// 失败提示由 apiWithDialog 处理
+	os.apiWithDialog('admin/federation/refresh-remote-instance-metadata', {
 		host: instance.value.host,
-	});
-	os.alert({
-		text: i18n.ts._instanceInfo.refreshRequested,
-	});
+	}).then(() => {
+		os.toast(i18n.ts._instanceInfo.refreshRequested, 'success');
+	}, () => {});
 }
 
 _fetch_();
@@ -316,6 +388,10 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+@use './admin/table.scss' as admin-table;
+
+@include admin-table.styles;
+
 .faviconAndName {
 	display: flex;
 	align-items: center;
@@ -337,9 +413,44 @@ definePage(() => ({
 	margin-bottom: 12px;
 	font-weight: bold;
 }
-.users {
+.usersTable {
+	table-layout: fixed;
+	min-width: 1120px;
+}
+.userColumn { width: 220px; }
+.descriptionColumn { width: 220px; }
+.statisticsColumn { width: 160px; }
+.dateColumn { width: 150px; }
+.stateColumn { width: 120px; }
+.actionsColumn { width: 100px; }
+.userIdentity { min-width: 0; }
+.userAvatar { width: 32px; height: 32px; }
+.ellipsis {
+	display: block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.description {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	word-break: break-word;
+}
+.statistics {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
-	grid-gap: 12px;
+	gap: 3px;
+
+	> div { display: flex; justify-content: space-between; gap: 8px; }
+	span { color: var(--MI_THEME-fgTransparentWeak); }
+	b { font-weight: 500; font-variant-numeric: tabular-nums; }
+}
+.accountFlags {
+	display: flex;
+	gap: 8px;
+	margin-top: 6px;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 </style>

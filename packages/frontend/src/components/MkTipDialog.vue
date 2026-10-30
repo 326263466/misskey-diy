@@ -4,68 +4,57 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkModalWindow ref="dialogEl" :width="400" :height="520" autoHeight :closeOnBackdrop="false" :closeButtonRight="true" headerIcon="ti ti-heart-handshake" @close="dismiss" @closed="emit('closed')">
+<MkModalWindow ref="dialogEl" :width="360" :height="440" autoHeight :closeOnBackdrop="false" :closeButtonRight="true" headerIcon="ti ti-heart-handshake" @close="dismiss" @closed="onClosed">
 	<template #header>{{ i18n.ts._tip.title }}</template>
-	<form class="_gaps_s" :class="$style.body" @submit.prevent="send">
-		<div class="_gaps_s">
-			<div :class="$style.recipient">
-				<MkAvatar :user="recipient" :link="false" :class="$style.avatar"/>
-				<div :class="$style.identity">
-					<strong :class="$style.recipientName">{{ i18n.ts._tip.recipient }} <MkUserName :user="recipient"/></strong>
-					<MkAcct :user="recipient" :class="$style.caption"/>
-				</div>
-			</div>
-			<p v-if="balance != null" :class="$style.caption">{{ i18n.tsx._tip.balance({ coins: balance.toLocaleString() }) }}</p>
-			<p v-if="target" :class="$style.caption">{{ i18n.tsx._tip.target({ title: target.title ?? (target.type === 'note' ? i18n.ts.note : i18n.ts._article.article) }) }}</p>
-		</div>
+	<form class="_gaps_s" :class="$style.body" novalidate @submit.prevent="send">
 		<div :class="$style.presets" role="group" :aria-label="i18n.ts._tip.quickAmounts">
 			<MkButton v-for="preset in presetAmounts" :key="preset" type="button" :class="[$style.presetButton, { [$style.selected]: amount === preset }]" :aria-label="i18n.tsx._tip.presetAmount({ coins: preset })" :aria-pressed="amount === preset" :disabled="presetDisabled(preset)" @click="selectAmount(preset)">{{ preset }}</MkButton>
 		</div>
 		<div :class="$style.fields">
-			<label :class="$style.field"><span>{{ i18n.ts._tip.amount }}</span><input v-model.number="amount" type="number" inputmode="decimal" min="1" max="1000" step="0.01" :disabled="busy || pending != null" required></label>
+			<label :class="$style.field"><span>{{ i18n.ts._tip.amount }}</span><input v-model.number="amount" type="number" inputmode="decimal" min="1" max="1000" step="0.01" :title="i18n.ts._tip.amountRule" :disabled="closing || pending != null" required></label>
 			<div :class="[$style.field, $style.messageField]">
 				<label :for="messageInputId">{{ i18n.ts._tip.message }}</label>
-				<input :id="messageInputId" v-model="message" type="text" :placeholder="i18n.ts._tip.messageHint" :disabled="busy || pending != null" :aria-describedby="messageHintId" :aria-invalid="messageLength > 100">
-				<span class="_inputCounter" :class="{ _inputCounterOver: messageLength > 100 }">{{ messageLength }}/100</span>
+				<input :id="messageInputId" v-model="message" type="text" :placeholder="i18n.ts._tip.messageHint" :disabled="closing || pending != null" :aria-describedby="messageHintId" :aria-invalid="messageLength > TIP_MESSAGE_LIMIT">
+				<!-- 按字符计数，不用原生 maxlength（表情会按两个单位计）；只在超出时提示。 -->
+				<span v-if="messageLength > TIP_MESSAGE_LIMIT" class="_inputCounter _inputCounterOver">{{ messageLength }}/{{ TIP_MESSAGE_LIMIT }}</span>
 			</div>
 			<span :id="messageHintId" hidden>{{ i18n.ts._tip.messageHint }}</span>
-			<p :class="$style.caption">{{ i18n.ts._tip.invalidAmount }}</p>
 		</div>
-		<p :class="$style.caption">{{ i18n.ts._tip.description }}</p>
-		<p v-if="target" :class="$style.caption">{{ i18n.ts._tip.publicRecord }}</p>
-		<p v-if="!closing && (error || validationError)" role="alert" :class="$style.error">{{ error || validationError }}</p>
-		<p v-if="pending && !busy && !closing" role="status" :class="$style.caption">{{ i18n.ts._tip.pending }}</p>
-		<MkButton type="submit" primary full :class="$style.submit" :disabled="busy || closing || (!pending && !canSend)" :wait="busy || closing">{{ pending && !busy && !closing ? i18n.ts.retry : i18n.ts._tip.send }}</MkButton>
+		<p v-if="pending" :id="pendingHintId" :class="$style.srOnly">{{ i18n.ts._tip.pending }}</p>
+		<MkButton type="submit" primary full :class="$style.submit" :disabled="closing" :aria-describedby="pending ? pendingHintId : undefined" :title="pending ? i18n.ts._tip.pending : undefined">{{ pending ? i18n.ts.retry : i18n.ts._tip.send }}</MkButton>
 	</form>
 </MkModalWindow>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, useId, useTemplateRef } from 'vue';
 import type { entities } from 'misskey-js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
 import { ensureSignin } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { miLocalStorage } from '@/local-storage.js';
+import * as os from '@/os.js';
 import { isCoinAmount } from '@/utility/coins.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { walletRequestRejected } from '@/utility/wallet.js';
+import { createPendingRequestChannel, walletRequestRejected } from '@/utility/wallet.js';
+import { globalEvents } from '@/events.js';
 
-const props = defineProps<{ recipient: entities.UserLite; target?: { type: 'note' | 'page'; id: string; title?: string } }>();
-const emit = defineEmits<{ (event: 'sent'): void; (event: 'closed'): void }>();
+const props = defineProps<{ recipient: entities.UserLite; target?: { type: 'note' | 'page'; id: string } }>();
+const emit = defineEmits<{ (event: 'closed'): void }>();
 const dialogEl = useTemplateRef('dialogEl');
 const messageHintId = useId();
 const messageInputId = useId();
+const pendingHintId = useId();
 const account = ensureSignin();
 const storageKey = `wallet-tip:${account.id}:${props.recipient.id}${props.target ? `:${props.target.type}:${props.target.id}` : ''}` as const;
 const presetAmounts = [5, 10, 20, 50, 100] as const;
-const amount = ref(10);
+const defaultAmount = 10;
+const TIP_MESSAGE_LIMIT = 18;
+const amount = ref(defaultAmount);
 const message = ref('');
 const messageLength = computed(() => Array.from(message.value).length);
 const balance = ref<number | null>(null);
-const busy = ref(false);
-const error = ref<string | null>(null);
 const pending = ref<entities.IWalletTipRequest | null>(null);
 const closing = ref(false);
 let active = true;
@@ -75,23 +64,49 @@ const validationError = computed(() => {
 	if (props.recipient.id === account.id || props.recipient.host != null) return i18n.ts._tip.notAllowed;
 	if (!validAmount(amount.value)) return i18n.ts._tip.invalidAmount;
 	if (balance.value != null && amount.value > balance.value) return i18n.ts._wallet.insufficientBalance;
-	if (messageLength.value > 100) return i18n.ts._tip.messageHint;
+	if (messageLength.value > TIP_MESSAGE_LIMIT) return i18n.tsx._dialog.charactersExceeded({ current: messageLength.value, max: TIP_MESSAGE_LIMIT });
 	return null;
 });
-const canSend = computed(() => validationError.value == null);
-watch([amount, message], () => { if (!pending.value) error.value = null; });
 
-try {
-	const saved = JSON.parse(miLocalStorage.getItem(storageKey) ?? 'null');
-	if (saved?.userId === props.recipient.id && saved.targetType === props.target?.type && saved.targetId === props.target?.id && validAmount(saved.amount) && typeof saved.message === 'string' && Array.from(saved.message).length <= 100 && typeof saved.requestId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saved.requestId)) {
-		pending.value = { userId: saved.userId, amount: saved.amount, message: saved.message, requestId: saved.requestId, ...(props.target ? { targetType: props.target.type, targetId: props.target.id } : {}) };
-		amount.value = saved.amount;
-		message.value = saved.message;
+function readPending(): entities.IWalletTipRequest | null {
+	try {
+		const saved = JSON.parse(miLocalStorage.getItem(storageKey) ?? 'null');
+		if (saved?.userId !== props.recipient.id || saved.targetType !== props.target?.type || saved.targetId !== props.target?.id || !validAmount(saved.amount) || typeof saved.message !== 'string' || Array.from(saved.message).length > TIP_MESSAGE_LIMIT || typeof saved.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saved.requestId)) return null;
+		return { userId: saved.userId, amount: saved.amount, message: saved.message, requestId: saved.requestId, ...(props.target ? { targetType: props.target.type, targetId: props.target.id } : {}) };
+	} catch {
+		// 损坏的本地记录不影响填写打赏。
+		return null;
 	}
-} catch { /* 损坏的本地记录不影响填写打赏。 */ }
+}
+
+function restorePending() {
+	const saved = readPending();
+	// 其他标签页已确认的请求不能留在表单中变成一次新打赏。
+	if (!saved && pending.value) {
+		amount.value = defaultAmount;
+		message.value = '';
+	}
+	pending.value = saved;
+	if (saved) {
+		amount.value = saved.amount;
+		message.value = saved.message ?? '';
+	}
+}
+
+const pendingChannel = createPendingRequestChannel(storageKey, () => {
+	if (active && !closing.value) restorePending();
+});
+let deferredRequest: { request: entities.IWalletTipRequest; retrying: boolean } | null = null;
+
+function clearStoredPending(requestId: string) {
+	if (readPending()?.requestId !== requestId) return;
+	miLocalStorage.removeItem(storageKey);
+}
+
+restorePending();
 
 function presetDisabled(preset: number): boolean {
-	return busy.value || pending.value != null || (balance.value != null && preset > balance.value);
+	return closing.value || pending.value != null || (balance.value != null && preset > balance.value);
 }
 
 function selectAmount(preset: typeof presetAmounts[number]) {
@@ -100,36 +115,64 @@ function selectAmount(preset: typeof presetAmounts[number]) {
 }
 
 async function send() {
-	if (busy.value || !active || (!pending.value && !canSend.value)) return;
+	if (closing.value || !active) return;
+	if (validationError.value) {
+		os.toast(validationError.value, 'error');
+		return;
+	}
 	const retrying = pending.value != null;
-	busy.value = true;
-	error.value = null;
-	try {
-		if (!pending.value) {
-			const request = { userId: props.recipient.id, amount: amount.value, message: message.value.trim(), requestId: crypto.randomUUID(), ...(props.target ? { targetType: props.target.type, targetId: props.target.id } : {}) };
-			try { miLocalStorage.setItem(storageKey, JSON.stringify(request)); } catch {
-				error.value = i18n.ts._tip.saveFailed;
-				return;
+	const request = pending.value ?? {
+		userId: props.recipient.id,
+		amount: amount.value,
+		message: message.value.trim(),
+		requestId: crypto.randomUUID(),
+		...(props.target ? { targetType: props.target.type, targetId: props.target.id } : {}),
+	};
+	// 先关掉窗口；写入待处理请求和网络请求都在 closed 事件后执行。
+	deferredRequest = { request, retrying };
+	closing.value = true;
+	dialogEl.value?.close();
+}
+
+function onClosed() {
+	const job = deferredRequest;
+	deferredRequest = null;
+	emit('closed');
+	if (job != null) queueMicrotask(() => { void processTipAfterClose(job.request, job.retrying); });
+}
+
+async function processTipAfterClose(request: entities.IWalletTipRequest, retrying: boolean): Promise<void> {
+	const process = async () => {
+		const existing = readPending();
+		if ((!retrying && existing != null) || (retrying && existing?.requestId != null && existing.requestId !== request.requestId)) return;
+		try {
+			miLocalStorage.setItem(storageKey, JSON.stringify(request));
+		} catch {
+			os.toast(i18n.ts._tip.saveFailed, 'error');
+			return;
+		}
+		try {
+			await misskeyApi('i/wallet/tip', { ...request });
+		} catch (cause) {
+			// 重试被拒绝不能证明先前的未知请求未扣款，必须保留同一请求。
+			const code = (cause as { code?: string } | null)?.code;
+			if (!retrying && (walletRequestRejected(cause) || ['NO_SUCH_TIP_TARGET', 'RATE_LIMIT_EXCEEDED', 'CREDENTIAL_REQUIRED', 'AUTHENTICATION_FAILED', 'YOUR_ACCOUNT_SUSPENDED', 'USER_IS_DELETED', 'YOUR_ACCOUNT_MOVED', 'ACCESS_DENIED', 'PERMISSION_DENIED', 'ROLE_PERMISSION_DENIED'].includes(code ?? ''))) {
+				clearStoredPending(request.requestId);
 			}
-			pending.value = request;
+			os.toast(tipError(cause), 'error');
+			return;
 		}
-		await misskeyApi('i/wallet/tip', pending.value);
-		miLocalStorage.removeItem(storageKey);
-		closing.value = true;
-		pending.value = null;
-		if (!active) return;
-		emit('sent');
-		dialogEl.value?.close();
+		// 清理失败不改报打赏失败，保留记录供幂等确认。
+		try { clearStoredPending(request.requestId); } catch { /* 下次打开仍可按原 requestId 确认。 */ }
+		if (request.targetType && request.targetId) {
+			globalEvents.emit('contentTipSent', { targetType: request.targetType, targetId: request.targetId });
+		}
+	};
+
+	try {
+		await navigator.locks.request(storageKey, process);
 	} catch (cause) {
-		// 重试被拒绝不能证明先前的未知请求未扣款，必须保留同一请求。
-		const code = (cause as { code?: string } | null)?.code;
-		if (!retrying && (walletRequestRejected(cause) || ['NO_SUCH_TIP_TARGET', 'RATE_LIMIT_EXCEEDED', 'CREDENTIAL_REQUIRED', 'AUTHENTICATION_FAILED', 'YOUR_ACCOUNT_SUSPENDED', 'USER_IS_DELETED', 'YOUR_ACCOUNT_MOVED', 'ACCESS_DENIED', 'PERMISSION_DENIED', 'ROLE_PERMISSION_DENIED'].includes(code ?? ''))) {
-			miLocalStorage.removeItem(storageKey);
-			pending.value = null;
-		}
-		if (active) error.value = tipError(cause);
-	} finally {
-		if (!closing.value) busy.value = false;
+		os.toast(tipError(cause), 'error');
 	}
 }
 
@@ -164,34 +207,33 @@ function tipError(cause: unknown): string {
 }
 
 function dismiss() {
-	if (busy.value || closing.value) return;
+	if (closing.value) return;
 	dialogEl.value?.close();
 }
 
 void misskeyApi('i/wallet').then(wallet => { if (active && !closing.value) balance.value = wallet.balance; }).catch(() => { /* 余额由服务端在打赏时再次验证。 */ });
-onBeforeUnmount(() => { active = false; });
+onBeforeUnmount(() => {
+	active = false;
+	pendingChannel.close();
+});
 </script>
 
 <style lang="scss" module>
-.body { padding: var(--MI-cardPadding); }
-.body p { margin: 0; overflow-wrap: anywhere; }
-.recipient { display: flex; align-items: center; gap: var(--MI-margin); }
-.avatar { width: 40px; height: 40px; flex-shrink: 0; }
-.identity { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
-.recipientName { font-size: 1em; }
-.caption { color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; }
-.error { color: var(--MI_THEME-error); font-size: .9em; line-height: 1.5; }
-.presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--MI-marginHalf); }
-.presets > .presetButton { width: 100%; min-width: 0; min-height: 40px; padding: var(--MI-marginHalf); font-size: 1em; font-weight: 700; color: var(--MI_THEME-fg); background: var(--MI_THEME-panel); border: var(--MI-divider); border-radius: var(--MI-radius); }
+@use '../styles/input.scss' as input;
+
+.body { padding: var(--MI-marginHalf) var(--MI-cardPadding) var(--MI-cardPadding); }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.presets > .presetButton { width: 100%; min-width: 0; min-height: 36px; padding: 4px; font-size: .95em; font-weight: 400; color: var(--MI_THEME-fg); background: var(--MI_THEME-panel); border: var(--MI-divider); border-radius: var(--MI-radius); }
 .presets > .presetButton:hover:not(:disabled) { background: var(--MI_THEME-buttonHoverBg); border-color: var(--MI_THEME-accent); }
 .presets > .selected { color: var(--MI_THEME-accent); background: var(--MI_THEME-accentedBg); border-color: var(--MI_THEME-accent); }
-.fields { display: flex; flex-direction: column; gap: var(--MI-marginHalf); }
+.fields { display: flex; flex-direction: column; gap: 8px; }
 .field { display: grid; grid-template-columns: 5em minmax(0, 1fr); align-items: center; gap: var(--MI-marginHalf); }
 .field > span, .field > label { color: var(--MI_THEME-fgTransparentWeak); font-size: .9em; white-space: nowrap; }
-.field input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 38px; padding: var(--MI-marginHalf) var(--MI-margin); font: inherit; color: var(--MI_THEME-fg); background: var(--MI_THEME-panelHighlight); border: 1px solid transparent; border-radius: var(--MI-radius); }
-.messageField input { min-height: 38px; font-size: .9em; }
+.field input { @include input.field; box-sizing: border-box; width: 100%; min-width: 0; min-height: 36px; padding: 6px 10px; font: inherit; color: var(--MI_THEME-fg); border-radius: var(--MI-radius); }
+.messageField { align-items: center; }
+.messageField input { font-size: .9em; }
 .messageField { position: relative; }
-.field input:focus-visible { outline: 2px solid var(--MI_THEME-focus); }
 .field input:disabled { opacity: .7; }
-.body > .submit { min-height: 40px; border-radius: var(--MI-radius); font-weight: 700; }
+.body > .submit { min-height: 38px; border-radius: var(--MI-radius); font-weight: 700; }
 </style>

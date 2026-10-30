@@ -24,6 +24,8 @@ type RedisOptionsRequiredFields = {
 type RedisOptionsSource = Partial<IoRedisRedisOptions & BullMqRedisOptions> & RedisOptionsRequiredFields;
 type RedisOptionsResolved = IoRedisRedisOptions & BullMqRedisOptions & RedisOptionsRequiredFields;
 
+export type FulltextSearchProvider = 'sqlLike' | 'sqlPgroonga' | 'meilisearch';
+
 type SentryBackendConfig = {
 	options: Partial<Sentry.NodeOptions>;
 	enableNodeProfiling: boolean;
@@ -63,9 +65,7 @@ type Source = {
 	redisForJobQueue?: RedisOptionsSource;
 	redisForTimelines?: RedisOptionsSource;
 	redisForReactions?: RedisOptionsSource;
-	fulltextSearch?: {
-		provider?: FulltextSearchProvider;
-	};
+	fulltextSearch?: { provider?: FulltextSearchProvider };
 	meilisearch?: {
 		host: string;
 		port: string;
@@ -156,9 +156,7 @@ export type Config = {
 		user: string;
 		pass: string;
 	}[] | undefined;
-	fulltextSearch?: {
-		provider?: FulltextSearchProvider;
-	};
+	fulltextSearch: { provider: FulltextSearchProvider };
 	meilisearch: {
 		host: string;
 		port: string;
@@ -232,8 +230,6 @@ export type Config = {
 	pidFile: string;
 };
 
-export type FulltextSearchProvider = 'sqlLike' | 'sqlPgroonga' | 'meilisearch';
-
 const _filename = fileURLToPath(import.meta.url);
 const _dirname = dirname(_filename);
 
@@ -272,6 +268,8 @@ export function loadConfig(): Config {
 	const frontendEmbedManifestExists = useBuiltFrontend && fs.existsSync(resolve(projectBuiltDir, '_frontend_embed_vite_/manifest.json'));
 
 	const config = JSON.parse(fs.readFileSync(compiledConfigFilePath, 'utf-8')) as Source;
+	const searchProvider = config.fulltextSearch?.provider ?? 'sqlLike';
+	if (!['sqlLike', 'sqlPgroonga', 'meilisearch'].includes(searchProvider)) throw new Error('Invalid fulltextSearch.provider.');
 
 	const url = tryCreateUrl(config.url ?? process.env.MISSKEY_URL ?? '');
 	const version = meta.version;
@@ -319,7 +317,7 @@ export function loadConfig(): Config {
 		db: { ...config.db, db: dbDb, user: dbUser, pass: dbPass },
 		dbReplications: config.dbReplications,
 		dbSlaves: config.dbSlaves,
-		fulltextSearch: config.fulltextSearch,
+		fulltextSearch: { provider: searchProvider },
 		meilisearch: config.meilisearch,
 		redis,
 		redisForPubsub: config.redisForPubsub ? convertRedisOptions(config.redisForPubsub, host) : redis,

@@ -37,12 +37,16 @@ describe('Endpoints', () => {
 	describe('check-in rewards', () => {
 		test('requires authentication and write-account scope for signing in', async () => {
 			expect((await api('i/checkin', {})).status).toBe(401);
+			expect((await api('i/benefits/redeem', { code: 'a'.repeat(32) })).status).toBe(401);
+			expect((await api('i/benefits/history', {})).status).toBe(401);
 			expect((await api('i/checkin-makeup', { date: '2026-01-01' })).status).toBe(401);
 			expect((await api('i/checkin-exchange', { requestId: randomUUID() })).status).toBe(401);
 			const token = await createAppToken(bob, ['read:account']);
 			const response = await api('i/checkin', {}, { token });
 			expect(response.status).toBe(403);
 			expect(castAsError(response.body).error.code).toBe('PERMISSION_DENIED');
+			const redemption = await api('i/benefits/redeem', { code: 'a'.repeat(32) }, { token });
+			expect(castAsError(redemption.body).error.code).toBe('PERMISSION_DENIED');
 			const exchange = await api('i/checkin-exchange', { requestId: randomUUID() }, { token });
 			expect(exchange.status).toBe(403);
 			expect(castAsError(exchange.body).error.code).toBe('PERMISSION_DENIED');
@@ -58,27 +62,28 @@ describe('Endpoints', () => {
 			expect((await api('admin/show-user', { userId: bob.id }, alice)).body).toMatchObject({ checkinPoints: 1, checkinMakeupCards: 0 });
 		});
 
-		test('denies card grants to ordinary users and moderators', async () => {
+		test('restricts redemption code creation to administrators', async () => {
 			const moderator = await role(alice, { isModerator: true });
 			await api('admin/roles/assign', { roleId: moderator.id, userId: carol.id }, alice);
 			for (const actor of [bob, carol]) {
-				const result = await api('admin/checkin/grant-cards', { userId: bob.id, amount: 1 }, actor);
+				const result = await api('admin/benefits/codes/create', { name: 'Points', rewardType: 'points', amount: 1, maxRedemptions: 1 }, actor);
 				expect(result.status).toBe(403);
 				expect(castAsError(result.body).error.code).toBe('ROLE_PERMISSION_DENIED');
 			}
 		});
 
-		test('validates card amounts and records administrator grants', async () => {
-			for (const amount of [0, -1, 1.5, 10001]) {
-				const result = await api('admin/checkin/grant-cards', { userId: bob.id, amount }, alice);
+		test('validates rewards and redeems points only once through HTTP', async () => {
+			for (const amount of [0, -1, 1.5, 1000001]) {
+				const result = await api('admin/benefits/codes/create', { name: 'Points', rewardType: 'points', amount, maxRedemptions: 1 }, alice);
 				expect(result.status).toBe(400);
 			}
-			const granted = await api('admin/checkin/grant-cards', { userId: bob.id, amount: 2 }, alice);
-			expect(granted.status).toBe(200);
-			expect(granted.body).toEqual({ makeupCards: 2 });
-			expect((await api('admin/show-user', { userId: bob.id }, alice)).body).toMatchObject({ checkinMakeupCards: 2 });
-			const logs = await api('admin/show-moderation-logs', { type: 'grantCheckinCards' }, alice);
-			expect(logs.body).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'grantCheckinCards', info: expect.objectContaining({ userId: bob.id, amount: 2, before: 0, after: 2 }) })]));
+			const created = await api('admin/benefits/codes/create', { name: 'Points', rewardType: 'points', amount: 2, maxRedemptions: 1 }, alice);
+			expect(created.status).toBe(200);
+			const first = await api('i/benefits/redeem', { code: created.body.code }, bob);
+			expect(first.status).toBe(200);
+			expect(first.body).toMatchObject({ rewardType: 'points', amount: 2, newlyRedeemed: true });
+			expect((await api('i/benefits/redeem', { code: created.body.code }, bob)).body).toMatchObject({ rewardType: 'points', amount: 0, newlyRedeemed: false });
+			expect((await api('i/benefits/redeem', { code: created.body.code }, dave)).status).toBe(400);
 		});
 
 		test('makes up a missed day through HTTP and retries without charging twice', async () => {
@@ -95,7 +100,8 @@ describe('Endpoints', () => {
 			const noCards = await api('i/checkin-makeup', { date }, oldUser);
 			expect(noCards.status).toBe(400);
 			expect(castAsError(noCards.body).error.code).toBe('NO_MAKEUP_CARDS');
-			await api('admin/checkin/grant-cards', { userId: oldUser.id, amount: 1 }, alice);
+			const cards = await api('admin/benefits/codes/create', { name: 'Makeup', rewardType: 'makeupCards', amount: 1, maxRedemptions: 1 }, alice);
+			await api('i/benefits/redeem', { code: cards.body.code }, oldUser);
 			const makeup = await api('i/checkin-makeup', { date }, oldUser);
 			expect(makeup.status).toBe(200);
 			expect(makeup.body).toMatchObject({ newlyCheckedIn: true, earnedPoints: 0, points: 0, makeupCards: 0, makeupDates: [date], month: date.slice(0, 7) });
@@ -104,35 +110,31 @@ describe('Endpoints', () => {
 			expect(castAsError(today.body).error.code).toBe('INVALID_CHECKIN_DATE');
 		});
 
-		test('protects administrator card analytics from anonymous, ordinary, moderator and unscoped token requests', async () => {
+		test('protects administrator codes from anonymous, ordinary, moderator and unscoped token requests', async () => {
 			const unscoped = { token: await createAppToken(alice, ['read:account']) };
 			const moderator = await role(alice, { isModerator: true });
 			await api('admin/roles/assign', { roleId: moderator.id, userId: carol.id }, alice);
-			for (const endpoint of ['admin/checkin/stats', 'admin/checkin/history', 'admin/checkin/users'] as const) {
-				expect((await api(endpoint, {})).status).toBe(401);
-				for (const actor of [bob, carol]) {
-					const response = await api(endpoint, {}, actor);
-					expect(response.status).toBe(403);
-					expect(castAsError(response.body).error.code).toBe('ROLE_PERMISSION_DENIED');
-				}
-				const response = await api(endpoint, {}, unscoped);
+			expect((await api('admin/benefits/codes/list', {})).status).toBe(401);
+			for (const actor of [bob, carol]) {
+				const response = await api('admin/benefits/codes/list', {}, actor);
 				expect(response.status).toBe(403);
-				expect(castAsError(response.body).error.code).toBe('PERMISSION_DENIED');
+				expect(castAsError(response.body).error.code).toBe('ROLE_PERMISSION_DENIED');
 			}
+			expect(castAsError((await api('admin/benefits/codes/list', {}, unscoped)).body).error.code).toBe('PERMISSION_DENIED');
 		});
 
-		test('exposes accurate recipient balances and paginated audit details through the administrator read scope', async () => {
+		test('exposes private redemption history and administrator claim details through their own scopes', async () => {
+			const code = await api('admin/benefits/codes/create', { name: 'Private name', rewardType: 'makeupCards', amount: 2, maxRedemptions: 1 }, alice);
+			await api('i/benefits/redeem', { code: code.body.code }, bob);
 			const actor = { token: await createAppToken(alice, ['read:admin:show-user']) };
-			const stats = await api('admin/checkin/stats', { userId: bob.id }, actor);
-			expect(stats.status).toBe(200);
-			expect(stats.body).toEqual({ grantedCards: 2, grantCount: 1, grantedUsers: 1, usedCards: 0, usedUsers: 0, exchangedCards: 0, availableCards: 2 });
-			const history = await api('admin/checkin/history', { userId: bob.id, type: 'grant', limit: 1 }, actor);
-			expect(history.status).toBe(200);
-			expect(history.body).toMatchObject({ total: 1, items: [{ userId: bob.id, user: { id: bob.id }, operator: { id: alice.id }, amount: 2, before: 0, after: 2 }] });
-			expect((await api('admin/checkin/history', { userId: bob.id, type: 'grant', limit: 1, offset: 1 }, actor)).body).toEqual({ total: 1, items: [] });
-			const users = await api('admin/checkin/users', { userId: bob.id }, actor);
-			expect(users.status).toBe(200);
-			expect(users.body).toMatchObject({ total: 1, items: [{ user: { id: bob.id }, grantedCards: 2, usedCards: 0, exchangedCards: 0, availableCards: 2, points: 1 }] });
+			const claims = await api('admin/benefits/codes/claims', { codeId: code.body.id, limit: 1 }, actor);
+			expect(claims.status).toBe(200);
+			expect(claims.body).toMatchObject({ total: 1, items: [{ userId: bob.id, user: { id: bob.id }, rewardType: 'makeupCards', amount: 2 }] });
+			expect((await api('admin/benefits/codes/claims', { codeId: code.body.id, limit: 1, offset: 1 }, actor)).body).toEqual({ total: 1, items: [] });
+			const history = await api('i/benefits/history', {}, bob);
+			expect(history.body).toMatchObject({ total: 2, items: expect.arrayContaining([expect.objectContaining({ rewardType: 'makeupCards', amount: 2 }), expect.objectContaining({ rewardType: 'points', amount: 2 })]) });
+			expect(history.body.items.every(entry => Object.keys(entry).sort().join(',') === 'amount,createdAt,id,rewardType')).toBe(true);
+			expect((await api('i/benefits/history', {}, dave)).body).toEqual({ total: 0, items: [] });
 		});
 
 		test('repairs a 30-day reward and exchanges 60 points once per month idempotently through HTTP', async () => {

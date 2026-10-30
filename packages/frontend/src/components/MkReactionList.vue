@@ -8,7 +8,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:is="prefer.s.animation ? TransitionGroup : 'div'"
 	:enterActiveClass="$style.enterActive"
 	:enterFromClass="$style.enterFrom"
-	:moveClass="$style.enterActive"
 	tag="div"
 	:class="$style.root"
 	@leave="finishLeave"
@@ -38,9 +37,9 @@ function finishLeave(_element: Element, done: () => void) {
 .root { @include reaction-chip.list; }
 .addButton {
 	@include reaction-chip.chip;
-	width: 28px;
+	width: 26px;
 	padding: 0;
-	font-size: 14px;
+	font-size: 16px;
 }
 .enterActive { @include reaction-chip.enterActive; }
 .enterFrom { @include reaction-chip.enterFrom; }

@@ -4,20 +4,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="el" class="_pageLayout" :class="{ _pageLayoutWithSidebar: !narrow }">
+<div ref="el" class="_pageLayout" :class="[$style.root, { _pageLayoutWithSidebar: !narrow }]">
 	<aside v-if="!narrow" :class="$style.aside">
 		<MkA class="_pageNavigation _button" :class="[$style.item, $style.rankingCard]" to="/community-ranking">
 			<i class="ti ti-trophy" :class="$style.rankingIcon" aria-hidden="true"></i>
 			<span>{{ i18n.ts.communityRanking }}</span>
 		</MkA>
-			<nav class="_pageNavigation" :class="$style.menu" :aria-label="i18n.ts._channel.featuredChannels">
-				<h2 :class="$style.title">{{ i18n.ts._channel.featuredChannels }}</h2>
+		<MkContainer :class="$style.menu">
+			<template #header>{{ i18n.ts._channel.featuredChannels }}</template>
+			<template #func>
+				<MkA :class="$style.more" to="/channels">{{ i18n.ts.more }}<i class="ti ti-chevron-right" aria-hidden="true"></i></MkA>
+			</template>
+			<nav :class="$style.channels" :aria-label="i18n.ts._channel.featuredChannels">
 				<MkA v-for="channel in channels" :key="channel.id" :class="$style.channel" :to="`/channels/${channel.id}`" :title="channel.name">
-					<span :class="$style.channelIcon"><img v-if="channel.bannerUrl" :src="channel.bannerUrl" alt=""/><i v-else class="ti ti-device-tv" aria-hidden="true"></i></span>
-					<span :class="$style.channelName"><Mfm :text="channel.name" :plain="true" :nowrap="true"/></span>
+					<span :class="$style.channelBody">
+						<span :class="$style.channelName"><Mfm :text="channel.name" :plain="true" :nowrap="true"/></span>
+						<span :class="$style.channelMeta">{{ i18n.tsx._channel.usersCount({ n: channel.usersCount }) }} · {{ i18n.tsx._channel.notesCount({ n: channel.notesCount }) }}</span>
+					</span>
 				</MkA>
-				<MkA :class="$style.more" to="/channels">{{ i18n.ts.showMore }}<i class="ti ti-chevron-right" aria-hidden="true"></i></MkA>
 			</nav>
+		</MkContainer>
 	</aside>
 	<div class="_pageContent">
 		<NestedRouterView :initialRoute="initialRoute"/>
@@ -28,6 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script setup lang="ts">
 import { computed, onActivated, ref, shallowRef, useTemplateRef } from 'vue';
 import type * as Misskey from 'misskey-js';
+import MkContainer from '@/components/MkContainer.vue';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { definePage } from '@/page.js';
@@ -59,7 +66,7 @@ const activeTab = computed(() => {
 const channels = ref<Misskey.entities.Channel[]>([]);
 let fetching = false;
 
-// 热门频道随时间变化，返回页面时刷新；接口不支持 limit，取前几项
+// 热门频道随时间变化，返回页面时刷新；接口不支持 limit，最多取前 5 项。
 async function fetchChannels() {
 	if (fetching) return;
 	fetching = true;
@@ -83,6 +90,10 @@ definePage(() => ({
 </script>
 
 <style lang="scss" module>
+.root {
+	padding-bottom: 0;
+}
+
 .aside {
 	display: flex;
 	flex-direction: column;
@@ -101,20 +112,12 @@ definePage(() => ({
 		flex-shrink: 0;
 		align-self: stretch;
 		max-height: none;
+		overflow: clip;
 	}
 }
 
 .menu {
-	display: flex;
-	flex-direction: column;
-	padding: 16px 12px;
-}
-
-.title {
-	margin: 0 0 10px;
-	padding: 0 4px;
-	font-size: 1.1em;
-	font-weight: 600;
+	flex-shrink: 0;
 }
 
 .item {
@@ -145,58 +148,74 @@ definePage(() => ({
 	color: var(--MI_THEME-warn);
 }
 
-.channel {
+.channels {
 	display: flex;
-	align-items: center;
-	gap: 8px;
+	flex-direction: column;
+	gap: 2px;
+	padding: 6px;
+}
+
+.channel {
+	display: block;
 	min-width: 0;
-	padding: 8px 4px;
-	font-size: 0.95em;
+	padding: 10px 12px;
+	border-radius: var(--MI-radius);
+	overflow: clip;
+	color: var(--MI_THEME-fg);
+	transition: background 0.15s ease;
 
 	&:hover {
-		color: var(--MI_THEME-accent);
+		background: var(--MI_THEME-panelHighlight);
 		text-decoration: none;
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: -2px;
 	}
 }
 
-.channelIcon {
-	display: grid;
-	place-items: center;
-	flex-shrink: 0;
-	width: 28px;
-	height: 28px;
-	border-radius: calc(var(--MI-radius) / 2);
-	overflow: clip;
-	background: var(--MI_THEME-accentedBg);
-	color: var(--MI_THEME-accent);
-
-	> img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
+.channelBody {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
 }
 
 .channelName {
+	display: block;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	font-size: 1em;
+	line-height: 1.4;
+}
+
+.channelMeta {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	overflow: hidden;
+	color: var(--MI_THEME-fgTransparentWeak);
+	font-size: .86em;
+	line-height: 1.4;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 .more {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 4px;
-	margin-top: 8px;
-	padding: 8px 0 0;
-	font-size: 0.85em;
+	flex-shrink: 0;
+	font-size: 13px;
+	font-weight: normal;
 	color: var(--MI_THEME-fgTransparentWeak);
+	white-space: nowrap;
+	background: transparent;
 
 	&:hover {
 		color: var(--MI_THEME-accent);
 		text-decoration: none;
+		background: transparent;
 	}
 }
 </style>

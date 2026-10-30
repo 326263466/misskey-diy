@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <button v-if="count > 0" type="button" class="_button" :class="$style.root" aria-haspopup="dialog" :aria-label="i18n.tsx._likes.countOnly({ n: count })" @click.stop="showUsers">
 	<span v-if="shownUsers.length > 0" :class="$style.avatars" aria-hidden="true">
-		<MkAvatar v-for="(user, index) in shownUsers" :key="user.id" :user="user" :class="$style.avatar" :style="{ zIndex: shownUsers.length - index }"/>
+		<MkAvatar v-for="(user, index) in shownUsers" :key="user.id" :user="user" :class="$style.avatar" :style="{ zIndex: shownUsers.length - index }" imageOnly/>
 	</span>
 	<span :class="$style.caption">{{ caption }}</span>
 </button>
@@ -42,8 +42,9 @@ function showUsers(): void {
 	gap: 4px;
 	width: fit-content;
 	max-width: 100%;
-	// 固定 24px 且不留纵向 margin，点赞出现/消失时所在行不会改变高度
+	// 头像 24px，上下各收回 2px 只占 20px 行高，点赞出现/消失时所在行不会改变高度
 	height: 24px;
+	margin-block: -2px;
 	margin-inline-start: auto;
 	font-size: calc(1em - 1px);
 	color: var(--MI_THEME-fgTransparentWeak);

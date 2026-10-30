@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" contentCard :actions="headerActions" :tabs="headerTabs" :swipable="true">
+<PageWithHeader v-model:tab="tab" contentCard :tabs="headerTabs" :swipable="true">
 	<Suspense>
 		<div v-if="tab === 'overview'" class="_pageBody">
 			<XOverview/>
@@ -51,8 +51,6 @@ watch(tab, () => {
 		claimAchievement('viewInstanceChart');
 	}
 });
-
-const headerActions = computed(() => []);
 
 const headerTabs = computed(() => [{
 	key: 'overview',

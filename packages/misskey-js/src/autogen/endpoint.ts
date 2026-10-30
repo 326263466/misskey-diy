@@ -38,27 +38,20 @@ import type {
 	AdminAvatarDecorationsDeleteRequest,
 	AdminAvatarDecorationsListRequest,
 	AdminAvatarDecorationsListResponse,
+	AdminAvatarDecorationsSuggestScaleRequest,
+	AdminAvatarDecorationsSuggestScaleResponse,
 	AdminAvatarDecorationsUpdateRequest,
+	AdminBenefitsCodesClaimsRequest,
+	AdminBenefitsCodesClaimsResponse,
+	AdminBenefitsCodesCreateRequest,
+	AdminBenefitsCodesCreateResponse,
+	AdminBenefitsCodesDeleteRequest,
+	AdminBenefitsCodesListRequest,
+	AdminBenefitsCodesListResponse,
+	AdminBenefitsCodesUpdateRequest,
+	AdminBenefitsCodesUpdateResponse,
 	AdminCaptchaCurrentResponse,
 	AdminCaptchaSaveRequest,
-	AdminCheckinCodesClaimsRequest,
-	AdminCheckinCodesClaimsResponse,
-	AdminCheckinCodesCreateRequest,
-	AdminCheckinCodesCreateResponse,
-	AdminCheckinCodesListRequest,
-	AdminCheckinCodesListResponse,
-	AdminCheckinCodesUpdateRequest,
-	AdminCheckinCodesUpdateResponse,
-	AdminCheckinGrantCardsRequest,
-	AdminCheckinGrantCardsResponse,
-	AdminCheckinHistoryRequest,
-	AdminCheckinHistoryResponse,
-	AdminCheckinRevokeCardsRequest,
-	AdminCheckinRevokeCardsResponse,
-	AdminCheckinStatsRequest,
-	AdminCheckinStatsResponse,
-	AdminCheckinUsersRequest,
-	AdminCheckinUsersResponse,
 	AdminDeleteAccountRequest,
 	AdminDeleteAllFilesOfAUserRequest,
 	AdminDriveFilesRequest,
@@ -96,6 +89,8 @@ import type {
 	AdminInviteListRequest,
 	AdminInviteListResponse,
 	AdminMetaResponse,
+	AdminOverviewRequest,
+	AdminOverviewResponse,
 	AdminPaymentsSettingsResponse,
 	AdminPaymentsUpdateSettingsRequest,
 	AdminPaymentsUpdateSettingsResponse,
@@ -198,6 +193,9 @@ import type {
 	ArticlesCommentsCreateRequest,
 	ArticlesCommentsCreateResponse,
 	ArticlesCommentsDeleteRequest,
+	ArticlesCommentsDeleteResponse,
+	ArticlesCommentsLikeRequest,
+	ArticlesCommentsLikeResponse,
 	ArticlesDraftsDeleteRequest,
 	ArticlesDraftsListRequest,
 	ArticlesDraftsListResponse,
@@ -367,7 +365,6 @@ import type {
 	DriveFilesCreateRequest,
 	DriveFilesCreateResponse,
 	DriveFilesDeleteRequest,
-	DriveFilesDraftRequest,
 	DriveFilesFindRequest,
 	DriveFilesFindResponse,
 	DriveFilesFindByHashRequest,
@@ -378,8 +375,6 @@ import type {
 	DriveFilesUpdateRequest,
 	DriveFilesUpdateResponse,
 	DriveFilesUploadFromUrlRequest,
-	DriveFilesUsageRequest,
-	DriveFilesUsageResponse,
 	DriveFoldersRequest,
 	DriveFoldersResponse,
 	DriveFoldersCreateRequest,
@@ -484,6 +479,8 @@ import type {
 	HashtagsSearchResponse,
 	HashtagsShowRequest,
 	HashtagsShowResponse,
+	HashtagsStatsRequest,
+	HashtagsStatsResponse,
 	HashtagsTrendResponse,
 	HashtagsUsersRequest,
 	HashtagsUsersResponse,
@@ -504,6 +501,10 @@ import type {
 	IAppsResponse,
 	IAuthorizedAppsRequest,
 	IAuthorizedAppsResponse,
+	IBenefitsHistoryRequest,
+	IBenefitsHistoryResponse,
+	IBenefitsRedeemRequest,
+	IBenefitsRedeemResponse,
 	IChangePasswordRequest,
 	ICheckinResponse,
 	ICheckinExchangeRequest,
@@ -512,8 +513,6 @@ import type {
 	ICheckinHistoryResponse,
 	ICheckinMakeupRequest,
 	ICheckinMakeupResponse,
-	ICheckinRedeemRequest,
-	ICheckinRedeemResponse,
 	ICheckinStatusRequest,
 	ICheckinStatusResponse,
 	IClaimAchievementRequest,
@@ -569,6 +568,8 @@ import type {
 	IWalletResponse,
 	IWalletExchangeRequest,
 	IWalletExchangeResponse,
+	IWalletStatsRequest,
+	IWalletStatsResponse,
 	IWalletTipRequest,
 	IWalletTipResponse,
 	IWalletTransactionsRequest,
@@ -689,6 +690,11 @@ import type {
 	PinnedUsersResponse,
 	ProductsCreateRequest,
 	ProductsCreateResponse,
+	ProductsImagesCreateRequest,
+	ProductsImagesCreateResponse,
+	ProductsImagesDeleteRequest,
+	ProductsImagesImportRequest,
+	ProductsImagesImportResponse,
 	ProductsListRequest,
 	ProductsListResponse,
 	ProductsMineRequest,
@@ -848,18 +854,15 @@ export type Endpoints = {
 	'admin/avatar-decorations/create': { req: AdminAvatarDecorationsCreateRequest; res: AdminAvatarDecorationsCreateResponse };
 	'admin/avatar-decorations/delete': { req: AdminAvatarDecorationsDeleteRequest; res: EmptyResponse };
 	'admin/avatar-decorations/list': { req: AdminAvatarDecorationsListRequest; res: AdminAvatarDecorationsListResponse };
+	'admin/avatar-decorations/suggest-scale': { req: AdminAvatarDecorationsSuggestScaleRequest; res: AdminAvatarDecorationsSuggestScaleResponse };
 	'admin/avatar-decorations/update': { req: AdminAvatarDecorationsUpdateRequest; res: EmptyResponse };
+	'admin/benefits/codes/claims': { req: AdminBenefitsCodesClaimsRequest; res: AdminBenefitsCodesClaimsResponse };
+	'admin/benefits/codes/create': { req: AdminBenefitsCodesCreateRequest; res: AdminBenefitsCodesCreateResponse };
+	'admin/benefits/codes/delete': { req: AdminBenefitsCodesDeleteRequest; res: EmptyResponse };
+	'admin/benefits/codes/list': { req: AdminBenefitsCodesListRequest; res: AdminBenefitsCodesListResponse };
+	'admin/benefits/codes/update': { req: AdminBenefitsCodesUpdateRequest; res: AdminBenefitsCodesUpdateResponse };
 	'admin/captcha/current': { req: EmptyRequest; res: AdminCaptchaCurrentResponse };
 	'admin/captcha/save': { req: AdminCaptchaSaveRequest; res: EmptyResponse };
-	'admin/checkin/codes/claims': { req: AdminCheckinCodesClaimsRequest; res: AdminCheckinCodesClaimsResponse };
-	'admin/checkin/codes/create': { req: AdminCheckinCodesCreateRequest; res: AdminCheckinCodesCreateResponse };
-	'admin/checkin/codes/list': { req: AdminCheckinCodesListRequest; res: AdminCheckinCodesListResponse };
-	'admin/checkin/codes/update': { req: AdminCheckinCodesUpdateRequest; res: AdminCheckinCodesUpdateResponse };
-	'admin/checkin/grant-cards': { req: AdminCheckinGrantCardsRequest; res: AdminCheckinGrantCardsResponse };
-	'admin/checkin/history': { req: AdminCheckinHistoryRequest; res: AdminCheckinHistoryResponse };
-	'admin/checkin/revoke-cards': { req: AdminCheckinRevokeCardsRequest; res: AdminCheckinRevokeCardsResponse };
-	'admin/checkin/stats': { req: AdminCheckinStatsRequest; res: AdminCheckinStatsResponse };
-	'admin/checkin/users': { req: AdminCheckinUsersRequest; res: AdminCheckinUsersResponse };
 	'admin/delete-account': { req: AdminDeleteAccountRequest; res: EmptyResponse };
 	'admin/delete-all-files-of-a-user': { req: AdminDeleteAllFilesOfAUserRequest; res: EmptyResponse };
 	'admin/drive/clean-remote-files': { req: EmptyRequest; res: EmptyResponse };
@@ -890,6 +893,7 @@ export type Endpoints = {
 	'admin/invite/create': { req: AdminInviteCreateRequest; res: AdminInviteCreateResponse };
 	'admin/invite/list': { req: AdminInviteListRequest; res: AdminInviteListResponse };
 	'admin/meta': { req: EmptyRequest; res: AdminMetaResponse };
+	'admin/overview': { req: AdminOverviewRequest; res: AdminOverviewResponse };
 	'admin/payments/settings': { req: EmptyRequest; res: AdminPaymentsSettingsResponse };
 	'admin/payments/update-settings': { req: AdminPaymentsUpdateSettingsRequest; res: AdminPaymentsUpdateSettingsResponse };
 	'admin/promo/create': { req: AdminPromoCreateRequest; res: EmptyResponse };
@@ -959,7 +963,8 @@ export type Endpoints = {
 	'app/show': { req: AppShowRequest; res: AppShowResponse };
 	'articles/comments': { req: ArticlesCommentsRequest; res: ArticlesCommentsResponse };
 	'articles/comments/create': { req: ArticlesCommentsCreateRequest; res: ArticlesCommentsCreateResponse };
-	'articles/comments/delete': { req: ArticlesCommentsDeleteRequest; res: EmptyResponse };
+	'articles/comments/delete': { req: ArticlesCommentsDeleteRequest; res: ArticlesCommentsDeleteResponse };
+	'articles/comments/like': { req: ArticlesCommentsLikeRequest; res: ArticlesCommentsLikeResponse };
 	'articles/drafts/delete': { req: ArticlesDraftsDeleteRequest; res: EmptyResponse };
 	'articles/drafts/list': { req: ArticlesDraftsListRequest; res: ArticlesDraftsListResponse };
 	'articles/drafts/save': { req: ArticlesDraftsSaveRequest; res: ArticlesDraftsSaveResponse };
@@ -1061,14 +1066,12 @@ export type Endpoints = {
 	'drive/files/check-existence': { req: DriveFilesCheckExistenceRequest; res: DriveFilesCheckExistenceResponse };
 	'drive/files/create': { req: DriveFilesCreateRequest; res: DriveFilesCreateResponse };
 	'drive/files/delete': { req: DriveFilesDeleteRequest; res: EmptyResponse };
-	'drive/files/draft': { req: DriveFilesDraftRequest; res: EmptyResponse };
 	'drive/files/find': { req: DriveFilesFindRequest; res: DriveFilesFindResponse };
 	'drive/files/find-by-hash': { req: DriveFilesFindByHashRequest; res: DriveFilesFindByHashResponse };
 	'drive/files/move-bulk': { req: DriveFilesMoveBulkRequest; res: EmptyResponse };
 	'drive/files/show': { req: DriveFilesShowRequest; res: DriveFilesShowResponse };
 	'drive/files/update': { req: DriveFilesUpdateRequest; res: DriveFilesUpdateResponse };
 	'drive/files/upload-from-url': { req: DriveFilesUploadFromUrlRequest; res: EmptyResponse };
-	'drive/files/usage': { req: DriveFilesUsageRequest; res: DriveFilesUsageResponse };
 	'drive/folders': { req: DriveFoldersRequest; res: DriveFoldersResponse };
 	'drive/folders/create': { req: DriveFoldersCreateRequest; res: DriveFoldersCreateResponse };
 	'drive/folders/delete': { req: DriveFoldersDeleteRequest; res: EmptyResponse };
@@ -1131,6 +1134,7 @@ export type Endpoints = {
 	'hashtags/list': { req: HashtagsListRequest; res: HashtagsListResponse };
 	'hashtags/search': { req: HashtagsSearchRequest; res: HashtagsSearchResponse };
 	'hashtags/show': { req: HashtagsShowRequest; res: HashtagsShowResponse };
+	'hashtags/stats': { req: HashtagsStatsRequest; res: HashtagsStatsResponse };
 	'hashtags/trend': { req: EmptyRequest; res: HashtagsTrendResponse };
 	'hashtags/users': { req: HashtagsUsersRequest; res: HashtagsUsersResponse };
 	'i': { req: EmptyRequest; res: IResponse };
@@ -1144,12 +1148,13 @@ export type Endpoints = {
 	'i/2fa/update-key': { req: I2faUpdateKeyRequest; res: EmptyResponse };
 	'i/apps': { req: IAppsRequest; res: IAppsResponse };
 	'i/authorized-apps': { req: IAuthorizedAppsRequest; res: IAuthorizedAppsResponse };
+	'i/benefits/history': { req: IBenefitsHistoryRequest; res: IBenefitsHistoryResponse };
+	'i/benefits/redeem': { req: IBenefitsRedeemRequest; res: IBenefitsRedeemResponse };
 	'i/change-password': { req: IChangePasswordRequest; res: EmptyResponse };
 	'i/checkin': { req: EmptyRequest; res: ICheckinResponse };
 	'i/checkin-exchange': { req: ICheckinExchangeRequest; res: ICheckinExchangeResponse };
 	'i/checkin-history': { req: ICheckinHistoryRequest; res: ICheckinHistoryResponse };
 	'i/checkin-makeup': { req: ICheckinMakeupRequest; res: ICheckinMakeupResponse };
-	'i/checkin-redeem': { req: ICheckinRedeemRequest; res: ICheckinRedeemResponse };
 	'i/checkin-status': { req: ICheckinStatusRequest; res: ICheckinStatusResponse };
 	'i/claim-achievement': { req: IClaimAchievementRequest; res: EmptyResponse };
 	'i/delete-account': { req: IDeleteAccountRequest; res: EmptyResponse };
@@ -1192,6 +1197,7 @@ export type Endpoints = {
 	'i/update-email': { req: IUpdateEmailRequest; res: IUpdateEmailResponse };
 	'i/wallet': { req: EmptyRequest; res: IWalletResponse };
 	'i/wallet/exchange': { req: IWalletExchangeRequest; res: IWalletExchangeResponse };
+	'i/wallet/stats': { req: IWalletStatsRequest; res: IWalletStatsResponse };
 	'i/wallet/tip': { req: IWalletTipRequest; res: IWalletTipResponse };
 	'i/wallet/transactions': { req: IWalletTransactionsRequest; res: IWalletTransactionsResponse };
 	'i/webhooks/create': { req: IWebhooksCreateRequest; res: IWebhooksCreateResponse };
@@ -1270,6 +1276,9 @@ export type Endpoints = {
 	'ping': { req: EmptyRequest; res: PingResponse };
 	'pinned-users': { req: EmptyRequest; res: PinnedUsersResponse };
 	'products/create': { req: ProductsCreateRequest; res: ProductsCreateResponse };
+	'products/images/create': { req: ProductsImagesCreateRequest; res: ProductsImagesCreateResponse };
+	'products/images/delete': { req: ProductsImagesDeleteRequest; res: EmptyResponse };
+	'products/images/import': { req: ProductsImagesImportRequest; res: ProductsImagesImportResponse };
 	'products/list': { req: ProductsListRequest; res: ProductsListResponse };
 	'products/mine': { req: ProductsMineRequest; res: ProductsMineResponse };
 	'products/show': { req: ProductsShowRequest; res: ProductsShowResponse };
@@ -1356,4 +1365,5 @@ export type Endpoints = {
  */
 export const endpointReqTypes = {
 	'drive/files/create': 'multipart/form-data',
+	'products/images/create': 'multipart/form-data',
 } as const satisfies { [K in keyof Endpoints]?: 'multipart/form-data'; };

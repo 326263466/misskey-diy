@@ -11,7 +11,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.root">
 		<div :class="$style.input">
 			<textarea v-model="text" :style="`height: ${widgetProps.height}px;`" :class="$style.textarea" :placeholder="i18n.ts.memo" :aria-label="i18n.ts.memo" @input="onChange"></textarea>
-			<span class="_inputCounter">{{ text?.length ?? 0 }}</span>
 		</div>
 		<button :class="$style.save" :disabled="!changed" class="_buttonPrimary" @click="saveMemo">{{ i18n.ts.save }}</button>
 	</div>

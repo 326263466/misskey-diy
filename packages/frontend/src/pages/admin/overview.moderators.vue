@@ -8,8 +8,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<Transition :name="prefer.s.animation ? '_transition_zoom' : ''" mode="out-in">
 		<MkLoading v-if="fetching"/>
 		<div v-else :class="$style.root" class="_panel">
-			<MkA v-for="user in moderators" :key="user.id" class="user" :to="`/admin/user/${user.id}`">
-				<MkAvatar :user="user" class="avatar" indicator/>
+			<MkA v-for="user in moderators" :key="user.id" :class="$style.user" :to="`/admin/user/${user.id}`" behavior="window">
+				<MkAvatar :user="user" :class="$style.avatar" indicator/>
+				<span :class="$style.identity">
+					<MkUserName :user="user" :nowrap="true" :class="$style.name"/>
+					<span :class="$style.role">{{ isAdministrator(user) ? i18n.ts.administrator : i18n.ts.moderator }}</span>
+				</span>
 			</MkA>
 		</div>
 	</Transition>
@@ -21,9 +25,14 @@ import { onMounted, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
+import { i18n } from '@/i18n.js';
 
 const moderators = ref<Misskey.entities.UserDetailed[] | null>(null);
 const fetching = ref(true);
+
+function isAdministrator(user: Misskey.entities.UserDetailed): boolean {
+	return 'isAdmin' in user && user.isAdmin === true;
+}
 
 onMounted(async () => {
 	moderators.value = await misskeyApi('admin/show-users', {
@@ -38,22 +47,68 @@ onMounted(async () => {
 
 <style lang="scss" module>
 .root {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(30px, 40px));
-	grid-gap: 12px;
-	place-content: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	padding: 10px var(--MI-cardPadding) 12px;
+}
 
-	&:global {
-		> .user {
-			width: 100%;
-			height: 100%;
-			aspect-ratio: 1;
+.user {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	max-width: 240px;
+	padding: 4px 6px;
+	border-radius: var(--MI-radius);
+	transition: background-color 0.15s ease;
 
-			> .avatar {
-				width: 100%;
-				height: 100%;
-			}
+	&:is(:hover, :focus-visible) {
+		background: var(--MI_THEME-panelHighlight);
+		text-decoration: none;
+
+		.name {
+			color: var(--MI_THEME-accent);
 		}
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 2px;
+	}
+}
+
+.avatar {
+	flex: 0 0 auto;
+	width: 30px;
+	height: 30px;
+}
+
+.identity {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.name {
+	min-width: 0;
+	font-size: 1em;
+}
+
+.role {
+	flex: 0 0 auto;
+	padding: 2px 6px;
+	background: var(--MI_THEME-panelHighlight);
+	color: var(--MI_THEME-fgTransparentWeak);
+	border-radius: 999px;
+	font-size: 0.9em;
+	line-height: 1.3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.user {
+		transition: none;
 	}
 }
 </style>

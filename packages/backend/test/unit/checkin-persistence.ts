@@ -14,26 +14,23 @@ import { initTestDb } from '../utils.js';
 import { AchievementService } from '@/core/AchievementService.js';
 import { CheckinService } from '@/core/CheckinService.js';
 import { IdService } from '@/core/IdService.js';
-import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { MiUser } from '@/models/User.js';
 import { MiUserProfile } from '@/models/UserProfile.js';
 import { MiUserCheckin } from '@/models/UserCheckin.js';
 import { MiUserCheckinExchange } from '@/models/UserCheckinExchange.js';
 import { MiUserCheckinCardBatch } from '@/models/UserCheckinCardBatch.js';
-import { CheckinAdminService } from '@/core/CheckinAdminService.js';
-import { CheckinRedemptionService } from '@/core/CheckinRedemptionService.js';
-import { MiCheckinRedemptionCode } from '@/models/CheckinRedemptionCode.js';
-import { MiCheckinRedemptionClaim } from '@/models/CheckinRedemptionClaim.js';
-import { MiModerationLog } from '@/models/ModerationLog.js';
-import { WalletService } from '@/core/WalletService.js';
+import { BenefitRedemptionService } from '@/core/BenefitRedemptionService.js';
+import { MiBenefitRedemptionCode } from '@/models/BenefitRedemptionCode.js';
+import { MiBenefitRedemptionClaim } from '@/models/BenefitRedemptionClaim.js';
+import { WALLET_MAX_BALANCE, WalletService } from '@/core/WalletService.js';
+import { MiWalletTransaction } from '@/models/WalletTransaction.js';
 import { MiWallet } from '@/models/Wallet.js';
 
 describe('check-in database persistence', () => {
 	let db: DataSource;
 	let service: CheckinService;
-	let redemptions: CheckinRedemptionService;
+	let redemptions: BenefitRedemptionService;
 	let achievements: AchievementService;
-	let moderationLog: ModerationLogService;
 	let registeredAt = new Date('2024-02-28T16:00:00Z');
 	let serial = 0;
 	const notification = { createNotification: vi.fn() };
@@ -46,6 +43,15 @@ describe('check-in database persistence', () => {
 		await db.getRepository(MiWallet).insert({ userId: id, balance: 0, reservedBalance: 0 });
 		userIds.push(id);
 		return db.getRepository(MiUser).findOneByOrFail({ id });
+	}
+
+	async function redeemCards(me: MiUser, amount: number): Promise<void> {
+		const code = await redemptions.create({ name: 'Cards', rewardType: 'makeupCards', amount, maxRedemptions: 1 }, me);
+		await redemptions.redeem(me.id, code.code);
+	}
+
+	async function updateCode(code: Awaited<ReturnType<BenefitRedemptionService['create']>>, enabled: boolean) {
+		return redemptions.update(code.id, { name: code.name, rewardType: code.rewardType, amount: code.amount, maxRedemptions: code.maxRedemptions, expiresAt: code.expiresAt, enabled });
 	}
 
 	async function setPoints(userId: string, points: number): Promise<void> {
@@ -65,149 +71,187 @@ describe('check-in database persistence', () => {
 		// initTestDb refuses non-test environments and uses .config/test.yml, never the live database.
 		db = await initTestDb();
 		achievements = new AchievementService(db.getRepository(MiUserProfile) as never, notification as never);
-		moderationLog = new ModerationLogService(db.getRepository(MiModerationLog) as never, new IdService({ id: 'aidx' } as never));
 		service = new CheckinService(db, db.getRepository(MiUserCheckin) as never, db.getRepository(MiUserProfile) as never, achievements, {
 			packMany: async (ids: string[]) => ids.map(id => ({ id })),
-		} as never, { parse: () => ({ date: registeredAt }), gen: new IdService({ id: 'aidx' } as never).gen } as never, moderationLog, new WalletService(db, new IdService({ id: 'aidx' } as never)));
-		redemptions = new CheckinRedemptionService(db, service, new WalletService(db, new IdService({ id: 'aidx' } as never)), new IdService({ id: 'aidx' } as never), { packMany: async (users: MiUser[]) => users.map(user => ({ id: user.id })) } as never);
+		} as never, { parse: () => ({ date: registeredAt }), gen: new IdService({ id: 'aidx' } as never).gen } as never, new WalletService(db, new IdService({ id: 'aidx' } as never)));
+		redemptions = new BenefitRedemptionService(db, service, new WalletService(db, new IdService({ id: 'aidx' } as never)), new IdService({ id: 'aidx' } as never), { packMany: async (users: MiUser[]) => users.map(user => ({ id: user.id })) } as never);
 	});
 	beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }).setSystemTime(new Date('2026-09-28T04:00:00Z')); notification.createNotification.mockClear(); registeredAt = new Date('2024-02-28T16:00:00Z'); });
 	afterEach(async () => {
 		vi.useRealTimers();
 		if (db?.isInitialized && userIds.length) {
-			for (const userId of userIds) await db.getRepository(MiCheckinRedemptionCode).delete({ createdBy: userId });
+			for (const userId of userIds) await db.getRepository(MiBenefitRedemptionCode).delete({ createdBy: userId });
 			await db.getRepository(MiUser).delete(userIds.splice(0));
 		}
 	});
 	afterAll(async () => { if (db?.isInitialized) await db.destroy(); });
 
-	test('cryptographic holiday codes redeem only once per user under concurrent retries, including after disable', async () => {
+	test.each(['makeupCards', 'points'] as const)('%s codes credit once under concurrent retries, including after disable', async rewardType => {
 		const me = await user();
-		const code = await redemptions.create({ name: ' Holiday ', amount: 2, maxRedemptions: 5 }, me);
-		expect(code).toMatchObject({ name: 'Holiday', amount: 2, redemptions: 0, enabled: true, expiresAt: null });
+		const code = await redemptions.create({ name: ' Holiday ', rewardType, amount: 2, maxRedemptions: 5 }, me);
+		expect(code).toMatchObject({ name: 'Holiday', rewardType, amount: 2, redemptions: 0, enabled: true, expiresAt: null });
 		expect(code.code).toMatch(/^[0-9a-f]{32}$/);
 		const results = await Promise.all(Array.from({ length: 12 }, () => redemptions.redeem(me.id, code.code.toUpperCase())));
 		expect(results.filter(result => result.newlyRedeemed)).toHaveLength(1);
 		expect(results.reduce((sum, result) => sum + result.amount, 0)).toBe(2);
-		expect(await db.getRepository(MiCheckinRedemptionClaim).countBy({ userId: me.id, codeId: code.id })).toBe(1);
-		expect(await db.getRepository(MiUserCheckinCardBatch).findBy({ userId: me.id })).toEqual([expect.objectContaining({ source: 'redemption', amount: 2, remaining: 2 })]);
-		await service.makeup(me.id, '2026-09-27');
-		await redemptions.update(code.id, false);
-		expect(await redemptions.redeem(me.id, code.code)).toEqual({ newlyRedeemed: false, amount: 0, makeupCards: 1, points: 0 });
+		expect(await db.getRepository(MiBenefitRedemptionClaim).countBy({ userId: me.id, codeId: code.id })).toBe(1);
+		if (rewardType === 'makeupCards') {
+			expect(await db.getRepository(MiUserCheckinCardBatch).findBy({ userId: me.id })).toEqual([expect.objectContaining({ source: 'redemption', amount: 2, remaining: 2 })]);
+			await service.makeup(me.id, '2026-09-27');
+		} else {
+			expect(await db.getRepository(MiWalletTransaction).findBy({ userId: me.id })).toEqual([expect.objectContaining({ type: 'redemptionReward', currency: 'points', amount: 2, balance: 2, relatedId: code.id, actorId: me.id, description: null })]);
+			expect(await db.getRepository(MiUserCheckinCardBatch).countBy({ userId: me.id })).toBe(0);
+			const wallet = new WalletService(db, new IdService({ id: 'aidx' } as never));
+			expect((await wallet.transactionsWithFlow(me.id, 20))[0].flow).toMatchObject({ from: 'system', to: 'user', toUserId: me.id });
+		}
+		await updateCode(code, false);
+		expect(await redemptions.redeem(me.id, code.code)).toEqual({ newlyRedeemed: false, rewardType, amount: 0 });
 		expect((await redemptions.list(0, 20)).items[0]).toMatchObject({ redemptions: 1, enabled: false });
 	});
 
-	test('simultaneous users cannot exceed a code quota, and deleting a claimant does not reopen a slot', async () => {
+	test.each(['makeupCards', 'points'] as const)('%s quotas hold across users and are not recycled after account deletion', async rewardType => {
 		const admin = await user();
 		const first = await user();
 		const second = await user();
-		const code = await redemptions.create({ name: 'Limited', amount: 1, maxRedemptions: 1 }, admin);
+		const code = await redemptions.create({ name: 'Limited', rewardType, amount: 1, maxRedemptions: 1 }, admin);
 		const results = await Promise.allSettled([redemptions.redeem(first.id, code.code), redemptions.redeem(second.id, code.code)]);
 		expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
-		expect(results.find(result => result.status === 'rejected')).toMatchObject({ reason: expect.any(CheckinRedemptionService.ExhaustedCodeError) });
-		const claim = await db.getRepository(MiCheckinRedemptionClaim).findOneByOrFail({ codeId: code.id });
+		expect(results.find(result => result.status === 'rejected')).toMatchObject({ reason: expect.any(BenefitRedemptionService.ExhaustedCodeError) });
+		const claim = await db.getRepository(MiBenefitRedemptionClaim).findOneByOrFail({ codeId: code.id });
 		await db.getRepository(MiUser).delete(claim.userId);
-		expect(await redemptions.claims(code.id, 0, 20, admin)).toMatchObject({ total: 1, items: [{ userId: claim.userId, user: null, amount: 1 }] });
-		await expect(redemptions.redeem(admin.id, code.code)).rejects.toBeInstanceOf(CheckinRedemptionService.ExhaustedCodeError);
+		expect(await redemptions.claims(code.id, 0, 20, admin)).toMatchObject({ total: 1, items: [{ userId: claim.userId, user: null, rewardType, amount: 1 }] });
+		await expect(redemptions.redeem(admin.id, code.code)).rejects.toBeInstanceOf(BenefitRedemptionService.ExhaustedCodeError);
 	});
 
-	test('disabled, expired, invalid and ineligible redemptions preserve balances and quota', async () => {
+	test('edits code configuration and removes codes without deleting claims', async () => {
+		const admin = await user();
+		const recipient = await user();
+		const code = await redemptions.create({ name: 'Original', rewardType: 'points', amount: 1, maxRedemptions: 2 }, admin);
+		const updated = await redemptions.update(code.id, { name: 'Edited', rewardType: 'points', amount: 3, maxRedemptions: 2, expiresAt: null, enabled: true });
+		expect(updated).toMatchObject({ name: 'Edited', amount: 3, maxRedemptions: 2, enabled: true });
+		await redemptions.redeem(recipient.id, code.code);
+		await expect(redemptions.update(code.id, { name: 'Edited', rewardType: 'makeupCards', amount: 1, maxRedemptions: 2, expiresAt: null, enabled: true })).rejects.toBeInstanceOf(BenefitRedemptionService.RewardLockedError);
+		await redemptions.remove(code.id);
+		expect((await redemptions.list(0, 20)).items.some(item => item.id === code.id)).toBe(false);
+		expect(await redemptions.claims(code.id, 0, 20, admin)).toMatchObject({ total: 1 });
+		await expect(redemptions.redeem(admin.id, code.code)).rejects.toBeInstanceOf(BenefitRedemptionService.NoSuchCodeError);
+	});
+
+	test.each(['makeupCards', 'points'] as const)('%s redemption failures preserve balances, claims and quota', async rewardType => {
 		const me = await user();
-		const code = await redemptions.create({ name: 'Timed', amount: 2, maxRedemptions: 5, expiresAt: '2026-09-28T05:00:00Z' }, me);
-		await redemptions.update(code.id, false);
-		await expect(redemptions.redeem(me.id, code.code)).rejects.toBeInstanceOf(CheckinRedemptionService.DisabledCodeError);
-		await redemptions.update(code.id, true);
+		const code = await redemptions.create({ name: 'Timed', rewardType, amount: 2, maxRedemptions: 5, expiresAt: '2026-09-28T05:00:00Z' }, me);
+		await updateCode(code, false);
+		await expect(redemptions.redeem(me.id, code.code)).rejects.toBeInstanceOf(BenefitRedemptionService.DisabledCodeError);
+		await updateCode(code, true);
 		vi.setSystemTime(new Date('2026-09-28T05:00:00Z'));
-		await expect(redemptions.redeem(me.id, code.code)).rejects.toBeInstanceOf(CheckinRedemptionService.ExpiredCodeError);
-		await expect(redemptions.redeem(me.id, '0'.repeat(32))).rejects.toBeInstanceOf(CheckinRedemptionService.NoSuchCodeError);
+		await expect(redemptions.redeem(me.id, code.code)).rejects.toBeInstanceOf(BenefitRedemptionService.ExpiredCodeError);
+		await expect(redemptions.redeem(me.id, '0'.repeat(32))).rejects.toBeInstanceOf(BenefitRedemptionService.NoSuchCodeError);
 		for (const overrides of [{ isSuspended: true }, { isDeleted: true }, { host: 'remote.example' }, { movedToUri: 'https://example.com/u' }, { username: 'system.proxy' }]) {
 			const invalid = await user(overrides);
-			await expect(redemptions.redeem(invalid.id, code.code)).rejects.toBeInstanceOf(CheckinService.NotAllowedError);
+			await expect(redemptions.redeem(invalid.id, code.code)).rejects.toBeInstanceOf(BenefitRedemptionService.NotAllowedError);
 		}
-		expect((await service.getStatus(me.id)).makeupCards).toBe(0);
+		expect(await service.getStatus(me.id)).toMatchObject({ makeupCards: 0, points: 0 });
 		expect((await redemptions.list(0, 20)).items[0].redemptions).toBe(0);
-		for (const expiresAt of ['invalid', '2026-09-27T00:00:00Z']) {
-			await expect(redemptions.create({ name: 'Timed', amount: 1, maxRedemptions: 1, expiresAt }, me)).rejects.toBeInstanceOf(CheckinRedemptionService.InvalidConfigurationError);
+		for (const invalid of [{ name: ' ' }, { amount: 0 }, { amount: 1.5 }, { amount: rewardType === 'points' ? 1000001 : 10001 }, { rewardType: 'unknown' as never }, { maxRedemptions: 0 }, { expiresAt: 'invalid' }, { expiresAt: '2026-09-27T00:00:00Z' }]) {
+			await expect(redemptions.create({ name: 'Timed', rewardType, amount: 1, maxRedemptions: 1, ...invalid }, me)).rejects.toBeInstanceOf(BenefitRedemptionService.InvalidConfigurationError);
 		}
-		await expect(redemptions.create({ name: '  ', amount: 1, maxRedemptions: 1 }, me)).rejects.toBeInstanceOf(CheckinRedemptionService.InvalidConfigurationError);
 	});
 
-	test('a failed claim or full balance rolls back the code counter, card batch, and balance', async () => {
+	test.each(['makeupCards', 'points'] as const)('%s claims and balance limits roll back the reward and counter together', async rewardType => {
 		const me = await user();
-		const code = await redemptions.create({ name: 'Rollback', amount: 2, maxRedemptions: 5 }, me);
-		await db.query(`CREATE FUNCTION checkin_claim_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test claim failure'; END $$`);
-		await db.query(`CREATE TRIGGER checkin_claim_fail BEFORE INSERT ON checkin_redemption_claim FOR EACH ROW EXECUTE FUNCTION checkin_claim_fail()`);
+		const code = await redemptions.create({ name: 'Rollback', rewardType, amount: 2, maxRedemptions: 5 }, me);
+		await db.query(`CREATE FUNCTION benefit_claim_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test claim failure'; END $$`);
+		await db.query(`CREATE TRIGGER benefit_claim_fail BEFORE INSERT ON benefit_redemption_claim FOR EACH ROW EXECUTE FUNCTION benefit_claim_fail()`);
 		try {
 			await expect(redemptions.redeem(me.id, code.code)).rejects.toThrow('test claim failure');
-			expect((await service.getStatus(me.id)).makeupCards).toBe(0);
+			expect(await service.getStatus(me.id)).toMatchObject({ makeupCards: 0, points: 0 });
 			expect(await db.getRepository(MiUserCheckinCardBatch).countBy({ userId: me.id })).toBe(0);
+			expect(await db.getRepository(MiWalletTransaction).countBy({ userId: me.id })).toBe(0);
 			expect((await redemptions.list(0, 20)).items[0].redemptions).toBe(0);
 		} finally {
-			await db.query('DROP TRIGGER checkin_claim_fail ON checkin_redemption_claim');
-			await db.query('DROP FUNCTION checkin_claim_fail()');
+			await db.query('DROP TRIGGER benefit_claim_fail ON benefit_redemption_claim');
+			await db.query('DROP FUNCTION benefit_claim_fail()');
 		}
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 2147483647 });
-		await expect(redemptions.redeem(me.id, code.code)).rejects.toBeInstanceOf(CheckinService.CardLimitError);
+		if (rewardType === 'points') await setPoints(me.id, WALLET_MAX_BALANCE);
+		else await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 2147483647 });
+		await expect(redemptions.redeem(me.id, code.code)).rejects.toBeInstanceOf(rewardType === 'points' ? WalletService.BalanceLimitError : CheckinService.CardLimitError);
 		expect((await redemptions.list(0, 20)).items[0].redemptions).toBe(0);
+		expect(await db.getRepository(MiBenefitRedemptionClaim).countBy({ codeId: code.id })).toBe(0);
 	});
 
-	test('redemption, grant reclaim and makeup serialize without losing any card source', async () => {
+	test('personal redemption history contains both reward types without leaking another account or the code name', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 2, me);
-		const batch = await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ userId: me.id });
-		const code = await redemptions.create({ name: 'Concurrent', amount: 2, maxRedemptions: 5 }, me);
-		const results = await Promise.allSettled([redemptions.redeem(me.id, code.code), service.revokeCards(batch.id, me), service.makeup(me.id, '2026-09-27')]);
-		expect(results[0].status).toBe('fulfilled');
-		expect(results[1].status).toBe('fulfilled');
-		const batches = await db.getRepository(MiUserCheckinCardBatch).findBy({ userId: me.id });
-		expect(batches.reduce((sum, row) => sum + row.amount, 0)).toBe(4);
-		expect(batches.reduce((sum, row) => sum + row.remaining + row.used + row.revoked, 0)).toBe(4);
-		expect((await service.getStatus(me.id)).makeupCards).toBe(batches.reduce((sum, row) => sum + row.remaining, 0));
+		const other = await user();
+		const cards = await redemptions.create({ name: 'Internal card note', rewardType: 'makeupCards', amount: 2, maxRedemptions: 2 }, me);
+		const points = await redemptions.create({ name: 'Internal points note', rewardType: 'points', amount: 500, maxRedemptions: 2 }, me);
+		await redemptions.redeem(me.id, cards.code);
+		await redemptions.redeem(other.id, points.code);
+		await redemptions.redeem(me.id, points.code);
+		const history = await redemptions.history(me.id, 0, 20);
+		expect(history.total).toBe(2);
+		expect(history.items.map(entry => [entry.rewardType, entry.amount])).toEqual([['points', 500], ['makeupCards', 2]]);
+		expect(history.items.every(entry => Object.keys(entry).sort().join(',') === 'amount,createdAt,id,rewardType')).toBe(true);
+		expect(await redemptions.history(me.id, 2, 20)).toEqual({ total: 2, items: [] });
 	});
 
-	test('new grants create attributable batches, FIFO makeup uses the oldest batch, and reclaim preserves used cards', async () => {
+	test('redeemed card batches are consumed FIFO without losing acquisition history', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 3, me);
+		await redeemCards(me, 3);
 		vi.setSystemTime(new Date('2026-09-28T04:00:01Z'));
-		await service.grantCards(me.id, 2, me);
+		await redeemCards(me, 2);
 		const batches = await db.getRepository(MiUserCheckinCardBatch).find({ where: { userId: me.id }, order: { createdAt: 'ASC', id: 'ASC' } });
-		expect(batches.map(batch => [batch.source, batch.remaining])).toEqual([['admin', 3], ['admin', 2]]);
+		expect(batches.map(batch => [batch.source, batch.remaining])).toEqual([['redemption', 3], ['redemption', 2]]);
 		await service.makeup(me.id, '2026-09-27');
 		expect(await db.getRepository(MiUserCheckin).findOneByOrFail({ userId: me.id, date: '2026-09-27' })).toMatchObject({ cardBatchId: batches[0].id });
-		expect(await service.revokeCards(batches[0].id, me)).toEqual({ batchId: batches[0].id, revokedCards: 2, makeupCards: 2 });
-		expect(await service.revokeCards(batches[0].id, me)).toMatchObject({ revokedCards: 0, makeupCards: 2 });
-		expect(await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ id: batches[0].id })).toMatchObject({ amount: 3, used: 1, remaining: 0, revoked: 2 });
-		expect(await db.getRepository(MiModerationLog).countBy({ type: 'revokeCheckinCards', userId: me.id })).toBe(1);
-		const adminService = new CheckinAdminService(db, { packMany: async (users: MiUser[]) => users.map(user => ({ id: user.id })) } as never, new IdService({ id: 'aidx' } as never));
-		const history = await adminService.history('grant', 0, 20, me, me.id);
-		expect(history.items.find(row => row.batchId === batches[0].id)).toMatchObject({ usageStatus: 'revoked', used: 1, remaining: 0, revoked: 2 });
-		expect(history.items.find(row => row.batchId === batches[1].id)).toMatchObject({ usageStatus: 'unused', used: 0, remaining: 2, revoked: 0 });
+		expect(await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ id: batches[0].id })).toMatchObject({ amount: 3, used: 1, remaining: 2 });
 	});
 
-	test('concurrent makeup and repeated reclaims never spend or reclaim the same card twice', async () => {
+	test('benefit migration preserves card codes, claims and balances while removing grant-only fields', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 3, me);
-		const batch = await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ userId: me.id });
-		const results = await Promise.allSettled([
-			service.makeup(me.id, '2026-09-27'),
-			...Array.from({ length: 10 }, () => service.revokeCards(batch.id, me)),
-		]);
-		const stored = await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ id: batch.id });
-		expect(stored.used + stored.revoked).toBe(3);
-		expect(stored.remaining).toBe(0);
-		expect((await service.getStatus(me.id)).makeupCards).toBe(0);
-		expect(results.slice(1).every(result => result.status === 'fulfilled')).toBe(true);
-		expect(await db.getRepository(MiModerationLog).countBy({ type: 'revokeCheckinCards', userId: me.id })).toBe(1);
+		const code = await redemptions.create({ name: 'Migration', rewardType: 'makeupCards', amount: 2, maxRedemptions: 1 }, me);
+		await redemptions.redeem(me.id, code.code);
+		const { BenefitRewardTypes1792990531704 } = await import(pathToFileURL(resolve('migration/1792990531704-benefit-reward-types.js')).href);
+		const migration = new BenefitRewardTypes1792990531704();
+		const runner = db.createQueryRunner();
+		await runner.connect();
+		await runner.startTransaction();
+		try {
+			await migration.down(runner);
+			await runner.query(`UPDATE user_checkin_card_batch SET source = 'admin', "grantLogId" = 'old-log', "adminId" = $1 WHERE "userId" = $1`, [me.id]);
+			await migration.up(runner);
+			expect(await runner.manager.findOneByOrFail(MiBenefitRedemptionCode, { id: code.id })).toMatchObject({ code: code.code, rewardType: 'makeupCards', redemptions: 1 });
+			expect(await runner.manager.findOneByOrFail(MiBenefitRedemptionClaim, { codeId: code.id })).toMatchObject({ rewardType: 'makeupCards', amount: 2 });
+			expect(await runner.manager.findOneByOrFail(MiUserProfile, { userId: me.id })).toMatchObject({ checkinMakeupCards: 2 });
+			expect(await runner.manager.findOneByOrFail(MiUserCheckinCardBatch, { userId: me.id })).toMatchObject({ source: 'legacy', amount: 2, remaining: 2 });
+			expect(await runner.hasColumn('user_checkin_card_batch', 'grantLogId')).toBe(false);
+			expect(await runner.hasColumn('user_checkin_card_batch', 'adminId')).toBe(false);
+		} finally {
+			await runner.rollbackTransaction();
+			await runner.release();
+		}
 	});
 
-	test('reclaim and makeup roll back batch counters when their durable writes fail', async () => {
+	test('migration rollback refuses to reinterpret points codes as makeup cards', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 2, me);
+		const code = await redemptions.create({ name: 'Points', rewardType: 'points', amount: 20, maxRedemptions: 1 }, me);
+		await redemptions.redeem(me.id, code.code);
+		const { BenefitRewardTypes1792990531704 } = await import(pathToFileURL(resolve('migration/1792990531704-benefit-reward-types.js')).href);
+		const runner = db.createQueryRunner();
+		await runner.connect();
+		await runner.startTransaction();
+		try {
+			await expect(new BenefitRewardTypes1792990531704().down(runner)).rejects.toThrow('Cannot revert while points redemption records exist.');
+		} finally {
+			await runner.rollbackTransaction();
+			await runner.release();
+		}
+		expect((await service.getStatus(me.id)).points).toBe(20);
+	});
+
+	test('a failed makeup write restores its card batch and balance', async () => {
+		const me = await user();
+		await redeemCards(me, 2);
 		const batch = await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ userId: me.id });
-		vi.spyOn(moderationLog, 'log').mockRejectedValueOnce(new Error('audit unavailable'));
-		await expect(service.revokeCards(batch.id, me)).rejects.toThrow('audit unavailable');
-		expect(await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ id: batch.id })).toMatchObject({ remaining: 2, revoked: 0 });
-		expect((await service.getStatus(me.id)).makeupCards).toBe(2);
 		await db.query(`CREATE FUNCTION checkin_use_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test use failure'; END $$`);
 		await db.query(`CREATE TRIGGER checkin_use_fail BEFORE INSERT ON user_checkin FOR EACH ROW EXECUTE FUNCTION checkin_use_fail()`);
 		try {
@@ -220,21 +264,17 @@ describe('check-in database persistence', () => {
 		}
 	});
 
-	test('legacy and exchange cards cannot be reclaimed, and historical balances are consumed before new grants', async () => {
+	test('opening balances are consumed before newly redeemed and exchanged cards', async () => {
 		const me = await user();
 		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 1 });
 		await setPoints(me.id, 60);
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		await service.exchange(me.id, randomUUID());
 		const batches = await db.getRepository(MiUserCheckinCardBatch).find({ where: { userId: me.id }, order: { createdAt: 'ASC', id: 'ASC' } });
-		expect(batches.map(batch => batch.source)).toEqual(['legacy', 'admin', 'exchange']);
-		for (const batch of batches.filter(batch => batch.source !== 'admin')) {
-			await expect(service.revokeCards(batch.id, me)).rejects.toBeInstanceOf(CheckinService.CardBatchNotRevokableError);
-		}
+		expect(batches.map(batch => batch.source)).toEqual(['legacy', 'redemption', 'exchange']);
 		await service.makeup(me.id, '2026-09-27');
 		expect(await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ id: batches[0].id })).toMatchObject({ used: 1, remaining: 0 });
 		expect(await db.getRepository(MiUserCheckinCardBatch).findOneByOrFail({ id: batches[1].id })).toMatchObject({ used: 0, remaining: 1 });
-		await expect(service.revokeCards('missing', me)).rejects.toBeInstanceOf(CheckinService.NoSuchCardBatchError);
 	});
 
 	test('calendar reads keep one snapshot while another connection completes check-in', async () => {
@@ -310,7 +350,7 @@ describe('check-in database persistence', () => {
 			await service.checkin(me.id);
 		}
 		expect(await service.getStatus(me.id)).toMatchObject({ makeupCardProgress: 6, makeupCardTarget: 7, rewardDates: [] });
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		expect(await service.makeup(me.id, '2026-09-22')).toMatchObject({ earnedMakeupCards: 1, makeupCardProgress: 1, makeupCardTarget: 30, rewardDates: ['2026-09-28'] });
 		vi.setSystemTime(new Date('2026-10-01T04:00:00Z'));
 		expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCardProgress: 1, makeupCardTarget: 30, rewardDates: [] });
@@ -319,7 +359,7 @@ describe('check-in database persistence', () => {
 
 	test('a full inventory settles the first reward once without showing a credited calendar reward', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 3, me);
+		await redeemCards(me, 3);
 		for (let day = 21; day <= 27; day++) {
 			vi.setSystemTime(new Date(`2026-09-${day}T04:00:00Z`));
 			await service.checkin(me.id);
@@ -338,7 +378,7 @@ describe('check-in database persistence', () => {
 			await service.checkin(me.id);
 		}
 		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		expect(await service.makeup(me.id, '2026-09-29')).toMatchObject({ totalDays: 29, earnedPoints: 0, points: 28, earnedMakeupCards: 0, makeupCards: 0, makeupCardProgress: 28 });
 		const results = await Promise.all(Array.from({ length: 12 }, () => service.checkin(me.id)));
 		expect(results.reduce((sum, response) => sum + response.earnedMakeupCards, 0)).toBe(0);
@@ -363,7 +403,7 @@ describe('check-in database persistence', () => {
 		await seedStreak(me.id, '2026-08-31', 29);
 		await service.checkin(me.id);
 		await expect(service.makeup(me.id, '2026-09-29')).rejects.toBeInstanceOf(CheckinService.NoMakeupCardsError);
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		const results = await Promise.all([
 			...Array.from({ length: 8 }, () => service.makeup(me.id, '2026-09-29')),
 			...Array.from({ length: 8 }, () => service.checkin(me.id)),
@@ -378,7 +418,7 @@ describe('check-in database persistence', () => {
 		const me = await user();
 		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
 		await seedStreak(me.id, '2026-08-31', 29);
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		expect(await service.makeup(me.id, '2026-09-29')).toMatchObject({ checkedInToday: false, consecutiveDays: 30, makeupCardProgress: 29, makeupCards: 0, earnedMakeupCards: 0 });
 		expect(await db.getRepository(MiUserCheckin).countBy({ userId: me.id, rewardConsumed: true })).toBe(0);
 		expect(await service.checkin(me.id)).toMatchObject({ consecutiveDays: 31, makeupCardProgress: 0, makeupCards: 1, earnedMakeupCards: 1 });
@@ -388,7 +428,7 @@ describe('check-in database persistence', () => {
 		const me = await user();
 		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
 		await seedStreak(me.id, '2026-09-01', 29);
-		await service.grantCards(me.id, 3, me);
+		await redeemCards(me, 3);
 		expect(await service.checkin(me.id)).toMatchObject({ earnedMakeupCards: 0, makeupCards: 3, makeupCardProgress: 0, points: 1 });
 		expect(await db.getRepository(MiUserCheckin).countBy({ userId: me.id, rewardConsumed: true })).toBe(30);
 		vi.setSystemTime(new Date('2026-10-02T04:00:00Z'));
@@ -402,7 +442,7 @@ describe('check-in database persistence', () => {
 		vi.setSystemTime(new Date('2026-09-30T04:00:00Z'));
 		await seedStreak(me.id, '2026-08-27', 30, true);
 		await seedStreak(me.id, '2026-09-27', 3);
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		await service.checkin(me.id);
 		expect(await service.makeup(me.id, '2026-09-26')).toMatchObject({ consecutiveDays: 35, makeupCardProgress: 4, earnedMakeupCards: 0, makeupCards: 0 });
 		expect(await db.getRepository(MiUserCheckin).countBy({ userId: me.id, rewardConsumed: true })).toBe(30);
@@ -526,7 +566,7 @@ describe('check-in database persistence', () => {
 
 	test('limits makeup to seven civil days across months and advances the boundary at Shanghai midnight', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 3, me);
+		await redeemCards(me, 3);
 		vi.setSystemTime(new Date('2026-09-30T16:00:00Z'));
 		expect(await service.getStatus(me.id)).toMatchObject({ today: '2026-10-01', makeupEarliestDate: '2026-09-24' });
 		await expect(service.makeup(me.id, '2026-09-23')).rejects.toBeInstanceOf(CheckinService.InvalidDateError);
@@ -565,7 +605,7 @@ describe('check-in database persistence', () => {
 		const me = await user();
 		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 1 });
 		await setPoints(me.id, 60);
-		await Promise.all([service.exchange(me.id, randomUUID()), service.checkin(me.id), service.makeup(me.id, '2026-09-27'), service.grantCards(me.id, 1, me)]);
+		await Promise.all([service.exchange(me.id, randomUUID()), service.checkin(me.id), service.makeup(me.id, '2026-09-27'), redeemCards(me, 1)]);
 		expect(await service.getStatus(me.id)).toMatchObject({ points: 1, makeupCards: 2, totalDays: 2, makeupCardProgress: 1 });
 	});
 
@@ -604,7 +644,7 @@ describe('check-in database persistence', () => {
 	test('concurrent duplicate makeups consume one card without awarding points and persist the calendar marker', async () => {
 		const me = await user();
 		vi.setSystemTime(new Date('2026-09-02T04:00:00Z'));
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		const results = await Promise.all(Array.from({ length: 16 }, () => service.makeup(me.id, '2026-08-31')));
 		expect(results.filter(result => result.newlyCheckedIn)).toHaveLength(1);
 		expect(results.reduce((points, result) => points + result.earnedPoints, 0)).toBe(0);
@@ -616,7 +656,7 @@ describe('check-in database persistence', () => {
 
 	test('concurrent different makeups cannot overdraw the last card', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		const results = await Promise.allSettled([service.makeup(me.id, '2026-09-26'), service.makeup(me.id, '2026-09-27')]);
 		expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
 		expect(results.find(result => result.status === 'rejected')).toMatchObject({ reason: expect.any(CheckinService.NoMakeupCardsError) });
@@ -630,7 +670,7 @@ describe('check-in database persistence', () => {
 			await service.checkin(me.id);
 		}
 		vi.setSystemTime(new Date('2026-09-28T04:00:00Z'));
-		await service.grantCards(me.id, 1, me);
+		await redeemCards(me, 1);
 		expect(await service.makeup(me.id, '2026-09-24')).toMatchObject({ totalDays: 7, consecutiveDays: 7, points: 6, makeupCards: 0, earnedAchievements: ['checkinStreak7'] });
 		const records = await db.getRepository(MiUserCheckin).find({ where: { userId: me.id }, order: { date: 'ASC' } });
 		expect(records.map(record => record.totalDays)).toEqual([1, 2, 3, 4, 5, 6, 7]);
@@ -642,7 +682,7 @@ describe('check-in database persistence', () => {
 
 	test('validates registration, leap dates, and site midnight without consuming cards', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 3, me);
+		await redeemCards(me, 3);
 		for (const date of ['2024-02-28', '2026-02-29', '2026-09-28', '2026-09-29', '2026-04-31']) {
 			await expect(service.makeup(me.id, date)).rejects.toBeInstanceOf(CheckinService.InvalidDateError);
 		}
@@ -655,44 +695,14 @@ describe('check-in database persistence', () => {
 		expect(await service.makeup(me.id, '2026-09-28')).toMatchObject({ today: '2026-09-29', points: 0, makeupCards: 1 });
 	});
 
-	test('daily check-in, card grant and makeup serialize without losing balances', async () => {
+	test('daily check-in, redemption and makeup serialize without losing balances', async () => {
 		const me = await user();
-		await service.grantCards(me.id, 1, me);
-		await Promise.all([service.checkin(me.id), service.makeup(me.id, '2026-09-27'), service.grantCards(me.id, 2, me)]);
+		await redeemCards(me, 1);
+		await Promise.all([service.checkin(me.id), service.makeup(me.id, '2026-09-27'), redeemCards(me, 2)]);
 		expect(await service.getStatus(me.id)).toMatchObject({ totalDays: 2, consecutiveDays: 2, points: 1, makeupCards: 2, checkedInDates: ['2026-09-27', '2026-09-28'] });
-		const logs = await db.getRepository(MiModerationLog).findBy({ userId: me.id, type: 'grantCheckinCards' });
-		expect(logs).toHaveLength(2);
-		expect(logs.map(log => log.info.amount).sort()).toEqual([1, 2]);
-	});
-
-	test('card grants roll back when their audit log cannot be committed', async () => {
-		const me = await user();
-		const log = vi.spyOn(moderationLog, 'log').mockRejectedValueOnce(new Error('audit unavailable'));
-		await expect(service.grantCards(me.id, 1, me)).rejects.toThrow('audit unavailable');
-		log.mockRestore();
-		expect((await service.getStatus(me.id)).makeupCards).toBe(0);
-		expect(await db.getRepository(MiModerationLog).countBy({ userId: me.id })).toBe(0);
-	});
-
-	test('simultaneous reciprocal administrator grants do not deadlock on audit foreign keys', async () => {
-		const first = await user();
-		const second = await user();
-		await Promise.all([service.grantCards(first.id, 2, second), service.grantCards(second.id, 3, first)]);
-		expect((await service.getStatus(first.id)).makeupCards).toBe(2);
-		expect((await service.getStatus(second.id)).makeupCards).toBe(3);
-	});
-
-	test('card grants validate recipients and preserve the integer balance limit', async () => {
-		const me = await user();
-		await expect(service.grantCards('missing-user', 1, me)).rejects.toBeInstanceOf(CheckinService.NoSuchUserError);
-		for (const overrides of [{ isSuspended: true }, { isDeleted: true }, { host: 'remote.example' }, { movedToUri: 'https://example.com/u' }, { username: 'system.proxy' }]) {
-			const invalid = await user(overrides);
-			await expect(service.grantCards(invalid.id, 1, me)).rejects.toBeInstanceOf(CheckinService.NotAllowedError);
-			await expect(service.makeup(invalid.id, '2026-09-27')).rejects.toBeInstanceOf(CheckinService.NotAllowedError);
-		}
-		await db.getRepository(MiUserProfile).update({ userId: me.id }, { checkinMakeupCards: 2147483647 });
-		await expect(service.grantCards(me.id, 1, me)).rejects.toBeInstanceOf(CheckinService.CardLimitError);
-		expect((await service.getStatus(me.id)).makeupCards).toBe(2147483647);
+		const claims = await db.getRepository(MiBenefitRedemptionClaim).findBy({ userId: me.id });
+		expect(claims).toHaveLength(2);
+		expect(claims.map(claim => claim.amount).sort()).toEqual([1, 2]);
 	});
 
 	test('concurrent different achievements preserve all existing awards', async () => {

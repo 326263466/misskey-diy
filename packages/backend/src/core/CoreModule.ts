@@ -19,6 +19,7 @@ import { WebhookTestService } from '@/core/WebhookTestService.js';
 import { FeedbackService } from '@/core/FeedbackService.js';
 import { FlashService } from '@/core/FlashService.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
+import { ProductImageService } from '@/core/product/ProductImageService.js';
 import { AccountMoveService } from './AccountMoveService.js';
 import { AccountUpdateService } from './AccountUpdateService.js';
 import { SensitiveMediaDetectionService } from './SensitiveMediaDetectionService.js';
@@ -26,8 +27,7 @@ import { AnnouncementService } from './AnnouncementService.js';
 import { AntennaService } from './AntennaService.js';
 import { AchievementService } from './AchievementService.js';
 import { CheckinService } from './CheckinService.js';
-import { CheckinAdminService } from './CheckinAdminService.js';
-import { CheckinRedemptionService } from './CheckinRedemptionService.js';
+import { BenefitRedemptionService } from './BenefitRedemptionService.js';
 import { ShopModule } from '@/core/shop/ShopModule.js';
 import { IdModule } from './IdModule.js';
 import { AvatarDecorationService } from './AvatarDecorationService.js';
@@ -36,8 +36,7 @@ import { CustomEmojiService } from './CustomEmojiService.js';
 import { DeleteAccountService } from './DeleteAccountService.js';
 import { DownloadService } from './DownloadService.js';
 import { DriveService } from './DriveService.js';
-import { DriveFileUsageService } from './DriveFileUsageService.js';
-import { DriveFileLifecycleService } from './DriveFileLifecycleService.js';
+import { DriveFileValidationService } from './DriveFileValidationService.js';
 import { EmailService } from './EmailService.js';
 import { FederatedInstanceService } from './FederatedInstanceService.js';
 import { FetchInstanceMetadataService } from './FetchInstanceMetadataService.js';
@@ -88,6 +87,7 @@ import { UserWebhookService } from './UserWebhookService.js';
 import { UtilityService } from './UtilityService.js';
 import { FileInfoService } from './FileInfoService.js';
 import { SearchService } from './SearchService.js';
+import { SearchIndexService } from './SearchIndexService.js';
 import { ClipService } from './ClipService.js';
 import { FeaturedService } from './FeaturedService.js';
 import { FanoutTimelineService } from './FanoutTimelineService.js';
@@ -189,8 +189,7 @@ const $AnnouncementService: Provider = { provide: 'AnnouncementService', useExis
 const $AntennaService: Provider = { provide: 'AntennaService', useExisting: AntennaService };
 const $AchievementService: Provider = { provide: 'AchievementService', useExisting: AchievementService };
 const $CheckinService: Provider = { provide: 'CheckinService', useExisting: CheckinService };
-const $CheckinAdminService: Provider = { provide: 'CheckinAdminService', useExisting: CheckinAdminService };
-const $CheckinRedemptionService: Provider = { provide: 'CheckinRedemptionService', useExisting: CheckinRedemptionService };
+const $BenefitRedemptionService: Provider = { provide: 'BenefitRedemptionService', useExisting: BenefitRedemptionService };
 const $AvatarDecorationService: Provider = { provide: 'AvatarDecorationService', useExisting: AvatarDecorationService };
 const $CaptchaService: Provider = { provide: 'CaptchaService', useExisting: CaptchaService };
 const $CustomEmojiService: Provider = { provide: 'CustomEmojiService', useExisting: CustomEmojiService };
@@ -357,16 +356,15 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		AntennaService,
 		AchievementService,
 		CheckinService,
-		CheckinAdminService,
-		CheckinRedemptionService,
+		BenefitRedemptionService,
 		AvatarDecorationService,
 		CaptchaService,
 		CustomEmojiService,
 		DeleteAccountService,
 		DownloadService,
 		DriveService,
-		DriveFileUsageService,
-		DriveFileLifecycleService,
+		DriveFileValidationService,
+		ProductImageService,
 		EmailService,
 		FederatedInstanceService,
 		FetchInstanceMetadataService,
@@ -420,6 +418,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		FeedbackService,
 		FlashService,
 		SearchService,
+		SearchIndexService,
 		ClipService,
 		FeaturedService,
 		FanoutTimelineService,
@@ -522,8 +521,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$AntennaService,
 		$AchievementService,
 		$CheckinService,
-		$CheckinAdminService,
-		$CheckinRedemptionService,
+		$BenefitRedemptionService,
 		$AvatarDecorationService,
 		$CaptchaService,
 		$CustomEmojiService,
@@ -688,16 +686,15 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		AntennaService,
 		AchievementService,
 		CheckinService,
-		CheckinAdminService,
-		CheckinRedemptionService,
+		BenefitRedemptionService,
 		AvatarDecorationService,
 		CaptchaService,
 		CustomEmojiService,
 		DeleteAccountService,
 		DownloadService,
 		DriveService,
-		DriveFileUsageService,
-		DriveFileLifecycleService,
+		DriveFileValidationService,
+		ProductImageService,
 		EmailService,
 		FederatedInstanceService,
 		FetchInstanceMetadataService,
@@ -751,6 +748,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		FeedbackService,
 		FlashService,
 		SearchService,
+		SearchIndexService,
 		ClipService,
 		FeaturedService,
 		FanoutTimelineService,
@@ -852,8 +850,7 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$AntennaService,
 		$AchievementService,
 		$CheckinService,
-		$CheckinAdminService,
-		$CheckinRedemptionService,
+		$BenefitRedemptionService,
 		$AvatarDecorationService,
 		$CaptchaService,
 		$CustomEmojiService,

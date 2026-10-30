@@ -10,18 +10,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 	<div class="_pageBody">
 		<!-- 指定用户可见但未 @ 的帖子不会产生通知，只能按帖子列表查看。 -->
-		<div v-if="tab === 'directNotes'">
-			<MkNotesTimeline :paginator="directNotesPaginator" :withControl="false" pageEmpty/>
-		</div>
-		<div v-else>
-			<MkStreamingNotificationsTimeline :key="tab" ref="notificationsTimeline" :class="$style.notifications" :excludeTypes="excludeTypes" pageEmpty/>
-		</div>
+		<KeepAlive :max="prefer.s.numberOfPageCache">
+			<TabPage ref="notificationsTimeline" :key="timelineKey" :component="tab === 'directNotes' ? MkNotesTimeline : MkStreamingNotificationsTimeline" :identity="timelineKey" :isSelected="isTimelineSelected" :pageProps="timelineProps"/>
+		</KeepAlive>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, ref, useTemplateRef } from 'vue';
+import { computed, KeepAlive, markRaw, ref, useCssModule, useTemplateRef } from 'vue';
+import type { ComputedRef } from 'vue';
 import { notificationTypes } from 'misskey-js';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import type { MenuItem } from '@/types/menu.js';
@@ -34,6 +32,7 @@ import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { useRouter } from '@/router.js';
 import { Paginator } from '@/utility/paginator.js';
+import type { IPaginator } from '@/utility/paginator.js';
 import {
 	getNotificationCategoryIcon,
 	getNotificationCategoryLabel,
@@ -44,6 +43,9 @@ import {
 	notificationCategories,
 } from '@/utility/notification-types.js';
 import type { NotificationCategory } from '@/utility/notification-types.js';
+import { prefer } from '@/preferences.js';
+import { TabPage } from '@/composables/use-tab-page.js';
+import type { TabPageHandle } from '@/composables/use-tab-page.js';
 
 type NotificationListTab = 'all' | NotificationCategory;
 
@@ -54,6 +56,7 @@ const props = withDefaults(defineProps<{
 });
 
 const router = useRouter();
+const $style = useCssModule();
 // 地址统一用小写连字符：/my/notifications/direct-notes
 const tab = computed<NotificationListTab | 'directNotes'>(() => {
 	if (props.initialTab === 'direct-notes') return 'directNotes';
@@ -64,9 +67,9 @@ function openTab(value: NotificationListTab) {
 	router.pushByPath(value === 'all' ? '/my/notifications' : `/my/notifications/${value}`);
 }
 
-const notificationsTimeline = useTemplateRef('notificationsTimeline');
+const notificationsTimeline = useTemplateRef<TabPageHandle<{ paginator: IPaginator }>>('notificationsTimeline');
 // 每个分类各自记住筛选，切换分类后再回来仍保持。
-const filters = ref<Record<NotificationListTab, NotificationType | null>>({ all: null, mentions: null, reactions: null, follows: null, system: null });
+const filters = ref<Record<NotificationListTab, NotificationType | null>>({ all: null, mentions: null, reactions: null, follows: null, chat: null, system: null });
 const currentFilter = computed(() => tab.value === 'directNotes' ? null : filters.value[tab.value]);
 const excludeTypes = computed(() => {
 	if (currentFilter.value) return notificationTypes.filter(type => type !== currentFilter.value);
@@ -82,7 +85,12 @@ const directNotesPaginator = markRaw(new Paginator('notes/mentions', {
 	},
 }));
 
-const currentPaginator = computed(() => tab.value === 'directNotes' ? directNotesPaginator : notificationsTimeline.value?.paginator);
+const timelineKey = computed(() => `${tab.value}:${currentFilter.value ?? 'all'}`);
+const isTimelineSelected = (identity: string) => identity === timelineKey.value;
+const timelineProps = computed(() => tab.value === 'directNotes'
+	? { paginator: directNotesPaginator, withControl: false, pageEmpty: true }
+	: { class: $style.notifications, excludeTypes: excludeTypes.value, pageEmpty: true });
+const currentPaginator: ComputedRef<IPaginator | undefined> = computed(() => tab.value === 'directNotes' ? directNotesPaginator : notificationsTimeline.value?.content?.paginator);
 
 // 选中某个分类的子类型时跳到该分类，左侧菜单和内容保持一致。
 function typeItems(target: NotificationListTab, types: readonly NotificationType[]): MenuItem[] {
@@ -140,7 +148,10 @@ const headerActions = computed<PageHeaderItem[]>(() => ([tab.value !== 'directNo
 	text: i18n.ts.markAllAsRead,
 	icon: 'ti ti-checks',
 	handler: () => {
-		os.apiWithDialog('notifications/mark-all-as-read', {});
+		// 失败提示由 apiWithDialog 处理
+		os.apiWithDialog('notifications/mark-all-as-read', {}).then(() => {
+			os.toast(i18n.ts.allMarkedAsRead, 'success');
+		}, () => {});
 	},
 } : undefined] as (PageHeaderItem | undefined)[]).filter(x => x !== undefined));
 

@@ -36,7 +36,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div style="font-size: 120%;">{{ i18n.ts._initialTutorial._landing.title }}</div>
 							<div style="color: var(--MI_THEME-fgTransparentWeak);">{{ i18n.ts._initialTutorial._landing.description }}</div>
 							<MkButton primary rounded gradate style="margin: 16px auto 0 auto;" @click="page++">{{ i18n.ts._initialTutorial.launchTutorial }} <i class="ti ti-arrow-right"></i></MkButton>
-							<MkButton style="margin: 0 auto;" transparent rounded @click="close(true)">{{ i18n.ts.close }}</MkButton>
+							<MkButton style="margin: 0 auto;" rounded @click="close(true)">{{ i18n.ts.close }}</MkButton>
 						</div>
 					</div>
 				</div>
@@ -219,21 +219,6 @@ async function close(skip: boolean) {
 .transition_x_leaveTo {
 	opacity: 0;
 	transform: translateX(-50px);
-}
-
-.progressBar {
-	position: absolute;
-	top: 0;
-	left: 0;
-	z-index: 10;
-	width: 100%;
-	height: 4px;
-}
-
-.progressBarValue {
-	height: 100%;
-	background: linear-gradient(90deg, var(--MI_THEME-buttonGradateA), var(--MI_THEME-buttonGradateB));
-	transition: all 0.5s cubic-bezier(0,.5,.5,1);
 }
 
 .centerPage {

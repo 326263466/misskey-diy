@@ -125,6 +125,10 @@ export const packedUserLiteSchema = {
 						type: 'number',
 						nullable: false, optional: true,
 					},
+					scale: {
+						type: 'number',
+						nullable: false, optional: true,
+					},
 				},
 			},
 		},
@@ -257,6 +261,12 @@ export const packedUserDetailedNotMeOnlySchema = {
 			type: 'string',
 			nullable: true, optional: false,
 			format: 'date-time',
+		},
+		lastActiveAt: {
+			type: 'string',
+			nullable: true, optional: false,
+			format: 'date-time',
+			description: 'Last active time of an offline local user. For invisible users, the time they went invisible. Null while online, hidden or remote.',
 		},
 		bannerUrl: {
 			type: 'string',
@@ -669,6 +679,7 @@ export const packedMeDetailedOnlySchema = {
 				followRequestAccepted: { optional: true, ...notificationRecieveConfig },
 				roleAssigned: { optional: true, ...notificationRecieveConfig },
 				chatRoomInvitationReceived: { optional: true, ...notificationRecieveConfig },
+				chatRoomMemberRemoved: { optional: true, ...notificationRecieveConfig },
 				achievementEarned: { optional: true, ...notificationRecieveConfig },
 				app: { optional: true, ...notificationRecieveConfig },
 				test: { optional: true, ...notificationRecieveConfig },

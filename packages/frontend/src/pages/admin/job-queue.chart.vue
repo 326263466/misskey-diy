@@ -4,20 +4,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<canvas ref="chartEl"></canvas>
+<div :style="{ aspectRatio: String(aspectRatio ?? 2.5) }">
+	<MkEChart :option="option" :ariaLabel="`${i18n.ts._queue.completed} / ${i18n.ts._queue.failed}`"/>
+</div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, useTemplateRef, watch } from 'vue';
-import { Chart } from 'chart.js';
-import { store } from '@/store.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
-import { chartVLine } from '@/utility/chart-vline.js';
-import { alpha } from '@/utility/color.js';
-import { initChart } from '@/utility/init-chart.js';
+import { computed } from 'vue';
+import MkEChart from '@/components/MkEChart.vue';
+import { areaGradient, chartColors, chartGrid } from '@/utility/echarts.js';
+import number from '@/filters/number.js';
 import { i18n } from '@/i18n.js';
-
-initChart();
 
 const props = defineProps<{
 	dataSet: {
@@ -27,106 +24,25 @@ const props = defineProps<{
 	aspectRatio?: number;
 }>();
 
-const chartEl = useTemplateRef('chartEl');
-
-const { handler: externalTooltipHandler } = useChartTooltip();
-
-let chartInstance: Chart;
-
-function setData() {
-	if (chartInstance == null) return;
-	chartInstance.data.labels = [];
-	for (let i = 0; i < Math.max(props.dataSet.completed.length, props.dataSet.failed.length); i++) {
-		chartInstance.data.labels.push('');
-	}
-	chartInstance.data.datasets[0].data = props.dataSet.completed;
-	chartInstance.data.datasets[1].data = props.dataSet.failed;
-	chartInstance.update();
-}
-
-watch(() => props.dataSet, () => {
-	setData();
-});
-
-onMounted(() => {
-	if (chartEl.value == null) return;
-
-	chartInstance = new Chart(chartEl.value, {
-		type: 'line',
-		data: {
-			labels: [],
-			datasets: [{
-				label: i18n.ts._queue.completed,
-				pointRadius: 0,
-				tension: 0.3,
-				borderWidth: 2,
-				borderJoinStyle: 'round',
-				borderColor: '#4caf50',
-				backgroundColor: alpha('#4caf50', 0.2),
-				fill: true,
-				data: [],
-			}, {
-				label: i18n.ts._queue.failed,
-				pointRadius: 0,
-				tension: 0.3,
-				borderWidth: 2,
-				borderJoinStyle: 'round',
-				borderColor: '#ff0000',
-				backgroundColor: alpha('#ff0000', 0.2),
-				fill: true,
-				data: [],
-			}],
-		},
-		options: {
-			aspectRatio: props.aspectRatio ?? 2.5,
-			layout: {
-				padding: {
-					left: 0,
-					right: 0,
-					top: 0,
-					bottom: 0,
-				},
-			},
-			scales: {
-				x: {
-					grid: {
-						display: true,
-					},
-					ticks: {
-						display: false,
-						maxTicksLimit: 10,
-					},
-				},
-				y: {
-					min: 0,
-					grid: {
-					},
-				},
-			},
-			interaction: {
-				intersect: false,
-			},
-			plugins: {
-				legend: {
-					display: false,
-				},
-				tooltip: {
-					enabled: false,
-					mode: 'index',
-					animation: {
-						duration: 0,
-					},
-					external: externalTooltipHandler,
-				},
-			},
-		},
-		plugins: [chartVLine()],
+// 完成与失败分开画两条面积线，失败用错误色，有积压时一眼能看到。
+const option = computed(() => {
+	const c = chartColors.value;
+	const length = Math.max(props.dataSet.completed.length, props.dataSet.failed.length);
+	const line = (name: string, data: number[], color: string) => ({
+		type: 'line', name, data,
+		smooth: 0.3, smoothMonotone: 'x', showSymbol: false,
+		lineStyle: { width: 2, color }, itemStyle: { color },
+		areaStyle: { color: areaGradient(color) },
 	});
-
-	setData();
-});
-
-onUnmounted(() => {
-	chartInstance?.destroy();
+	return {
+		grid: { ...chartGrid, top: 8 },
+		tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => number(Number(value)) },
+		xAxis: { type: 'category', boundaryGap: false, data: Array.from({ length }, (_, index) => index), axisLabel: { show: false }, axisLine: { show: false } },
+		yAxis: { type: 'value', min: 0, minInterval: 1, splitNumber: 3 },
+		series: [
+			line(i18n.ts._queue.completed, props.dataSet.completed, c.success),
+			line(i18n.ts._queue.failed, props.dataSet.failed, c.error),
+		],
+	};
 });
 </script>

@@ -17,6 +17,7 @@ import { FileInfoService } from '@/core/FileInfoService.js';
 import { ImageProcessingService } from '@/core/ImageProcessingService.js';
 import { VideoProcessingService } from '@/core/VideoProcessingService.js';
 import { LoggerService } from '@/core/LoggerService.js';
+import { ProductImageService } from '@/core/product/ProductImageService.js';
 import { bindThis } from '@/decorators.js';
 import { handleRequestRedirectToOmitSearch } from '@/misc/fastify-hook-handlers.js';
 import { FileServerDriveHandler } from './file/FileServerDriveHandler.js';
@@ -45,6 +46,7 @@ export class FileServerService {
 		private imageProcessingService: ImageProcessingService,
 		private videoProcessingService: VideoProcessingService,
 		private internalStorageService: InternalStorageService,
+		private productImageService: ProductImageService,
 		private loggerService: LoggerService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
@@ -96,6 +98,21 @@ export class FileServerService {
 			});
 			fastify.get<{ Params: { key: string; } }>('/files/:key/*', async (request, reply) => {
 				return await reply.redirect(`${this.config.url}/files/${request.params.key}`, 301);
+			});
+			fastify.get<{ Params: { id: string; } }>('/product-images/:id', async (request, reply) => {
+				try {
+					const image = await this.productImageService.findReady(request.params.id);
+					if (!image?.storedInternal) return reply.code(404).header('Cache-Control', 'no-store').send();
+					const file = await fs.promises.open(this.productImageService.filePath(image), 'r');
+					reply.header('Content-Type', image.type);
+					reply.header('Content-Length', image.size);
+					reply.header('X-Content-Type-Options', 'nosniff');
+					reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+					return reply.send(file.createReadStream());
+				} catch (error) {
+					if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return reply.code(404).header('Cache-Control', 'no-store').send();
+					return this.errorHandler(request, reply, error);
+				}
 			});
 			done();
 		});

@@ -5,7 +5,6 @@
 
 import { Inject, Injectable, Scope } from '@nestjs/common';
 import type { Packed } from '@/misc/json-schema.js';
-import { MetaService } from '@/core/MetaService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { NoteStreamingHidingService } from '../NoteStreamingHidingService.js';
 import { bindThis } from '@/decorators.js';
@@ -29,13 +28,11 @@ export class LocalTimelineChannel extends Channel {
 		@Inject(REQUEST)
 		request: ChannelRequest,
 
-		private metaService: MetaService,
 		private roleService: RoleService,
 		private noteEntityService: NoteEntityService,
 		private noteStreamingHidingService: NoteStreamingHidingService,
 	) {
 		super(request);
-		//this.onNote = this.onNote.bind(this);
 	}
 
 	@bindThis
@@ -71,16 +68,7 @@ export class LocalTimelineChannel extends Channel {
 		// eslint-disable-next-line no-param-reassign -- これ以降元の Note オブジェクトは見てはいけないので、いっそ再代入した方が安全
 		note = filtered;
 
-		if (this.user) {
-			if (isRenotePacked(note) && !isQuotePacked(note)) {
-				if (note.renote && Object.keys(note.renote.reactions).length > 0) {
-					const myRenoteReactions = await this.noteEntityService.populateMyReactions(note.renote, this.user.id);
-					note.renote.myReactions = myRenoteReactions;
-				}
-			}
-		}
-
-		this.send('note', note);
+		this.send('note', await this.noteEntityService.withMyRenoteReaction(note, this.user?.id ?? null));
 	}
 
 	@bindThis

@@ -32,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</FormLink>
 
 					<MkFolder :defaultOpen="true">
-						<template #label>{{ i18n.ts.manage }}</template>
+						<template #label>{{ i18n.ts._webhookSettings.list }}</template>
 
 						<MkPagination :paginator="paginator" withControl>
 							<template #default="{items}">
@@ -61,7 +61,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, defineAsyncComponent, markRaw } from 'vue';
+import { ref, markRaw } from 'vue';
 import MkPagination from '@/components/MkPagination.vue';
 import FormSection from '@/components/form/section.vue';
 import FormLink from '@/components/form/link.vue';
@@ -70,6 +70,7 @@ import { i18n } from '@/i18n.js';
 import MkFeatureBanner from '@/components/MkFeatureBanner.vue';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
 import MkButton from '@/components/MkButton.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import { Paginator } from '@/utility/paginator.js';
@@ -85,11 +86,17 @@ async function generateToken() {
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkTokenGenerateWindow.vue').then(x => x.default), {}, {
 		done: async result => {
 			const { name, permissions } = result;
-			const { token } = await misskeyApi('miauth/gen-token', {
-				session: null,
-				name: name,
-				permission: permissions,
-			});
+			let token: string;
+			try {
+				({ token } = await misskeyApi('miauth/gen-token', {
+					session: null,
+					name: name,
+					permission: permissions,
+				}));
+			} catch (error) {
+				if (!isAccountSessionErrorHandled(error)) os.toast(i18n.ts.somethingHappened, 'error');
+				return;
+			}
 
 			os.alert({
 				type: 'success',
@@ -100,10 +107,6 @@ async function generateToken() {
 		closed: () => dispose(),
 	});
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts._settings.serviceConnection,

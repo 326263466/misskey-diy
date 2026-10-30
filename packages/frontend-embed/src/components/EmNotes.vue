@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<EmPagination ref="pagingComponent" :pagination="pagination" :disableAutoLoad="disableAutoLoad">
+<EmPagination ref="pagingComponent" :pagination="pagination">
 	<template #empty>
 		<div class="_fullinfo">
 			<div>{{ i18n.ts.noNotes }}</div>
@@ -30,7 +30,6 @@ import * as Misskey from 'misskey-js';
 withDefaults(defineProps<{
 	pagination: Paging;
 	noGap?: boolean;
-	disableAutoLoad?: boolean;
 	ad?: boolean;
 }>(), {
 	ad: true,

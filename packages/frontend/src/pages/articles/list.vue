@@ -4,13 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="root" class="_pageScrollable" :class="$style.root">
-	<MkStickyContainer class="_card" :class="$style.card">
+<div ref="root" class="_pageScrollable _card" :class="[$style.root, { [$style.mobile]: mobileLayout }]">
+	<MkStickyContainer :class="$style.card">
 		<template #header>
 			<nav :class="$style.tabs" :aria-label="i18n.ts._article.article">
 				<span v-if="tag" :class="$style.topic">#{{ tag }}</span>
 				<MkA v-for="tab in tabs" :key="tab.key" :to="`${categoryPath}?tab=${tab.key}`" :class="[$style.tab, { [$style.active]: activeTab === tab.key }]" :aria-current="activeTab === tab.key ? 'page' : undefined">{{ tab.title }}</MkA>
-				<button type="button" class="_button" :class="$style.refresh" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" :disabled="paginator.fetching.value" @click="paginator.reload()"><i class="ti ti-refresh" aria-hidden="true"></i></button>
+				<button v-if="!mobileLayout || !prefer.s.enablePullToRefresh" type="button" class="_button" :class="$style.refresh" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" :disabled="paginator.fetching.value" @click="paginator.reload()"><i class="ti ti-refresh" aria-hidden="true"></i></button>
 			</nav>
 		</template>
 		<MkPagination :paginator="paginator" pageEmpty>
@@ -18,6 +18,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div :class="$style.list">
 					<MkArticlePreview v-for="article in items" :key="article.id" :article="article"/>
 				</div>
+				<MkResult v-if="recommendations?.loadError.value" type="error" :text="recommendations.loadError.value === 'expired' ? i18n.ts._article.recommendationExpired : undefined">
+					<MkButton rounded @click="recommendations.retry()">{{ recommendations.loadError.value === 'expired' ? i18n.ts.reload : i18n.ts.retry }}</MkButton>
+				</MkResult>
 			</template>
 		</MkPagination>
 	</MkStickyContainer>
@@ -25,17 +28,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, useTemplateRef, watch } from 'vue';
+import { computed, inject, markRaw, useTemplateRef, watch } from 'vue';
+import type { Ref } from 'vue';
 import MkPagination from '@/components/MkPagination.vue';
 import MkArticlePreview from '@/components/MkArticlePreview.vue';
+import MkButton from '@/components/MkButton.vue';
 import { Paginator } from '@/utility/paginator.js';
+import { ArticleRecommendationPaginator } from '@/utility/article-recommendation-paginator.js';
 import { instance } from '@/instance.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
 import { useScrollToTop } from '@/composables/use-scroll-to-top.js';
+import { prefer } from '@/preferences.js';
+import { deviceKind } from '@/utility/device-kind.js';
 
 const props = defineProps<{ categoryId?: string; tag?: string; tab?: string }>();
+const mobileLayout = inject<Readonly<Ref<boolean>>>('mobileLayout', computed(() => deviceKind === 'smartphone' || window.innerWidth <= 500));
 const activeTab = computed(() => props.tab === 'latest' ? 'latest' : props.tab === 'following' && !props.categoryId && !props.tag && $i ? 'following' : 'recommended');
 const categoryPath = computed(() => props.tag ? `/articles/tag/${encodeURIComponent(props.tag)}` : props.categoryId ? `/articles/category/${encodeURIComponent(props.categoryId)}` : '/');
 const tabs = computed(() => [
@@ -48,15 +57,15 @@ const paginator = computed(() => {
 	const key = JSON.stringify([props.categoryId, props.tag, activeTab.value]);
 	let result = paginators.get(key);
 	if (!result) {
-		result = markRaw(new Paginator('articles/list', {
+		result = markRaw(activeTab.value === 'recommended' ? new ArticleRecommendationPaginator({ categoryId: props.categoryId, tag: props.tag }) : new Paginator('articles/list', {
 			limit: 20,
-			offsetMode: activeTab.value === 'recommended',
-			params: { categoryId: props.categoryId, tag: props.tag, sort: activeTab.value === 'recommended' ? 'recommended' : 'latest', following: activeTab.value === 'following' },
+			params: { categoryId: props.categoryId, tag: props.tag, sort: 'latest', following: activeTab.value === 'following' },
 		}));
 		paginators.set(key, result);
 	}
 	return result;
 });
+const recommendations = computed(() => paginator.value instanceof ArticleRecommendationPaginator ? paginator.value : null);
 const resetScroll = useScrollToTop(useTemplateRef('root'));
 watch(paginator, resetScroll, { flush: 'sync' });
 
@@ -68,6 +77,7 @@ definePage(() => ({
 
 <style lang="scss" module>
 .root {
+	box-sizing: border-box;
 	border-radius: var(--MI-cardRadius);
 }
 
@@ -92,9 +102,41 @@ definePage(() => ({
 	height: 44px;
 	border-radius: var(--MI-cardRadius);
 	color: var(--MI_THEME-fgTransparentWeak);
-	&:hover { color: var(--MI_THEME-fg); background: var(--MI_THEME-buttonBg); }
+	&:hover { color: var(--MI_THEME-fg); }
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 }
+
+.root.mobile {
+	border-radius: 0;
+
+	.tabs {
+		gap: 0;
+		padding-inline: var(--MI-margin);
+		overflow-x: auto;
+		scrollbar-width: none;
+
+		&::-webkit-scrollbar {
+			display: none;
+		}
+	}
+
+	.tab {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		box-sizing: border-box;
+		min-width: 48px;
+		min-height: var(--MI-mobileTabHeight);
+		padding: 0 14px;
+	}
+
+	.refresh {
+		width: var(--MI-mobileTouchTarget);
+		height: var(--MI-mobileTabHeight);
+	}
+}
+
 .topic { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--MI_THEME-accent); min-width: 0; }
 
 .tab {

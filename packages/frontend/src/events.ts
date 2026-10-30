@@ -11,14 +11,19 @@ export type NoteEditContent = Pick<Misskey.entities.Note, 'text' | 'cw'> & Parti
 
 type Events = {
 	redPacketClaimed: (id: string) => void;
+	userBlockingChanged: (userId: string, blocking: boolean) => void;
+	userRolesUpdated: (userId: string) => void;
 	chatRoomUpdated: (room: Misskey.entities.ChatRoom) => void;
 	chatRoomLeft: (roomId: string) => void;
 	chatConversationStarted: (user: Misskey.entities.UserLite) => void;
 	chatDraftUpdated: () => void;
 	chatPinsUpdated: () => void;
 	chatUnreadChanged: (state: { id: string; count: number; throughId: string | null }) => void;
+	chatPoked: (message: Misskey.entities.ChatMessage) => void;
 	clientNotification: (notification: Misskey.entities.Notification) => void;
+	contentTipSent: (target: { targetType: 'note' | 'page'; targetId: string }) => void;
 	notePosted: (note: Misskey.entities.Note) => void;
+	flashDeleted: (flashId: string) => void;
 	likesUpdated: (noteId: Misskey.entities.Note['id'], state: Misskey.entities.LikeState) => void;
 	noteEdited: (noteId: string, content: NoteEditContent) => void;
 	noteDeleted: (

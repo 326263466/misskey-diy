@@ -17,21 +17,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.info">
 		<div :class="$style.infoSection">
 			<p :class="$style.infoText">{{ i18n.ts.today }}<b :class="$style.percentage">{{ dayP.toFixed(1) }}%</b></p>
-			<div :class="$style.meter">
-				<div :class="$style.meterVal" :style="{ width: `${dayP}%` }"></div>
-			</div>
+			<progress :value="dayP" max="100" :aria-label="i18n.ts.today"></progress>
 		</div>
 		<div :class="$style.infoSection">
 			<p :class="$style.infoText">{{ i18n.ts.thisMonth }}<b :class="$style.percentage">{{ monthP.toFixed(1) }}%</b></p>
-			<div :class="$style.meter">
-				<div :class="$style.meterVal" :style="{ width: `${monthP}%` }"></div>
-			</div>
+			<progress :value="monthP" max="100" :aria-label="i18n.ts.thisMonth"></progress>
 		</div>
 		<div :class="$style.infoSection">
 			<p :class="$style.infoText">{{ i18n.ts.thisYear }}<b :class="$style.percentage">{{ yearP.toFixed(1) }}%</b></p>
-			<div :class="$style.meter">
-				<div :class="$style.meterVal" :style="{ width: `${yearP}%` }"></div>
-			</div>
+			<progress :value="yearP" max="100" :aria-label="i18n.ts.thisYear"></progress>
 		</div>
 	</div>
 </div>
@@ -205,18 +199,5 @@ defineExpose<WidgetComponentExpose>({
 
 .percentage {
 	margin-left: auto;
-}
-
-.meter {
-	width: 100%;
-	overflow: hidden;
-	background: var(--MI_THEME-accentedBg);
-	border-radius: var(--MI-radius);
-}
-
-.meterVal {
-	height: 4px;
-	background: var(--MI_THEME-accent);
-	transition: width .3s cubic-bezier(0.23, 1, 0.32, 1);
 }
 </style>

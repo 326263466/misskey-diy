@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { withPageHistoryEntryId } from '@/utility/page-history.js';
+
 type PopupHistoryEntry = {
 	id: string;
 	guard: boolean;
@@ -18,6 +20,8 @@ const stateKey = '__misskeyPopup';
 let getDismissal: () => (() => void) | undefined = () => undefined;
 let guard: Guard | undefined;
 let removing: Guard | undefined;
+let onPageHistorySettled: () => void = () => {};
+let canSyncPopupHistory: () => boolean = () => true;
 const pendingNavigations: (() => void)[] = [];
 
 function entry(state: unknown): PopupHistoryEntry | undefined {
@@ -38,6 +42,11 @@ export function setPopupHistoryDismissal(getTopDismissal: typeof getDismissal) {
 	getDismissal = getTopDismissal;
 }
 
+export function setPageHistorySettled(listener: typeof onPageHistorySettled, canSync: typeof canSyncPopupHistory) {
+	onPageHistorySettled = listener;
+	canSyncPopupHistory = canSync;
+}
+
 function removeGuard() {
 	if (!guard || removing) return;
 	if (entry(window.history.state)?.id !== guard.id) {
@@ -50,7 +59,8 @@ function removeGuard() {
 }
 
 export function syncPopupHistory() {
-	if (removing) return;
+	// 等页面回到原历史项再挂弹窗保护，避免裁掉编辑页的前进历史。
+	if (removing || !canSyncPopupHistory()) return;
 	if (!getDismissal()) {
 		removeGuard();
 		return;
@@ -65,8 +75,10 @@ export function syncPopupHistory() {
 function finishRemoval(targetState: unknown) {
 	const removed = removing!;
 	removing = undefined;
-	window.history.replaceState(removed.fromForward ? targetState : removed.state, '');
+	// 清除弹窗标记时保留浏览器实际到达的页面状态。
+	window.history.replaceState(removed.fromForward ? targetState : withoutEntry(targetState), '');
 	for (const navigate of pendingNavigations.splice(0)) navigate();
+	onPageHistorySettled();
 	queueMicrotask(syncPopupHistory);
 }
 
@@ -79,11 +91,13 @@ window.addEventListener('popstate', event => {
 	}
 	if (guard && target?.id === guard.id && !target.guard) {
 		event.stopImmediatePropagation();
-		const previous = guard;
 		guard = undefined;
-		window.history.replaceState(previous.state, '');
+		window.history.replaceState(withoutEntry(event.state), '');
 		// 取消由组件原有的关闭守卫决定；拒绝关闭时重新建立保护项。
-		try { getDismissal()?.(); } finally { queueMicrotask(syncPopupHistory); }
+		try { getDismissal()?.(); } finally {
+			onPageHistorySettled();
+			queueMicrotask(syncPopupHistory);
+		}
 		return;
 	}
 	if (target?.guard) {
@@ -103,18 +117,19 @@ if (restoredEntry?.guard) {
 	window.history.replaceState(withoutEntry(window.history.state), '');
 }
 
-export function pushPageHistory(fullPath: string) {
+export function pushPageHistory(fullPath: string, entryId: string) {
 	if (removing) {
-		pendingNavigations.push(() => pushPageHistory(fullPath));
+		pendingNavigations.push(() => pushPageHistory(fullPath, entryId));
 		return;
 	}
 	if (guard && entry(window.history.state)?.id === guard.id) {
 		// 弹窗内跳转直接复用保护项，关闭动画结束后不会误退新页面。
 		guard = undefined;
-		window.history.replaceState({}, '', fullPath);
+		window.history.replaceState(withPageHistoryEntryId(withoutEntry(window.history.state), entryId), '', fullPath);
 	} else {
-		window.history.pushState({}, '', fullPath);
+		window.history.pushState(withPageHistoryEntryId(withoutEntry(window.history.state), entryId), '', fullPath);
 	}
+	onPageHistorySettled();
 	queueMicrotask(syncPopupHistory);
 }
 
@@ -124,9 +139,10 @@ export function navigateAfterPopupHistory(navigate: () => void) {
 	else navigate();
 }
 
-export function replacePageHistory(fullPath: string) {
+export function replacePageHistory(fullPath: string, entryId: string) {
 	navigateAfterPopupHistory(() => {
-		window.history.replaceState({}, '', fullPath);
+		window.history.replaceState(withPageHistoryEntryId(withoutEntry(window.history.state), entryId), '', fullPath);
+		onPageHistorySettled();
 		queueMicrotask(syncPopupHistory);
 	});
 }

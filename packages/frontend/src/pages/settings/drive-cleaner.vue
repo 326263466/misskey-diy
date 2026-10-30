@@ -29,10 +29,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span>{{ bytes(file.size) }}</span>
 							</div>
 							<div>
-								<span>{{ i18n.ts.registeredDate }}: <MkTime :time="file.createdAt" mode="detail"/></span>
+								<span>{{ i18n.ts.createdAt }}: <MkTime :time="file.createdAt" mode="detail"/></span>
 							</div>
 							<div v-if="sortModeSelect === 'sizeDesc'">
-								<div :class="$style.meter"><div :class="$style.meterValue" :style="genUsageBar(file.size)"></div></div>
+								<progress :class="$style.meter" :value="usage > 0 ? file.size : 0" :max="usage || 1" :style="genUsageBar(file.size)" :aria-label="`${file.name}: ${i18n.ts.inUse}`"></progress>
 							</div>
 						</div>
 					</div>
@@ -110,9 +110,9 @@ function fetchDriveInfo(): void {
 }
 
 function genUsageBar(fsize: number): StyleValue {
+	const ratio = usage.value > 0 ? fsize / usage.value : 0;
 	return {
-		width: `${fsize / usage.value * 100}%`,
-		background: tinycolor({ h: 180 - (fsize / usage.value * 180), s: 0.7, l: 0.5 }).toHslString(),
+		'--MI-progressFill': tinycolor({ h: 180 - (ratio * 180), s: 0.7, l: 0.5 }).toHslString(),
 	};
 }
 
@@ -161,14 +161,7 @@ definePage(() => ({
 }
 
 .meter {
+	--MI-progressHeight: 12px;
 	margin-top: 8px;
-	height: 12px;
-	background: var(--MI_THEME-bg);
-	overflow: clip;
-	border-radius: 999px;
-}
-
-.meterValue {
-	height: 100%;
 }
 </style>

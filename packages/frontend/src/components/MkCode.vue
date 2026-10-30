@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</div>
 	<div :class="$style.codeBlockBody">
-		<div :class="$style.codeBlockViewport" tabindex="0" :aria-label="i18n.ts.code">
+		<div :class="[$style.codeBlockViewport, { [$style.scrollable]: scrollable }]" tabindex="0" :aria-label="i18n.ts.code">
 			<Suspense>
 				<template #fallback>
 					<pre
@@ -53,10 +53,12 @@ const props = withDefaults(defineProps<{
 	code: string;
 	copyButton?: boolean;
 	withOuterStyle?: boolean;
+	scrollable?: boolean;
 	lang?: string;
 }>(), {
 	copyButton: true,
 	withOuterStyle: true,
+	scrollable: false,
 });
 
 const copied = ref(false);
@@ -145,6 +147,11 @@ async function copy() {
 	font-size: inherit;
 	font-weight: normal;
 	border-radius: 4px;
+	background: color-mix(in srgb, currentColor 12%, transparent);
+
+	&:hover {
+		background: color-mix(in srgb, currentColor 20%, transparent);
+	}
 }
 
 .codeBlockBody {
@@ -178,6 +185,14 @@ async function copy() {
 	&:focus-visible {
 		outline: 2px solid currentColor;
 		outline-offset: -3px;
+	}
+}
+
+.codeBlockViewport.scrollable {
+	overflow-x: auto;
+
+	> * {
+		min-width: max-content;
 	}
 }
 

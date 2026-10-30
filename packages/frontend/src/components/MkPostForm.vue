@@ -5,24 +5,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div
-	:class="[$style.root, { [$style.rootMaximized]: maximized, [$style.withInitialRows]: initialRows != null, [$style.commentMode]: commentMode, [$style.inlineReply]: commentMode && inlineReply, [$style.fixedMode]: fixed && !commentMode }]"
+	v-if="!commentMode"
+	:class="[$style.root, { [$style.rootMaximized]: maximized, [$style.rootMobile]: mobileLayout, [$style.withInitialRows]: initialRows != null, [$style.withChannel]: channel != null, [$style.fixedMode]: fixed }]"
 	:style="initialRows != null ? { '--MI-postForm-initialRows': initialRows } : undefined"
 	@dragover.stop="onDragover"
-	@dragenter="onDragenter"
-	@dragleave="onDragleave"
 	@drop.stop="onDrop"
 >
-	<header :class="$style.header">
+	<header v-if="!fixed" :class="$style.header">
 		<div :class="$style.headerLeft">
-			<button v-if="!fixed" v-tooltip="i18n.ts.cancel" :class="$style.cancel" class="_button _iconButton" :aria-label="i18n.ts.cancel" @click="cancel"><i class="ti ti-x"></i></button>
-			<img v-if="commentMode && !inlineReply" :class="$style.avatar" :src="getUserAvatar($i).avatarUrl" alt=""/>
-			<button v-else ref="accountMenuEl" v-click-anime v-tooltip="userName(postAccount ?? $i)" class="_button" :aria-label="i18n.ts.account" :disabled="isEditing || redPacket != null" @click="openAccountMenu">
+			<slot name="headerLeading">
+				<button v-if="!fixed" v-tooltip="i18n.ts.cancel" :class="$style.cancel" class="_button _iconButton" :aria-label="i18n.ts.cancel" @click="cancel"><i class="ti ti-x"></i></button>
+			</slot>
+			<button ref="accountMenuEl" v-click-anime v-tooltip="userName(postAccount ?? $i)" class="_button" :class="$style.accountButton" :aria-label="i18n.ts.account" :disabled="isEditing || redPacket != null" @click="openAccountMenu">
 				<img :class="$style.avatar" :src="getUserAvatar(postAccount ?? $i).avatarUrl" alt="" style="border-radius: 100%;"/>
 			</button>
 		</div>
 		<div v-if="!commentMode" :class="$style.headerRight">
 			<template v-if="!(props.channel != null && fixed)">
-				<button v-if="targetChannel == null || canChooseChannel" ref="visibilityButton" :class="['_button', $style.headerRightItem, $style.visibility]" :aria-label="visibilityLabel" :disabled="isEditing || targetChannel != null || redPacketConfirming || pendingRedPacketPost != null" @click="setVisibility">
+				<button v-if="targetChannel == null || canChooseChannel" ref="visibilityButton" :class="['_button', $style.headerRightItem, $style.visibility]" :aria-label="visibilityLabel" :disabled="isEditing || targetChannel != null || redPacketConfirming || pendingRedPacketPost != null" @click="setVisibility()">
 					<span v-tooltip="visibilityLabel" :class="$style.visibilityIcon">
 						<i v-if="visibility === 'public'" class="ti ti-world"></i>
 						<i v-if="visibility === 'home'" class="ti ti-home"></i>
@@ -32,16 +32,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span :class="$style.headerRightButtonText">{{ i18n.ts._visibility[visibility] }}</span>
 				</button>
 				<button v-else class="_button" :class="[$style.headerRightItem, $style.visibility]" :aria-label="targetChannel.name" disabled>
-					<span v-tooltip="targetChannel.name" :class="$style.visibilityIcon"><i class="ti ti-device-tv"></i></span>
+					<span v-tooltip="targetChannel.name" :class="$style.visibilityIcon"><i class="ti ti-broadcast"></i></span>
 					<span :class="$style.headerRightButtonText">{{ targetChannel.name }}</span>
 				</button>
 			</template>
 			<!-- 频道帖子固定不参与联合，开关没有意义 -->
-			<button v-if="targetChannel == null && visibility !== 'specified' && redPacket == null && !editingNote?.redPacket" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :aria-label="i18n.ts._visibility.disableFederation" :aria-pressed="localOnly" :disabled="isEditing || redPacket != null" @click="toggleLocalOnly">
+			<button v-if="!mobileLayout && targetChannel == null && visibility !== 'specified' && redPacket == null && !editingNote?.redPacket" v-tooltip="i18n.ts._visibility.disableFederation" class="_button" :class="[$style.headerRightItem, { [$style.danger]: localOnly }]" :aria-label="i18n.ts._visibility.disableFederation" :aria-pressed="localOnly" :disabled="isEditing || redPacket != null" @click="toggleLocalOnly">
 				<span v-if="!localOnly"><i class="ti ti-rocket"></i></span>
 				<span v-else><i class="ti ti-rocket-off"></i></span>
 			</button>
-			<button v-if="canMaximize" v-tooltip="maximizeTitle" :aria-label="maximizeTitle" :aria-pressed="maximized" class="_button" :class="$style.headerRightItem" @click="toggleMaximize">
+			<button v-if="canMaximize && !mobileLayout" v-tooltip="maximizeTitle" :aria-label="maximizeTitle" :aria-pressed="maximized" class="_button" :class="$style.headerRightItem" @click="toggleMaximize">
 				<i v-if="maximized" class="ti ti-arrows-minimize"></i>
 				<i v-else class="ti ti-arrows-maximize"></i>
 			</button>
@@ -75,37 +75,32 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<template #x>
 				<MkTime :time="scheduledAt" :mode="'detail'" style="font-weight: bold;"/>
 			</template>
-		</I18n> - <button class="_textButton" @click="cancelSchedule()">{{ i18n.ts.cancel }}</button>
+		</I18n> <button class="_textButton" @click="cancelSchedule()">{{ i18n.ts.cancel }}</button>
 	</MkInfo>
-	<MkInfo v-if="hasNotSpecifiedMentions" warn :class="$style.hasNotSpecifiedMentions">{{ i18n.ts.notSpecifiedMentionWarning }}<template v-if="!isEditing"> - <button class="_textButton" @click="addMissingMention()">{{ i18n.ts.add }}</button></template></MkInfo>
+	<MkInfo v-if="hasNotSpecifiedMentions" warn :class="$style.hasNotSpecifiedMentions">{{ i18n.ts.notSpecifiedMentionWarning }}<template v-if="!isEditing"> <button class="_textButton" @click="addMissingMention()">{{ i18n.ts.add }}</button></template></MkInfo>
 	<div v-show="useCw" :class="$style.cwOuter">
-		<div :class="$style.cwHeader">
-			<label :for="cwInputId" :class="$style.cwLabel"><i class="ti ti-eye-off" aria-hidden="true"></i>{{ i18n.ts._postForm.cwTitle }}</label>
-			<span :id="cwHintId" :class="$style.cwHint">{{ i18n.ts._postForm.cwHint }}</span>
-			<button type="button" class="_button" :class="$style.cwRemove" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :aria-label="i18n.ts._postForm.cwRemove" :title="i18n.ts._postForm.cwRemove" @click="toggleCw"><i class="ti ti-x" aria-hidden="true"></i></button>
-		</div>
+		<button type="button" class="_button" :class="$style.cwRemove" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :aria-label="i18n.ts._postForm.cwRemove" :title="i18n.ts._postForm.cwRemove" @click="toggleCw"><i class="ti ti-x" aria-hidden="true"></i></button>
+		<span :id="cwHintId" :class="$style.srOnly">{{ i18n.ts._postForm.cwHint }}</span>
 		<div :class="$style.cwInputWrap">
 			<input :id="cwInputId" ref="cwInputEl" v-model="cw" class="_mfm" :class="$style.cw" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :placeholder="i18n.ts._postForm.cwSummary" :aria-label="i18n.ts._postForm.cwSummary" :aria-describedby="cwHintId" :aria-required="useCw" @keydown="onKeydown" @keyup="onKeyup" @compositionend="onCompositionEnd">
 			<MkEmojiInputOverlay :inputElement="cwInputEl" :text="cw"/>
-			<span class="_inputCounter" :class="{ _inputCounterOver: cwTextLength > maxCwTextLength }">{{ cwTextLength }}/{{ maxCwTextLength }}</span>
+			<span v-if="cwTextLength > maxCwTextLength" class="_inputCounter _inputCounterOver">{{ cwTextLength }}/{{ maxCwTextLength }}</span>
 		</div>
 	</div>
 	<div :class="[$style.textOuter, { [$style.withCw]: useCw }]">
-		<div v-if="useCw" :class="$style.hiddenBodyLabel"><i class="ti ti-align-left" aria-hidden="true"></i>{{ i18n.ts._postForm.cwBody }}</div>
 		<MkPostFormInput ref="bodyInput" v-model="text" :toolbar="false" :autocomplete="false" :inputClass="$style.text" :rows="initialRows" :maxLength="maxTextLength" :textLength="textLength" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :readonly="textAreaReadOnly" :placeholder="placeholder" @keydown="onKeydown" @keyup="onKeyup" @paste="onPaste" @compositionupdate="onCompositionUpdate" @compositionend="onCompositionEnd">
 			<template #footer>
-				<div v-if="!commentMode && (canChooseChannel || targetChannel)" :class="$style.channelRow">
+				<div v-if="!commentMode && channel == null && (canChooseChannel || targetChannel)" :class="$style.channelRow">
 					<button v-if="canChooseChannel" ref="channelButtonEl" type="button" class="_button" :class="$style.channelChip" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" :aria-label="targetChannel ? `${i18n.ts.selectChannel}: ${targetChannel.name}` : i18n.ts.selectChannel" aria-haspopup="dialog" :aria-expanded="channelPickerOpen" data-testid="post-form-channel" @click="openChannelPicker">
-						<i class="ti ti-device-tv" aria-hidden="true"></i><span :class="$style.channelName">{{ targetChannel?.name ?? i18n.ts.selectChannel }}</span><i class="ti ti-chevron-right" :class="[$style.channelArrow, { [$style.channelArrowOpen]: channelPickerOpen, [$style.channelArrowAnimated]: prefer.s.animation }]" aria-hidden="true"></i>
+						<i class="ti ti-broadcast" aria-hidden="true"></i><span :class="$style.channelName">{{ targetChannel?.name ?? i18n.ts.selectChannel }}</span><i class="ti ti-chevron-right" :class="[$style.channelArrow, { [$style.channelArrowOpen]: channelPickerOpen, [$style.channelArrowAnimated]: prefer.s.animation }]" aria-hidden="true"></i>
 					</button>
-					<span v-else :class="$style.channelChip" :title="i18n.ts._channelPicker.description"><i class="ti ti-device-tv" aria-hidden="true"></i><span :class="$style.channelName">{{ targetChannel?.name }}</span></span>
+					<span v-else data-testid="post-form-channel-readonly" :class="$style.channelChip" :title="i18n.ts._channelPicker.description"><i class="ti ti-broadcast" aria-hidden="true"></i><span :class="$style.channelName">{{ targetChannel?.name }}</span></span>
 				</div>
 			</template>
 		</MkPostFormInput>
 	</div>
 	<MkPostFormTopics v-if="!commentMode || withHashtags" ref="topicsEl" v-model="hashtags" v-model:enabled="withHashtags" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @openChange="topicsOpen = $event" @empty="focusTopics"/>
 	<XPostFormAttaches v-model="files" :editing="isEditing" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName"/>
-	<MkInfo v-if="fileProtection.status.value !== 'saved'" :warn="fileProtection.status.value === 'failed'">{{ fileProtection.status.value === 'failed' ? i18n.ts._attachmentLifecycle.draftFailed : i18n.ts._attachmentLifecycle.draftPending }}</MkInfo>
 	<div v-if="uploader.items.value.length > 0" style="padding: 12px;">
 		<MkTip k="postFormUploader">
 			{{ i18n.ts._postForm.uploaderTip }}
@@ -129,11 +124,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</section>
 	<MkInfo v-if="pendingRedPacketPost" :class="$style.existingPoll">{{ i18n.ts._redPacket.pendingLocked }}</MkInfo>
 	<MkNotePreview v-if="showPreview" :class="$style.preview" :text="getPostText() ?? ''" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
-	<div v-if="showingOptions" style="padding: 8px 16px;">
-	</div>
 	<footer ref="footerEl" :class="$style.footer">
 		<div :class="$style.footerLeft">
-			<button v-if="commentMode" v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.emoji" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-if="fixed" ref="accountMenuEl" v-click-anime v-tooltip="userName(postAccount ?? $i)" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.account" :disabled="isEditing || redPacket != null" @click="openAccountMenu">
+				<img :class="$style.footerAvatar" :src="getUserAvatar(postAccount ?? $i).avatarUrl" alt=""/>
+			</button>
 			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.attachFile + ' (' + i18n.ts.upload + ')'" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="chooseFileFromPc"><i class="ti ti-photo-plus"></i></button>
 			<template v-if="!commentMode">
 				<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="chooseFileFromDrive"><i class="ti ti-cloud-download"></i></button>
@@ -147,15 +142,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</div>
 		<div :class="$style.footerRight">
-			<template v-if="commentMode">
-				<button v-click-anime class="_button" :class="$style.submit" :disabled="!canPost" data-testid="post-form-submit" @click="post">
-					<div :class="$style.submitInner">
-						<MkEllipsis v-if="posting"/>
-						<template v-else>{{ inlineReply ? i18n.ts.reply : i18n.ts._article.publishComment }}</template>
-					</div>
-				</button>
-			</template>
-			<button v-else v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.emoji" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-if="fixed" ref="otherSettingsButton" v-tooltip="i18n.ts.other" class="_button" :class="$style.footerButton" :aria-label="i18n.ts.other" aria-haspopup="menu" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="showOtherSettings"><i class="ti ti-dots"></i></button>
+			<button v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" :aria-label="i18n.ts.emoji" :disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 			<button v-if="!commentMode && fixed" ref="submitButtonEl" v-click-anime class="_button" :class="$style.submit" :disabled="!canPost" data-testid="post-form-submit" @click="post">
 				<div :class="$style.submitInner">
 					<i v-if="posted" class="ti ti-check"></i>
@@ -166,17 +154,74 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</footer>
 </div>
+<MkCommentComposer
+	v-else
+	ref="commentInput"
+	v-model="text"
+	v-model:files="files"
+	:inline="inlineReply"
+	:maxLength="maxTextLength"
+	:textLength="textLength"
+	:rows="initialRows"
+	:disabled="posting || posted || redPacketConfirming || pendingRedPacketPost != null"
+	:readonly="textAreaReadOnly"
+	:placeholder="placeholder"
+	:autocomplete="false"
+	managed
+	@submit="post"
+	@keydown="onKeydown"
+	@keyup="onKeyup"
+	@paste="onPaste"
+	@compositionupdate="onCompositionUpdate"
+	@compositionend="onCompositionEnd"
+	@dragover.stop="onDragover"
+	@drop.stop="onDrop"
+>
+	<template #before>
+		<MkNoteSimple v-if="renoteTargetNote && renoteTargetNote.id !== replyTargetNote?.id" :note="renoteTargetNote" compact/>
+		<MkInfo v-if="scheduledAt != null">{{ i18n.ts.schedulePost }} <MkTime :time="scheduledAt" mode="detail"/></MkInfo>
+		<MkInfo v-if="hasNotSpecifiedMentions" warn>{{ i18n.ts.notSpecifiedMentionWarning }}<button v-if="!isEditing" type="button" class="_textButton" @click="addMissingMention()">{{ i18n.ts.add }}</button></MkInfo>
+		<div v-show="useCw" :class="[$style.cwOuter, $style.cwStandalone]">
+			<button type="button" class="_button" :class="$style.cwRemove" :disabled="posting || posted" :aria-label="i18n.ts._postForm.cwRemove" @click="toggleCw"><i class="ti ti-x" aria-hidden="true"></i></button>
+			<span :id="cwHintId" :class="$style.srOnly">{{ i18n.ts._postForm.cwHint }}</span>
+			<div :class="$style.cwInputWrap">
+				<input :id="cwInputId" ref="cwInputEl" v-model="cw" class="_mfm" :class="$style.cw" :disabled="posting || posted" :placeholder="i18n.ts._postForm.cwSummary" :aria-label="i18n.ts._postForm.cwSummary" :aria-describedby="cwHintId" :aria-required="useCw" @keydown.enter.prevent @keyup="onKeyup" @compositionend="onCompositionEnd">
+				<MkEmojiInputOverlay :inputElement="cwInputEl" :text="cw"/>
+				<span v-if="cwTextLength > maxCwTextLength" class="_inputCounter _inputCounterOver">{{ cwTextLength }}/{{ maxCwTextLength }}</span>
+			</div>
+		</div>
+	</template>
+	<template #attachments>
+		<MkPostFormTopics v-if="withHashtags" ref="topicsEl" v-model="hashtags" v-model:enabled="withHashtags" :disabled="posting || posted" @openChange="topicsOpen = $event" @empty="focusTopics"/>
+		<XPostFormAttaches v-model="files" :editing="isEditing" :disabled="posting || posted" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName"/>
+		<MkUploaderItems v-if="uploader.items.value.length > 0" :items="uploader.items.value" @showMenu="showPerUploadItemMenu" @showMenuViaContextmenu="showPerUploadItemMenuViaContextmenu"/>
+		<MkPoll v-if="editingNote?.poll" :noteId="editingNote.id" :multiple="editingNote.poll.multiple" :expiresAt="editingNote.poll.expiresAt" :choices="editingNote.poll.choices" :author="editingNote.user" :emojiUrls="editingNote.emojis" readOnly/>
+		<MkNotePreview v-if="showPreview" :text="getPostText() ?? ''" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
+	</template>
+	<template #tools="{ toolClass }">
+		<button v-tooltip="i18n.ts.emoji" type="button" class="_button" :class="toolClass" :aria-label="i18n.ts.emoji" :disabled="posting || posted || textAreaReadOnly" @click="insertEmoji"><i class="ti ti-mood-happy" aria-hidden="true"></i></button>
+		<button v-tooltip="i18n.ts.attachFile" type="button" class="_button" :class="toolClass" :aria-label="i18n.ts.attachFile" :disabled="posting || posted || textAreaReadOnly" @click="chooseFileFromPc"><i class="ti ti-photo-plus" aria-hidden="true"></i></button>
+		<button v-tooltip="i18n.ts.fromDrive" type="button" class="_button" :class="toolClass" :aria-label="i18n.ts.fromDrive" :disabled="posting || posted || textAreaReadOnly" @click="chooseFileFromDrive"><i class="ti ti-cloud" aria-hidden="true"></i></button>
+	</template>
+	<template #actions="{ optionClass }">
+		<label v-if="!inlineReply && replyTargetNote" :class="optionClass">
+			<input v-model="publishReply" type="checkbox" :disabled="isEditing || posting || posted" data-testid="post-form-publish-reply">
+			<span>{{ i18n.ts._postForm.alsoPublishToTimeline }}</span>
+		</label>
+		<MkButton primary small :disabled="!canPost" :wait="posting" type="submit" data-testid="post-form-submit">{{ inlineReply ? i18n.ts.reply : i18n.ts._article.publishComment }}</MkButton>
+	</template>
+</MkCommentComposer>
 </template>
 
 <script lang="ts" setup>
-import { watch, nextTick, onMounted, defineAsyncComponent, provide, shallowRef, ref, computed, useId, useTemplateRef, onUnmounted, onBeforeUnmount } from 'vue';
+import { watch, nextTick, onMounted, defineAsyncComponent, inject, provide, shallowRef, ref, computed, useId, useTemplateRef, onActivated, onDeactivated, onBeforeUnmount } from 'vue';
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import insertTextAtCursor from 'insert-text-at-cursor';
 import { toASCII } from 'punycode.js';
 import { host, url } from '@@/js/config.js';
 import MkUploaderItems from './MkUploaderItems.vue';
-import type { ShallowRef } from 'vue';
+import type { Ref, ShallowRef } from 'vue';
 import type { PostFormProps } from '@/types/post-form.js';
 import type { MenuItem } from '@/types/menu.js';
 import type { PollEditorModelValue } from '@/components/MkPollEditor.vue';
@@ -184,6 +229,8 @@ import type { UploaderItem } from '@/composables/use-uploader.js';
 import MkNotePreview from '@/components/MkNotePreview.vue';
 import MkEmojiInputOverlay from '@/components/MkEmojiInputOverlay.vue';
 import MkPostFormInput from '@/components/MkPostFormInput.vue';
+import MkCommentComposer from '@/components/MkCommentComposer.vue';
+import MkButton from '@/components/MkButton.vue';
 import MkPostFormTopics from '@/components/MkPostFormTopics.vue';
 import XPostFormAttaches from '@/components/MkPostFormAttaches.vue';
 import MkPollEditorDialog from '@/components/MkPollEditorDialog.vue';
@@ -191,7 +238,7 @@ import MkPoll from '@/components/MkPoll.vue';
 import { redPacketError, redPacketRequestRejected } from '@/utility/red-packet.js';
 import MkRedPacket from '@/components/MkRedPacket.vue';
 import MkNoteSimple from '@/components/MkNoteSimple.vue';
-import { erase, unique } from '@/utility/array.js';
+import { unique } from '@/utility/array.js';
 import { extractMentions } from '@/utility/extract-mentions.js';
 import { formatTimeString } from '@/utility/format-time-string.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
@@ -201,8 +248,8 @@ import { chooseDriveFile } from '@/utility/drive.js';
 import { store } from '@/store.js';
 import MkInfo from '@/components/MkInfo.vue';
 import { i18n } from '@/i18n.js';
+import { isBlockedRelationError } from '@/utility/user-blocking.js';
 import { userName } from '@@/js/user.js';
-import { instance } from '@/instance.js';
 import { ensureSignin, notesCount, incNotesCount } from '@/i.js';
 import { getAccounts, getAccountMenu } from '@/accounts.js';
 import { deepClone } from '@/utility/clone.js';
@@ -217,14 +264,14 @@ import { DI } from '@/di.js';
 import { globalEvents } from '@/events.js';
 import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
 import { useUploader } from '@/composables/use-uploader.js';
-import { createDraftFileProtection } from '@/utility/draft-file-protection.js';
+import { createDraftSession } from '@/utility/draft-session.js';
 import { startTour } from '@/utility/tour.js';
 import { closeTip } from '@/tips.js';
 import { getNoteTopics } from '@/utility/note-topics.js';
 import { MAX_TOPICS, parseTopics, uniqueTopics } from '@/utility/topic-picker.js';
 import { getUserAvatar } from '@/utility/get-user-avatar.js';
-import { genId } from '@/utility/id.js';
 import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js';
+import { deviceKind } from '@/utility/device-kind.js';
 
 const $i = ensureSignin();
 
@@ -247,6 +294,11 @@ const props = withDefaults(defineProps<PostFormProps & {
 // 最大化后要撑满窗口，必须由外层对话框放开宽高限制，所以状态跟父组件共享
 const maximized = defineModel<boolean>('maximized', { default: false });
 const initialRows = computed(() => Number.isInteger(props.initialRows) && props.initialRows! > 0 ? props.initialRows : undefined);
+const pageActive = inject(DI.pageActive, ref(true));
+const mobileLayout = inject<Readonly<Ref<boolean>>>('mobileLayout', computed(() => deviceKind === 'smartphone' || window.innerWidth <= 500));
+const activated = ref(true);
+onActivated(() => { activated.value = true; });
+onDeactivated(() => { activated.value = false; });
 
 provide(DI.mock, props.mock);
 
@@ -260,7 +312,8 @@ const emit = defineEmits<{
 }>();
 
 const bodyInput = useTemplateRef('bodyInput');
-const textareaEl = computed(() => bodyInput.value?.inputElement ?? null);
+const commentInput = useTemplateRef('commentInput');
+const textareaEl = computed(() => (props.commentMode ? commentInput.value : bodyInput.value)?.inputElement ?? null);
 const cwInputEl = useTemplateRef('cwInputEl');
 const topicsEl = useTemplateRef('topicsEl');
 const topicsButtonEl = useTemplateRef('topicsButtonEl');
@@ -271,6 +324,14 @@ let disposeChannelPicker: (() => void) | undefined;
 const cwInputId = useId();
 const cwHintId = useId();
 const visibilityButton = useTemplateRef('visibilityButton');
+let disposeVisibilityPicker: (() => void) | undefined;
+let visibilityPickerOpen = false;
+let userSelection: AbortController | undefined;
+let driveSelection: AbortController | undefined;
+let disposeRedPacketDialog: (() => void) | undefined;
+let redPacketDialogOpen = false;
+let redPacketSelection: AbortController | undefined;
+const redPacketOwnerActive = computed(() => !disposed && pageActive.value && activated.value);
 const otherSettingsButton = useTemplateRef('otherSettingsButton');
 const accountMenuEl = useTemplateRef('accountMenuEl');
 const footerEl = useTemplateRef('footerEl');
@@ -312,11 +373,9 @@ if (props.initialVisibleUsers) {
 }
 const reactionAcceptance = ref(store.s.reactionAcceptance);
 const scheduledAt = ref<number | null>(null);
-const draghover = ref(false);
 const quoteId = ref<string | null>(null);
 const hasNotSpecifiedMentions = ref(false);
 const imeText = ref('');
-const showingOptions = ref(false);
 const textAreaReadOnly = ref(false);
 const justEndedComposition = ref(false);
 const renoteTargetNote: ShallowRef<PostFormProps['renote'] | null> = shallowRef(editingNote?.renote ?? props.renote ?? props.initialNote?.renote);
@@ -344,12 +403,6 @@ let cwAutocomplete: Autocomplete | null = null;
 
 const uploader = useUploader({
 	multiple: true,
-	isManaged: true,
-	draftId: () => fileProtection.id,
-});
-
-onUnmounted(() => {
-	uploader.dispose();
 });
 
 uploader.events.on('itemUploaded', ctx => {
@@ -357,39 +410,11 @@ uploader.events.on('itemUploaded', ctx => {
 	uploader.removeItem(ctx.item);
 });
 
-const draftKey = computed((): string => {
-	if (editingNote) return `edit:${editingNote.id}`;
-	let key = targetChannel.value ? `channel:${targetChannel.value.id}` : '';
-
-	if (replyTargetNote.value) {
-		key += `reply:${replyTargetNote.value.id}`;
-	} else if (renoteTargetNote.value) {
-		key += `renote:${renoteTargetNote.value.id}`;
-	} else {
-		key += `note:${$i.id}`;
-	}
-
-	return key;
-});
 let draftWritesPaused = false;
-const fileProtection = createDraftFileProtection($i, { transient: !isEditing });
-let fileProtectionTimer: number | undefined;
-let serverProtectedFileState: string | null = null;
-let localDraftStored = true;
-let draftAbandoned = false;
-let storedProtectionId: string | null = null;
+let disposed = false;
+const draftSession = isEditing ? createDraftSession($i.id) : null;
+let storedSessionId: string | null = null;
 const independentDraftPrefix = `misskey:editDraft:${$i.id}:${editingNote?.id}:`;
-
-function draftFileState() {
-	return { fileIds: files.value.map(file => file.id), text: [text.value, useCw.value ? cw.value ?? '' : ''].join('\n').trim() };
-}
-
-function protectDraftFiles() {
-	if (props.mock || posted.value || draftAbandoned || draftWritesPaused || (isEditing && !localDraftStored)) return;
-	const state = draftFileState();
-	if (JSON.stringify(state) === serverProtectedFileState) return;
-	void fileProtection.update(state.fileIds, state.text);
-}
 
 function getRandomPlaceholder(): string {
 	const xs = [
@@ -668,26 +693,12 @@ if (!isEditing && prefer.s.keepCw && replyTargetNote.value && replyTargetNote.va
 }
 
 function watchForDraft() {
-	protectDraftFiles();
-	if (!isEditing) {
-		watch(files, protectDraftFiles, { deep: true });
-		watch([text, cw, useCw], () => {
-			window.clearTimeout(fileProtectionTimer);
-			fileProtectionTimer = window.setTimeout(protectDraftFiles, 500);
-		});
-		return;
-	}
+	if (disposed || !draftSession) return;
 	watch(text, () => saveDraft());
 	watch(useCw, () => saveDraft());
 	watch(cw, () => saveDraft());
-	watch(poll, () => saveDraft());
 	watch(files, () => saveDraft(), { deep: true });
-	watch(visibility, () => saveDraft());
-	watch(localOnly, () => saveDraft());
-	watch(publishReply, () => saveDraft());
-	watch(quoteId, () => saveDraft());
 	watch(reactionAcceptance, () => saveDraft());
-	watch(scheduledAt, () => saveDraft());
 	watch(withHashtags, () => saveDraft());
 	watch(hashtags, () => saveDraft());
 }
@@ -719,18 +730,31 @@ function addMissingMention() {
 	}
 }
 
+function closeRedPacketDialog() {
+	redPacketDialogOpen = false;
+	disposeRedPacketDialog?.();
+	disposeRedPacketDialog = undefined;
+	redPacketSelection = undefined;
+}
+
 function toggleRedPacket() {
-	if (isEditing || posting.value || posted.value || postAccount.value || pendingRedPacketPost.value) return;
+	if (isEditing || posting.value || posted.value || postAccount.value || pendingRedPacketPost.value || redPacketDialogOpen || !pageActive.value || !activated.value) return;
 	if (redPacket.value) { void removeRedPacket(); return; }
-	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkRedPacketDialog.vue')), {}, {
+	redPacketDialogOpen = true;
+	const request = redPacketSelection = new AbortController();
+	void os.popupAsyncWithDialog(import('@/components/MkRedPacketDialog.vue').then(module => module.default), { isOwnerActive: () => redPacketOwnerActive.value }, {
 		created: packet => {
+			if (!redPacketOwnerActive.value) return;
 			redPacket.value = packet;
 			localOnly.value = true;
 			scheduledAt.value = null;
 			saveDraft();
 		},
-		closed: () => dispose(),
-	});
+		closed: closeRedPacketDialog,
+	}, request.signal).then(({ dispose }) => {
+		disposeRedPacketDialog = dispose;
+		if (!redPacketDialogOpen) dispose();
+	}, closeRedPacketDialog);
 }
 
 async function removeRedPacket(confirm = true): Promise<boolean> {
@@ -759,6 +783,16 @@ function closePollDialog() {
 	disposePollDialog = undefined;
 }
 
+watch([pageActive, activated], ([active, mounted]) => {
+	if (active && mounted) return;
+	closeChannelPicker();
+	closePollDialog();
+	closeVisibilityPicker();
+	redPacketSelection?.abort();
+	userSelection?.abort();
+	driveSelection?.abort();
+}, { flush: 'sync' });
+
 function editPoll() {
 	if (isEditing || posting.value || posted.value || pollDialogOpen.value || redPacketConfirming.value || pendingRedPacketPost.value) return;
 	pollDialogOpen.value = true;
@@ -774,11 +808,6 @@ function editPoll() {
 	disposePollDialog = dispose;
 }
 
-function addTag(tag: string) {
-	if (textareaEl.value == null) return;
-	insertTextAtCursor(textareaEl.value, ` #${tag} `);
-}
-
 function focus() {
 	if (textareaEl.value) {
 		textareaEl.value.focus();
@@ -790,17 +819,21 @@ function chooseFileFromPc(ev: PointerEvent) {
 	if (props.mock || posting.value || posted.value) return;
 
 	os.chooseFileFromPc({ multiple: true, accept: props.commentMode ? 'image/*' : undefined }).then(files => {
-		if (files.length === 0) return;
+		if (files.length === 0 || !pageActive.value || !activated.value) return;
 		uploader.addFiles(props.commentMode ? files.filter(file => file.type.startsWith('image/')) : files);
 	});
 }
 
-function chooseFileFromDrive(ev: PointerEvent) {
-	if (props.mock || posting.value || posted.value) return;
-
-	chooseDriveFile({ multiple: true }).then(driveFiles => {
-		files.value.push(...driveFiles);
-	});
+async function chooseFileFromDrive(ev: PointerEvent) {
+	if (props.mock || posting.value || posted.value || !pageActive.value || !activated.value) return;
+	driveSelection?.abort();
+	const request = driveSelection = new AbortController();
+	try {
+		const selected = await chooseDriveFile({ multiple: true, signal: request.signal });
+		if (!request.signal.aborted && pageActive.value && activated.value) files.value.push(...selected.filter(file => !props.commentMode || file.type.startsWith('image/')));
+	} catch {
+		if (!request.signal.aborted) os.toast(i18n.ts.somethingHappened, 'error');
+	} finally { if (driveSelection === request) driveSelection = undefined; }
 }
 
 function detachFile(id: Misskey.entities.DriveFile['id']) {
@@ -819,28 +852,37 @@ function updateFileName(file: Misskey.entities.DriveFile, name: Misskey.entities
 	files.value[files.value.findIndex(x => x.id === file.id)].name = name;
 }
 
-function setVisibility() {
-	if (isEditing) return;
+function closeVisibilityPicker() {
+	visibilityPickerOpen = false;
+	disposeVisibilityPicker?.();
+	disposeVisibilityPicker = undefined;
+}
+
+function setVisibility(anchorElement: HTMLElement | null = visibilityButton.value) {
+	if (isEditing || posting.value || posted.value || visibilityPickerOpen || !pageActive.value || !activated.value) return;
 	if (targetChannel.value) {
 		visibility.value = 'public';
 		localOnly.value = true; // TODO: チャンネルが連合するようになった折には消す
 		return;
 	}
 
+	visibilityPickerOpen = true;
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkVisibilityPicker.vue')), {
 		currentVisibility: visibility.value,
 		isSilenced: $i.isSilenced,
-		anchorElement: visibilityButton.value,
+		anchorElement,
 		...(replyTargetNote.value ? { isReplyVisibilitySpecified: replyTargetNote.value.visibility === 'specified' } : {}),
 	}, {
 		changeVisibility: v => {
+			if (!visibilityPickerOpen || !pageActive.value || !activated.value) return;
 			visibility.value = v;
 			if (prefer.s.rememberNoteVisibility) {
 				store.set('visibility', visibility.value);
 			}
 		},
-		closed: () => dispose(),
+		closed: closeVisibilityPicker,
 	});
+	disposeVisibilityPicker = dispose;
 }
 
 async function toggleLocalOnly() {
@@ -937,37 +979,91 @@ function showOtherSettings() {
 			break;
 	}
 
-	const menuItems: MenuItem[] = [...(replyTargetNote.value ? [{
-		type: 'switch' as const,
-		icon: 'ti ti-message-circle',
-		text: i18n.ts._postForm.onlyDiscussUnderPost,
-		tooltip: i18n.ts._postForm.onlyDiscussUnderPostDescription,
-		ref: onlyDiscussUnderPost,
-		disabled: computed(() => isEditing || posting.value || posted.value || redPacketConfirming.value || pendingRedPacketPost.value != null),
-	}, { type: 'divider' as const }] : []), {
+	const menuItems: MenuItem[] = [];
+
+	if (props.fixed || mobileLayout.value) {
+		if (props.fixed && (targetChannel.value == null || canChooseChannel.value)) {
+			menuItems.push({
+				icon: visibility.value === 'public' ? 'ti ti-world'
+					: visibility.value === 'home' ? 'ti ti-home'
+						: visibility.value === 'followers' ? 'ti ti-lock'
+							: 'ti ti-mail',
+				text: i18n.ts.visibility,
+				caption: i18n.ts._visibility[visibility.value],
+				disabled: isEditing || targetChannel.value != null || redPacketConfirming.value || pendingRedPacketPost.value != null,
+				action: () => {
+					setVisibility(otherSettingsButton.value);
+				},
+			});
+		}
+		if (targetChannel.value == null && visibility.value !== 'specified' && redPacket.value == null && !editingNote?.redPacket) {
+			menuItems.push({
+				icon: localOnly.value ? 'ti ti-rocket-off' : 'ti ti-rocket',
+				text: i18n.ts._visibility.disableFederation,
+				caption: localOnly.value ? i18n.ts.on : i18n.ts.off,
+				disabled: isEditing || redPacket.value != null,
+				action: () => {
+					void toggleLocalOnly();
+				},
+			});
+		}
+		if (props.canMaximize && !mobileLayout.value) {
+			menuItems.push({
+				icon: maximized.value ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize',
+				text: maximizeTitle.value,
+				action: toggleMaximize,
+			});
+		}
+		menuItems.push({ type: 'divider' });
+	}
+
+	if (replyTargetNote.value) {
+		menuItems.push({
+			type: 'switch',
+			icon: 'ti ti-message-circle',
+			text: i18n.ts._postForm.onlyDiscussUnderPost,
+			tooltip: i18n.ts._postForm.onlyDiscussUnderPostDescription,
+			ref: onlyDiscussUnderPost,
+			disabled: computed(() => isEditing || posting.value || posted.value || redPacketConfirming.value || pendingRedPacketPost.value != null),
+		}, { type: 'divider' });
+	}
+
+	menuItems.push({
 		icon: reactionAcceptanceIcon,
 		text: i18n.ts.reactionAcceptance,
 		caption: reactionAcceptanceCaption,
 		action: () => {
 			toggleReactionAcceptance();
 		},
-	}, ...(isEditing || redPacket.value ? [] : [{ type: 'divider' }, {
-		type: 'button',
-		text: i18n.ts._drafts.saveToDraft,
-		icon: 'ti ti-cloud-upload',
-		action: async () => {
-			if (!canSaveAsServerDraft.value) {
-				return os.toast(i18n.ts._drafts.cannotCreateDraft, 'error');
-			}
-			saveServerDraft();
-		},
-	}, ...($i.policies.scheduledNoteLimit > 0 ? [{
-		icon: 'ti ti-calendar-time',
-		text: i18n.ts.schedulePost + '...',
-		action: () => {
-			schedule();
-		},
-	}] : [])] as MenuItem[]), { type: 'divider' }, {
+	});
+
+	if (!isEditing && redPacket.value == null) {
+		menuItems.push({ type: 'divider' }, {
+			type: 'button',
+			text: i18n.ts._drafts.saveToDraft,
+			icon: 'ti ti-cloud-upload',
+			action: async () => {
+				if (!canSaveAsServerDraft.value) {
+					return os.toast(i18n.ts._drafts.cannotCreateDraft, 'error');
+				}
+				// 失败提示由 apiWithDialog 处理
+				saveServerDraft().then(() => {
+					os.toast(i18n.ts.saved, 'success');
+				}, () => {});
+			},
+		});
+		if ($i.policies.scheduledNoteLimit > 0) {
+			menuItems.push({
+				icon: 'ti ti-calendar-time',
+				text: i18n.ts.schedulePost + '...',
+				action: () => {
+					schedule();
+				},
+			});
+		}
+	}
+
+	menuItems.push({ type: 'divider' }, {
 		type: 'switch',
 		icon: 'ti ti-eye',
 		text: i18n.ts.preview,
@@ -991,7 +1087,7 @@ function showOtherSettings() {
 				clear();
 			}
 		},
-	}] satisfies MenuItem[];
+	});
 
 	os.popupMenu(menuItems, otherSettingsButton.value);
 }
@@ -1003,15 +1099,27 @@ function pushVisibleUser(user: Misskey.entities.UserDetailed) {
 	}
 }
 
-function addVisibleUser() {
+async function selectComposerUser(options: { localOnly?: boolean; includeSelf?: boolean } = {}) {
+	if (!pageActive.value || !activated.value) return null;
+	userSelection?.abort();
+	const request = userSelection = new AbortController();
+	try {
+		return await os.selectUser({ ...options, signal: request.signal });
+	} finally {
+		if (userSelection === request) userSelection = undefined;
+	}
+}
+
+async function addVisibleUser() {
 	if (isEditing) return;
-	os.selectUser().then(user => {
+	const user = await selectComposerUser();
+	if (user && pageActive.value && activated.value) {
 		pushVisibleUser(user);
 
 		if (!text.value.toLowerCase().includes(`@${user.username.toLowerCase()}`)) {
 			text.value = `@${Misskey.acct.toString(user)} ${text.value}`;
 		}
-	});
+	}
 }
 
 function removeVisibleUser(id: string) {
@@ -1020,8 +1128,7 @@ function removeVisibleUser(id: string) {
 }
 
 function clear() {
-	if (!props.mock) void fileProtection.release();
-	draftAbandoned = false;
+	if (!props.mock) draftSession?.release();
 	draftWritesPaused = true;
 	deleteDraft();
 	closeChannelPicker();
@@ -1150,7 +1257,6 @@ function onDragover(ev: DragEvent) {
 	const isFile = ev.dataTransfer.items[0].kind === 'file';
 	if (isFile || checkDragDataType(ev, ['driveFiles'])) {
 		ev.preventDefault();
-		draghover.value = true;
 		switch (ev.dataTransfer.effectAllowed) {
 			case 'all':
 			case 'uninitialized':
@@ -1170,16 +1276,7 @@ function onDragover(ev: DragEvent) {
 	}
 }
 
-function onDragenter() {
-	draghover.value = true;
-}
-
-function onDragleave() {
-	draghover.value = false;
-}
-
 function onDrop(ev: DragEvent): void {
-	draghover.value = false;
 	if (posting.value || posted.value) return;
 
 	// ファイルだったら
@@ -1200,87 +1297,52 @@ function onDrop(ev: DragEvent): void {
 	//#endregion
 }
 
-type StoredDrafts = {
-	[key: string]: {
-		updatedAt: string;
-		fileProtectionId?: string;
-		otherDrafts?: Record<string, StoredDrafts[string]>;
-		editSource?: typeof editSource;
-		data: {
-			text: string;
-			useCw: boolean;
-			cw: string | null;
-			visibility: 'public' | 'home' | 'followers' | 'specified';
-			localOnly: boolean;
-			publishReply?: boolean;
-			files: Misskey.entities.DriveFile[];
-			poll: PollEditorModelValue | null;
-			visibleUserIds?: string[];
-			quoteId: string | null;
-			reactionAcceptance: 'likeOnly' | 'likeOnlyForRemote' | 'nonSensitiveOnly' | 'nonSensitiveOnlyForLocalLikeOnlyForRemote' | null;
-			scheduledAt: number | null;
-			withHashtags?: boolean;
-			hashtags?: string;
-		};
+type StoredEditDraft = {
+	updatedAt: string;
+	sessionId: string;
+	editSource: typeof editSource;
+	data: {
+		text: string;
+		useCw: boolean;
+		cw: string | null;
+		files: Misskey.entities.DriveFile[];
+		reactionAcceptance: typeof reactionAcceptance.value;
+		withHashtags?: boolean;
+		hashtags?: string;
 	};
 };
 
-function readDrafts(): StoredDrafts {
-	try {
-		const drafts = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}');
-		return drafts && typeof drafts === 'object' && !Array.isArray(drafts) ? drafts : {};
-	} catch { return {}; }
-}
-
 function saveDraft() {
-	if (!isEditing || props.instant || props.mock || posted.value || draftWritesPaused) return;
+	if (disposed || !draftSession || props.instant || props.mock || posted.value || draftWritesPaused) return;
 
 	try {
-		const draftsData = readDrafts();
-		const protectionId = fileProtection.id;
-		const previous = draftsData[draftKey.value];
-		const otherDrafts = { ...previous?.otherDrafts };
-		if (previous?.fileProtectionId && previous.fileProtectionId !== protectionId) otherDrafts[previous.fileProtectionId] = { ...previous, otherDrafts: undefined };
-		delete otherDrafts[protectionId];
-		if (isEditing && !hasUnsavedEdit.value) {
+		const sessionId = draftSession.id;
+		if (!hasUnsavedEdit.value) {
 			deleteDraft();
-			localDraftStored = true;
-			void fileProtection.release();
+			draftSession.release();
 			return;
 		}
 
-		draftsData[draftKey.value] = {
+		const draft: StoredEditDraft = {
 			updatedAt: new Date().toISOString(),
-			fileProtectionId: protectionId,
-			otherDrafts,
-			...(isEditing ? { editSource } : {}),
+			sessionId,
+			editSource,
 			data: {
 				text: text.value,
 				useCw: useCw.value,
 				cw: cw.value,
-				visibility: visibility.value,
-				localOnly: localOnly.value,
-				publishReply: publishReply.value,
 				files: files.value,
-				poll: poll.value,
-				...( visibleUsers.value.length > 0 ? { visibleUserIds: visibleUsers.value.map(x => x.id) } : {}),
-				quoteId: quoteId.value,
 				reactionAcceptance: reactionAcceptance.value,
-				scheduledAt: scheduledAt.value,
-				...(isEditing ? { withHashtags: withHashtags.value, hashtags: hashtags.value } : {}),
+				withHashtags: withHashtags.value,
+				hashtags: hashtags.value,
 			},
 		};
 
-		localStorage.setItem(`${independentDraftPrefix}${protectionId}`, JSON.stringify(draftsData[draftKey.value]));
-		storedProtectionId = protectionId;
-		fileProtection.markPersisted();
-		localDraftStored = true;
-		window.clearTimeout(fileProtectionTimer);
-		fileProtectionTimer = window.setTimeout(protectDraftFiles, 500);
-		try { miLocalStorage.setItem('drafts', JSON.stringify(draftsData)); } catch { /* 独立快照已保存，兼容缓存失败不影响附件登记。 */ }
+		localStorage.setItem(`${independentDraftPrefix}${sessionId}`, JSON.stringify(draft));
+		storedSessionId = sessionId;
+		draftSession.markPersisted();
 	} catch {
-		localDraftStored = false;
-		fileProtection.markStorageFailed();
+		os.toast(i18n.ts._postForm.draftSaveFailed, 'error');
 	}
 }
 
@@ -1288,23 +1350,8 @@ function deleteDraft() {
 	if (!isEditing) return;
 
 	try {
-		const draftsData = readDrafts();
-		if (storedProtectionId) localStorage.removeItem(`${independentDraftPrefix}${storedProtectionId}`);
-		const draft = draftsData[draftKey.value];
-		if (draft) {
-			const others = { ...draft.otherDrafts };
-			if (storedProtectionId) delete others[storedProtectionId];
-			if (!draft.fileProtectionId || draft.fileProtectionId === storedProtectionId) {
-				const replacement = Object.entries(others).sort((a, b) => String(b[1].updatedAt).localeCompare(String(a[1].updatedAt)))[0];
-				if (replacement) {
-					const [nextId, next] = replacement;
-					delete others[nextId];
-					draftsData[draftKey.value] = { ...next, otherDrafts: others };
-				} else delete draftsData[draftKey.value];
-			} else draft.otherDrafts = others;
-		}
-
-		miLocalStorage.setItem('drafts', JSON.stringify(draftsData));
+		if (storedSessionId) localStorage.removeItem(`${independentDraftPrefix}${storedSessionId}`);
+		storedSessionId = null;
 	} catch {
 		// Keep editing available when local draft storage is unavailable.
 	}
@@ -1317,7 +1364,6 @@ async function saveServerDraft(options: {
 	isActuallyScheduled?: boolean;
 } = {}) {
 	if (isEditing || redPacket.value) return;
-	const fileState = JSON.stringify(draftFileState());
 	const response = await os.apiWithDialog(serverDraftId.value == null ? 'notes/drafts/create' : 'notes/drafts/update', {
 		...(serverDraftId.value == null ? {} : { draftId: serverDraftId.value }),
 		text: text.value,
@@ -1337,9 +1383,7 @@ async function saveServerDraft(options: {
 		isActuallyScheduled: options.isActuallyScheduled ?? false,
 	});
 	const draft = 'createdDraft' in response ? response.createdDraft : response.updatedDraft;
-	serverProtectedFileState = fileState;
 	if (serverDraftId.value === draft.id) serverDraftContent.value = { text: draft.text ?? null, cw: draft.cw ?? null, replyId: draft.replyId ?? null };
-	if (JSON.stringify(draftFileState()) === fileState) void fileProtection.release();
 	return response;
 }
 
@@ -1387,7 +1431,7 @@ async function saveEdit() {
 			reactionAcceptance: updated.reactionAcceptance,
 		});
 		posted.value = true;
-		void fileProtection.release();
+		draftSession?.release();
 		deleteDraft();
 		emit('posted');
 	} catch {
@@ -1434,6 +1478,7 @@ async function submitPost(ev?: PointerEvent) {
 		}
 
 		await postAsScheduled();
+		os.toast(i18n.ts._drafts.scheduleSet, 'success');
 		clear();
 		return;
 	}
@@ -1530,7 +1575,6 @@ async function submitPost(ev?: PointerEvent) {
 
 	posting.value = true;
 	misskeyApi('notes/create', postData, token).then((res) => {
-		void fileProtection.release();
 		if (props.freezeAfterPosted) {
 			posted.value = true;
 		} else {
@@ -1601,7 +1645,7 @@ async function submitPost(ev?: PointerEvent) {
 		if (redPacket.value && redPacketRequestRejected(err)) pendingRedPacketPost.value = null;
 		saveDraft();
 		if (!isAccountSessionErrorHandled(err)) {
-			const message = [err?.message, err?.id].filter(value => typeof value === 'string' && value).join('\n') || i18n.ts.somethingHappened;
+			const message = isBlockedRelationError(err) ? i18n.ts.blockedRelation : [err?.message, err?.id].filter(value => typeof value === 'string' && value).join('\n') || i18n.ts.somethingHappened;
 			os.toast(redPacket.value ? redPacketError(err) : message, 'error');
 		}
 	});
@@ -1619,11 +1663,10 @@ function cancel() {
 	emit('cancel');
 }
 
-function insertMention() {
-	os.selectUser({ localOnly: localOnly.value, includeSelf: true }).then(user => {
-		if (textareaEl.value == null) return;
-		insertTextAtCursor(textareaEl.value, '@' + Misskey.acct.toString(user) + ' ');
-	});
+async function insertMention() {
+	const user = await selectComposerUser({ localOnly: localOnly.value, includeSelf: true });
+	if (!user || textareaEl.value == null || !pageActive.value || !activated.value) return;
+	insertTextAtCursor(textareaEl.value, '@' + Misskey.acct.toString(user) + ' ');
 }
 
 async function insertEmoji(ev: PointerEvent) {
@@ -1830,40 +1873,52 @@ function cancelSchedule() {
 }
 
 function showTour() {
-	if (textareaEl.value == null ||
-		footerEl.value == null ||
-		accountMenuEl.value == null ||
-		visibilityButton.value == null ||
-		otherSettingsButton.value == null ||
-		submitButtonEl.value == null) {
-		return;
+	const steps: Parameters<typeof startTour>[0] = [];
+	if (textareaEl.value != null) {
+		steps.push({
+			element: textareaEl.value,
+			title: i18n.ts._postForm._howToUse.content_title,
+			description: i18n.ts._postForm._howToUse.content_description,
+		});
 	}
+	if (footerEl.value != null) {
+		steps.push({
+			element: footerEl.value,
+			title: i18n.ts._postForm._howToUse.toolbar_title,
+			description: i18n.ts._postForm._howToUse.toolbar_description,
+		});
+	}
+	if (accountMenuEl.value != null) {
+		steps.push({
+			element: accountMenuEl.value,
+			title: i18n.ts._postForm._howToUse.account_title,
+			description: i18n.ts._postForm._howToUse.account_description,
+		});
+	}
+	if (visibilityButton.value != null) {
+		steps.push({
+			element: visibilityButton.value,
+			title: i18n.ts._postForm._howToUse.visibility_title,
+			description: i18n.ts._postForm._howToUse.visibility_description,
+		});
+	}
+	if (otherSettingsButton.value != null) {
+		steps.push({
+			element: otherSettingsButton.value,
+			title: i18n.ts._postForm._howToUse.menu_title,
+			description: i18n.ts._postForm._howToUse.menu_description,
+		});
+	}
+	if (submitButtonEl.value != null) {
+		steps.push({
+			element: submitButtonEl.value,
+			title: i18n.ts._postForm._howToUse.submit_title,
+			description: i18n.ts._postForm._howToUse.submit_description,
+		});
+	}
+	if (steps.length === 0) return;
 
-	startTour([{
-		element: textareaEl.value,
-		title: i18n.ts._postForm._howToUse.content_title,
-		description: i18n.ts._postForm._howToUse.content_description,
-	}, {
-		element: footerEl.value,
-		title: i18n.ts._postForm._howToUse.toolbar_title,
-		description: i18n.ts._postForm._howToUse.toolbar_description,
-	}, {
-		element: accountMenuEl.value,
-		title: i18n.ts._postForm._howToUse.account_title,
-		description: i18n.ts._postForm._howToUse.account_description,
-	}, {
-		element: visibilityButton.value,
-		title: i18n.ts._postForm._howToUse.visibility_title,
-		description: i18n.ts._postForm._howToUse.visibility_description,
-	}, {
-		element: otherSettingsButton.value,
-		title: i18n.ts._postForm._howToUse.menu_title,
-		description: i18n.ts._postForm._howToUse.menu_description,
-	}, {
-		element: submitButtonEl.value,
-		title: i18n.ts._postForm._howToUse.submit_title,
-		description: i18n.ts._postForm._howToUse.submit_description,
-	}]).then(() => {
+	startTour(steps).then(() => {
 		closeTip('postForm');
 	});
 }
@@ -1902,6 +1957,7 @@ onMounted(() => {
 	if (cwInputEl.value) cwAutocomplete = new Autocomplete(cwInputEl.value, cw);
 
 	nextTick(async () => {
+		if (disposed) return;
 		if (editingNote) {
 			restoreEditingNote();
 			if (editingNote.visibleUserIds?.length) {
@@ -1909,17 +1965,17 @@ onMounted(() => {
 					users.forEach(user => pushVisibleUser(user));
 				});
 			}
-			const savedDraft = readDrafts()[draftKey.value];
 			const independentDrafts = Object.keys(localStorage).filter(key => key.startsWith(independentDraftPrefix)).flatMap(key => {
-				try { return [JSON.parse(localStorage.getItem(key) ?? 'null') as StoredDrafts[string] | null]; } catch { return []; }
+				try { return [JSON.parse(localStorage.getItem(key) ?? 'null') as StoredEditDraft | null]; } catch { return []; }
 			});
-			const draft = [savedDraft, ...Object.values(savedDraft?.otherDrafts ?? {}), ...independentDrafts].filter((candidate): candidate is StoredDrafts[string] => candidate != null && matchesEditSource(candidate.editSource)).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
+			const draft = independentDrafts.filter((candidate): candidate is StoredEditDraft => candidate != null && matchesEditSource(candidate.editSource)).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
 			// 仅恢复同一版本的草稿，避免覆盖更新后的帖子。
-			if (!props.instant && !props.mock && draft != null && matchesEditSource(draft.editSource)) {
-				await fileProtection.restore(draft.fileProtectionId);
-				if (draft.fileProtectionId === fileProtection.id) {
-					storedProtectionId = draft.fileProtectionId;
-					fileProtection.markPersisted();
+			if (!props.instant && !props.mock && draftSession && draft != null && matchesEditSource(draft.editSource)) {
+				await draftSession.restore(draft.sessionId);
+				if (disposed) return;
+				if (draft.sessionId === draftSession.id) {
+					storedSessionId = draft.sessionId;
+					draftSession.markPersisted();
 				}
 				text.value = draft.data.text;
 				useCw.value = draft.data.useCw;
@@ -1965,17 +2021,18 @@ onMounted(() => {
 			quoteId.value = renoteTargetNote.value?.id ?? init.renoteId ?? null;
 			reactionAcceptance.value = init.reactionAcceptance;
 		}
-
-		nextTick(() => watchForDraft());
 	});
 });
 
 onBeforeUnmount(() => {
+	activated.value = false;
+	disposed = true;
+	closeVisibilityPicker();
+	redPacketSelection?.abort();
+	userSelection?.abort();
+	driveSelection?.abort();
 	closePollDialog();
-	window.clearTimeout(fileProtectionTimer);
-	if (!isEditing && !props.mock) void fileProtection.release();
-	else protectDraftFiles();
-	fileProtection.dispose();
+	draftSession?.dispose();
 	window.removeEventListener('beforeunload', onBeforeUnload);
 	closeChannelPicker();
 	uploader.abortAll();
@@ -1987,13 +2044,15 @@ onBeforeUnmount(() => {
 	}
 });
 
-async function canClose() {
+async function canClose(useHistory = true) {
 	if (posted.value) return true;
+	if (redPacketDialogOpen) return false;
 	if (redPacketConfirming.value || posting.value) return false;
 	if (isEditing && (posting.value || uploader.uploading.value)) return false;
 	if (!uploader.allItemsUploaded.value) {
 		const { canceled } = await os.confirm({
 			type: 'question',
+			useHistory,
 			text: i18n.ts._postForm.quitInspiteOfThereAreUnuploadedFilesConfirm,
 			okText: i18n.ts.yes,
 			cancelText: i18n.ts.no,
@@ -2003,6 +2062,7 @@ async function canClose() {
 	if (isEditing ? hasUnsavedEdit.value : hasContent.value) {
 		const { canceled } = await os.confirm({
 			type: 'question',
+			useHistory,
 			text: i18n.ts.leaveConfirm,
 			okText: i18n.ts.yes,
 			cancelText: i18n.ts.no,
@@ -2011,15 +2071,11 @@ async function canClose() {
 	}
 
 	if (!await removeRedPacket(false)) return false;
-	if (!isEditing && !props.mock) {
-		draftAbandoned = true;
-		void fileProtection.release();
-	}
 	return true;
 }
 
 function onBeforeUnload(event: BeforeUnloadEvent) {
-	if (props.mock || posted.value || !(isEditing ? hasUnsavedEdit.value : hasContent.value) && uploader.allItemsUploaded.value) return;
+	if (!activated.value || !pageActive.value || props.mock || posted.value || !redPacketDialogOpen && !(isEditing ? hasUnsavedEdit.value : hasContent.value) && uploader.allItemsUploaded.value) return;
 	event.preventDefault();
 	event.returnValue = '';
 }
@@ -2037,23 +2093,24 @@ defineExpose({
 <style lang="scss" module>
 .root {
 	// 左右内边距取帖子卡片（MkNote 的 .article）的值，让操作栏、输入框和下方卡片共用同一条边线
-	--MI-postForm-spacing: 20px;
+	--MI-postForm-spacing: var(--MI-cardPadding);
 	// 上下外边距要和「头部/操作栏 ↔ 输入区」的间距取同一个值，否则按钮 hover 时两侧留白看着不对称
 	--MI-postForm-gap: 4px;
 	// 输入面板自身的内边距，不与卡片内边距共用，否则正文会被推到 40px
 	--MI-postForm-inputPadding: 10px;
-	// Focus outlines share a color without changing the size of either field.
+	// 正文聚焦时只换边框颜色，不改变输入区尺寸。
 	--MI-postForm-inputBorder: transparent;
 	box-sizing: border-box;
 	position: relative;
 	display: flex;
 	flex-direction: column;
 	container-type: inline-size;
-	padding: var(--MI-postForm-gap) var(--MI-postForm-spacing);
+	// 底部间距由操作行统一承担，避免卡片和操作行各加一层。
+	padding: var(--MI-postForm-spacing) var(--MI-postForm-spacing) 0;
 	border-radius: var(--MI-cardRadius);
 
-	&:has(.cw:focus, .text:focus) {
-		--MI-postForm-inputBorder: var(--MI_THEME-accent);
+	&:has(.text:focus) {
+		--MI-postForm-inputBorder: var(--MI-inputFocusBorder);
 	}
 }
 
@@ -2099,6 +2156,8 @@ defineExpose({
 	align-items: center;
 	gap: 4px;
 }
+
+.accountButton { display: grid; place-items: center; flex-shrink: 0; border-radius: 8px; &:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; } }
 
 .cancel {
 	padding: 8px;
@@ -2166,7 +2225,6 @@ defineExpose({
 	justify-content: center;
 	padding: 0 12px;
 	line-height: 34px;
-	font-weight: bold;
 	border-radius: 6px;
 	min-width: 90px;
 	box-sizing: border-box;
@@ -2181,7 +2239,7 @@ defineExpose({
 	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:hover {
-		background: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05));
+		color: var(--MI_THEME-accent);
 	}
 
 	&:disabled {
@@ -2189,7 +2247,7 @@ defineExpose({
 	}
 
 	&.danger {
-		color: #ff2a2a;
+		color: var(--MI_THEME-error);
 	}
 }
 
@@ -2354,25 +2412,23 @@ html[data-color-scheme=light] .preview {
 	color: var(--MI_THEME-fg);
 	font-family: inherit;
 
-	// 提示文案要明显比正文浅，否则空输入框看着像已经填了内容
-	&::placeholder {
-		color: var(--MI_THEME-fgTransparentWeak);
-		opacity: 1;
-	}
+		&:focus {
+			outline: none;
+		}
 
-	&:focus {
-		outline: none;
+		&:disabled {
+			opacity: 0.5;
+		}
 	}
-
-	&:disabled {
-		opacity: 0.5;
-	}
-}
 
 .cwOuter {
 	width: 100%;
 	position: relative;
 	flex-shrink: 0;
+	margin-bottom: 0;
+}
+
+.cwStandalone {
 	margin-bottom: 6px;
 }
 
@@ -2389,60 +2445,54 @@ html[data-color-scheme=light] .preview {
 		// 透明边框常驻，聚焦时只换颜色，避免出现 1px 的位移
 		border: solid 1px var(--MI-postForm-inputBorder);
 		border-radius: var(--MI-cardRadius);
-		background: color-mix(in srgb, var(--MI_THEME-fg) 7%, transparent);
+		background: var(--MI-inputFill);
 		pointer-events: none;
 	}
 }
 
+// 摘要和正文拼成一个连续面板，用浅色底提示内容警告。
 .cwOuter::before {
-	border-color: color-mix(in srgb, var(--MI_THEME-warn) 22%, transparent);
+	border-color: transparent;
+	border-radius: var(--MI-cardRadius) var(--MI-cardRadius) 0 0;
 	background: color-mix(in srgb, var(--MI_THEME-warn) 7%, var(--MI_THEME-panel));
 }
 
-.cwOuter:focus-within::before {
-	border-color: var(--MI_THEME-accent);
+.cwStandalone::before {
+	border-radius: var(--MI-cardRadius);
 }
 
-.cwHeader {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 2px 8px;
-	padding: 6px var(--MI-postForm-inputPadding) 0;
+// 普通正文聚焦时保留底色，仅显示描边；CW 区域保持连续底色。
+.textOuter:not(.withCw):focus-within::before {
+	border-color: var(--MI-inputFocusBorder);
 }
 
-.cwLabel {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	font-size: 0.8em;
-	font-weight: 600;
-	color: var(--MI_THEME-fg);
-
-	> i {
-		color: var(--MI_THEME-warn);
-	}
-}
-
-.cwHint {
-	flex: 1;
-	min-width: 120px;
-	font-size: 0.75em;
-	line-height: 1.4;
-	color: var(--MI_THEME-fgTransparentWeak);
+.srOnly {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
 }
 
 .cwRemove {
+	position: absolute;
+	z-index: 2;
+	top: 4px;
+	right: 4px;
 	display: grid;
 	place-items: center;
-	flex-shrink: 0;
-	width: 28px;
-	height: 28px;
-	margin-left: auto;
+	width: 24px;
+	height: 24px;
 	border-radius: calc(var(--MI-radius) * 0.6);
 	color: var(--MI_THEME-fgTransparentWeak);
+	opacity: 0;
+	transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
 
-	&:hover:not(:disabled) {
+	&:is(:hover, :focus-visible):not(:disabled) {
 		background: var(--MI_THEME-buttonHoverBg);
 		color: var(--MI_THEME-fg);
 	}
@@ -2450,6 +2500,16 @@ html[data-color-scheme=light] .preview {
 	&:focus-visible {
 		outline: 2px solid var(--MI_THEME-focus);
 		outline-offset: 2px;
+	}
+}
+
+.cwOuter:is(:hover, :focus-within) .cwRemove {
+	opacity: 1;
+}
+
+@media (hover: none) {
+	.cwRemove {
+		opacity: 1;
 	}
 }
 
@@ -2461,15 +2521,7 @@ html[data-color-scheme=light] .preview {
 	z-index: 1;
 	padding-top: 3px;
 	padding-bottom: 9px;
-}
-
-.hiddenBodyLabel {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	padding: 8px var(--MI-postForm-inputPadding) 0;
-	font-size: 0.75em;
-	color: var(--MI_THEME-fgTransparentWeak);
+	padding-right: calc(var(--MI-postForm-inputPadding) + 24px);
 }
 
 .textOuter {
@@ -2488,12 +2540,14 @@ html[data-color-scheme=light] .preview {
 
 	&.withCw {
 		&::before {
-			background: color-mix(in srgb, var(--MI_THEME-warn) 3%, var(--MI_THEME-panel));
-			border-color: color-mix(in srgb, var(--MI_THEME-warn) 16%, transparent);
+			border-color: transparent;
+			border-top-color: color-mix(in srgb, var(--MI_THEME-warn) 14%, transparent);
+			border-radius: 0 0 var(--MI-cardRadius) var(--MI-cardRadius);
+			background: color-mix(in srgb, var(--MI_THEME-warn) 7%, var(--MI_THEME-panel));
 		}
 
 		&:focus-within::before {
-			border-color: var(--MI_THEME-accent);
+			border-color: var(--MI-inputFocusBorder);
 		}
 	}
 }
@@ -2519,6 +2573,11 @@ html[data-color-scheme=light] .preview {
 	}
 }
 
+// 频道内没有频道选择浮层，仍预留同等底部空间，避免输入区比时间线矮一截。
+.withInitialRows.withChannel:not(.rootMaximized) > .textOuter {
+	--MI-postForm-footerHeight: calc(.85em + 20px);
+}
+
 .channelRow {
 	position: absolute;
 	inset-inline: 0;
@@ -2539,19 +2598,29 @@ button.channelChip {
 .channelChip {
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
+	gap: 0;
 	min-width: 0;
 	max-width: 70%;
-	padding: 4px 8px;
+	padding: 3px 6px;
 	line-height: 1;
 	border-radius: 999px 999px 999px 0;
-	font-size: .85em;
+	font-size: calc(1em - 1px);
 	color: var(--MI_THEME-accent);
 	background: var(--MI_THEME-panel);
 
-	> i { display: flex; align-items: center; flex-shrink: 0; }
+	> i {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+		width: 1em;
+		height: 1em;
+	}
 	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
 	&:disabled { opacity: .5; }
+}
+
+.textOuter:focus-within .channelChip {
+	background: var(--MI_THEME-accentedBg);
 }
 
 .channelName {
@@ -2562,6 +2631,7 @@ button.channelChip {
 }
 
 .channelArrow {
+	margin-left: 4px;
 	transform: rotate(0);
 }
 
@@ -2580,7 +2650,8 @@ button.channelChip {
 .footer {
 	display: flex;
 	flex-shrink: 0;
-	padding-top: var(--MI-postForm-gap);
+	// 操作行上下留出同一份紧凑间距，在输入框和卡片底边之间居中。
+	padding: var(--MI-postForm-gap) 0;
 	font-size: 1em;
 }
 
@@ -2614,12 +2685,22 @@ button.channelChip {
 	color: var(--MI_THEME-fgTransparentWeak);
 
 	&:hover {
-		background: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05));
+		color: var(--MI_THEME-accent);
 	}
+	&:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: -2px; }
 
 	&.footerButtonActive {
 		color: var(--MI_THEME-accent);
 	}
+}
+
+.footerAvatar {
+	display: block;
+	width: 24px;
+	height: 24px;
+	margin: auto;
+	border-radius: 100%;
+	object-fit: cover;
 }
 
 .previewButtonActive {
@@ -2706,83 +2787,41 @@ button.channelChip {
 	}
 }
 
-.commentMode {
-	--MI-postForm-inputPadding: 12px;
-	width: 100%;
-	padding: 0 0 0 52px;
-	border-radius: 0;
+.rootMobile {
+	--MI-postForm-spacing: 16px;
+	padding-top: 0;
 
 	.header {
-		position: absolute;
-		inset: 0 auto auto 0;
-		z-index: auto;
-		min-height: 0;
-		margin: 0;
+		align-items: center;
+		min-height: var(--MI-mobileHeaderHeight);
+		margin-inline: calc(-1 * var(--MI-postForm-spacing));
+		padding: 0 8px;
+		border-bottom: var(--MI-divider);
+	}
+	.headerLeft { min-width: 0; }
+	.headerRight { min-height: var(--MI-mobileTouchTarget); overflow: visible; font-size: 14px; }
+	.cancel, .accountButton, .headerRightItem {
+		display: grid;
+		place-items: center;
+		flex: 0 0 var(--MI-mobileTouchTarget);
+		width: var(--MI-mobileTouchTarget);
+		height: var(--MI-mobileTouchTarget);
 		padding: 0;
 	}
-
-	.avatar {
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-	}
-
-	.textOuter {
-		min-height: 0;
-
-		&::before {
-			border-radius: 8px;
-		}
-	}
-
-	.text {
-		min-height: 88px;
-		max-height: 240px;
-	}
-
-	.footer {
-		order: 1;
-		align-items: center;
-		gap: 8px;
-		padding: 8px 0 0;
-	}
-
-	.footerLeft {
-		display: flex;
-		gap: 4px;
-	}
-
-	.footerRight {
-		display: flex;
-		flex: 0 1 auto;
-		align-items: center;
-		gap: 8px;
-		direction: ltr;
-	}
-
+	.avatar { width: 28px; height: 28px; }
+	.headerRightButtonText { display: none; }
+	.submit { align-self: center; height: var(--MI-mobileTouchTarget); }
+	.submitInner { align-self: center; min-width: 64px; line-height: 36px; }
+	.footer { border-top: var(--MI-divider); }
+	.footerLeft { display: flex; overflow-x: auto; scrollbar-width: none; }
+	.footerRight { display: flex; flex: 0 0 auto; direction: ltr; }
 	.footerButton {
-		width: 30px;
-		height: 30px;
+		display: grid;
+		place-items: center;
+		flex: 0 0 var(--MI-mobileTouchTarget);
+		width: var(--MI-mobileTouchTarget);
+		height: var(--MI-mobileTouchTarget);
 	}
-
-	.submit {
-		margin: 0;
-	}
-
-	.submitInner {
-		min-width: 100px;
-		line-height: 32px;
-		font-weight: normal;
-		background: var(--MI_THEME-accent);
-	}
-}
-
-.commentMode.inlineReply {
-	padding: 0;
-
-	.header { display: none; }
-	.text { min-height: 64px; }
-	.submitInner { min-width: 72px; }
 }
 
 </style>

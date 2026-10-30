@@ -34,8 +34,8 @@ export class DeleteDriveFilesProcessorService {
 	@bindThis
 	public async process(job: Bull.Job<DbDeleteDriveFilesJobData>): Promise<void> {
 		if (Object.hasOwn(job.data, 'fileIds') || Object.hasOwn(job.data, 'fileUrls')) {
-			// 兼容旧的自动清理任务；未完整登记引用前，不能据扫描结果永久删除上传。
-			this.logger.info('文件引用尚未完整登记，已保留自动清理任务中的上传文件。');
+			// 跳过已取消的自动清理任务，防止旧定向任务被当作删除整个网盘。
+			this.logger.info('已跳过旧的自动清理任务。');
 			await job.updateProgress(100);
 			return;
 		}

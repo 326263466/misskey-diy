@@ -562,6 +562,7 @@ defineProps<{
 
 	&.coffee .glyph,
 	&.battery .glyph,
+	&.book .glyph,
 	&.focus .glyph,
 	&.moon .glyph,
 	&.vacation .glyph {
@@ -570,15 +571,6 @@ defineProps<{
 
 	&.coffee .detail::before {
 		animation: statusSteam 3s ease-in-out infinite;
-	}
-
-	&.focus .glyph::before {
-		animation: statusPulse 3.2s ease-in-out infinite;
-	}
-
-	&.moon .glyph,
-	&.book .glyph {
-		animation: statusBreathe 4s ease-in-out infinite;
 	}
 
 	&.car .glyph {
@@ -614,16 +606,6 @@ defineProps<{
 @keyframes statusSteam {
 	0%, 100% { transform: translateY(0); opacity: 1; }
 	55% { transform: translateY(-5cqi); opacity: 0.4; }
-}
-
-@keyframes statusPulse {
-	0%, 100% { transform: scale(1); opacity: 1; }
-	45% { transform: scale(0.86); opacity: 0.65; }
-}
-
-@keyframes statusBreathe {
-	0%, 100% { transform: scale(1); }
-	50% { transform: scale(1.07); }
 }
 
 @keyframes statusDrive {

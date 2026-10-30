@@ -11,10 +11,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<img :class="$style.instanceIcon" :src="instance.iconUrl ?? '/favicon.ico'" alt="" draggable="false"/>
 			</button>
 			<MkA v-click-anime v-tooltip="i18n.ts.home" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.home" to="/" exact>
-				<i :class="$style.itemIcon" class="ti ti-home ti-fw"></i>
+				<i :class="[$style.itemIcon, navigationIcons.home]" class="ti-fw"></i>
 			</MkA>
 			<MkA v-click-anime v-tooltip="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.timeline" to="/timeline">
-				<i :class="$style.itemIcon" class="ti ti-messages ti-fw"></i>
+				<i :class="[$style.itemIcon, navigationIcons.timeline]" class="ti-fw"></i>
 			</MkA>
 			<template v-for="item in menu">
 				<div v-if="item === '-'" :class="$style.divider"></div>
@@ -25,16 +25,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<div :class="$style.divider"></div>
 			<MkA v-if="$i && ($i.isAdmin || $i.isModerator)" v-click-anime v-tooltip="i18n.ts.controlPanel" class="item" :activeClass="$style.active" :aria-label="i18n.ts.controlPanel" to="/admin" :behavior="settingsWindowed ? 'window' : null">
-				<i :class="$style.itemIcon" class="ti ti-adjustments ti-fw"></i>
+				<i :class="[$style.itemIcon, navigationIcons.controlPanel]" class="ti-fw"></i>
 			</MkA>
 			<button v-click-anime v-tooltip="i18n.ts.more" :class="$style.item" class="_button" :aria-label="i18n.ts.more" @click="more">
-				<i :class="$style.itemIcon" class="ti ti-dots ti-fw"></i>
+				<i :class="[$style.itemIcon, navigationIcons.more]" class="ti-fw"></i>
 				<span v-if="otherNavItemIndicated" :class="$style.indicator" class="_blink"><i class="_indicatorCircle"></i></span>
 			</button>
 		</div>
 		<div :class="$style.right">
-			<MkA v-click-anime v-tooltip="i18n.ts.settings" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.settings" to="/settings" :behavior="settingsWindowed ? 'window' : null">
-				<i :class="$style.itemIcon" class="ti ti-settings ti-fw"></i>
+			<MkA v-click-anime v-tooltip="i18n.ts.userSettings" :class="$style.item" :activeClass="$style.active" :aria-label="i18n.ts.userSettings" to="/settings" :behavior="settingsWindowed ? 'window' : null">
+				<i :class="[$style.itemIcon, navigationIcons.settings]" class="ti-fw"></i>
 			</MkA>
 			<button v-if="$i" v-click-anime v-tooltip="accountIconOnly ? userName($i) : null" :class="[$style.item, $style.account]" class="_button" :aria-label="`${i18n.ts.account}: @${$i.username}`" @click="openAccountMenu">
 				<MkAvatar :user="$i" :class="$style.avatar" title=""/><MkAcct :class="$style.acct" :user="$i"/>
@@ -50,10 +50,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, unref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, unref } from 'vue';
 import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
+import { navigationIcons } from '@/navigation-icons.js';
 import MkButton from '@/components/MkButton.vue';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
@@ -65,7 +66,7 @@ import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 
 const WINDOW_THRESHOLD = 1400;
 
-const props = defineProps<{
+defineProps<{
 	acrylic?: boolean;
 }>();
 
@@ -73,7 +74,6 @@ const settingsWindowed = ref(window.innerWidth > WINDOW_THRESHOLD);
 const accountMedia = window.matchMedia('(max-width: 1200px)');
 const accountIconOnly = ref(accountMedia.matches);
 const menu = ref(prefer.s.menu);
-// const menuDisplay = store.model('menuDisplay');
 const otherNavItemIndicated = computed<boolean>(() => {
 	for (const def in navbarItemDef) {
 		if (menu.value.includes(def)) continue;

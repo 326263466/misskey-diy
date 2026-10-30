@@ -7,17 +7,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div>
 	<MkLoading v-if="fetching"/>
 	<div v-show="!fetching" :class="$style.root">
-		<div v-if="topSubInstancesForPie && topPubInstancesForPie" class="pies">
-			<div class="pie deliver _panel">
-				<div class="title">{{ i18n.ts.subscribing }}</div>
-				<XPie :data="topSubInstancesForPie" class="chart"/>
-				<div class="subTitle">{{ i18n.tsx._dashboard.topN({ n: 10 }) }}</div>
+		<div v-if="ranking" class="ranking">
+			<div class="rankingHeader">
+				<MkTab v-model="direction" :tabs="directionTabs" class="switch"/>
+				<span class="subTitle">{{ i18n.tsx._dashboard.topN({ n: 10 }) }}</span>
 			</div>
-			<div class="pie inbox _panel">
-				<div class="title">{{ i18n.ts.publishing }}</div>
-				<XPie :data="topPubInstancesForPie" class="chart"/>
-				<div class="subTitle">{{ i18n.tsx._dashboard.topN({ n: 10 }) }}</div>
-			</div>
+			<MkInstanceRanking :items="ranking.items" :other="ranking.other" :label="rankingLabel" plainCanvas/>
 		</div>
 		<div v-if="!fetching" class="items">
 			<div class="item _panel sub">
@@ -27,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						{{ number(federationSubActive) }}
 						<MkNumberDiff v-if="federationSubActiveDiff != null" v-tooltip="i18n.ts.dayOverDayChanges" class="diff" :value="federationSubActiveDiff"></MkNumberDiff>
 					</div>
-					<div class="label">{{ i18n.ts.subscribing }}</div>
+					<div class="label">{{ i18n.ts._chartSeries.federationSubActive }}</div>
 				</div>
 			</div>
 			<div class="item _panel pub">
@@ -37,7 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						{{ number(federationPubActive) }}
 						<MkNumberDiff v-if="federationPubActiveDiff != null" v-tooltip="i18n.ts.dayOverDayChanges" class="diff" :value="federationPubActiveDiff"></MkNumberDiff>
 					</div>
-					<div class="label">{{ i18n.ts.publishing }}</div>
+					<div class="label">{{ i18n.ts._chartSeries.federationPubActive }}</div>
 				</div>
 			</div>
 		</div>
@@ -46,25 +41,40 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
-import XPie from './overview.pie.vue';
-import type { InstanceForPie } from './overview.pie.vue';
-import * as os from '@/os.js';
+import { computed, onMounted, ref, shallowRef } from 'vue';
+import type * as Misskey from 'misskey-js';
 import { misskeyApiGet } from '@/utility/misskey-api.js';
 import number from '@/filters/number.js';
+import MkInstanceRanking from '@/components/MkInstanceRanking.vue';
 import MkNumberDiff from '@/components/MkNumberDiff.vue';
+import MkTab from '@/components/MkTab.vue';
 import { i18n } from '@/i18n.js';
-import { useChartTooltip } from '@/composables/use-chart-tooltip.js';
 
-const topSubInstancesForPie = ref<InstanceForPie[] | null>(null);
-const topPubInstancesForPie = ref<InstanceForPie[] | null>(null);
+type Direction = 'sub' | 'pub';
+
+const direction = ref<Direction>('sub');
+const directionTabs = [
+	{ key: 'sub' as const, label: i18n.ts._chartSeries.federationSub },
+	{ key: 'pub' as const, label: i18n.ts._chartSeries.federationPub },
+];
+const stats = shallowRef<Misskey.entities.FederationStatsResponse | null>(null);
 const federationPubActive = ref<number | null>(null);
 const federationPubActiveDiff = ref<number | null>(null);
 const federationSubActive = ref<number | null>(null);
 const federationSubActiveDiff = ref<number | null>(null);
 const fetching = ref(true);
 
-const { handler: externalTooltipHandler } = useChartTooltip();
+const ranking = computed(() => {
+	if (stats.value == null) return null;
+	const sub = direction.value === 'sub';
+	const instances = sub ? stats.value.topSubInstances : stats.value.topPubInstances;
+	return {
+		items: instances.map(x => ({ host: x.host, value: sub ? x.followersCount : x.followingCount })),
+		other: sub ? stats.value.otherFollowersCount : stats.value.otherFollowingCount,
+	};
+});
+
+const rankingLabel = computed(() => direction.value === 'sub' ? i18n.ts._chartSeries.federationSub : i18n.ts._chartSeries.federationPub);
 
 onMounted(async () => {
 	const chart = await misskeyApiGet('charts/federation', { limit: 2, span: 'day' });
@@ -74,28 +84,7 @@ onMounted(async () => {
 	federationSubActiveDiff.value = chart.subActive[0] - chart.subActive[1];
 
 	misskeyApiGet('federation/stats', { limit: 10 }).then(res => {
-		topSubInstancesForPie.value = [
-			...res.topSubInstances.map(x => ({
-				name: x.host,
-				color: x.themeColor,
-				value: x.followersCount,
-				onClick: () => {
-					os.pageWindow(`/instance-info/${x.host}`);
-				},
-			})),
-			{ name: i18n.ts.other, color: '#80808080', value: res.otherFollowersCount },
-		];
-		topPubInstancesForPie.value = [
-			...res.topPubInstances.map(x => ({
-				name: x.host,
-				color: x.themeColor,
-				value: x.followingCount,
-				onClick: () => {
-					os.pageWindow(`/instance-info/${x.host}`);
-				},
-			})),
-			{ name: i18n.ts.other, color: '#80808080', value: res.otherFollowingCount },
-		];
+		stats.value = res;
 	});
 
 	fetching.value = false;
@@ -106,32 +95,26 @@ onMounted(async () => {
 .root {
 
 	&:global {
-		> .pies {
-			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
-			grid-gap: 12px;
+		> .ranking {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
 			margin-bottom: 12px;
 
-			> .pie {
-				position: relative;
-				padding: var(--MI-cardPadding);
+			> .rankingHeader {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				flex-wrap: wrap;
+				gap: 8px;
 
-				> .title {
-					position: absolute;
-					top: var(--MI-cardPadding);
-					left: var(--MI-cardPadding);
-					font-size: 90%;
-				}
-
-				> .chart {
-					max-height: 150px;
+				> .switch {
+					--MI-toolbarFontSize: .85em;
 				}
 
 				> .subTitle {
-					position: absolute;
-					bottom: var(--MI-cardPadding);
-					right: var(--MI-cardPadding);
-					font-size: 85%;
+					color: var(--MI_THEME-fgTransparentWeak);
+					font-size: 0.85em;
 				}
 			}
 		}

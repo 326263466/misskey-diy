@@ -69,7 +69,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkInput from '@/components/MkInput.vue';
 import FormSection from '@/components/form/section.vue';
@@ -114,6 +114,7 @@ function save() {
 	if (event_reaction.value) events.push('reaction');
 	if (event_mention.value) events.push('mention');
 
+	// 失败提示由 apiWithDialog 处理
 	os.apiWithDialog('i/webhooks/update', {
 		name: name.value,
 		url: url.value,
@@ -121,7 +122,9 @@ function save() {
 		webhookId: props.webhookId,
 		on: events,
 		active: active.value,
-	});
+	}).then(() => {
+		os.toast(i18n.ts.saved, 'success');
+	}, () => {});
 }
 
 async function del(): Promise<void> {
@@ -134,6 +137,7 @@ async function del(): Promise<void> {
 	await os.apiWithDialog('i/webhooks/delete', {
 		webhookId: props.webhookId,
 	});
+	os.toast(i18n.ts.deleteSucceeded, 'success');
 
 	router.push('/settings/connect');
 }
@@ -147,11 +151,8 @@ async function test(type: Misskey.entities.UserWebhook['on'][number]): Promise<v
 			url: url.value,
 		},
 	});
+	os.toast(i18n.ts.sent, 'success');
 }
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts._webhookSettings.modifyWebhook,

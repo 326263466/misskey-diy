@@ -17,7 +17,13 @@ const mocks = vi.hoisted(() => ({
 	popupAsyncWithDialog: vi.fn(),
 }));
 
-vi.mock('@/router.js', () => ({ useRouter: () => ({ pushByPath: mocks.pushByPath }) }));
+vi.mock('@/router.js', () => ({
+	useRouter: () => ({
+		pushByPath: mocks.pushByPath,
+		currentRef: { value: { route: { path: '/' }, props: new Map(), _parsedRoute: { queryString: '' } } },
+		currentRoute: { value: { path: '/' } },
+	}),
+}));
 vi.mock('@/os.js', () => ({
 	input: mocks.input,
 	select: mocks.select,
@@ -69,8 +75,8 @@ describe('header search submission', () => {
 		await fireEvent.update(input, `  ${query}  `);
 		expect(view.getByRole('search').querySelector('button[type="submit"]')).toHaveProperty('disabled', false);
 		await fireEvent.submit(view.getByRole('search'));
-		expect(mocks.pushByPath).toHaveBeenCalledExactlyOnceWith(`/search?q=${encodeURIComponent(query)}`);
-		expect(input).toHaveProperty('value', '');
+		expect(mocks.pushByPath).toHaveBeenCalledExactlyOnceWith(`/search?${new URLSearchParams({ q: query })}`);
+		expect(input).toHaveProperty('value', `  ${query}  `);
 		expectNoDialog();
 	});
 
@@ -204,7 +210,7 @@ describe('header search keyboard and compact entry', () => {
 		expect(toggle.getAttribute('aria-expanded')).toBe('true');
 		expect(mocks.pushByPath).not.toHaveBeenCalled();
 		await fireEvent.click(submit);
-		expect(mocks.pushByPath).toHaveBeenCalledExactlyOnceWith('/search?q=compact%20search');
+		expect(mocks.pushByPath).toHaveBeenCalledExactlyOnceWith('/search?q=compact+search');
 		expect(toggle.getAttribute('aria-expanded')).toBe('false');
 	});
 

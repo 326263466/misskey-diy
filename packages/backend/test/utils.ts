@@ -292,8 +292,6 @@ export const role = async (user: UserToken, role: Partial<misskey.entities.Role>
 };
 
 interface UploadOptions {
-	isManaged?: boolean;
-	draftId?: string;
 	/** Optional, absolute path or relative from ./resources/ */
 	path?: string | URL;
 	/** The name to be used for the file upload */
@@ -306,7 +304,7 @@ interface UploadOptions {
  * Upload file
  * @param user User
  */
-export const uploadFile = async (user?: UserToken, { path, name, blob, isManaged, draftId }: UploadOptions = {}): Promise<{
+export const uploadFile = async (user?: UserToken, { path, name, blob }: UploadOptions = {}): Promise<{
 	status: number,
 	headers: Headers,
 	body: misskey.entities.DriveFile | null
@@ -325,8 +323,6 @@ export const uploadFile = async (user?: UserToken, { path, name, blob, isManaged
 	);
 
 	formData.append('force', 'true');
-	if (isManaged !== undefined) formData.append('isManaged', String(isManaged));
-	if (draftId !== undefined) formData.append('draftId', draftId);
 	if (name) {
 		formData.append('name', name);
 	}
@@ -652,7 +648,7 @@ export async function sendEnvResetRequest() {
 
 // 与えられた値を強制的にエラーとみなす。この関数は型安全性を破壊するため、異常系のアサーション以外で用いられるべきではない。
 // FIXME(misskey-js): misskey-jsがエラー情報を公開するようになったらこの関数を廃止する
-export function castAsError(obj: Record<string, unknown>): { error: ApiError } {
+export function castAsError(obj: unknown): { error: ApiError } {
 	return obj as { error: ApiError };
 }
 

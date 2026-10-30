@@ -9,6 +9,10 @@ import { isAccountSessionErrorHandled } from '@/utility/account-session-error.js
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 
+function getErrorCode(error: unknown): string | undefined {
+	return typeof error === 'object' && error !== null ? (error as { code?: string }).code : undefined;
+}
+
 export function getChatInvitationErrorMessage(error: unknown): string {
 	const { code, info } = (typeof error === 'object' && error !== null ? error : {}) as { code?: string; info?: { reason?: string; chatScope?: string } };
 	if (code === 'INVALID_INVITEE' || code === 'INVALID_INVITEES') {
@@ -37,13 +41,35 @@ export function getChatInvitationErrorMessage(error: unknown): string {
 	return i18n.ts.somethingHappened;
 }
 
+export function getChatRoomJoinErrorMessage(error: unknown): string {
+	switch (getErrorCode(error)) {
+		case 'CHAT_ROOM_FULL': return i18n.ts._chat.roomFull;
+		case 'CHAT_ROOM_JOIN_DENIED': return i18n.ts._chat.joinDenied;
+		case 'NO_SUCH_ROOM': return i18n.ts._chat.roomDeleted;
+		case 'PERMISSION_DENIED':
+		case 'ROLE_PERMISSION_DENIED': return i18n.ts.permissionDeniedErrorDescription;
+		default: return i18n.ts.somethingHappened;
+	}
+}
+
+// 暂时关闭入群或存在拉黑关系不代表邀请已删除，仍应允许忽略或稍后重试。
+export function isChatInvitationGoneError(error: unknown): boolean {
+	return getErrorCode(error) === 'NO_SUCH_ROOM';
+}
+
+function getErrorMessage(endpoint: keyof Endpoints, error: unknown): string {
+	if (endpoint === 'chat/rooms/create' || endpoint === 'chat/rooms/invitations/create') return getChatInvitationErrorMessage(error);
+	if (endpoint === 'chat/rooms/join' || endpoint === 'chat/rooms/requests/create') return getChatRoomJoinErrorMessage(error);
+	return i18n.ts.somethingHappened;
+}
+
 export async function misskeyApiWithToast<E extends keyof Endpoints>(endpoint: E, data: Endpoints[E]['req'] & { i?: string | null }, message: string | null = i18n.ts.saved) {
 	try {
 		const result = await misskeyApi<void, E>(endpoint, data);
 		if (message != null) os.toast(message, 'success');
 		return result;
 	} catch (error) {
-		if (!isAccountSessionErrorHandled(error)) os.toast(endpoint === 'chat/rooms/create' || endpoint === 'chat/rooms/invitations/create' ? getChatInvitationErrorMessage(error) : i18n.ts.somethingHappened, 'error');
+		if (!isAccountSessionErrorHandled(error)) os.toast(getErrorMessage(endpoint, error), 'error');
 		throw error;
 	}
 }

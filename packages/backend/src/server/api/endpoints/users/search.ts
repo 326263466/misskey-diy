@@ -11,15 +11,19 @@ import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { UserSearchService } from '@/core/UserSearchService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { ApiError } from '@/server/api/error.js';
+import { searchTimeoutError, searchProviderErrors } from '@/misc/search-query.js';
 
 export const meta = {
 	tags: ['users'],
 
 	requireCredential: false,
+	limit: { duration: 60 * 1000, max: 60 },
 
 	description: 'Search for users.',
 
 	errors: {
+		...searchProviderErrors,
+		searchTimeout: searchTimeoutError,
 		permissionDenied: {
 			message: 'You are not assigned to a required role.',
 			code: 'ROLE_PERMISSION_DENIED',
@@ -42,8 +46,8 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		query: { type: 'string' },
-		offset: { type: 'integer', default: 0 },
+		query: { type: 'string', minLength: 1, maxLength: 512 },
+		offset: { type: 'integer', minimum: 0, default: 0 },
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
 		origin: { type: 'string', enum: ['local', 'remote', 'combined'], default: 'combined' },
 		detail: { type: 'boolean', default: true },
@@ -67,7 +71,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					throw new ApiError(meta.errors.permissionDenied);
 				}
 			}
-
 			const users = await this.userSearchService.search(ps.query.trim(), me?.id ?? null, {
 				offset: ps.offset,
 				limit: ps.limit,

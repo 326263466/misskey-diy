@@ -26,7 +26,7 @@ describe('private benefit card history', () => {
 		for (const id of ['historyself', 'historyother']) {
 			await db.getRepository(MiUser).insert({ id, username: id, usernameLower: id });
 			await db.getRepository(MiUserProfile).insert({ userId: id });
-			await db.getRepository(MiUserCheckinCardBatch).insert({ id: `${id}batch`, userId: id, source: 'admin', createdAt: new Date('2026-09-29T01:00:00Z'), amount: 5, remaining: 2, used: 1, revoked: 2 });
+			await db.getRepository(MiUserCheckinCardBatch).insert({ id: `${id}batch`, userId: id, source: 'redemption', createdAt: new Date('2026-09-29T01:00:00Z'), amount: 5, remaining: 2, used: 1, revoked: 2 });
 			await db.getRepository(MiUserCheckinExchange).insert({ userId: id, requestId: randomUUID(), createdAt: new Date('2026-09-29T01:00:00Z'), pointsSpent: 7, cardsGranted: 1 });
 			await db.getRepository(MiUserCheckin).insert([
 				{ userId: id, date: '2026-09-27', isMakeup: true, createdAt: new Date('2026-09-29T02:00:00Z'), totalDays: 1, consecutiveDays: 1, cardBatchId: `${id}batch` },
@@ -40,7 +40,7 @@ describe('private benefit card history', () => {
 
 	test('returns only the caller acquisitions even with a forged userId parameter', async () => {
 		const result = await endpoint.exec({ userId: 'historyother' }, me as never, null);
-		expect(result).toEqual({ total: 1, items: [{ id: 'historyselfbatch', createdAt: '2026-09-29T01:00:00.000Z', source: 'admin', amount: 5, used: 1, remaining: 2, revoked: 2, date: null, pointsSpent: null }] });
+		expect(result).toEqual({ total: 1, items: [{ id: 'historyselfbatch', createdAt: '2026-09-29T01:00:00.000Z', source: 'redemption', amount: 5, used: 1, remaining: 2, revoked: 2, date: null, pointsSpent: null }] });
 	});
 
 	test('returns private exchange costs and consistent totals for an empty later page', async () => {
@@ -52,7 +52,7 @@ describe('private benefit card history', () => {
 	test('distinguishes legacy and attributable use, orders tied dates, and excludes actual check-ins', async () => {
 		const result = await endpoint.exec({ type: 'use', limit: 1 }, me as never, null);
 		expect(result).toMatchObject({ total: 2, items: [{ date: '2026-09-28', source: null, amount: 1, createdAt: '2026-09-29T02:00:00.000Z' }] });
-		expect(await endpoint.exec({ type: 'use', limit: 1, offset: 1 }, me as never, null)).toMatchObject({ total: 2, items: [{ date: '2026-09-27', source: 'admin' }] });
+		expect(await endpoint.exec({ type: 'use', limit: 1, offset: 1 }, me as never, null)).toMatchObject({ total: 2, items: [{ date: '2026-09-27', source: 'redemption' }] });
 	});
 
 	test('validates history kinds and pagination', async () => {

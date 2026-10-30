@@ -52,7 +52,7 @@ export class PollService {
 
 		// Check blocking
 		if (note.userId !== user.id) {
-			const blocked = await this.userBlockingService.checkBlocked(note.userId, user.id);
+			const blocked = await this.userBlockingService.isBlockedEither(note.userId, user.id);
 			if (blocked) {
 				throw new Error('blocked');
 			}

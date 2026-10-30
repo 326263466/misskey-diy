@@ -23,8 +23,8 @@ import { MiBubbleGameRecord } from '@/models/BubbleGameRecord.js';
 import { MiUserCheckin } from '@/models/UserCheckin.js';
 import { MiUserCheckinExchange } from '@/models/UserCheckinExchange.js';
 import { MiUserCheckinCardBatch } from '@/models/UserCheckinCardBatch.js';
-import { MiCheckinRedemptionCode } from '@/models/CheckinRedemptionCode.js';
-import { MiCheckinRedemptionClaim } from '@/models/CheckinRedemptionClaim.js';
+import { MiBenefitRedemptionCode } from '@/models/BenefitRedemptionCode.js';
+import { MiBenefitRedemptionClaim } from '@/models/BenefitRedemptionClaim.js';
 import { MiChannel } from '@/models/Channel.js';
 import { MiChannelFavorite } from '@/models/ChannelFavorite.js';
 import { MiChannelFollowing } from '@/models/ChannelFollowing.js';
@@ -39,9 +39,6 @@ import { MiClip } from '@/models/Clip.js';
 import { MiClipFavorite } from '@/models/ClipFavorite.js';
 import { MiClipNote } from '@/models/ClipNote.js';
 import { MiDriveFile } from '@/models/DriveFile.js';
-import { MiDriveFileReference } from '@/models/DriveFileReference.js';
-import { MiDriveFileTarget } from '@/models/DriveFileTarget.js';
-import { MiDriveFileDraft } from '@/models/DriveFileDraft.js';
 import { MiDriveFolder } from '@/models/DriveFolder.js';
 import { MiEmoji } from '@/models/Emoji.js';
 import { MiFeedback } from '@/models/Feedback.js';
@@ -78,6 +75,7 @@ import { MiNoteThreadMuting } from '@/models/NoteThreadMuting.js';
 import { MiPage } from '@/models/Page.js';
 import { MiPageLike } from '@/models/PageLike.js';
 import { MiArticleComment } from '@/models/ArticleComment.js';
+import { MiArticleCommentLike } from '@/models/ArticleCommentLike.js';
 import { MiArticleFavorite } from '@/models/ArticleFavorite.js';
 import { MiPasswordResetRequest } from '@/models/PasswordResetRequest.js';
 import { MiPoll } from '@/models/Poll.js';
@@ -141,9 +139,6 @@ export {
 	MiClipNote,
 	MiClipFavorite,
 	MiDriveFile,
-	MiDriveFileReference,
-	MiDriveFileTarget,
-	MiDriveFileDraft,
 	MiDriveFolder,
 	MiEmoji,
 	MiFollowing,
@@ -170,6 +165,7 @@ export {
 	MiPage,
 	MiPageLike,
 	MiArticleComment,
+	MiArticleCommentLike,
 	MiArticleFavorite,
 	MiPasswordResetRequest,
 	MiPoll,
@@ -222,8 +218,8 @@ export {
 	MiUserCheckin,
 	MiUserCheckinExchange,
 	MiUserCheckinCardBatch,
-	MiCheckinRedemptionCode,
-	MiCheckinRedemptionClaim,
+	MiBenefitRedemptionCode,
+	MiBenefitRedemptionClaim,
 	MiReversiGame,
 };
 
@@ -247,9 +243,6 @@ export type ClipsRepository = Repository<MiClip> & MiRepository<MiClip>;
 export type ClipNotesRepository = Repository<MiClipNote> & MiRepository<MiClipNote>;
 export type ClipFavoritesRepository = Repository<MiClipFavorite> & MiRepository<MiClipFavorite>;
 export type DriveFilesRepository = Repository<MiDriveFile> & MiRepository<MiDriveFile>;
-export type DriveFileReferencesRepository = Repository<MiDriveFileReference> & MiRepository<MiDriveFileReference>;
-export type DriveFileTargetsRepository = Repository<MiDriveFileTarget> & MiRepository<MiDriveFileTarget>;
-export type DriveFileDraftsRepository = Repository<MiDriveFileDraft> & MiRepository<MiDriveFileDraft>;
 export type DriveFoldersRepository = Repository<MiDriveFolder> & MiRepository<MiDriveFolder>;
 export type EmojisRepository = Repository<MiEmoji> & MiRepository<MiEmoji>;
 export type FollowingsRepository = Repository<MiFollowing> & MiRepository<MiFollowing>;

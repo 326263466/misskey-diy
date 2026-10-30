@@ -10,6 +10,7 @@ import { MiPage } from './Page.js';
 
 @Entity('article_comment')
 @Index('IDX_article_comment_article_id_id', ['articleId', 'id'])
+@Index('IDX_article_comment_article_reply_id_id', ['articleId', 'replyId', 'id'])
 @Index('IDX_article_comment_user_id', ['userId'])
 export class MiArticleComment {
 	@PrimaryColumn({ ...id(), primaryKeyConstraintName: 'PK_article_comment' })
@@ -34,6 +35,9 @@ export class MiArticleComment {
 
 	@Column('varchar', { length: 32, array: true, default: '{}' })
 	public fileIds: string[];
+
+	@Column('boolean', { default: false })
+	public isDeleted: boolean;
 
 	@Column({ ...id(), nullable: true })
 	public replyId: MiArticleComment['id'] | null;

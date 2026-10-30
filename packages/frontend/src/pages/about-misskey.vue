@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader contentCard :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader contentCard>
 	<div class="_pageBody" data-page-body style="overflow: clip;">
 		<div>
 			<div class="_gaps_m znqjceqz">
@@ -136,7 +136,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onBeforeUnmount, ref, useTemplateRef, computed } from 'vue';
+import { nextTick, onBeforeUnmount, ref, useTemplateRef } from 'vue';
 import { host, version } from '@@/js/config.js';
 import { DEFAULT_EMOJIS } from '@@/js/const.js';
 import FormLink from '@/components/form/link.vue';
@@ -479,10 +479,6 @@ onBeforeUnmount(() => {
 		easterEggEngine.value.stop();
 	}
 });
-
-const headerActions = computed(() => []);
-
-const headerTabs = computed(() => []);
 
 definePage(() => ({
 	title: i18n.ts.aboutMisskey,

@@ -9,7 +9,7 @@ import { In, IsNull } from 'typeorm';
 import { RoleService } from '@/core/RoleService.js';
 import { DI } from '@/di-symbols.js';
 import { isUserFollowCountVisible } from '@/misc/is-user-follow-count-visible.js';
-import { getUserCustomStatus, getUserOnlineStatus } from '@/misc/user-online-status.js';
+import { getUserCustomStatus, getUserOnlineStatus, getUserPublicLastActiveDate } from '@/misc/user-online-status.js';
 import { packedUserCustomStatusSchema } from '@/models/json-schema/user.js';
 import type { FollowingsRepository, FollowRequestsRepository, MiMeta, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
@@ -27,6 +27,7 @@ export const meta = {
 			properties: {
 				id: { type: 'string', optional: false, nullable: false, format: 'id' },
 				onlineStatus: { type: 'string', optional: false, nullable: true, enum: ['unknown', 'online', 'active', 'offline', 'away', 'busy', 'doNotDisturb'] },
+				lastActiveAt: { type: 'string', optional: false, nullable: true, format: 'date-time' },
 				customStatus: packedUserCustomStatusSchema,
 				notesCount: { type: 'integer', optional: false, nullable: false },
 				followingCount: { type: 'integer', optional: false, nullable: false },
@@ -77,7 +78,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					...(!isModerator ? { isSuspended: false } : {}),
 					...(me == null && getVisitorContentVisibility(this.serverSettings) === 'local' ? { host: IsNull() } : {}),
 				},
-				select: { id: true, notesCount: true, followingCount: true, followersCount: true, hideOnlineStatus: true, onlineStatusOverride: true, lastActiveDate: true, customStatus: true },
+				select: { id: true, host: true, notesCount: true, followingCount: true, followersCount: true, hideOnlineStatus: true, onlineStatusOverride: true, lastActiveDate: true, lastDisconnectedAt: true, customStatus: true },
 			});
 			if (users.length === 0) return [];
 
@@ -111,6 +112,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				return [{
 					id,
 					onlineStatus: getUserOnlineStatus(user),
+					lastActiveAt: getUserPublicLastActiveDate(user)?.toISOString() ?? null,
 					customStatus: getUserCustomStatus(user, me?.id === user.id),
 					notesCount: user.notesCount,
 					followingCount: isUserFollowCountVisible(profile.followingVisibility, visibility) ? user.followingCount : 0,

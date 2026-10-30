@@ -6,7 +6,7 @@
 import { CONTENT_LIMITS } from 'misskey-js';
 import type { MetasRepository } from '@/models/_.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
-import { normalizeForSearch } from '@/misc/normalize-for-search.js';
+import { normalizeTag } from '@/misc/normalize-tag.js';
 import type { MiPage } from '@/models/Page.js';
 
 export const invalidArticleTagsErrorId = 'b454220d-b96e-447a-a07a-6b588658bf03';
@@ -37,7 +37,7 @@ export function normalizeArticleTags(value: unknown): string[] {
 	if (!Array.isArray(value) || value.length > 3 || value.some(tag => typeof tag !== 'string')) {
 		throw new IdentifiableError(invalidArticleTagsErrorId);
 	}
-	const tags = (value as string[]).map(tag => normalizeForSearch(tag).trim());
+	const tags = (value as string[]).map(tag => normalizeTag(tag).trim());
 	if (tags.some(tag => !tag || tag.includes('\u0000') || Array.from(tag).length > 100) || new Set(tags).size !== tags.length) {
 		throw new IdentifiableError(invalidArticleTagsErrorId);
 	}

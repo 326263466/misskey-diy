@@ -18,7 +18,6 @@ import MkGoogle from '@/components/MkGoogle.vue';
 import MkSparkle from '@/components/MkSparkle.vue';
 import MkA from '@/components/global/MkA.vue';
 import { prefer } from '@/preferences.js';
-import { spaceMfmText } from '@/utility/mfm-text-spacing.js';
 import { normalizeMfmUnicodeEmoji } from '@/utility/unicode-emoji.js';
 
 type MfmProps = MfmBaseProps & {
@@ -30,8 +29,7 @@ type MfmProps = MfmBaseProps & {
 
 // eslint-disable-next-line import/no-default-export
 export default createMfmRenderer<MfmProps>({
-	transformNodes: nodes => spaceMfmText(normalizeMfmUnicodeEmoji(nodes)),
-	rootStyle: 'text-autospace: no-autospace;',
+	transformNodes: normalizeMfmUnicodeEmoji,
 	rainbowClass: '_mfmRainbow',
 	components: () => ({
 		Url: MkUrl,

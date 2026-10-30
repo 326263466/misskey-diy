@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div>
+<div class="_formField">
 	<div :id="`${id}-label`" :class="$style.label" @click="focus"><slot name="label"></slot></div>
 	<div
 		ref="container"
@@ -77,6 +77,7 @@ export type GetMkSelectValueTypesFromDef<T extends MkSelectItem[]> = T[number] e
 
 <script lang="ts" setup generic="const ITEMS extends MkSelectItem[], MODELT extends OptionValue">
 import { onMounted, onUnmounted, nextTick, ref, watch, computed, toRefs, useTemplateRef, useId } from 'vue';
+import type { CSSProperties } from 'vue';
 import type { MenuItem } from '@/types/menu.js';
 import * as os from '@/os.js';
 
@@ -90,6 +91,7 @@ const props = defineProps<{
 	inline?: boolean;
 	small?: boolean;
 	large?: boolean;
+	menuStyle?: CSSProperties;
 }>();
 
 type ModelTChecked = MODELT & (
@@ -214,6 +216,7 @@ function show() {
 	os.popupMenu(menu, container.value, {
 		matchAnchorWidth: true,
 		width: container.value?.getBoundingClientRect().width,
+		style: props.menuStyle,
 		onClosing: () => {
 			opening.value = false;
 		},
@@ -222,8 +225,10 @@ function show() {
 </script>
 
 <style lang="scss" module>
+@use '../styles/input.scss' as input;
+
 .label {
-	font-size: 0.85em;
+	font-size: var(--MI-formLabelFontSize, 0.85em);
 	padding: 0 0 8px 0;
 	user-select: none;
 
@@ -233,7 +238,7 @@ function show() {
 }
 
 .caption {
-	font-size: 0.85em;
+	font-size: var(--MI-formCaptionFontSize, 0.85em);
 	padding: 8px 0 0 0;
 	color: var(--MI_THEME-fgTransparentWeak);
 
@@ -251,13 +256,6 @@ function show() {
 		margin: 0;
 	}
 
-	&.focused {
-		> .inputCore {
-			border-color: var(--MI_THEME-accent) !important;
-			//box-shadow: 0 0 0 4px var(--MI_THEME-focus);
-		}
-	}
-
 	&.disabled {
 		opacity: 0.7;
 
@@ -271,19 +269,28 @@ function show() {
 		outline: none;
 	}
 
-	&:hover {
-		> .inputCore {
-			border-color: var(--MI_THEME-inputBorderHover) !important;
-		}
+	// 焦点在外层容器上，状态与文本输入框一致。
+	&:hover:not(.focused, .disabled) > .inputCore {
+		border-color: var(--MI-accentBorder);
+		background: transparent;
+	}
+
+	&.focused > .inputCore {
+		border-color: var(--MI-inputFocusBorder);
+		background: transparent;
 	}
 }
 
 .inputCore {
+	@include input.states;
+	// 全站下拉框统一为轻量描边样式，不使用填充底色。
+	border-color: var(--MI-dividerColor);
+	background: transparent;
 	appearance: none;
 	-webkit-appearance: none;
 	display: flex;
 	align-items: center;
-	height: v-bind("height + 'px'");
+	height: var(--MI-controlHeight, v-bind("height + 'px'"));
 	width: 100%;
 	margin: 0;
 	padding: 0 12px;
@@ -291,13 +298,10 @@ function show() {
 	font-weight: normal;
 	font-size: 1em;
 	color: var(--MI_THEME-fg);
-	background: var(--MI_THEME-bg);
-	border: solid 1px var(--MI_THEME-inputBorder);
-	border-radius: 6px;
+	border-radius: var(--MI-adminRadius, 6px);
 	outline: none;
 	box-shadow: none;
 	box-sizing: border-box;
-	transition: border-color 0.1s ease-out;
 	cursor: pointer;
 	pointer-events: none;
 	user-select: none;
@@ -320,7 +324,7 @@ function show() {
 	top: 0;
 	padding: 0 12px;
 	font-size: 1em;
-	height: v-bind("height + 'px'");
+	height: var(--MI-controlHeight, v-bind("height + 'px'"));
 	min-width: 16px;
 	max-width: 150px;
 	overflow: hidden;

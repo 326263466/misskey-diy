@@ -51,6 +51,8 @@ export interface MenuLabel extends MenuBase {
 export interface MenuLink extends TextMenuBase {
 	type: 'link';
 	to: string;
+	active?: boolean | ComputedRef<boolean>;
+	danger?: boolean;
 	indicate?: boolean;
 	avatar?: Misskey.entities.User;
 }
@@ -58,6 +60,8 @@ export interface MenuLink extends TextMenuBase {
 export interface MenuA extends TextMenuBase {
 	type: 'a';
 	href: string;
+	active?: boolean | ComputedRef<boolean>;
+	danger?: boolean;
 	target?: string;
 	download?: string;
 	indicate?: boolean;
@@ -94,6 +98,7 @@ export interface MenuRadioOption extends MenuBase {
 	caption?: Text | null | undefined | ComputedRef<null | undefined>;
 	action: MenuAction;
 	active?: boolean | ComputedRef<boolean>;
+	hidden?: boolean | ComputedRef<boolean>;
 }
 
 export interface MenuComponent<T extends Component = any> extends MenuBase {
