@@ -12,7 +12,6 @@
 		"test": "vitest --run --globals --config vitest.config.unit.ts",
 		"test-and-coverage": "vitest --run --coverage --globals --config vitest.config.unit.ts",
 		"test:e2e": "playwright test --config playwright.config.ts",
-		"test:browser": "vitest --run --globals --config vitest.config.browser.ts",
 		"typecheck": "vue-tsc --noEmit",
 		"eslint": "eslint --quiet \"src/**/*.{ts,vue}\"",
 		"lint": "pnpm typecheck && pnpm eslint"
@@ -103,7 +102,6 @@
 		"@types/tinycolor2": "1.4.6",
 		"@typescript-eslint/eslint-plugin": "8.71.2",
 		"@typescript-eslint/parser": "8.71.2",
-		"@vitest/browser-playwright": "5.0.5",
 		"@vitest/coverage-v8": "5.0.5",
 		"@vue/compiler-core": "3.5.44",
 		"astring": "1.9.0",

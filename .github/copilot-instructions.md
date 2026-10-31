@@ -35,7 +35,6 @@
 - Backend e2e（按需）：`pnpm --filter backend test:e2e --run test/e2e/<file>.ts`
 - Backend federation（按需）：`pnpm --filter backend test:fed --run <file>`
 - Frontend unit：`pnpm --filter frontend test test/unit/<file>.test.ts`
-- Frontend browser（按需）：`pnpm --filter frontend test:browser test/browser/<file>.test.ts`
 - 全量检查只有明确需要时运行：`pnpm lint` 或 `pnpm build`
 
 运行 backend 测试前确认 `.config/test.yml` 存在；可从 `.github/misskey/test.yml` 复制。完整风险分级和交付流程见 [AGENTS.md](../AGENTS.md) 与 [shipping-misskey-change](../.claude/skills/shipping-misskey-change/SKILL.md)。

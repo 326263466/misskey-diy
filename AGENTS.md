@@ -128,7 +128,6 @@
 | Backend e2e test（按需） | `pnpm --filter backend test:e2e --run test/e2e/<file>.ts` |
 | Backend federation test（按需） | `pnpm --filter backend test:fed --run <file>` |
 | Frontend unit test | `pnpm --filter frontend test test/unit/<file>.test.ts` |
-| Frontend browser test（按需） | `pnpm --filter frontend test:browser test/browser/<file>.test.ts` |
 | Migration 差异检查（pending DDL） | `pnpm --filter backend check-migrations` |
 | `misskey-js` 重新生成（API 变更后必须） | `pnpm build-misskey-js-with-types` |
 | 全量 build | `pnpm build` |

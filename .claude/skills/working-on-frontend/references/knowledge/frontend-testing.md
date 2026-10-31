@@ -21,15 +21,11 @@ pnpm --filter frontend test test/unit/<file>.test.ts
 - ビルドツール周りなど対象コードと隣接させた方が分かりやすいテストは、コードと同じディレクトリに `*.test.ts` として置く (例: [packages/frontend/lib/rollup-plugin-unwind-css-module-class-name.test.ts](../../../../../packages/frontend/lib/rollup-plugin-unwind-css-module-class-name.test.ts))
 - 组件行为也可复用该目录下的 Vue Testing Library 测试；不要为组件另建 `__tests__/` 目录。
 
-## Vitest browser（按需）
+## 真实浏览器验证（按需）
 
-只有 happy-dom 无法模拟、且出错会让功能不可用的浏览器行为才选择，例如焦点和键盘、滚动定位、全屏、媒体播放、弹层避开视口。不连接后端。测试位于 `packages/frontend/test/browser/`，配置为 `vitest.config.browser.ts`。
+happy-dom 无法模拟的焦点、键盘、滚动定位、全屏和媒体交互，优先用现有页面或 Storybook 定向验证；需要自动回归覆盖时复用下述 Playwright E2E。
 
-间距、宽度、居中、圆角、主题配色等纯外观问题不写 browser test，用现有页面、Storybook 或临时截图手动确认，截图不提交。
-
-```bash
-pnpm --filter frontend test:browser test/browser/<file>.test.ts
-```
+间距、宽度、居中、圆角、主题配色等纯外观问题不新增浏览器测试，用现有页面、Storybook 或临时截图手动确认，截图不提交。
 
 不要为了界面微调扩展多宽度、主题和动画开关的笛卡尔组合；选能区分风险的代表场景。临时诊断和截图放在测试发现范围之外，交付前清理本任务产物。
 

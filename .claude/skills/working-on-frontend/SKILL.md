@@ -27,7 +27,7 @@ description: 编辑或新增 packages/frontend/、Vue SFC、SCSS、Storybook 或
 
 - 类型行为变化：按需运行 `pnpm --filter frontend typecheck`
 - 有适用行为覆盖：定向运行 `pnpm --filter frontend test test/unit/<file>.test.ts`
-- 需要真实浏览器行为：定向运行 `pnpm --filter frontend test:browser test/browser/<file>.test.ts`
+- 需要真实浏览器行为：复用现有 Playwright E2E，或用页面 / Storybook 定向验证
 - 最后从 package root 对本任务变更文件运行 `eslint --quiet`
 
 组件 reviewer 也按风险选择：新增共享组件、路由或双列布局、复杂 i18n / a11y / SCSS 变更时，启动 [vue-component-reviewer](../../agents/vue-component-reviewer.md)。局部文案、纯样式微调和简单接线不启动专用 reviewer。
