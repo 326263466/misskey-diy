@@ -7,86 +7,93 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader>
 	<template #header-actions><button type="button" class="_button _iconButton" :class="$style.rules" :aria-label="i18n.ts._checkin.rules" @click="showRules"><i class="ti ti-help-circle" aria-hidden="true"></i></button></template>
 <div class="_pageBody" :class="$style.root">
-	<section class="_panel _card" :class="$style.panel" :aria-busy="loading || posting">
-		<div :class="$style.body">
-			<div v-if="error" role="alert" :class="$style.error">{{ error }} <button v-if="!posting" class="_textButton" @click="retry">{{ i18n.ts.retry }}</button></div>
-			<div :class="$style.dashboard">
-				<div :class="$style.calendarColumn">
-					<MkLoading v-if="!status && loading"/>
-					<template v-if="status">
-						<dl :class="$style.stats">
-							<div><i class="ti ti-flame" :class="$style.statWatermark" aria-hidden="true"></i><dt>{{ i18n.ts._checkin.consecutiveDays }}</dt><dd>{{ status.consecutiveDays }}</dd></div>
-							<div><i class="ti ti-sparkles" :class="$style.statWatermark" aria-hidden="true"></i><dt>{{ i18n.ts._checkin.totalDays }}</dt><dd>{{ status.totalDays }}</dd></div>
-							<div><i class="ti ti-calendar-check" :class="$style.statWatermark" aria-hidden="true"></i><dt>{{ i18n.ts._checkin.monthlyDays }}</dt><dd>{{ status.monthlyDays }}</dd></div>
-						</dl>
-						<section :aria-label="i18n.ts._checkin.calendar">
-							<div :class="$style.monthNav">
-								<div :class="$style.monthControls">
-									<button type="button" class="_button" :class="$style.monthButton" :aria-label="i18n.ts._checkin.previousMonth" :disabled="loading || posting || status.month <= '1900-01'" @click="load(shiftCheckinMonth(status.month, -1))"><i class="ti ti-caret-left-filled" aria-hidden="true"></i></button>
-									<h2 data-testid="checkin-month">{{ monthLabel }}</h2>
-									<button type="button" class="_button" :class="$style.monthButton" :aria-label="i18n.ts._checkin.nextMonth" :disabled="loading || posting || status.month >= '2199-12'" @click="load(shiftCheckinMonth(status.month, 1))"><i class="ti ti-caret-right-filled" aria-hidden="true"></i></button>
-									<button v-if="status.month !== status.today.slice(0, 7)" type="button" class="_textButton" :class="$style.thisMonth" :disabled="loading || posting || statusStale" @click="load()">{{ i18n.ts._checkin.currentMonth }}</button>
-								</div>
-								<div :class="$style.cardCount">
-									<i class="ti ti-ticket" aria-hidden="true"></i>
-									<I18n :src="i18n.ts._checkin.makeupCardsCount"><template #n><span :class="$style.cardAmount" data-testid="checkin-makeup-cards">{{ status.makeupCards }}</span></template></I18n>
-								</div>
+	<section :class="$style.panel" :aria-busy="loading || posting">
+		<div>
+			<div v-if="error" role="alert" :class="$style.error">{{ error }} <button v-if="!posting" ref="retryButton" class="_textButton" @click="retry">{{ i18n.ts.retry }}</button></div>
+			<div v-if="!status && loading" :class="$style.loading"><MkLoading/></div>
+			<template v-if="status">
+				<div :class="$style.dashboard">
+					<section :class="$style.todayPanel" :aria-label="todayLabel">
+						<div>
+							<div :class="$style.todayHeader"><h2><time :datetime="status.today">{{ todayLabel }}</time></h2><span>{{ todayWeekday }}</span></div>
+							<p :class="$style.rewardHint"><i class="ti ti-coins" aria-hidden="true"></i>{{ i18n.ts._checkin.dailyReward }}</p>
+						</div>
+						<button ref="checkinButton" type="button" class="_button" :class="[$style.checkin, { [$style.checkedIn]: status.checkedInToday }]" :disabled="loading || posting || statusStale" data-testid="checkin-submit" @click="checkIn">
+							<i v-if="pendingOperation === 'checkin'" class="ti ti-loader-2" :class="$style.spin" aria-hidden="true"></i>
+							<i v-else :class="['ti', status.checkedInToday ? 'ti-circle-check-filled' : 'ti-calendar-check']" aria-hidden="true"></i>
+							<span>{{ pendingOperation === 'checkin' ? i18n.ts._checkin.checkingIn : status.checkedInToday ? i18n.ts._checkin.checkedIn : i18n.ts._checkin.checkIn }}</span>
+						</button>
+					</section>
+					<section class="_panel _card" :class="$style.calendarColumn" :aria-label="i18n.ts._checkin.calendar">
+						<header :class="$style.calendarHeader">
+							<div :class="$style.monthTitle">
+								<h2 data-testid="checkin-month">{{ monthLabel }}</h2>
 							</div>
+							<div :class="$style.monthControls">
+								<button type="button" class="_button" :class="$style.monthButton" :aria-label="i18n.ts._checkin.previousMonth" :disabled="loading || posting || status.month <= '1900-01'" @click="load(shiftCheckinMonth(status.month, -1))"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+								<button type="button" class="_button" :class="$style.monthButton" :aria-label="i18n.ts._checkin.nextMonth" :disabled="loading || posting || status.month >= '2199-12'" @click="load(shiftCheckinMonth(status.month, 1))"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+							</div>
+						</header>
+						<div :class="$style.calendarToolbar">
 							<div :class="$style.calendarLegend" :aria-label="i18n.ts._checkin.calendarStates">
-								<span><i class="ti ti-circle-check-filled" :class="$style.legendSigned" aria-hidden="true"></i>{{ i18n.ts._checkin.signed }}</span>
-								<span><i class="ti ti-circle-dashed" :class="$style.legendUnsigned" aria-hidden="true"></i>{{ i18n.ts._checkin.notCheckedIn }}</span>
+								<span><i :class="$style.legendSigned" aria-hidden="true"></i>{{ i18n.ts._checkin.signed }}</span>
+								<span><i :class="$style.legendUnsigned" aria-hidden="true"></i>{{ i18n.ts._checkin.notCheckedIn }}</span>
 							</div>
-							<div ref="calendarElement" :class="$style.calendar" data-testid="checkin-calendar">
-								<div v-for="weekday in weekdays" :key="weekday" :class="$style.weekday">{{ weekday }}</div>
-								<template v-for="(date, index) in dates" :key="date ?? `empty-${index}`">
-									<div v-if="date" role="group" :class="[$style.day, $style[calendarState(date)], { [$style.today]: date === status.today, [$style.selectedDay]: date === selectedDate }]" :aria-label="i18n.tsx._checkin.dateState({ date, state: dayState(date) })" :aria-current="date === status.today ? 'date' : undefined" :data-checkin-date="date" :data-day-state="calendarState(date)">
-										<button type="button" class="_button" :class="$style.daySelect" :aria-label="dayLabel(date)" :aria-pressed="date === selectedDate" :tabindex="date === selectedDate ? 0 : -1" :data-date-select="date" :title="dayLabel(date)" @click="selectedDate = date" @keydown="moveCalendarFocus($event, date)">
-											<span :class="$style.dayTop"><time :datetime="date" :class="$style.dayNumber">{{ Number(date.slice(-2)) }}</time><i v-if="checkedDates.has(date) || makeupDates.has(date) || date === status.today" :class="['ti', dayIcon(date), $style.stateIcon]" aria-hidden="true"></i></span>
-											<span v-if="calendarState(date) === 'expired'" :class="$style.dayStatus">{{ i18n.ts._checkin.notCheckedIn }}</span>
-										</button>
-										<span v-if="rewardDates.has(date) || predictedRewardDates.has(date)" :class="[$style.cardReward, { [$style.predictedReward]: !rewardDates.has(date) }]" :title="rewardDates.has(date) ? i18n.ts._checkin.calendarRewardReceived : i18n.ts._checkin.calendarRewardExpected" :aria-label="rewardDates.has(date) ? i18n.ts._checkin.calendarRewardReceived : i18n.ts._checkin.calendarRewardExpected" :data-card-reward="rewardDates.has(date) ? 'received' : 'expected'"><i :class="rewardDates.has(date) ? 'ti ti-ticket' : 'ti ti-gift'" aria-hidden="true"></i><span :class="$style.rewardLabel">{{ rewardDates.has(date) ? i18n.ts._checkin.earned : i18n.ts._checkin.rewardPreview }}</span></span>
-										<button v-else-if="date === status.today && !status.checkedInToday" type="button" class="_button" :class="$style.dayAction" :aria-label="i18n.ts._checkin.checkIn" :disabled="loading || posting || statusStale" @click="checkIn()"><i class="ti ti-plus" aria-hidden="true"></i>{{ i18n.ts._checkin.checkIn }}</button>
-										<button v-else-if="canMakeup(date)" type="button" class="_button" :class="[$style.dayAction, $style.makeup]" :aria-label="i18n.tsx._checkin.makeupDate({ date })" :disabled="loading || posting || statusStale" @click="selectedDate = date; makeUp(date)">{{ i18n.ts._checkin.makeup }}</button>
-										<span v-else-if="checkedDates.has(date) && !makeupDates.has(date)" :class="$style.dayReward" :aria-label="i18n.tsx._checkin.pointsEarned({ n: 1 })"><i class="ti ti-coins" aria-hidden="true"></i>+1</span>
-										<span v-else-if="makeupDates.has(date)" :class="$style.dayStatus">{{ i18n.ts._checkin.madeUp }}</span>
-									</div>
-									<div v-else aria-hidden="true"></div>
-								</template>
-							</div>
-						</section>
-					</template>
-				</div>
-				<div :class="$style.actionColumn">
-					<time v-if="status" :datetime="status.today" :class="$style.todayDate">{{ i18n.ts.today }} · {{ todayLabel }}</time>
-					<button ref="checkinButton" type="button" class="_button" :class="[$style.checkin, { [$style.checkedIn]: status?.checkedInToday }]" :disabled="!status || loading || posting || statusStale" data-testid="checkin-submit" @click="checkIn">
-						{{ pendingOperation === 'checkin' ? i18n.ts._checkin.checkingIn : status?.checkedInToday ? i18n.ts._checkin.checkedIn : i18n.ts._checkin.checkIn }}
-					</button>
-					<div v-if="status" :class="$style.rewards">
-						<p :class="$style.rewardHint">{{ i18n.ts._checkin.dailyReward }}</p>
-						<dl :class="$style.balances">
-							<div><dt><i class="ti ti-coins" aria-hidden="true"></i> {{ i18n.ts._checkin.points }}</dt><dd data-testid="checkin-points">{{ status.points }}</dd></div>
+							<button v-if="status.month !== status.today.slice(0, 7)" type="button" class="_textButton" :class="$style.thisMonth" :disabled="loading || posting || statusStale" @click="load()">{{ i18n.ts._checkin.currentMonth }}</button>
+						</div>
+						<div :class="$style.weekdays" aria-hidden="true">
+							<div v-for="weekday in weekdays" :key="weekday" :class="$style.weekday">{{ weekday }}</div>
+						</div>
+						<div ref="calendarElement" :class="$style.calendar" data-testid="checkin-calendar">
+							<template v-for="(date, index) in dates" :key="date ?? `empty-${index}`">
+								<div v-if="date" role="group" :class="[$style.day, $style[calendarState(date)], { [$style.today]: date === status.today, [$style.selectedDay]: date === selectedDate }]" :aria-label="i18n.tsx._checkin.dateState({ date, state: dayState(date) })" :aria-current="date === status.today ? 'date' : undefined" :data-checkin-date="date" :data-day-state="calendarState(date)">
+									<button type="button" class="_button" :class="$style.daySelect" :aria-label="dayLabel(date)" :aria-pressed="date === selectedDate" :tabindex="date === selectedDate ? 0 : -1" :data-date-select="date" :title="dayLabel(date)" @click="selectedDate = date" @keydown="moveCalendarFocus($event, date)">
+										<span :class="$style.dayTop"><time :datetime="date" :class="$style.dayNumber">{{ Number(date.slice(-2)) }}</time><i v-if="makeupDates.has(date)" class="ti ti-history" :class="$style.stateIcon" aria-hidden="true"></i></span>
+									</button>
+									<span v-if="rewardDates.has(date) || predictedRewardDates.has(date)" :class="[$style.cardReward, { [$style.predictedReward]: !rewardDates.has(date) }]" :title="rewardDates.has(date) ? i18n.ts._checkin.calendarRewardReceived : i18n.ts._checkin.calendarRewardExpected" :aria-label="rewardDates.has(date) ? i18n.ts._checkin.calendarRewardReceived : i18n.ts._checkin.calendarRewardExpected" :data-card-reward="rewardDates.has(date) ? 'received' : 'expected'"><i :class="rewardDates.has(date) ? 'ti ti-ticket' : 'ti ti-gift'" aria-hidden="true"></i><span :class="$style.rewardLabel">{{ rewardDates.has(date) ? i18n.ts._checkin.earned : i18n.ts._checkin.rewardPreview }}</span></span>
+									<button v-else-if="date === status.today && !status.checkedInToday" type="button" class="_button" :class="$style.dayAction" :aria-label="i18n.ts._checkin.checkIn" :disabled="loading || posting || statusStale" @click="checkIn()">{{ i18n.ts._checkin.checkIn }}</button>
+									<button v-else-if="canMakeup(date)" type="button" class="_button" :class="$style.dayAction" :aria-label="i18n.tsx._checkin.makeupDate({ date })" :disabled="loading || posting || statusStale" @click="selectedDate = date; makeUp(date)">{{ i18n.ts._checkin.makeup }}</button>
+									<span v-else-if="checkedDates.has(date) && !makeupDates.has(date)" :class="$style.dayReward" :aria-label="i18n.tsx._checkin.pointsEarned({ n: 1 })"><i class="ti ti-coins" aria-hidden="true"></i>+1</span>
+									<span v-else-if="makeupDates.has(date)" :class="$style.dayStatus">{{ i18n.ts._checkin.madeUp }}</span>
+								</div>
+								<div v-else aria-hidden="true"></div>
+							</template>
+						</div>
+						<dl :class="$style.stats">
+							<div><dt><i class="ti ti-flame" aria-hidden="true"></i>{{ i18n.ts._checkin.consecutiveDays }}</dt><dd>{{ status.consecutiveDays }}</dd></div>
+							<div><dt><i class="ti ti-sparkles" aria-hidden="true"></i>{{ i18n.ts._checkin.totalDays }}</dt><dd>{{ status.totalDays }}</dd></div>
+							<div><dt><i class="ti ti-calendar-check" aria-hidden="true"></i>{{ i18n.ts._checkin.monthlyDays }}</dt><dd>{{ status.monthlyDays }}</dd></div>
 						</dl>
-						<p data-testid="checkin-card-progress">{{ i18n.tsx._checkin.cardRewardProgress({ current: status.makeupCardProgress, target: status.makeupCardTarget }) }}</p>
-						<progress :class="$style.cardProgress" :value="status.makeupCardProgress" :max="status.makeupCardTarget" :aria-label="i18n.tsx._checkin.cardRewardProgress({ current: status.makeupCardProgress, target: status.makeupCardTarget })"></progress>
-						<p v-if="streakEncouragement" data-testid="checkin-streak-encouragement">{{ streakEncouragement }}</p>
-						<p>{{ i18n.tsx._checkin.exchangeCost({ cost: status.makeupCardExchangeCost }) }}</p>
-						<button type="button" class="_button" :class="$style.exchange" :disabled="loading || posting || statusStale || (!!exchangeBlockedReason && !exchangeRequestId)" data-testid="checkin-exchange" @click="exchangeCard()"><i class="ti ti-ticket" aria-hidden="true"></i> {{ pendingOperation === 'exchange' ? i18n.ts._checkin.exchangingCard : i18n.ts._checkin.exchangeCard }}</button>
-						<p v-if="exchangeBlockedReason" data-testid="checkin-exchange-unavailable">{{ exchangeBlockedReason }}</p>
-					</div>
+					</section>
+					<section :class="$style.walletPanel" :aria-label="i18n.ts._checkin.makeupCards">
+						<div :class="$style.walletSummary">
+							<div :class="$style.balanceRow"><span><i class="ti ti-coins" aria-hidden="true"></i>{{ i18n.ts._checkin.points }}</span><strong data-testid="checkin-points">{{ status.points }}</strong></div>
+							<div :class="$style.balanceRow"><span><i class="ti ti-ticket" aria-hidden="true"></i>{{ i18n.ts._checkin.makeupCards }}</span><strong data-testid="checkin-makeup-cards">{{ status.makeupCards }}</strong></div>
+							<div :class="$style.progressSection">
+								<p :class="$style.progressHeading" data-testid="checkin-card-progress">{{ i18n.tsx._checkin.cardRewardProgress({ current: status.makeupCardProgress, target: status.makeupCardTarget }) }}</p>
+								<progress :class="$style.cardProgress" :value="status.makeupCardProgress" :max="status.makeupCardTarget" :aria-label="i18n.tsx._checkin.cardRewardProgress({ current: status.makeupCardProgress, target: status.makeupCardTarget })"></progress>
+								<p v-if="streakEncouragement" :class="$style.streakEncouragement" data-testid="checkin-streak-encouragement">{{ streakEncouragement }}</p>
+							</div>
+						</div>
+						<div :class="$style.exchangePanel">
+							<p :class="$style.exchangeHint">{{ i18n.tsx._checkin.exchangeCost({ cost: status.makeupCardExchangeCost }) }}</p>
+							<button type="button" class="_button" :class="$style.exchange" :disabled="loading || posting || statusStale || (!!exchangeBlockedReason && !exchangeRequestId)" data-testid="checkin-exchange" @click="exchangeCard()"><i class="ti ti-ticket" aria-hidden="true"></i><span>{{ pendingOperation === 'exchange' ? i18n.ts._checkin.exchangingCard : i18n.ts._checkin.exchangeCard }}</span></button>
+							<p v-if="exchangeBlockedReason" :class="$style.exchangeBlocked" data-testid="checkin-exchange-unavailable">{{ exchangeBlockedReason }}</p>
+						</div>
+					</section>
 				</div>
-			</div>
+			</template>
 		</div>
 	</section>
 	<section v-if="status" class="_panel _card" :class="$style.achievements">
-		<header :class="$style.header"><h2>{{ i18n.ts._checkin.checkinAchievements }}</h2><MkA to="/my/achievements" class="_link">{{ i18n.ts._checkin.allAchievements }} <i class="ti ti-chevron-right" aria-hidden="true"></i></MkA></header>
+		<header :class="$style.header"><div><h2>{{ i18n.ts._checkin.checkinAchievements }}</h2><p>{{ i18n.tsx._checkin.progress({ current: earned.size, target: milestones.length }) }}</p></div><MkA to="/my/achievements" class="_link">{{ i18n.ts._checkin.allAchievements }} <i class="ti ti-chevron-right" aria-hidden="true"></i></MkA></header>
 		<div :class="$style.milestones">
-			<article v-for="milestone in milestones" :key="milestone.name" :class="[$style.milestone, { [$style.unlocked]: earned.has(milestone.name) }]">
+			<article v-for="milestone in milestones" :key="milestone.name" :class="[$style.milestone, { [$style.streakMilestone]: milestone.metric === 'consecutiveDays', [$style.unlocked]: earned.has(milestone.name) }]">
 				<MkAchievementBadge :name="milestone.name" :class="$style.medal"/>
 				<div :class="$style.milestoneBody">
-					<h3>{{ i18n.ts._achievements._types[`_${milestone.name}`].title }}</h3>
+					<div :class="$style.milestoneHeading"><h3>{{ i18n.ts._achievements._types[`_${milestone.name}`].title }}</h3><span v-if="earned.has(milestone.name)" :class="$style.earned">{{ i18n.ts._checkin.earned }}</span></div>
 					<p>{{ i18n.ts._achievements._types[`_${milestone.name}`].description }}</p>
-					<span v-if="earned.has(milestone.name)" :class="$style.earned">{{ i18n.ts._checkin.earned }}</span>
-					<template v-else><progress :max="milestone.target" :value="Math.min(status[milestone.metric], milestone.target)" :aria-label="i18n.ts._achievements._types[`_${milestone.name}`].title"></progress><span :class="$style.progress">{{ i18n.tsx._checkin.progress({ current: Math.min(status[milestone.metric], milestone.target), target: milestone.target }) }}</span></template>
+					<template v-if="!earned.has(milestone.name)"><div :class="$style.milestoneProgress"><progress :max="milestone.target" :value="Math.min(status[milestone.metric], milestone.target)" :aria-label="i18n.ts._achievements._types[`_${milestone.name}`].title"></progress><span :class="$style.progress">{{ i18n.tsx._checkin.progress({ current: Math.min(status[milestone.metric], milestone.target), target: milestone.target }) }}</span></div></template>
 				</div>
 			</article>
 		</div>
@@ -96,13 +103,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, defineAsyncComponent, inject, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import type { entities } from 'misskey-js';
 import { versatileLang } from '@@/js/intl-const.js';
 import MkAchievementBadge from '@/components/MkAchievementBadge.vue';
 import { publishCheckinStatus, useCheckinStatus } from '@/composables/use-checkin-status.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { checkinCalendar, checkinDateInZone, checkinRewardForecast, shiftCheckinMonth } from '@/utility/checkin.js';
+import { focusParent, isFocusable } from '@/utility/focus.js';
 import { i18n } from '@/i18n.js';
 import { ensureSignin } from '@/i.js';
 import { definePage } from '@/page.js';
@@ -112,6 +120,8 @@ import * as os from '@/os.js';
 const $i = ensureSignin();
 const MkCheckinSuccessDialog = defineAsyncComponent(() => import('@/components/MkCheckinSuccessDialog.vue'));
 const checkinButton = useTemplateRef<HTMLButtonElement>('checkinButton');
+const retryButton = useTemplateRef<HTMLButtonElement>('retryButton');
+const exchangeFocusTarget = ref<HTMLElement>();
 let successDialog: { dispose: () => void } | undefined;
 let lastReward: { date: string; points: number; cards: number } | undefined;
 const status = ref<entities.ICheckinStatusResponse | null>(null);
@@ -153,6 +163,7 @@ watch(() => status.value?.month, () => {
 });
 const monthLabel = computed(() => status.value ? new Intl.DateTimeFormat(versatileLang, { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${status.value.month}-01T00:00:00Z`)) : '');
 const todayLabel = computed(() => status.value ? new Intl.DateTimeFormat(versatileLang, { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${status.value.today}T00:00:00Z`)) : '');
+const todayWeekday = computed(() => status.value ? new Intl.DateTimeFormat(versatileLang, { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${status.value.today}T00:00:00Z`)) : '');
 const weekdays = computed(() => Array.from({ length: 7 }, (_, day) => new Intl.DateTimeFormat(versatileLang, { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 8, 27 + day)))));
 const exchangeBlockedReason = computed(() => {
 	if (!status.value) return '';
@@ -182,18 +193,6 @@ function calendarState(date: string): string {
 	if (date > status.value!.today) return 'future';
 	if (date === status.value!.today) return 'pending';
 	return canMakeup(date) ? 'missed' : 'expired';
-}
-
-function dayIcon(date: string): string {
-	switch (calendarState(date)) {
-		case 'completed': return 'ti-circle-check-filled';
-		case 'madeUp': return 'ti-history';
-		case 'pending': return 'ti-sun';
-		case 'missed': return 'ti-circle-dashed';
-		case 'expired': return 'ti-circle-minus';
-		case 'unavailable': return 'ti-lock';
-		default: return 'ti-point';
-	}
 }
 
 function moveCalendarFocus(event: KeyboardEvent, date: string) {
@@ -341,6 +340,7 @@ async function makeUp(date: string) {
 
 async function exchangeCard(fromMakeup = false) {
 	if (posting.value || loading.value || statusStale.value || !status.value) return;
+	const returnFocusTo = window.document.activeElement instanceof HTMLElement ? window.document.activeElement : undefined;
 	posting.value = true;
 	pendingOperation.value = 'exchange';
 	const sequence = ++request;
@@ -350,25 +350,20 @@ async function exchangeCard(fromMakeup = false) {
 			await os.alert({ type: 'warning', title: fromMakeup ? i18n.ts._checkin.noMakeupCardsTitle : i18n.ts._checkin.exchangeCard, text: exchangeBlockedReason.value });
 			return;
 		}
-		if (!exchangeRequestId.value && status.value.points < cost) {
-			await os.alert({
-				type: 'warning',
-				title: fromMakeup ? i18n.ts._checkin.noMakeupCardsTitle : i18n.ts._checkin.exchangeCard,
-				text: i18n.tsx._checkin.noPointsForCardShort({ cost, target: status.value.makeupCardTarget }),
-				progress: {
-					value: status.value.makeupCardProgress,
-					max: status.value.makeupCardTarget,
-					label: i18n.tsx._checkin.cardRewardProgress({ current: status.value.makeupCardProgress, target: status.value.makeupCardTarget }),
-				},
+		const { default: CheckinExchangeDialog } = await import('@/pages/checkin.exchange-dialog.vue');
+		if (sequence !== request) return;
+		const confirmed = await new Promise<boolean>(resolve => {
+			const { dispose } = os.popup(CheckinExchangeDialog, {
+				cost,
+				points: status.value!.points,
+				canConfirm: !!exchangeRequestId.value || status.value!.points >= cost,
+				returnFocusTo,
+			}, {
+				done: resolve,
+				closed: () => { dispose(); exchangeFocusTarget.value = returnFocusTo; resolve(false); },
 			});
-			return;
-		}
-		const { canceled } = await os.confirm({
-			type: 'question', title: fromMakeup ? i18n.ts._checkin.noMakeupCardsTitle : i18n.ts._checkin.exchangeCard,
-			text: fromMakeup ? i18n.tsx._checkin.noCardsExchange({ cost }) : i18n.tsx._checkin.exchangeConfirm({ cost }),
-			okText: i18n.ts._checkin.exchangeNow, cancelText: i18n.ts._checkin.exchangeLater,
 		});
-		if (canceled || sequence !== request) return;
+		if (!confirmed || sequence !== request) return;
 		error.value = '';
 		exchangeRequestId.value ??= crypto.randomUUID();
 		const result = await misskeyApi('i/checkin-exchange', { requestId: exchangeRequestId.value });
@@ -435,6 +430,15 @@ function refreshIfNeeded() {
 
 watch(pageActive, value => { if (value) refresh(); });
 
+watch([exchangeFocusTarget, loading, posting], async ([target, isLoading, isPosting]) => {
+	if (!target || isLoading || isPosting) return;
+	exchangeFocusTarget.value = undefined;
+	await nextTick();
+	// 弹窗关闭和余额刷新都结束后恢复焦点，避免聚焦到禁用按钮。
+	if (!active || !pageActive.value || window.document.activeElement !== window.document.body) return;
+	focusParent([target, retryButton.value, checkinButton.value].find(isFocusable), true, false);
+}, { flush: 'post' });
+
 onMounted(() => {
 	void load();
 	window.addEventListener('focus', refresh);
@@ -463,139 +467,916 @@ definePage(() => ({ title: i18n.ts._checkin.dailyCheckin, icon: 'ti ti-calendar-
 <style lang="scss" module>
 @use "../styles/community.scss";
 
-.root { max-width: var(--MI-pageWidth); margin-inline: auto; }
-.rules { display: grid; place-items: center; width: var(--MI-headerActionSize); height: var(--MI-pageHeaderHeight); }
-.panel, .achievements { overflow: hidden; }
-.panel { container-type: inline-size; }
-.body { padding: var(--MI-cardPadding); }
-.dashboard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 27%); align-items: start; gap: 28px; }
-.calendarColumn, .actionColumn { min-width: 0; }
-.actionColumn { display: flex; flex-direction: column; gap: 12px; }
-.checkin { display: inline-flex; justify-content: center; align-items: center; gap: 8px; width: 100%; min-height: 48px; box-sizing: border-box; padding: 16px; border-radius: calc(var(--MI-radius) / 2); font-size: 1.05em; font-weight: bold; color: var(--MI_THEME-fgOnAccent); background: var(--MI_THEME-link, var(--MI_THEME-accent)); }
-.checkin.checkedIn { color: var(--MI_THEME-link, var(--MI_THEME-accent)); background: color-mix(in srgb, var(--MI_THEME-link, var(--MI_THEME-accent)) 10%, var(--MI_THEME-panel)); }
-.checkin:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 3px; }
-.checkin:disabled { opacity: .65; cursor: default; }
-.error { @include community.error; }
-.rewards { padding: var(--MI-cardPadding); border-radius: calc(var(--MI-radius) / 2); background: var(--MI_THEME-accentedBg); }
-.rewards p { margin: 12px 0 0; font-size: .8em; line-height: 1.6; color: var(--MI_THEME-fgTransparentWeak); }
-.rewards .rewardHint { margin: 0 0 16px; color: var(--MI_THEME-accent); font-weight: bold; }
-.balances { margin: 0; display: flex; flex-direction: column; gap: 12px; }
-.balances > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.balances dt { font-size: .85em; }
-.balances dd { margin: 0; font-weight: bold; font-variant-numeric: tabular-nums; }
-.cardProgress { margin-top: 8px; }
-.exchange { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; width: 100%; margin-top: 16px; padding: 10px; border-radius: calc(var(--MI-radius) / 2); color: var(--MI_THEME-accent); background: var(--MI_THEME-panel); box-sizing: border-box; }
-.exchange:disabled { opacity: .5; cursor: default; }
-.makeup { max-width: 100%; min-height: 24px; padding: 0 2px; color: var(--MI_THEME-link, var(--MI_THEME-accent)); font-size: .8em; line-height: 1.35; overflow-wrap: anywhere; }
-.makeup:enabled:hover { text-decoration: underline; }
-.makeup:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; border-radius: calc(var(--MI-radius) / 4); }
-.makeup:disabled { opacity: .5; cursor: default; }
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: var(--MI-cardPadding); border: 1px solid color-mix(in srgb, var(--MI_THEME-accent) 10%, var(--MI_THEME-panel)); background: linear-gradient(110deg, color-mix(in srgb, var(--MI_THEME-accent) 6%, var(--MI_THEME-panel)), var(--MI_THEME-panel)); border-radius: var(--MI-radius); overflow: hidden; }
-.stats > div { position: relative; display: flex; flex-direction: column-reverse; align-items: center; gap: 6px; text-align: center; }
-.statWatermark { position: absolute; right: 0; bottom: -12px; color: color-mix(in srgb, var(--MI_THEME-accent) 7%, transparent); font-size: 4.5em; pointer-events: none; }
-.stats dt, .stats dd { position: relative; }
-.stats dt { font-size: .8em; color: var(--MI_THEME-fgTransparent); }
-.stats dd { font-size: 1.8em; font-weight: 650; margin: 0; font-variant-numeric: tabular-nums; }
-.stats > div:first-child dd { color: var(--MI_THEME-accent); }
-.monthNav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 12px; }
-.monthControls { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; }
-.monthNav h2 { margin: 0; padding-inline: 4px; font-size: 1.2em; font-weight: 650; line-height: 1.5; }
-.monthButton { display: grid; place-items: center; width: 24px; height: 30px; flex-shrink: 0; color: var(--MI_THEME-fgTransparentWeak); border-radius: calc(var(--MI-radius) / 4); font-size: .8em; }
-.monthButton:enabled:hover { background: var(--MI_THEME-buttonHoverBg); }
-.monthButton:disabled { opacity: .3; }
-.monthButton:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
-.thisMonth { margin-left: 8px; font-size: .85em; }
-.cardCount { display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 6px 9px; border-radius: var(--MI-radius); color: var(--MI_THEME-fgTransparent); background: color-mix(in srgb, var(--MI_THEME-accent) 4%, var(--MI_THEME-panel)); font-size: .8em; white-space: nowrap; }
-.cardCount > i { font-size: 1.35em; }
-.cardAmount { font-variant-numeric: tabular-nums; }
-.calendarLegend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 18px; color: var(--MI_THEME-fgTransparent); font-size: .8em; }
-.calendarLegend span { display: inline-flex; align-items: center; gap: 6px; }
-.calendarLegend i { flex-shrink: 0; font-size: 1.1em; }
-.legendSigned { color: var(--MI_THEME-accent); }
-.legendUnsigned { color: var(--MI_THEME-fg); }
-.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
-.weekday { padding: 0 0 8px; text-align: center; color: var(--MI_THEME-fgTransparentWeak); font-size: .85em; }
+.root {
+	--checkin-accent: var(--MI_THEME-link, var(--MI_THEME-accent));
+	--checkin-soft: color-mix(in srgb, var(--checkin-accent) 9%, var(--MI_THEME-panel));
+	--checkin-muted: color-mix(in srgb, var(--MI_THEME-fg) 68%, var(--MI_THEME-panel));
+	--checkin-streak: var(--MI_THEME-warn);
+	--checkin-total: var(--MI_THEME-renote);
+	--checkin-gold: var(--MI-rankingGold);
+	max-width: var(--MI-pageWidth);
+	margin-inline: auto;
+}
+
+.rules {
+	display: grid;
+	place-items: center;
+	width: var(--MI-headerActionSize);
+	height: var(--MI-pageHeaderHeight);
+}
+
+.panel {
+	container-type: inline-size;
+}
+
+.loading {
+	display: grid;
+	place-items: center;
+	min-height: 360px;
+}
+
+.error {
+	@include community.error;
+
+	padding: 24px 32px 0;
+}
+
+.dashboard {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--MI-pageGap);
+}
+
+.calendarColumn {
+	min-width: 0;
+	padding: 24px;
+}
+
+.calendarHeader,
+.monthControls,
+.calendarToolbar,
+.calendarLegend,
+.todayHeader,
+.balanceRow,
+.header,
+.milestoneHeading,
+.milestoneProgress {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.calendarHeader {
+	gap: 16px;
+}
+
+.monthTitle {
+	min-width: 0;
+}
+
+.monthTitle h2 {
+	margin: 0;
+	color: var(--MI_THEME-fg);
+	font-size: 1.5em;
+	font-weight: 650;
+	letter-spacing: -.035em;
+	line-height: 1.35;
+}
+
+.monthControls {
+	flex-shrink: 0;
+	gap: 6px;
+}
+
+.monthButton {
+	display: grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	border: var(--MI-divider);
+	border-radius: var(--MI-radius);
+	color: var(--checkin-muted);
+	transition: background-color .15s, color .15s;
+}
+
+.calendarToolbar {
+	flex-wrap: wrap;
+	gap: 8px;
+	min-height: 24px;
+	margin-block: 8px;
+}
+
+.calendarLegend {
+	justify-content: flex-start;
+	flex-wrap: wrap;
+	gap: 16px;
+	color: var(--checkin-muted);
+	font-size: .78em;
+}
+
+.calendarLegend span {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.legendSigned,
+.legendUnsigned {
+	width: 7px;
+	height: 7px;
+	box-sizing: border-box;
+	border-radius: 50%;
+}
+
+.legendSigned {
+	background: var(--checkin-accent);
+}
+
+.legendUnsigned {
+	border: 1px solid currentColor;
+}
+
+.thisMonth {
+	font-size: .78em;
+}
+
+.weekdays,
+.calendar {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.weekdays {
+	padding-block: 8px;
+	border-block: var(--MI-divider);
+}
+
+.weekday {
+	color: var(--checkin-muted);
+	font-size: .8em;
+	text-align: center;
+}
+
+.calendar {
+	grid-auto-rows: minmax(60px, auto);
+	gap: 8px;
+	padding-top: 10px;
+}
+
 .day {
-	--dayColor: var(--MI_THEME-fg);
-	--daySurface: color-mix(in srgb, var(--MI_THEME-accent) 2%, var(--MI_THEME-panel));
-	--dayBorder: color-mix(in srgb, var(--MI_THEME-accent) 12%, transparent);
 	position: relative;
 	display: flex;
-	min-width: 0;
-	min-height: 72px;
-	align-items: stretch;
 	flex-direction: column;
-	gap: 4px;
-	padding: 6px;
-	border: 1px solid var(--dayBorder);
+	align-items: stretch;
+	min-width: 0;
+	border: var(--MI-divider);
 	border-radius: var(--MI-radius);
-	background-color: var(--daySurface);
+	background: color-mix(in srgb, var(--MI_THEME-panelHighlight) 35%, var(--MI_THEME-panel));
+	transition: background-color .15s, border-color .15s;
+}
+
+.daySelect {
+	display: flex;
+	align-items: flex-start;
+	flex: 1;
+	width: 100%;
+	min-height: 32px;
+	padding: 6px 10px 0;
+	border-radius: var(--MI-radius);
+}
+
+.dayTop {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-width: 20px;
+	height: 24px;
+}
+
+.dayNumber {
+	font-size: 1.1em;
+	font-variant-numeric: tabular-nums;
+	font-weight: 550;
+	line-height: 1;
+}
+
+.day.completed,
+.day.madeUp {
+	background: color-mix(in srgb, var(--checkin-total) 9%, var(--MI_THEME-panel));
+	color: color-mix(in srgb, var(--checkin-total) 65%, var(--MI_THEME-fg));
+}
+
+.day.madeUp {
+	background: color-mix(in srgb, var(--checkin-gold) 10%, var(--MI_THEME-panel));
+	color: color-mix(in srgb, var(--checkin-gold) 65%, var(--MI_THEME-fg));
+}
+
+.day.future .dayNumber,
+.day.unavailable .dayNumber {
+	color: var(--checkin-muted);
+}
+
+.day.today {
+	background: linear-gradient(135deg, color-mix(in srgb, var(--checkin-accent) 62%, var(--MI-ctaBg)), color-mix(in srgb, var(--checkin-accent) 80%, var(--MI-ctaBg)));
+	box-shadow: 0 3px 10px color-mix(in srgb, var(--checkin-accent) 20%, transparent);
+	color: var(--MI_THEME-fgOnAccent);
+}
+
+.day.selectedDay:not(.today) {
+	outline: 1px solid var(--checkin-accent);
+	outline-offset: -1px;
+}
+
+.stateIcon {
+	position: absolute;
+	right: -3px;
+	bottom: -1px;
+	display: grid;
+	place-items: center;
+	width: 13px;
+	height: 13px;
+	border: 2px solid var(--MI_THEME-panel);
+	border-radius: 50%;
+	background: var(--checkin-accent);
+	color: var(--MI_THEME-fgOnAccent);
+	font-size: 9px;
+	font-weight: 700;
+}
+
+.dayReward,
+.cardReward,
+.dayStatus,
+.dayAction {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	align-self: flex-start;
+	max-width: calc(100% - 16px);
+	min-height: 22px;
+	margin: 0 8px 6px;
 	box-sizing: border-box;
-	transition: border-color .15s ease, background-color .15s ease;
+	color: var(--checkin-accent);
+	font-size: .72em;
+	line-height: 1.3;
 }
-.daySelect { display: flex; flex: 1; flex-direction: column; gap: 8px; padding: 5px 0; min-width: 0; text-align: center; }
-.dayTop { position: relative; display: grid; place-items: center; min-height: 22px; width: 100%; }
-.dayNumber { color: var(--dayColor); font-size: 1.15em; font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.stateIcon { position: absolute; top: -6px; right: -2px; color: var(--MI_THEME-accent); font-size: .8em; }
-.dayStatus { display: block; margin-top: auto; padding-block: 3px; color: var(--dayColor); text-align: center; font-size: .75em; line-height: 1.4; overflow-wrap: anywhere; }
-.dayReward, .cardReward, .dayAction { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; min-height: 23px; border-radius: calc(var(--MI-radius) / 3); font-size: .85em; line-height: 1.4; box-sizing: border-box; }
-.dayReward { color: var(--dayColor); }
-.dayReward > i { color: var(--MI_THEME-accent); font-size: 1.1em; }
-.dayAction { width: 100%; color: var(--dayColor); background: transparent; overflow-wrap: anywhere; }
-.dayAction:disabled { opacity: .5; cursor: wait; }
-.cardReward { color: var(--dayColor); padding: 1px 2px; overflow-wrap: anywhere; }
-.predictedReward { border: 1px dashed color-mix(in srgb, var(--dayColor) 30%, transparent); }
-.day.completed, .day.madeUp { --daySurface: color-mix(in srgb, var(--MI_THEME-accent) 18%, var(--MI_THEME-panel)); --dayBorder: color-mix(in srgb, var(--MI_THEME-accent) 22%, transparent); }
-.day.missed { border-style: dashed; }
-.day.today { border-color: var(--MI_THEME-accent); }
-.day.selectedDay { border-color: var(--MI_THEME-accent); border-style: solid; }
-.day:has(:focus-visible) { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
-.daySelect:focus-visible { outline: none; }
-.dayAction:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
+
+.dayReward {
+	color: color-mix(in srgb, var(--checkin-total) 65%, var(--MI_THEME-fg));
+	font-variant-numeric: tabular-nums;
+}
+
+.today .dayReward,
+.today .dayAction {
+	color: var(--MI_THEME-fgOnAccent);
+}
+
+.dayStatus {
+	color: var(--checkin-muted);
+}
+
+.dayAction {
+	padding: 2px 7px;
+	border-radius: 999px;
+}
+
+.cardReward {
+	flex-wrap: wrap;
+	padding-inline: 2px;
+	border-radius: 999px;
+	background: var(--checkin-soft);
+}
+
+.predictedReward {
+	background: color-mix(in srgb, var(--checkin-gold) 10%, var(--MI_THEME-panel));
+	color: color-mix(in srgb, var(--checkin-gold) 65%, var(--MI_THEME-fg));
+}
+
+.rewardLabel {
+	flex-shrink: 0;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	text-align: center;
+}
+
+.stats {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin: 16px 0 0;
+}
+
+.stats > div {
+	--stat-color: var(--checkin-accent);
+
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	padding: 14px 16px;
+	border-radius: var(--MI-cardRadius);
+	background: color-mix(in srgb, var(--stat-color) 8%, var(--MI_THEME-panel));
+}
+
+.stats > div:first-child {
+	--stat-color: var(--checkin-streak);
+}
+
+.stats > div:nth-child(2) {
+	--stat-color: var(--checkin-total);
+}
+
+.stats dt {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	color: var(--checkin-muted);
+	font-size: .78em;
+	line-height: 1.5;
+	text-align: center;
+}
+
+.stats dt > i {
+	color: color-mix(in srgb, var(--stat-color) 65%, var(--MI_THEME-fg));
+}
+
+.stats dd {
+	margin: 0;
+	color: color-mix(in srgb, var(--stat-color) 65%, var(--MI_THEME-fg));
+	font-size: 1.65em;
+	font-variant-numeric: tabular-nums;
+	font-weight: 650;
+	line-height: 1;
+}
+
+.todayPanel {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 24px;
+	min-width: 0;
+	padding: 20px 24px;
+	border-radius: var(--MI-cardRadius);
+	background: linear-gradient(135deg, color-mix(in srgb, var(--checkin-accent) 62%, var(--MI-ctaBg)), color-mix(in srgb, var(--checkin-accent) 80%, var(--MI-ctaBg)));
+	color: var(--MI_THEME-fgOnAccent);
+	box-shadow: 0 6px 18px color-mix(in srgb, var(--checkin-accent) 15%, transparent);
+}
+
+.todayHeader {
+	justify-content: flex-start;
+	flex-wrap: wrap;
+	gap: 12px;
+	color: var(--MI_THEME-fgOnAccent);
+}
+
+.todayHeader h2 {
+	margin: 0;
+	font-size: 1.35em;
+	font-weight: 650;
+	line-height: 1.5;
+}
+
+.todayHeader > span {
+	font-size: .82em;
+}
+
+.checkin,
+.exchange {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	width: 100%;
+	box-sizing: border-box;
+	border-radius: var(--MI-radius);
+	font-weight: 600;
+	line-height: 1.5;
+	transition: background-color .15s, color .15s;
+}
+
+.checkin {
+	flex-shrink: 0;
+	width: 180px;
+	min-height: 44px;
+	margin-top: 0;
+	padding: 10px;
+	background: var(--MI_THEME-fgOnAccent);
+	color: color-mix(in srgb, var(--checkin-accent) 62%, var(--MI-ctaBg));
+	font-size: .95em;
+}
+
+.checkin.checkedIn {
+	background: color-mix(in srgb, var(--MI-ctaBg) 22%, transparent);
+	color: var(--MI_THEME-fgOnAccent);
+}
+
+.checkin > i {
+	font-size: 1.2em;
+}
+
+.rewardHint {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 5px;
+	margin: 6px 0 0;
+	color: var(--MI_THEME-fgOnAccent);
+	font-size: .73em;
+	line-height: 1.6;
+}
+
+.walletPanel {
+	min-width: 0;
+	padding: 22px 24px;
+	border: var(--MI-divider);
+	border-radius: var(--MI-cardRadius);
+	background: linear-gradient(145deg, color-mix(in srgb, var(--checkin-gold) 10%, var(--MI_THEME-panel)), var(--MI_THEME-panel));
+}
+
+.walletSummary {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, .65fr) minmax(0, 1.5fr);
+	align-items: center;
+	gap: 24px;
+}
+
+.balanceRow {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	font-size: .85em;
+}
+
+.balanceRow > span {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	color: var(--checkin-muted);
+}
+
+.balanceRow i {
+	color: color-mix(in srgb, var(--checkin-gold) 80%, var(--MI_THEME-fg));
+	font-size: 1.2em;
+}
+
+.balanceRow strong {
+	font-size: 1.6em;
+	font-variant-numeric: tabular-nums;
+	font-weight: 650;
+	overflow-wrap: anywhere;
+}
+
+.progressSection {
+	min-width: 0;
+}
+
+.progressHeading,
+.streakEncouragement,
+.exchangeHint,
+.exchangeBlocked {
+	margin: 0;
+	color: var(--checkin-muted);
+	font-size: .77em;
+	line-height: 1.75;
+}
+
+.cardProgress,
+.milestoneProgress progress {
+	display: block;
+	width: 100%;
+	height: 4px;
+	border: 0;
+	border-radius: 999px;
+	background: var(--checkin-soft);
+	overflow: hidden;
+	appearance: none;
+}
+
+.cardProgress {
+	margin: 9px 0 0;
+	background: color-mix(in srgb, var(--checkin-gold) 13%, var(--MI_THEME-panel));
+}
+
+.cardProgress::-webkit-progress-bar,
+.milestoneProgress progress::-webkit-progress-bar {
+	background: transparent;
+}
+
+.cardProgress::-webkit-progress-value,
+.milestoneProgress progress::-webkit-progress-value {
+	border-radius: 999px;
+	background: var(--checkin-accent);
+}
+
+.cardProgress::-webkit-progress-value {
+	background: var(--checkin-gold);
+}
+
+.cardProgress::-moz-progress-bar,
+.milestoneProgress progress::-moz-progress-bar {
+	border-radius: 999px;
+	background: var(--checkin-accent);
+}
+
+.cardProgress::-moz-progress-bar {
+	background: var(--checkin-gold);
+}
+
+.streakEncouragement {
+	margin-top: 10px;
+}
+
+.exchangePanel {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px 24px;
+	margin-top: 16px;
+	padding-top: 16px;
+	border-block-start: var(--MI-divider);
+}
+
+.exchangeHint {
+	flex: 1;
+}
+
+.exchange {
+	flex-shrink: 0;
+	width: auto;
+	min-width: 150px;
+	min-height: 38px;
+	margin: 0;
+	padding: 8px;
+	border: var(--MI-divider);
+	background: var(--MI_THEME-panel);
+	color: color-mix(in srgb, var(--checkin-gold) 68%, var(--MI_THEME-fg));
+	font-size: .85em;
+}
+
+.exchangeBlocked {
+	flex-basis: 100%;
+	color: var(--MI_THEME-warn);
+}
+
+.achievements {
+	margin-top: var(--MI-pageGap);
+	padding: 24px;
+}
+
+.header {
+	flex-wrap: wrap;
+	gap: 12px 20px;
+	margin-bottom: 20px;
+}
+
+.header > div {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+}
+
+.header h2 {
+	margin: 0;
+	font-size: 1.15em;
+	font-weight: 650;
+}
+
+.header p {
+	margin: 0;
+	color: var(--checkin-muted);
+	font-size: .78em;
+}
+
+.header > a {
+	font-size: .82em;
+}
+
+.milestones {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.milestone {
+	--milestone-color: var(--checkin-total);
+
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	min-width: 0;
+	padding: 16px;
+	border-radius: var(--MI-cardRadius);
+	background: color-mix(in srgb, var(--MI_THEME-panelHighlight) 65%, var(--MI_THEME-panel));
+}
+
+.milestone.streakMilestone {
+	--milestone-color: var(--checkin-streak);
+}
+
+.milestone.unlocked {
+	background: color-mix(in srgb, var(--checkin-gold) 8%, var(--MI_THEME-panel));
+}
+
+.medal {
+	flex-shrink: 0;
+	width: 44px;
+	height: 44px;
+	filter: grayscale(.2);
+	opacity: .8;
+}
+
+.unlocked .medal {
+	filter: none;
+	opacity: 1;
+}
+
+.milestoneBody {
+	flex: 1;
+	min-width: 0;
+}
+
+.milestoneHeading {
+	flex-wrap: wrap;
+	gap: 4px 8px;
+}
+
+.milestone h3 {
+	margin: 0;
+	font-size: .9em;
+	font-weight: 600;
+	line-height: 1.5;
+}
+
+.milestone p {
+	margin: 5px 0 10px;
+	color: var(--checkin-muted);
+	font-size: .77em;
+	line-height: 1.65;
+}
+
+.milestoneProgress {
+	gap: 8px;
+}
+
+.milestoneProgress progress {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	background: color-mix(in srgb, var(--milestone-color) 12%, var(--MI_THEME-panel));
+}
+
+.milestoneProgress progress::-webkit-progress-value {
+	background: var(--milestone-color);
+}
+
+.milestoneProgress progress::-moz-progress-bar {
+	background: var(--milestone-color);
+}
+
+.progress {
+	flex-shrink: 0;
+	color: var(--checkin-muted);
+	font-size: .7em;
+	font-variant-numeric: tabular-nums;
+}
+
+.earned {
+	color: color-mix(in srgb, var(--checkin-gold) 68%, var(--MI_THEME-fg));
+	font-size: .7em;
+}
+
+.monthButton:disabled,
+.checkin:disabled,
+.dayAction:disabled,
+.exchange:disabled {
+	cursor: default;
+	opacity: .45;
+}
+
+.monthButton:focus-visible,
+.checkin:focus-visible,
+.daySelect:focus-visible,
+.dayAction:focus-visible,
+.exchange:focus-visible {
+	outline: 2px solid var(--MI_THEME-focus);
+	outline-offset: 3px;
+}
+
+.spin {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	to { transform: rotate(1turn); }
+}
+
 @media (hover: hover) {
-	.day:hover:not(.selectedDay, .today) { border-color: color-mix(in srgb, var(--dayColor) 40%, transparent); background-color: color-mix(in srgb, var(--dayColor) 5%, var(--daySurface)); }
-	.dayAction:enabled:hover { background: color-mix(in srgb, var(--dayColor) 18%, var(--MI_THEME-panel)); }
+	.monthButton:enabled:hover,
+	.dayAction:enabled:hover,
+	.exchange:enabled:hover {
+		background: var(--checkin-soft);
+		color: var(--checkin-accent);
+	}
+
+	.daySelect:hover .dayTop {
+		color: var(--checkin-accent);
+	}
+
+	.day.today .daySelect:hover .dayTop {
+		color: var(--MI_THEME-fgOnAccent);
+	}
+
+	.checkin:enabled:hover {
+		background: color-mix(in srgb, var(--MI_THEME-fgOnAccent) 90%, transparent);
+	}
+
+	.checkin.checkedIn:enabled:hover {
+		background: color-mix(in srgb, var(--MI-ctaBg) 30%, transparent);
+	}
 }
-@media (prefers-reduced-motion: reduce) { .day { transition: none; } }
-.todayDate { color: var(--MI_THEME-fgTransparentWeak); font-size: .8em; line-height: 1.5; }
-.achievements { margin-top: 20px; }
-.milestones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: var(--MI-cardPadding); }
-.milestone { display: flex; align-items: center; gap: 14px; padding: var(--MI-cardPadding); border: var(--MI-divider); border-radius: var(--MI-radius); }
-.milestone.unlocked { border-color: color-mix(in srgb, var(--MI_THEME-accent) 30%, var(--MI-dividerColor)); background: color-mix(in srgb, var(--MI_THEME-accent) 4%, var(--MI_THEME-panel)); }
-.medal { flex-shrink: 0; }
-.milestoneBody { min-width: 0; flex: 1; }
-.milestone h3 { font-size: .9em; margin: 0; }
-.milestone p { font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); margin: 6px 0 10px; line-height: 1.5; }
-.milestone progress { margin-bottom: 8px; }
-.progress, .earned { font-size: .85em; color: var(--MI_THEME-fgTransparentWeak); }
-.earned { color: var(--MI_THEME-accent); }
-@container (max-width: 760px) {
-	.dashboard { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-	.actionColumn { grid-row: 1; gap: 16px; padding-top: 0; }
-	.checkin { min-height: 48px; padding: 12px 16px; }}
+
+@media (prefers-reduced-motion: reduce) {
+	.monthButton,
+	.day,
+	.checkin,
+	.exchange,
+	.spin {
+		transition: none;
+		animation: none;
+	}
+}
+
+@container (max-width: 800px) {
+	.milestones {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@container (max-width: 600px) {
+	.todayPanel {
+		gap: 18px;
+		padding: 20px;
+	}
+
+	.todayHeader h2 {
+		font-size: 1.2em;
+	}
+
+	.checkin {
+		width: 150px;
+	}
+
+	.calendarColumn,
+	.walletPanel {
+		padding: 20px;
+	}
+
+	.stats > div {
+		padding-inline: 12px;
+	}
+
+	.stats dt > i {
+		display: none;
+	}
+
+	.walletSummary {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 18px;
+	}
+
+	.progressSection {
+		grid-column: 1 / -1;
+	}
+}
+
 @container (max-width: 480px) {
-	.stats { gap: 6px; }
-	.stats dd { font-size: 1.4em; }
-	.monthNav { gap: 8px; }
-	.monthNav h2 { font-size: 1.1em; }
-	.cardCount { font-size: .85em; }
-	.calendar { gap: 4px; }
-	.day { min-height: 68px; padding: 3px; }
-	.daySelect { padding: 3px 0; gap: 6px; }
-	.dayNumber { font-size: 1.1em; }
-	.stateIcon { font-size: .7em; }
-	.dayStatus { font-size: .7em; }
-	.dayAction, .cardReward, .dayReward { font-size: .75em; }
-	.calendarLegend { gap: 8px 12px; }
+	.todayPanel {
+		gap: 12px;
+		padding: 18px;
+	}
+
+	.todayPanel > div {
+		min-width: 0;
+	}
+
+	.todayHeader {
+		gap: 4px 8px;
+	}
+
+	.todayHeader h2 {
+		font-size: 1.1em;
+	}
+
+	.checkin {
+		width: 128px;
+		font-size: .85em;
+	}
+
+	.calendarColumn,
+	.walletPanel,
+	.achievements {
+		padding: 20px 18px;
+	}
+
+	.monthTitle h2 {
+		font-size: 1.3em;
+	}
+
+	.monthControls {
+		gap: 5px;
+	}
+
+	.monthButton {
+		width: 32px;
+		height: 32px;
+	}
+
+	.calendar {
+		gap: 5px;
+	}
+
+	.daySelect {
+		padding: 6px 5px 0;
+	}
+
+	.cardReward > i {
+		display: none;
+	}
+
+	.cardReward {
+		padding-inline: 0;
+	}
+
+	.dayReward,
+	.cardReward,
+	.dayStatus,
+	.dayAction {
+		max-width: calc(100% - 8px);
+		margin-inline: 4px;
+		font-size: .65em;
+	}
+
+	.stats {
+		gap: 8px;
+		margin-top: 14px;
+	}
+
+	.stats > div {
+		flex-direction: column-reverse;
+		padding: 12px 6px;
+	}
+
+	.stats dt {
+		font-size: .72em;
+	}
+
+	.stats dd {
+		font-size: 1.65em;
+	}
+
+	.exchangePanel {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 12px;
+	}
+
+	.exchange {
+		width: 100%;
+	}
+
+	.milestones {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 14px;
+	}
 }
-@media (max-width: 600px) {
-	.milestones { grid-template-columns: minmax(0, 1fr); }
-}
-@container (max-width: 360px) {
-	.day { padding-inline: 2px; }
-	.dayNumber { font-size: .95em; }
-	.stateIcon { font-size: .6em; }
-	.dayStatus { font-size: .65em; }
-	.rewardLabel { display: none; }
+
+@container (max-width: 340px) {
+	.calendarColumn,
+	.walletPanel {
+		padding-inline: 14px;
+	}
+
+	.todayPanel {
+		padding: 16px;
+	}
+
+	.todayHeader h2 {
+		font-size: 1em;
+	}
+
+	.dayTop {
+		min-width: 18px;
+	}
+
+	.weekday {
+		font-size: .72em;
+	}
+
+	.stats dt {
+		font-size: .68em;
+	}
 }
 </style>

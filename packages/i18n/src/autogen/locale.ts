@@ -20710,7 +20710,27 @@ export interface Locale extends ILocale {
          */
         "exchangeCard": string;
         /**
-         * 可用 {cost} 积分兑换 1 张补签卡，每自然月最多兑换 1 张。
+         * {n} 张补签卡
+         */
+        "exchangeItem": ParameterizedString<"n">;
+        /**
+         * 每月限兑 1 张
+         */
+        "exchangeMonthlyHint": string;
+        /**
+         * 所需积分
+         */
+        "exchangeCostLabel": string;
+        /**
+         * 当前积分 {points}
+         */
+        "exchangeBalance": ParameterizedString<"points">;
+        /**
+         * 还差 {points} 积分
+         */
+        "exchangeInsufficient": ParameterizedString<"points">;
+        /**
+         * 每月限兑 1 张，每张 {cost} 积分。
          */
         "exchangeCost": ParameterizedString<"cost">;
         /**

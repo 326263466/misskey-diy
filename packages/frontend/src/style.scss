@@ -21,7 +21,7 @@
 
 :root {
 	--MI-radius: 6px;
-	--MI-cardRadius: var(--MI-radius);
+	--MI-cardRadius: 6px;
 	// 需要突出圆角的弹窗（交易凭证等）用这个，避免硬编码像素。
 	--MI-dialogRadius: 16px;
 	--MI-cardPadding: 18px;
